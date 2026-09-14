@@ -18,3 +18,55 @@
 # rewritten without a force-push (denied by repo policy, see
 # .claude/settings.local.json).
 8187bc5e61660ff26aef905e7c92b2e74b6070db:scripts/n1-consent-fixtures.rb:generic-api-key:34
+
+# ---------------------------------------------------------------------------
+# The three entries below are a DIFFERENT category from the one above, and the
+# difference matters. The entry above was a real (if inert) hardcoded password
+# that was fixed forward in the same PR. These three were never credentials at
+# all -- they are rule false positives -- so there is nothing to fix forward,
+# and the "fixed forward" half of the admission standard does not apply. They
+# still meet the part that does: none is a live credential.
+#
+# Surfaced by PR #938. That PR records `staging` as an ancestor of `develop`
+# and introduces no content, but it puts 1,366 staging commits into develop's
+# ancestry, so the range scan covers them for the first time. Each finding was
+# reproduced locally with gitleaks 8.30.1 and read at its source line before
+# being listed here.
+#
+# Why they passed CI when they landed: the job could not fail. Through both
+# source commits it carried `continue-on-error: true` AND ended its scan with
+# `|| true`. PR #391 (1b180d90c5) removed both and made it blocking. That is the
+# whole explanation, and rule drift is not claimed as part of it: 8.30.1 flags
+# all three and is what 8c2854977 actually ran, since that commit floated to
+# latest, but 9f702ae25 pinned 8.21.2, and whether 8.21.2 flagged it is untested.
+
+# A fenced curl example showing that an OLD Stripe key returns 401 after
+# rotation. The flagged value is the doc's own uppercase placeholder standing in
+# for the retired key -- the string a reader replaces, never a key. Passed to
+# curl's basic-auth flag, which is what the curl-auth-user rule keys on. Still
+# present at HEAD on the same line. (Paraphrased, per the note below.)
+9f702ae2548076ff10d0190377e0078c9b03741f:docs/ROTATING_KEYS.md:curl-auth-user:152
+
+# Same file, rule, and line as the fingerprint above. That entry is pinned to
+# a staging-history commit, so a develop-into-staging range scan never sees
+# it. This second fingerprint covers the develop-only commit that first
+# brought the file onto develop (9aa0007c, Fast-forward develop to
+# landing-page beta, #625). Surfaced by release PR #952. Reproduced locally
+# with gitleaks 8.30.1; the line still matches HEAD. Do not quote the
+# placeholder here.
+9aa0007c069885313e6d8fb6cb58aeeaf57e0311:docs/ROTATING_KEYS.md:curl-auth-user:152
+
+# Both flagged lines are token EXPIRY assignments, not token values: an
+# attribute ending in "_token_expires_at" set to a relative timestamp (14 days
+# in the model at line 43, 7 in the spec). The generic-api-key rule keys off the
+# assignment shape alone -- an identifier containing "token" followed by a value
+# it scores as high-entropy -- so the timestamp literal is what trips it. There
+# is no secret on either line. The nonce call one line above the model entry is
+# neither flagged nor suppressed here.
+#
+# Deliberately paraphrased rather than quoted. An earlier revision of this
+# comment reproduced the spec line verbatim and gitleaks flagged the comment
+# itself, failing the check on the very commit meant to silence it. Describe
+# these shapes; do not write them out.
+8c285497713f3f7077596e538d73bcbc1d9ffbc6:app/models/supervisor_relationship.rb:generic-api-key:43
+8c285497713f3f7077596e538d73bcbc1d9ffbc6:spec/models/supervisor_relationship_spec.rb:generic-api-key:216

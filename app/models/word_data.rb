@@ -851,27 +851,36 @@ class WordData < ApplicationRecord
     res
   end
   
+  # Translation NEVER mints a new dictionary row from the text it was handed.
+  #
+  # word_data is a global table: it has no user_id and no organization_id and is
+  # unique on (word, locale), so any row created here is visible to every
+  # account through find_word_record, is served back to them as an
+  # origins:'cache' hit, and is not swept by Flusher on erasure (no ownership
+  # predicate exists to sweep by). The text reaching this method is board button
+  # labels, which are user-authored free text and can carry a child's, family
+  # member's, teacher's, or school name. Creating rows from that leaked it
+  # across accounts and survived account deletion. See LL-06d36ffeeb.
+  #
+  # We still ENRICH words the curated dictionary already knows: a seeded word
+  # gains its translations exactly as before, in both directions. We only stop
+  # creating rows for strings the dictionary has never heard of, which is
+  # precisely the set that is free-typed and personal. The cost is that an
+  # unknown string is re-translated rather than cached; that is deliberate,
+  # because caching it is the defect.
   def self.persist_translation(text, translation, source_lang, dest_lang, type)
-    # record the translations on the source word
+    # record the translations on the source word, if it is a word we already know
     word = find_word_record(text, source_lang)
-    if !word && !text.match(/^[\+\:]/)
-      word ||= WordData.find_or_create_by(:word => text.downcase.strip, :locale => source_lang) rescue nil
-      word ||= WordData.find_or_create_by(:word => text.downcase.strip, :locale => source_lang)
-      word.data ||= {}
-      word.data['word'] ||= text.downcase.strip
-    end
     if word && word.data
       word.data['translations'] ||= {}
       word.data['translations'][dest_lang] ||= translation
       word.data['translations'][dest_lang.split(/-/)[0]] ||= translation
       word.save
     end
-    # record the reverse translation on the 
+    # record the reverse translation, again only onto a word we already know.
+    # The reverse direction matters just as much: it would otherwise store the
+    # TRANSLATED form of a personal label as its own global row.
     backwards_word = find_word_record(translation, dest_lang)
-    if !backwards_word && !translation.match(/^[\+\:]/)
-      backwards_word ||= WordData.find_or_create_by(:word => translation.downcase.strip, :locale => dest_lang)
-      backwards_word.data = {:word => translation.downcase.strip}
-    end
     if backwards_word && backwards_word.data
       backwards_word.data['translations'] ||= {}
       backwards_word.data['translations'][source_lang] ||= text

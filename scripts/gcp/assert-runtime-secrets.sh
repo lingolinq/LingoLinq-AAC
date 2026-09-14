@@ -57,22 +57,67 @@
 # no second list to keep in sync. Only the NAME (left of `=`) is used.
 set -euo pipefail
 
-PROJECT=''; REGION=''; SERVICE=''; WORKER_POOL=''; REQUIRED=''; REQUIRED_LITERAL=''
+PROJECT=''; REGION=''; SERVICE=''; WORKER_POOL=''
+REQUIRED_ITEMS=(); REQUIRED_LITERAL_ITEMS=()
+
+# ARRAYS, NOT A COMMA-JOINED STRING. Three defects in three review rounds all traced to
+# accumulating these into one comma-delimited string and re-splitting it later:
+#   * assigning instead of appending kept only the LAST flag (round 2);
+#   * an empty entry, or an entry with an empty NAME, vanished in the re-split and the
+#     assertion silently disappeared (round 4);
+#   * a comma is legal INSIDE an ERE -- `^(a|b){1,2}$` is a valid pattern -- so re-splitting
+#     tore one assertion into two. That produced a FALSE PASS: `FOO=^a,BAR` became "FOO
+#     matches ^a" plus "BAR is present", both of which can pass while the intended pattern
+#     rejects FOO (round 4).
+# An array holds each argument verbatim, so none of those are representable.
+#
+# --required still accepts a comma list inside ONE flag, because the workflow passes
+# "$BOOT_SECRETS,$NON_BOOT_SECRETS" through unmodified in gcloud's own --set-secrets form,
+# and a secret reference never contains a comma. --required-literal does NOT split: one
+# flag is exactly one assertion, which is the only way an ERE can be passed intact.
 while [ $# -gt 0 ]; do
   case "$1" in
     --project)     PROJECT="$2"; shift 2 ;;
     --region)      REGION="$2"; shift 2 ;;
     --service)     SERVICE="$2"; shift 2 ;;
     --worker-pool) WORKER_POOL="$2"; shift 2 ;;
-    --required)    REQUIRED="$2"; shift 2 ;;
-    --required-literal) REQUIRED_LITERAL="$2"; shift 2 ;;
+    --required)
+      [ -n "${2:-}" ] || { echo "assert-runtime-secrets: --required given an empty value" >&2; exit 2; }
+      while IFS= read -r _field; do REQUIRED_ITEMS+=("$_field"); done < <(printf '%s\n' "$2" | tr ',' '\n')
+      shift 2 ;;
+    --required-literal)
+      [ -n "${2:-}" ] || { echo "assert-runtime-secrets: --required-literal given an empty value" >&2; exit 2; }
+      REQUIRED_LITERAL_ITEMS+=("$2")
+      shift 2 ;;
     *) echo "assert-runtime-secrets: unknown argument '$1'" >&2; exit 2 ;;
+  esac
+done
+
+# Validate every entry BEFORE anything strips or matches. An empty entry, or one whose NAME
+# half is empty, is a caller mistake: silently dropping it is how an assertion the caller
+# believes it made never runs.
+for _item in ${REQUIRED_ITEMS[@]+"${REQUIRED_ITEMS[@]}"}; do
+  [ -n "$_item" ] || { echo "assert-runtime-secrets: --required has an empty entry" >&2; exit 2; }
+  case "$_item" in
+    =*) echo "assert-runtime-secrets: --required entry '$_item' has an empty env var name" >&2; exit 2 ;;
+  esac
+done
+for _item in ${REQUIRED_LITERAL_ITEMS[@]+"${REQUIRED_LITERAL_ITEMS[@]}"}; do
+  case "$_item" in
+    # No `=` at all is the deliberate present-and-non-empty form, handled at match time.
+    *=*)
+      [ -n "${_item%%=*}" ] || {
+        echo "assert-runtime-secrets: --required-literal entry '$_item' has an empty env var name" >&2; exit 2; }
+      [ -n "${_item#*=}" ] || {
+        echo "assert-runtime-secrets: --required-literal entry '$_item' has an EMPTY pattern. An empty ERE matches any non-empty value, which would silently reduce this assertion to a presence check. Write the pattern, or pass the bare name '${_item%%=*}' if presence is what you mean." >&2
+        exit 2; }
+      ;;
   esac
 done
 
 [ -n "$PROJECT" ] || { echo "assert-runtime-secrets: --project is required" >&2; exit 2; }
 [ -n "$REGION" ]  || { echo "assert-runtime-secrets: --region is required" >&2; exit 2; }
-[ -n "$REQUIRED$REQUIRED_LITERAL" ] || {
+[ "$(( ${#REQUIRED_ITEMS[@]} + ${#REQUIRED_LITERAL_ITEMS[@]} ))" -gt 0 ] || {
   echo "assert-runtime-secrets: one of --required / --required-literal is required" >&2; exit 2; }
 [ -n "$SERVICE$WORKER_POOL" ] || {
   echo "assert-runtime-secrets: at least one of --service / --worker-pool is required" >&2; exit 2; }
@@ -140,8 +185,11 @@ for c in containers:
 }
 
 # Only the env-var NAME matters; strip the =SECRET:version half of each --set-secrets pair.
-mapfile -t REQUIRED_NAMES < <(printf '%s' "$REQUIRED" | tr ',' '\n' | sed 's/=.*//' | sed '/^$/d' | sort -u)
-if [ -n "$REQUIRED" ] && [ "${#REQUIRED_NAMES[@]}" -eq 0 ]; then
+# Derived from the validated ARRAY, so an empty entry or an empty name cannot reach here --
+# both are rejected at parse time above rather than silently filtered out.
+mapfile -t REQUIRED_NAMES < <(
+  for _i in ${REQUIRED_ITEMS[@]+"${REQUIRED_ITEMS[@]}"}; do printf '%s\n' "${_i%%=*}"; done | sort -u)
+if [ "${#REQUIRED_ITEMS[@]}" -gt 0 ] && [ "${#REQUIRED_NAMES[@]}" -eq 0 ]; then
   echo "assert-runtime-secrets: --required parsed to zero names" >&2; exit 2
 fi
 
@@ -159,10 +207,8 @@ fi
 # Reading these values is safe and deliberate: a literal env var on a revision is
 # not secret material, and this still needs only `run.revisions.get`. Values from
 # secretKeyRef entries are never read -- env_entries emits an empty value for them.
-mapfile -t REQUIRED_LITERAL_PAIRS < <(printf '%s' "$REQUIRED_LITERAL" | tr ',' '\n' | sed '/^$/d')
-if [ -n "$REQUIRED_LITERAL" ] && [ "${#REQUIRED_LITERAL_PAIRS[@]}" -eq 0 ]; then
-  echo "assert-runtime-secrets: --required-literal parsed to zero entries" >&2; exit 2
-fi
+# Verbatim, one element per flag. NOT re-split on commas: a comma is legal inside an ERE.
+REQUIRED_LITERAL_PAIRS=(${REQUIRED_LITERAL_ITEMS[@]+"${REQUIRED_LITERAL_ITEMS[@]}"})
 
 failed=0
 
@@ -220,8 +266,13 @@ assert_literal_env() {
   for pair in "${REQUIRED_LITERAL_PAIRS[@]}"; do
     name="${pair%%=*}"
     pattern="${pair#*=}"
-    # A bare NAME with no `=` means presence-only. Written as an `if` rather than
-    # `test && assign` because under `set -e` a failing `a && b` statement aborts.
+    # A bare NAME with no `=` means PRESENT AND NON-EMPTY, not bare presence: the default
+    # pattern below is `.`, which requires at least one character, so a var deployed as the
+    # empty string FAILS. That is deliberate and is what callers want (an empty value is how
+    # a blank CI variable manifests), but it is not what the word "presence" implies on its
+    # own, so the mode is named for what it actually checks.
+    # Written as an `if` rather than `test && assign` because under `set -e` a failing
+    # `a && b` statement aborts.
     if [ "$pattern" = "$pair" ]; then pattern='.'; fi
 
     row="$(printf '%s\n' "$entries" | awk -F'\t' -v w="$name" '$1 == w {print; exit}')"
@@ -246,6 +297,34 @@ assert_literal_env() {
   return 0
 }
 
+# Read one describe into $READ_JSON, converting a gcloud failure into a FAILED ASSERTION
+# rather than an abort.
+#
+# WHY THIS IS NOT A PLAIN ASSIGNMENT. `json="$(gcloud ...)"` under `set -e` aborts the whole
+# script the moment gcloud exits non-zero, and it aborts BEFORE the "could not read live
+# configuration" guard in assert_env_json can run -- that guard is only reachable when gcloud
+# exits 0 with empty stdout. The script then exits with gcloud's OWN code (proven: a stub
+# exiting 9 produced rc=9 and no diagnostic), so a transient token refresh, an API 500 or a
+# network blip becomes an undiagnosable red deploy in the worst possible window: the LAST step,
+# after traffic has already shifted. A raw gcloud exit 2 would additionally masquerade as this
+# script's documented usage-error code.
+#
+# Same class as the REMOTE_EXTRA_DATA over-pin: a benign external condition must not turn a
+# healthy deploy red. Stderr is kept and surfaced, and the exit is this script's own 1.
+READ_JSON=""
+read_revision_json() {
+  local label="$1"; shift
+  local err rc=0
+  err="$(mktemp)"
+  READ_JSON="$("$@" 2>"$err")" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "FAIL [$label] could not read live configuration (gcloud exit $rc): $(tr '\n' ' ' < "$err" | cut -c1-300)" >&2
+    rm -f "$err"; failed=1; READ_JSON=""; return 1
+  fi
+  rm -f "$err"
+  return 0
+}
+
 check_target() {
   local kind="$1" name="$2" json rev
   if [ "$kind" = service ]; then
@@ -257,13 +336,16 @@ check_target() {
     fi
     for rev in "${revs[@]}"; do
       echo "== $name (serving revision: $rev)"
-      json="$(gcloud run revisions describe "$rev" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null)"
-      assert_env_json "$name/$rev" "$json"
+      read_revision_json "$name/$rev" gcloud run revisions describe "$rev" \
+        --project="$PROJECT" --region="$REGION" --format=json || continue
+      assert_env_json "$name/$rev" "$READ_JSON"
     done
   else
     echo "== $name (worker pool)"
-    json="$(gcloud beta run worker-pools describe "$name" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null)"
-    assert_env_json "$name" "$json"
+    if read_revision_json "$name" gcloud beta run worker-pools describe "$name" \
+         --project="$PROJECT" --region="$REGION" --format=json; then
+      assert_env_json "$name" "$READ_JSON"
+    fi
   fi
 }
 

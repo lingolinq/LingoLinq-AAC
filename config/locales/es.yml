@@ -33,3 +33,28 @@ es:
       privacy_intro: "Este aviso cubre únicamente la transparencia sobre IA. Para todo lo demás que LingoLinq recopila y cómo se protege, lea la"
       privacy_link_text: "Política de privacidad de LingoLinq"
       version_footer: "Versión del aviso %{version}, vigente desde %{effective_date}."
+  # SMS recipient opt-in page. Required here because that page is served
+  # unauthenticated (no Ember locale pack). Do not treat this file as a complete
+  # Spanish translation of the app.
+  sms_consent:
+    page_title: "Consentimiento para mensajes de texto"
+    heading: "Aceptar recibir mensajes de texto"
+    who_is_asking: "%{name} quiere enviarle mensajes de texto desde su dispositivo de comunicación."
+    frequency: "Puede recibir un mensaje cada vez que esta persona comparta algo con usted. La frecuencia depende de cómo use el dispositivo."
+    rates: "Pueden aplicarse tarifas de mensajes y datos."
+    stop_help: "Responda STOP para cancelar, HELP para obtener ayuda."
+    legal_links_intro: "Al aceptar, confirma que ha leído los"
+    terms_link: "Términos de servicio"
+    legal_links_and: "y la"
+    privacy_link: "Política de privacidad"
+    phone_label: "Confirme su número de celular"
+    agree_label: "Acepto recibir mensajes de texto desde el dispositivo de comunicación LingoLinq de esta persona."
+    submit: "Aceptar y guardar"
+    thanks_title: "Consentimiento registrado"
+    thanks_body: "Puede responder STOP en cualquier momento para cancelar, o HELP para obtener ayuda."
+    invalid_title: "Enlace no válido o vencido"
+    invalid_body: "Este enlace de consentimiento ya no es válido. Pida a la persona que se lo envió que comparta uno nuevo."
+    error_must_agree: "Marque la casilla de acuerdo para continuar."
+    error_missing_phone: "Ingrese su número de celular para continuar."
+    version_footer: "Versión de la divulgación %{version}."
+    home_link: "Inicio de %{app_name}"

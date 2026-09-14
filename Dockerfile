@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build Ember Frontend
-FROM node:22-bullseye AS frontend-builder
+# Bookworm, not bullseye: Debian 11 LTS ended 2026-08-31, so
+# deb.debian.org/debian-security/dists/bullseye-security/InRelease is no
+# longer refreshed and `apt-get update` fails with "Release file ... is
+# expired". node:22-bookworm is the current official Debian variant.
+FROM node:22-bookworm AS frontend-builder
 WORKDIR /app/frontend
 # Install build dependencies for native modules (like sqlite3)
 RUN apt-get update -qq && apt-get install -y \

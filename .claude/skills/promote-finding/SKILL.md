@@ -71,7 +71,7 @@ flags it `regression: true` for your review and Scot's decision (it is NOT reope
 For each finding to promote, capture the exact `file`, `line`, and a verbatim `snippet` from the
 code AT a real commit SHA. The sha must be reachable in the local git repo so
 `git show <sha>:<file>` works, AND it must stay reachable when citation-check later runs in CI.
-**Prefer the post-merge `staging` sha** for durability; a PR-branch head sha works at promotion
+**Prefer the post-merge `develop` sha** for durability (`develop` is the settled base; it was `staging` before 2026-09-04); a PR-branch head sha works at promotion
 time but can be orphaned by a later rebase/force-push or branch deletion, which would redden
 citation-check. The `snippet` must be a SINGLE source line (citation-check matches per line; a
 multi-line snippet is refused). Write a JSON file:

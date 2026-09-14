@@ -113,8 +113,7 @@ describe Api::SoundsController, :type => :controller do
       token_user
       s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
-      res = OpenStruct.new(:success? => false)
-      expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + s.full_filename).and_return(false)
       get :upload_success, params: {:sound_id => s.global_id, :confirmation => s.confirmation_key}
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
@@ -125,14 +124,53 @@ describe Api::SoundsController, :type => :controller do
       token_user
       s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
-      res = OpenStruct.new(:success? => true)
-      expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + s.full_filename).and_return(true)
       get :upload_success, params: {:sound_id => s.global_id, :confirmation => s.confirmation_key}
       json = JSON.parse(response.body)
       expect(response).to be_successful
       expect(s.reload.url).not_to eq(nil)
       expect(s.settings['pending']).to eq(false)
       expect(json).to eq({'confirmed' => true, 'url' => s.url})
+    end
+
+    # Prod Block Public Access makes unsigned HEAD 403 even after a successful
+    # SigV4 POST. Confirmation must use Uploader.remote_upload_exists?
+    # (authenticated head_object), not Typhoeus.head of the raw bucket URL
+    # (app/controllers/concerns/remote_uploader.rb).
+    it "should confirm when authenticated head finds the object even if the public HEAD fails" do
+      token_user
+      s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
+      config = Uploader.remote_upload_config
+      url = config[:upload_url] + s.full_filename
+      allow(Typhoeus).to receive(:head).with(url).and_return(OpenStruct.new(:success? => false))
+      expect(Uploader).to receive(:remote_upload_exists?).with(url).and_return(true)
+      get :upload_success, params: {:sound_id => s.global_id, :confirmation => s.confirmation_key}
+      json = JSON.parse(response.body)
+      expect(response).to be_successful
+      expect(s.reload.url).to eq(url)
+      expect(s.settings['pending']).to eq(false)
+      expect(json).to eq({'confirmed' => true, 'url' => url})
+    end
+
+    # Ember sets sound.url from this JSON (content-grabbers.js) and Button
+    # Settings plays <audio src={{model.sound.url}}> (button-settings.hbs).
+    # JsonApi::Sound already returns best_url (lib/json_api/sound.rb:11), which
+    # is why a hard refresh plays; confirm must return the same playback URL
+    # (Uploader.fronted_url, lib/uploader.rb:398) while storing the canonical
+    # bucket URL on the record.
+    it "should return the CDN playback URL without changing the stored bucket URL" do
+      token_user
+      s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
+      config = Uploader.remote_upload_config
+      canonical = config[:upload_url] + s.full_filename
+      cdn = 'https://cdn.example.net/' + s.full_filename
+      expect(Uploader).to receive(:remote_upload_exists?).with(canonical).and_return(true)
+      expect(Uploader).to receive(:fronted_url).with(canonical).and_return(cdn)
+      get :upload_success, params: {:sound_id => s.global_id, :confirmation => s.confirmation_key}
+      json = JSON.parse(response.body)
+      expect(response).to be_successful
+      expect(s.reload.url).to eq(canonical)
+      expect(json).to eq({'confirmed' => true, 'url' => cdn})
     end
   end
   

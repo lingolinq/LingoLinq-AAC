@@ -629,8 +629,10 @@ var utterance = EmberObject.extend({
       if(prior_rendered) { prior_text = prior_rendered.vocalization || prior_rendered.label || prior_text; }
       var do_capitalize = false;
       if(!prior_text) {
-        do_capitalize = true;
-      } else if(appState.get('shift')) {
+        // caps_lock must force the first letter too; shift stays one-shot and
+        // still goes through auto_capitalize when the utterance is empty.
+        do_capitalize = appState.get('caps_lock') ? 'force' : true;
+      } else if(appState.get('shift') || appState.get('caps_lock')) {
         do_capitalize = 'force';
       } else if(b.vocalization == ':complete' && utterance.capitalize(prior_text) == prior_text) {
         do_capitalize = 'force';

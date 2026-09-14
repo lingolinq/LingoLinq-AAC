@@ -105,7 +105,15 @@ module FeatureFlags
               # registration / EuJurisdiction / coppa_consent_age stay identical to
               # today. Add to ENABLED_FRONTEND_FEATURES to persist settings.compliance
               # and expose Compliance::Profile in user JSON / domain_settings.
-              'compliance_workflow_kernel']
+              'compliance_workflow_kernel',
+              # Recipient SMS opt-in page (TCPA/CTIA). AVAILABLE-only => OFF by
+              # default. The public page and invite minting check
+              # FeatureFlags.sms_recipient_consent_enabled?(communicator), which
+              # follows frontend_flags_for (beta opt-in / system settings), not a
+              # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
+              # ENABLED until rollout. The recipient has no account; the
+              # communicator's flag gates their invite links.
+              'sms_recipient_consent']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -263,6 +271,13 @@ module FeatureFlags
   # omit the compliance profile blob.
   def self.compliance_workflow_kernel_enabled?
     ENABLED_FRONTEND_FEATURES.include?('compliance_workflow_kernel')
+  end
+
+  # Recipient SMS consent page and invite minting. AVAILABLE-only; ON when the
+  # communicator's frontend flags include it (beta opt-in or system settings).
+  def self.sms_recipient_consent_enabled?(user)
+    return false unless user
+    !!frontend_flags_for(user)['sms_recipient_consent']
   end
 
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.

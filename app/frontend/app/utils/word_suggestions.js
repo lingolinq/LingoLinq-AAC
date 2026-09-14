@@ -431,7 +431,7 @@ var word_suggestions = EmberObject.extend({
     var _this = this;
     return this.load().then(function() {
       var appState = word_suggestions.get_app_state();
-      var last_shift = appState.get('shift');
+      var last_shift = appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock');
       var locale = options.locale || (appState && appState.get && appState.get('label_locale')) || 'en';
       var locale_root = locale.split(/-|_/)[0];
       var use_english_corpus = locale_root === 'en';
@@ -484,7 +484,7 @@ var word_suggestions = EmberObject.extend({
         }
       }
 
-      var do_cap = appState.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
+      var do_cap = appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
       if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic || _this.last_locale != locale) {
         _this.last_finished_word = last_finished_word;
         _this.last_shift = last_shift;

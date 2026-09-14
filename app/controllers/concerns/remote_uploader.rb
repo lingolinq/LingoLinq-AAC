@@ -10,8 +10,9 @@ module RemoteUploader
     if record && record.confirmation_key == params['confirmation']
       config = Uploader.remote_upload_config
       url = config[:upload_url] + record.full_filename
-      res = Typhoeus.head(url)
-      if res.success?
+      # IAM head_object (lib/uploader.rb:537). Unsigned Typhoeus.head of this
+      # URL 403s when the uploads bucket blocks public access.
+      if Uploader.remote_upload_exists?(url)
         unless !record.is_a?(ButtonImage) || record.verify_stored_s3_upload!(url)
           render json: {confirmed: false, message: "Upload rejected"}.to_json, status: 400
           return
@@ -21,7 +22,10 @@ module RemoteUploader
         record.settings['data_uri'] = nil
         record.data = nil if record.respond_to?(:data=)
         record.save
-        render json: {confirmed: true, url: url}.to_json
+        # Ember sets sound.url from this JSON (content-grabbers.js) and
+        # <audio src> plays it (button-settings.hbs). JsonApi::Sound already
+        # returns best_url (lib/json_api/sound.rb:11 -> uploadable.rb:40).
+        render json: {confirmed: true, url: Uploader.fronted_url(url)}.to_json
       else
         render json: {confirmed: false, message: "File not found"}.to_json, status: 400
       end

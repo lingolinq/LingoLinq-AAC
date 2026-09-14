@@ -23,7 +23,12 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
   the quarterly unified report. Schedule early in the weekly Pro/Max plan window (heavy parallel
   Opus consumes weekly caps).
 - **Monthly light:** run steps 0-5 ONLY, with the **diff since the last run** as the finder
-  scope (pass each finder the `git diff --stat origin/staging...HEAD` paths below). No quarterly
+  scope. "Last run" is the register's own `meta.auditedSha`, NOT a base branch: an audit is run
+  ON the base (`develop`), so `origin/develop...HEAD` resolves to ZERO files and would silently
+  hand every finder an empty scope. Use a two-dot tree comparison against the recorded SHA:
+  `git diff --stat $(jq -r '.meta.auditedSha' audit-reports/FINDINGS.json) HEAD`. Two dots, not
+  three -- three uses the merge-base, which is wrong whenever the audited SHA is not an ancestor
+  of HEAD. No quarterly
   report render unless something material surfaces. This catches regressions between heavy runs
   without burning plan-cap headroom.
   - **Exception - `accessibility-auditor` never runs diff-only.** Static a11y on a diff is
@@ -49,7 +54,7 @@ green; only Scot closes, downgrades, or accepts risk.
 - Audited commit:  !`git rev-parse HEAD`
 - Audited ref:     !`git rev-parse --abbrev-ref HEAD`
 - Working tree clean?  !`git status --porcelain | head -1 | grep -q . && echo "DIRTY (commit or note before auditing)" || echo "clean"`
-- Diff vs staging:  !`git diff --stat origin/staging...HEAD 2>/dev/null | tail -20`
+- Diff since last audited SHA:  !`SHA=$(jq -r '.meta.auditedSha' audit-reports/FINDINGS.json 2>/dev/null); git diff --stat "$SHA" HEAD 2>/dev/null | tail -20`
 
 Record this SHA as `auditedSha` for the whole run. Every finding's `evidence.sha` must be this
 SHA so `scripts/citation-check.rb` can validate snippets against the exact tree audited.

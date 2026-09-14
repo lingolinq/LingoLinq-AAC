@@ -1,0 +1,45 @@
+<% content_for :page_title, t('sms_consent.page_title') %>
+<div class="box">
+  <% app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
+  <% if @page_state == :thanks %>
+    <h1><%= t('sms_consent.thanks_title') %></h1>
+    <p><%= t('sms_consent.thanks_body') %></p>
+  <% elsif @page_state == :invalid %>
+    <h1><%= t('sms_consent.invalid_title') %></h1>
+    <p><%= t('sms_consent.invalid_body') %></p>
+  <% else %>
+    <h1><%= t('sms_consent.heading') %></h1>
+    <p><%= t('sms_consent.who_is_asking', name: @communicator_name) %></p>
+    <p><%= t('sms_consent.frequency') %></p>
+    <p><%= t('sms_consent.rates') %></p>
+    <p><%= t('sms_consent.stop_help') %></p>
+    <p>
+      <%= t('sms_consent.legal_links_intro') %>
+      <a href="/terms"><%= t('sms_consent.terms_link') %></a>
+      <%= t('sms_consent.legal_links_and') %>
+      <a href="/privacy"><%= t('sms_consent.privacy_link') %></a>.
+    </p>
+    <%= form_tag sms_consent_path(token: @invite.token), method: :post do %>
+      <% if @error == 'must_agree' %>
+        <p role="alert"><%= t('sms_consent.error_must_agree') %></p>
+      <% elsif @error == 'missing_phone' %>
+        <p role="alert"><%= t('sms_consent.error_missing_phone') %></p>
+      <% end %>
+      <p>
+        <label for="sms_consent_phone"><%= t('sms_consent.phone_label') %></label>
+        <input id="sms_consent_phone" type="tel" name="phone" autocomplete="tel" value="<%= params['phone'] %>" required>
+      </p>
+      <p>
+        <label for="sms_consent_agree">
+          <input id="sms_consent_agree" type="checkbox" name="agree" value="1" <%= 'checked' if params['agree'] == '1' %>>
+          <%= t('sms_consent.agree_label') %>
+        </label>
+      </p>
+      <p>
+        <button type="submit"><%= t('sms_consent.submit') %></button>
+      </p>
+    <% end %>
+    <p><%= t('sms_consent.version_footer', version: @disclosure_version) %></p>
+  <% end %>
+  <p><a href="/"><%= t('sms_consent.home_link', app_name: app_name) %></a></p>
+</div>

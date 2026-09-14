@@ -648,6 +648,165 @@ describe Utterance, :type => :model do
     end
   end
 
+  describe "deliver_message SMS consent guard" do
+    def enable_sms_consent_flag!(user)
+      user.settings ||= {}
+      user.settings['feature_flags'] = {'sms_recipient_consent' => true}
+      user.save
+      user
+    end
+
+    env_wrap({
+      'SMS_ORIGINATORS' => "+45558675309,+79876543,+45551234567,+3719875278,+9416751",
+      'SMS_ENCRYPTION_KEY' => "abcdefg"
+    }) do
+      before do
+        allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png')
+        allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(FeatureFlags::AVAILABLE_FRONTEND_FEATURES)
+      end
+
+      it "still sends without a consent row when the communicator flag is off" do
+        u = User.create
+        Device.create(user: u)
+        u.settings['contacts'] = [
+          {
+            'hash' => '48toytn4ta84ty',
+            'contact_type' => 'sms',
+            'cell_phone' => '98765',
+            'name' => 'Mom'
+          }
+        ]
+        u.save
+        utterance = Utterance.create(user: u, data: {'button_list' => [{'label' => 'whatevs'}]})
+        utterance.share_with({'user_id' => "#{u.global_id}x48toytn4ta84ty"}, u)
+        Worker.process_queues
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '98765', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A"}
+        )
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '98765', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A", nil)).to eq(true)
+      end
+
+      it "blocks deliver_to / share_with when the flag is on and there is no consent row" do
+        u = enable_sms_consent_flag!(User.create)
+        Device.create(user: u)
+        u.settings['contacts'] = [
+          {
+            'hash' => '48toytn4ta84ty',
+            'contact_type' => 'sms',
+            'cell_phone' => '98765',
+            'name' => 'Mom'
+          }
+        ]
+        u.save
+        utterance = Utterance.create(user: u, data: {'button_list' => [{'label' => 'whatevs'}]})
+        targets_before = RemoteTarget.where(user_id: u.id).count
+        utterance.share_with({'user_id' => "#{u.global_id}x48toytn4ta84ty"}, u)
+        Worker.process_queues
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '98765', 'pushed' => false, 'reason' => 'no_consent'}
+        )
+        expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '98765', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A", nil)).to eq(false)
+        expect(RemoteTarget.where(user_id: u.id).count).to eq(targets_before)
+      end
+
+      it "blocks handle_notification utterance_shared when the flag is on and there is no consent row" do
+        communicator = enable_sms_consent_flag!(User.create)
+        recipient = User.create
+        recipient.settings['cell_phone'] = '5558675309'
+        recipient.settings['preferences'] ||= {}
+        recipient.settings['preferences']['share_notifications'] = 'text'
+        recipient.save
+        utterance = Utterance.create(user: communicator, data: {'button_list' => [{'label' => 'hello'}]})
+        targets_before = RemoteTarget.where(user_id: communicator.id).count
+        recipient.handle_notification('utterance_shared', utterance, {
+          'text' => 'hello',
+          'sharer' => {'user_id' => communicator.global_id}
+        })
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '5558675309', 'pushed' => false, 'reason' => 'no_consent'}
+        )
+        expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
+        sent_text = "from #{communicator.settings['name'] || communicator.user_name} - hello"
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675309', sent_text, nil)).to eq(false)
+        expect(RemoteTarget.where(user_id: communicator.id).count).to eq(targets_before)
+      end
+
+      it "blocks when the utterance author flag is on and ref_user is missing" do
+        author = enable_sms_consent_flag!(User.create)
+        recipient = User.create
+        recipient.settings['cell_phone'] = '5558675309'
+        utterance = Utterance.create(user: author, data: {'button_list' => [{'label' => 'howdy'}]})
+        targets_before = RemoteTarget.count
+        utterance.deliver_message('text', recipient, {'sharer' => {'name' => 'bob'}})
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '5558675309', 'pushed' => false, 'reason' => 'unknown_sender'}
+        )
+        expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675309', 'from bob - howdy', nil)).to eq(false)
+        expect(RemoteTarget.count).to eq(targets_before)
+      end
+
+      it "blocks handle_notification when the sharer cannot be resolved" do
+        communicator = enable_sms_consent_flag!(User.create)
+        recipient = User.create
+        recipient.settings['cell_phone'] = '5558675309'
+        recipient.settings['preferences'] ||= {}
+        recipient.settings['preferences']['share_notifications'] = 'text'
+        recipient.save
+        utterance = Utterance.create(user: communicator, data: {'button_list' => [{'label' => 'hello'}]})
+        targets_before = RemoteTarget.where(user_id: communicator.id).count
+        recipient.handle_notification('utterance_shared', utterance, {
+          'text' => 'hello',
+          'sharer' => {'user_id' => '1_missing_sharer'}
+        })
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '5558675309', 'pushed' => false, 'reason' => 'unknown_sender'}
+        )
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675309', 'from someone - hello', nil)).to eq(false)
+        expect(RemoteTarget.where(user_id: communicator.id).count).to eq(targets_before)
+      end
+
+      it "does not treat communicator A's grant as consent for communicator B on the same number" do
+        alice = enable_sms_consent_flag!(User.create)
+        bob = enable_sms_consent_flag!(User.create)
+        number = '5558675309'
+        SmsConsent.grant!(alice, number, ip: '203.0.113.10', disclosure_version: SmsConsent::DISCLOSURE_VERSION)
+
+        alice_utterance = Utterance.create(user: alice, data: {'button_list' => [{'label' => 'hi'}]})
+        bob_utterance = Utterance.create(user: bob, data: {'button_list' => [{'label' => 'hi'}]})
+
+        alice_utterance.deliver_message('text', nil, {
+          'sharer' => {'user_id' => alice.global_id},
+          'cell_phone' => number
+        }, alice)
+        bob_utterance.deliver_message('text', nil, {
+          'sharer' => {'user_id' => bob.global_id},
+          'cell_phone' => number
+        }, bob)
+
+        alice_utterance.reload
+        bob_utterance.reload
+        alice_text = "from #{alice.settings['name'] || alice.user_name} - hi"
+        bob_text = "from #{bob.settings['name'] || bob.user_name} - hi"
+        expect(alice_utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => number, 'pushed' => true, 'text' => alice_text}
+        )
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, number, alice_text, nil)).to eq(true)
+        expect(bob_utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => number, 'pushed' => false, 'reason' => 'no_consent'}
+        )
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, number, bob_text, nil)).to eq(false)
+        expect(RemoteTarget.where(user_id: bob.id).count).to eq(0)
+      end
+    end
+  end
+
   describe "from_alpha_code" do
     it 'should generate correct values' do
       expect(Utterance.from_alpha_code(nil)).to eq(nil)

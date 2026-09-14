@@ -335,12 +335,90 @@ WIF_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.reposit
 #   lingolinq-prod    -> refs/heads/main
 #   lingolinq-nonprod -> refs/heads/staging,refs/heads/develop
 # deploy-cloudrun.yml's `resolve` map must agree with these lists; change them together.
+# Remember whether the CALLER supplied this, before a default fills it in. The unknown-project
+# gate below must distinguish "operator passed a list" from "script chose the default".
+WIF_ALLOWED_REFS_EXPLICIT="${WIF_ALLOWED_REFS:-}"
 case "${WIF_ALLOWED_REFS:-}" in
   "") case "$PROJECT_ID" in
         lingolinq-prod)    WIF_ALLOWED_REFS="refs/heads/main" ;;
         lingolinq-nonprod) WIF_ALLOWED_REFS="refs/heads/staging,refs/heads/develop" ;;
         *) echo "ERROR: WIF_ALLOWED_REFS is not set and PROJECT_ID=$PROJECT_ID has no default. Refusing to write a WIF condition without a branch lock." >&2; exit 1 ;;
       esac ;;
+esac
+# Validate the list before it becomes a security control. Two failure shapes this catches:
+# a malformed entry (e.g. a stray space after a comma, which sed would quote INTO the literal and
+# silently narrow the lock to a ref that can never match), and a caller widening a KNOWN project's
+# lock via the environment. Without this the readback below compares the live value against the
+# same intended string it just wrote and prints "verified" either way -- a check that cannot fail.
+# Check the RAW string for whitespace FIRST. The per-entry loop below word-splits, which would
+# silently absorb a stray space (e.g. "a, b") before any entry check could see it, while the
+# renderer's `sed` would still quote that space INTO the literal and narrow the lock to a ref that
+# can never match. Caught by testing the validator against that exact input rather than assuming.
+case "$WIF_ALLOWED_REFS" in
+  *[[:space:]]*) echo "ERROR: WIF_ALLOWED_REFS ('$WIF_ALLOWED_REFS') contains whitespace; use a comma-separated list with no spaces." >&2; exit 1 ;;
+  *,,*|,*|*,) echo "ERROR: WIF_ALLOWED_REFS ('$WIF_ALLOWED_REFS') has an empty entry." >&2; exit 1 ;;
+esac
+for _ref in $(printf '%s' "$WIF_ALLOWED_REFS" | tr ',' ' '); do
+  case "$_ref" in
+    refs/heads/*) ;;
+    *) echo "ERROR: WIF_ALLOWED_REFS entry '$_ref' is not a refs/heads/* branch ref." >&2; exit 1 ;;
+  esac
+  printf '%s' "$_ref" | grep -qE '^refs/heads/[A-Za-z0-9._/-]+$' \
+    || { echo "ERROR: WIF_ALLOWED_REFS entry '$_ref' has illegal characters (or surrounding whitespace)." >&2; exit 1; }
+done
+# A known project may only use its own default unless the caller says explicitly that it means to
+# change a live security control. WIF_ALLOWED_REFS alone cannot widen prod to another branch.
+case "$PROJECT_ID" in
+  lingolinq-prod|lingolinq-nonprod)
+    case "$PROJECT_ID" in
+      lingolinq-prod)    _expected="refs/heads/main" ;;
+      lingolinq-nonprod) _expected="refs/heads/staging,refs/heads/develop" ;;
+    esac
+    if [ "$WIF_ALLOWED_REFS" != "$_expected" ] && [ "${CONFIRM_WIF_REF_CHANGE:-0}" != "1" ]; then
+      echo "ERROR: refusing to set WIF_ALLOWED_REFS='$WIF_ALLOWED_REFS' on $PROJECT_ID (expected '$_expected')." >&2
+      echo "  This is deploy-gate 3. Re-run with CONFIRM_WIF_REF_CHANGE=1 only if you intend to change it," >&2
+      echo "  and update deploy-cloudrun.yml's branch map in the same change." >&2
+      exit 1
+    fi ;;
+  *)
+    # UNKNOWN PROJECT. An earlier review round argued this needed no gate, on the grounds that
+    # an unknown project is a first-time bootstrap with no prior control to widen. That argument
+    # is WRONG and was withdrawn: this script RECONCILES an existing provider with update-oidc
+    # (see the describe/update branch below), so an unknown project id can perfectly well have a
+    # live provider whose branch lock this run would rewrite. The gate therefore keys on what
+    # actually matters -- whether a provider already exists -- not on whether the project is one
+    # of the two hard-coded names.
+    if [ -n "${WIF_ALLOWED_REFS_EXPLICIT:-}" ] && [ "${CONFIRM_WIF_REF_CHANGE:-0}" != "1" ]; then
+      # DISTINGUISH "no provider" FROM "could not tell". Discarding stderr and treating every
+      # non-zero exit as absent makes PERMISSION_DENIED, expired credentials, a disabled API and
+      # a network failure indistinguishable from NOT_FOUND -- so the gate silently does not fire
+      # and the run rewrites deploy-gate 3's branch lock unconfirmed. That is a fail-OPEN in a
+      # block whose whole purpose is to fail closed. Only NOT_FOUND means absent; anything else
+      # is an inconclusive probe and stops the run.
+      _wif_probe_err="$(mktemp)"
+      _wif_probe_rc=0
+      gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
+        --project "$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" \
+        >/dev/null 2>"$_wif_probe_err" || _wif_probe_rc=$?
+      if [ "$_wif_probe_rc" -eq 0 ]; then
+        echo "ERROR: refusing to set WIF_ALLOWED_REFS='$WIF_ALLOWED_REFS' on $PROJECT_ID." >&2
+        echo "  A workload-identity provider ALREADY EXISTS there, so this run would rewrite a live" >&2
+        echo "  branch lock rather than bootstrap a new one. Re-run with CONFIRM_WIF_REF_CHANGE=1" >&2
+        echo "  only if you intend to change it, and update deploy-cloudrun.yml's branch map in the" >&2
+        echo "  same change." >&2
+        rm -f "$_wif_probe_err"
+        exit 1
+      elif ! grep -qiE 'NOT_FOUND|was not found|does not exist' "$_wif_probe_err"; then
+        echo "ERROR: could not determine whether a workload-identity provider already exists on" >&2
+        echo "  $PROJECT_ID (gcloud exit $_wif_probe_rc). Refusing to set an explicit" >&2
+        echo "  WIF_ALLOWED_REFS on an INCONCLUSIVE probe, because a permission or credential" >&2
+        echo "  error would otherwise look identical to 'no provider' and silently skip this gate." >&2
+        echo "  gcloud said: $(tr '\n' ' ' < "$_wif_probe_err" | cut -c1-300)" >&2
+        rm -f "$_wif_probe_err"
+        exit 1
+      fi
+      rm -f "$_wif_probe_err"
+    fi ;;
 esac
 # Render the ref clause in the exact shape the live providers carry (verified 2026-09-03):
 # one ref  -> assertion.ref == 'X' && assertion.ref_type == 'branch'

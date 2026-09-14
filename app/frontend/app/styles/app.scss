@@ -328,7 +328,27 @@
 #within_ember .md-board-detail-sentence-bar *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 #within_ember .md-board-detail-header *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 #within_ember .md-board-detail-board-actions *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
-#within_ember .md-board-detail-board-actions__btn:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+#within_ember .md-board-detail-board-actions__btn:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+/* Classic home, Focused variant: the rail pane and every control on it are dark — see
+   "CLASSIC HOME — Focused variant: the rail" in _focused-view.scss. Without this entry the
+   global navy ring above measures 1.08:1 on the rail and 1.21:1 on a row, and `outline` is
+   forced to `none`, so a keyboard, switch-scanning or eye-gaze user would have NO focus
+   indicator at all. White at 0.85 measures 7.00-9.91 across those surfaces.
+   Scoped to the individual DARK surfaces, NOT to `.ch-page`: much of the panel still sits on
+   the light page ground, where a white ring is the invisible one. Each entry is added by the
+   unit that darkens that surface, and REMOVED when a surface is lightened again.
+   `.ch-rail` and `.ch-tabs` were listed here until 2026-09-14, when both were taken 75%
+   lighter: white measures 1.72:1 on the pane and 1.52:1 on the strip, while the global navy
+   ring measures 6.45 and 7.45. Leaving them listed would have removed focus indication from
+   the whole left panel. `.ch-card` carries `:not(.ch-card--intro)` for the same reason — the
+   "Let's Get Started" callout was lightened, its siblings were not.
+   Subtabs and the <=550px <select> have never been listed: their rings land on the page
+   ground, which is light, so navy stays correct for them at 10.86:1. Carries `#within_ember` and the
+   same `:not(...)` as every sibling here, per the note above — at (1,4,1) it outranks the
+   global rule's (1,2,0) rather than relying on source order. */
+body.ll-layout-focused #within_ember .ch-card:not(.ch-card--intro) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+body.ll-layout-focused #within_ember .ch-comm *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+body.ll-layout-focused #within_ember .ch-menu *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
   border-radius: 6px;
 }
@@ -8688,14 +8708,23 @@ body > .popover.bottom {
   text-align: center;
   white-space: nowrap;
   height: 55px;
-  /* Image-chip variant (eval word bar): the chips otherwise sit flush against
-     the header. Add top breathing room. border-box, so grow the height by the
-     same 16px to keep the 105px content row un-clipped. Scoped to .with_images
-     so the plain 55px row (which board sizing reserves via a hardcoded +55 in
-     controllers/board/index.js) is untouched. */
+  /* Image-chip variant (eval word bar). The 16px of top breathing room was removed
+     on 2026-09-03 (requested), and the height comes down with it: 121px was 105px of
+     content plus exactly that padding, on border-box, so keeping 121 would have moved
+     the gap from above the chips to below them rather than removing it. 105px is the
+     content row itself.
+
+     Only the CLASSIC board renders this element -- `<div id="word_suggestions"
+     class={{suggestion_class}}>` appears in templates/board/index.hbs:51 and
+     templates/user/board-alt/index.hbs:51 and nowhere else; the modern board's
+     `show_word_suggestions` branch builds different markup. So this is not shared.
+
+     Still scoped to .with_images so the plain 55px row (which board sizing reserves via
+     a hardcoded +55 in controllers/board/index.js:521) is untouched. Note that +55 does
+     NOT track this variant's height and did not track the old 121 either -- a
+     pre-existing mismatch, unchanged here. */
   &.with_images {
-    height: 121px;
-    padding-top: 16px;
+    height: 105px;
   }
 }
 #word_suggestions .suggestion {
@@ -80564,6 +80593,27 @@ span.md-board-detail-modeling-btn--paused:hover {
   outline-offset: -5px;
 }
 
+/* Caps lock on-state. Thicker than the resting outline so the cue is not
+   color-only (WCAG 1.4.1). Color is a saturated green so it reads against
+   the pale mint fill used on the default caps key. */
+.button.md-board-detail-symbol-card--caps-on,
+.button.md-board-detail-symbol-card--caps-on:hover,
+.button.md-board-detail-symbol-card--caps-on:focus,
+.button.md-board-detail-symbol-card--caps-on:focus-visible,
+.button.md-board-detail-symbol-card--caps-on:active {
+  --bd-button-text-transform: uppercase;
+  outline-color: #15803D;
+  outline-width: 5px;
+  outline-offset: -5px;
+  box-shadow:
+    inset 0 0 0 5px #15803D,
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba($la-navy, 0.10),
+    0 8px 24px rgba(27, 42, 65, 0.08),
+    0 20px 50px rgba($la-navy, 0.06);
+}
+
 /* "Soft borders" opt-in style — applied via .md-board-detail-grid--soft-borders
    on the grid root. PRESERVES the user's outline-width preference
    (--bd-button-border) entirely — only the card surface changes.
@@ -80674,6 +80724,22 @@ span.md-board-detail-modeling-btn--paused:hover {
     inset 0 0 24px rgba(0, 0, 0, 0.28),
     /* Inset top highlight unchanged at .22 — already subtle in dark. */
     inset 0 2px 6px rgba(255, 255, 255, 0.22);
+}
+/* Soft-borders replaces card box-shadow. Keep the caps-on inset ring
+   after that block so the on-state is not color-only (WCAG 1.4.1). */
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty),
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):hover,
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):focus,
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):focus-visible,
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):active {
+  outline-color: #15803D;
+  outline-width: 5px;
+  outline-offset: -5px;
+  box-shadow:
+    inset 0 0 0 5px #15803D,
+    0 4px 14px rgba($la-navy, 0.18),
+    0 10px 28px rgba($la-navy, 0.10),
+    0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .md-board-detail-symbol-card__image {
   flex: 1 1 auto;

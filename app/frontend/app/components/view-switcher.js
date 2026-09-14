@@ -88,11 +88,23 @@ export default Component.extend({
   // transitions to the counterpart route, and app-state's global_transition reacts
   // to leaving `user.board-detail.edit` by calling `toggle_edit_mode()`
   // (services/app-state.js:734), which runs `editManager.clear_history()` and
-  // abandons the session. Both deliberate exits from edit mode put
-  // `confirm-discard-changes` in front of that (controllers/user/board-detail.js:8797,
-  // :8806) — so offering the switch here would be a third exit with no prompt, and
-  // the user's unsaved button edits would go without a word. They can switch after
-  // leaving edit mode, which asks properly.
+  // abandons the session.
+  //
+  // The two deliberate exits — `exit_to_home_from_edit`
+  // (controllers/user/board-detail.js:8900) and `cancel_edit` (:8933) — each put
+  // `confirm-discard-changes` in front
+  // of that WHEN THERE IS SOMETHING TO LOSE. Both are gated on
+  // `edit_session_has_changes()` (:4391) and leave without asking on a clean session.
+  // Switching view would be a third exit that never asks, on a dirty one included, so
+  // unsaved button edits would go without a word. They can switch after leaving edit
+  // mode, which asks properly.
+  //
+  // Re-verified after merging #928 (2026-09-04), which rewrote both exits: it made the
+  // prompt conditional on `edit_session_has_changes()` and widened what counts as a
+  // change to include display preferences. That WIDENS the set of states this guard
+  // protects; the guard itself was not affected, and #928 touched neither this file nor
+  // services/app-state.js. An earlier version of this comment claimed both exits always
+  // prompt, which #928 made false, and cited :8797/:8806, which the rewrite moved.
   available: computed('appState.currentUser', 'appState.speak_mode', 'appState.edit_mode', function() {
     return !!this.appState.get('currentUser') &&
            !this.appState.get('speak_mode') &&
@@ -103,9 +115,41 @@ export default Component.extend({
     return is_classic(this.appState.get('currentUser'));
   }),
 
+  // The SECONDARY axis: Gentle vs Focused, which overlays whichever primary style
+  // (Classic or Card) the user is on. Reads `sessionUser`, NOT `currentUser`, because
+  // `sync_layout_scope` (services/app-state.js:4789) observes
+  // `sessionUser.preferences.dashboard_layout` and is what puts `body.ll-layout-focused`
+  // on the page. Reading anywhere else would let the menu label disagree with the class
+  // actually applied.
+  isFocused: computed('appState.sessionUser.preferences.dashboard_layout', function() {
+    return this.appState.get('sessionUser.preferences.dashboard_layout') === 'focused';
+  }),
+
   actions: {
     toggleMenu: function() {
       this.toggleProperty('menu_open');
+    },
+
+    // Flip Gentle <-> Focused. No navigation: unlike the Classic/Card switch below,
+    // both layouts render at the SAME route and the overlay is a body class, so
+    // flipping the preference is the whole operation.
+    //
+    // Writes `sessionUser` for the reason given on `isFocused` above -- the observer that
+    // applies the body class watches that record, so writing `currentUser` would change
+    // the stored value without re-theming the page.
+    switch_layout: function() {
+      var user = this.appState.get('sessionUser');
+      if(!user || !user.set) { return; }
+      this.set('menu_open', false);
+      var next = this.get('isFocused') ? 'gentle' : 'focused';
+      user.set('preferences.dashboard_layout', next);
+      // Ember Data under-marks the raw `preferences` blob, so the dirty bit has to be
+      // poked or the PUT can be skipped and the choice would not survive a reload.
+      // CREATE the container first: `set('preferences.device.updated')` THROWS on a
+      // record whose preferences carry no `device` key (components/boards-layout-toggle.js:166-172).
+      if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
+      user.set('preferences.device.updated', true);
+      if(user.save) { user.save().then(null, function() { }); }
     },
 
     switch_view: function() {

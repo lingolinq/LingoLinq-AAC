@@ -113,6 +113,7 @@ var contentGrabbers = Service.extend({
             external_id: object.get('external_id'),
             search_term: object.get('search_term'),
             button_label: object.get('button_label'),
+            preserve_source_image: true,
             license: object.get('license'),
             protected: object.get('protected'),
             protected_source: object.get('protected_source'),
@@ -1411,6 +1412,7 @@ var pictureGrabber = EmberObject.extend({
           height: data.height,
           hc: preview.hc,
           button_label: label || preview.suggestion,
+          preserve_source_image: true,
           license: preview.license || {type: 'private'},
           protected: preview.protected,
           protected_source: preview.protected_source
@@ -1432,6 +1434,7 @@ var pictureGrabber = EmberObject.extend({
                 height: data.height,
                 hc: preview.hc,
                 button_label: label || preview.suggestion,
+                preserve_source_image: true,
                 license: preview.license || {type: 'private'},
                 protected: preview.protected,
                 protected_source: preview.protected_source
@@ -1482,6 +1485,9 @@ var pictureGrabber = EmberObject.extend({
       });
 
       if(existing_image) {
+        if(!existing_image.get('preserve_source_image')) {
+          existing_image.set('preserve_source_image', true);
+        }
         if(existing_image.get('isNew')) {
           return window.cg.save_record(existing_image);
         }
@@ -1519,6 +1525,7 @@ var pictureGrabber = EmberObject.extend({
         external_id: preview.external_id,
         search_term: preview.search_term,
         button_label: label || preview.suggestion,
+        preserve_source_image: true,
         license: _this.normalize_preview_license(preview),
         protected: preview.protected,
         protected_source: preview.protected_source,

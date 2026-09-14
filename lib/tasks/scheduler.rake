@@ -65,11 +65,39 @@ end
 
 desc "Unified scheduler dispatch for Render cron job - runs all hourly tasks, daily tasks at 6 AM UTC"
 task "scheduler:dispatch" => :environment do
+  # One task's failure must not skip the rest (that is why each is rescued), but the RUN must
+  # still fail. Before this, every task could raise and the process still exited 0.
+  #
+  # WHAT THIS DOES AND DOES NOT BUY, stated precisely, because an earlier version of this
+  # comment overclaimed it. It makes the Cloud Run Job EXECUTION go red. It does NOT make the
+  # failure reach a human:
+  #   * Cloud Scheduler's target is `...jobs/lingolinq-scheduler:run`, which returns a
+  #     long-running Operation with HTTP 200 BEFORE the rake task runs. Scheduler reports
+  #     success no matter what this process exits with. That half is not fixed here and
+  #     cannot be fixed from this file.
+  #   * As of 2026-09-03 lingolinq-prod has exactly one alert policy ("Cloud Armor ROLLBACK
+  #     TRIGGER"). Nothing watches Cloud Run Job execution failure, and the Job runs
+  #     maxRetries=0 with no catch-up.
+  # So until a log-based alert on execution failure exists, this is exit-code HYGIENE, not a
+  # control: a failed GDPR/FERPA/COPPA purge is now recorded rather than reported. Do not read
+  # a quiet inbox as evidence the purges ran.
+  #
+  # Non-execution is a separate hole this does not close either: the daily block is gated on
+  # `hour == 6`, so a missed or delayed 06:00 fire skips those purges with `failed` empty and
+  # an exit 0. Closing that needs a per-task last-run timestamp and a staleness alert.
+  failed = []
   run_task = Proc.new do |name, &block|
     puts "  [#{name}] starting..."
     result = block.call
     puts "  [#{name}] done: #{result}"
-  rescue => e
+  # StandardError is not enough for the stated promise. A ScriptError (e.g. a LoadError from a
+  # `require_relative` inside a task body) is NOT a StandardError, so a bare `rescue` would let
+  # it escape the Proc and kill the dispatch, skipping every later task -- including
+  # purge_old_eu_ai_api_logs and expire_offboarding_coppa_consents. SignalException and
+  # SystemExit are deliberately NOT caught: those mean "stop now", and `abort` below is itself
+  # a SystemExit.
+  rescue StandardError, ScriptError => e
+    failed << name
     puts "  [#{name}] ERROR: #{e.class}: #{e.message}"
     Rails.logger.error("[Scheduler] #{name} failed: #{e.class}: #{e.message}")
     Rails.logger.error("[Scheduler] #{e.backtrace&.first(5)&.join("\n")}")
@@ -134,6 +162,14 @@ task "scheduler:dispatch" => :environment do
     end
 
     run_task.call("enforce_data_retention_policies") do
+      # Deliberately loaded HERE, inside the task, not at rake-file load time. Rake loads every
+      # .rake file for ANY invocation (`rake -T`, asset tasks, unrelated tasks) BEFORE the
+      # :environment prerequisite runs, so a top-level require makes this file a load-time
+      # dependency of the whole rake surface: the day it gains a Rails-dependent top-level
+      # reference, every rake task in the app breaks, and breaks before any rescue here can
+      # see it. Keeping it in the body bounds the blast radius to this one task, and the
+      # `rescue StandardError, ScriptError` above now records a LoadError and lets the
+      # remaining tasks run -- which is what the earlier hoist was reaching for.
       require_relative '../data_policy_enforcer'
       count = DataPolicyEnforcer.enforce_retention!
       "#{count} stale sessions purged"
@@ -210,5 +246,11 @@ task "scheduler:dispatch" => :environment do
     end
   end
 
+  if failed.any?
+    msg = "#{failed.size} scheduled task(s) FAILED: #{failed.join(', ')}"
+    puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch FAILED: #{msg} ==="
+    Rails.logger.error("[Scheduler] #{msg}")
+    abort(msg)
+  end
   puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch Complete ==="
 end

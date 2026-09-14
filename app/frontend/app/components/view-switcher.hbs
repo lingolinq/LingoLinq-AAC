@@ -18,13 +18,40 @@
     <span class="ll-viewswitch__label">{{t "View" key="view_menu_label"}}</span>
     <span class="ll-viewswitch__caret" aria-hidden="true"></span>
   </button>
+  {{!-- Two independent axes, deliberately in one menu.
+
+       PRIMARY (Classic vs Card) picks the shell and is a different ROUTE on a board.
+       SECONDARY (Gentle vs Focused) is an overlay -- a body class -- applied on top of
+       whichever primary style is active, so all four combinations are reachable.
+
+       Each group offers the option you are NOT on, matching how this menu already
+       worked. Groups carry a heading rather than a bare divider so the two axes read as
+       separate choices instead of one list of four.
+
+       The headings are `role="none"` with NO `aria-hidden`. `none` already strips the
+       element's own semantics, so adding `aria-hidden` is both redundant and invalid
+       (ember-template-lint: no-unsupported-role-attributes) -- and the heading TEXT is
+       worth leaving in the accessibility tree, since it is what tells a screen-reader
+       user which of the two axes the following item belongs to. --}}
   <ul class="ll-viewswitch__menu" role="menu">
+    <li role="none" class="ll-viewswitch__group">{{t "Layout" key="view_group_layout"}}</li>
     <li role="none">
       <button type="button" role="menuitem" class="ll-viewswitch__item" {{on "click" (this.ctrlAction "switch_view")}}>
         {{#if this.isClassic}}
           {{t "Card View" key="card_view"}}
         {{else}}
           {{t "Classic View" key="classic_view"}}
+        {{/if}}
+      </button>
+    </li>
+    <li role="separator" class="ll-viewswitch__sep"></li>
+    <li role="none" class="ll-viewswitch__group">{{t "Style" key="view_group_style"}}</li>
+    <li role="none">
+      <button type="button" role="menuitem" class="ll-viewswitch__item" {{on "click" (this.ctrlAction "switch_layout")}}>
+        {{#if this.isFocused}}
+          {{t "Gentle View" key="display_style_layout_gentle"}}
+        {{else}}
+          {{t "Focused View" key="display_style_layout_focused"}}
         {{/if}}
       </button>
     </li>

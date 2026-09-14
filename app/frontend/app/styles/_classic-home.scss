@@ -12,6 +12,23 @@
 // deliberately shares NO selector with either, so the two home pages can be
 // restyled independently.
 //
+// PALETTE CLASSIFICATION — this file is CLASSIC VIEW / GENTLE.
+//
+// "Gentle" and "Focused" are the two dashboard styles the app already models, via
+// `preferences.dashboard_layout` ('gentle' is the default, app/models/user.rb:1936).
+// Gentle is the BASELINE, not an overlay: `LingoLinq.set_layout_scope` (app/app.js:504)
+// adds `body.ll-layout-focused` ONLY on a strict `layout === 'focused'`, so an absent or
+// default preference gets no class and no overlay at all.
+//
+// Every colour below is therefore the classic home page's GENTLE scheme, and its local
+// tokens are named `$ch-gentle-*` to say so. Naming only — nothing here reads
+// `dashboard_layout` and `_focused-view.scss` contains no `.ch-` selector, so the
+// classic page renders identically under either preference TODAY.
+//
+// A Focused classic variant, if one is ever wanted, belongs in an overlay scoped to
+// `body.ll-layout-focused` — the contract `_focused-view.scss` already documents for the
+// modern pages — and must not edit the tokens below, which are the Gentle values.
+
 // Surface language: glass. A translucent, saturated backdrop under a top-lit
 // gloss, over the same token palette the modern pages use (--md-ink / --md-muted
 // / --md-surface, $la-navy, $brand-verdigris), so classic reads as the same
@@ -129,8 +146,8 @@
 // on `.ch-rail__identity-sub`. Measured against the page wash the sub reads 4.56:1 at
 // the denim start and 5.03:1 at the verdigris end today; desaturated it reads 4.64:1
 // and 4.87:1. Both still clear WCAG AA, and the tighter of the two (the start) gains.
-$ch-identity-denim:     #5D89C6;
-$ch-identity-verdigris: #388F84;
+$ch-gentle-identity-denim:     #5D89C6;
+$ch-gentle-identity-verdigris: #388F84;
 .ch-rail__identity {
   position: relative;
   overflow: hidden;
@@ -146,7 +163,7 @@ $ch-identity-verdigris: #388F84;
   // WCAG AA 4.5:1 floor. The next step up, 0.40/0.32, drops it to 4.27:1 and fails.
   // If this needs to go darker, raise the sub-label's opacity or drop the 0.75 first.
   // (The username itself is full-strength navy at 8.38:1 and is not the constraint.)
-  background: linear-gradient(150deg, rgba($ch-identity-denim, 0.52) 0%, rgba($ch-identity-verdigris, 0.44) 100%);
+  background: linear-gradient(150deg, rgba($ch-gentle-identity-denim, 0.52) 0%, rgba($ch-gentle-identity-verdigris, 0.44) 100%);
   // Same outline as the Actions tab's My Account tile (`.ch-tile--account`, which
   // takes `ch-tile-tint($brand-teal-blue)`): both are the door to the same page, so
   // they carry the same edge. Kept as the literal rgba the mixin emits rather than
@@ -421,19 +438,19 @@ button.ch-row:focus-visible .ch-row__arrow {
 // Contrast re-checked on both washes: the row title holds at ~10:1 and the sub-label at
 // 4.77-4.68:1, both effectively unchanged, because desaturating at constant lightness
 // barely moves luminance on a wash this light.
-$ch-warn-honey: #E3B569;
-$ch-warn-peach: #EAA68F;
+$ch-gentle-warn-honey: #E3B569;
+$ch-gentle-warn-peach: #EAA68F;
 .ch-row--todo {
   // Same treatment as .ch-row--sync: the honey is KEPT, just shown less, so the row
   // reads mostly white with the colour as a hint (0.20 -> 0.13 / 0.08 -> 0.045).
   // The icon chip below stays at full strength and carries the accent instead.
-  background: linear-gradient(155deg, rgba($ch-warn-honey, 0.13) 0%, rgba($ch-warn-honey, 0.045) 100%);
+  background: linear-gradient(155deg, rgba($ch-gentle-warn-honey, 0.13) 0%, rgba($ch-gentle-warn-honey, 0.045) 100%);
   // Keeps the shared silver edge from .ch-row — this used to re-set the border to
   // white, which would have cancelled it on exactly the rows that matter most.
 }
 
 .ch-row--todo .ch-row__icon {
-  background: linear-gradient(160deg, rgba($ch-warn-honey, 0.28) 0%, rgba($ch-warn-honey, 0.12) 100%);
+  background: linear-gradient(160deg, rgba($ch-gentle-warn-honey, 0.28) 0%, rgba($ch-gentle-warn-honey, 0.12) 100%);
 }
 
 // Logging ON is a healthy state — teal, matching the online dot.
@@ -452,8 +469,8 @@ $ch-warn-peach: #EAA68F;
 // Written out rather than @include-ing ch-tile-tint because that mixin also styles a
 // `.ch-tile__chip`, which a rail ROW does not have.
 .ch-row--sync {
-  background: linear-gradient(155deg, rgba($ch-warn-peach, 0.18) 0%, rgba($ch-warn-peach, 0.06) 100%);
-  // Outline is a 50/50 blend of $ch-warn-peach (#EAA68F) and $brand-cool-steel
+  background: linear-gradient(155deg, rgba($ch-gentle-warn-peach, 0.18) 0%, rgba($ch-gentle-warn-peach, 0.06) 100%);
+  // Outline is a 50/50 blend of $ch-gentle-warn-peach (#EAA68F) and $brand-cool-steel
   // (#9CA3AF) — peach pulled toward grey so the edge reads as a quiet border rather
   // than a coloured one. Written as the resolved hex, NOT color.mix(): the mix keeps
   // fractional channels (200.5, 162, 153.5) and Sass then emits a fractional rgba(),
@@ -462,7 +479,7 @@ $ch-warn-peach: #EAA68F;
   // Tight shadow, not a spread glow: this row sits at the bottom of the rail and a
   // 20px bloom made it float off the panel.
   box-shadow:
-    0 2px 6px rgba($ch-warn-peach, 0.16),
+    0 2px 6px rgba($ch-gentle-warn-peach, 0.16),
     0 1px 2px rgba($brand-blue-black, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
@@ -470,13 +487,13 @@ $ch-warn-peach: #EAA68F;
 button.ch-row--sync:hover,
 button.ch-row--sync:focus-visible {
   box-shadow:
-    0 5px 12px rgba($ch-warn-peach, 0.22),
+    0 5px 12px rgba($ch-gentle-warn-peach, 0.22),
     0 1px 3px rgba($brand-blue-black, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .ch-row--sync .ch-row__icon {
-  background: linear-gradient(160deg, rgba($ch-warn-peach, 0.26) 0%, rgba($ch-warn-peach, 0.12) 100%);
+  background: linear-gradient(160deg, rgba($ch-gentle-warn-peach, 0.26) 0%, rgba($ch-gentle-warn-peach, 0.12) 100%);
 }
 
 .ch-row--minor {
@@ -1061,44 +1078,98 @@ button.ch-tile:hover .ch-tile__chip {
   transform: rotate(180deg);
 }
 
-// The lead action of a card reads as the primary one.
+// SUPERVISEE ROW ACTIONS -- Model / Speak / Choose Board.
+//
+// Model and Choose Board are ported from the caseload page's quick-action ranks
+// (_caseload.scss :1879 model, :1810 choose-board) so the two surfaces that render
+// per-supervisee actions look the same (requested 2026-09-03). SPEAK is the exception:
+// it takes the Actions tab's own Speak tile instead (requested 2026-09-03), so the two
+// Speak controls on this page match each other rather than matching another page.
+// For the ported two the declarations are copied;
+// the caseload's `.md-caseload__list-quick` selectors are not, since these classes are
+// exclusive to `.ch-comm__actions` already -- `--primary`, `--speak` and `--setup` appear
+// nowhere else in classic-view.hbs, so these ARE the authoritative rules and there is no
+// override stacked on top of anything.
+//
+// THE BIG CHANGE IS MODEL. It used to be the one solid-fill tile in this file: opaque
+// $brand-dusty-denim-aa with WHITE text, and a chip that inverted to translucent white so
+// the glyph stayed legible on it. The caseload rank is glass with NAVY ink instead, so
+// the solid fill, the reversed text and the chip inversion all go together -- keeping any
+// one of them would have left navy-on-navy or a white chip on a pale field. The old
+// rule's WCAG note (white on #4C86D8 = 3.68:1, hence the -aa denim) no longer applies to
+// anything here: nothing in this block reverses white out of a fill any more, and navy on
+// these washes is far clearer than the 4.5:1 floor that note was defending.
+//
+// Each rank is one gloss layer over one hue ramp over a white base, with the whole
+// box-shadow stack repeated per state -- box-shadow does not cascade per layer, so a
+// hover rule that lists fewer shadows silently drops the glow.
+
+// Model and Choose Board at 30% reduced chroma (requested 2026-09-03), each derived at
+// the SAME lightness so only colourfulness drops. Locals, not token edits: every source
+// value below is shared -- $caseload-model-blue / -aa with the caseload page,
+// $brand-dusty-denim-aa and $brand-verdigris-aa with 13 stylesheets between them.
+//
+// Borders and halos are desaturated alongside the fills rather than left alone: a
+// saturated edge around a muted wash reads as a mismatch, not as emphasis. The two
+// borders are the load-bearing ones for WCAG 1.4.11 (3:1 for a UI boundary) and both
+// gain headroom rather than losing it -- 5.82 -> 5.54:1 on Model, 5.05 -> 6.08:1 on
+// Choose Board.
+$ch-gentle-model-fill:   #54A0D0;  // $caseload-model-blue     80.7% -> 56.5% sat
+$ch-gentle-model-border: #4067B1;  // $brand-dusty-denim-aa    66.8% -> 46.8%
+$ch-gentle-model-halo:   #407EB1;  // $caseload-model-blue-aa  66.8% -> 46.8%
+$ch-gentle-setup-teal:   #41A29D;  // was rgb(44,183,176)      61.2% -> 42.9%
+$ch-gentle-setup-blue:   #7194D9;  // was rgb(91,141,239)      82.2% -> 57.6%
+$ch-gentle-setup-edge:   #296C6C;  // $brand-verdigris-aa      65.1% -> 45.6%
+
+// Model -- workflow primary.
 .ch-tile--primary {
-  /* Starts at $brand-dusty-denim-aa, NOT $brand-dusty-denim. These are the only two
-     places in this file that reverse WHITE text out of an opaque denim fill, and the
-     lighter denim fails WCAG 2.1 AA there: #fff on #4C86D8 measures 3.68:1 against a
-     4.5:1 requirement, and the gradient stayed under 4.5 for roughly its first three
-     quarters (midpoint #4378D0 = 4.34:1). Neither element qualifies as large text.
-     With the AA denim the whole ramp passes — 5.82:1 at the start, 5.11:1 at the end.
-     Everything else in this file uses plain $brand-dusty-denim as a low-alpha tint
-     behind DARK text, where it is fine; only reversed-out white needs the AA variant. */
-  background: linear-gradient(160deg, $brand-dusty-denim-aa 0%, $brand-smart-blue 100%);
-  border-color: rgba(255, 255, 255, 0.5);
-  color: #fff;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.20) 30%,
+      rgba(255, 255, 255, 0) 58%),
+    linear-gradient(160deg,
+      rgba($ch-gentle-model-fill, 0.28) 0%,
+      rgba($ch-gentle-model-fill, 0.38) 100%);
+  background-color: rgba(255, 255, 255, 0.30);
+  color: $la-navy;
+  border: 1px solid rgba($ch-gentle-model-border, 0.82);
   box-shadow:
-    0 6px 16px rgba($brand-smart-blue, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -7px 12px -7px rgba(255, 255, 255, 0.50),
+    0 2px 5px rgba($la-navy, 0.08),
+    0 8px 16px -8px rgba($la-navy, 0.18),
+    0 0 8px rgba($ch-gentle-model-halo, 0.22),
+    0 0 18px rgba($ch-gentle-model-halo, 0.30);
 }
 
-button.ch-tile--primary:hover,
-button.ch-tile--primary:focus-visible { color: #fff; }
+// Speak is NOT here. It shares the Actions tab's Speak tile, so it is declared beside
+// `.ch-tile--speak-main` further down -- both `ch-tile-tint` and `$ch-gentle-speak-blue` are
+// defined after this block, and Sass resolves neither backwards.
 
-// The one solid-fill tile: its chip inverts to translucent white so the glyph
-// (which inherits currentColor here) stays legible on the denim field.
-.ch-tile--primary .ch-tile__chip {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.ch-tile--speak {
-  background: linear-gradient(155deg, rgba($brand-dusty-denim, 0.22) 0%, rgba($brand-dusty-denim, 0.10) 100%);
-}
-
+// Choose Board -- setup priority. Deepest ramp of the three plus a teal halo, because it
+// is the one action that says something is MISSING rather than offering a destination.
 .ch-tile--setup {
-  background: linear-gradient(155deg, rgba($brand-verdigris, 0.20) 0%, rgba($brand-verdigris, 0.08) 100%);
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.58) 0%,
+      rgba(255, 255, 255, 0.22) 30%,
+      rgba(255, 255, 255, 0) 58%),
+    linear-gradient(135deg, rgba($ch-gentle-setup-teal, 0.44), rgba($ch-gentle-setup-blue, 0.38));
+  background-color: rgba(255, 255, 255, 0.30);
+  color: $la-navy;
+  border: 1px solid rgba($ch-gentle-setup-edge, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.38),
+    inset 0 -7px 12px -7px rgba(255, 255, 255, 0.55),
+    0 2px 5px rgba($la-navy, 0.10),
+    0 8px 16px -8px rgba($la-navy, 0.20),
+    0 0 8px rgba($ch-gentle-setup-edge, 0.22),
+    0 0 18px rgba($ch-gentle-setup-edge, 0.30);
 }
 
-// A stated condition, not a control — no board, so Model/Speak cannot run.
 .ch-tile--locked {
   cursor: default;
   color: var(--md-muted, $la-navy);
@@ -1162,14 +1233,24 @@ button.ch-tile--primary:focus-visible { color: #fff; }
 // the hue moves, so the wash cannot start reading lighter or heavier than it did.
 // Local rather than a brand token because it is this one card's colour; $brand-teal-blue
 // stays exactly as it is, and still carries the rail identity border at line 126.
-$ch-speak-blue: #4D8DC5;
+$ch-gentle-speak-blue: #4D8DC5;
 
 // Speak no longer shares My Account's mixin call. That pairing was already historical —
 // My Account moved into the Extras drawer and renders silver — and Speak was asked for a
 // bluer, less green hue (2026-09-03), which My Account must not follow: $brand-teal-blue
 // is what the rail identity block's border matches (line 122).
 .ch-tile--account { @include ch-tile-tint($brand-teal-blue, 0.52, 0.26); }
-.ch-tile--speak-main { @include ch-tile-tint($ch-speak-blue, 0.52, 0.26); }
+.ch-tile--speak-main { @include ch-tile-tint($ch-gentle-speak-blue, 0.52, 0.26); }
+// The Communicators tab's per-supervisee Speak button, deliberately identical to the
+// Actions tile above (requested 2026-09-03) -- so the two Speak controls on this page
+// match each other. One shared `@include` rather than copied declarations means a change
+// to $ch-gentle-speak-blue moves both and they cannot drift. Declared HERE, away from its
+// sibling ranks (`--primary` / `--setup`, ~90 lines up), because the mixin and the token
+// are both defined above this line and below those.
+//
+// The mixin also emits a `.ch-tile__chip` rule; that is inert for this button, which
+// renders only `__icon` and `__label`.
+.ch-tile--speak { @include ch-tile-tint($ch-gentle-speak-blue, 0.52, 0.26); }
 .ch-tile--create  { @include ch-tile-tint($brand-verdigris); }
 .ch-tile--search  { @include ch-tile-tint($brand-dusty-denim); }
 .ch-tile--sup     { @include ch-tile-tint($brand-dusty-denim); }
@@ -1199,8 +1280,8 @@ $ch-speak-blue: #4D8DC5;
 // CONTRAST: 3.82:1 at the gradient start, 4.40:1 at the end. It was ALREADY below the 4.5:1 floor before this change and is
 // tracked as its own defect -- the remedy is the sub-label's own 0.72 alpha, not the
 // tile colour, and raising that would clear every tile at once.
-$ch-ideas-fawn: #A79A80;
-.ch-tile--ideas   { @include ch-tile-tint($ch-ideas-fawn, 0.54, 0.26); }
+$ch-gentle-ideas-fawn: #A79A80;
+.ch-tile--ideas   { @include ch-tile-tint($ch-gentle-ideas-fawn, 0.54, 0.26); }
 .ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
 .ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
@@ -1409,7 +1490,15 @@ button.ch-tile--silver:focus-visible {
 .ch-comm__actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  // `stretch`, not `flex-start` (requested 2026-09-03). "Model" and "Speak" are one-line
+  // labels while "Usage Reports" and "Modeling Ideas" are two, so under `flex-start`
+  // each button stood at its own content height and the row came out ragged. Stretch
+  // levels them to the tallest in the line.
+  //
+  // Preferred over raising `min-height` because it carries no magic number: it stays
+  // correct if a label is translated longer, and with `flex-wrap` it levels each line
+  // independently rather than forcing a single height on a wrapped row.
+  align-items: stretch;
   gap: 8px;
 }
 
@@ -1421,9 +1510,22 @@ button.ch-tile--silver:focus-visible {
   font-size: 14px;
 }
 
+// "Choose a Home Board" is a 19-character label, and in a 104px box it wrapped to three
+// lines -- which, now that the container stretches, would have dragged the WHOLE row up
+// to three lines' height. Widening it to fit in two, like "Usage Reports" and "Modeling
+// Ideas" beside it, is what keeps the shared height sensible (requested 2026-09-03).
+.ch-comm__actions .ch-tile--setup {
+  flex-basis: 150px;
+}
+
 .ch-comm__actions .ch-tile--extras {
   flex: 0 0 auto;
   min-height: 0;
+  // Opts out of the container's `stretch` above -- this one is a pill, not a card, and
+  // `min-height: 0` alone would not save it: stretch sets the USED height regardless of
+  // the minimum, so without this it would grow to card height and stop reading as a
+  // secondary control.
+  align-self: flex-start;
 }
 
 // The Extras menu is positioned, so the card must not clip it.
@@ -2068,6 +2170,69 @@ button.ch-tile--silver:focus-visible {
 @media (max-width: 1024px) {
   .ch-page { padding-top: 44px; }
 
+  // ---------------------------------------------------------------------------
+  // ONBOARDING CALLOUT — three-row shape
+  // ---------------------------------------------------------------------------
+  // Below the desktop row the card becomes:
+  //
+  //   ICON | Header
+  //        | Subheader
+  //        | ................. How To Use …   (own row, right-aligned)
+  //
+  // The icon occupies row ONE only; rows two and three leave its column empty, which is what
+  // indents the copy and the CTA under the header rather than under the icon.
+  //
+  // Applies to BOTH dashboard styles. This lived in _focused-view.scss until 2026-09-14 and
+  // was moved here so Gentle and Focused share one structure on the classic page: the layout
+  // is a property of the card at this width, not of the colour scheme.
+  //
+  // `display: contents` on `.ch-intro__content` is what makes a multi-row shape possible —
+  // the title and paragraph share that one wrapper and cannot otherwise occupy different
+  // grid rows. It carries no role, so nothing leaves the accessibility tree; the <h2> and
+  // <p> keep their own semantics.
+  .ch-card--intro {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon title"
+      ".    text"
+      ".    cta";
+    align-items: center;
+    column-gap: 18px;
+    // Zero deliberately: the three rows want DIFFERENT spacing and `row-gap` is uniform, so
+    // the gaps are carried by the items' own margins below.
+    row-gap: 0;
+  }
+
+  .ch-card--intro .ch-intro__icon    { grid-area: icon; }
+  .ch-card--intro .ch-intro__content { display: contents; }
+
+  .ch-card--intro .ch-card__title {
+    grid-area: title;
+    margin: 0;
+  }
+
+  // Most of the gap between these two is NOT margin, which is why zeroing the title's margin
+  // alone still left it loose. Half-leading accounts for 5.65px of it: 1.65px below the title
+  // (22px at line-height 1.15 — the clamp's 1.6vw term sits under its 22px floor at every
+  // width this block covers) and 4px above the paragraph (16px at line-height 1.5). The
+  // negative top margin absorbs most of that, landing the visible gap at ~2.6px rather than
+  // ~9.6px. The leading itself is left alone: 1.5 is what makes the paragraph readable, and
+  // tightening it to close a one-off gap would cost every line in it.
+  //
+  // The open space in the stack goes at the BOTTOM, so the CTA reads as a separate action
+  // rather than as the last line of the paragraph.
+  .ch-card--intro .ch-card__text {
+    grid-area: text;
+    margin: -3px 0 20px;
+  }
+
+  // No width declaration needed: `justify-self: end` shrinks a grid item to its content and
+  // pins it to the trailing edge of its own row.
+  .ch-card--intro .ch-btn {
+    grid-area: cta;
+    justify-self: end;
+  }
+
   // Rail rows tighten from 10px to 8px here. padding-top/bottom rather than the
   // shorthand so the base's 14px side padding is left alone; the 900px block below
   // re-declares the full shorthand and still wins there on source order.
@@ -2213,6 +2378,23 @@ button.ch-tile--silver:focus-visible {
 @media (max-width: 550px) {
   .ch-tabs { display: none; }
   .ch-tabselect { display: block; }
+
+  // The callout collapses to one centred column and wraps. The title/text margins set in the
+  // 1024px block carry through, including `row-gap: 0`, so only the icon needs a gap of its
+  // own now that it occupies a row rather than a column.
+  .ch-card--intro {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "icon"
+      "title"
+      "text"
+      "cta";
+    justify-items: center;
+    text-align: center;
+  }
+
+  .ch-card--intro .ch-intro__icon { margin-bottom: 12px; }
+  .ch-card--intro .ch-btn { justify-self: center; }
 }
 
 @media (max-width: 900px) {
@@ -2225,19 +2407,11 @@ button.ch-tile--silver:focus-visible {
   .ch-rail, .ch-panel { max-width: none; width: 100%; }
   .ch-comms { grid-template-columns: 1fr; }
 
-  // Onboarding callout stacks. `align-items: start` replaces the desktop `center`:
-  // once the columns become rows, centring would indent the icon and the CTA relative
-  // to the copy instead of aligning their left edges.
-  .ch-card--intro {
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: 18px;
-    padding: 20px;
-  }
-
-  // Full width at this size, so the CTA is unmissable and the 48px height already
-  // clears the 44px minimum touch target.
-  .ch-card--intro .ch-btn { width: 100%; }
+  // The onboarding callout keeps the three-row shape set in the 1024px block above; only its
+  // padding tightens here. The single-column stack and full-width CTA that used to live here
+  // were REPLACED by that shape on 2026-09-14 — leaving them would have overridden it, since
+  // this block is later in the file at the same specificity.
+  .ch-card--intro { padding: 20px; }
 
   // ---------------------------------------------------------------------------
   // RAIL ROWS — wrap into columns instead of one tall stack

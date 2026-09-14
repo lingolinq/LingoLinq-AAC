@@ -188,6 +188,14 @@ class ButtonImage < ApplicationRecord
     raise "user required as image author" unless self.user_id || non_user_params[:user] || non_user_params[:no_author]
     self.user ||= non_user_params[:user] if non_user_params[:user]
     self.settings ||= {}
+    # User-chosen pictures (Button Settings) and a re-save of an already-
+    # enriched image must keep the picked URL. Speak mode otherwise paints
+    # library_url_for_skin from a label search (e.g. "caps lock" → a hat).
+    if params['preserve_source_image'] != nil
+      self.settings['preserve_source_image'] = process_boolean(params['preserve_source_image'])
+    elsif !self.url && params['button_label'].present?
+      self.settings['preserve_source_image'] = true
+    end
     if params['alternates']
       alt_hash = {}
       # Client may send alternates as array of hashes (each with 'library') or as hash (library => data)
