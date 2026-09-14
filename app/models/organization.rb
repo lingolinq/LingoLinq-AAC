@@ -1085,7 +1085,12 @@ class Organization < ApplicationRecord
     raise "invalid user, #{user_key}" unless user
     raise "invalid settings" if eval_account && !sponsored
     
-    if sponsored && !eval_account
+    # `!pending` matters: claim_user binds immediately and has no pending
+    # concept, so routing a PENDING add through it would silently drop the
+    # consent requirement. Today this changes nothing (zero License rows, so the
+    # fast path never succeeds and pending adds already take the fallback), but
+    # it keeps `pending` meaningful the moment seats exist.
+    if sponsored && !eval_account && !pending
       # Try to use formal license first
       license = self.licenses.available.where(seat_type: 'student').first
       if license
@@ -1460,7 +1465,10 @@ class Organization < ApplicationRecord
     res
   end
 
-  def self.parse_activation_code(orig_code, activate_for=nil)
+  # force_pending: attach `activate_for` as PENDING rather than active. Used for
+  # third-party start-code redemption, where the submitter is not the person
+  # being enrolled (see SupervisorKeyAuthority).
+  def self.parse_activation_code(orig_code, activate_for=nil, force_pending: false)
     code = orig_code.gsub(/\s+|-/, '')
     org_or_user = nil
     if code.match(/^[8a-zA-Z]/)
@@ -1513,7 +1521,7 @@ class Organization < ApplicationRecord
           locale ||= org_or_user.settings['default_locale']
           symbol_library ||= org_or_user.settings['preferred_symbols']
           if type == 'communicator'
-            org_or_user.add_user(activate_for.user_name, false, !!overrides['premium'], false)
+            org_or_user.add_user(activate_for.user_name, force_pending, !!overrides['premium'], false)
             org_or_user.reload
             if activate_for && activate_for.settings['subscription'] && !(activate_for.settings['subscription']['extras'] || {})['enabled']
               org_or_user.add_extras_to_user(activate_for.user_name) if overrides['premium'] && overrides['premium_symbols']

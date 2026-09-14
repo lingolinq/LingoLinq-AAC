@@ -656,7 +656,10 @@ describe Supervising, :type => :model do
 
     it "should allow adding a start code" do
       u = User.create
-      expect(Organization).to receive(:parse_activation_code).with('asdf', u).and_return({:disabled => true}).exactly(2).times
+      # Both calls are self-actions (the 2-arg process_supervisor_key form and a
+      # process() with no 'updater' both resolve the actor to the target), so the
+      # attachment stays immediately active rather than pending.
+      expect(Organization).to receive(:parse_activation_code).with('asdf', u, force_pending: false).and_return({:disabled => true}).exactly(2).times
       expect(u.process_supervisor_key("start-asdf")).to eq(false)
       expect(u.process({'supervisor_key' => "start-asdf"})).to eq(true)
     end

@@ -1,28 +1,37 @@
-# Phase 1 of the supervisor-key authority model.
+# Phase 1 of the supervisor-key authority model (option B, decided 2026-09-14).
 #
-# The default is SELF-ONLY: an actor acts on their own account. Exceptions are
-# enumerated here rather than scattered through SupervisorKeyProcessor, so that
-# Phase 2 can add predicates in this one class without touching any call site.
+# Two rules, and the split between them is the whole design:
 #
-# Phase 1 enforces exactly one rule, the one with a demonstrated escalation
-# behind it: an actor may not attach ANOTHER user to an organization that actor
-# manages or assists. Acting FOR a communicator into an org the actor does not
-# manage -- a parent or guardian redeeming a school activation code -- stays
-# allowed, because in AAC acting on behalf of the communicator is the normal
-# case, not an exception.
+#   ATTACHMENT by a third party is ALLOWED, but lands PENDING.
+#   RATIFICATION is SELF-ONLY, because consent is given BY a party, not FOR one.
 #
-# Why this rule and not "self-only": a blanket self-only rule would block that
-# parent/guardian path, which is core onboarding.
+# Why pending rather than refusing. Authority flows only from NON-pending links:
+# Organization.manager_for? selects the target's links with `!l['state']['pending']`,
+# app/models/user.rb grants 'support_actions' on that basis, and
+# Api::UsersController#update turns 'support_actions' into a password write. So a
+# pending attachment grants the receiving org's managers nothing, and the defect
+# is closed at the source instead of being gated after the fact.
 #
-# Deliberately NOT enforced yet, because the data to express it does not exist.
-# Each is tracked in
+# This also defeats laundering, which is what sank the previous submitter-keyed
+# design: an attacker who manages the org could mint a throwaway supervisor via
+# the ungated process_add and submit through it, because the gate only asked
+# whether the SUBMITTER managed the org. Landing every third-party attachment
+# pending makes the submitter's identity irrelevant.
+#
+# And it keeps school and clinic onboarding working. Refusing instead broke the
+# ordinary "therapist enrols a student with the school's start code" flow, and
+# broke it silently, since User#process_params only warns on a false return.
+#
+# NOT enforced yet, for lack of data rather than intent, each tracked in
 # docs/task-management/2026-09-14_supervisor-key-org-attach-escalation.md:
-#   - guardian-vs-supervisor authority: there is no guardian concept in the
-#     backend at all, and no persisted account creator to derive one from.
-#   - org-admin authority scoped to an active seat: License rows are the seat
-#     record and production has zero of them, so seat-scoping would grant org
-#     admins no authority and break org onboarding.
-#   - removal of org-added supervisors on exit: supervisor links carry no
+#   - guardian authority. There is no guardian concept in the backend and no
+#     persisted account creator to derive one from. Phase 2 is where a guardian
+#     regains the ability to ratify FOR a communicator who cannot self-advocate;
+#     until then ratification is strictly self-only.
+#   - org-admin authority scoped to an active seat. License rows are the seat
+#     record and production has zero, so seat-scoping would grant org admins no
+#     authority at all.
+#   - removal of org-added supervisors on exit. Supervisor links carry no
 #     added_by, so org-added and family-added cannot be told apart.
 class SupervisorKeyAuthority
   def initialize(actor, target)
@@ -30,26 +39,31 @@ class SupervisorKeyAuthority
     @target = target
   end
 
-  # An actor operating on their own account is always permitted here; this class
-  # governs THIRD-PARTY use of a supervisor key only.
+  # NOTE, and this is a known soft spot rather than a guarantee: this predicate
+  # never actually observes a nil actor, because SupervisorKeyProcessor#initialize
+  # does `@actor = actor || user`. That default is deliberate (the two-argument
+  # process_supervisor_key form means "the user is acting on themselves", and
+  # several internal callers rely on it), but it means a caller of User#process
+  # that omits `non_user_params['updater']` is treated as a SELF action rather
+  # than as a third party. The one production caller,
+  # Api::UsersController#update, always sets it. Tightening that default is
+  # Phase 2 work and needs its own sweep of internal callers; it is recorded in
+  # docs/task-management/2026-09-14_supervisor-key-org-attach-escalation.md.
   def self_action?
-    !!(@actor && @target && @actor.global_id && @actor.global_id == @target.global_id)
+    return false unless @actor && @target
+    return false unless @actor.global_id && @target.global_id
+    @actor.global_id == @target.global_id
   end
 
-  # May @actor attach or ratify @target into `org`?
-  #
-  # Returns true for anything that is not an organization attachment (a personal
-  # activation code resolves to a User, and an unresolvable code resolves to
-  # nil); those paths are unchanged by Phase 1.
-  def allows_org_attachment?(org)
-    return true if self_action?
-    return true unless org.is_a?(Organization)
-    return true unless @actor
-    # assistant? matches any org_manager link and so already covers manager?;
-    # both are named for legibility. upstream_manager? closes the parent/child
-    # hierarchy variant, matching the same decision taken for
-    # Organization#claim_user (LL-1baffd92d5).
-    !(org.manager?(@actor) || org.assistant?(@actor) || org.upstream_manager?(@actor))
+  # Third-party attachment is permitted, but must land pending.
+  def attachment_must_be_pending?
+    !self_action?
+  end
+
+  # Ratifying a pending attachment is the consent step, so only the party
+  # themselves may do it.
+  def allows_ratification?
+    self_action?
   end
 
   # Payload for the refusal AuditEvent. Organization and user global_ids only:
@@ -58,7 +72,7 @@ class SupervisorKeyAuthority
   def denial_event(org, action)
     {
       'type' => 'supervisor_key_denied',
-      'reason' => 'actor manages the organization they would attach another user to',
+      'reason' => 'ratification of an organization attachment is self-only',
       'action' => action,
       'actor_id' => @actor && @actor.global_id,
       'user_id' => @target && @target.global_id,

@@ -154,14 +154,14 @@ describe SupervisorKeyProcessor, :type => :model do
   describe "process_start" do
     it "should process a start code" do
       u = User.create
-      expect(Organization).to receive(:parse_activation_code).with('asdf', u).and_return({:progress => 'done'})
+      expect(Organization).to receive(:parse_activation_code).with('asdf', u, force_pending: false).and_return({:progress => 'done'})
       result = SupervisorKeyProcessor.new(u, "start-asdf").call
       expect(result).to eq(true)
     end
 
     it "should return false for disabled start code" do
       u = User.create
-      expect(Organization).to receive(:parse_activation_code).with('asdf', u).and_return({:disabled => true})
+      expect(Organization).to receive(:parse_activation_code).with('asdf', u, force_pending: false).and_return({:disabled => true})
       result = SupervisorKeyProcessor.new(u, "start-asdf").call
       expect(result).to eq(false)
     end
@@ -373,31 +373,24 @@ describe SupervisorKeyProcessor, :type => :model do
     end
   end
 
-  # Self-dealing gate: an actor may not perform an ORG-ATTACHING supervisor_key
-  # action for ANOTHER user into an organization that actor manages.
+  # Phase 1 authority model, option B (Scot's decision, 2026-09-14).
   #
-  # Driven through User#process with an 'updater' rather than through
-  # SupervisorKeyProcessor.new directly, because that is the real request path
-  # (Api::UsersController#update sets `options['updater'] = @api_user` before
-  # `user.process(user_data, options)`, and User#process_params then calls
-  # `self.process_supervisor_key`, where `self` is the TARGET). Written this way
-  # these fail because the escalation SUCCEEDS, not because a method signature
-  # does not exist yet, and they stay valid however the actor is threaded.
+  # ATTACHMENT by a third party is allowed but lands PENDING, never active.
+  # RATIFICATION is self-only, because consent is given BY a party, not FOR one.
   #
-  # Why an actor can submit a key for someone else at all: users_controller#update
-  # slices to `supervisor_key` for an actor holding 'manage_supervision', and an
-  # actor holding 'edit' falls through to the else branch with the full payload.
-  # link_supervisor_to_user(..., 'edit') below produces the latter.
-  describe "self-dealing gate on third-party org attachment" do
+  # Why pending rather than refusing: authority flows only from NON-pending links
+  # (Organization.manager_for? filters `!l['state']['pending']`), so a pending
+  # attachment grants the receiving org's managers nothing. That closes the
+  # laundering bypass, because it no longer matters WHO submits, and it keeps the
+  # school/clinic onboarding path working instead of failing it silently.
+  #
+  # Driven through User#process with an 'updater', the real request path, so these
+  # pin behaviour rather than a method signature.
+  describe "third-party org attachment lands pending (option B)" do
     after(:each) do
-      # `data` is secure_serialize'd, so it cannot be matched in SQL; `summary` is
-      # plaintext and generate_summary derives it from data['type']. Scoped to this
-      # block because AuditEvent rows commit outside the RSpec transaction.
       AuditEvent.where("summary LIKE ?", '%supervisor_key%').delete_all
     end
 
-    # actor supervises target with edit permission, which is what lets a third
-    # party submit a supervisor_key against the target at all.
     def supervised_pair
       actor = User.create
       target = User.create
@@ -411,38 +404,84 @@ describe SupervisorKeyProcessor, :type => :model do
       org.reload
     end
 
-    # --- guard cases: must be RED until the gate exists ---
+    # --- attachment: allowed, but pending ---
 
-    it "should refuse approve-org when the actor manages the pending org" do
+    it "should attach as PENDING when a third party redeems a code for an org they manage" do
       actor, target = supervised_pair
       org = org_managed_by(actor)
-      org.add_user(target.user_name, true)
-      expect(org.reload.pending_user?(target.reload)).to eq(true)
-
-      target.process({'supervisor_key' => 'approve-org'}, {'updater' => actor})
-
-      # still pending => never ratified on the target's behalf
-      expect(org.reload.pending_user?(target.reload)).to eq(true)
-      # and therefore the actor never gained support_actions over the target
-      expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
-    end
-
-    it "should refuse a start code for an organization the actor manages" do
-      actor, target = supervised_pair
-      org = org_managed_by(actor)
-      code = Organization.activation_code(org, {'proposed_code' => 'selfdealcode'})
+      code = Organization.activation_code(org, {'proposed_code' => 'bpendingone'})
 
       target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
 
-      expect(org.reload.managed_user?(target.reload)).to eq(false)
-      expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
+      expect(org.reload.managed_user?(target.reload)).to eq(true)
+      expect(org.reload.pending_user?(target.reload)).to eq(true)
     end
 
-    # Found by the re-sweep for this defect class: approve_supervision ratifies an
-    # org_supervisor link, and Organization.manager_for? counts NON-PENDING
-    # org_supervisor links as well as org_user ones, so it reaches the same
-    # support_actions grant by a different route.
-    it "should refuse approve_supervision when the actor manages the org" do
+    it "should attach as PENDING when a third party redeems a code for an org they do NOT manage" do
+      actor, target = supervised_pair
+      school = Organization.create(:settings => {'total_licenses' => 5})
+      code = Organization.activation_code(school, {'proposed_code' => 'bpendingtwo'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+
+      expect(school.reload.managed_user?(target.reload)).to eq(true)
+      expect(school.reload.pending_user?(target.reload)).to eq(true)
+    end
+
+    it "should attach NON-pending when the user redeems a code on their own account" do
+      target = User.create
+      org = Organization.create(:settings => {'total_licenses' => 5})
+      code = Organization.activation_code(org, {'proposed_code' => 'bselfcodeone'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => target})
+
+      expect(org.reload.managed_user?(target.reload)).to eq(true)
+      expect(org.reload.pending_user?(target.reload)).to eq(false)
+    end
+
+    # --- the whole point: a pending attachment confers no authority ---
+
+    it "should not grant the receiving org's manager any authority over the target" do
+      actor, target = supervised_pair
+      org = org_managed_by(actor)
+      code = Organization.activation_code(org, {'proposed_code' => 'bnoauthority'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+
+      expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
+      expect(target.reload.allows?(actor.reload, 'support_actions')).to eq(false)
+    end
+
+    # The laundering bypass the previous design failed on: the submitter is a
+    # throwaway who manages nothing, while the beneficiary manages the org.
+    it "should defeat laundering through a second supervisor who manages nothing" do
+      attacker, target = supervised_pair
+      org = org_managed_by(attacker)
+      patsy = User.create
+      User.link_supervisor_to_user(patsy, target, nil, 'edit')
+      code = Organization.activation_code(org, {'proposed_code' => 'blaundering1'})
+
+      target.reload.process({'supervisor_key' => "start-#{code}"}, {'updater' => patsy.reload})
+
+      expect(org.reload.pending_user?(target.reload)).to eq(true)
+      expect(Organization.manager_for?(attacker.reload, target.reload)).to eq(false)
+      expect(target.reload.allows?(attacker.reload, 'support_actions')).to eq(false)
+    end
+
+    # --- ratification: self-only ---
+
+    it "should refuse third-party approve-org even when the actor manages nothing" do
+      actor, target = supervised_pair
+      school = Organization.create(:settings => {'total_licenses' => 5})
+      school.add_user(target.user_name, true)
+      expect(school.reload.pending_user?(target.reload)).to eq(true)
+
+      target.process({'supervisor_key' => 'approve-org'}, {'updater' => actor})
+
+      expect(school.reload.pending_user?(target.reload)).to eq(true)
+    end
+
+    it "should refuse third-party approve_supervision" do
       actor, target = supervised_pair
       org = org_managed_by(actor)
       org.add_supervisor(target.user_name, true)
@@ -452,25 +491,12 @@ describe SupervisorKeyProcessor, :type => :model do
       target.process({'supervisor_key' => "approve_supervision-#{org.global_id}"}, {'updater' => actor})
 
       expect(org.reload.pending_supervisor?(target.reload)).to eq(true)
-      expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
     end
 
-    it "should still allow a user to approve_supervision on their own account" do
-      target = User.create
-      org = Organization.create(:settings => {'total_licenses' => 5})
-      org.add_supervisor(target.user_name, true)
-      target.reload
-      expect(org.reload.pending_supervisor?(target)).to eq(true)
-
-      target.process({'supervisor_key' => "approve_supervision-#{org.global_id}"}, {'updater' => target})
-
-      expect(org.reload.pending_supervisor?(target.reload)).to eq(false)
-    end
-
-    it "should log an AuditEvent when a self-dealing key is refused" do
+    it "should log an AuditEvent when a third-party ratification is refused" do
       actor, target = supervised_pair
-      org = org_managed_by(actor)
-      org.add_user(target.user_name, true)
+      school = Organization.create(:settings => {'total_licenses' => 5})
+      school.add_user(target.user_name, true)
 
       target.process({'supervisor_key' => 'approve-org'}, {'updater' => actor})
 
@@ -478,12 +504,9 @@ describe SupervisorKeyProcessor, :type => :model do
       expect(event).to_not eq(nil)
       expect(event.data['user_id']).to eq(target.global_id)
       expect(event.data['actor_id']).to eq(actor.global_id)
-      expect(event.data['organization_id']).to eq(org.global_id)
     end
 
-    # --- regression guards: must be GREEN both before and after the fix ---
-    # These are what make the suite meaningful. A gate that refused everything
-    # would satisfy the three cases above while destroying the product.
+    # --- regression guards: the self paths and unrelated actions must survive ---
 
     it "should still allow a user to approve-org on their own account" do
       target = User.create
@@ -496,16 +519,16 @@ describe SupervisorKeyProcessor, :type => :model do
       expect(org.reload.pending_user?(target.reload)).to eq(false)
     end
 
-    # The parent/guardian onboarding path: acting FOR a communicator into an org
-    # the actor does not manage is legitimate and core to AAC. It must survive.
-    it "should still allow a third party to redeem a code for an org they do not manage" do
-      actor, target = supervised_pair
-      school = Organization.create(:settings => {'total_licenses' => 5})
-      code = Organization.activation_code(school, {'proposed_code' => 'schoolcode1'})
+    it "should still allow a user to approve_supervision on their own account" do
+      target = User.create
+      org = Organization.create(:settings => {'total_licenses' => 5})
+      org.add_supervisor(target.user_name, true)
+      target.reload
+      expect(org.reload.pending_supervisor?(target)).to eq(true)
 
-      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+      target.process({'supervisor_key' => "approve_supervision-#{org.global_id}"}, {'updater' => target})
 
-      expect(school.reload.managed_user?(target.reload)).to eq(true)
+      expect(org.reload.pending_supervisor?(target.reload)).to eq(false)
     end
 
     it "should still allow a third-party removal action" do

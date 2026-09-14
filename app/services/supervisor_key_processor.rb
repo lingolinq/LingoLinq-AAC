@@ -59,12 +59,12 @@ class SupervisorKeyProcessor
     @authority ||= SupervisorKeyAuthority.new(actor, user)
   end
 
-  # Returns true when the attachment is allowed. On refusal it audits and returns
-  # false, so the caller degrades to "key not processed" rather than raising.
-  # A refused cross-tenant attachment is exactly the event a district reviewer
-  # needs, and without this it would be silent.
-  def permitted_org_attachment?(org, action)
-    return true if authority.allows_org_attachment?(org)
+  # Returns true when this actor may RATIFY a pending attachment. On refusal it
+  # audits and returns false, so the caller degrades to "key not processed"
+  # rather than raising. A refused third-party ratification is exactly the event
+  # a reviewer needs, and without this it would leave no trace at all.
+  def permitted_ratification?(org, action)
+    return true if authority.allows_ratification?
     AuditEvent.log_command('system', authority.denial_event(org, action))
     false
   end
@@ -87,11 +87,12 @@ class SupervisorKeyProcessor
   end
 
   def process_approve_org
-    # Ratifying a pending org attachment IS the consent step, so a third party
-    # must not perform it into an org they manage. Resolve the org first so the
-    # gate sees it before anything is written.
+    # Ratifying a pending org attachment IS the consent step, so only the party
+    # themselves may do it. Resolve the org first so nothing is written on a
+    # refusal, and so a nil org cannot reach `settings['pending'] = false` below.
     org = user.managing_organization(true)
-    return false unless permitted_org_attachment?(org, 'approve-org')
+    return false unless org.is_a?(Organization)
+    return false unless permitted_ratification?(org, 'approve-org')
     user.settings['pending'] = false
     user.update_subscription_organization(org.global_id, false, nil, nil)
     true
@@ -99,11 +100,12 @@ class SupervisorKeyProcessor
 
   def process_approve_supervision
     org = Organization.find_by_global_id(@key)
-    # Same defect shape as approve-org, by a different link type:
+    # Same consent step as approve-org, by a different link type:
     # Organization#approve_supervisor sets an org_supervisor link non-pending,
     # and Organization.manager_for? counts NON-PENDING org_supervisor links
     # alongside org_user ones, so this reaches the same support_actions grant.
-    return false unless permitted_org_attachment?(org, 'approve_supervision')
+    return false unless org.is_a?(Organization)
+    return false unless permitted_ratification?(org, 'approve_supervision')
     if org.pending_supervisor?(user)
       org.approve_supervisor(user)
       true
@@ -141,18 +143,11 @@ class SupervisorKeyProcessor
   end
 
   def process_start
-    # For a third-party submission, resolve the code's target WITHOUT side
-    # effects first. parse_activation_code only writes when given an
-    # `activate_for` (the `if activate_for && !overrides['disabled']` branch), so
-    # the one-argument form is a safe lookup -- the same form
-    # Api::UsersController#create already uses to validate a start code.
-    # Skipped entirely for a self-action, which keeps that path a single call.
-    unless authority.self_action?
-      preview = Organization.parse_activation_code(@key)
-      preview_org = preview.is_a?(Hash) ? preview[:target] : nil
-      return false unless permitted_org_attachment?(preview_org, 'start')
-    end
-    res = Organization.parse_activation_code(@key, user)
+    # A third party may enrol someone, but the attachment lands PENDING so it
+    # confers no authority until the party themselves ratifies it. Self-service
+    # redemption is unchanged and stays a single, immediately-active step.
+    force_pending = authority.attachment_must_be_pending?
+    res = Organization.parse_activation_code(@key, user, force_pending: force_pending)
     return false if !res || res[:disabled]
     user.instance_variable_set(:@start_code_progress, res[:progress])
     true

@@ -1,6 +1,6 @@
 # supervisor_key org-attach escalation: third party ratifies an org attachment on a communicator's behalf
 
-**Status:** Phase 1 gate IMPLEMENTED, then BLOCKED by dual review. Do not merge. See section 8.
+**Status:** Option B implemented (Scot's decision, 2026-09-14). Awaiting re-review. See section 10.
 Discovered 2026-09-14 while settling the LL-1baffd92d5 seat count.
 **Not in the findings register.** Suggested severity High.
 **Related:** [2026-09-14_claim-user-cross-tenant-takeover.md](./2026-09-14_claim-user-cross-tenant-takeover.md) section 6.
@@ -426,3 +426,74 @@ extending it there is a one-line change (`actor: actor`) but alters what the con
 so it needs its own trace and its own red test rather than being folded in here.
 
 **Do not fold this into the blocked change.** It is a separate defect with a separate blast radius.
+
+---
+
+## 10. Option B implemented (decision: Scot, 2026-09-14)
+
+Replaces the submitter-keyed gate that section 8 blocked. Two rules:
+
+- **Attachment by a third party is ALLOWED but lands PENDING.**
+- **Ratification is SELF-ONLY**, because consent is given BY a party, not FOR one.
+
+### Why this closes both blockers
+
+**BLOCKER 1 (laundering).** Authority flows only from NON-pending links
+(`Organization.manager_for?` filters `!l['state']['pending']`). A pending attachment grants the receiving
+org's managers nothing, so it no longer matters *who* submits. The throwaway-supervisor trick buys the
+attacker nothing. Pinned by the spec "should defeat laundering through a second supervisor who manages
+nothing", which asserts `manager_for?` and `support_actions` both stay false.
+
+**BLOCKER 2 (silent breakage).** The therapist-enrols-student flow now works instead of being refused. The
+student is attached, pending ratification, so nothing fails and nothing is silent.
+
+### What changed
+
+| File | Change |
+|---|---|
+| `app/services/supervisor_key_authority.rb` | Rewritten: `attachment_must_be_pending?` and `allows_ratification?` replace the submitter-keyed `allows_org_attachment?`. |
+| `app/services/supervisor_key_processor.rb` | `process_start` passes `force_pending:` for third-party; `process_approve_org` and `process_approve_supervision` are self-only and now reject a nil org before writing. |
+| `app/models/organization.rb` | `parse_activation_code` accepts `force_pending:`; `add_user`'s licence fast-path is gated on `!pending`. |
+
+### The `add_user` change is load-bearing, not incidental
+
+`claim_user` binds immediately and has no pending concept, so routing a PENDING add through the licence
+fast-path would silently drop the consent requirement and re-open the hole. Gating that path on `!pending`
+keeps `pending` meaningful. It changes nothing today (zero `License` rows, so the fast path never succeeds
+and pending adds already take the fallback), but without it option B would be defeated the moment a seat
+exists.
+
+### Product consequence Scot should know, found after the decision
+
+`approve_or_reject_org` in `app/frontend/app/controllers/user/index.js` and
+`controllers/user/subscription.js` both act on `this.get('model')`, the **viewed** user, not the session
+user. Only the dashboard home-page notice
+(`components/dashboard/authenticated-view.js`) uses `appState.currentUser`. So self-only ratification
+disables those two controls when a supervisor is viewing a supervisee's page. That is intended under
+option B (a third party ratifying defeats pending), and Phase 2's guardian role is where acting-for-a-
+communicator returns properly. It is the same viewed-user binding trap that produced BLOCKER 2, caught
+this time before shipping.
+
+### Known soft spot, deliberately not changed
+
+`SupervisorKeyProcessor#initialize` does `@actor = actor || user`, so a caller of `User#process` that omits
+`non_user_params['updater']` is treated as a SELF action rather than a third party. The one production
+caller always sets it. An earlier version of the authority comment claimed this "fails closed"; that was
+false and has been corrected in the code. Tightening the default needs a sweep of internal callers and is
+Phase 2.
+
+### Verification
+
+- 46/46 green in `spec/services/supervisor_key_processor_spec.rb`, 11 of them new for option B.
+- 956 examples across services, organization, supervising and both controllers: only the 6 failures
+  already established as pre-existing (4 `load_domains`, 2 `organizations_controller` index).
+- Three existing specs needed updating because `parse_activation_code`'s signature changed; each is a
+  self-action and now pins `force_pending: false`, which documents that self-service redemption stays
+  immediately active.
+
+### Still open
+
+`process_add` remains ungated. Option B defangs it for *this* attack (the submitter's identity no longer
+matters), but it is still an unauthenticated capability: anyone holding `edit` on a user can add arbitrary
+accounts as that user's supervisor. Separate finding, separate fix. The consent-actor defect in section 9.2
+is also untouched.
