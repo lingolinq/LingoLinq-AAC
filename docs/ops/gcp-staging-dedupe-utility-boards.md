@@ -1,9 +1,17 @@
-# GCP staging: dry-run shared utility-board dedupe
+# GCP nonprod: library utility-board dedupe
 
-Read-only. Prints identical emoji / keyboard / numbers clusters on the
-`lingolinq` content account and which parent buttons would be relinked.
-Does **not** delete or rewrite boards. `APPLY` is not implemented and the
-rake aborts if that env is set.
+Default is **read-only**. Prints identical emoji / keyboard / numbers
+clusters on the `lingolinq` content account and which parent buttons
+would be relinked.
+
+`APPLY=1 APPLY_CONFIRM=1` relinks those parents then destroys extras.
+It **skips** any cluster that includes `lingolinq/keyboard` (default
+sidebar slug). `lingolinq` and `lingolinq_admin` sidebars still point
+there. Do not delete that key until sidebar is restored from
+`public/system-boards/keyboard.obz`.
+
+The operator script never sets APPLY. Production Cloud SQL is refused
+even with confirm.
 
 Test this on **nonprod first**. Do not run against `lingolinq-prod`.
 
@@ -56,10 +64,38 @@ The script copies image, Cloud SQL, VPC, secrets, and the runtime SA from
 the chosen web service. It never updates `lingolinq-migrate-*`.
 `--max-retries 0`. Logs are the durable record.
 
+## APPLY (nonprod only, after reviewing a dry-run)
+
+Do **not** add APPLY to `dedupe-utility-boards-dryrun.sh`. After this
+code is on `lingolinq-web-dev`, update the throwaway job env and execute
+once:
+
+```bash
+gcloud run jobs update lingolinq-utility-dedupe-dryrun \
+  --project lingolinq-nonprod --region us-central1 \
+  --update-env-vars APPLY=1,APPLY_CONFIRM=1
+gcloud run jobs execute lingolinq-utility-dedupe-dryrun \
+  --project lingolinq-nonprod --region us-central1 --wait
+```
+
+Then clear those env vars so the next execute is a dry-run again:
+
+```bash
+gcloud run jobs update lingolinq-utility-dedupe-dryrun \
+  --project lingolinq-nonprod --region us-central1 \
+  --remove-env-vars APPLY,APPLY_CONFIRM
+```
+
+APPLY will:
+- Relink Quick Core / aphasia keyboard buttons to `keyboard_10`
+- Relink emoji/numbers on kept `keyboard_10` to `lingolinq/emoji` and `lingolinq/numbers`
+- Destroy extra `emoji_*` / `keyboard_*` / `numbers_*` copies
+- Leave `lingolinq/keyboard` and `vocal-flair-84-keyboard` both in place
+
 ## Do not
 
 - Point this job at `lingolinq-prod` / `lingolinq-web`.
-- Set `APPLY=1` (rake aborts; APPLY is not implemented).
+- Leave `APPLY=1` on the job definition after the run.
 - Add this to `deploy-cloudrun.yml` or Cloud Scheduler.
 - Treat an API key-probe as a full parent/user-ref scan. The rake walks
   every board and user on the shared database.
