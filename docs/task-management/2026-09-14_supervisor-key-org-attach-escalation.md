@@ -220,3 +220,67 @@ payload to `password` and setting `options[:allow_password_change] = true`.
 
 The password write itself was not performed; the permission gate that authorises it was observed flipping
 from false to true. That is the security-relevant boundary.
+
+---
+
+## 7. Implemented: Phase 1 self-dealing gate
+
+`SupervisorKeyAuthority` (`app/services/supervisor_key_authority.rb`) holds the policy: a self-only
+default with enumerated exceptions. `SupervisorKeyProcessor` consults it before each org-attaching
+action. The actor is threaded from `options['updater']`, which `Api::UsersController#update` already
+sets, through `User#process_params` and `Supervising#process_supervisor_key`, defaulting to the target so
+every existing caller keeps its current self-action behaviour.
+
+**The rule:** no actor may attach or ratify ANOTHER user into an organization that actor manages, assists,
+or upstream-manages. Acting FOR a communicator into an org the actor does not manage stays allowed.
+
+### Gated actions
+
+| Action | Link it writes | How the org is resolved |
+|---|---|---|
+| `approve-org` | `org_user` non-pending | `user.managing_organization(true)` |
+| `start-<code>` | `org_user` non-pending | side-effect-free one-arg `parse_activation_code`, third-party only |
+| `approve_supervision` | `org_supervisor` non-pending | `Organization.find_by_global_id(@key)` |
+
+### The re-sweep found a third route
+
+`approve_supervision` was **not** in the original scope and was found by the mandated re-sweep for the
+defect class. `Organization#approve_supervisor` sets `link.data['state']['pending'] = false` on an
+`org_supervisor` link, and `Organization.manager_for?` counts **non-pending `org_supervisor` links
+alongside `org_user` ones**:
+
+```ruby
+user_orgs = UserLink.links_for(user).select{|l| (l['type'] == 'org_user' || l['type'] == 'org_supervisor') && l['user_id'] == user.global_id && !l['state']['pending'] }
+```
+
+So it reaches the same `support_actions` grant by a different link type. A red test was written for it,
+confirmed red (the actor ratified org-supervisor membership on the target's behalf), then closed. Had the
+re-sweep been skipped, the fix would have shipped with a third route still open.
+
+### Trace-to-the-read
+
+The value guarded is a **non-pending `org_user` / `org_supervisor` UserLink**, read by
+`Organization.manager_for?`, which `app/models/user.rb:86` turns into `support_actions`, which
+`Api::UsersController#update` turns into a password write. In all three gated actions the guard executes
+**before** the call that writes or ratifies the link (`update_subscription_organization`,
+`parse_activation_code(code, user)`, and `approve_supervisor` respectively), with no early return between
+guard and write. Every third-party route into those three writers passes through
+`SupervisorKeyProcessor#call`, which is the single dispatch point.
+
+### Verification
+
+- 8 gate specs green; 43 green across the whole `supervisor_key_processor_spec.rb` file.
+- **Falsified:** with the gate reverted and the tests kept, exactly the guard cases go red and every
+  regression guard stays green.
+- **Baselined:** `spec/models/user_spec.rb` shows the same 11 failures with and without the change
+  (`add_premium_voice`, `track_protected_source`; the known orphaned-AuditEvent-row hazard), and
+  `organization_spec.rb` the same 4 (`load_domains`). None are caused by this change.
+- 406 examples across `spec/services/`, `supervising_spec.rb` and `organization_spec.rb` with only those
+  4 pre-existing failures.
+
+### Still Phase 2
+
+`process_add` (adds a supervisor, no org involved) and `approve_consent` / `deny_consent` (parental
+consent decisions) share the third-party shape but do **not** write an org link, so they are untouched by
+this gate and remain untraced. They are the next thing to look at, and `approve_consent` / `deny_consent`
+should probably come first because they touch the COPPA surface directly.

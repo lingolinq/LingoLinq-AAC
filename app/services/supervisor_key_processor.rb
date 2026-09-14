@@ -99,6 +99,11 @@ class SupervisorKeyProcessor
 
   def process_approve_supervision
     org = Organization.find_by_global_id(@key)
+    # Same defect shape as approve-org, by a different link type:
+    # Organization#approve_supervisor sets an org_supervisor link non-pending,
+    # and Organization.manager_for? counts NON-PENDING org_supervisor links
+    # alongside org_user ones, so this reaches the same support_actions grant.
+    return false unless permitted_org_attachment?(org, 'approve_supervision')
     if org.pending_supervisor?(user)
       org.approve_supervisor(user)
       true

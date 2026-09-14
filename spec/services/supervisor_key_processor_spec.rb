@@ -438,6 +438,35 @@ describe SupervisorKeyProcessor, :type => :model do
       expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
     end
 
+    # Found by the re-sweep for this defect class: approve_supervision ratifies an
+    # org_supervisor link, and Organization.manager_for? counts NON-PENDING
+    # org_supervisor links as well as org_user ones, so it reaches the same
+    # support_actions grant by a different route.
+    it "should refuse approve_supervision when the actor manages the org" do
+      actor, target = supervised_pair
+      org = org_managed_by(actor)
+      org.add_supervisor(target.user_name, true)
+      target.reload
+      expect(org.reload.pending_supervisor?(target)).to eq(true)
+
+      target.process({'supervisor_key' => "approve_supervision-#{org.global_id}"}, {'updater' => actor})
+
+      expect(org.reload.pending_supervisor?(target.reload)).to eq(true)
+      expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
+    end
+
+    it "should still allow a user to approve_supervision on their own account" do
+      target = User.create
+      org = Organization.create(:settings => {'total_licenses' => 5})
+      org.add_supervisor(target.user_name, true)
+      target.reload
+      expect(org.reload.pending_supervisor?(target)).to eq(true)
+
+      target.process({'supervisor_key' => "approve_supervision-#{org.global_id}"}, {'updater' => target})
+
+      expect(org.reload.pending_supervisor?(target.reload)).to eq(false)
+    end
+
     it "should log an AuditEvent when a self-dealing key is refused" do
       actor, target = supervised_pair
       org = org_managed_by(actor)
