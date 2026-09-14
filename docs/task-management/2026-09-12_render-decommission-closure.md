@@ -622,9 +622,27 @@ block scalar for the nested quotes, and `.dockerignore`'s `.git` is root-anchore
 `find` if the goal is "no git history anywhere" rather than the Sentry-fallback path.
 Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 15 (head 262ec6a09) and fixes
+
+Findings file `dual-review-round15-pra1.md`. Codex: approve, 1 Low. Adversary: approve, 3 Low;
+20 probes, 0 fail-open, the first round in the sequence where that is true.
+- Taken (adversary Low 1): `Dir.glob` with the checkout path interpolated fails open when that path
+  holds a glob metacharacter (`[`, `{`, `*`, `?`), which cannot happen on the CI runner but can on a
+  developer path. Replaced with a directory listing filtered by a literal regex (any non-dot name
+  ending in `.dockerignore`), no pattern language. Scratch `Dockerfile.dockerignore` still red.
+- Recorded, not fixed (Codex Low, adversary Low 2): the check is root-scoped; a future `docker build
+  -f <subdir>/Dockerfile` would resolve a sibling ignore file this example cannot see. The deploy
+  workflow's only build is root, no `-f`. The deferred image-level check is invocation-independent
+  and is the right control; noted with the deferral.
+- Recorded (adversary Low 3): the runtime image installs `git` (`Dockerfile:36`), so the Sentry git
+  fallback would succeed immediately if `.git` ever reached `/app`; there is no second line of
+  defence behind the text pin, which is the rationale for taking the image-level check in PR B.
+  Dropping `git` from the runtime stage is a separate change with its own risk.
+Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-14 applied; round 15 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-15 applied; round 16 re-review pending) -> A2 -> B -> C.
