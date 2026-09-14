@@ -765,7 +765,8 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > `speecher set_voice` has failed again on later heads with no code change and passed on others;
   > test 157 `boards-layout-toggle` failed once, at `a648d93e3` (the first run on this branch on
   > that base), and in no later run read while this note was written (read dates are in the
-  > round entries of `docs/task-management/2026-09-12_render-decommission-closure.md`;
+  > round entries of PR #962's working log,
+  > `docs/task-management/2026-09-12_render-decommission-closure.md`;
   > `gh run list --workflow CI --branch scot/chore/render-dead-config-removal` is the current
   > state). Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
@@ -947,8 +948,8 @@ Findings file `dual-review-round26-pra1.md`. Codex: did not run (OAuth still rev
 request-changes, 1 Medium, 3 Low, all one-clause prose; the round-25 fixes verified applied and
 the test-157 fact re-pulled true. Code unchanged and approved since `38559fd0e`. The Medium was
 the round-25 fix itself: "in no run read up to 2026-09-14T07:52Z" put a post-stamp time inside
-the CI bullet list whose rule (added in round 24, narrowed to the bullet list in the same commit)
-says every number there is as of 06:32Z.
+the CI bullet list whose rule (added in round 24, `16181986b`; narrowed to the bullet list in the round-25
+commit, `3a985b701`) says every number there is as of 06:32Z.
 Replaced in the record, the owner note and the PR body by a perfect-tense pointer ("in no later
 run read while reviewing" in the record and PR body, "while this note was written" in the note,
 with the dated reads in the round entries), so the standing sentences
@@ -962,7 +963,8 @@ says the note carried outcomes as well as times and a reading.
 
 Findings file `dual-review-round27-pra1.md`. Codex: did not run (OAuth still revoked). Adversary:
 request-changes, 1 Medium, 4 Low, all prose; round-26 fixes all verified applied; test 157
-re-pulled against all ten failed jobs on the branch (one `not ok 157`, nine `not ok 2469`); the
+re-pulled against all ten failed jobs on the branch as read in round 27, about 2026-09-14T08:20Z
+(one `not ok 157`, nine `not ok 2469`); the
 "first run on this branch on that base" scoping verified against the branch's `# tests` history.
 Dated history from that read: run 34817933682 (`254a0ab1d`) failed at 2026-09-14T08:04:21Z on
 test 2469 (1662 ms against 1171 and 1166, excess 493.5 ms, inside the stamped range), `# tests
@@ -972,14 +974,31 @@ test 2469 (1662 ms against 1171 and 1166, excess 493.5 ms, inside the stamped ra
 string as the text of three places when the note's variant differs (both variants now quoted);
 the record cited round ranges for its reads that go one short every round (both parentheticals
 now point at the round entries without a range); the owner note's pointer to "the working log"
-names the file, since the note is meant to be pasted where the log is not open; the width
-sweep is closed structurally: every line added since `38559fd0e` is at or under 100 columns
-(pre-existing longer lines elsewhere in the file are untouched).
+names the file, since the note is meant to be pasted where the log is not open; every line
+added since `38559fd0e` was rewrapped once, by script, to at or under 100 columns (pre-existing
+longer lines elsewhere in the file are untouched); no check in the repo enforces that, so the
+awk check is re-run before each commit to this log.
+## PR A1 dual review round 28 (head ed9f9bb84, prose only) and fixes
+
+Findings file `dual-review-round28-pra1.md`. Codex: did not run (OAuth still revoked). Adversary:
+request-changes, 2 Medium, 2 Low, all one-clause prose, all in this log's own round entries; the
+round-27 rewrap proved structural-only by independent block extraction (four content blocks
+changed, all intended); no standing sentence carries a post-stamp number. Code unchanged and
+approved since `38559fd0e`. Mediums: the round-26 entry's "narrowed ... in the same commit" still
+read as round 24's commit (now names `3a985b701`, round 25); the round-27 entry's "all ten failed
+jobs" carried no read stamp and an eleventh failure completed 64 seconds after the commit (run
+34820310567, `05866c642`, 08:35:14Z, test 2469; dated history only), so the count is now stamped
+"as read in round 27, about 08:20Z". Lows: "closed structurally" overclaimed a one-time rewrap
+with no enforcing check (reworded); the owner note's file pointer names PR #962, since the log
+exists only on this draft branch. Standing observation from the adversary, not a finding: every
+round entry cites a `dual-review-roundN-pra1.md` findings file that is untracked (session
+scratchpad); a decision for Scot on whether review artifacts get committed.
 
 ## Status
+
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-27 applied; round 28 re-review pending,
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-28 applied; round 29 re-review pending,
   prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
