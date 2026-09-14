@@ -653,54 +653,67 @@ Fix: plain string tests, no glob and no regex: `n != '.dockerignore' && n.end_wi
 Adversary Low 1 was procedural and correct: this edit sat uncommitted in the worktree while round 16
 ran against `a7a667453`; the reports cover that head only, so the edit gets its own round.
 
-CI on this branch, corrected in rounds 17, 18 and 19 (round 16 called it flakiness; round 17
-over-attributed it to product code; round 18 stated an unexecuted mechanism as the classification
-and missed a run). Every claim below was read from the GitHub jobs API, `git show`, and the test
-files at `origin/develop`, read-only, on 2026-09-14. Observed facts first, hypotheses after, labelled.
+CI on this branch, corrected in rounds 17 to 20 (round 16 called it flakiness; round 17
+over-attributed it to product code; round 18 stated an unexecuted mechanism as the classification;
+rounds 18 and 19 each quoted a run total that was stale within minutes). Every claim below was read
+from the GitHub jobs API, `git show`, and the test files at `origin/develop`, read-only. Run lists
+carry an as-of stamp and run ids; totals are avoided because runs keep completing.
 - `develop` moved to `4104b657b` at 2026-09-13T21:44:07Z via PR #963: 166 files (`git show --stat`;
   `gh pr view --json files` caps at 100), 120 under `app/frontend` including 33 added test files;
   the Ember suite grew from 2529 to 2687 tests. This branch was not rebased in that window: its
   merge base with `develop` is `7183d488f` throughout, and no head contains `4104b657b`; CI runs on
   the PR merge ref, which picks up the moved base.
-- Branch record. On the 2529-test base, passes at `1476ae817` and `165fe952f`. On the 2687-test
-  base, 8 completed runs: 2 passes (`4fca93c3d`, `38559fd0e`) and 6 failures (`a648d93e3`,
-  `e3d53f10b`, `5d724d15d`, `4af82d7c2`, `262ec6a09`, `a7a667453`), each `# tests 2687`,
-  `# fail 1`; runs on `7422bf347` and `1940d17c0` were in progress when this was written. Two
-  distinct failures:
-  - Five runs (34787748239, 34788511177, 34789100356, 34798323491, 34809269466): test 2469
-    `speecher: speecher set_voice - should not error if set_voice has not been called`, message
-    `TypeError: Failed to execute 'speak' on 'SpeechSynthesis': parameter 1 is not of type
-    'SpeechSynthesisUtterance'`, thrown from `speak_utterance` (frontend.js:263684) under
-    `Backburner._runExpiredTimers`: a global error raised from a timer, attributed to whichever
-    test is running.
-  - One run (34785846824): test 157 `boards-layout-toggle: choosing TOP-DOWN persists it to the
-    user`, message `TypeError: localStorage.getItem is not a function` at
-    `capabilities.sync_access_token`.
-- Facts about the tests (read at `origin/develop`). The failing speech test (`speecher-test.js:270-273`,
-  in `describe("set_voice")` at `:252`) runs with the utterance constructor stubbed in its
-  `beforeEach` (`:256`) and `speak` stubbed in its body (`:271`); the preceding `describe("speak_text")`
-  block (`:68`) stubs the constructor at `:79` and `:119` and `speak` at `:95`, `:106`, `:117`.
-  `speecher.js` has about a dozen `runLater` call sites, several in the speech path. The
-  `boards-layout-toggle` test installs a bare `{}` as `window.localStorage` via `stubStorage`
-  (`:40-42`, called at `:214`) and holds it across its own `await` (`:223`), so any concurrent
-  caller of `capabilities.sync_access_token` in that window sees an object with no `getItem`.
-- Hypotheses, all PLAUSIBLE and none executed: (a) for the speech failure, a `runLater` timer
-  scheduled by this test or an earlier one fires after the stubs are restored and hands a fake
-  utterance to the real `speak`. The TypeError itself cannot occur in production, where the
-  constructor is native; whether the same late timer re-enters `speak_utterance` in production
-  (a stale timer speaking or cancelling during a live session) is untested and is a separate
-  question for the owner. (b) For the `localStorage` failure, a timing-dependent race inside that
-  test's own await window, not suite ordering. (c) Why now: #963 added 158 tests and 33 test
-  files, which changes suite order and timing (both failing tests passed on the 2529 base as
-  tests 2314 and 156); #963's `get_tts_voices()` fallback also lets `oops()` reach `speak_text`
-  where it previously threw, but no test calls `speecher.oops()` directly (callers are
-  `speak-menu.js:895`, `controllers/speak-menu.js:171`, `repairs.js:213`,
-  `controllers/modals/repairs.js:177`), so that path would have to run through those components.
-  The stack frame says where the throw lands, not who introduced it; #963's `speecher.js` hunk
-  touched the import, `oops()` and `get_tts_voices()`, not `speak_utterance`.
-- Extent: observed on this branch (6 of 8 runs). `develop`'s own run and PR run 34786101021
-  (`feat/melissa-dedupe-library-utility-boards`, 22:12Z) passed on the same 2687 suite with test
-  2469 `ok`. Cause and reproducibility are unconfirmed.
+- Branch record as of 2026-09-14T06:32Z. On the 2529-test base, every run passed (`20d2e376d`
+  through `165fe952f`). On the 2687-test base, completed runs: passes at `4fca93c3d` (34787002914)
+  and `38559fd0e` (34809987003); failures at `a648d93e3` (34785846824, test 157), `e3d53f10b`
+  (34787748239), `5d724d15d` (34788511177), `4af82d7c2` (34789100356), `262ec6a09` (34798323491),
+  `a7a667453` (34809269466), `7422bf347` (34810879687), the last six all test 2469; pending at
+  that time: `1940d17c0` (34811882616), `f30c81bb4` (34812849886). Each completed failure is
+  `# tests 2687`, `# fail 1`. Two distinct failures:
+  - Test 2469 `speecher: speecher set_voice - should not error if set_voice has not been called`,
+    message `TypeError: Failed to execute 'speak' on 'SpeechSynthesis': parameter 1 is not of type
+    'SpeechSynthesisUtterance'`, thrown from `speak_utterance` (frontend.js:263684:44) with the
+    caller frame at frontend.js:263777:29, under `Backburner._runExpiredTimers`.
+  - Test 157 `boards-layout-toggle: choosing TOP-DOWN persists it to the user`, message
+    `TypeError: localStorage.getItem is not a function` at `capabilities.sync_access_token`
+    (frontend.js:212380:118) with the caller frame at frontend.js:212398:30.
+- Facts about the code and tests (read at `origin/develop`). Speech: the failing test
+  (`speecher-test.js:270-273`, in `describe("set_voice")` at `:252`) stubs the utterance
+  constructor in its `beforeEach` (`:256`) and `speak` in its body (`:271`), calls
+  `speecher.speak_text("hippo")` synchronously (`:272`) and returns without awaiting; the preceding
+  `describe("speak_text")` block (`:68`) stubs the constructor at `:79` and `:119` and `speak` at
+  `:95`, `:106`, `:117`. In `speecher.js`, `speechSynthesis.speak(utterance)` is at `:823` and
+  `speak_utterance.call(_this)` at `:916` inside a `runLater` (`:915-917`); the two frames' line
+  delta (+93) matches those two source lines (adversary's reading of the stack, round 20). About a
+  dozen `runLater` call sites exist in the file. Storage: the `boards-layout-toggle` test installs a
+  bare `{}` as `window.localStorage` via `stubStorage` (`:40-42`, called at `:214`) and holds it
+  across its own `await` (`:223`). `capabilities.sync_access_token` reads
+  `localStorage.getItem('debug_tokens')` behind a `typeof localStorage !== 'undefined'` guard that a
+  bare object passes (`capabilities.js:305`), and it is called every 2000 ms by a `setInterval`
+  installed at `capabilities.js:320-326` that nothing clears (`git grep clearInterval` over
+  `app/frontend/app` and `app/frontend/tests` finds only the weblinger poll and `eval_gazer`); the
+  caller frame delta (+18) matches `:305` to `:323`.
+- Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
+  test body returns and, intermittently, after teardown has restored the real `speak`, handing it
+  the fake utterance built under the stub (test 2469 took 1629-1724 ms in the failing runs against
+  810-923 ms in the passing ones). The TypeError itself cannot occur in production, where the
+  constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
+  stale timer speaking or cancelling during a live session) is untested and is a separate question
+  for the owner. (b) Storage: the never-cleared 2-second interval fires inside the test's await
+  window while the bare object is installed; its phase relative to any test boundary depends on
+  cumulative elapsed suite time, which #963's added tests changed, so suite composition is not
+  ruled out. (c) Why now: #963 added 158 tests and 33 test files, changing suite order and timing
+  (both failing tests passed on the 2529 base as tests 2314 and 156); #963's `get_tts_voices()`
+  fallback also lets `oops()` reach `speak_text` where it previously threw, but no test calls
+  `speecher.oops()` directly (callers are `speak-menu.js:895`, `controllers/speak-menu.js:171`,
+  `repairs.js:213`, `controllers/modals/repairs.js:177`). #963 did not touch `speecher-test.js`,
+  `boards-layout-toggle-test.js` or `capabilities.js`; its `speecher.js` hunk touched the import,
+  `oops()` and `get_tts_voices()`, not `speak_utterance`. The stack says where the throw lands,
+  not who introduced it.
+- Extent: observed on this branch. The only two CI runs on the 2687 base outside #962,
+  `develop`'s own (34784704398) and PR run 34786101021 (`feat/melissa-dedupe-library-utility-boards`),
+  passed with test 2469 `ok`; a control set of two cannot establish that the failure is
+  branch-specific. Cause and reproducibility are unconfirmed.
 - #962: zero `app/frontend` files in the diff. In `build-and-test` (`.github/workflows/ci.yml:102-164`)
   the checkout materialises the repo, the cache key hashes only `app/frontend/package-lock.json`,
   and every step that reads source runs with `working-directory: app/frontend`. Nothing this diff
@@ -709,21 +722,23 @@ files at `origin/develop`, read-only, on 2026-09-14. Observed facts first, hypot
   frontend owner (#963 was authored by traciday):
 
   > **Ember suite: two global-error leaks observed on #962's branch since `develop` `4104b657b` (#963)**
-  > #962 has no frontend changes. On the 2687-test suite its `build-and-test` failed 6 of 8 runs,
-  > each `# fail 1`. (a) Five runs (34787748239, 34788511177, 34789100356, 34798323491,
-  > 34809269466): test 2469 `speecher set_voice` fails with `TypeError: Failed to execute 'speak'
-  > on 'SpeechSynthesis': parameter 1 is not of type 'SpeechSynthesisUtterance'` from
-  > `speak_utterance` under `Backburner._runExpiredTimers`. That test stubs the utterance
-  > constructor (`speecher-test.js:256`) and `speak` (`:271`); the preceding `speak_text` block
-  > stubs them too (`:79`, `:119`, `:95`, `:106`, `:117`). Hypothesis, not reproduced: a
-  > `runLater` from this or an earlier test fires after restore and hands a fake utterance to the
-  > real `speak`. The TypeError is a harness artifact; whether the late re-entry happens in
-  > production is untested. (b) One run (34785846824): test 157 `boards-layout-toggle` fails with
-  > `TypeError: localStorage.getItem is not a function` at `capabilities.sync_access_token`; the
-  > test installs a bare `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) across its own
-  > await (`:223`). Both tests passed on the 2529 suite before #963 (166 files, 33 new test files,
-  > +158 tests); `develop`'s own run and one other PR passed on the same base. Cause unconfirmed;
-  > please reproduce and trace timer ownership before assigning it.
+  > As of 2026-09-14T06:32Z. #962 has no frontend changes. On the 2687-test suite its
+  > `build-and-test` runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466 and
+  > 34810879687 each failed only test 2469 `speecher set_voice` with `TypeError: Failed to execute
+  > 'speak' on 'SpeechSynthesis': parameter 1 is not of type 'SpeechSynthesisUtterance'` from
+  > `speak_utterance` (`speecher.js:823`) called from the `runLater` at `:915-917`, under
+  > `Backburner._runExpiredTimers`; the test stubs the constructor (`speecher-test.js:256`) and
+  > `speak` (`:271`), calls `speak_text` synchronously (`:272`) and returns. Hypothesis, not
+  > reproduced: the timer fires after teardown restores the real `speak`. The TypeError is a harness
+  > artifact; whether the late re-entry happens in production is untested. Run 34785846824 failed
+  > only test 157 `boards-layout-toggle` with `TypeError: localStorage.getItem is not a function`
+  > at `capabilities.sync_access_token` (`capabilities.js:305`), called by the 2-second
+  > `setInterval` at `capabilities.js:320-326` that nothing clears, while the test holds a bare
+  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) across its await (`:223`). Both tests
+  > passed on the 2529 suite before #963 (166 files, 33 new test files, +158 tests). The only two
+  > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
+  > control set of two. Runs 34811882616 and 34812849886 were pending at the stamp. Cause
+  > unconfirmed; please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
 
@@ -740,7 +755,8 @@ and are not controls. Paragraph rewritten above from the API output, with a draf
 the frontend owner. Lesson: "flaky" is a conclusion that needs the failing assertion and the base
 history in hand, not a label for "different test names across runs".
 Low: the PR body's Tests section said CI was green on the pre-rebase heads and silent on the five
-post-rebase failures; one sentence added. Round 18 is a prose-only re-review of this record and
+post-rebase failures; one sentence added. (Both the count and the "rebase" framing were corrected
+in round 19: no rebase occurred, and the run list is kept with ids and an as-of stamp.) Round 18 is a prose-only re-review of this record and
 that sentence; the spec has not changed since `38559fd0e`.
 
 ## PR A1 dual review round 18 (head 7422bf347, prose only) and fixes
@@ -769,8 +785,9 @@ claim; twice this session the fix prose carried a fresh overclaim (rounds 17 and
 Findings file `dual-review-round19-pra1.md`. Codex: request-changes, 2 Medium, 1 Low. Adversary:
 request-changes, 3 Medium, 4 Low. Code unchanged and approved by both since `38559fd0e`.
 Addressed in the paragraph above: a sixth failing run (`a7a667453`, 34809269466, same speech
-failure) and a second pass (`38559fd0e`) were on the API before the round-18 commit and were
-missed, so the counts are 6 of 8 and 5 speech; the classification no longer rules out a product
+failure) completed at 05:57:45Z, six minutes before the round-18 commit, and was missed; a second
+pass (`38559fd0e`) completed at 06:06:33Z, three minutes after that commit, and could not have
+been counted then; both are now listed; the classification no longer rules out a product
 defect (the TypeError is a harness artifact; a late timer re-entering `speak_utterance` in
 production is untested); the mechanism and the "why now" candidates are stated as hypotheses,
 none executed; the PR body no longer says "pre-rebase" and "post-rebase" (no rebase happened;
@@ -781,9 +798,25 @@ count; no test calls `oops()`; "any PR on this base carries the risk" and the ca
 are gone. Lesson, third time: the correction of a correction needs the same evidence pull, and a
 count that was true when gathered must be re-pulled at commit time.
 
+## PR A1 dual review round 20 (head f30c81bb4, prose only) and fixes
+
+Findings file `dual-review-round20-pra1.md`. Codex: approve, no findings. Adversary: request-changes,
+3 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
+Addressed above: the round-19 record said the `38559fd0e` pass was missed before the round-18
+commit; it completed three minutes after that commit (clause split, lesson stands on `a7a667453`
+alone). The `localStorage` stack already names its caller: the never-cleared 2-second
+`setInterval` at `capabilities.js:320-326`, so the note now points there and no longer rules out
+suite composition for that leak. The speech stack pins `speecher.js:823` and the `runLater` at
+`:915-917` (frame delta +93); cited as a stack reading, unreproduced. The draft note carried a
+bare "6 of 8" that was 7 of 9 within six minutes (`7422bf347` failed at 06:23:20Z on the same
+test); the record and the note now carry an as-of stamp and run ids and no totals. The two
+passing comparators are named as the only two runs on this base outside #962. The pre-move pass
+list says every run on that base passed. The round-17 history entry is annotated rather than
+rewritten. Lesson: a count of a live process is a time-stamped observation, never a fact.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-19 applied; round 20 re-review pending on prose only) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-20 applied; round 21 re-review pending on prose only) -> A2 -> B -> C.
