@@ -700,7 +700,8 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   reviewing (rounds 23 and 24, dated in their entries below) both passed and failed on test 2469
   `speecher set_voice` with no code change, and one exceeded the stamped range, so the range is a
   reading of six runs, not a bound. Test 157 `boards-layout-toggle` failed once, at `a648d93e3`
-  (the first run on this base), and in no run read up to 2026-09-14T07:52Z (round 25). Current
+  (the first run on this branch on that base), and in no later run read while reviewing (rounds
+  23 to 25, dated in their entries below). Current
   state: `gh run list --workflow CI --branch scot/chore/render-dead-config-removal`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
@@ -760,9 +761,10 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
   > control set of two. Runs completing after that stamp are not tracked in this note. Test 2469
   > `speecher set_voice` has failed again on later heads with no code change and passed on others;
-  > test 157 `boards-layout-toggle` failed once, at `a648d93e3`, and in no run read up to
-  > 2026-09-14T07:52Z (`gh run list --workflow CI --branch scot/chore/render-dead-config-removal`
-  > is the current state). Cause
+  > test 157 `boards-layout-toggle` failed once, at `a648d93e3` (the first run on this branch on
+  > that base), and in no later run read while this note was written (read dates are in the
+  > working log's round entries; `gh run list --workflow CI --branch
+  > scot/chore/render-dead-config-removal` is the current state). Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
@@ -888,7 +890,7 @@ outside the 430 to 520 ms range while the pending-run note reported only the pos
 Restructured once rather than patched twice: every number in the CI record is now as of the 06:32Z
 stamp (the range is scoped to the six stamped failures and the passing set to the two stamped
 passes), and one dated bullet in the record listed every post-stamp completion with its outcome
-and reading (the note carried two completion times and one reading, the body outcomes only; the
+and reading (the note carried outcomes, two completion times and one reading, the body outcomes only; the
 enumeration itself is dropped in round 24). The Lows: the facts bullet's "across its
 own await" replaced with the call-to-`afterEach` lifetime (Codex and adversary); the owner note's
 "two sibling tests do the same" now distinguishes the two promise-returning siblings from the
@@ -928,17 +930,32 @@ exactly three promise-returning tests). Code unchanged and approved since `38559
 commit by commit. The Medium: "the failure has recurred on later heads" was true of test 2469 and
 false of test 157, which the owner note spends most of its length on; pulled from the job logs of
 all nine failed runs on this branch (read 2026-09-14T07:52Z): eight are `not ok 2469`, one is
-`not ok 157` at `a648d93e3`, the first run on the 2687 base. The test is now named in the record,
+`not ok 157` at `a648d93e3`, the first run on this branch on the 2687 base. The test is now named in the record,
 the owner note, the round-24 entry and the PR body. The second Medium: the PR body's "not
 enumerated here or in the working log" was an absolute that the dated history entries falsify;
 scoped to "as a standing list". Lows: "every number in this record" scoped to the CI bullet
 list; the round-24 entry's "outcomes only" corrected for the note; "two run-on lines" corrected
 to four and the status line wrapped; "excess 510" written as 510.5 to match the 535.
 
+## PR A1 dual review round 26 (head 05866c642, prose only) and fixes
+
+Findings file `dual-review-round26-pra1.md`. Codex: did not run (OAuth still revoked). Adversary:
+request-changes, 1 Medium, 3 Low, all one-clause prose; the round-25 fixes verified applied and
+the test-157 fact re-pulled true. Code unchanged and approved since `38559fd0e`. The Medium was
+the round-25 fix itself: "in no run read up to 2026-09-14T07:52Z" put a post-stamp time inside
+the CI bullet list whose rule (added in the same commit) says every number there is as of 06:32Z.
+Replaced in the record, the owner note and the PR body by a perfect-tense pointer ("in no later
+run read while reviewing", with the dated reads in the round entries), so the standing sentences
+carry no post-stamp time. Lows: "failed once ... and in no run read up to" shared a verb and
+contradicted itself (rewritten with "no later run"); "the first run on this base" was false
+(the `develop` control run 34784704398 preceded it; now "the first run on this branch on that
+base", in the record, the note and the round-25 entry); the round-24 entry's parenthetical now
+says the note carried outcomes as well as times and a reading.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-25 applied; round 26 re-review pending,
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-26 applied; round 27 re-review pending,
   prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
