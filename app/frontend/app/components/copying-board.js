@@ -9,9 +9,11 @@ import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import { board_edit_route } from '../utils/board_view';
 
-// Best-effort human-readable form of whatever the copy chain rejected with, for
-// the background drawer (which renders a plain string, unlike the modal's error
-// slot). Falls back to a generic message rather than printing "[object Object]".
+// Best-effort human-readable form of whatever the copy chain rejected with. Used for BOTH
+// the background drawer and the modal's own error slot: copying-board.hbs:10 renders
+// `{{this.error}}` directly, so storing the raw rejection object there printed the literal
+// text "[object Object]" to the user. The copy chain rejects with several shapes -- a bare
+// string, a jqXHR-ish `{error: '...'}`, or an Error -- hence the ladder rather than a cast.
 function copy_error_message(err) {
   if (typeof err === 'string') { return err; }
   if (err && typeof err.error === 'string') { return err.error; }
@@ -129,7 +131,7 @@ export default Component.extend({
       }, function(err) {
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
-        _this.set('error', err);
+        _this.set('error', copy_error_message(err));
         _this.set('hierarchyLoadFailed', true);
         if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
           _this.set('isTimeoutError', true);
@@ -176,12 +178,22 @@ export default Component.extend({
     const progress = { token: null };
     this._active_progress = progress;
     this.set('copying', true);
+    this.set('copy_percent', null);
     board.set('default_locale', null);
     if (model.default_locale && board.get('locale') !== model.default_locale) {
       board.set('default_locale', model.default_locale);
     }
     console.debug('[copying-board] starting copy_board', model.action);
-    editManager.copy_board(board, model.action, model.user, model.make_public, model.symbol_library, model.new_owner, model.disconnect).then(function(copiedBoard) {
+    /* Measured progress, when the server has any. Reported to BOTH surfaces because the user
+       can minimise mid-copy: the modal reads `copy_percent`, the drawer reads the service.
+       `progress.token` is null until minimise() runs, and the service ignores a null token,
+       so the pre-minimise calls are harmless no-ops rather than needing a guard here. */
+    const on_progress = function(pct) {
+      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+      _this.set('copy_percent', pct);
+      copyProgress.progress(progress.token, pct);
+    };
+    editManager.copy_board(board, model.action, model.user, model.make_public, model.symbol_library, model.new_owner, model.disconnect, { on_progress: on_progress }).then(function(copiedBoard) {
       console.debug('[copying-board] copy_board resolved', copiedBoard && copiedBoard.get && copiedBoard.get('id'));
       let next = RSVP.resolve();
       const new_board_ids = board_ids_to_include ? copiedBoard.get('new_board_ids') : null;
@@ -319,7 +331,7 @@ export default Component.extend({
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
         if (copyingOpen && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
-          _this.set('error', err);
+          _this.set('error', copy_error_message(err));
         } else {
           modal.error(err);
         }
@@ -335,7 +347,7 @@ export default Component.extend({
         modal.is_open('copying-board') ||
         (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
       if (copyingOpen && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
-        _this.set('error', err);
+        _this.set('error', copy_error_message(err));
       } else {
         modal.error(err);
       }

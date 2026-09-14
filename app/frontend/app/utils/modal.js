@@ -260,7 +260,25 @@ var modal = EmberObject.extend({
   },
   scannable_targets: function() {
     if(modal.is_open()) {
-      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn");
+      /* `.la-modal-close` is included unscoped, and deliberately: it is the close control
+         on every modernised modal, and it is the one thing a switch or eye-gaze user must
+         always be able to reach. Everything else here is scoped to a `.modal_targets`
+         container, which means a modal whose body is EMPTY — an inbox with no alerts, a
+         list with nothing in it — returned zero targets, and modal.js#open only restarts
+         the scanner when this query is non-empty. Scanning therefore stopped on open and
+         never resumed: the user was sealed in a modal with nothing to select and no way
+         out until someone else clicked or pressed Escape. Matching the close button
+         guarantees at least one target for any modal that has one. */
+      /* NOTE: services/modal.js#scannableTargets carries a near-copy of this selector.
+         THIS is the live one — scanner.js:210 calls modal.scannable_targets() — and the two
+         have already drifted (only this one matches .la-modal-close). Keep additions here;
+         adding them only to the service is a silent no-op for scanning. */
+      /* `.md-speak-menu__scroll-btn` is the Speak Options header's Up/Down pair. It MUST be
+         listed here: raw_events matches a bare `button` for dwell (:2651) so eye gaze reaches
+         it for free, but this query does not, and those controls exist precisely so a switch
+         or gaze user on a short screen can reach the bottom of that modal. Omitting it would
+         leave them scannable-invisible — visible, and useless to the people they are for. */
+      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn, .modal-dialog .modal_targets .md-speak-menu__phrase-page-btn, .modal-dialog .modal_targets .md-speak-menu__scroll-btn, .modal-dialog .modal_targets .la-share-text__contacts-more, .modal-dialog .la-modal-close");
     } else {
       return document.querySelectorAll('nothing'); // Return empty NodeList equivalent
     }

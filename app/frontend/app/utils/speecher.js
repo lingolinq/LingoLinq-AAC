@@ -16,6 +16,10 @@ import capabilities from './capabilities';
 import i18n from './i18n';
 // import stashes from './_stashes';
 import Utils from './misc';
+/* Imported so `get_tts_voices()` below always has something to return. Safe: tts_voices
+   pulls in only @ember/object, capabilities, i18n and rsvp — and this module already
+   imports capabilities and i18n itself, so it introduces no cycle that was not here. */
+import tts_voices from './tts_voices';
 import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
@@ -1017,8 +1021,14 @@ var speecher = EmberObject.extend({
     }
   },
   oops: function() {
-    var oopses = speecher.get_tts_voices().get('oops');
-    var loc = (speecher.get_app_state().get('vocalization_locale') || 'en').split(/-|_/)[0];
+    /* Defensive on both lookups. The point of this control is to make a sound so the
+       listener knows a correction is coming — failing to find a localised string is a
+       reason to say "Oops" in English, never a reason to say nothing at all. */
+    var voices = speecher.get_tts_voices();
+    var oopses = (voices && voices.get && voices.get('oops')) || {};
+    var app_state = speecher.get_app_state();
+    var raw = (app_state && app_state.get && app_state.get('vocalization_locale')) || 'en';
+    var loc = raw.split(/-|_/)[0];
     var str = oopses[loc] || oopses['en'] || "Oops";
     speecher.speak_text(str, 'oops', {});
   },
@@ -1404,8 +1414,29 @@ speecher.get_stashes = function() {
   return speecher._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
+/*
+ * The voice table.
+ *
+ * `speecher.tts_voices` FIRST, because that is where the app actually puts it:
+ * routes/application.js calls `speecher.setup(appState, persistence, stashes, ttsVoices)`
+ * and setup() stores it as `this.tts_voices` — speecher.js:243 already reads it that way.
+ * An earlier version of this function omitted that source and fell straight through to the
+ * imported module, which worked but silently ignored whatever the app had injected.
+ *
+ * `_services.tts_voices` is the register_services() slot. Nothing passes a fourth argument
+ * to register_services today; the slot is kept because the sibling utils (utterance, obf,
+ * extras) are wired that way from routes/application.js and this one may be later.
+ *
+ * The IMPORT is the backstop, and it is why `speecher.oops()` works at all. `oops()` does
+ * `get_tts_voices().get('oops')` on its first line, so any caller reaching it before
+ * setup() has run — or in a test, or from a non-Ember entry point — got `undefined` and a
+ * TypeError, and the "Oops" control in the Modify and Repair Message modal played nothing.
+ *
+ * Safe to import: tts_voices pulls in only @ember/object, capabilities, i18n and rsvp, two
+ * of which this module already imports, so it adds no cycle.
+ */
 speecher.get_tts_voices = function() {
-  return speecher._services.tts_voices || window.tts_voices;
+  return speecher.tts_voices || speecher._services.tts_voices || window.tts_voices || tts_voices;
 };
 
 // Service registration method

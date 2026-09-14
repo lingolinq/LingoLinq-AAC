@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import buildEventAction from '../utils/event_action';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
@@ -7,6 +8,7 @@ import { alias } from '@ember/object/computed';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import modalUtil from '../utils/modal';
+import stashes from '../utils/_stashes';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
@@ -18,6 +20,37 @@ import i18n from '../utils/i18n';
  * Converted from speak-menu template/controller to component for the
  * service-based modal system. Avoids route.render() so main content stays visible.
  */
+/* Distance from the top of the viewport to the top of the Speak Options modal. Clamped at
+   0 by the caller — see the note in `place()`.
+
+   Whatever this is, .md-speak-menu's `max-height` subtracts it (via the --sm-menu-top
+   custom property this publishes), so the panel's BOTTOM stays on screen as the top moves
+   down. The two must not be set independently. */
+const SPEAK_MENU_TOP_PX = 4;
+
+/* Row geometry, in step with `.md-speak-menu__bottom-btn--remembered` in app.scss.
+   PHRASE_ROW_H is that rule's fixed `height` and PHRASE_ROW_GAP its `margin-bottom`;
+   n rows occupy n*H + (n-1)*GAP because the last row's margin is zeroed. PHRASE_PAGER_H is
+   the Up/Down row's footprint (44px target + 6px margin + slack), reserved only when a
+   pager is actually going to be shown. */
+const PHRASE_ROW_H = 60;
+const PHRASE_ROW_GAP = 6;
+const PHRASE_PAGER_H = 56;
+/* Fallback only — used before the first measurement lands. */
+const PHRASE_PAGE_SIZE_DEFAULT = 4;
+/* How many times the fit may step down before giving up — see apply_phrase_page_size. */
+const PHRASE_FIT_TRIES = 4;
+/* Held thoughts shown inline under the Actions row; the rest are behind "More Thoughts".
+   A module constant, not a component property, so the computeds that read it do not have
+   to declare it as a dependency — it never changes.
+
+   TWO, not more: the Actions tile row is the anchor of this menu, and every row added
+   under it pushes Phrases, Board Languages and Speak Mode further down — on a short screen
+   or a large vocalization-size preference they go below the fold entirely. Two covers the
+   common case (the thought just parked, and the one before it) and the expander carries
+   the rest without costing anyone that space by default. */
+const HELD_THOUGHTS_SHOWN = 2;
+
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
@@ -40,6 +73,28 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    /*
+     * ButtonListener's handler, deliberately NOT `ctrlAction`.
+     *
+     * `ctrlAction` looks at the LAST argument and, if it smells like a DOM event, calls
+     * preventDefault and POPS it. That is right for `{{on "click"}}`, where the event is
+     * trailing noise. It is wrong here: ButtonListener calls
+     * `buttonEvent('speakMenuSelect', button_id, event)` and the event IS the third
+     * parameter — `button_event(event, button, full_event)`. So ctrlAction ate `full_event`
+     * on every single speak-menu tap, and any handler that read it got `undefined`:
+     * `menu_repair_button` and `menu_repeat_button` both do, and both threw
+     * "Cannot read properties of undefined (reading 'swipe_direction')" before doing
+     * anything at all. Repairs and Repeats were dead controls.
+     *
+     * Passing the arguments through also revives the swipe gestures those two read off
+     * `full_event.swipe_direction` (raw_events.js sets it on the CustomEvent) — they had
+     * been silently unreachable for as long as the event was being popped.
+     *
+     * `buildEventAction` is the existing primitive for exactly this — utils/event_action.js
+     * documents the same ctrlAction-eats-the-event problem for keydown/input/paste/drag —
+     * so this uses it rather than keeping a bespoke copy alongside.
+     */
+    this.eventAction = buildEventAction(self);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -135,34 +190,483 @@ export default Component.extend({
     }
   ),
 
+  /* Held thoughts, surfaced in the ACTIONS section directly under the button row rather
+     than in the phrase library below.
+
+     They used to be the first rows of `all_phrases`, which put them behind the "Show My
+     Phrases" expander that `opening()` re-collapses on every open (:434) — so a held
+     thought was two activations away and filed under the user's saved-phrase library.
+     The two are not the same kind of thing: a saved phrase is a library entry that
+     persists and can be returned to any time, while a held thought exists in exactly one
+     slot, is saved nowhere, and is LOST if it is not picked back up. It belongs beside
+     the button that created it.
+
+     Deliberately NOT gated on `phrases_expanded`: that flag governs the library.
+
+     Windowed to the most recent few unless expanded (HELD_THOUGHTS_SHOWN). `_phrase_parked`
+     is newest-first, so those are the ones a user is most likely to want back; "More
+     Thoughts" reveals the rest IN PLACE.
+
+     The overflow deliberately does NOT hand off to the Phrases modal, which is where it
+     first pointed: that modal renders only `category_phrases`, which filters on
+     `u.category === cat` (components/phrases.js:124), and held thoughts are pushed into
+     its list with no `category` at all (`:67-72`, and the comment at `:147-150` says so).
+     They therefore appear in NO tab there. Expanding here keeps them somewhere they
+     actually render. */
+  /* Recent sentences the user can say again, shown under REPEAT WORDS when the Repeats
+     group is open. Same source and same 24h window as the Phrases modal's Recent tab
+     (components/phrases.js:114-122): `stashes.prior_utterances`, newest first.
+
+     Computed only while `repeat_menu` is open so the modal does no work for it in the
+     default view. `sentence` is derived here rather than in the template because
+     `utterance.sentence()` needs the raw vocalizations, which the row does not otherwise
+     carry. */
+  repeatPhrases: computed('repeat_menu', function() {
+    if(!this.get('repeat_menu')) { return []; }
+    var cutoff = (new Date()).getTime() - (24 * 60 * 60 * 1000);
+    return (stashes.get('prior_utterances') || []).filter(function(p) {
+      return p && p.cleared > cutoff;
+    }).reverse().map(function(p) {
+      return { sentence: utterance.sentence(p.vocalizations), vocalizations: p.vocalizations };
+    });
+  }),
+
+  heldThoughts: computed('_phrase_parked', 'held_expanded', function() {
+    var all = this.get('_phrase_parked') || [];
+    if (this.get('held_expanded')) { return all; }
+    return all.slice(0, HELD_THOUGHTS_SHOWN);
+  }),
+
+  /* Gates the expander. Counted off the WHOLE parked list, not the windowed one, which is
+     the only reason `_phrase_parked` is kept unsliced. Stays true while expanded so the
+     control remains available to collapse again. */
+  heldThoughtsOverflow: computed('_phrase_parked', function() {
+    return (this.get('_phrase_parked') || []).length > HELD_THOUGHTS_SHOWN;
+  }),
+
+  /* NOTHING until asked for. The section used to open with a three-row shortcut (the parked
+     entries plus the most recent saved phrase); it now shows only "Create Phrases" and the
+     "Show My Phrases" expander, and the library appears on request.
+     Parked entries are NO LONGER part of this list — see `heldThoughts` above. */
+  all_phrases: computed('_phrase_saved', 'phrases_expanded', function() {
+    if (!this.get('phrases_expanded')) { return []; }
+    return [].concat(this.get('_phrase_saved') || []);
+  }),
+
+  /* Is there anything to reveal? Gates the expander — offering to open a library that is
+     empty is worse than saying nothing. Counted off the raw list, NOT `all_phrases`, which
+     is deliberately empty while collapsed. Held thoughts are excluded because they no
+     longer appear in the library; counting them here offered to expand a library that
+     could turn out to have nothing in it. */
+  phrase_total: computed('_phrase_saved', function() {
+    return (this.get('_phrase_saved') || []).length;
+  }),
+
+  /*
+   * Bring the top of the phrase library into view after it is revealed.
+   *
+   * The list is hidden until "Show My Phrases", so expanding can add four rows plus the
+   * pager below the fold of the menu's own scroll box. Scrolling to it is the difference
+   * between the control working and appearing to do nothing.
+   *
+   * Adjusts the MENU's scrollTop directly rather than calling `scrollIntoView()`, which
+   * walks every scrollable ancestor including the document and could move the page behind
+   * the modal. Deferred by rAF because the rows do not exist in the DOM until Ember has
+   * rendered the newly non-empty list; retries once, then gives up rather than looping.
+   */
+  scroll_phrases_into_view(attempt) {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var _this = this;
+    this._phrase_scroll_frame = window.requestAnimationFrame(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var menu = document.querySelector('#speak_menu');
+      var list = menu && menu.querySelector('.md-speak-menu__phrase-list');
+      if (!list) {
+        if (!attempt) { _this.scroll_phrases_into_view(1); }
+        return;
+      }
+      var margin = 8;
+      var menu_rect = menu.getBoundingClientRect();
+      var list_rect = list.getBoundingClientRect();
+      menu.scrollTop += (list_rect.top - menu_rect.top) - margin;
+    });
+  },
+
+  phrase_page_count: computed('all_phrases', 'phrase_page_size', function() {
+    var size = this.get('phrase_page_size') || PHRASE_PAGE_SIZE_DEFAULT;
+    return Math.max(1, Math.ceil((this.get('all_phrases') || []).length / size));
+  }),
+  /* Only worth showing the pager when there is more than one page. */
+  phrase_paging: computed('phrase_page_count', function() {
+    return this.get('phrase_page_count') > 1;
+  }),
+  phrase_page_first: computed('phrase_page', function() {
+    return (this.get('phrase_page') || 0) <= 0;
+  }),
+  phrase_page_last: computed('phrase_page', 'phrase_page_count', function() {
+    return (this.get('phrase_page') || 0) >= this.get('phrase_page_count') - 1;
+  }),
+  phrase_page_human: computed('phrase_page', function() {
+    return (this.get('phrase_page') || 0) + 1;
+  }),
+
+  /*
+   * PAGED, not scrolled — one page of `all_phrases` at a time.
+   *
+   * The expanded list used to drop its max-height and let the panel grow, falling back on
+   * .md-speak-menu's own scroll past the viewport. That is unusable for the people this
+   * menu is for: scanner.js highlights targets it cannot bring into view (now mitigated by
+   * scanner#scroll_into_view, but only for SWITCH users), and an eye-gaze user driving by
+   * dwell has no way to scroll anything at all — there is no gaze gesture and no scroll
+   * control. Content in a scroll region is content some users cannot reach.
+   *
+   * Slicing the array means the list is never taller than one page, so no scroll container
+   * exists to be trapped by, and Up/Down are ordinary buttons anyone can select. Same
+   * reasoning as the Big Button modal's Up/Down, which is the precedent in this app.
+   *
+   * The index in `menu_remembered_<i>` is an index into THIS array, and button_event reads
+   * it back from the same one, so paging cannot desynchronise selection from what is drawn.
+   */
+  rememberedUtterances: computed('all_phrases', 'phrase_page', 'phrase_page_size', function() {
+    var all = this.get('all_phrases') || [];
+    var size = this.get('phrase_page_size') || PHRASE_PAGE_SIZE_DEFAULT;
+    if (all.length <= size) { return all; }
+    var start = (this.get('phrase_page') || 0) * size;
+    return all.slice(start, start + size);
+  }),
+
+  /*
+   * How many phrases actually fit on this screen.
+   *
+   * Fixed page sizes waste the space the phrases-only view exists to give back: with the
+   * other sections hidden there is usually room for far more than four, and on a short
+   * screen there is room for fewer. Measured rather than guessed, and re-measured on
+   * resize.
+   *
+   * `menu.scrollTop = 0` first: `above` is the distance from the top of the menu's visible
+   * box to the list, which only equals "content above the list" when the box is unscrolled.
+   * In this view everything is meant to fit anyway, so resetting is both safe and the state
+   * being measured for.
+   *
+   * Two passes, because the pager's own height changes the answer: work out what fits with
+   * no pager, and if that already covers every phrase there IS no pager and we are done.
+   * Otherwise reserve its height and recompute — otherwise the last row would sit under it.
+   */
+  /*
+   * Whether the Up / Down controls in the sticky header have anything to do.
+   *
+   * `#speak_menu` (.md-speak-menu) is the scroll container -- `overflow-y: auto` under a
+   * `max-height` derived from --sm-menu-top. When its content fits, both controls are
+   * dropped entirely; otherwise each is dropped at its own end of the range.
+   *
+   * Three values, not two, because the pager is removed and the buttons are disabled on
+   * different conditions:
+   *   `menu_scrollable`   the pair renders at all -- nothing to scroll, no controls
+   *   `at_scroll_top`     Up is disabled
+   *   `at_scroll_bottom`  Down is disabled
+   *
+   * DISABLED at the ends rather than removed, matching the phrase pager below it and the
+   * GIF modal's pager. Removing one mid-scroll made the surviving button jump as the row
+   * reflowed, which on a surface someone is dwelling on means the target moves out from
+   * under them. The pair is only removed together, when there is nothing to scroll at all,
+   * and it is absolutely positioned so even that cannot shift the header.
+   *
+   * Known and pre-existing: neither scanner.js nor modal.js#scannable_targets filters
+   * `[disabled]`, so a disabled pager button is still handed to the scanner. The phrase
+   * pager and the GIF pager already behave this way; it is not introduced here.
+   *
+   * The 1px tolerance absorbs sub-pixel rounding: a container scrolled fully to the bottom
+   * commonly reports scrollTop + clientHeight a fraction under scrollHeight, which without
+   * it leaves a Down control that can no longer move anything.
+   */
+  update_scroll_affordances() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var menu = document.querySelector('#speak_menu');
+    if (!menu) {
+      this.set('menu_scrollable', false);
+      return;
+    }
+    this.set('menu_scrollable', menu.scrollHeight > menu.clientHeight + 1);
+    this.set('at_scroll_top', menu.scrollTop <= 1);
+    this.set('at_scroll_bottom', (menu.scrollTop + menu.clientHeight) >= (menu.scrollHeight - 1));
+  },
+
+  recompute_phrase_page_size() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('phrases_expanded')) { return; }
+    var menu = document.querySelector('#speak_menu');
+    var list = menu && menu.querySelector('.md-speak-menu__phrase-list');
+    if (!menu || !list) { return; }
+    menu.scrollTop = 0;
+    var menu_rect = menu.getBoundingClientRect();
+    var list_rect = list.getBoundingClientRect();
+    var above = list_rect.top - menu_rect.top;
+    var bottom_bar = menu.querySelector('.md-speak-menu__bottom');
+    var below = (bottom_bar ? bottom_bar.getBoundingClientRect().height + 8 : 0) +
+                (parseFloat(window.getComputedStyle(menu).paddingBottom) || 0);
+    var fits = function(space) {
+      return Math.max(1, Math.floor((space + PHRASE_ROW_GAP) / (PHRASE_ROW_H + PHRASE_ROW_GAP)));
+    };
+    /* MAX-height, not clientHeight. The menu shrinks to fit its content, so with a small
+       page already rendered `clientHeight` is just the space that page occupies — measuring
+       it produced a self-fulfilling answer that never grew past the starting size (4 rows
+       at every viewport from 640 to 1100, measured). The max-height is what the panel is
+       ALLOWED to grow to (`calc(100vh - --sm-menu-top - 16px)`), which is the real budget.
+       `above` and `below` are unaffected by the menu's own height, so they stay measured. */
+    var cap = parseFloat(window.getComputedStyle(menu).maxHeight);
+    if (!isFinite(cap)) { cap = menu.clientHeight; }
+    var available = cap - above - below;
+    var total = this.get('phrase_total') || 0;
+    var size = fits(available);
+    if (size < total) { size = fits(available - PHRASE_PAGER_H); }
+    this.apply_phrase_page_size(size);
+  },
+
+  /*
+   * Apply a page size, then VERIFY it actually fits and shrink until it does.
+   *
+   * The arithmetic above is a good estimate, not a guarantee: `above` and `below` are
+   * measured while the previous page is still rendered, and section margins collapse
+   * differently once the list changes height. Measured overshoot of exactly one row at
+   * some viewports (9 rows at 900px, which then scrolled). Rather than tune a fudge
+   * constant that would be wrong at the next viewport, check the real outcome and step
+   * down — the browser is the authority on whether it fits.
+   *
+   * Bounded to PHRASE_FIT_TRIES so a layout that can never satisfy the check (a viewport
+   * too short for even one row plus chrome) cannot spin.
+   */
+  apply_phrase_page_size(size, tries) {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var total = this.get('phrase_total') || 0;
+    if (size !== this.get('phrase_page_size')) {
+      this.set('phrase_page_size', size);
+      /* A smaller page can strand the view past the last page. */
+      var last = Math.max(0, Math.ceil(total / size) - 1);
+      if ((this.get('phrase_page') || 0) > last) { this.set('phrase_page', last); }
+    }
+    var attempt = tries || 0;
+    if (attempt >= PHRASE_FIT_TRIES || size <= 1) { return; }
+    var _this = this;
+    this._phrase_fit_frame = window.requestAnimationFrame(function() {
+      if (_this.isDestroyed || _this.isDestroying || !_this.get('phrases_expanded')) { return; }
+      var menu = document.querySelector('#speak_menu');
+      if (!menu) { return; }
+      if (menu.scrollHeight > menu.clientHeight + 1) {
+        _this.apply_phrase_page_size(size - 1, attempt + 1);
+      }
+    });
+  },
+
   actions: {
+    /* The pointer path for "More Thoughts". A scanning selection arrives by id instead and
+       is handled in button_event; a <button> never reaches that branch because raw_events
+       dispatches a passthrough click for BUTTON tags, so the two paths do not double-fire.
+       Expands the held list IN PLACE — it must not close the menu, for the same reason
+       `toggle_phrases` must not: revealing rows and dismissing the panel that shows them
+       is useless. */
+    more_thoughts() {
+      this.toggleProperty('held_expanded');
+    },
+    /* Page the modal by just under a viewportful so a row of context carries over, matching
+       the big-button modal's `clientHeight - 20`. Smooth so the movement is followable --
+       a panel that teleports is disorienting on a surface someone is scanning -- with the
+       instant fallback for browsers without scrollTo options.
+
+       `update_scroll_affordances` is called again after the scroll because the `scroll`
+       event does not fire for a smooth scroll until it actually moves, and the control that
+       was just activated may need to disappear at the end of the range. */
+    scroll_menu(direction) {
+      var menu = document.querySelector('#speak_menu');
+      if (!menu) { return; }
+      var step = Math.max(120, menu.clientHeight - 20);
+      var target = direction === 'up' ? menu.scrollTop - step : menu.scrollTop + step;
+      target = Math.min(Math.max(0, target), menu.scrollHeight - menu.clientHeight);
+      if (menu.scrollTo) {
+        menu.scrollTo({ top: target, behavior: 'smooth' });
+      } else {
+        menu.scrollTop = target;
+      }
+      this.update_scroll_affordances();
+    },
+    toggle_phrases() {
+      this.toggleProperty('phrases_expanded');
+      /* Back to page 1: collapsing and re-expanding should not resume mid-library. */
+      this.set('phrase_page', 0);
+      if (this.get('phrases_expanded')) {
+        /* Measure BEFORE scrolling: the page size decides how tall the list is, and the
+           scroll target depends on that. Both are deferred to a frame so the newly
+           non-empty list exists to be measured. */
+        this._phrase_fit_frame = window.requestAnimationFrame(() => {
+          this.recompute_phrase_page_size();
+          this.scroll_phrases_into_view();
+        });
+      }
+    },
+    phrase_page_move(direction) {
+      var page = this.get('phrase_page') || 0;
+      var last = this.get('phrase_page_count') - 1;
+      this.set('phrase_page', direction === 'up' ? Math.max(0, page - 1) : Math.min(last, page + 1));
+    },
     opening() {
       this.get('modal').setComponent(this);
-      var utterances = this.stashes.get('remembered_vocalizations') || [];
+      /*
+       * What the front of the menu shows: everything PARKED, and one saved phrase.
+       *
+       * The parked entries earn their place — a held thought (Resume:) or a sentence the
+       * app bumped to make room (Swap back:) exists in exactly one slot, is not saved
+       * anywhere, and is lost if the user does not pick it up. There is nowhere else to
+       * find it.
+       *
+       * Saved phrases are the opposite: they are a library, they persist, and the Phrases
+       * button directly above opens all of them with filtering and categories. Listing the
+       * whole library here made the menu long and buried the parked entries at the top of
+       * it. Only the MOST RECENT is shown, as a shortcut to the thing most likely wanted
+       * again; the rest are one tap away, and the note under the list says so.
+       *
+       * `vocalizations` is newest-first — app_state#save_phrase unshifts — so element 0 is
+       * genuinely the most recent, not merely the first stored. That applies to the
+       * signed-in `saved` list ONLY. `remembered_vocalizations`, which both lists below
+       * read, is the opposite: stashes#remember PUSHES, so its element 0 is the OLDEST.
+       */
+      var all_remembered = this.stashes.get('remembered_vocalizations') || [];
+      /* NEWEST FIRST, for the same reason the `saved` branch below reverses (:416):
+         stashes#remember PUSHES, so element 0 of the raw array is the OLDEST.
+
+         This used to end in `.slice(0, 2)`, which therefore surfaced the two OLDEST held
+         thoughts — once two existed, every later Hold Thought landed at the end and could
+         never enter the window, so the sentence was parked but permanently invisible.
+         Re-parking an existing sentence made it worse: _stashes.js:438-442 MOVES a
+         duplicate to the end, so repeating a held thought removed it from view.
+
+         Kept WHOLE here and windowed in `heldThoughts` instead, because the menu needs the
+         full count to decide whether to offer "More Thoughts".
+         Pinned by tests/unit/components/speak-menu-parked-order-test.js. */
+      var parked = all_remembered.filter(function(u) { return u.stash; }).reverse();
+      var saved = [];
       if (this.appState.get('currentUser')) {
-        utterances = utterances.filter(function(u) { return u.stash; }).slice(0, 2);
-        (this.appState.get('currentUser.vocalizations') || []).filter(function(v) { return !v.category || v.category === 'default'; }).forEach(function(u) {
-          utterances.push({
-            sentence: u.list.map(function(v) { return v.label; }).join(' '),
-            vocalizations: u.list,
-            stash: false
+        saved = (this.appState.get('currentUser.vocalizations') || [])
+          .filter(function(v) { return v && v.list && (!v.category || v.category === 'default'); })
+          .map(function(u) {
+            return {
+              sentence: u.list.map(function(v) { return v.label; }).join(' '),
+              vocalizations: u.list,
+              stash: false
+            };
           });
-        });
+      } else {
+        /* Signed out, saved phrases live in the same stash array as the parked ones, told
+           apart by the flag — see app_state#save_phrase's fallback branch.
+
+           REVERSED, because the newest-first assumption above holds only for the signed-in
+           record: `vocalizations` is unshifted, but stashes#remember PUSHES, so element 0
+           here is the OLDEST. Without this the shortcut permanently surfaced the user's
+           very first saved phrase and never any of the later ones. */
+        saved = all_remembered.filter(function(u) { return u && !u.stash; }).slice().reverse();
       }
       this.set('model', {});
       this.set('repeat_menu', false);
-      this.set('rememberedUtterances', utterances.slice(0, 7));
-      var height = this.appState.get('header_height');
-      runLater(() => {
+      /* Both lists are kept whole; what the panel SHOWS is derived from them plus
+         `phrases_expanded` (see the computed below), so the More Phrases expander does not
+         have to re-read the stash. Collapsed each time the menu opens. */
+      this.set('_phrase_parked', parked);
+      this.set('_phrase_saved', saved);
+      this.set('phrases_expanded', false);
+      /* Collapsed on every open, like the phrase library above it. The three most recent
+         held thoughts are the common case; an expansion left over from a previous open
+         would push the sections below out of reach on a short screen. */
+      this.set('held_expanded', false);
+      this.set('phrase_page', 0);
+      this.set('phrase_page_size', PHRASE_PAGE_SIZE_DEFAULT);
+      /* Header scroll controls start hidden and are measured once the menu has rendered --
+         `#speak_menu` does not exist yet at this point in opening(). Re-measured on every
+         scroll (so each control disappears at its own end of the range) and on resize
+         (rotating a tablet changes whether the content fits at all). Both listeners are
+         bound once per open and torn down in willDestroyElement. */
+      this.set('menu_scrollable', false);
+      this.set('at_scroll_top', true);
+      this.set('at_scroll_bottom', false);
+      if (!this._menu_scroll_listener) {
+        this._menu_scroll_listener = () => this.update_scroll_affordances();
+        /* Double rAF, matching scroll_phrases_into_view above: the rows do not exist in the
+           DOM until Ember has rendered this open, and the container's scrollHeight is not
+           meaningful until layout has run. `requestAnimationFrame` rather than `runLater`
+           because @ember/runloop is lint-banned here (ember/no-runloop). */
+        this._menu_measure_frame = window.requestAnimationFrame(() => {
+          this._menu_measure_frame = window.requestAnimationFrame(() => {
+            this._menu_measure_frame = null;
+            if (this.isDestroyed || this.isDestroying) { return; }
+            var menu = document.querySelector('#speak_menu');
+            if (menu && this._menu_scroll_listener) {
+              menu.addEventListener('scroll', this._menu_scroll_listener, { passive: true });
+            }
+            this.update_scroll_affordances();
+          });
+        });
+        window.addEventListener('resize', this._menu_scroll_listener);
+      }
+      /* Re-fit on resize: rotating a tablet or resizing the window changes how many
+         phrases the screen holds, and a stale page size either wastes space or overflows.
+         Bound once per open; torn down in willDestroyElement. */
+      if (!this._phrase_fit_on_resize) {
+        this._phrase_fit_on_resize = () => this.recompute_phrase_page_size();
+        window.addEventListener('resize', this._phrase_fit_on_resize);
+      }
+      /*
+       * Sit the menu just under the sentence bar.
+       *
+       * `header_height` is NOT a measurement of the rendered header -- it is the
+       * VOCALIZATION SIZE preference, 90/100/150/200 straight out of
+       * display_prefs#vocalizationHeightPx. So the old `height - 40` spent up to 160px of
+       * offset on a viewport it had never looked at, and .md-speak-menu carries
+       * `overflow: hidden` with no max-height, so whatever fell past the bottom was
+       * CLIPPED rather than scrollable. On a short or narrow screen that hid the end of
+       * the menu outright, and it got worse as the menu gained sections.
+       *
+       * Clamped to a quarter of the viewport, and never less than 8px. The preference
+       * still leads on a normal screen (100 -> 60px, unchanged); it only stops mattering
+       * where there is no room for it to matter.
+       *
+       * The value is also published as a custom property so the stylesheet can size the
+       * menu against the space actually left below it -- see the `max-height` on
+       * .md-speak-menu, which reads --sm-menu-top. Keeping the number in one place is the
+       * point: a CSS-side guess at this offset would drift the moment this line changed.
+       */
+      /* Pinned to the TOP of the page, 4px down.
+         It used to be offset by `header_height - 40`, and `header_height` is the
+         VOCALIZATION SIZE preference (90/100/150/200 from display_prefs) — not a
+         measurement of anything on screen and nothing to do with the viewport. On the
+         larger settings that pushed the menu 160px down for no reason anyone could see,
+         and on a short screen it cost the panel most of its room.
+
+         A constant, because the intent is a constant: sit at the very top of the page.
+         `Math.max(0, …)` is the part that matters — the offset must never go negative,
+         since a modal whose header is above the viewport cannot be closed or read, and
+         nothing scrolls up to reach it. */
+      var place = () => {
         var $el = $('#speak_menu').closest('.modal-dialog');
-        if ($el.length) { $el.css('top', (height - 40) + 'px'); }
-      }, 0);
-      runLater(() => {
-        var $el = $('#speak_menu').closest('.modal-dialog');
-        if ($el.length) { $el.css('top', (height - 40) + 'px'); }
-      }, 100);
+        if (!$el.length) { return; }
+        var top = Math.max(0, SPEAK_MENU_TOP_PX);
+        $el.css('top', top + 'px');
+        /* Published so the stylesheet can size the panel against the space actually left
+           below it — see the max-height on .md-speak-menu, which reads --sm-menu-top. */
+        if ($el[0] && $el[0].style) { $el[0].style.setProperty('--sm-menu-top', top + 'px'); }
+      };
+      runLater(place, 0);
+      runLater(place, 100);
     },
     closing() {},
+    /* Load a recent sentence back into the sentence bar. Mirrors what the Phrases modal's
+       Recent tab does for the same rows (components/phrases.js:206-208) -- it does NOT speak
+       immediately, so the user can edit before sending, and it deliberately skips that
+       branch's `remembered_vocalizations` bookkeeping, which is held-thought housekeeping
+       and does not apply to prior utterances. */
+    select_repeat_phrase(phrase) {
+      if(!phrase || !phrase.vocalizations) { return; }
+      utterance.set('rawButtonList', phrase.vocalizations);
+      utterance.set('list_vocalized', false);
+      this.get('modal').close();
+    },
+
     selectButton(button) {
       this.get('modal').close();
       if (button === 'remember') {
@@ -182,14 +686,25 @@ export default Component.extend({
         if (button.stash) {
           utterance.set('rawButtonList', button.vocalizations);
           utterance.set('list_vocalized', false);
-          var list = (this.stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash && v.sentence !== button.sentence; });
+          /* `||`, not `&&`. Keep everything that is not a stash, plus any stash that is not
+             the one being resumed. With `&&` this also dropped any NON-stash entry whose
+             wording matched — i.e. it deleted one of the user's SAVED PHRASES as a side
+             effect of resuming a held thought. Inert for a signed-in user, whose saved
+             phrases live on `user.vocalizations` and never enter this array; real for a
+             signed-out one, where app_state#save_phrase falls back to stashes#remember and
+             they do. components/phrases.js has always had the `||` version. */
+          var list = (this.stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash || v.sentence !== button.sentence; });
           this.stashes.persist('remembered_vocalizations', list);
           if (existing.length > 0 && !already_there) {
-            this.stashes.remember({ override: existing, stash: true });
+            /* The swap the original comment describes: what was in the bar takes the slot
+               the resumed thought just left. `swapped` marks it as bumped rather than
+               parked, so the row can say so instead of claiming the user chose it. */
+            this.stashes.remember({ override: existing, stash: true, swapped: true });
           }
         } else {
           if (existing.length > 0 && !(this.stashes.get('remembered_vocalizations') || []).find(function(v) { return v.stash; })) {
-            this.stashes.remember({ override: existing, stash: true });
+            // Also a bump, not a deliberate park — the user asked to say a saved phrase.
+            this.stashes.remember({ override: existing, stash: true, swapped: true });
           }
           this.appState.set_and_say_buttons(button.vocalizations);
         }
@@ -216,6 +731,10 @@ export default Component.extend({
       this.get('modal').close();
     },
     button_event(event, button, full_event) {
+      /* Defaulted, not assumed. The swipe branches below read `full_event.swipe_direction`
+         directly, so a caller that passes only two arguments used to take the whole handler
+         down with a TypeError before any button ran. */
+      full_event = full_event || {};
       if (event === 'speakMenuSelect') {
         var _this = this;
         var click = function() {
@@ -226,6 +745,100 @@ export default Component.extend({
             capabilities.vibrate();
           }
         };
+        /* A saved phrase or held thought, selected by SCANNING.
+         *
+         * The rows are <button> elements, so a pointer tap reaches their Ember click
+         * handler directly (raw_events.js dispatches a passthrough click for BUTTON tags)
+         * and never arrives here. The scanner has no such branch: scanner.js:698-700 sees
+         * `.md-speak-menu__bottom-btn`, reads `dom.attr('id')` and fires speakmenuselect
+         * with it. With no id on the row that was `button === undefined`, which fell past
+         * every branch below — after the close above had already run. A switch user
+         * scanned to `Resume: "I need help"`, selected it, and the menu shut with the
+         * sentence bar untouched. Invisible to mouse testing.
+         *
+         * Handled before the close so `selectButton` owns the closing, and indexed rather
+         * than matched on text because two saved phrases may legitimately read the same. */
+        /* The More Phrases expander, selected by SCANNING. Handled BEFORE the generic
+           close below and returns without closing: expanding a list and immediately
+           dismissing the panel that shows it would be useless. Same shape as the
+           menu_repeat_button exception further down. */
+        if (button === 'menu_more_phrases_button') {
+          click();
+          _this.send('toggle_phrases');
+          return;
+        }
+        /* Phrase paging, selected by SCANNING. Like the expander above these must NOT close
+           the menu — paging a list and dismissing the panel showing it is useless. */
+        if (button === 'menu_phrase_up_button' || button === 'menu_phrase_down_button') {
+          click();
+          _this.send('phrase_page_move', button === 'menu_phrase_up_button' ? 'up' : 'down');
+          return;
+        }
+        /* Header Up / Down, selected by SCANNING. Handled BEFORE the generic close and
+           returns without closing, for the same reason as the expanders: scrolling a panel
+           and then dismissing it would put the user back where they started. These exist so
+           a switch or gaze user can reach the bottom of the menu on a short screen, so
+           closing on activation would defeat the entire control. */
+        if (button === 'menu_scroll_up_button' || button === 'menu_scroll_down_button') {
+          click();
+          _this.send('scroll_menu', button === 'menu_scroll_up_button' ? 'up' : 'down');
+          return;
+        }
+        /* "More Thoughts", selected by SCANNING. Expands the held list in place. Handled
+           BEFORE the generic close below and returns without closing — same shape as the
+           More Phrases expander above, and load-bearing for the same reason: expanding a
+           list and immediately dismissing the panel that shows it would be useless. */
+        if (button === 'menu_more_thoughts_button') {
+          click();
+          _this.send('more_thoughts');
+          return;
+        }
+        /* A held thought, selected by SCANNING. Same shape as the saved-phrase rows below,
+           but indexed into `heldThoughts` — these now live in the Actions section and are a
+           different list. Indexing the wrong one would resume someone's saved phrase in
+           place of the thought they parked. */
+        /* Indexed ids, same reason as `menu_held_` below: two recent sentences can read the
+           same, and the scanner/dwell path dispatches by id. Without this branch these rows
+           would work for a pointer and be dead for a switch or eye-gaze user. */
+        if (button && button.indexOf('menu_repeat_phrase_') === 0) {
+          var rp_idx = parseInt(button.slice('menu_repeat_phrase_'.length), 10);
+          var rp = (_this.get('repeatPhrases') || [])[rp_idx];
+          if (rp) { _this.send('select_repeat_phrase', rp); }
+          return;
+        }
+        if (button && button.indexOf('menu_held_') === 0) {
+          var held_idx = parseInt(button.slice('menu_held_'.length), 10);
+          var held = (_this.get('heldThoughts') || [])[held_idx];
+          if (held) {
+            click();
+            _this.send('selectButton', held);
+          } else {
+            _this.get('modal').close();
+          }
+          return;
+        }
+        if (button && button.indexOf('menu_remembered_') === 0) {
+          var idx = parseInt(button.slice('menu_remembered_'.length), 10);
+          var picked = (_this.get('rememberedUtterances') || [])[idx];
+          if (picked) {
+            click();
+            _this.send('selectButton', picked);
+          } else {
+            _this.get('modal').close();
+          }
+          return;
+        }
+        /* Do NOT close on an id this menu does not know. Closing first and matching second
+           meant any unrecognised id shut the menu and did nothing — the failure above, and
+           the failure any future unlabelled control would hit. */
+        var known = ['menu_share_button', 'menu_repeat_button', 'menu_repeat_louder',
+          'menu_repeat_quieter', 'menu_repeat_text', 'menu_repeat_flip', 'menu_repeat_gif',
+          'menu_hold_thought_button', 'menu_phrases_button', 'menu_inbox_button',
+          'menu_repair_button', 'menu_contraction_button'];
+        if (button && known.indexOf(button) === -1 && button.indexOf('menu_') === 0 &&
+            !button.match(/^menu_(period|comma|question|exclamation|quote|colon)_button$/)) {
+          return;
+        }
         // menu_repeat_button toggles the repeat/volume group in place, so it must not
         // close the menu. (menu_punctuation_button used to be the other exception; the
         // punctuation submenu it toggled is gone -- all punctuation is one row now.)
@@ -387,6 +1000,38 @@ export default Component.extend({
         ctrl.notifyPropertyChange('current_level');
       }
     }
+  },
+
+  /* The phrase-fit machinery is the only thing on this component holding a frame and a
+     window listener, so this hook exists for it. */
+  willDestroyElement() {
+    if (this._phrase_scroll_frame) {
+      window.cancelAnimationFrame(this._phrase_scroll_frame);
+      this._phrase_scroll_frame = null;
+    }
+    if (this._phrase_fit_frame) {
+      window.cancelAnimationFrame(this._phrase_fit_frame);
+      this._phrase_fit_frame = null;
+    }
+    if (this._phrase_fit_on_resize) {
+      window.removeEventListener('resize', this._phrase_fit_on_resize);
+      this._phrase_fit_on_resize = null;
+    }
+    if (this._menu_measure_frame) {
+      window.cancelAnimationFrame(this._menu_measure_frame);
+      this._menu_measure_frame = null;
+    }
+    if (this._menu_scroll_listener) {
+      /* Removed from BOTH targets it was added to. The scroll listener is on #speak_menu,
+         which is inside this component and goes away with it, but the resize listener is on
+         `window` and would otherwise outlive every open -- one leaked closure per open,
+         each holding a destroyed component and calling set() on it. */
+      var menu = document.querySelector('#speak_menu');
+      if (menu) { menu.removeEventListener('scroll', this._menu_scroll_listener); }
+      window.removeEventListener('resize', this._menu_scroll_listener);
+      this._menu_scroll_listener = null;
+    }
+    this._super(...arguments);
   },
 
   didInsertElement() {

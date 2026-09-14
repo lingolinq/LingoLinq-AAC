@@ -22,13 +22,11 @@ nvm use 22
 nvm alias default 22
 
 # Install CLIs globally
-echo "Installing Gemini, Claude Code CLI, and Anthropic SDK..."
-npm install -g @google/generative-ai-cli
+echo "Installing Claude Code CLI and Anthropic SDK..."
 npm install -g @anthropic-ai/claude-code
 npm install -g @anthropic-ai/sdk
 
 # Verify CLI installs
-echo "Gemini CLI version: $(genai version || echo 'Not found')"
 echo "Claude Code CLI version: $(claude --version || echo 'Not found')"
 echo "Anthropic SDK version: $(npm list -g @anthropic-ai/sdk || echo 'Not found')"
 

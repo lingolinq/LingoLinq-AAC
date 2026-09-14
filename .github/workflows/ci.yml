@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [ main, develop, staging ]
 
+# Every job only reads the checkout; nothing here comments, labels, or pushes.
+permissions:
+  contents: read
+
 jobs:
   rspec:
     runs-on: ubuntu-latest
+    # Recent runs finish in ~16 min; the 6-hour default would let a hung DB or
+    # a stuck spec hold a runner for the rest of the day.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:15
@@ -78,6 +85,16 @@ jobs:
       # prose comments do not false-positive. Bash-only, offline, no credentials.
       - name: Verify the AI endpoint guard actually fires
         run: scripts/tests/ai-endpoint-guard-test.sh
+
+      # The two agent PreToolUse guards (.claude/hooks/audit-readonly-guard.sh for the
+      # read-only finders, compliance-officer-write-scope.sh for the compliance officer)
+      # are regex denylists over Bash command strings. They were found wrong four times
+      # in one PR (#961): a secret-value read allowed, a gh write verb missed, a shell
+      # wrapper skipping the anchored patterns, `rake -E code -T` licensed by the -T.
+      # Every case is a command string fed through the hook's real stdin contract; the
+      # harness executes nothing. Ruby is needed (the hooks are Ruby), hence this job.
+      - name: Verify the agent PreToolUse guards actually fire
+        run: scripts/tests/agent-hook-guards-test.sh
 
       - name: Run RSpec
         run: bundle exec rspec

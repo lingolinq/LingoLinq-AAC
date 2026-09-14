@@ -59,7 +59,7 @@ module Audit
       # The refusal message must never echo the invoked argv: a `runner`
       # command line is arbitrary Ruby that routinely contains identifiers or
       # secrets, and this message is printed to stderr (bin/rails `abort`),
-      # which Render/Cloud Run capture as plaintext logs. Reference only the
+      # which Cloud Run captures as plaintext logs. Reference only the
       # command class.
       if db_command?(command) && prod
         raise ForbiddenCommand,
@@ -100,9 +100,14 @@ module Audit
     # Residual, tracked as a follow-up on LL-7f7372e3eb: a deployment that
     # reaches the prod DB while ambient RAILS_ENV/RACK_ENV is not 'production'
     # (e.g. only DATABASE_URL set, RAILS_ENV unset) is not detected here; the
-    # fully robust fix gates on the resolved connection target. Both real prod
-    # deployments (Render and Cloud Run) set RAILS_ENV=production, so the
-    # realistic `-e development` dodge is covered.
+    # fully robust fix gates on the resolved connection target. Every Cloud Run
+    # surface inherits RAILS_ENV=production from the image (ENV RAILS_ENV in the
+    # Dockerfile); the deploy workflow also sets it inline on the web service,
+    # worker pool and the two Jobs it manages. Two hand-created prod Jobs
+    # (lingolinq-admin-audit, lingolinq-identify-check) set neither RAILS_ENV nor
+    # RACK_ENV and rely on the image default (read-only `gcloud run jobs describe`,
+    # 2026-09-13; not derivable from this tree). So the realistic `-e development`
+    # dodge is covered.
     def production?(command, init_args, env = ENV)
       cli_production?(command, init_args) || ambient_production?(env)
     end

@@ -12,6 +12,14 @@ It is the operator companion to:
 - `scripts/gcp/phase4-setval-sequences.sh` (S1 cutover runner) and `rake db:setval_all_sequences` / `rake db:verify_sequences` (S1 rehearsal/test)
 - `scripts/gcp/phase4-seed-boot-secrets.sh` (S2 runner)
 
+> **Status 2026-09-12: this runbook is HISTORICAL.** The restore, S1 and S2 ran for the
+> 2026-07-22 cutover, and the Render workspace was deleted on 2026-09-09, so the "live Render
+> env" that S2 cross-checks against no longer exists and `scripts/sync-render-env.js` (cited
+> below as the 1Password-to-Render sync) was removed from the repo on 2026-09-12. 1Password
+> remains the source of truth for the four boot secrets; the live copy is GCP Secret Manager
+> (`docs/ROTATING_KEYS.md`). Keep this file as the record of how the bytes were preserved; do
+> not re-run S2 against prod.
+>
 > Nothing in this runbook is run before Scot's explicit go. S1 and S2 are safe to **rehearse**
 > (rake against a local DB, `--verify`/`--fingerprint`/plan modes), but the real restore + seed
 > against `lingolinq-prod` are cutover actions. Render stays fully live and authoritative until

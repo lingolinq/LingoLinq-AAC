@@ -87,10 +87,13 @@
 
   </div>
   <div class="modal-footer md-modal-footer">
+    {{!-- Cancel sits BEFORE the branch chain so it renders to the LEFT of whichever action
+         button the current state offers (Translate a Copy / Switch to Existing Translation /
+         Start Translation), keeping the primary action rightmost in every state. It used to
+         come after the chain, and the `cannot_translate` branch carried a SECOND Cancel of
+         its own, so that one state rendered two. --}}
+    <a href="#" class="la-translate-board-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
     {{#if this.cannot_translate}}
-      <button type="button" class="la-confirm-edit__btn la-confirm-edit__btn--secondary" {{on "click" (this.ctrlAction "close")}}>
-        {{t "Cancel" key="cancel"}}
-      </button>
       <button class='la-translate-board-submit' {{on "click" (this.ctrlAction "translate_copy")}} disabled={{this.translate_copy_not_ready}}>
         {{#if this.copy_status.pending}}
           <div class="md-loading-spinner la-translate-board-footer-spinner" aria-hidden="true"></div>
@@ -120,7 +123,6 @@
     {{else}}
       <button class='la-translate-board-submit' {{on "click" (this.ctrlAction "translate")}} disabled={{this.not_ready}}>{{t "Start Translation" key="start_translation"}}</button>
     {{/if}}
-    <a href="#" class="la-translate-board-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
   </div>
   </div>
 </ModalDialog>

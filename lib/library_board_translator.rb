@@ -22,7 +22,8 @@ class LibraryBoardTranslator
     boards = resolve_boards(owner, slugs: slugs, scope: scope)
     unless dry_run || google_translate_token_injected?
       message = "GOOGLE_TRANSLATE_TOKEN is not injected (blank or still an op:// ref). " \
-                "Set it on the service env (Render job inherits the web service) or run under rails-dev / op run."
+                "Set it in the env of the Cloud Run Job you execute (a Job does not inherit the web service env; " \
+                "the scheduler Job mounts it from Secret Manager, lingolinq-migrate does not) or run under rails-dev / op run."
       raise message unless Rails.env.test?
       puts "WARN: #{message}"
     end
@@ -205,7 +206,7 @@ class LibraryBoardTranslator
     return unless Rails.env.production?
     unless ENV['ALLOW_PROD_TRANSLATE'].to_s =~ TRUTHY
       raise "Refusing library translate in production without ALLOW_PROD_TRANSLATE=1 " \
-            "(staging Render services use RAILS_ENV=production)."
+            "(staging Cloud Run services use RAILS_ENV=production)."
     end
     if scope.to_s.strip == SEED_SCOPE && ENV['TRANSLATE_CONFIRM'].to_s !~ TRUTHY
       raise "Refusing SCOPE=seed without TRANSLATE_CONFIRM=1."

@@ -413,6 +413,10 @@ export default Service.extend({
     this.refresh_user();
   },
   reset: function() {
+    /* Symbol scoping is keyed by user global id, so a stale bucket can never be read under a
+       different user -- this is memory hygiene, not a correctness dependency
+       (utils/word_suggestions.js#scoped_set_ids). */
+    word_suggestions._reset_scoped_sets();
     this.set('currentBoardState', null);
     this.set('currentUser', null);
     this.set('sessionUser', null);
@@ -672,6 +676,31 @@ export default Service.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
+    /* Ember's SUBSTATES arrive here as their own routeWillChange, named with an UNDERSCORE:
+       `user.board-detail_loading` for templates/user/board-detail-loading.hbs, and
+       `user.board-detail_error` for a rejected model hook. They are intermediate states of a
+       transition that is still in flight, not destinations, and the real route's arrival
+       fires routeDidChange, NOT routeWillChange. So without this guard a substate's name
+       overwrites `current_route` and is never replaced, leaving every consumer reading a
+       route the app is not on -- permanently, for as long as that board stays open.
+
+       Measured consequences when a board-detail loading template was first added:
+         - controllers/application.js:174 `on_board_detail` compares the exact name, so it
+           went false, `board-detail-view` was never applied to #within_ember, and the rule
+           that slides the global header off screen
+           (`#within_ember.board-detail-view > header`) stopped applying -- the app header
+           rendered ABOVE the board's own sentence bar, two stacked speak bars.
+         - `:743` below would null `currentBoardState`, and `:738` would toggle edit mode off.
+
+       `_error` is covered for a sharper reason than symmetry. Losing `board-detail-view`
+       ALSO flips controllers/application.js#useAppNavbarInHeader to false (its `isUserRoute`
+       conjunct stops matching), which swaps the header's contents from <AppNavbar> to the
+       `#speak` classic speak bar -- so an error substate would both RENDER a second speak bar
+       and remove the only thing hiding it. The two failures compound rather than add.
+
+       Skipping the whole function is the same treatment `aborted` already gets one line up,
+       and for the same reason: this is not a navigation. */
+    if((transition.to_route || '').match(/_(loading|error)$/)) { return; }
     var route = this.get('route');
     var from_url = null;
     if(route && typeof route.get === 'function') {
@@ -2110,6 +2139,9 @@ export default Service.extend({
     // feature flag is enabled. SPEC R5.
     // SAFE to call when no user is logged in — every set is unconditional.
 
+    // Symbol scoping (see the note in #reset).
+    word_suggestions._reset_scoped_sets();
+
     // Core per-user identity
     this.set('sessionUser', null);
     this.set('currentUser', null);
@@ -2354,12 +2386,97 @@ export default Service.extend({
               fallback_board_state: user_state || _this.get('sessionUser.preferences.home_board')
             });
           } else {
-            if(!_this.get('speak_mode')) {
+            /* Captured BEFORE the toggle: it is the difference between "toggle_speak_mode ran and
+               may have written a root" and "nothing wrote one". The guard below needs that. */
+            var was_speak_mode = _this.get('speak_mode');
+            if(!was_speak_mode) {
               _this.toggle_speak_mode();
             }
             var user_state = u.get('preferences.home_board');
-            var current = _this.get('currentBoardState') || user_state;
-            _this.stashes.persist('temporary_root_board_state', current);
+            /* The communicator's OWN home board is the real root, even though this branch
+               deliberately does not navigate there. Two readers make that load-bearing rather
+               than tidy: the classic Home control falls through to `root_board_state` once the
+               temporary root is cleared (controllers/application.js:906-909 — the second press),
+               and prediction scope pushes it as a lookup id (utils/word_suggestions.js:1448).
+
+               Without this write the value is wrong in BOTH directions this branch can be
+               reached from. NARROWED to exactly the broken ones — this branch has four
+               reachable combinations and only three are wrong:
+
+                 speak OFF + keep_as_self FALSE -> speakModeUser was set to `u` (:2336) BEFORE
+                   toggle_speak_mode ran, so `preferred` (:1435) is already the COMMUNICATOR's home
+                   board and :1726 persisted it. Correct without help — SKIPPED. The pre-existing,
+                   unstubbed test at tests/utils/app_state-test.js:1751 passes on toggle_mode's own
+                   write and proves it.
+                 speak OFF + keep_as_self TRUE -> keep_as_self nulled speakModeUser (:2333), so
+                   :1435 falls through to the SUPERVISOR's home board. WRONG.
+                 speak ON (either) -> toggle_speak_mode is not called at all (:2359), so nothing
+                   writes a root and the stash keeps the PREVIOUS communicator's. WRONG.
+
+               Hence `keep_as_self || was_speak_mode`. Writing unconditionally would also fire in
+               the correct case, where it is a no-op at best and at worst discards a board level
+               toggle_mode had just computed into an $.extend copy (:1670, :1685).
+
+               Guarded on `user_state`: a communicator with no home board leaves the existing
+               value alone. Clearing instead is NOT safe — `home_in_speak_mode` falls back to this
+               stash (:1913) and nulls `speakModeUser`/`referenced_speak_mode_user` when it comes
+               up empty (:1927-1934), which can drop the speak session.
+
+               A COPY, not the record's own object. `stashes.persist` stores by reference
+               (utils/_stashes.js:228-231), and `routes/board/index.js:79-82` writes
+               `root_board_state.text_direction` once you navigate to the root board — through a
+               live reference that would land in the COMMUNICATOR's `preferences.home_board`.
+               Copying also means that backfill repairs the one field this object does not carry:
+               `level` and `locale` ARE carried (every writer sets them — components/set-as-home.js:209,
+               controllers/application.js:1006, app/models/user.rb:3645-3646 — and :1631 reads
+               `home_board.level` as the authoritative source), and they are the COMMUNICATOR's own
+               values rather than the supervisor-derived ones toggle_mode computed. `text_direction`
+               is the only field toggle_mode stamps that this lacks, and it is absent only until
+               the first navigation home.
+
+               WHY THIS IS CORRECT, and it is NOT the git archaeology: the sibling half of this
+               same else branch is already pinned. `tests/utils/app_state-test.js:1751` ("should
+               remember the specified user real home if entering as the user and not jumping") is
+               unchanged, pre-existing and passing, and it asserts `root_board_state` is the
+               COMMUNICATOR's home board for `keep_as_self` FALSE. The two halves differ only in
+               that `keep_as_self` true nulls `speakModeUser` (:2333), which is what makes :1435
+               fall back to the supervisor. This write makes the true half agree with the false
+               half rather than introducing a new rule.
+
+               HISTORY, corrected — an earlier version of this comment blamed the Ember 5.12
+               upgrade and that was wrong. Verified: the else branch is byte-identical at
+               5b8c9f2fd^ and 5b8c9f2fd. The explicit writes were removed in e88180d38
+               (2018-08-17, "more consistent support for board levels"), which deliberately moved
+               ownership of `root_board_state` into `toggle_mode`/`home_in_speak_mode` via
+               `override_state`. So this re-introduces a second writer on that path knowingly:
+               `toggle_mode` cannot own this case because it is not called at all when speak mode
+               is already on (:2359).
+
+               Why the stale assertions survived to 2026: they did not pass, they were simply never
+               run. `ember test` entered CI at b50f8b51b (2026-02-10), 7.5 years after e88180d38;
+               5b8c9f2fd then re-pinned them to the observed behaviour. Detail in
+               docs/task-management/2026-09-09-prediction-scoped-pass-leak.md §10.1. */
+            if(user_state && (keep_as_self || was_speak_mode)) {
+              _this.stashes.persist('root_board_state', $.extend({}, user_state));
+            }
+            /* CLEARED, not set to the board on screen. This branch does not navigate, so you
+               STAY where you are either way — what changes is where Home goes and what word
+               prediction searches.
+
+               Previously this stamped `currentBoardState` as a temporary home. That board belongs
+               to whoever you were just working with — the previous communicator, or yourself — and
+               it fed two things for the rest of the session: Home returned there
+               (controllers/application.js:902 prefers the temporary root), and it entered the NEW
+               communicator's prediction scope (utils/word_suggestions.js:1447), where a button set
+               is admitted on any board in its downstream tree — so one person's whole vocabulary
+               could surface as symbols on another person's predicted words and be logged against
+               them (services/stashes.js:801-805).
+
+               TRADE-OFF, stated because it is a real loss and was a named behaviour: switching no
+               longer preserves "take me back to the board I was on". Traci's call, 2026-09-09.
+               The Set As Temporary Home feature is NOT affected — that has its own writer (:1167)
+               and its own control; only the silent one created by switching is gone. */
+            _this.stashes.persist('temporary_root_board_state', null);
           }
         }, function() {
           modal.error(i18n.t('user_retrive_failed2', "Failed to retrieve user details for Speak Mode"));
@@ -2375,25 +2492,155 @@ export default Service.extend({
   flip_text: function() {
     this.set('flipped', !this.get('flipped'));
   },
+  /* The write half of save_phrase, shared by the deduped path and the journal path so the
+     two cannot drift in what they persist. */
+  _append_phrase: function(user, vocs, voc, category) {
+    var id = Math.round(Math.random() * 9999).toString() + ((new Date()).getTime() % 1000).toString() + vocs.length;
+    user.add_action({
+      action: 'add_vocalization',
+      value: voc,
+      category: category || 'default',
+      ts: Math.round((new Date()).getTime() / 1000),
+      id: id
+    });
+    vocs.unshift({list: voc, category: category, id: id, ts: Math.round((new Date()).getTime() / 1000)});
+    user.set('vocalizations', vocs);
+    user.save().then(function() { user.set('offline_actions', null); }, function() { });
+    return true;
+  },
   save_phrase: function(voc, category) {
     var user = this.get('currentUser');
     if(user) {
       // TODO: needs to peresist locally if offline
       var vocs = user.get('vocalizations') || []
-      var id = Math.round(Math.random() * 9999).toString() + ((new Date()).getTime() % 1000).toString() + vocs.length;
-      user.add_action({
-        action: 'add_vocalization',
-        value: voc,
-        category: category || 'default',
-        ts: Math.round((new Date()).getTime() / 1000),
-        id: id
+      /* Already saved? Do nothing.
+       *
+       * The signed-OUT branch below has always de-duplicated — stashes#remember skips a
+       * push whose `sentence` matches one already in the list — so without this the two
+       * halves of the same method disagreed: save the same message twice signed out and
+       * you have one phrase, signed in and you have two. Tapping "Save Phrase from
+       * Sentence Bar" twice is easy to do, and the duplicates are indistinguishable in the
+       * list, so the second is pure clutter for someone who has to scan the list to use it.
+       *
+       * Matched on the rendered sentence and WITHIN a category, the same shape phrases.js
+       * uses to bucket the list. Categories are compared normalised because this method
+       * stores `category` verbatim and the speak-menu caller passes nothing, so an older
+       * default-category phrase can be sitting there as `undefined` while a newer one says
+       * 'default' — a raw `===` would call those two different buckets and let the
+       * duplicate through.
+       *
+       * A duplicate is MOVED TO THE TOP rather than dropped. The list is newest-first
+       * (_append_phrase unshifts) and position is what "most recent" means here, so
+       * re-saving a phrase you already have promotes it — which is almost always why
+       * someone saves it again. Silently doing nothing looked like the save had failed.
+       *
+       * Persisted with the existing `reorder_vocalizations` action, the same one
+       * shift_phrase uses, NOT a second `add_vocalization`: the server's add handler
+       * unshifts a new entry (user.rb ~2732), so re-adding would create the duplicate this
+       * branch exists to prevent. `vocalizations` is read-only in the serializer
+       * (lib/json_api/user.rb:49), so the reorder has to go through an action to persist at
+       * all — setting the array client-side alone would be reverted on the next load.
+       *
+       * `ts` is deliberately left alone: the server's reorder handler only reorders, and in
+       * this list recency IS position. Bumping ts client-side would not survive the round
+       * trip and would disagree with the server.
+       *
+       * Still returns false — no NEW phrase was created, which is what the return means. */
+      var sentence = (voc || []).map(function(v) { return v && v.label; }).join(' ');
+      var cat = category || 'default';
+      /* JOURNAL ENTRIES ARE EXEMPT. The dedupe exists because tapping "Save Phrase from
+         Sentence Bar" twice should not give you the same phrase twice — a library of
+         reusable phrases has no use for a duplicate. A journal is the opposite: it is dated
+         (update_list builds each row's `date` from `u.ts`), and writing "had a good day" on
+         Monday and again on Thursday is two entries, not a mistake. Blocking the second one
+         silently discarded it AND skipped its server side — user.rb's add_vocalization
+         handler runs LogSession.process_as_follow_on for journal entries — while phrases.js
+         still flashed "added" and cleared the box, so it read as success. */
+      if(cat === 'journal') { return this._append_phrase(user, vocs, voc, category); }
+      var dupe = vocs.find(function(v) {
+        if(!v || !v.list) { return false; }
+        if((v.category || 'default') !== cat) { return false; }
+        return v.list.map(function(b) { return b && b.label; }).join(' ') === sentence;
       });
-      vocs.unshift({list: voc, category: category, id: id, ts: Math.round((new Date()).getTime() / 1000)});
-      user.set('vocalizations', vocs);
-      user.save().then(function() { user.set('offline_actions', null); }, function() { });
+      if(dupe) {
+        var dupe_idx = vocs.indexOf(dupe);
+        if(dupe_idx > 0) {
+          vocs.splice(dupe_idx, 1);
+          vocs.unshift(dupe);
+          user.set('vocalizations', vocs);
+          user.add_action({
+            action: 'reorder_vocalizations',
+            value: vocs.map(function(v) { return v && v.id; }).join(',')
+          });
+          user.save().then(function() { user.set('offline_actions', null); }, function() { });
+        }
+        return false;
+      }
+      return this._append_phrase(user, vocs, voc, category);
     } else {
       this.stashes.remember({override: voc});
+      return true;
     }
+  },
+  /*
+   * Delete the saved phrases in ONE category, for ONE user.
+   *
+   * Both parameters are required and neither is inferred, because inferring either one is
+   * how this went wrong:
+   *
+   *   USER — it used to read `currentUser`, while the Phrases modal it is called from
+   *   scopes itself to `model.user || referenced_user` (components/phrases.js). Opened from
+   *   a supervisee's preferences (controllers/user/preferences.js passes `{user: model}`),
+   *   or in speak mode while modeling, those are DIFFERENT PEOPLE: the supervisor read a
+   *   prompt counting the supervisee's phrases, confirmed, and destroyed their own library
+   *   while the supervisee's stayed on screen untouched.
+   *
+   *   CATEGORY — it used to keep only `category === 'journal'` and delete everything else,
+   *   so clearing while looking at one tab took every other tab with it. The modal shows
+   *   one category at a time and the control sits under that list; it deletes what is
+   *   above it and nothing more.
+   *
+   * Journal entries are still safe, now by the ordinary path rather than a special case:
+   * 'journal' is itself a category, and phrases.hbs does not render this control on that
+   * tab. Held thoughts are untouched — they live in the stash, not in `vocalizations`.
+   *
+   * One save, not one per phrase. remove_phrase below writes the user on every call, which
+   * is right for a single tap and a request storm for thirty.
+   *
+   * Returns the number removed so the caller can report it.
+   */
+  clear_phrases: function(user, category) {
+    if(!user || !user.get) { return 0; }
+    var cat = category || 'default';
+    var kept = [];
+    var doomed = [];
+    (user.get('vocalizations') || []).forEach(function(v) {
+      if(!v) { return; }
+      /* Normalised on both sides: save_phrase stores `category` verbatim and its
+         speak-menu caller passes nothing, so the same bucket is 'default' on some rows and
+         undefined on older ones. */
+      if((v.category || 'default') === cat) { doomed.push(v); }
+      else { kept.push(v); }
+    });
+    if(doomed.length) {
+      doomed.forEach(function(v) {
+        if(v.id) { user.add_action({action: 'remove_vocalization', value: v.id}); }
+      });
+      user.set('vocalizations', kept);
+      user.save().then(function() { user.set('offline_actions', null); }, function() { });
+    }
+    /* The signed-OUT store, and ONLY when signed out. A signed-in user's phrases live on
+       the record above; the non-stash entries here would then be leftovers from a previous
+       signed-out session that the modal never lists and the prompt never counts — deleting
+       those as a side effect is exactly the kind of invisible loss this method is being
+       fixed for. `stash: true` entries are held thoughts and are never touched. */
+    if(!this.get('currentUser')) {
+      var stash = this.stashes.get('remembered_vocalizations') || [];
+      var survivors = stash.filter(function(v) { return v && v.stash; });
+      doomed = doomed.concat(stash.filter(function(v) { return v && !v.stash; }));
+      this.stashes.persist('remembered_vocalizations', survivors);
+    }
+    return doomed.length;
   },
   remove_phrase: function(phrase) {
     var voc = this.get('currentUser.vocalizations') || [];
