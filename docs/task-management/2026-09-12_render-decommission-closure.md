@@ -661,8 +661,9 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
 - `develop` moved to `4104b657b` at 2026-09-13T21:44:07Z via PR #963: 166 files (`git show --stat`;
   `gh pr view --json files` caps at 100), 120 under `app/frontend` including 33 added test files;
   the Ember suite grew from 2529 to 2687 tests. This branch was not rebased in that window: its
-  merge base with `develop` is `7183d488f` throughout, and no head contains `4104b657b`; CI runs on
-  the PR merge ref, which picks up the moved base.
+  merge base with `develop` was `7183d488f` throughout, and no head before the 2026-09-14 merge of
+  `origin/develop` (`01628d912`) contained `4104b657b`; CI runs on the PR merge ref, which picks up
+  the moved base.
 - Branch record as of 2026-09-14T06:32Z. On the 2529-test base, every run passed. On the 2687-test
   base, completed runs: passes at `4fca93c3d` (34787002914) and `38559fd0e` (34809987003); failures
   at `a648d93e3` (34785846824, test 157), `e3d53f10b` (34787748239), `5d724d15d` (34788511177),
@@ -1024,13 +1025,14 @@ unconditional claim. Lows: the PR body's round-28 row kept the mis-scope the log
 now "not rewrapped for width"); "(matched to the log)" dropped.
 
 Closing decision (Scot, 2026-09-14, "do whichever you'd recommend of applying the findings or
-recording the pass"): the loop is closed here. Since round 16 every finding has been in this log's
-prose, and since round 22 in the entry describing the previous round's fix; each fix is new prose
-and re-reviewable without end. These round-30 clauses are applied with the local checks (width,
-structure, word-level diff) and without a round 31, a declared deviation from "fixes are
-unreviewed code" scoped to review-record prose. The pass is recorded on `71f77b6a2`, the head the
-adversary read, not on this commit. Codex has not run since round 23; Scot re-authenticates it
-with `CODEX_HOME=$HOME/.cache/codex-review-home codex login` before the next PR's dual review.
+recording the pass"): the loop is closed here. Since round 17 every finding has been in this log's
+prose (round 17 also recorded one fail-closed false positive in the new spec), and since round 22 in
+the entry describing the previous round's fix; each fix is new prose and re-reviewable without end.
+These round-30 clauses are applied with the local checks (width, structure, word-level diff) and
+without a round 31, a declared deviation from "fixes are unreviewed code" scoped to review-record
+prose. The pass is recorded on `71f77b6a2`, the head the adversary read, not on this commit. Codex
+has not run since round 23; Scot re-authenticates it with `CODEX_HOME=$HOME/.cache/codex-review-home
+codex login` before the next PR's dual review.
 
 ## Post-close observation (read 2026-09-14T16:25Z)
 
@@ -1045,6 +1047,19 @@ heads", which no later run can falsify, with the later heads left to dated entri
 2469 alone. Branch runs at this read: 30, of which 14 failed and 16 passed (the 2529-base runs
 all passed). This entry and its three clause edits are post-close and unreviewed; the pass
 record stays on `71f77b6a2`.
+
+## Final Codex pass (head 01628d912, after Codex re-authentication)
+
+Codex re-authenticated by Scot on 2026-09-14 (`codex login`). One pass on the merged head:
+approve, 1 Medium, 1 Low, both statements that post-review edits had made false. Medium: "no head
+contains `4104b657b`" went false with the merge of `origin/develop` (now scoped to heads before
+that merge). Low: "since round 16 every finding has been in this log's prose" overlooked round
+17's recorded spec false positive (now "since round 17", with the exception named). Codex also
+confirmed: no PR-owned code change after `38559fd0e`; the rake diff against `origin/develop` is
+only the Render removal; the archive merge keeps both sides without duplication; no conflict
+markers; no secret or identifier in the PR diff; the three specs could not run in its read-only
+sandbox (author-run result retained). Both clauses applied with the local checks and disclosed
+here; no further round. Pass record updated to codex plus adversary.
 
 ## Status
 
