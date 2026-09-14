@@ -700,9 +700,9 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   stamped tally above is the fixed sample this record reasons from. Post-stamp runs read while
   reviewing (dated in the round entries below) both passed and failed on test 2469
   `speecher set_voice` with no code change, and one exceeded the stamped range, so the range is a
-  reading of six runs, not a bound. Test 157 `boards-layout-toggle` failed once, at `a648d93e3`
-  (the first run on this branch on that base), and in no later run read while reviewing (dated in
-  the round entries below). Current state: `gh run list --workflow CI --branch
+  reading of six runs, not a bound. Test 157 `boards-layout-toggle` has failed on at least two
+  heads, first at `a648d93e3` (the first run on this branch on that base); the later ones are dated
+  in the round entries below. Current state: `gh run list --workflow CI --branch
   scot/chore/render-dead-config-removal`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
@@ -763,10 +763,10 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
   > control set of two. Runs completing after that stamp are not tracked in this note. Test 2469
   > `speecher set_voice` has failed again on later heads with no code change and passed on others;
-  > test 157 `boards-layout-toggle` failed once, at `a648d93e3` (the first run on this branch on
-  > that base), and in no later run read while this note was written (read dates are in the
-  > round entries of PR #962's working log,
-  > `docs/task-management/2026-09-12_render-decommission-closure.md`;
+  > test 157 `boards-layout-toggle` has failed on at least two heads, first at `a648d93e3` (the
+  > first run on this branch on that base), the later ones dated in the round entries of PR
+  > #962's working log, `docs/task-management/2026-09-12_render-decommission-closure.md`
+  > (both tests failed together in one run;
   > `gh run list --workflow CI --branch scot/chore/render-dead-config-removal` is the current
   > state). Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
@@ -1031,6 +1031,20 @@ structure, word-level diff) and without a round 31, a declared deviation from "f
 unreviewed code" scoped to review-record prose. The pass is recorded on `71f77b6a2`, the head the
 adversary read, not on this commit. Codex has not run since round 23; Scot re-authenticates it
 with `CODEX_HOME=$HOME/.cache/codex-review-home codex login` before the next PR's dual review.
+
+## Post-close observation (read 2026-09-14T16:25Z)
+
+Run 34826796872 (`71f77b6a2`) completed at 09:50:27Z, after round 30's read, with `# fail 2`:
+`not ok 157` (`boards-layout-toggle: choosing TOP-DOWN persists it to the user`, 32 ms) and
+`not ok 2469` (1674 ms against 1159 and 1173, excess 508 ms), `# tests 2687`. Test 157 had
+failed only at `a648d93e3` in every earlier read, so the standing sentences saying it "failed
+once" would now mislead the note's recipient even though they were truthful as dated. Changed,
+in the record, the owner note and the PR body, to the monotone form "has failed on at least two
+heads", which no later run can falsify, with the later heads left to dated entries. Also run
+34823410307 (`ed9f9bb84`, 09:11:18Z) and 34821919436 (`f406a7b1e`, 08:54:06Z) failed on test
+2469 alone. Branch runs at this read: 30, of which 14 failed and 16 passed (the 2529-base runs
+all passed). This entry and its three clause edits are post-close and unreviewed; the pass
+record stays on `71f77b6a2`.
 
 ## Status
 
