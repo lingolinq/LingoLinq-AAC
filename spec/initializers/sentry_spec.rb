@@ -733,12 +733,16 @@ describe 'config/initializers/sentry.rb' do
     # matcher, and every refinement of that model flipped some previously correct case to fail-open
     # (see the PR #962 working log, rounds 8 to 12). Any new `!` entry, or any respelling of the
     # `.git` exclusion, fails this example and must be reviewed here on purpose. The file is also
-    # pinned to ASCII bytes: moby strips a first-line byte-order mark and trims Unicode spaces
-    # (U+00A0, U+0085, U+2028) before recognising `!`, and Ruby's strip does not, so a non-ASCII
-    # byte in front of `!` could hide a re-include from the line classification below.
+    # pinned to printable ASCII plus tab, LF and CR, in both directions: moby strips a first-line
+    # byte-order mark and trims Unicode spaces (U+00A0, U+0085, U+2028) before recognising `!`
+    # while Ruby's strip does not, so a non-ASCII byte before `!` could hide a re-include; and
+    # Ruby's strip removes a NUL that moby keeps, so `.git` plus a NUL would read as the exclusion
+    # here while matching nothing in Docker. Finally, a Dockerfile-specific ignore file
+    # (`Dockerfile.dockerignore`) takes precedence over `.dockerignore` in Docker, so none may exist.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
+      expect(Dir.glob(Rails.root.join('*.dockerignore').to_s)).to eq([])
       raw = File.binread(Rails.root.join('.dockerignore'))
-      expect(raw.bytes).to all(be < 128)
+      expect(raw.bytes).to all(satisfy { |b| [9, 10, 13].include?(b) || (32..126).cover?(b) })
       entries = raw.lines.map(&:strip)
       entries = entries.reject { |e| e.empty? || e.start_with?('#') }
       reincludes, excludes = entries.partition { |e| e.start_with?('!') }

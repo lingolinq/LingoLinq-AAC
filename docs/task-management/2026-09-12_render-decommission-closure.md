@@ -606,9 +606,25 @@ after `docker build` (`docker run --rm --entrypoint sh "$IMAGE" -c '! test -e /a
 assert the image itself. That is a deploy-workflow edit, outside A1's scope; listed in the PR
 body's Not covered for PR B or a follow-up. Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 14 (head 4af82d7c2) and fixes
+
+Findings file `dual-review-round14-pra1.md`. Codex: approve, no findings. Adversary: approve, 2 Low,
+both pre-existing siblings of the round-13 class and both one-line literal assertions, taken:
+- NUL byte: Ruby's strip removes NUL, Go's TrimSpace does not, so `.git` plus a NUL classified as
+  the exclusion here while matching nothing in Docker; NUL is byte 0 and passed the `< 128` pin.
+  Pin tightened to printable ASCII plus tab, LF, CR. Mutations `.git\0` and `\0.git` -> red.
+- `Dockerfile.dockerignore` takes precedence over `.dockerignore` in Docker, so adding one would
+  make the pinned file inert with the example green. One assertion: no `*.dockerignore` file
+  other than the pinned one may exist. Mutation (scratch `Dockerfile.dockerignore`) -> red.
+The deferred image-level check's command was confirmed correct for this Dockerfile (Debian slim
+runtime, `WORKDIR /app`, `COPY . .`, `USER app`); two notes recorded with the deferral: use a YAML
+block scalar for the nested quotes, and `.dockerignore`'s `.git` is root-anchored, so widen to a
+`find` if the goal is "no git history anywhere" rather than the Sentry-fallback path.
+Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-13 applied; round 14 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-14 applied; round 15 re-review pending) -> A2 -> B -> C.
