@@ -1,6 +1,7 @@
 # supervisor_key org-attach escalation: third party ratifies an org attachment on a communicator's behalf
 
-**Status:** proposal, no code written. Discovered 2026-09-14 while settling the LL-1baffd92d5 seat count.
+**Status:** Phase 1 gate IMPLEMENTED, then BLOCKED by dual review. Do not merge. See section 8.
+Discovered 2026-09-14 while settling the LL-1baffd92d5 seat count.
 **Not in the findings register.** Suggested severity High.
 **Related:** [2026-09-14_claim-user-cross-tenant-takeover.md](./2026-09-14_claim-user-cross-tenant-takeover.md) section 6.
 **Why it matters now:** unlike LL-1baffd92d5, this needs **no `License` row**, and prod has zero. It is the
@@ -168,10 +169,27 @@ permits:
   activation code, `remove_supervision-`, `remove_supervisee-`
 - `app/frontend/app/components/add-supervisor.js` and `controllers/add-supervisor.js`: `type + '-' + user_name`
 
-**No frontend caller sends a `start-` or `approve-org` key against a DIFFERENT user's record.** That
-materially lowers the regression risk of Option A: the self-dealing gate would not break any shipped UI
-path found in this sweep. It does not prove no integration or API consumer does so, which is why the gate
-should audit its refusals rather than fail silently.
+~~**No frontend caller sends a `start-` or `approve-org` key against a DIFFERENT user's record.**~~
+
+**RETRACTED 2026-09-14, this claim was FALSE** and the dual review caught it. The sweep grepped for
+`supervisor_key` and read the assignment, but never traced what `user` was bound to. It is the VIEWED
+user, not the session user:
+
+- `app/frontend/app/components/add-supervisor.js`: `const user = controller.get('model.user')` then, when
+  a start code was entered, `user.set('supervisor_key', type + '-' + user_name)` with `type` = `'start'`.
+- The modal is opened with the viewed user in all three places:
+  `app/frontend/app/controllers/user/index.js` and `controllers/supervision-settings.js` both
+  `modal.open('add-supervisor', {user: _this.get('model')})`, and
+  `components/supervision-settings.js` the same via `modalUtil.open`.
+
+So a therapist who manages a school org and supervises a student, enrolling that student with the
+school's own start code, is exactly the case the gate refuses. That is an ordinary onboarding action and
+the gate breaks it. Worse, it breaks it **silently**: `User#process_params` treats a false return as
+non-fatal and only `Rails.logger.warn`s, so the PUT returns 200 and `add-supervisor.js` takes its
+`else { add_done(); }` branch and closes the modal as success.
+
+The lesson: an assertion about "no caller does X" is only as good as the binding trace behind it. Grepping
+the call site is not tracing the receiver.
 
 ---
 
@@ -265,7 +283,10 @@ The value guarded is a **non-pending `org_user` / `org_supervisor` UserLink**, r
 **before** the call that writes or ratifies the link (`update_subscription_organization`,
 `parse_activation_code(code, user)`, and `approve_supervisor` respectively), with no early return between
 guard and write. Every third-party route into those three writers passes through
-`SupervisorKeyProcessor#call`, which is the single dispatch point.
+`SupervisorKeyProcessor#call`. **Correction:** that is the single dispatch point for the supervisor_key
+actions only, NOT for org attachment generally. `Api::OrganizationsController#claim_user` is a separate
+ingress that writes a non-pending `org_user` link directly, and `Organization#add_user` is a third. The
+original wording overstated the coverage.
 
 ### Verification
 
@@ -284,3 +305,74 @@ guard and write. Every third-party route into those three writers passes through
 consent decisions) share the third-party shape but do **not** write an org link, so they are untouched by
 this gate and remain untraced. They are the next thing to look at, and `approve_consent` / `deny_consent`
 should probably come first because they touch the COPPA surface directly.
+
+---
+
+## 8. Dual review outcome: BLOCKED. Do not merge.
+
+Run 2026-09-14 against `3c6240adb`, baseline `4104b657b`. Senior-dev pass: **no blocker**, 7 SHOULD-FIX.
+Adversary pass: **1 Critical + 1 High blocker**. Under the repo rule that a Critical or High from either
+reviewer blocks the PR, this change does not ship as written. Both blockers were re-verified here rather
+than accepted on the reviewer's word.
+
+### BLOCKER 1 (Critical): the gate is launderable, because it keys on the SUBMITTER
+
+`allows_org_attachment?` refuses only when the **submitting** actor manages the target org. The attacker
+chooses who submits, and `process_add` is deliberately ungated and mints a fresh eligible submitter.
+
+Verified chain:
+1. Attacker A fully manages org O and holds `edit` supervision of victim V.
+2. A creates throwaway account B, then submits `supervisor_key=add_edit-<B>` against V.
+   `process_add` performs **no authorization on who is being added**: its only guards are
+   `return false unless user.any_premium_or_grace_period? && user.id` and that the supervisor resolves
+   and is not the user. `Supervising.link_supervisor_to_user` performs none either, and sets
+   `link.data['state']['edit_permission'] = true`.
+3. B now holds `edit` on V, so B reaches the `else` branch of `users_controller#update` with the full
+   payload and submits `start-<O's code>`. B manages nothing, so **the gate passes.**
+4. V is attached to O non-pending, and `manager_for?(A, V)` becomes true, granting A `support_actions`.
+
+The escalation survives at the cost of one extra API call and one throwaway account. The change's own
+green regression spec, "should still allow a third party to redeem a code for an org they do not manage",
+is the exploit verbatim. **The suite pins the hole open**, which is the sharpest possible statement of the
+problem: the test I wrote to protect the parent/guardian path is the same shape as the attack.
+
+### BLOCKER 2 (High): the gate silently breaks a shipped onboarding path
+
+See the retraction in section 5. The therapist-enrols-student flow is refused, and refused invisibly
+(HTTP 200, modal closes as success, nothing attached, only an unwatched AuditEvent).
+
+### Why both point at the same design error
+
+The gate asks "does the submitter benefit?" when the property that actually matters is "has the TARGET
+consented?". Keying on the submitter is both too weak (BLOCKER 1: launder through another account) and
+too strong (BLOCKER 2: refuses a legitimate submitter who happens to manage the org).
+
+### Recommended redesign, not yet implemented
+
+On a third-party `start-` / `approve-org` / `approve_supervision`, write the org link as **pending**
+instead of refusing. This resolves both blockers at once:
+
+- Laundering gains nothing: the link is pending whoever submits, and `manager_for?` counts only
+  NON-pending links, so no `support_actions` is granted.
+- The therapist flow works and is not silent: the student is attached, pending ratification.
+- It matches how the product already behaves. The org UI's own path passes `pending=true`
+  (`self.add_user(key, true, true, false)`), so pending-on-third-party-attachment is the existing
+  designed state, not a new concept.
+- `process_add` still needs its own gate; it is the capability-minting primitive behind BLOCKER 1.
+
+**This is a product decision and is not an agent's to take**: it makes third-party enrolment two-step, and
+for a communicator who cannot ratify it re-raises the guardian question from section 2. Holding for Scot.
+
+### Other findings accepted, not yet actioned
+
+- Two of the gate's three predicates (`assistant?`, `upstream_manager?`) have no spec; deleting them from
+  the condition leaves the suite green. The same is true of `claim_user`'s hierarchy branch. Both need a
+  mutation-proof test.
+- The actor fails OPEN when `non_user_params['updater']` is absent, because it defaults to the target and
+  so reads as a self-action. `users_controller#update` always sets it, but any other `user.process` caller
+  would bypass the gate.
+- `approve-org` still writes `user.settings['pending'] = false` before dereferencing a possibly-nil org.
+- `claim_user` still discards `add_user`'s `pending` argument on the licence fast-path, re-opening the
+  same escalation by a route this gate cannot see, latent only while `LICENSES_TOTAL=0`.
+- The denial AuditEvent is keyed `user_key: 'system'` while the success event uses the acting user.
+- Several line-number citations in these docs have gone stale, including from this change's own hunks.
