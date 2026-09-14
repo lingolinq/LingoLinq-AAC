@@ -697,9 +697,10 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
 - Runs completing after the stamp are not enumerated in this record. Every commit to this branch
   starts a run that completes after that commit's read time, so no list here can be current; the
   stamped tally above is the fixed sample this record reasons from. Post-stamp runs read while
-  reviewing (rounds 23 and 24, dated in their entries below) both passed and failed on the same
-  test with no code change, and one exceeded the stamped range, so the range is a reading of six
-  runs, not a bound. Current state: `gh run list --workflow CI --branch
+  reviewing (rounds 23 and 24, dated in their entries below) both passed and failed on test 2469
+  `speecher set_voice` with no code change, and one exceeded the stamped range, so the range is a
+  reading of six runs, not a bound. Test 157 `boards-layout-toggle` failed once, at `a648d93e3`
+  (the first run on this base), and in no run read up to 2026-09-14T07:52Z (round 25). Current state: `gh run list --workflow CI --branch
   scot/chore/render-dead-config-removal`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
@@ -708,8 +709,9 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   against 1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
   while in both passing runs stamped above and in both comparators it matched them (1038/1036,
   1075/1092, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34784704398, 34786101021).
-  Read from the job logs on 2026-09-14; a reading, not a reproduction. Every number in this record
-  is as of the 06:32Z stamp; later runs are not enumerated (bullet above).
+  Read from the job logs on 2026-09-14; a reading, not a reproduction. Every number in this CI
+  record (the bullets of this list) is as of the 06:32Z stamp; later runs are not enumerated as a
+  standing list (bullet above), and post-stamp readings survive only inside dated history entries.
   The TypeError itself cannot occur in production, where the
   constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
   stale timer speaking or cancelling during a live session) is untested and is a separate question
@@ -756,9 +758,11 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > belongs in the module's hooks or in interval ownership, not in one test. Both tests
   > passed on the 2529 suite before #963 (166 files, 33 new test files, +158 tests). The only two
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
-  > control set of two. Runs completing after that stamp are not tracked in this note; the failure
-  > has recurred on later heads with no code change and passed on others (`gh run list --workflow
-  > CI --branch scot/chore/render-dead-config-removal` is the current state). Cause
+  > control set of two. Runs completing after that stamp are not tracked in this note. Test 2469
+  > `speecher set_voice` has failed again on later heads with no code change and passed on others;
+  > test 157 `boards-layout-toggle` failed once, at `a648d93e3`, and in no run read up to
+  > 2026-09-14T07:52Z (`gh run list --workflow CI --branch scot/chore/render-dead-config-removal`
+  > is the current state). Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
@@ -884,8 +888,8 @@ outside the 430 to 520 ms range while the pending-run note reported only the pos
 Restructured once rather than patched twice: every number in the CI record is now as of the 06:32Z
 stamp (the range is scoped to the six stamped failures and the passing set to the two stamped
 passes), and one dated bullet in the record listed every post-stamp completion with its outcome
-and reading (the note and body carried outcomes only; the enumeration itself is dropped in
-round 24). The Lows: the facts bullet's "across its
+and reading (the note carried two completion times and one reading, the body outcomes only; the
+enumeration itself is dropped in round 24). The Lows: the facts bullet's "across its
 own await" replaced with the call-to-`afterEach` lifetime (Codex and adversary); the owner note's
 "two sibling tests do the same" now distinguishes the two promise-returning siblings from the
 module's eight other bare-object installs (a text grep of `stubStorage({})`; wrong, replaced in
@@ -902,20 +906,38 @@ Mediums are one defect: the record enumerated in-flight CI runs, and every commi
 that completes after that commit's read time, so each round moved the stale list one artifact
 further out (record, pending note, owner note, PR body). Closed structurally rather than patched:
 the record keeps the stamped tally as its fixed sample and a standing statement that later runs
-are not enumerated; the owner note and PR body say the failure recurs on later heads with no code
-change and point at `gh run list` for the current state. Observed while writing this entry, read
+are not enumerated; the owner note and PR body say which test recurs on later heads with no code change (2469;
+test 157 failed once, at `a648d93e3`) and point at `gh run list` for the current state. Observed while writing this entry, read
 2026-09-14T07:40Z and recorded here only as dated history: 34815003904 (`800401f28`) failed at
-07:26:01Z on test 2469 (1704 ms against 1188 and 1199, excess 510 ms) and 34815918413
+07:26:01Z on test 2469 (1704 ms against 1188 and 1199, excess 510.5 ms) and 34815918413
 (`53dbb4ebd`) passed at 07:31:23Z (923 against 927 and 935), both `# tests 2687`. The owner
 note's "eight other bare-object installs (eleven tests)" was a grep count of `stubStorage({})`;
 the property that matters is that no install in the module has `getItem` (none exists in the
 file), so the count is replaced by the property. Lows: the round-23 entry's "in the record, the
 owner note and the PR body" scoped to the record; the round-21 entry's 949 ms annotated as
-post-stamp; the two run-on lines rewrapped.
+post-stamp; four run-on lines rewrapped.
+
+## PR A1 dual review round 25 (head 16181986b, prose only) and fixes
+
+Findings file `dual-review-round25-pra1.md`. Codex: did not run (OAuth still revoked). Adversary:
+request-changes on one Medium, plus 1 Medium and 3 Low, all prose; the enumeration class verified
+closed (no standing sentence in the file or PR body names, counts or times a post-stamp run) and
+the `getItem` property claim verified true (18 `stubStorage` call sites, none with `getItem`,
+exactly three promise-returning tests). Code unchanged and approved since `38559fd0e`, verified
+commit by commit. The Medium: "the failure has recurred on later heads" was true of test 2469 and
+false of test 157, which the owner note spends most of its length on; pulled from the job logs of
+all nine failed runs on this branch (read 2026-09-14T07:52Z): eight are `not ok 2469`, one is
+`not ok 157` at `a648d93e3`, the first run on the 2687 base. The test is now named in the record,
+the owner note, the round-24 entry and the PR body. The second Medium: the PR body's "not
+enumerated here or in the working log" was an absolute that the dated history entries falsify;
+scoped to "as a standing list". Lows: "every number in this record" scoped to the CI bullet
+list; the round-24 entry's "outcomes only" corrected for the note; "two run-on lines" corrected
+to four and the status line wrapped; "excess 510" written as 510.5 to match the 535.
 
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-24 applied; round 25 re-review pending on prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-25 applied; round 26 re-review pending, prose only, adversary alone until
+  Codex is re-authenticated) -> A2 -> B -> C.
