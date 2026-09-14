@@ -9,6 +9,13 @@ on:
 # Every job only reads the checkout; nothing here comments, labels, or pushes.
 permissions:
   contents: read
+  pull-requests: read
+
+# A new commit on the same PR makes the older result obsolete. Keep protected-branch
+# pushes separate from PR runs so a merge cannot cancel its own branch validation.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   rspec:
@@ -106,7 +113,64 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # Keep the required build-and-test job present for every PR. GitHub does not
+      # report a path-filtered job at all, which can leave a required check pending.
+      # This classifier instead skips only the expensive frontend steps, and only
+      # when every current and previous (rename) path is documentation/audit data.
+      - name: Classify frontend impact
+        id: frontend-scope
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            if (context.eventName !== 'pull_request') {
+              core.setOutput('run_frontend', 'true');
+              core.info('Protected-branch push: run the complete frontend suite.');
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const allowed = (path) =>
+              path.startsWith('docs/') || path.startsWith('audit-reports/');
+            const documentationOnly =
+              files.length > 0 &&
+              files.every((file) =>
+                allowed(file.filename) &&
+                (!file.previous_filename || allowed(file.previous_filename))
+              );
+
+            core.setOutput('run_frontend', documentationOnly ? 'false' : 'true');
+            core.info(
+              documentationOnly
+                ? 'Documentation/audit-only PR: skip the frontend suite.'
+                : 'Frontend-relevant or unknown path present: run the frontend suite.'
+            );
+
+      # The classifier is an optimization, not a gate. If GitHub's files API or
+      # the classifier fails, default to the full suite rather than skipping tests.
+      - name: Decide whether frontend suite is required
+        id: frontend
+        env:
+          CLASSIFIER_OUTCOME: ${{ steps.frontend-scope.outcome }}
+          CLASSIFIED_VALUE: ${{ steps.frontend-scope.outputs.run_frontend }}
+        run: |
+          if [ "$CLASSIFIER_OUTCOME" = "success" ] && [ "$CLASSIFIED_VALUE" = "false" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Documentation-only fast path
+        if: steps.frontend.outputs.run == 'false'
+        run: echo "Frontend build and browser tests are not applicable to this documentation/audit-only PR."
+
       - name: Setup Node 22
+        if: steps.frontend.outputs.run == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -117,6 +181,7 @@ jobs:
       # Node-20-built tree into a Node 22 runner loads a binding built for the
       # wrong ABI. Bump this suffix on every Node major bump.
       - name: Cache node_modules and Puppeteer Chrome
+        if: steps.frontend.outputs.run == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -127,6 +192,7 @@ jobs:
             ${{ runner.os }}-node22-
 
       - name: Install frontend dependencies
+        if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npm install
 
@@ -135,6 +201,7 @@ jobs:
       # Pre-existing violations are grandfathered in .lint-todo (suppressed until
       # their per-entry error date); this only blocks newly-introduced ones.
       - name: Lint Ember templates
+        if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npm run lint:hbs
 
@@ -142,20 +209,24 @@ jobs:
       # Pre-existing findings are grandfathered in app/frontend/.eslint-todo;
       # this only blocks newly-introduced ones. Not the same as disabling rules.
       - name: Lint Ember JS
+        if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npm run lint:js:ci
 
       # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
       # Restoring only node_modules leaves executablePath() pointing at a missing binary.
       - name: Ensure Puppeteer Chrome is present
+        if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npx puppeteer browsers install chrome
 
       - name: Build Ember app
+        if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npx ember build
 
       - name: Run Ember tests (Chrome Headless)
+        if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         # A healthy full run finishes in ~34 min. Cap the step so a wedged
         # runner (e.g. testem's iframe channel corrupted by a post-teardown
