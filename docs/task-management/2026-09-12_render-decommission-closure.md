@@ -640,9 +640,31 @@ Findings file `dual-review-round15-pra1.md`. Codex: approve, 1 Low. Adversary: a
   Dropping `git` from the runtime stage is a separate change with its own risk.
 Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 16 (head a7a667453) and fixes
+
+Findings file `dual-review-round16-pra1.md`. Codex: request-changes, 1 Low. Adversary: approve,
+4 Low. Same defect from both: the round-15 regex `\A[^.].*\.dockerignore\z` misses a dot-prefixed
+name (`.Dockerfile.dockerignore`), misses a name with an embedded newline (`.` does not cross `\n`),
+and raises on a non-UTF-8 name (fail-closed but a misleading message). The adversary noted its own
+round-15 counter-measure would have self-matched `.dockerignore`, which is why the anchor was added.
+Fix: plain string tests, no glob and no regex: `n != '.dockerignore' && n.end_with?('.dockerignore')`
+(byte comparison, does not raise). Mutations: `Dockerfile.dockerignore`, `.Dockerfile.dockerignore`,
+`Foo.dockerignore`, a directory `Bar.dockerignore/` -> red; baseline green.
+Adversary Low 1 was procedural and correct: this edit sat uncommitted in the worktree while round 16
+ran against `a7a667453`; the reports cover that head only, so the edit gets its own round.
+
+CI on this branch: `build-and-test` failed on 5 of the last 8 heads (a648d93e3, e3d53f10b, 5d724d15d,
+4af82d7c2, 262ec6a09) and passed on 3 (165fe952f, 1476ae817, 4fca93c3d) with identical frontend
+content (`git diff --name-only origin/develop...HEAD | grep app/frontend` = 0 files). Each failure is
+one Ember test of 2687: `speecher set_voice - should not error if set_voice has not been called`
+(runs 34798323491, 34789100356) and `boards-layout-toggle: choosing TOP-DOWN persists it to the user`
+(run 34785846824); the other two logs were no longer retrievable. `develop` passed at 4104b657b
+(2026-09-13T21:44Z). Classified as flakiness on evidence, not assumption; rerun until green before
+the hand-back, and note it for the frontend owner.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-15 applied; round 16 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-16 applied; round 17 re-review pending) -> A2 -> B -> C.

@@ -739,10 +739,12 @@ describe 'config/initializers/sentry.rb' do
     # Ruby's strip removes a NUL that moby keeps, so `.git` plus a NUL would read as the exclusion
     # here while matching nothing in Docker. Finally, a Dockerfile-specific ignore file
     # (`Dockerfile.dockerignore`) takes precedence over `.dockerignore` in Docker, so no other
-    # `*.dockerignore` may exist at the root; checked with a directory listing, not a glob, so a
-    # glob metacharacter in a checkout path cannot make the check pass vacuously.
+    # root entry other than the pinned file may have a name ending in `.dockerignore`; checked with
+    # a directory listing and plain string tests, no glob and no regex, so neither a metacharacter
+    # in the checkout path nor an unusual name (leading dot, embedded newline) can slip past it.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
-      expect(Dir.children(Rails.root).grep(/\A[^.].*\.dockerignore\z/)).to eq([])
+      others = Dir.children(Rails.root).select { |n| n != '.dockerignore' && n.end_with?('.dockerignore') }
+      expect(others).to eq([])
       raw = File.binread(Rails.root.join('.dockerignore'))
       expect(raw.bytes).to all(satisfy { |b| [9, 10, 13].include?(b) || (32..126).cover?(b) })
       entries = raw.lines.map(&:strip)
