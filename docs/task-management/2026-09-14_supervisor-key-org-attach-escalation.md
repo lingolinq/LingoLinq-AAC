@@ -172,3 +172,51 @@ permits:
 materially lowers the regression risk of Option A: the self-dealing gate would not break any shipped UI
 path found in this sweep. It does not prove no integration or API consumer does so, which is why the gate
 should audit its refusals rather than fail silently.
+
+---
+
+## 6. Red tests written, and the escalation is now DEMONSTRATED
+
+Six specs added to `spec/services/supervisor_key_processor_spec.rb` under
+`describe "self-dealing gate on third-party org attachment"`, written before any fix.
+
+They are driven through `User#process(user_data, {'updater' => actor})` rather than
+`SupervisorKeyProcessor.new` directly, because that is the real request path
+(`Api::UsersController#update` sets `options['updater'] = @api_user`, and `User#process_params` then calls
+`self.process_supervisor_key` where `self` is the target). Written this way they fail because the
+escalation **succeeds**, not because a method signature does not exist yet, and they remain valid however
+the actor ends up threaded.
+
+**Red state, confirmed by running them:** the three guard cases fail and the three regression guards pass.
+
+| Case | Expected | Actual today |
+|---|---|---|
+| `approve-org` by an actor managing the pending org | stays pending | **ratified** on the target's behalf |
+| `start-<code>` for an org the actor manages | not attached | **attached** |
+| denial AuditEvent written | present | absent (no gate) |
+| user runs `approve-org` on their own account | works | works |
+| third party redeems a code for an org they do NOT manage | works | works |
+| third-party removal action | works | works |
+
+The last three are what make the suite meaningful: a gate that refused everything would satisfy the first
+three while destroying the parent and guardian onboarding path.
+
+### Correction to section 1: this is no longer only a traced chain
+
+Earlier notes described the escalation as a confirmed *reading* rather than a demonstrated exploit. It is
+now demonstrated. A temporary spec (since deleted) ran the full chain against the test database:
+
+```
+BEFORE  manager_for? = false    support_actions = false
+AFTER   attached_to_org = true  link_nonpending = true
+        manager_for? = true     support_actions = true
+```
+
+One `supervisor_key` request, **no `License` row involved**, moves an actor who merely supervises the
+target from no authority to holding `support_actions` over them. `support_actions` is exactly the
+permission `Api::UsersController#update` checks at
+`elsif params['reset_token'] == 'admin' && user.allows?(@api_user, 'support_actions')` before slicing the
+payload to `password` and setting `options[:allow_password_change] = true`.
+
+The password write itself was not performed; the permission gate that authorises it was observed flipping
+from false to true. That is the security-relevant boundary.
