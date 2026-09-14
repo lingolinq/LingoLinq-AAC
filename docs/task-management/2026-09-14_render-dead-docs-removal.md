@@ -79,6 +79,75 @@ recorded `file@sha`, not to HEAD, so the three register findings citing `render.
 3 FAIL, and all three failures are pre-existing `app/models/lesson.rb` / `webhook.rb` citations at
 sha `e37817432a58`, byte-identical in `FINDINGS.json` at `e8cea7329` before the merge.
 
+## Compliance record (section 4)
+
+Nine Path A successors, dated 2026-09-14. **No frozen or attested predecessor was edited.**
+
+### Why successors rather than in-place edits
+
+Every live head is a DATED document that was accurate when written: Render genuinely was a live
+write-frozen fallback on 2026-08-09, 08-15, 08-16, 08-22 and 08-25. Two of them pin themselves to a
+snapshot, and `2026-08-22_compliance-program.md` says so outright ("the snapshot boundary is still
+`64cdccba1` -- these corrections do not move the derivation to a later commit"). Editing a
+2026-09-09 fact into a document dated 2026-08-22 would back-date a later event into an earlier
+record and break that document's own stated invariant. Scot chose successors on 2026-09-14.
+
+### What was created
+
+| Successor | Supersedes | Predecessor state |
+|---|---|---|
+| `2026-09-14_data-retention.md` | `DOC-e62caf7fb9` | draft |
+| `2026-09-14_subprocessor-register.md` | `DOC-f850df36ad` | **attested 2026-08-19** |
+| `2026-09-14_compliance-program.md` | `DOC-e5e85eccb1` | draft |
+| `2026-09-14_incident-response-breach-runbook.md` | `DOC-28f19f73e4` | **attested 2026-08-16** |
+| `2026-09-14_compliance-data-governance.md` | `DOC-f6d26afec8` | draft |
+| `2026-09-14_compliance-program-overview.md` | `DOC-90632edc44` | draft |
+| `2026-09-14_compliance-posture-report.md` | `DOC-c5408d90b7` | draft |
+| `2026-09-14_gcp-baa-accepted.md` | `DOC-5b14b08908` | **attested 2026-07-23** |
+| `2026-09-14_compliance-status-snapshot.md` | `DOC-af01c65b10` | draft |
+
+The last three were found by the cross-doc sweep that `.claude/rules/compliance-docs.md` requires,
+NOT by the original audit. The audit listed six documents; the sweep found a seventh chain (the
+posture report) plus the GCP BAA record and the status snapshot. The posture report matters most of
+the three: it ships in the `grant`, `school-dpa-package` and `security-review` bundles, so its stale
+"Render remains a write-frozen rollback fallback" line travelled to funders, districts and security
+reviewers.
+
+### Substantive changes, not just wording
+
+- **A retention end-condition fired.** The Render backup row carried "ends when the Render fallback
+  is decommissioned". That is now met. The 35 day Render-managed window is ENDED and a new row
+  records the replacement: `gs://lingolinq-prod-render-archive`, verified live 2026-09-14 as a
+  one-year immutable lock (`retentionPeriod` 31,557,600s, effective 2026-09-02T17:30:22Z, NEARLINE,
+  public access prevention enforced, uniform bucket-level access, 7 day soft-delete).
+- **n8n MOVED, it did not end.** It is a live Cloud Run service in `lingolinq-nonprod`. Its
+  subprocessor row is relocated, not terminated. Terminating it would have been wrong.
+- **The breach runbook lost a capability.** Render-side service and audit logs are no longer
+  obtainable for ANY window, including windows before the deletion. The runbook now says to record
+  that explicitly rather than leave the evidence step open.
+- Ended subprocessor rows are RETAINED with an end date, per the register's own convention that it
+  is a history and not a current-only list.
+
+### Open questions carried to the attester, not answered here
+
+1. Confirm the 2026-09-09 deletion date against the vendor record (dashboard screenshot or
+   account-deletion email).
+2. Whether Render retains residual copies after account deletion. Not confirmed with the vendor.
+   Every successor says so rather than asserting Render holds nothing.
+3. The archive's retention lock refuses deletion for a year, so an Article 17 erasure request
+   cannot be executed against it inside that window. Prod carried no real users at cutover; the
+   2.4 GB dev/staging dump has not been assessed for real content.
+
+**No finding was closed.** `audit-reports/FINDINGS.json` is untouched. Section 5 is the CEO's act.
+
+### A trap worth remembering
+
+`scripts/regenerate-register.sh` refused to run with three citation FAILs on
+`app/models/lesson.rb` and `webhook.rb` at sha `e37817432a58`. That sha was simply **not fetched in
+this worktree**; `git fetch origin <sha>` made it resolve and the gate went green (198 PASS / 0
+FAIL). A fresh worktree can fail this gate for a reason that has nothing to do with the register.
+Fetch the sha before concluding the evidence is broken.
+
 ## Not in scope, still outstanding
 
 - `develop` CI was already red on `build-and-test` at `e8cea7329`, before #962 merged. #962's own

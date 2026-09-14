@@ -67,13 +67,10 @@
 | COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | 2026-07-23 | approved | Review date is older than 2026-08-18. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-08-18. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
-| Data Retention Schedule (2026-08-09 draft) | git | `docs/legal/2026-08-09_data-retention_draft.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-08-18. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-08-18. |
-| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | 2026-07-23 | approved | Review date is older than 2026-08-18. |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-08-18. |
-| Incident Response and Breach Runbook (2026-08-15 successor) | git | `docs/legal/2026-08-15_incident-response-breach-runbook.md` | 2026-08-15 | approved | Review date is older than 2026-08-18. |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-08-18. |
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-07-23 | approved | Review date is older than 2026-08-18. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
@@ -164,19 +161,19 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 
 | Class | Rule | Disposition | Rows | Status |
 |---|---|---|---|---|
-| `executed-agreement` | term + 7 years | archive | 9 | draft |
+| `executed-agreement` | term + 7 years | archive | 10 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 49 | draft |
+| `policy-version` | supersession + 7 years | archive | 56 | draft |
 | `audit-evidence` | 7 years | archive | 18 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `questionnaire-response` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `superseded-draft` | 1 year | delete | 0 | unused (no record of this class exists yet) |
-| `working-note` | 90 days | delete | 2 | draft |
+| `working-note` | 90 days | delete | 3 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 93 rows carry a retention block.
+All 102 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -233,19 +230,28 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
+| Compliance & Data Governance (2026-08-25 successor) | `docs/legal/2026-08-25_compliance-data-governance.md` | Compliance & Data Governance (2026-09-14 successor) | soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | Compliance & Data Governance (2026-08-25 successor) | soc2-evidence |
 | Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program (2026-08-22 successor) | (none) |
+| Compliance & Security Program (2026-08-22 successor) | `docs/legal/2026-08-22_compliance-program.md` | Compliance & Security Program v1.3.2 (2026-09-14 successor) | (none) |
 | Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
 | Compliance Posture Report | `docs/legal/2026-08-20_compliance-posture-report.md` | Compliance Posture Report (2026-08-22 successor) | school-dpa-package, security-review, grant |
 | Compliance Posture Report (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-posture-report_draft.md` | Compliance Posture Report | (none) |
+| Compliance Posture Report (2026-08-22 successor) | `docs/legal/2026-08-22_compliance-posture-report.md` | Compliance Posture Report (2026-09-14 successor) | grant, school-dpa-package, security-review |
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
 | Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |
 | Compliance Program (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-program_draft.md` | Compliance & Security Program | (none) |
 | Compliance Status Snapshot (2026-08-09) | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | Compliance Status Snapshot (2026-08-22) | (none) |
+| Compliance Status Snapshot (2026-08-22) | `docs/legal/2026-08-22_compliance-status-snapshot.md` | Compliance Status Snapshot (2026-09-14 successor) | (none) |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
+| Data Retention Schedule (2026-08-09 draft) | `docs/legal/2026-08-09_data-retention_draft.md` | Data Retention Schedule (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, dsar |
+| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | `docs/legal/GCP_BAA_ACCEPTED.md` | GCP BAA Acceptance Record (2026-09-14 successor) | baa |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
+| Incident Response and Breach Runbook (2026-08-15 successor) | `docs/legal/2026-08-15_incident-response-breach-runbook.md` | Incident Response & Breach Runbook (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, baa |
 | LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
+| LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | Security, Privacy & Compliance Overview (2026-09-14 successor) | security-review |
 | Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | Subprocessor Register (2026-08-16 successor) | (none) |
+| Subprocessor Register (2026-08-16 successor) | `docs/legal/2026-08-16_subprocessor-register.md` | Subprocessor Register (2026-09-14 successor) | school-dpa-package, soc2-evidence, security-review |
 
 ## Bundle Gaps
 
@@ -298,4 +304,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_93 documents tracked. 60 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 20 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_102 documents tracked. 57 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 29 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
