@@ -930,8 +930,8 @@ exactly three promise-returning tests). Code unchanged and approved since `38559
 commit by commit. The Medium: "the failure has recurred on later heads" was true of test 2469 and
 false of test 157, which the owner note spends most of its length on; pulled from the job logs of
 all nine failed runs on this branch (read 2026-09-14T07:52Z): eight are `not ok 2469`, one is
-`not ok 157` at `a648d93e3`, the first run on this branch on the 2687 base. The test is now named in the record,
-the owner note, the round-24 entry and the PR body. The second Medium: the PR body's "not
+`not ok 157` at `a648d93e3`, the first run on this branch on the 2687 base. The test is now named
+in the record, the owner note, the round-24 entry and the PR body. The second Medium: the PR body's "not
 enumerated here or in the working log" was an absolute that the dated history entries falsify;
 scoped to "as a standing list". Lows: "every number in this record" scoped to the CI bullet
 list; the round-24 entry's "outcomes only" corrected for the note; "two run-on lines" corrected
