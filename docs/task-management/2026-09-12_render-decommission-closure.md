@@ -653,18 +653,59 @@ Fix: plain string tests, no glob and no regex: `n != '.dockerignore' && n.end_wi
 Adversary Low 1 was procedural and correct: this edit sat uncommitted in the worktree while round 16
 ran against `a7a667453`; the reports cover that head only, so the edit gets its own round.
 
-CI on this branch: `build-and-test` failed on 5 of the last 8 heads (a648d93e3, e3d53f10b, 5d724d15d,
-4af82d7c2, 262ec6a09) and passed on 3 (165fe952f, 1476ae817, 4fca93c3d) with identical frontend
-content (`git diff --name-only origin/develop...HEAD | grep app/frontend` = 0 files). Each failure is
-one Ember test of 2687: `speecher set_voice - should not error if set_voice has not been called`
-(runs 34798323491, 34789100356) and `boards-layout-toggle: choosing TOP-DOWN persists it to the user`
-(run 34785846824); the other two logs were no longer retrievable. `develop` passed at 4104b657b
-(2026-09-13T21:44Z). Classified as flakiness on evidence, not assumption; rerun until green before
-the hand-back, and note it for the frontend owner.
+CI on this branch, corrected in round 17 (the first version of this paragraph called it flakiness;
+the adversary showed that was wrong and the evidence below is from the job-logs API, read-only):
+- `develop` moved to `4104b657b` at 2026-09-13T21:44Z via PR #963 (100 files, including
+  `app/frontend/app/utils/speecher.js`), and the Ember suite grew from 2529 to 2687 tests.
+- On the 2529-test base this branch passed `build-and-test` at `1476ae817` and `165fe952f`. On the
+  2687-test base the record is 1 pass (`4fca93c3d`) and 5 failures (`a648d93e3`, `e3d53f10b`,
+  `5d724d15d`, `4af82d7c2`, `262ec6a09`), every one `# tests 2687`, `# fail 1`.
+- Four of the five fail the same test, 2469 `speecher: speecher set_voice - should not error if
+  set_voice has not been called`, with the same message: `TypeError: Failed to execute 'speak' on
+  'SpeechSynthesis': parameter 1 is not of type 'SpeechSynthesisUtterance'`, thrown from
+  `speak_utterance` (frontend.js:263684) under a late Backburner timer, so a global error lands on
+  whichever test is running. The fifth (run 34785846824) failed test 157
+  `boards-layout-toggle: choosing TOP-DOWN persists it to the user`.
+- This PR has zero `app/frontend` files (`git diff --name-only origin/develop...HEAD`), and the
+  `build-and-test` job reads nothing this diff touches (`.github/workflows/ci.yml:102-162`, all
+  `working-directory: app/frontend`). It cannot cause or fix the failure; every PR based on the
+  current `develop` inherits it. Intermittent, not deterministic: `develop`'s own run and one other
+  PR's merge run passed on the same suite.
+- Classification: a live `develop` defect in the speech module, most plausibly from #963 (temporal
+  window and stack frame confirmed; causation not proven). Not noise. Do not rerun to green as a
+  substitute for filing it. Draft for the frontend owner (#963 was authored by traciday):
+
+  > **Ember: intermittent global TypeError from `speecher.js` `speak_utterance` since #963**
+  > Since `develop` `4104b657b` (PR #963, 2026-09-13T21:44Z) `build-and-test` fails intermittently
+  > on unrelated PRs. 4 of 5 failures on #962's branch hit test 2469
+  > `speecher set_voice - should not error if set_voice has not been called` with
+  > `TypeError: Failed to execute 'speak' on 'SpeechSynthesis': parameter 1 is not of type
+  > 'SpeechSynthesisUtterance'` from `speak_utterance` under `Backburner._runExpiredTimers`; runs
+  > 34785846824 (a different test, 157), 34787748239, 34788511177, 34789100356, 34798323491. The
+  > suite went 2529 to 2687 tests in the same merge. Suspect: a `speak` call reached with a
+  > non-utterance argument from a timer that outlives its test. #962 has no frontend changes.
+
+## PR A1 dual review round 17 (head 38559fd0e) and fixes
+
+Findings file `dual-review-round17-pra1.md`. Codex: approve, no findings. Adversary: approve,
+1 Medium, 3 Low, none in shipping code. The ignore-file check is closed: 16-case matrix, no
+fail-open, no self-match, no spurious failure; the round-16 residuals flip red under the string
+tests. One new fail-closed false positive left as is and recorded: `._.dockerignore`, the macOS
+AppleDouble sidecar on non-APFS volumes, now reddens; unreachable in CI and on WSL.
+Medium (adversary): the round-16 CI paragraph called the `build-and-test` failures flakiness. The
+job logs show one test, one TypeError, four consecutive runs, starting at the base move that
+brought in #963's change to `speecher.js`; two logs I called unretrievable were retrievable through
+the jobs API and show the same failure; two of the three "passes" ran the previous 2529-test suite
+and are not controls. Paragraph rewritten above from the API output, with a draft defect note for
+the frontend owner. Lesson: "flaky" is a conclusion that needs the failing assertion and the base
+history in hand, not a label for "different test names across runs".
+Low: the PR body's Tests section said CI was green on the pre-rebase heads and silent on the five
+post-rebase failures; one sentence added. Round 18 is a prose-only re-review of this record and
+that sentence; the spec has not changed since `38559fd0e`.
 
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-16 applied; round 17 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-17 applied; round 18 re-review pending on prose only) -> A2 -> B -> C.
