@@ -3,7 +3,7 @@
      `update_selected` assigns the Mine list asynchronously, so on the first paint
      board_list is undefined. The previous `{{#if board_list}}` wrapper rendered
      NOTHING in that window — a blank section body — which was invisible only
-     because a full-viewport "Preparing your workspace" overlay sat on top of the
+     because a full-viewport "Loading boards" overlay sat on top of the
      whole page until the list resolved. That overlay is gone (the page now paints
      immediately), so this branch is what the user actually sees while boards load. --}}
 {{#if (or (not this.boardsCtrl.board_list) this.boardsCtrl.board_list.loading)}}

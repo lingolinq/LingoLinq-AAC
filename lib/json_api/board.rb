@@ -26,6 +26,27 @@ module JsonApi::Board
         json[key] = BoardContent.load_content(board, key)
       end
     end
+    # Grid DIMENSIONS on every response, list included. The board-collection panel shows a
+    # "3 x 4" pill per row, and it was blank for every listed board because `grid` above is
+    # excluded from list payloads -- so the pill only appeared for boards that happened to be
+    # in the client store from an earlier full fetch (the pinned current board, anything
+    # opened this session), which read as "it works on some boards".
+    #
+    # Deliberately a SEPARATE key rather than restoring `grid` to the list branch:
+    #   - restoring `grid` would undo the payload/CPU work the comment above describes, for
+    #     the boards page and search as well as this panel;
+    #   - and a `grid` carrying rows/columns but no `order` would be a NEW shape for a field
+    #     that ~a dozen call sites read as the full grid (edit_manager.js:1994,
+    #     scanner.js:514, models/board.js:251/849/1105/1153/1666). Nothing reads `grid_size`,
+    #     so it cannot be mistaken for a complete grid.
+    #
+    # Cost is two integers per board. `load_content` is not an N+1 here: the index eager-loads
+    # :board_content (boards_controller.rb:52) and load_content memoises per board_content_id
+    # in a thread-local for the request.
+    grid_for_size = json['grid'] || BoardContent.load_content(board, 'grid')
+    if grid_for_size.is_a?(Hash) && grid_for_size['rows'] && grid_for_size['columns']
+      json['grid_size'] = { 'rows' => grid_for_size['rows'], 'columns' => grid_for_size['columns'] }
+    end
     ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'dim_header', 'small_header'].each do |key|
       json[key] = board.settings[key]
     end

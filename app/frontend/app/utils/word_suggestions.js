@@ -485,7 +485,37 @@ var word_suggestions = EmberObject.extend({
       }
 
       var do_cap = appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
-      if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic || _this.last_locale != locale) {
+      /* WHOSE result is this? The memo below parks its array on the module singleton (:713), the
+         symbol stamp mutates that array IN PLACE and asynchronously (:807), and a key match hands
+         it back verbatim. So the key must include the two things that decide whose vocabulary and
+         whose symbols the array contains, or one communicator's symbol is served to the next --
+         controllers/board/index.js:1673-1675 then writes it onto their utterance button.
+
+         `scope_key` is the speaking user. It FAILS CLOSED: `scope_key_for` returns null when the
+         id is absent or still the literal 'self' (models/user.js:55-65 documents that window),
+         and two nulls must never compare equal, so a null forces a recompute rather than
+         matching another unidentified user.
+
+         `searched_sig` is the vocabulary actually searched, mirroring the precedence at :830 vs
+         :834 -- `button_sets` wins when present, and `[]` is truthy, so an empty array is a real
+         choice and not a fallthrough. Sets are keyed by `global_id || id` the same way
+         process_buttonset (:753) and loaded_button_sets_beyond (:1640) key them.
+
+         NOT keyed here, deliberately, and a separate pre-existing defect: `max_results`,
+         `caps_lock` / `capitalizing` (which reach the result through `do_cap` above, added by
+         #958 and not keyed on develop either),
+         `board_locale` and `translations` also change the result and are shared across the four
+         consumers of this one memo slot. That is a wrong-shape bug, not a wrong-owner bug; it is
+         recorded rather than fixed in the same pass. */
+      var scope_key = scope_key_for(appState);
+      var searched_sig = (options.button_sets || options.board_ids || []).map(function(s) {
+        if(!s) { return ''; }
+        if(typeof s === 'string') { return s; }
+        return (s.get && (s.get('global_id') || s.get('id'))) || '';
+      }).join(',');
+      if(!scope_key || _this.last_scope_key !== scope_key || _this.last_searched_sig !== searched_sig || _this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic || _this.last_locale != locale) {
+        _this.last_scope_key = scope_key;
+        _this.last_searched_sig = searched_sig;
         _this.last_finished_word = last_finished_word;
         _this.last_shift = last_shift;
         _this.second_to_last_word = second_to_last_word;
@@ -711,11 +741,20 @@ var word_suggestions = EmberObject.extend({
           // legacy board-id-input path can share the matching loop.
           var process_buttonset = function(button_set, fallback_root_id) {
             if(!button_set) { return; }
-            var bs_id = button_set.get('id');
+            /* GLOBAL id, not the record id. `redepth` walks `board_id` (models/buttonset.js:379-401)
+               and every button carries a GLOBAL board id (board_downstream_button_set.rb:584 via
+               json_api/button_set.rb:11-12). But lookup_board_ids pushes sidebar board KEYS
+               (:1433-1435 below), and the application serializer rewrites a buttonset's record id
+               to whatever was REQUESTED, parking the real one on `_actual_id`
+               (serializers/application.js:100-108). So for a key-loaded set the record id is
+               'example/keyboard', no button matches it, redepth returns [], and the ENTIRE set —
+               every sub-board in it — contributes zero symbols. `global_id` resolves the pair
+               (models/buttonset.js:30-32) and equals the id the buttons carry.
+               The dedupe is keyed on it too: otherwise the same set loaded once by key and once by
+               id passes as two entries and both walks race on the same word. */
+            var bs_id = button_set.get('global_id') || button_set.get('id');
             if(bs_id && seen_buttonset_ids[bs_id]) { return; }
             if(bs_id) { seen_buttonset_ids[bs_id] = true; }
-            // Use the buttonset's own root id for redepth so depth is
-            // computed correctly even if the caller passed a key.
             var buttons = button_set.redepth(bs_id || fallback_root_id);
             buttons.forEach(function(button) {
               // Only image-bearing buttons can attach an image to a
@@ -742,8 +781,30 @@ var word_suggestions = EmberObject.extend({
               // button press and unnecessarily warmed the persistence
               // url cache on every prediction cycle.
               if(word && !word_suggestions.resolve_word_image(word) && button.depth < word.depth) {
+                /* The depth claim is PROVISIONAL until we know this button really has a symbol.
+                   fix_image is async, so the claim has to be staked now to de-dupe in-flight
+                   work for the same word (guard 3 above) — but it must be GIVEN BACK when the
+                   button turns out to have none. Otherwise `button.depth < word.depth` rejects
+                   every deeper button afterwards and the word stays bare even though its symbol
+                   exists further down the tree. */
+                var prev_depth = word.depth;
                 word.depth = button.depth;
                 LingoLinq.Buttonset.fix_image(button, images).then(function() {
+                  /* fix_image ALWAYS leaves button.image truthy: it stamps images/blank.gif
+                     whenever the matching store record has an empty best_url, or the server sent
+                     no url at all (models/buttonset.js:1226, board_downstream_button_set.rb:590).
+                     blank.gif is a 1x1 OPAQUE WHITE gif, and the rail paints the prediction image
+                     full-bleed with object-fit:contain (app.scss:74432-74459), so writing it here
+                     replaced the VISIBLE square.svg placeholder with a solid white square — and
+                     did so late, as a microtask, so it also clobbered symbols that had already
+                     resolved correctly.
+                     Every other writer into a suggestion's image already filters through
+                     is_placeholder_image (:1656, :1689, controllers/user/board-detail.js:1118
+                     and :1467). This was the only one that did not. */
+                  if(word_suggestions.is_placeholder_image(button.image)) {
+                    word.depth = prev_depth;
+                    return;
+                  }
                   if(!emberGet(word, 'original_image') && button.image) {
                     emberSet(word, 'original_image', button.original_image);
                     emberSet(word, 'safe_image', emberGet(word, 'image'));
@@ -1132,7 +1193,12 @@ word_suggestions.lookup_with_ai = function(options) {
   var appState = word_suggestions.get_app_state();
   var aiEnabled = ai_word_predictor.is_enabled(appState);
   var locale = options.locale || (appState && appState.get && appState.get('label_locale')) || 'en';
-  var maxResults = _this.max_results || 5;
+  /* The CALLER's cap wins. board-detail sizes this to the board's row count so the
+     vertical rail fills the height it already reserves; reading only `_this.max_results`
+     meant an options.max_results passed by any caller was silently ignored, which made
+     the obvious fix (set it in the options hash) a no-op. `lookup()` below already
+     honours options.max_results (:457); this brings the AI path in line. */
+  var maxResults = options.max_results || _this.max_results || 5;
 
   var localPromise = _this.lookup(options).then(function(results) {
     return results || [];
@@ -1174,7 +1240,21 @@ word_suggestions.lookup_with_ai = function(options) {
       source: aiWords.length ? 'merged' : 'local',
       locale: locale
     });
-    return merged;
+    /* Give every suggestion an image. AI words arrive as bare strings and become
+       `{ word, source }` (:1145); server entries the same (:1231). merge_suggestions only
+       COPIES an image from a local item, it never supplies one — so those suggestions reached
+       the template with no `image`, the `{{#if suggestion.image}}` gate rendered no <img> at
+       all, and the tile showed an empty box.
+       `lookup()` has always stamped the placeholder on its own results (:714); this brings the
+       AI path in line rather than inventing a second mechanism. Only fills what is MISSING, so
+       a real symbol is never overwritten. */
+    return word_suggestions.fallback_url().then(function(url) {
+      merged.forEach(function(item) {
+        if(!item.fallback_image) { item.fallback_image = url; }
+        if(!item.image) { item.image = url; }
+      });
+      return merged;
+    }, function() { return merged; });
   });
 };
 
@@ -1301,9 +1381,56 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
     if(id && ids.indexOf(id) === -1) { ids.push(id); }
   };
   if(appState && appState.get) {
-    push(appState.get('currentUser.preferences.home_board.id'));
+    /* `referenced_user`, NOT `currentUser`. Under "Model for", set_speak_mode_user's
+       `keep_as_self` branch nulls `speakModeUser` (services/app-state.js:2333), so the
+       `currentUser := speakModeUser` assignment in set_current_user never fires and `currentUser`
+       stays the SUPERVISOR -- while the symbol these ids resolve is written onto the utterance
+       button (utils/utterance.js:589), rendered in THAT communicator's sentence box and kept in
+       `working_vocalization` across app restarts. Searching the supervisor's home, sidebar and
+       starred boards therefore puts one person's vocabulary into another person's sentence.
+
+       This makes the function agree with its neighbours rather than introducing a new rule. Two
+       are genuine precedents, predating this work: `appState.sidebar_boards`, read below at
+       :1442, has resolved through `referenced_user` since 2026-01-20
+       (services/app-state.js:3870-3878 -> `current_sidebar_boards` at :3844-3846; the
+       `window.user_preferences` fallback at :3876 fires only when that is UNDEFINED, and
+       `sidebar_boards_with_fallbacks` returns [], which is truthy, so it never fires for a
+       logged-in user); and the caller gate reads `referenced_user.preferences.word_suggestions`
+       (controllers/user/board-detail.js:3457, controllers/board/index.js:165). `scope_key_for`
+       below (:1483) buckets on `referenced_user` too -- but it is a SIBLING, not a precedent: it
+       landed on this same branch in 76b6e339a (2026-09-04). Its relevance is that the supervisor's
+       sets were being stamped into the communicator's bucket, not that it settled the convention.
+
+       LIMIT, so nobody reads this as more than it is: on the top-nav Speak Mode dropdown path the
+       home-board half of this change is neutralised. `set_speak_mode_user` with keep_as_self falls
+       to its else branch, which calls toggle_speak_mode, whose `preferred` is
+       `speakModeUser.preferences.home_board || currentUser.preferences.home_board`
+       (services/app-state.js:1435) -- and keep_as_self has just NULLED speakModeUser, so that
+       resolves to the SUPERVISOR's home board and is persisted as `root_board_state`
+       (:1726), which :1448 below pushes on a line this change does not touch.
+
+       Safe outside modelling: `referenced_user` (services/app-state.js:3946-3957) returns
+       `currentUser` unless BOTH `modeling_for_user` and `referenced_speak_mode_user` are set, so
+       every caller that is not modelling gets a byte-identical list. "Not modelling" is NOT the
+       same as "not in speak mode": `modeling_for_user` is
+       `speak_mode && ... || modeling_for_self` (services/app-state.js:1233-1235), so
+       `modeling_for_self` alone satisfies it with `speak_mode` false. The non-speak-mode
+       `:suggestion` button path (models/board.js:1521 via services/app-state.js:3295) is
+       therefore scoped to the referenced user in that combination too, which is the intent.
+
+       The two sidebar reads are NOT interchangeable, even though both now resolve through
+       `referenced_user`: `sidebar_boards_with_fallbacks` drops `hidden` entries
+       (models/user.js:690) while the raw `preferences.sidebar_boards` read at :1433
+       does not. Both are kept deliberately; `push` de-dupes.
+
+       The classic speak page does NOT call this function: the `board_ids:` entry in
+       `updateSuggestions` (controllers/board/index.js:229) hand-builds its own two-entry list.
+       It was fixed in its own unit to read `referenced_user` the same way this does; the comment
+       there records why it deliberately does not delegate here (this helper also pushes
+       `root_board_state`, :1448 below). Its gate at controllers/board/index.js:165 reads it too. */
+    push(appState.get('referenced_user.preferences.home_board.id'));
     push(appState.get('currentBoardState.id'));
-    var user = appState.get('currentUser');
+    var user = appState.get('referenced_user');
     if(user) {
       (user.get('preferences.sidebar_boards') || []).forEach(function(b) {
         if(b && b.key) { push(b.key); }
@@ -1325,21 +1452,114 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
   (extra_ids || []).forEach(push);
   return ids;
 };
+/* Which button sets have been IN SCOPE for which user, this session:
+   `{ <user global id>: { <set global id>: true } }`.
+
+   The widened pass below searches sets that are merely RESIDENT, and the Ember store
+   accumulates them across communicators inside ONE supervisor login -- `unloadAll` runs only on
+   logout (services/session.js:761, :793), never on a speak-as or modelling switch. Without a
+   record of whose vocabulary each set is, that pass hands one communicator's symbol to another,
+   and it does not stop at the screen: the url is written onto the utterance button
+   (utils/utterance.js:589 -> utils/button.js:1694), persisted to working_vocalization
+   (utils/utterance.js:314), and logged to the server against the OTHER communicator
+   (services/stashes.js:801-805).
+
+   Recorded HERE, at the loader, rather than on the store records: the store has at least five
+   writers, and a stamp applied when a set is FETCHED never fires for one that is already
+   resident. This function is the single place that decides "these sets are in scope for whoever
+   is speaking now", so recording what it returns captures every route in. */
+var scoped_set_ids = {};
+/* The bucket name, or null when there is no usable one.
+
+   `referenced_user`, NOT `currentUser`: under modelling app-state.js:2325-2332 nulls
+   `speakModeUser`, so the `currentUser := speakModeUser` branch at :2601 never fires and
+   `currentUser` stays the SUPERVISOR -- while the log is attributed to the communicator
+   (services/stashes.js:801-805). `referenced_user` (app-state.js:3939-3950) is the communicator
+   in both modelling and speak-as, so it matches the write target.
+
+   `global_id`, NOT `id`: the session user's record id is pinned to the literal string 'self'
+   (serializers/application.js:52-60), which is the same for EVERY user, so two people in one
+   SPA session would share a bucket. models/user.js:67 states the rule outright. 'self' is
+   rejected rather than used, so a record caught before `_actual_id` resolves fails closed
+   instead of joining that shared bucket. */
+var scope_key_for = function(appState) {
+  if(!appState || !appState.get) { return null; }
+  var id = appState.get('referenced_user.global_id') || appState.get('referenced_user.id');
+  if(!id || id === 'self') { return null; }
+  return id;
+};
+/* Exposed because the board-detail symbol memo needs the SAME notion of "which communicator"
+   that the scoped-set cache uses. It was reimplemented there once as `referenced_user.id` and
+   was inert, because that id is the constant 'self' -- precisely what the comment above warns
+   about. One definition, two consumers. */
+word_suggestions.scope_key_for = scope_key_for;
+/* No key -> record nothing. The reader fails closed on the same condition, so an unidentifiable
+   user searches only what the scoped pass already found. Returns `sets` so it can wrap a
+   return expression without changing what the caller sees. */
+var record_scoped_sets = function(appState, sets) {
+  var key = scope_key_for(appState);
+  if(!key) { return sets; }
+  var bucket = scoped_set_ids[key] = scoped_set_ids[key] || {};
+  (sets || []).forEach(function(bs) {
+    if(!bs || !bs.get) { return; }
+    var id = bs.get('global_id') || bs.get('id');
+    if(id) { bucket[id] = true; }
+  });
+  return sets;
+};
+/* Exposed for tests -- the map is module-local, so stamps would otherwise carry between tests
+   in one run. Also called from services/app-state.js#reset and #clear_user_state so a long
+   session does not accumulate ids indefinitely. */
+word_suggestions._reset_scoped_sets = function() {
+  scoped_set_ids = {};
+};
 word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra_ids) {
   var ids = word_suggestions.lookup_board_ids(appState, stashes, extra_ids);
   var warmed = word_suggestions.button_sets_for_board_ids(ids);
   var covered = {};
   warmed.forEach(function(bs) {
     if(!bs || !bs.get) { return; }
+    /* A set with NO buttons yet covers NOTHING. button_sets_for_board_ids admits a record on
+       `root_url` alone (see its `|| bs.get('root_url')` branch) — meaning "this set exists"
+       rather than "this set is usable". Counting such a record as coverage marked its own id
+       as satisfied, so it was dropped from `missing` and load_button_set was never called for
+       it. `redepth` over an empty button array returns [], so every symbol lookup through that
+       set found nothing, and — since nothing else ever triggered the load — the word stayed
+       bare for the rest of the session. That is why a predicted word whose symbol is on the
+       parent board resolved there (the local on-screen matcher found it) but not from any
+       other board. `board_ids` is derived from the buttons (models/buttonset.js:40-48), so it
+       is empty for such a record anyway; only the id/key claims were doing damage. */
+    if(!((bs.get('buttons') || []).length)) { return; }
     covered[bs.get('id')] = true;
     (bs.get('board_ids') || []).forEach(function(bid) { covered[bid] = true; });
     if(bs.get('key')) { covered[bs.get('key')] = true; }
   });
   var missing = ids.filter(function(id) { return id && !covered[id]; });
   if(!missing.length) {
-    return RSVP.resolve(warmed);
+    return RSVP.resolve(record_scoped_sets(appState, warmed));
   }
-  return RSVP.all_wait(missing.filter(function(id) { return !!id; }).map(function(id) {
+  /* RSVP.all, NOT all_wait. `all_wait` resolves with no value at all (utils/misc.js:161 and
+     :149 are both a bare `resolve()`), so `loaded` below was always `undefined` and the concat
+     that follows silently discarded every set this call had just fetched -- the whole reason
+     the fetch happened. The symptom was a predicted word showing its placeholder instead of
+     its symbol on the lookup that triggered the fetch, and a smaller suggestion vocabulary
+     with it, since `lookup` short-circuits on a truthy-but-empty `button_sets` (:830).
+     `all` is equivalent here for two independent reasons:
+       - `all_wait`'s distinctive behaviour, waiting through failures rather than rejecting on
+         the first, is gated on `LingoLinq.all_wait` (utils/misc.js:155) -- which has NO writer
+         anywhere in app/, only in tests. In production `all_wait` already rejects on the first
+         failure, exactly as `all` does.
+       - nothing in this array can reject in any case: both handlers below are non-throwing and
+         return non-thenables.
+     The per-promise error handler is load-bearing, not decorative: `load_button_set` returns
+     `RSVP.reject()` for any id matching /^b/ or /^i/ (models/buttonset.js:1261-1263), which a
+     real board KEY beginning with "b" does, and lookup_board_ids pushes keys (:1434). It turns
+     that into a null, which the `!bs || !bs.get` guard below drops.
+     `all` also resolves in INPUT order. That matters downstream: candidates are sorted by depth
+     alone (:1590) and Array#sort is stable, so array order is the tie-break deciding which of
+     two equal-depth symbols the user actually sees. Settlement order would make that vary with
+     network timing. */
+  return RSVP.all(missing.filter(function(id) { return !!id; }).map(function(id) {
     return LingoLinq.Buttonset.load_button_set(id).then(function(bs) { return bs; }, function() { return null; });
   })).then(function(loaded) {
     var seen = {};
@@ -1351,27 +1571,88 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
       seen[bs_id] = true;
       all.push(bs);
     });
-    return all;
+    /* The FETCH path records too. Stamping only the early return would leave every cold
+       lookup unrecorded, silently disabling the widened pass for boards reached by fetch. */
+    return record_scoped_sets(appState, all);
   });
 };
-word_suggestions._best_exact_button_for_label = function(label, sets) {
+var _exact_button_candidates_for_label = function(label, sets) {
   var key = (label || '').toLowerCase();
-  if(!key) { return null; }
-  var best = null;
+  if(!key) { return []; }
+  var matches = [];
   (sets || []).forEach(function(bs) {
     if(!bs) { return; }
-    var buttons = bs.redepth(bs.get('id'));
+    // Same reason as process_buttonset above: redepth matches on the buttons' GLOBAL board id,
+    // and a key-loaded set's record id is the key, which matches nothing.
+    var buttons = bs.redepth(bs.get('global_id') || bs.get('id'));
     (buttons || []).forEach(function(button) {
       if(!button || !button.image_id) { return; }
       var bl = (button.label || '').toLowerCase();
       var bv = (button.vocalization || '').toLowerCase();
-      if((bl === key || bv === key) && (!best || button.depth < best.depth)) {
-        best = button;
-      }
+      if(bl === key || bv === key) { matches.push(button); }
     });
   });
-  return best;
+  // Shallowest first: the nearest copy of the word in the vocabulary tree is the one the user
+  // is most likely to recognise.
+  matches.sort(function(a, b) { return (a.depth || 0) - (b.depth || 0); });
+  return matches;
 };
+/* Every match for the label, shallowest first. Kept separate from the single-best accessor
+   below because `image_id` is only a PROMISE of a symbol: it can point at an image the server
+   could not resolve (board_downstream_button_set.rb:590 sends `image: nil`) or at a store
+   record with no usable url, and either way fix_image stamps a placeholder. A caller that
+   takes only the shallowest match and gives up therefore lets ONE symbol-less duplicate
+   permanently shadow a good button deeper in the tree — the word shows the placeholder even
+   though its symbol is right there in the vocabulary. */
+word_suggestions._exact_button_candidates_for_label = _exact_button_candidates_for_label;
+word_suggestions._best_exact_button_for_label = function(label, sets) {
+  return _exact_button_candidates_for_label(label, sets)[0] || null;
+};
+/* The resident button sets this user has had IN SCOPE this session, minus the ones just
+   searched.
+   A button set covers its board's DOWNSTREAM tree only, so from a sub-board the parent's
+   symbols are structurally unreachable through the sub-board's own set - and
+   `lookup_board_ids` returns only a fixed handful of roots (home, current, sidebar, starred,
+   root_board_state), so a board opened from the collection drawer can have none of its tree
+   in scope at all.
+   Fetching every board's set to close that gap would put network calls on a path that runs as
+   the user types. Sets already loaded cost nothing to search, so they are offered to the
+   matcher as a FALLBACK - but ONLY the ones recorded against this user by
+   `load_vocabulary_button_sets`. Resident is not the same as theirs: the store holds every
+   communicator whose board was opened since login, and an unscoped result here is stored
+   against the wrong person, not merely shown to them (see `scoped_set_ids` above).
+   The cost of that restriction, stated plainly: a set that is resident but was never in scope
+   for this user - a board PREFETCHED in the background and never visited - is no longer
+   searched. A board the user actually opened was `currentBoardState` at the time, so it was
+   recorded and still is. */
+word_suggestions.loaded_button_sets_beyond = function(searched, appState) {
+  var seen = {};
+  (searched || []).forEach(function(bs) {
+    if(bs && bs.get && bs.get('id')) { seen[bs.get('id')] = true; }
+  });
+  var out = [];
+  try {
+    /* INSIDE the try, deliberately. An appState that cannot answer must degrade to "nothing
+       widened"; if this threw it would escape the function, reject the .then chain in
+       attach_image_for_label, and take the generic word fallback below down with it. */
+    var scope = scope_key_for(appState);
+    if(!scope) { return out; }
+    var in_scope = scoped_set_ids[scope] || {};
+    LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
+      if(!bs || !bs.get) { return; }
+      var id = bs.get('id');
+      if(!id || seen[id]) { return; }
+      /* global_id, matching how the set was recorded and how redepth matches buttons (:1498).
+         A set loaded by KEY carries the key as its record id, so `id` alone would miss it. */
+      if(!in_scope[bs.get('global_id') || id]) { return; }
+      /* A set with no buttons covers nothing - the same rule load_vocabulary_button_sets uses. */
+      if(!((bs.get('buttons') || []).length)) { return; }
+      out.push(bs);
+    });
+  } catch(e) { /* advisory read - a missing store must never break symbol resolution */ }
+  return out;
+};
+
 word_suggestions.attach_image_for_label = function(label, board_ids, on_image, context) {
   if(!label || !on_image) { return RSVP.resolve(null); }
   var key = label.toLowerCase();
@@ -1383,34 +1664,84 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
       on_image(img, word);
     }
   };
+  /* Without an appState there is no user to scope against, so this branch gets the scoped
+     pass only: `loaded_button_sets_beyond` fails closed and the widened pass yields nothing.
+     Deliberate - a caller that cannot say who is speaking must not borrow symbols from
+     whatever happens to be resident. All four production callers DO pass one
+     (utils/utterance.js:592, controllers/user/board-detail.js:1288, :1591, :8685). */
   var load_sets = appState ?
     word_suggestions.load_vocabulary_button_sets(appState, stashes, lookup_ids) :
     RSVP.resolve(word_suggestions.button_sets_for_board_ids(lookup_ids));
   return load_sets.then(function(sets) {
     var images = LingoLinq.store.peekAll('image');
-    var best = word_suggestions._best_exact_button_for_label(label, sets);
-    if(best) {
-      return LingoLinq.Buttonset.fix_image(best, images).then(function() {
-        deliver(best.image, { word: label, image: best.image, original_image: best.original_image });
-        return best.image;
-      }, function() { return null; });
-    }
-    return word_suggestions.lookup({
-      word_in_progress: label,
-      board_ids: lookup_ids,
-      button_sets: sets
-    }).then(function(result) {
-      var match = (result || []).find(function(w) {
-        return w.word && w.word.toLowerCase() === key;
-      });
-      if(!match) { return null; }
-      var finish = function() {
-        deliver(word_suggestions.resolve_word_image(match), match);
+    var candidates = word_suggestions._exact_button_candidates_for_label(label, sets);
+      /* Walk the matches shallowest-first until one yields a REAL symbol. Previously only the
+         SHALLOWEST match was tried: fix_image ran on it, and if the result was a placeholder
+         `deliver` dropped it and the whole lookup returned that placeholder. So a single
+         symbol-less duplicate of the word — one whose image_id the server could not resolve —
+         permanently shadowed a perfectly good button deeper in the tree, and the word showed
+         the placeholder on every board. It also returned the placeholder url to callers that
+         use the return value rather than the callback (board-detail.js:8424-8430); returning
+         null instead lets those fall through to their own fallback.
+         Capped: fix_image can touch IndexedDB per candidate (models/buttonset.js:1227+), and
+         this runs per predicted word on every keystroke. Common words legitimately appear on
+         many boards, so an uncapped walk would be unbounded work on the typing path. */
+      var MAX_IMAGE_CANDIDATES = 5;
+      var walk = function(list) {
+        var limit = Math.min(list.length, MAX_IMAGE_CANDIDATES);
+        var try_candidate = function(idx) {
+          if(idx >= limit) { return RSVP.resolve(null); }
+          var button = list[idx];
+          return LingoLinq.Buttonset.fix_image(button, images).then(function() {
+            if(word_suggestions.is_placeholder_image(button.image)) {
+              return try_candidate(idx + 1);
+            }
+            deliver(button.image, { word: label, image: button.image, original_image: button.original_image });
+            return button.image;
+          }, function() { return try_candidate(idx + 1); });
+        };
+        return try_candidate(0);
       };
-      match.image_update = function() { finish(); };
-      finish();
-      return word_suggestions.resolve_word_image(match);
-    });
+      /* IN-SCOPE SETS FIRST, then anything else already loaded — and the fall-through happens
+         on a failure to RESOLVE, not merely a failure to MATCH.
+         Falling through only when the scoped sets produced NO candidates was not enough: a
+         common word legitimately appears on many boards, and a symbol-less duplicate IS a
+         candidate. So a word like "you" found scoped candidates, exhausted the capped walk on
+         placeholders, and returned nothing — while the widened search never ran. A rarer word
+         like "I" had no scoped candidates, fell straight through, and worked. That asymmetry
+         is the bug.
+         Two BOUNDED passes rather than one longer walk: concatenating the lists would let a
+         handful of scoped duplicates consume the whole cap and starve the widened set, which
+         is precisely the case that needs it. Order still guarantees an in-scope symbol wins
+         whenever one resolves. Costs no fetch — these sets are already resident. */
+      return walk(candidates).then(function(found) {
+        if(found) { return found; }
+        var widened = word_suggestions._exact_button_candidates_for_label(
+          label, word_suggestions.loaded_button_sets_beyond(sets, appState));
+        if(!widened.length) { return null; }
+        return walk(widened);
+      /* And only when NEITHER pass resolved a symbol do we fall back to the generic word
+         lookup, exactly as before — the two passes are inserted ahead of it, not in place
+         of it. */
+      }).then(function(found) {
+        if(found) { return found; }
+        return word_suggestions.lookup({
+          word_in_progress: label,
+          board_ids: lookup_ids,
+          button_sets: sets
+        }).then(function(result) {
+          var match = (result || []).find(function(w) {
+            return w.word && w.word.toLowerCase() === key;
+          });
+          if(!match) { return null; }
+          var finish = function() {
+            deliver(word_suggestions.resolve_word_image(match), match);
+          };
+          match.image_update = function() { finish(); };
+          finish();
+          return word_suggestions.resolve_word_image(match);
+        });
+      });
   });
 };
 

@@ -14,6 +14,52 @@ describe Lesson, :type => :model do
       expect(l.permissions_for(u2)).to eq({'user_id' => u2.global_id, 'view' => true, 'edit' => true, 'view_ratings' => true})
     end
 
+    # lesson.user_id is the TARGET (supervisee) set from non_user_params['target']
+    # (lesson.rb:364), NOT the author -- the author is settings['author_id'] (:367).
+    # NOTE: permissions_for caches on (user.cache_key, lesson.updated_at) and the cache is LIVE
+    # in specs (spec_helper.rb:102 Permissable.set_redis), so each assertion uses a FRESH pair.
+    it "should NOT let an unrelated user view or edit a target-scoped lesson" do
+      target = User.create
+      stranger = User.create
+      l = Lesson.create
+      l.user_id = target.id
+      expect(stranger.supervisor_for?(target)).to eq(false)
+      expect(l.permissions_for(stranger)).to eq({'user_id' => stranger.global_id})
+    end
+
+    it "should let a full supervisor of the target edit" do
+      target = User.create
+      sup = User.create
+      User.link_supervisor_to_user(sup, target)
+      target.reload
+      l = Lesson.create
+      l.user_id = target.id
+      expect(l.allows?(sup, 'edit')).to eq(true)
+    end
+
+    it "should NOT let a modeling-only supporter edit" do
+      target = User.create
+      modeler = User.create
+      User.link_supervisor_to_user(modeler, target, nil, 'modeling_only')
+      target.reload
+      modeler.reload
+      # Assert the precondition, so this can never pass vacuously (user.rb:70-71
+      # excludes modeling_only from 'supervise').
+      expect(modeler.modeling_only_for?(target)).to eq(true)
+      l = Lesson.create
+      l.user_id = target.id
+      expect(l.allows?(modeler, 'edit')).to eq(false)
+    end
+
+    it "should not raise when the target user row no longer exists" do
+      target = User.create
+      requester = User.create
+      l = Lesson.create
+      l.user_id = target.id
+      target.destroy
+      expect { l.permissions_for(requester) }.not_to raise_error
+    end
+
     it "should let the first usage edit" do
       l = Lesson.create
       u = User.create

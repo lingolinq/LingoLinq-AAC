@@ -138,7 +138,7 @@ export default modal.ModalController.extend({
     return 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(this.get('utterance_record.link'));
   }),
   twitter_url: computed('utterance_record.link', 'sentence', function() {
-    var res = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(this.get('utterance_record.link')) + '&text=' + encodeURIComponent(this.get('sentence'));
+    var res = 'https://x.com/intent/post?url=' + encodeURIComponent(this.get('utterance_record.link')) + '&text=' + encodeURIComponent(this.get('sentence'));
     if(app_state.get('domain_settings.twitter_handle')) {
       res = res + '&related=' + encodeURIComponent(app_state.get('domain_settings.twitter_handle'));
     } 

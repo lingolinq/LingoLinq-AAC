@@ -142,4 +142,41 @@ module('Unit | Controller | user/board-detail rebuild must not fold a rename', f
     assert.false(this.controller.edit_session_has_changes(),
       'after discard/save reset, a new build with different translations is the new baseline, not a false prompt');
   });
+
+  /* The guard in `rebaseline_after_build` keys on the TOKEN ALONE, not on
+     `_edit_dirty_baseline && token`. That distinction is invisible to every test above, and
+     it is the whole difference between two candidate fixes -- so it gets its own.
+
+     `capture_edit_baseline`'s catch leaves the baseline NULL. If the guard also required a
+     truthy baseline, that null would fail the conjunct and the next rebuild in the SAME
+     session would RECAPTURE -- folding the user's unsaved rename into the baseline it is
+     measured against, after which `exit_to_home_from_edit` skips the discard confirm and the
+     rename is lost with no prompt. Keying on the token alone means a board already attempted
+     in this session is never recaptured, so a failed capture stays null and
+     `edit_session_has_changes` keeps returning true: the user is PROMPTED rather than
+     silently measured against nothing.
+
+     Mutation that must turn this red: restore the conjunction
+     `if(this.get('_edit_dirty_baseline') && this._edit_baseline_token === token)`. */
+  test('a failed capture is not silently retried, so unsaved work cannot be folded in', function(assert) {
+    var tracked = tracking_board('board-1');
+    this.controller.set('model', tracked.board);
+    this.controller.set('edit_mode', true);
+
+    // The state capture_edit_baseline's catch leaves behind: attempted (token stamped),
+    // but no usable snapshot.
+    this.controller._edit_baseline_token = 'board-1';
+    this.controller.set('_edit_dirty_baseline', null);
+
+    // The user renames the board -- a record write with no undo entry.
+    tracked.changed.name = [undefined, 'renamed by the user'];
+
+    // Any later rebuild in the same session.
+    this.controller.rebaseline_after_build();
+
+    assert.strictEqual(this.controller.get('_edit_dirty_baseline'), null,
+      'the same board is not recaptured, so the rename cannot be folded into the baseline');
+    assert.true(this.controller.edit_session_has_changes(),
+      'and the user is still prompted -- the fail-safe direction');
+  });
 });

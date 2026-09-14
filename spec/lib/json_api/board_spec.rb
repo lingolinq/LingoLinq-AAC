@@ -88,6 +88,40 @@ describe JsonApi::Board do
       expect(full['buttons']).to eq([{'id' => 1, 'label' => 'asdf'}])
     end
 
+    it "should include grid_size on paginated payloads even though grid itself is omitted" do
+      # The board-collection panel renders a "rows x columns" pill per listed board. `grid` is
+      # excluded from list payloads on purpose (above), so without a separate dimensions key
+      # the pill was blank for every listed board and appeared only for boards the client had
+      # already fetched in full.
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['grid'] = {'rows' => 3, 'columns' => 4, 'order' => [[nil, nil, nil, nil], [nil, nil, nil, nil], [nil, nil, nil, nil]]}
+      b.save
+      json = JsonApi::Board.build_json(b, :paginated => true)
+      expect(json).not_to have_key('grid')
+      expect(json['grid_size']).to eq({'rows' => 3, 'columns' => 4})
+      # and the dimensions must not drag the order blob along with them
+      expect(json['grid_size']).not_to have_key('order')
+      # the full payload carries it too, so one client-side accessor covers both shapes
+      full = JsonApi::Board.build_json(b)
+      expect(full['grid_size']).to eq({'rows' => 3, 'columns' => 4})
+      expect(full['grid']['order']).to be_a(Array)
+    end
+
+    it "should omit grid_size when the loaded grid carries no dimensions" do
+      # Stubbed deliberately. A Board normalises its grid on save -- clearing rows/columns and
+      # re-saving brings back the default 2x4 -- so this state is not reachable through
+      # Board.create, and a test that tried would be asserting against a board that quietly
+      # has dimensions anyway. What is under test is the guard itself, so that a nil or
+      # dimensionless grid produces no key rather than {'rows' => nil, 'columns' => nil},
+      # which the client would render as a blank " x " pill.
+      u = User.create
+      b = Board.create(:user => u)
+      expect(BoardContent).to receive(:load_content).with(b, 'grid').at_least(:once).and_return({'order' => []})
+      json = JsonApi::Board.build_json(b, :paginated => true)
+      expect(json).not_to have_key('grid_size')
+    end
+
     it "should still set localized_name on paginated list payloads" do
       u = User.create
       b = Board.create(:user => u)

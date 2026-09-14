@@ -101,9 +101,9 @@ namespace :lingolinq do
     end
   end
 
-  desc 'Apply category grouping to boards for users, keyed by BOARD KEY so it ports ' \
-       'between environments. BOARDS=key1,key2 USERS=a,b|all [SCROLL=1] [NAMES=1] ' \
-       '[ORDER=people,actions,…] [OFF=1] [DRY_RUN=1]'
+  desc 'Apply per-board category DISPLAY settings for users, keyed by BOARD KEY so it ' \
+       'ports between environments. Cannot turn grouping on or off -- that is per-user. ' \
+       'BOARDS=key1,key2 USERS=a,b|all [SCROLL=1] [NAMES=1] [ORDER=people,actions,…] [DRY_RUN=1]'
   task seed_board_category_grouping: :environment do
     # Keyed by board KEY, never global_id: an id is unique to one database, so an id-keyed
     # override stops applying the moment it crosses environments. See
@@ -118,16 +118,23 @@ namespace :lingolinq do
     abort 'Set USERS=name[,name] or USERS=all' if who.empty?
     users = who == 'all' ? User.all : who.split(',').map(&:strip).reject(&:empty?).map { |n| User.find_by_path(n) || abort("User not found: #{n}") }
 
-    enabled = ENV['OFF'].to_s !~ /\A(1|true|yes)\z/i
+    # Grouping on/off is a PER-USER setting stored at the top level only
+    # (User#sanitize_board_category_grouping!, board-detail.js#categorize_enabled). A
+    # per-board entry describes DISPLAY only, so this task can no longer switch grouping.
+    # Refuse OFF outright rather than accepting it and silently doing nothing.
+    if ENV['OFF'].to_s =~ /\A(1|true|yes)\z/i
+      abort 'OFF is no longer supported: category grouping is per-user, not per-board. ' \
+            'Turn it off with the Categorize switch, which writes ' \
+            'preferences.board_category_grouping.enabled.'
+    end
     entry = {
-      'enabled' => enabled,
       'order' => ENV['ORDER'].to_s.split(',').map(&:strip).reject(&:empty?),
       'show_category_names' => ENV['NAMES'].to_s !~ /\A(0|false|no)\z/i,
       'vertical_scroll' => ENV['SCROLL'].to_s !~ /\A(0|false|no)\z/i
     }
     dry = ENV['DRY_RUN'].to_s =~ /\A(1|true|yes)\z/i
 
-    puts "#{dry ? '[DRY RUN] ' : ''}#{enabled ? 'Enabling' : 'Disabling'} category grouping"
+    puts "#{dry ? '[DRY RUN] ' : ''}Seeding per-board category display settings"
     puts "  boards: #{board_keys.join(', ')}"
     puts "  entry:  #{entry.inspect}"
     changed = 0
@@ -146,8 +153,8 @@ namespace :lingolinq do
       changed += 1
       next if dry
       grouping['boards'] = boards
-      # The top level is the user's DEFAULT for boards with no entry — left alone on
-      # purpose, so seeding one board cannot silently regroup every other board they own.
+      # The top level is the user's per-user on/off. Normalised, never set from here, so
+      # seeding board display settings can never regroup an account that has grouping off.
       grouping['enabled'] = grouping['enabled'] == true
       grouping['order'] = grouping['order'].is_a?(Array) ? grouping['order'] : []
       prefs['board_category_grouping'] = grouping
@@ -194,5 +201,25 @@ namespace :lingolinq do
 
     root = result.first
     puts "OK: imported #{result.length} board(s). Root: #{root&.dig('key')} (#{root&.dig('id')})"
+  end
+
+  desc 'DRY RUN: cluster identical emoji/keyboard/numbers pages on the content ' \
+       'user and list parent relinks. Never writes. USER_NAME defaults to lingolinq. ' \
+       'Test on GCP nonprod first (see docs/ops/gcp-staging-dedupe-utility-boards.md).'
+  task dedupe_shared_utility_boards: :environment do
+    require Rails.root.join('lib', 'library_utility_deduper')
+    if ENV['APPLY'].to_s =~ BetaSeed::TRUTHY_PATTERN
+      abort 'APPLY is not implemented. This task is dry-run only.'
+    end
+
+    user_name = ENV['USER_NAME'].presence || SystemBoardSources::USER_NAME
+    user = User.find_by(user_name: user_name)
+    abort "User '#{user_name}' not found." unless user
+
+    db = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_desc = "#{db[:database]}@#{db[:host] || 'local'}"
+    puts "[DRY RUN] Library utility dedupe on user '#{user_name}' (id #{user.id}) DB #{db_desc}"
+    plan = LibraryUtilityDeduper.plan(user)
+    puts LibraryUtilityDeduper.format_report(plan)
   end
 end

@@ -71,6 +71,17 @@ export default Component.extend({
       user_id: app_state.get('referenced_user.id')
     });
     this.set('text_only', !!app_state.get('text_only_shares') || !!stashes.get('text_only_shares'));
+    // Contact list starts clamped to its first three rows (the clamp itself is a
+    // max-height in app.scss, so it is exactly three rows at any column count).
+    this.set('contacts_expanded', false);
+    this._measure_contacts = () => this.measure_contacts_overflow();
+    window.addEventListener('resize', this._measure_contacts);
+    // rAF, not runLater: `contacts_overflow` was already read by the template in
+    // this render pass, so setting it synchronously here trips the backtracking
+    // re-render assertion. rAF defers past the pass without pulling in
+    // @ember/runloop (ember/no-runloop; neither ember-lifeline nor
+    // ember-concurrency is a dependency of this app).
+    this._measure_frame = window.requestAnimationFrame(this._measure_contacts);
     u.assert_remote_urls();
     u.save().then((rec) => {
       this.set('utterance_record', rec);
@@ -78,6 +89,44 @@ export default Component.extend({
       this.set('utterance_record_error', true);
     });
     this.check_native_shares();
+  },
+
+  willDestroyElement() {
+    if (this._measure_frame) {
+      window.cancelAnimationFrame(this._measure_frame);
+      this._measure_frame = null;
+    }
+    if (this._measure_contacts) {
+      window.removeEventListener('resize', this._measure_contacts);
+      this._measure_contacts = null;
+    }
+    this._super(...arguments);
+  },
+
+  /**
+   * Is the contact list taller than the rows the CSS clamp shows?
+   *
+   * Both numbers are READ from the stylesheet rather than restated here:
+   *   - columns come from `grid-template-columns`, which resolves to one <length>
+   *     per column, so it is the authoritative count;
+   *   - the visible row limit comes from the `--contact-rows` custom property,
+   *     which is also what the `--collapsed` max-height is computed from.
+   * That matters because the limit is not constant — it drops to 1 on short
+   * viewports (see the max-height media query in app.scss). Restating either
+   * number here would put the same layout fact on both sides of the CSS/JS line,
+   * which is what previously showed a fourth row.
+   * Works in either state, expanded or collapsed, because it counts rows rather
+   * than measuring rendered height.
+   */
+  measure_contacts_overflow() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    const grid = document.querySelector('.la-share-text-modal-wrap .la-share-text__contacts');
+    if (!grid) { return; }
+    const style = window.getComputedStyle(grid);
+    const cols = style.gridTemplateColumns.split(' ').filter(Boolean).length;
+    if (!cols) { return; }
+    const rows = parseInt(style.getPropertyValue('--contact-rows'), 10) || 3;
+    this.set('contacts_overflow', Math.ceil(grid.children.length / cols) > rows);
   },
 
   contacts: computed(
@@ -192,7 +241,7 @@ export default Component.extend({
   }),
 
   twitter_url: computed('utterance_record.link', 'sentence', function() {
-    let res = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(this.get('utterance_record.link')) + '&text=' + encodeURIComponent(this.get('sentence'));
+    let res = 'https://x.com/intent/post?url=' + encodeURIComponent(this.get('utterance_record.link')) + '&text=' + encodeURIComponent(this.get('sentence'));
     if (app_state.get('domain_settings.twitter_handle')) {
       res = res + '&related=' + encodeURIComponent(app_state.get('domain_settings.twitter_handle'));
     }
@@ -225,6 +274,9 @@ export default Component.extend({
         this.set('copy_result', { failed: true });
       }
     },
+    toggle_contacts() {
+      this.set('contacts_expanded', !this.get('contacts_expanded'));
+    },
     message(user) {
       modal.open('confirm-notify-user', {
         user: user,
@@ -255,6 +307,39 @@ export default Component.extend({
           utterance_id: this.get('utterance_record.id')
         });
       } else if (medium === 'big_text') {
+        // KNOWN, DEV-ONLY, NOT FULLY DIAGNOSED (2026-09-11).
+        // With dev tools OPEN, a real mouse click on the Button tile does nothing:
+        // no modal, no console error, no assertion. With dev tools CLOSED it works,
+        // so users are not affected -- do not "fix" this from the symptom alone.
+        //
+        // Established:
+        //  - the modal machinery is NOT at fault. tests/integration/big-button-nested-open-test.js
+        //    pins service open, container render, the utils/modal path, the nested
+        //    replace, and the full speak-menu -> share-utterance -> big-button
+        //    sequence. All green.
+        //  - a synthetic `document.querySelector('.la-share-text__action--button').click()`
+        //    opens the modal correctly, so the action and `modal.open` are fine.
+        //  - `elementFromPoint` at the tile centre returns the tile's own label span,
+        //    so nothing is covering it.
+        //  - on a failing click, focus lands on `.la-modal-close` instead -- consistent
+        //    with the click being consumed and focus falling back to the first
+        //    focusable element (it is targets[0] in DOM order; see
+        //    utils/modal.js#scannable_targets).
+        //  - suspected mechanism: the delegated `.advanced_selection` click handler at
+        //    utils/raw_events.js:807 preventDefault()s and stopPropagation()s everything
+        //    outside its allowlist, and on the <500ms-since-release branch its own
+        //    comment says it "skip[s] the ember listeners".
+        //
+        // NOT explained: why Copy and Link, which are structurally identical
+        // `<button class="btn btn-default ...">` tiles in the same row, are unaffected.
+        // Any fix that cannot account for that difference is aimed at the wrong thing.
+        //
+        // Touch is believed safe: raw_events' mouse path relies on the browser's native
+        // click (preventDefault on `mouseup` does not cancel it), while touchend DOES
+        // cancel and is covered by modalDialogClickRelease, which requires a
+        // `.modal-content` ancestor -- ModalDialog renders one (components/modal-dialog.hbs:9).
+        // Untested on real hardware. If a tablet, dwell or eye-gaze user ever reports
+        // mis-targeting in a modal, start here.
         modal.open('modals/big-button', {
           text: this.get('sentence'),
           text_only: app_state.get('referenced_user.preferences.device.button_text_position') === 'text_only'
