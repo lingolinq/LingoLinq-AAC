@@ -34,8 +34,8 @@ outside this repository at
 `~/ai-company-brain/outputs/docs/2026-09-14-scheduler-evidence-receipts/run-20260914T072304Z-945417/`.
 They are raw cloud API output, and this repository is public, so they are cited by sha256 rather
 than committed. That is a size-and-format decision, not a confidentiality claim: this record
-necessarily restates the operationally meaningful contents below. Whether any of it belongs in a
-public repository is an open question for Scot, flagged in section 6.
+necessarily restates the operationally meaningful contents below. Whether those restated contents
+are RETAINED in a public repository is an open question for Scot, flagged in section 6.
 
 | Receipt | sha256 (first 16) | Establishes |
 | --- | --- | --- |
@@ -174,11 +174,14 @@ residual work. That assessment is outstanding and is a closure condition on `LL-
 6. Record counts, minimum and maximum timestamps, and the absence of a result limit do not
    establish complete historical coverage.
 7. Configuration snapshots describe current state only.
-8. **Open question for Scot, disclosure.** This repository is public. Section 3.5 states that no
-   missed-run or absence detection exists on a production system serving children's data. The
-   substance is already public in `LL-3e36a18199`, which this repository also carries, so this
-   record adds detail rather than a new class of disclosure. Scot decides whether the alert-policy
-   detail belongs here, in the register only, or in neither.
+8. **Open question for Scot, retention.** This repository is public, and this record is already
+   visible in the public draft pull request that proposes it, so the disclosure has already
+   occurred. What remains is a RETENTION decision, not a future-publication decision. Section 3.5
+   states that no missed-run or absence detection exists on a production system serving children's
+   data. The substance is already public in `LL-3e36a18199`, which this repository also carries, so
+   this record adds detail rather than a new class of disclosure. Scot decides whether the
+   alert-policy detail is retained here, moved to the register only, or removed; removing it would
+   limit onward visibility but would not undo the disclosure already made.
 
 ## 7. Related records
 
