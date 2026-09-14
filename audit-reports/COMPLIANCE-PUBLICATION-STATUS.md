@@ -76,6 +76,7 @@
 | Incident Response and Breach Runbook (2026-08-15 successor) | git | `docs/legal/2026-08-15_incident-response-breach-runbook.md` | 2026-08-15 | approved | Review date is older than 2026-08-18. |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-08-18. |
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-07-23 | approved | Review date is older than 2026-08-18. |
+| Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` |  | draft | Review date is older than 2026-08-18. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | 2026-08-12 | published | Review date is older than 2026-08-18. |
@@ -168,7 +169,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
 | `policy-version` | supersession + 7 years | archive | 49 | draft |
-| `audit-evidence` | 7 years | archive | 18 | draft |
+| `audit-evidence` | 7 years | archive | 19 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `questionnaire-response` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -176,7 +177,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 2 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 93 rows carry a retention block.
+All 94 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -298,4 +299,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_93 documents tracked. 60 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 20 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_94 documents tracked. 61 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 20 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

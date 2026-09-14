@@ -158,7 +158,7 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 | Parental consent flow | Child registration gated; parent confirms via secure tokenized link; consent recorded with timestamp; 14-day expiry | `app/controllers/parental_consents_controller.rb`; `app/models/user.rb` (`grant_parental_consent!`) |
 | Encryption of sensitive fields | Server-side encryption layer for sensitive data | `secure_serialize` concern |
 | Rate limiting | Edge throttling on protected paths including consent endpoints | `config/initializers/throttling.rb` (Rack::Attack); LL-ca38d4d99e verified-closed |
-| Retention enforcement | Scheduled deletion per the retention schedule | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
+| Retention enforcement | Deletion **configured** for daily scheduled execution per the retention schedule; see the 2026-07-21 to 2026-09-02 dispatch interruption noted in section 5 (`LL-3e36a18199`, open) | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
 | Article 50(2) marking | Server-signed provenance markers on in-scope generative paths | `lib/art50_marker.rb` (board generation and word prediction). Article 50(1) disclosure UI is built and its server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19); the flag is AVAILABLE-only in `lib/feature_flags.rb` at `64cdccba1` -- a code default; the runtime state was verified ENABLED on 2026-08-23; see Section 12 and the runtime caveat there. |
 
 **Known residuals (tracked, not hidden):** live open Highs that touch product controls include
@@ -178,6 +178,7 @@ disclosure contrast finding (LL-a9d6d5a46b) is remediated-unverified, not open -
 2026-07-28 (#694); the register recorded it as open until this refresh caught the drift. The
 AiApiLog IP-address scrub is implemented and scheduled (`AiApiLog.redact_old_ip_addresses!`,
 wired into the daily `scheduler:dispatch` block in `lib/tasks/scheduler.rake` by PR #222).
+**Added 2026-09-14:** that states code wiring and configured cadence, not execution or outcome. Production scheduled dispatch of `rake scheduler:dispatch` was interrupted from 2026-07-21 to 2026-09-02 (finding `LL-3e36a18199`, open), so this task was not run by the scheduler in that window; whether it ran by any other route has not been established. Captures dated 2026-09-14 record hourly execution from 2026-09-02 and one run of the daily 06:00 UTC block on each of the twelve UTC dates 2026-09-03 through 2026-09-14. Across September 3 to 14, each of the six inspected task summaries appeared once per UTC date and reported zero for its stated result. Six of the eleven daily tasks were inspected; the remainder were not queried. These observations do not verify every daily task, do not establish stored population size or contents, and do not evidence completion of downstream asynchronous work. See `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`. On each observed execution the update reported zero affected rows; that does not establish whether qualifying rows existed at other times or what the stored population contains now.
 None of the above are undiscovered risks; all are register-tracked.
 
 ---

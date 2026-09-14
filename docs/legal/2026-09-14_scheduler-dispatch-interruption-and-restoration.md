@@ -1,0 +1,191 @@
+# Scheduler Dispatch: Interruption and Post-Interruption Observations
+
+**Status: DRAFT. Unattested and unreviewed.** Prepared 2026-09-14. This record supersedes
+nothing, modifies no attested record, and closes, downgrades or accepts no finding. It records
+observations and states their limits. Only the CEO attests a record in this corpus; a review and
+an attestation are separate events, and neither has occurred for this document.
+
+## 1. Why this record exists
+
+`rake scheduler:dispatch` (`lib/tasks/scheduler.rake`) is the single entrypoint for every
+recurring job in this application. Finding `LL-3e36a18199` (high, open) records that nothing
+triggered it in production from 2026-07-21 until 2026-09-02. Five compliance drafts described
+retention, redaction, purge, flush and expiry work in language that did not distinguish
+configured cadence from observed execution. This record is the single dated place those drafts
+cite, so that one set of facts is stated once rather than paraphrased five ways.
+
+## 2. Chronology
+
+| Date (UTC) | Event | Source |
+| --- | --- | --- |
+| 2026-07-21 | The Render cron that had run this task hourly shows `suspended` with a user suspender and an `updatedAt` of this date, the day before the GCP cutover. | `LL-3e36a18199` original evidence |
+| 2026-07-22 | Render-to-GCP cutover. No replacement trigger was provisioned. | `docs/INFRASTRUCTURE.md` |
+| 2026-09-01 | Absence of any trigger verified live and corroborated by an independent session the same day. | `LL-3e36a18199` notes |
+| 2026-09-02 | Finding `LL-3e36a18199` promoted from review. | `audit-reports/FINDINGS.json` |
+| 2026-09-02T17:05:54Z | `userUpdateTime` on Cloud Scheduler job `lingolinq-scheduler-hourly`. | receipt `scheduler-jobs.out` |
+| 2026-09-02T18:00Z | First execution on the hourly cadence. | receipt `scheduler-executions.out` |
+| 2026-09-14T07:23:04Z | Evidence capture window closes. | receipt `manifest.json` |
+
+## 3. Receipts
+
+Captured 2026-09-14 by a read-only harness that records each command's argv, exit status, capture
+window and scope in a sidecar, and the harness and validator hashes in a run manifest. Held
+outside this repository at
+`~/ai-company-brain/outputs/docs/2026-09-14-scheduler-evidence-receipts/run-20260914T072304Z-945417/`.
+They are raw cloud API output containing internal infrastructure detail, and this repository is
+public, so they are cited by hash rather than committed. Whether to publish them is a separate
+decision that has not been made.
+
+| Receipt | sha256 (first 16) | Establishes |
+| --- | --- | --- |
+| `manifest.json` | `ddcb07d0ea5faa41` | Run identity, harness and validator hashes, gcloud 564.0.0, query bounds `2026-09-02T00:00:00Z` to `2026-09-14T07:23:04Z` |
+| `scheduler-jobs.out` | `14e8ae1ad74c296a` | Trigger configuration as captured |
+| `scheduler-executions.out` | `a1461056f1647422` | 280 executions with identity, creator, conditions |
+| `dispatch-completion.out` | `a542d54380452001` | 280 dispatch-complete entries, zero failed |
+| `task-expire_offboarding_coppa_consents.out` | `3079fa48749ca030` | COPPA worker invocation and logged mode |
+| `logging-buckets.out` | `e0f88d116034c8c7` | Log retention as configured |
+| `logging-sinks.out` | `22e5d85331102d63` | Log routing as configured |
+| `alert-policies.out` | `e827fbdb518a8be8` | Alert policy inventory |
+
+### 3.1 Trigger
+
+Cloud Scheduler job `lingolinq-scheduler-hourly` in `lingolinq-prod/us-central1`, state `ENABLED`,
+schedule `0 * * * *`, `timeZone Etc/UTC`, `attemptDeadline 1800s`,
+`userUpdateTime 2026-09-02T17:05:54.687129Z`. Target
+`https://run.googleapis.com/v2/projects/lingolinq-prod/locations/us-central1/jobs/lingolinq-scheduler:run`
+(POST, OIDC).
+
+That target returns a long-running Operation before the rake task runs, so Cloud Scheduler's own
+success signal cannot evidence task success. Nothing in this record relies on it.
+
+### 3.2 Executions
+
+280 executions of Cloud Run job `lingolinq-scheduler`, each reporting `succeededCount: 1`, no
+`failedCount`, condition `Completed=True`, and a `completionTime`.
+
+278 fall on hour boundaries and account for all 278 expected hourly slots from `2026-09-02T18:00Z`
+through `2026-09-14T07:00Z`, with no missing slot and no interval above 70 minutes.
+
+Two do not fall on that cadence: `lingolinq-scheduler-sp45b` at `2026-09-02T16:59:42Z` and
+`lingolinq-scheduler-qsq8x` at `2026-09-02T21:44:26Z`. Both carry annotation
+`run.googleapis.com/creator: scot@lingolinq.com` with `client-name: gcloud`; the other 278 carry
+`creator: scheduler-invoker@lingolinq-prod.iam.gserviceaccount.com`. That annotation records the
+credential under which each execution was created. It does not by itself establish who or what
+initiated the call, and no separate evidence of interactive invocation was gathered.
+
+### 3.3 Dispatch completion
+
+280 `=== Scheduler Dispatch Complete ===` entries and zero `=== Scheduler Dispatch FAILED ===`
+entries, spanning `2026-09-02T17:04:50.749567Z` to `2026-09-14T07:03:19.866220Z`.
+
+### 3.4 Daily-block tasks
+
+The daily block is gated on `hour == 6` UTC and contains eleven `run_task` calls. **Six were
+inspected.** `check_for_expiring_subscriptions`, `transcode_errored_records`,
+`expire_stale_supervisor_consent_requests`, `flush_expired_beta_feedback_recordings` and
+`expire_licenses` were not queried, and nothing in this record describes them.
+
+Across the twelve UTC dates 2026-09-03 through 2026-09-14, each of the six inspected task
+summaries appeared once per date:
+
+| Task | Reported result, each date |
+| --- | --- |
+| `enforce_data_retention_policies` | 0 stale sessions purged |
+| `redact_old_ai_api_log_ips` | 0 AI log IPs redacted |
+| `flush_users` | deleted 0 users |
+| `clean_old_deleted_boards` | 0 deleted |
+| `purge_old_eu_ai_api_logs` | 0 EU AI logs purged (5-year retention) |
+| `expire_offboarding_coppa_consents` | 0 export-then-delete scheduled |
+
+**Reading the zeros.** Each of the six inspected task summaries reported zero for its stated
+result. These counts do not establish stored population size or contents. For the COPPA worker, an
+explicitly logged disabled mode indicates invocation without expiration processing. For
+`redact_old_ai_api_log_ips`, the reported value is the count of records updated by
+`AiApiLog.redact_old_ip_addresses!`, whose query selects rows older than the retention window whose
+`ip_address` is neither null nor already `[REDACTED]` (`app/models/ai_api_log.rb:225-229`); the
+update reported zero affected rows at each observed execution. This does not establish whether
+qualifying rows existed at other times or what the stored population contains now. Nothing here
+evidences completion of downstream asynchronous work enqueued by any task.
+
+**COPPA worker mode.** Disabled mode was logged 2026-09-04 through 2026-09-14. The 2026-09-03
+entry reports zero scheduled exports and deletions but does not identify the mode; that entry alone
+does not establish whether candidate processing occurred on that date. The worker's default is
+`:disabled` by design: the sweep is retroactive over an accumulated backlog and schedules
+irreversible deletion 36 hours out, so enabling it is a deliberate operator act
+(`app/workers/offboarding_coppa_expiration_worker.rb`).
+
+### 3.5 Alerting
+
+Three alert policies exist in `lingolinq-prod` as captured on 2026-09-14, all enabled, each with
+one notification channel: "PROD Cloud Run job execution FAILED"
+(`metric.label.result="failed"`), "PROD app.lingolinq.com is DOWN", and "Cloud Armor ROLLBACK
+TRIGGER". The failure policy counts failed executions; the 2026-07-21 to 2026-09-02 condition was
+non-execution, which produces no failed execution to count. No missed-run or absence detection was
+found, and no evidence was gathered that any notification has been delivered to a recipient.
+
+The comment at `lib/tasks/scheduler.rake:78-80` is a dated statement about 2026-09-03 and is not
+contradicted by this capture; it no longer describes the configuration captured on 2026-09-14, and
+this record takes no position on what was configured on 2026-09-03.
+
+### 3.6 Log retention and routing
+
+Two log buckets exist, both in `global`: `_Default` at `retentionDays: 400` and `_Required` at
+`retentionDays: 400`, locked. Two sinks exist: `_Required` routes the audit log families, and
+`_Default` routes everything not in those families, which is where Cloud Run job `textPayload`
+entries land.
+
+This is configuration as captured on 2026-09-14. It does not establish historical routing or
+historical retention, and it does not establish that entries from any earlier period still exist.
+
+## 4. Affected controls
+
+Hourly tasks: `generate_log_summaries`, `push_remote_logs`, `check_for_log_mergers`,
+`advance_goals`.
+
+Daily tasks (06:00 UTC): the eleven listed in section 3.4.
+
+Two of the daily tasks have an independent reason for a zero result that is unrelated to dispatch.
+`purge_old_eu_ai_api_logs` matched no production row as of the 2026-08-23 audited read because
+nothing had been stamped with an EU jurisdiction. `expire_offboarding_coppa_consents` returns zero
+in `:disabled` mode without scanning. Neither is evidence about dispatch, and dispatch is not
+evidence about either.
+
+## 5. Impact
+
+For the window 2026-07-21 to 2026-09-02, the configured controls above were not run by the
+scheduler. Whether any ran by another route has not been established. This record does not quantify
+what accumulated during that window, does not identify affected data subjects, and does not assess
+residual work. That assessment is outstanding and is a closure condition on `LL-3e36a18199`.
+
+## 6. Limitations
+
+1. Continuous historical enforcement is not established.
+2. Successful completion of every downstream task is not established. Six of eleven daily tasks
+   were inspected, and asynchronous work enqueued by any task is outside these observations.
+3. Completeness of historical audit-event coverage is not established.
+4. Production deletion behaviour for a non-zero eligible population is not established. Every
+   observed count is zero.
+5. The COPPA offboarding expiration sweep is not enabled, and nothing here argues that it should
+   be.
+6. Record counts, minimum and maximum timestamps, and the absence of a result limit do not
+   establish complete historical coverage.
+7. Configuration snapshots describe current state only.
+
+## 7. Related records
+
+- `LL-3e36a18199` (high, open): scheduler dispatch has no trigger since the GCP cutover.
+- `LL-933e61efd7` (high, open): privacy-page retention and deletion promises with no implementing
+  mechanism.
+- `rev-coppa-retention-quarterly` in `audit-reports/compliance-calendar.json`: overdue since
+  2026-07-26; renewed COPPA verification belongs there, not here.
+- `docs/legal/COPPA_VERIFICATION_2026-04-26.md`: attested and frozen. It states that the IP
+  redaction job "runs daily today" and that other jobs run "daily at 6 AM UTC". Those statements
+  predate the interruption and cannot be corrected in place. They are addressed through the
+  quarterly review above.
+
+## 8. What this record does not do
+
+It supersedes nothing. It resolves no question put to counsel in
+`docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md`. It takes no
+position on the legal basis for any retention window. It closes, downgrades and accepts no
+finding, and it is not an attestation.
