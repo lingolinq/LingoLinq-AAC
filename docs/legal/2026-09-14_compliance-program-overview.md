@@ -61,7 +61,7 @@
 > 2026-08-14T21:13:27Z, of which 63 were written after the 2026-08-12 deploy and those same 63 carry
 > a `user_global_id`** (the 64th is the 2026-08-04 internal verification call, inferred from the
 > `article_50_disclosure_shown` split recorded at that citation)
-> (`docs/legal/2026-08-16_subprocessor-register.md:99`;
+> (`docs/legal/2026-09-14_subprocessor-register.md:101`;
 > path verified live and serving revision swept 2026-08-16).
 >
 > **The second sentence is narrower than it looks and is not simply reversed.** Those 63
@@ -70,7 +70,7 @@
 > `docs/legal/2026-08-24_ai-governance-memo.md:134`). So scrubbed content HAS reached the processing
 > plane, and **no real person is known to have had data sent on this path.** The receiving processor
 > is **AWS**: prompts are delivered to Amazon Bedrock under the AWS BAA, and Anthropic supplies the
-> model without receiving the payload (`docs/legal/2026-08-16_subprocessor-register.md:99`).
+> model without receiving the payload (`docs/legal/2026-09-14_subprocessor-register.md:101`).
 >
 > **Evidence limit.** `AiApiLog` is an application-observed floor, not a ledger: `log_ai_call`
 > rescues `ActiveRecord::ActiveRecordError` and returns an unsaved record, and `Flusher` destroys
@@ -156,7 +156,7 @@
 > The prompts are redacted by `lib/pii_scrubber.rb` before egress, which is
 > pseudonymization and not de-identification, so they remain personal data under GDPR/UK-GDPR. The
 > operative statements of the flow are `docs/legal/2026-08-25_ai-data-flow-classification.md` and
-> `docs/legal/2026-08-16_subprocessor-register.md`. The
+> `docs/legal/2026-09-14_subprocessor-register.md`. The
 > "everything in this section is live" framing was qualified to except controls explicitly marked
 > not operational. That is the last attested, externally authorized cut (DOC-03cb9fe91f).
 >
@@ -315,7 +315,7 @@ explicitly marked not operational.
   production `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z, of which
   63 were written after that deploy and those same 63 carry a `user_global_id`**; the 64th is the
   2026-08-04 internal verification call and carries no user
-  (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed
+  (`docs/legal/2026-09-14_subprocessor-register.md:101`). Scrubbed
   user content HAS reached the processing plane, which is **AWS** (Amazon Bedrock is the receiving
   processor under the AWS BAA; Anthropic supplies the model and does not receive the payload). The
   63 attributed calls resolve to two accounts, and all 34 production accounts were confirmed
@@ -385,7 +385,7 @@ explicitly marked not operational.
   is therefore contractual and disclosure-based rather than technical. The three flows described
   above (translation, text-to-speech, speech-to-text) call generally available endpoints that Google
   lists as HIPAA covered services, under the Google Cloud data-processing terms and BAA recorded in
-  `docs/legal/2026-08-16_subprocessor-register.md` (rows #15, #16, #18; covered-service status
+  `docs/legal/2026-09-14_subprocessor-register.md` (rows #15, #16, #18; covered-service status
   verified against Google's covered-products list 2026-07-22). Two caveats belong with that sentence.
   First, that BAA is recorded against the `lingolinq-prod` project, and we have not evidenced that
   the API credential these particular calls use is bound to that project, so the coverage should be
@@ -499,7 +499,7 @@ explicitly marked not operational.
   the child-data scrubber above), and HubSpot (marketing CRM and support, handling customer and
   prospect records only, no student data). When IP geolocation is enabled for registration,
   subscription, or supporter-routing context, iplocate.io receives the IP address for lookup.
-  The authoritative register is `docs/legal/2026-08-16_subprocessor-register.md`, which supersedes
+  The authoritative register is `docs/legal/2026-09-14_subprocessor-register.md`, which supersedes
   `docs/legal/SUBPROCESSORS.md`; it is updated as services are enabled or retired. **Corrected
   2026-08-26:** this named the superseded file as authoritative. **Completeness, stated 2026-09-04:**
   this list and the register behind it are **not yet a complete inventory of third-party

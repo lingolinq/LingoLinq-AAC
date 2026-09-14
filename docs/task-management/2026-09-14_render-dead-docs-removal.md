@@ -75,9 +75,13 @@ Rewritten in `.claude/rules/deploy.md`, `.claude/agents/infra-auditor.md`, and
 
 **Do not tell auditors those citations are broken.** `citation-check.rb` anchors evidence to a
 recorded `file@sha`, not to HEAD, so the three register findings citing `render.yaml`
-(LL-7314b5a8ea, LL-107c9fb665, LL-c5fe9e2e3e) still resolve after the deletion. Verified: 195 PASS,
-3 FAIL, and all three failures are pre-existing `app/models/lesson.rb` / `webhook.rb` citations at
-sha `e37817432a58`, byte-identical in `FINDINGS.json` at `e8cea7329` before the merge.
+(LL-7314b5a8ea, LL-107c9fb665, LL-c5fe9e2e3e) still resolve after the deletion.
+
+**Current result: 198 PASS / 0 FAIL.** An earlier run in this worktree reported 195 PASS / 3 FAIL on
+`app/models/lesson.rb` and `webhook.rb` at sha `e37817432a58`, and commit `36d53b416` records that
+number. Those three were NOT a register defect: the sha simply had not been fetched into this
+worktree. `git fetch origin e37817432a58…` made it resolve. The 3-FAIL figure does not reproduce and
+should not be quoted.
 
 ## Compliance record (section 4)
 
@@ -152,11 +156,60 @@ Fetch the sha before concluding the evidence is broken.
 
 - `develop` CI was already red on `build-and-test` at `e8cea7329`, before #962 merged. #962's own
   head was green on all six required checks. The red is the Ember test-isolation flake family.
+- **Finding 7 (adversary, Medium): `docs/legal/INCIDENT_LOG.md:25` is a tenth live head naming
+  Render.** Register `DOC-1ea9f75b4f`, `status: approved`, attested 2026-06-21, hash-pinned, in the
+  `soc2-evidence` bundle. The text is a template placeholder:
+  `- Source system: [Render service / AWS / subprocessor / workstation]`. Deliberately NOT given a
+  successor: filing an attested supersession to edit a bracketed placeholder is disproportionate.
+  Recorded here so the next sweep does not rediscover it as a miss.
+- **Finding 12 (adversary, Low): the broad `lingolinq-app` AWS IAM key may still be active.**
+  `scripts/gcp/iam/README.md`'s new banner raises this as prose. `aws sts get-caller-identity`
+  returns `arn:aws:iam::239044785114:user/lingolinq-app`, so that user has at least one key in
+  active use; key enumeration was denied (`iam:ListAccessKeys` on self). This belongs in
+  `FINDINGS.json` as a real finding, not in a README banner. Not filed here because filing is a
+  register act and this branch deliberately leaves the register untouched.
+- **Finding 2 (adversary, High): the supersessions reduce attested membership of four bundles.**
+  Attested live-head members, base -> HEAD: `baa` 7->5, `school-dpa-package` 8->6,
+  `security-review` **4->2**, `soc2-evidence` 11->9. Superseding an attested head with an
+  unattested draft is correct governance, but the bundles a district or auditor receives now carry
+  fewer attested documents, and `document-register-render.rb --check` does not measure this (it
+  reports the same 23 bundle gaps before and after). **This is the strongest argument for
+  attesting the nine successors promptly rather than leaving them as drafts.** It must be stated
+  in the PR body.
 - Compliance documents still describing Render as a live fallback. These are attested and
   hash-pinned, so they need dated successors rather than in-place edits.
 - Register findings the decommission resolves: LL-7314b5a8ea, LL-107c9fb665, LL-aacae48768,
   LL-40f3571b19, LL-ba0585ab93.
 
+## Dual review
+
+Round 1, both reviewers, on `1d53ab658` / `4c378897d`.
+
+- **Codex: 2 findings, both real**, both the same defect class: each successor was created by
+  copying its predecessor, and the `**Supersedes:**` metadata line BELOW the rewritten banner was
+  left pointing at the wrong document. Fixed in `1d53ab658`.
+- **The sweep for that class found a third Codex missed** (`2026-09-14_data-retention.md`, a second
+  contradictory `Supersedes` line) and a fourth neither reviewer reported: the breach runbook told
+  readers its own attestation state lived at register row `DOC-28f19f73e4`, the PREDECESSOR's row.
+  Mid-incident that sends a responder to the frozen document.
+- **Adversary: 12 findings.** Governance half verified independently clean (0 modified files under
+  `docs/legal/`, no attestation block altered on any existing row, `FINDINGS.json` untouched,
+  `auditedSha` not restamped). Applied: 1, 3, 4, 5, 6, 8, 9, 10, 11. Recorded as outstanding
+  rather than applied: 2 (PR body), 7 and 12 (above).
+
+### The one that mattered
+
+Finding 1, High: **I called the archive bucket "immutable" in six places and told the attester an
+Article 17 erasure "cannot be executed" against it.** Both false. The bucket's `retentionPolicy`
+has **no `isLocked` field**, verified live twice, so a project admin can remove the policy and then
+delete. The direction of the error is the dangerous one: it understates our ability to comply with
+an erasure request, in a retention schedule written for a DPO. Corrected everywhere, and the
+Article 17 sentence now says erasure is a decision, not a technical impossibility.
+
+I had the evidence for this in hand and misread it: I saw a retention policy plus a proof object
+that "cannot be removed before 2027-09-08" and concluded immutability. The proof object's
+protection is real; the POLICY's removability is the separate fact I did not check.
+
 ## History
 
-- 2026-09-14: audit and the eight file changes above. No commit yet.
+- 2026-09-14: audit; sections 1-3; nine compliance successors; dual review round 1 applied.

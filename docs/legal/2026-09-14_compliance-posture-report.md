@@ -233,7 +233,7 @@ inside the GCP infrastructure boundary. Object storage and email stay on AWS. Re
 decommissioned on 2026-09-09 and is no longer online, no longer a rollback fallback, and no longer
 a subprocessor. Before deletion its two databases were archived and restore-verified on 2026-09-08
 into `gs://lingolinq-prod-render-archive`, held in LingoLinq's own GCP project under a one-year
-immutable retention lock.
+retention policy of one year that is NOT locked and is therefore removable by a project admin.
 
 - **Managed Redis over TLS.** Redis TLS finding LL-6619cc1811 is **verified-closed** with
   in-context Cloud Run `rediss://` evidence and Scot attestation (2026-07-22).
@@ -244,7 +244,7 @@ immutable retention lock.
   FDPA) were certified 2026-07-14 for EU/UK/Swiss-transfer coverage. Under the HIPAA BAA, PHI is
   permitted on Google Cloud subject to BAA terms, which are necessary but not sufficient
   (HIPAA-eligible services, encryption in transit and at rest, access controls, minimum necessary;
-  private VPC additionally). Recorded in-repo at `docs/legal/GCP_BAA_ACCEPTED.md`; evidence in
+  private VPC additionally). Recorded in-repo at `docs/legal/2026-09-14_gcp-baa-accepted.md`; evidence in
   Drive "Compliance Audits" / "Google Cloud Platform - Accepted Compliance Agreements (captured
   2026-07-14)". This is an infrastructure BAA (Cloud Run, Cloud SQL, Memorystore) covering only
   products on Google's HIPAA Covered Products list; it does not extend to Vertex AI as a whole or

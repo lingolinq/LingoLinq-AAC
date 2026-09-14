@@ -23,10 +23,13 @@
 > are confined to Section 12 and are marked "not yet built" so nothing here reads as a promise we
 > cannot keep.
 >
-> **Version:** 1.3.1 (DRAFT - NOT YET ATTESTED) · **Date:** 2026-06-18 (v1.0);
-> 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 drafted 2026-08-22 ·
+> **Version:** 1.3.2 (DRAFT - NOT YET ATTESTED) · **Date:** 2026-06-18 (v1.0);
+> 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 drafted 2026-08-22;
+> v1.3.2 drafted 2026-09-14 ·
 > **Attested by:** PREDECESSOR VERSIONS ONLY - Scot Wahlquist, CEO (2026-06-18; 2026-07-22;
-> 2026-08-04; 2026-08-20 on v1.3). **v1.3.1 carries no attestation.** · **Supersedes:** attested
+> 2026-08-04; 2026-08-20 on v1.3). **v1.3.2 carries no attestation.** · **Supersedes (direct
+> predecessor):** `docs/legal/2026-08-22_compliance-program.md` (v1.3.1, `DOC-e5e85eccb1`),
+> frozen. **Earlier in the same lineage:** attested
 > `2026-08-20_compliance-program.md` v1.3 (DOC-5a4b795792), which superseded unattested draft
 > `2026-08-09_compliance-program_draft.md` (DOC-73a80fc88d), which itself superseded attested
 > `COMPLIANCE_PROGRAM.md` v1.2 (DOC-b61994933c) · **Source of truth for status:**
@@ -312,7 +315,7 @@ Production now serves `app.lingolinq.com` from Google Cloud Platform after the 2
 DNS cutover. The live app runs on Cloud Run, Cloud SQL PostgreSQL, and Memorystore Redis over the
 private GCP network, with object storage and email remaining on AWS. The Google Cloud CDPA, HIPAA
 BAA, and SCCs for project `lingolinq-prod` are accepted and recorded in
-`docs/legal/GCP_BAA_ACCEPTED.md`.
+`docs/legal/2026-09-14_gcp-baa-accepted.md`.
 
 **Render was decommissioned on 2026-09-09.** The workspace was deleted (0 services, 0 databases,
 0 disks), so Render is no longer the production host, no longer a rollback fallback, and no longer
@@ -320,7 +323,7 @@ a subprocessor. There is no `*.onrender.com` host under LingoLinq control; those
 re-registrable by third parties and must never be cited as ours. Before deletion both Render
 PostgreSQL instances were archived and restore-verified on 2026-09-08 into
 `gs://lingolinq-prod-render-archive`, held in LingoLinq's own GCP project under a one-year
-immutable retention lock.
+retention policy of one year that is NOT locked and is therefore removable by a project admin.
 
 Redis TLS (LL-6619cc1811) is **verified-closed** (2026-07-22) with in-context Cloud Run `rediss://`
 evidence and Scot attestation. The Render Postgres public-allowlist finding (LL-aacae48768,
@@ -348,7 +351,7 @@ as a false promise. Several of these came from v1.1, where they were incorrectly
 | Biometric (voiceprint / gaze) consent and handling | Audited, not fully built | COPPA audit items 2; scope carefully before building a dedicated consent vault. |
 | Multi-state minor/biometric/health law coverage (CCPA-minor, TX CUBI, WA MHMDA, IL BIPA) | Deferred | Apply as the customer footprint reaches those states; not pre-MVP. |
 | Formal SOC 2 program (risk assessments, training cadence, KPIs, internal audit schedule) | In progress / deferred | Enterprise maturity; staged as the team grows. |
-| Render decommission | **Complete 2026-09-09** | Workspace deleted (0 services, 0 databases, 0 disks). Final databases archived and restore-verified 2026-09-08 to `gs://lingolinq-prod-render-archive` under a one-year immutable lock. Retires the accepted-risk LL-aacae48768 path; disposition is the CEO's to record in the register. |
+| Render decommission | **Complete 2026-09-09** | Workspace deleted (0 services, 0 databases, 0 disks). Final databases archived and restore-verified 2026-09-08 to `gs://lingolinq-prod-render-archive` under a one-year retention policy that is NOT locked (removable by a project admin). Retires the accepted-risk LL-aacae48768 path; disposition is the CEO's to record in the register. |
 | Article 50(1) disclosure enablement | Backstop built and complete; not in `ENABLED_FRONTEND_FEATURES` at `64cdccba1` (code default AVAILABLE-only at `64cdccba1`; runtime VERIFIED ENABLED 2026-08-23) | Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` at `64cdccba1` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override no code listing can show. **Production flag state WAS verified 2026-08-23: ENABLED in production via the `default_enabled_features` DB Setting (see `docs/legal/2026-08-23_article-50-production-flag-verification.md`).** `article_50_disclosure` is AVAILABLE-only in code while `ai_board_generation` is enabled. Obligation date 2026-08-02 has passed. Server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19; LL-6723438462 remediated-unverified). The contrast blocker (LL-a9d6d5a46b) is also remediated-unverified (already fixed via #694). LL-104bfa61dc (terms-agree modal switch scanning, same shared modal component) remains open. The premise is now VERIFIED: production has the flag ENABLED, so this is a documentation correction rather than a pending enablement decision. **CONTRADICTION RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1324-1331` at `64cdccba1`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version` -- i.e. only after an actual modal acknowledgement. A disclosure never enabled cannot produce that. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) **RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** Production was read through the application path: `Setting.get('default_enabled_features')` CONTAINS `article_50_disclosure`, and `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` resolved TRUE for every user probed at `2026-08-23T21:04:12Z` (`RAILS_ENV=production`, image `web:73a8f633`). No org, beta or canary layer modifies it: production holds 2 organizations, 0 EU-stamped and 0 carrying any feature override, and neither the canary nor the beta `Setting` row exists. Enabled-SINCE date is NOT recoverable - `Setting` carries no PaperTrail history (0 version rows) and `Setting.set` overwrites in place; the containing row was created `2026-08-04T07:19:11Z` and last written `2026-08-13T00:03:56Z`, and nothing records which features the list held at either write. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`. It IS enabled, so this is a documentation correction, not a roadmap item. LL-104bfa61dc is scoped to the TERMS-AGREE modal; the AI disclosure modal is opened with `scannable: true` (`app/frontend/app/utils/article50_gate.js:108,141`) and carries `.modal_targets` and a `.btn` (`app/frontend/app/components/ai-disclosure.hbs:51,56`), so treating it as a hard pre-enable blocker for THIS modal is not supported by the code. It remains a shared-component confidence concern pending a runtime switch-scanning check. |
 | ACR / VPAT publish | Draft | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` and branded Drive mirror remain `draft` awaiting attestation. |
 | Remediated-unverified verification wave | In progress | ~~Eight findings (five High)~~ **Ten findings (six High) as of 2026-08-31** await fresh-context verification before Scot can close: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a, **LL-f150e0e828** (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium); **LL-51da4fca1d** (Low, filed 2026-08-30 by PR #893). LL-f150e0e828 returned to this set on 2026-08-30 when its closure was retracted (the fix is not deployed to production). |
@@ -394,13 +397,13 @@ over them.
 
 ## 15. Attestation
 
-> **NOT RE-MADE FOR v1.3.1.** The re-attestation *statement* below is the **v1.3 attestation as
+> **NOT RE-MADE FOR v1.3.2.** The re-attestation *statement* below is the **v1.3 attestation as
 > signed on 2026-08-20**, reproduced byte-for-byte: its first-person voice and its dates are the
-> predecessor's, and no word of that statement has been re-made for v1.3.1.
+> predecessor's, and no word of that statement has been re-made for v1.3.1 or v1.3.2.
 > **The metadata table beneath the statement is NOT part of what was signed**, and it does carry
 > this successor's corrections: the 2026-08-12 run size (46 -> 40, correction 1), the `HEAD` ->
 > `` `64cdccba1` `` pinning (correction 2), the `open` -> `live` severity relabel (correction 4),
-> and the draft attestation status. v1.3.1 is unattested. If Scot attests v1.3.1, a new statement
+> and the draft attestation status. v1.3.2 is unattested. If Scot attests v1.3.2, a new statement
 > dated to that attestation must be written here first.
 >
 > **Post-signature status note, 2026-08-30 (NOT part of the signed statement).** The signed
@@ -469,8 +472,8 @@ opinion, or a guarantee of compliance.
 | Reviewed by | Predecessor v1.2 post-cutover sweep; Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
 | Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 40 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging commit `64cdccba1` (2026-08-20) |
 | Posture at `64cdccba1` (v1.3, attested 2026-08-20) | 0 live Critical / 20 live High / 52 live Medium / 40 live Low (publisher convention), per `audit-reports/FINDINGS.json` |
-| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render was decommissioned 2026-09-09 (workspace deleted; 0 services, 0 databases, 0 disks) and is no longer a rollback fallback. LL-6619cc1811 verified-closed. **The GCP rows were not re-verified against live infrastructure for this successor** (register-and-code-only pass); they carry forward the 2026-07-22/23 live verification. The Render deletion and the `gs://lingolinq-prod-render-archive` retention lock WERE verified live on 2026-09-14. Re-check GCP/AWS state before relying on this for anything infrastructure-sensitive. |
-| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO (v1.3.1) |
+| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render was decommissioned 2026-09-09 (workspace deleted; 0 services, 0 databases, 0 disks) and is no longer a rollback fallback. LL-6619cc1811 verified-closed. **The GCP rows were not re-verified against live infrastructure for this successor** (register-and-code-only pass); they carry forward the 2026-07-22/23 live verification. The Render deletion and the `gs://lingolinq-prod-render-archive` retention policy WERE verified live on 2026-09-14, including that the policy is NOT locked. Re-check GCP/AWS state before relying on this for anything infrastructure-sensitive. |
+| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO (v1.3.2) |
 | Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 pending |
 
 _Once attested, the canonical home for this document is the repository at

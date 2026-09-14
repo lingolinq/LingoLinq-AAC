@@ -18,7 +18,9 @@ passed; the customer-facing Posture Report still claims **8** open High from the
 re-attest while the live register at `64cdccba1` reads **20** High (up from 12 at the 2026-08-09
 draft, almost entirely from the 2026-08-12 six-finder full audit run); overdue monthly-light audit
 and COPPA quarterly retention checks need surfacing.
-**Status:** DRAFT - awaiting attestation. Successor via Path A supersession to attested
+**Status:** DRAFT - awaiting attestation. Successor via Path A supersession to its direct
+predecessor `docs/legal/2026-08-22_compliance-status-snapshot.md` (`DOC-af01c65b10`), frozen.
+**Earlier in the same lineage:** attested
 `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (ATTESTED 2026-08-20 by Scot Wahlquist, CEO),
 correcting the defects listed in "Corrections in this successor" below, which include the
 Article 50(1) enablement claim. Headline counts are re-derived from
@@ -118,7 +120,7 @@ accepted in *this* drafting session.
 | Gate 1 DNS cutover | 2026-07-22: `app.lingolinq.com` on GCP Cloud Run + Cloud SQL + Memorystore; Render retained as write-frozen rollback. | Production host is GCP; GCP listed as active infrastructure subprocessor. |
 | Redis TLS (LL-6619cc1811) | Verified-closed 2026-07-22 with in-context Cloud Run `rediss://` evidence and Scot attestation. | Prior open High closed; no longer a cutover blocker. |
 | Eval consent-binding (LL-11db0dc848) | Verified-closed 2026-06-23. | Prior open High residual closed; do not restate as open. |
-| GCP BAA / CDPA / SCCs | Accepted and recorded (`docs/legal/GCP_BAA_ACCEPTED.md`; Drive capture 2026-07-14). | HIPAA-eligible infra path on Covered Products; not a Vertex AI / Gemini BAA. |
+| GCP BAA / CDPA / SCCs | Accepted and recorded (`docs/legal/2026-09-14_gcp-baa-accepted.md`; Drive capture 2026-07-14). | HIPAA-eligible infra path on Covered Products; not a Vertex AI / Gemini BAA. |
 | Article 50(2) marking | Server-signed provenance marker shipped (`lib/art50_marker.rb`; board gen + word prediction). | Machine-readable marking path exists; 50(2) grace to 2026-12-02 is not headroom for a first EU placement after 2026-08-02. |
 | Article 50(1) server-side backstop | All 5 AI ingresses now call `require_article_50_disclosure!` (#829, #831, 2026-08-19), up from 2 of 5. LL-6723438462 moved open -> remediated-unverified. | Enabling the flag would no longer produce silent partial enforcement. |
 | Article 50(1) disclosure UI | Modal + ack + first-AI-use gate built; `article_50_disclosure` is AVAILABLE-only, not in `ENABLED_FRONTEND_FEATURES`, in `lib/feature_flags.rb` at `64cdccba1`. Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` at `64cdccba1` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override no code listing can show. **Production flag state WAS verified 2026-08-23: ENABLED in production via the `default_enabled_features` DB Setting (see `docs/legal/2026-08-23_article-50-production-flag-verification.md`).** | Built AND ENABLED in production, verified by direct read at `2026-08-23T21:04:12Z` (see `docs/legal/2026-08-23_article-50-production-flag-verification.md`). **No evidence establishes the flag's state on or before the 2026-08-02 obligation date**: the containing `Setting` row has no version history and was rewritten 2026-08-13, so this read attests 2026-08-23 only and must NOT be read as compliance across the obligation window. |

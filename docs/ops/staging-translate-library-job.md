@@ -55,7 +55,19 @@ Staging Cloud Run services run with `RAILS_ENV=production`, so a live run needs 
 
 ## Commands
 
-No API key to export. `gcloud` uses your own credentials, and the token the rake needs is already mounted on the job from Secret Manager.
+No API key to export. `gcloud` uses your own credentials, and the token the rake needs is already
+mounted on the job from Secret Manager.
+
+> **Read before running. The only thing separating these commands from production is `--project`
+> and the job name.** Production has a `lingolinq-scheduler` Cloud Run Job in `lingolinq-prod`
+> running the same `bundle exec rake scheduler:dispatch` with `GOOGLE_TRANSLATE_TOKEN` mounted,
+> so a wrong `--project` executes against real boards.
+>
+> **`ALLOW_PROD_TRANSLATE=1` is NOT a production guard here.** Staging Cloud Run runs
+> `RAILS_ENV=production`, so you have to pass it for a normal staging run, which means it is
+> already in your shell history and clipboard alongside `TRANSLATE_CONFIRM=1`. Both app-level
+> guards are pre-satisfied on the very command you are about to reuse. Check `--project` and the
+> job name every single time.
 
 Dry run (lists roots, no Google calls, no writes):
 
@@ -97,4 +109,5 @@ Dry run prints `[DRY RUN] lingolinq/...` lines then `Dry run: N root(s) would be
 The live run prints `boards=N strings=M` per root. The CSV under `tmp/` is discarded when the
 container exits; the logs are the durable record.
 
-Do not run this against production.
+Do not run this against production. See the warning above the command blocks: the app-level guards
+do not protect you here, only `--project lingolinq-nonprod` and the `-staging` job name do.

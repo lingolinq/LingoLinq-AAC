@@ -3866,7 +3866,7 @@
     },
     {
       "title": "Data Retention Schedule (2026-09-14 successor)",
-      "description": "Path A successor recording the Render decommission. The predecessor carried an explicit end condition on the Render backup row, \"ends when the Render fallback is decommissioned\". That condition was met on 2026-09-09. The 35 day Render-managed window is marked ENDED and a new row records the one-year immutable GCS archive that replaced it.",
+      "description": "Path A successor recording the Render decommission. The predecessor carried an explicit end condition on the Render backup row, \"ends when the Render fallback is decommissioned\". That condition was met on 2026-09-09. The 35 day Render-managed window is marked ENDED and a new row records the GCS archive that replaced it, under a one-year retention policy that is NOT locked and is therefore removable by a project admin.",
       "type": "policy",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3881,7 +3881,7 @@
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-12-14",
       "attestation": {},
-      "contentHash": "0631e8d2802737d0ce8eb253e2a0965a165c23b625be9de8dde35503116b43bb",
+      "contentHash": "3eca66fafc6d3c7d3f8615a0924cb63042556c820fc4db8052e2943da0c5826b",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -3932,7 +3932,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-f850df36ad",
       "id": "DOC-052b0e947c",
-      "contentHash": "95b26285122a4c2489e1efe4f09b099ff325381f073021a16c0ebb97a408c91f",
+      "contentHash": "9782371d55352ae25c0209f858a70fb33c2d502581a13fe821d226a8a04e7a1c",
       "attestation": {},
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
@@ -3967,7 +3967,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "e912b22b54d00ba0adf508aef5e3e7f62ea38af5e486ef5d26617f50c7a1c91a"
+      "contentHash": "8f5fd00d3e904ee76b20a5f759cd6871942e5729a48d02123aefa9410193e0d8"
     },
     {
       "title": "Incident Response & Breach Runbook (2026-09-14 successor)",
@@ -4002,7 +4002,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-28f19f73e4",
       "id": "DOC-f082212111",
-      "contentHash": "e35aad6453734a6d066a69feb5db4685ecf5fc209e3d012ffc8ab0fea8f95fa8",
+      "contentHash": "39db76fc0e65801e8123d94352284f8d7a244a4a5e2ed825d0ef9043d979b3b0",
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
     {
@@ -4038,7 +4038,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-f6d26afec8",
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
-      "contentHash": "55cc55050360c7d61680f20b791e0a8d7e5e73d4f52330b125589c127f76e9c4"
+      "contentHash": "3cd4a19c48f7fd77a6e5dba0f5d9c3457d8718d8243a99aa5414457e01d0706f"
     },
     {
       "title": "Security, Privacy & Compliance Overview (2026-09-14 successor)",
@@ -4058,7 +4058,7 @@
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-12-14",
       "attestation": {},
-      "contentHash": "5e56d47cab7a533522361bd5c1b8e8a8ad2726bee5953e633264e1b120c07364",
+      "contentHash": "14d50dab14a3f70e02e5899a65f1c0c99b4c9df229f315993b677e8d0a84252b",
       "bundles": [
         "security-review"
       ],
@@ -4111,7 +4111,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "2b6955e67c02719b82c01f131f3670123f5a8a7b60eff67aacf454f175c22082"
+      "contentHash": "f41f2279399bc8c325bfec2d7f572305108d24d4f0f1a4013d64fcc216a51ccd"
     },
     {
       "title": "GCP BAA Acceptance Record (2026-09-14 successor)",
@@ -4170,7 +4170,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-af01c65b10",
-      "contentHash": "03072ad6f9ac2bc941d9e525a5c33a46db41e6179fdd41f71ac4a730375e23be"
+      "contentHash": "ae2494e951f1e7bac2702b322be60a419938d1685cbfbf5d7ad29611fcf8e869"
     }
   ]
 }

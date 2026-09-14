@@ -13,13 +13,15 @@
 > **Reason for supersession.** The Render backup row carried an explicit end condition, "Ends when
 > the Render fallback is decommissioned". That condition has been met: the Render workspace was
 > deleted on 2026-09-09 (0 services, 0 databases, 0 disks). The 35 day Render-managed backup window
-> no longer exists, and the only surviving copy of pre-cutover production data is a one-year
-> immutable GCS archive. Both rows are restated below. Nothing else in the schedule is changed.
+> no longer exists, and the only surviving copy of pre-cutover production data is a GCS archive
+> under a one-year retention policy. Both rows are restated below. Nothing else in the
+> schedule is changed.
 > Does not close, downgrade, or re-attest any finding.
 >
 > **The attester must confirm** the 2026-09-09 deletion date against the vendor record (dashboard
 > screenshot or account-deletion email), and decide the Article 17 question raised by the archive
-> row's retention lock.
+> row's retention policy. **That policy is NOT locked** (`isLocked` absent, verified live
+> 2026-09-14), so it is removable by a project admin. This archive must not be called immutable.
 
 **Supersedes:** `docs/legal/2026-08-09_data-retention_draft.md` (`DOC-e62caf7fb9`), which remains
 frozen. This dated record is the operative retention schedule from 2026-09-14 forward.
@@ -27,9 +29,8 @@ frozen. This dated record is the operative retention schedule from 2026-09-14 fo
 this file's attestation state.**
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-08-09 (draft; predecessor attested 2026-07-23 by Scot Wahlquist, CEO)
-**Next review:** 2027-04-20 (carry-forward until attestation rebases cadence)
-**Supersedes (direct predecessor):** `docs/legal/2026-08-09_data-retention_draft.md` (`DOC-e62caf7fb9`), frozen.
+**Last reviewed:** 2026-09-14 (this successor; predecessor draft 2026-08-09, last attested cut 2026-07-23 by Scot Wahlquist, CEO)
+**Next review:** 2026-12-14 (matches the register row)
 **Earlier in the same lineage:** attested `docs/legal/DATA_RETENTION.md` (DOC-bff9acf51f), also frozen. Retained here as lineage, not as this record's direct predecessor.
 **Attestation history:** first attested 2026-06-21. That attestation covered an earlier revision:
 PR #569 (2026-07-10) and PR #656 (2026-07-22) rewrote the AI-log retention rows, and the
@@ -70,7 +71,7 @@ Default retention windows apply unless a customer data processing addendum speci
 | ClusterLocation (IP and geolocation) | 90 days | GDPR data minimization; HIPAA audit | Nightly job trims older records | Geo coordinates are precise; treat as sensitive |
 | Backups (Google Cloud SQL, live production) | 7 most-recent automated daily backups, plus point-in-time recovery over a 7 day transaction-log window | Operational recovery | Managed automatically by Cloud SQL (`lingolinq-prod-pg`, us-central1; daily backup at 08:00 UTC, PITR enabled) | Verified against the live instance 2026-07-23. This replaces the pre-cutover Render 35 day window: the recovery window is now **shorter**. No approved RPO target is recorded in the current runbook or schedule, so this attestation does not assert that the window meets an RPO target. Restoring from backup does not defeat deletion; we re-run deletion jobs post-restore |
 | Backups (Render managed PostgreSQL, ENDED 2026-09-09) | Ended. Was a 35 day rolling window while the write-frozen fallback existed | Operational rollback for the 2026-07-22 cutover | No longer executed. Render deleted the instances with the workspace on 2026-09-09 | The end condition this row carried ("ends when the Render fallback is decommissioned") is MET. Render-managed backups no longer exist and nothing can be restored from them. Superseded by the archive row below. Whether Render retains residual copies after account deletion is not confirmed with the vendor; the Render DPA is retained |
-| Final Render database archive (`gs://lingolinq-prod-render-archive`) | 1 year, immutable, from 2026-09-02 | Evidentiary and operational record of the decommissioned platform | GCS bucket retention lock: `retentionPeriod` 31,557,600s (365.25 days), effective 2026-09-02T17:30:22Z. NEARLINE, public access prevention enforced, uniform bucket-level access, 7 day soft-delete. Verified against the live bucket 2026-09-14 | Two custom-format `pg_dump` sets taken 2026-09-08 from `lingolinq-prod-db` and `lingolinq-dev-staging-db`, restore-verified into stock PostgreSQL 18.6 with `pg_restore --exit-on-error`, both exit 0. See `RESTORE-MANIFEST-2026-09-08.md` at the bucket root. **Open question for the attester:** the retention lock refuses deletion for a year, so an Article 17 erasure request cannot be executed against this archive inside that window. Prod carried no real users at cutover; the 2.4 GB dev/staging dump has not been assessed for real content |
+| Final Render database archive (`gs://lingolinq-prod-render-archive`) | 1 year from 2026-09-02, under an UNLOCKED retention policy | Evidentiary and operational record of the decommissioned platform | GCS bucket retention policy: `retentionPeriod` 31,557,600s (365.25 days), effective 2026-09-02T17:30:22Z. **`isLocked` is ABSENT, so the policy is not locked and a project admin can shorten or remove it.** NEARLINE, public access prevention enforced, uniform bucket-level access, 7 day soft-delete. Verified against the live bucket 2026-09-14 | Two custom-format `pg_dump` sets taken 2026-09-08 from `lingolinq-prod-db` and `lingolinq-dev-staging-db`, restore-verified into stock PostgreSQL 18.6 with `pg_restore --exit-on-error`, both exit 0. See `RESTORE-MANIFEST-2026-09-08.md` at the bucket root. **Open question for the attester:** an Article 17 erasure request against this archive IS executable. The policy blocks object deletion while it stands, but it is unlocked, so the sequence is remove the policy, then delete. Erasure here is a decision, not a technical impossibility, and this schedule must not claim otherwise. Prod carried no real users at cutover; the 2.4 GB dev/staging dump has not been assessed for real content |
 | Incident log (`docs/legal/INCIDENT_LOG.md`) | 7 years minimum from incident close | HIPAA; state breach statutes; legal hold | Manual, only with Privacy Contact approval | Append-only; no deletion without legal review |
 | Support tickets | 3 years from last activity | Legitimate interest; tax defense | Help-desk tool retention policy | Tickets referencing PHI follow HIPAA audit retention |
 | Billing and tax records | 7 years | IRS recordkeeping guidance; state tax rules | Accounting system scheduled purge | Includes invoices, payment records, purchase orders |
