@@ -224,3 +224,83 @@ closeable without also fixing the `supervisor_key` entry point. Splitting:
   otherwise the gate is forgeable.
 - The remediation pass for already-bound victims (C3).
 - `Organization#remove_user`'s missing target check.
+
+---
+
+## 5. Post-review corrections to the fact sheet, verified independently
+
+Three items surfaced in the full review text after the fix was committed. Each was re-verified here rather
+than accepted on the reviewers' word.
+
+### 5.1 Exploitability is LATENT, not live: nothing in the repo creates a `License` row
+
+**CONFIRMED, and this changes the severity narrative.**
+
+```
+$ grep -rnE 'License\.create|License\.new|licenses\.create|licenses\.build' app/ lib/ db/ config/
+(no output)
+$ grep -rnE 'License\.create|License\.new|licenses\.create|licenses\.build' spec/ | wc -l
+18
+$ grep -n 'license' config/routes.rb
+338:      get 'licenses'
+$ grep -rn 'claim_user' app/frontend/
+(no output)
+```
+
+No production code path, rake task, seed, controller or migration creates a `License`. The only licence
+route is read-only. The frontend never calls `claim_user`. `lib/seed_organization.rb` sets
+`settings['total_licenses']`, a different legacy counter, not `License` rows.
+
+So as the code stands, `self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first`
+returns nil and `claim_user` raises "No seats available in this district" before reaching anything. The
+`add_user` licence fast-path is likewise dead.
+
+**What this does and does not mean.** The defect is real, present and unfixed in production code, and it
+becomes live the moment the licensing feature is switched on or any seat row is created out of band
+(console, direct SQL, a future migration). It is not currently a 24-hour incident. The register and the Q3
+audit report both describe LL-1baffd92d5 as live in production; that should be amended to "present and
+unfixed, exploitable only once `License` rows exist".
+
+**One read-only query settles it and has not been run:**
+`SELECT count(*) FROM licenses WHERE user_id IS NULL AND status = 'active';`
+A non-zero count moves this straight back to live-critical. Running it needs the audited prod console
+(`bin/audit_console` / the `lingolinq-migrate` job with `USER_KEY`), so it is Scot's to run.
+
+This also invalidates the doc's original reason for rejecting Option B. "Option B leaks a paid seat" is
+moot when no seats exist, so there is room to do the pending-claim design properly rather than under
+incident pressure.
+
+### 5.2 The impact is worse than "seat theft": it reaches password reset
+
+**CONFIRMED (adversary), and it should be in the finding's notes.** `Organization.manager_for?` keys on the
+non-pending `org_user` LINK, not on the column. `app/models/user.rb` grants `'manage_supervision'`,
+`'support_actions'` and `'link_auth'` on that basis, and `Api::UsersController#update` has
+`elsif params['reset_token'] == 'admin' && user.allows?(@api_user, 'support_actions')` which slices
+`user_data` down to `password` and sets `options[:allow_password_change] = true`. A successful claim
+therefore lets the attacking org **set the victim's password**. This is account takeover, not seat theft.
+
+### 5.3 The shipped guard also refuses intra-hierarchy transfers
+
+**CONFIRMED.** `upstream_manager?` grants a full manager of a parent org `manage` on its children, so a
+parent/child move inside one district reaches `claim_user` and is now refused. This is a deliberate
+decision, not an oversight: such a transfer must route through `License#release_user!` (which clears the
+column) like any other. It is recorded as a comment in `claim_user` so nobody adds an admin or upstream
+escape hatch later. If districts turn out to need in-place hierarchy moves, that is a feature to design,
+not a guard to weaken.
+
+### 5.4 Other review items NOT addressed by this commit
+
+- **Concurrent claims split-brain** (adversary, PLAUSIBLE). Seat selection is
+  `licenses.where(user_id: nil, ...).first` then `license.update!` with no row lock and no unique index on
+  `licenses.user_id`. Two concurrent claims select the same row; both users get `managing_organization_id`
+  set and the loser is bound with no seat. Needs `FOR UPDATE SKIP LOCKED` or an affected-row assertion.
+- **`add_user` via `management_action` is reachable by an org ASSISTANT** (`allowed?(org, 'edit')`), and that
+  route is NOT covered by `Throttling::PROTECTED_PATHS`, which only lists
+  `api/v1/organizations/.+/claim_user`.
+- **`Organization#remove_user` has no target-org membership check** and can drive
+  `begin_family_offboarding_consents!` on a stranger, writing `under_16` / `eu_under_16`, which feed the
+  Art. 8 / Art. 50 AI gate. The correct in-file idiom already exists in `add_extras_to_user`:
+  `raise "user not attached to org" unless valid`.
+- **`JsonApi::License#build_json` emits `metadata` with no permissions check** although the field is
+  secure_serialized as potentially sensitive district/billing data, and 'edit' includes assistants.
+- **Fact-sheet correction:** the License method is `release_user!`, not `release`.

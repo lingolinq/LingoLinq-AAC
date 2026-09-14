@@ -32,6 +32,18 @@ class Organization < ApplicationRecord
     # The guard precedes the seat lookup and sits outside License.transaction, so
     # a denial never opens a transaction and never touches a seat. It fails closed
     # when the prior org row is missing.
+    #
+    # Two deliberate decisions, recorded so they are not "fixed" later by accident:
+    #
+    # 1. This rejects an intra-hierarchy move too. `upstream_manager?` grants a
+    #    full manager of a parent org 'manage' on its children, so a parent/child
+    #    transfer reaches here; it is refused and must route through
+    #    License#release_user!, which clears the column, like any other transfer.
+    #    That is the smaller blast radius, not an oversight.
+    # 2. No actor bypasses this. The super-admin org and upstream managers hold
+    #    'manage' on every org via add_permissions, but 'manage' authorizes the
+    #    REQUESTER against this org and says nothing about the target. Do not add
+    #    an admin escape hatch here.
     prior_org_id = user.managing_organization_id
     if prior_org_id && prior_org_id != self.id
       prior_org = Organization.find_by(id: prior_org_id)
