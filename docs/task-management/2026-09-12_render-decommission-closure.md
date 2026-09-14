@@ -700,8 +700,8 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   reviewing (rounds 23 and 24, dated in their entries below) both passed and failed on test 2469
   `speecher set_voice` with no code change, and one exceeded the stamped range, so the range is a
   reading of six runs, not a bound. Test 157 `boards-layout-toggle` failed once, at `a648d93e3`
-  (the first run on this base), and in no run read up to 2026-09-14T07:52Z (round 25). Current state: `gh run list --workflow CI --branch
-  scot/chore/render-dead-config-removal`.
+  (the first run on this base), and in no run read up to 2026-09-14T07:52Z (round 25). Current
+  state: `gh run list --workflow CI --branch scot/chore/render-dead-config-removal`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
   the fake utterance built under the stub. Within-run timing supports a late timer: in each of the six
@@ -906,8 +906,9 @@ Mediums are one defect: the record enumerated in-flight CI runs, and every commi
 that completes after that commit's read time, so each round moved the stale list one artifact
 further out (record, pending note, owner note, PR body). Closed structurally rather than patched:
 the record keeps the stamped tally as its fixed sample and a standing statement that later runs
-are not enumerated; the owner note and PR body say which test recurs on later heads with no code change (2469;
-test 157 failed once, at `a648d93e3`) and point at `gh run list` for the current state. Observed while writing this entry, read
+are not enumerated; the owner note and PR body say which test recurs on later heads with no code
+change (2469; test 157 failed once, at `a648d93e3`) and point at `gh run list` for the current
+state. Observed while writing this entry, read
 2026-09-14T07:40Z and recorded here only as dated history: 34815003904 (`800401f28`) failed at
 07:26:01Z on test 2469 (1704 ms against 1188 and 1199, excess 510.5 ms) and 34815918413
 (`53dbb4ebd`) passed at 07:31:23Z (923 against 927 and 935), both `# tests 2687`. The owner
@@ -939,5 +940,5 @@ to four and the status line wrapped; "excess 510" written as 510.5 to match the 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-25 applied; round 26 re-review pending, prose only, adversary alone until
-  Codex is re-authenticated) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-25 applied; round 26 re-review pending,
+  prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
