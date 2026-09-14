@@ -3,7 +3,7 @@ namespace :lingolinq do
        'Does not change the English default. DEST_LANG wins over LANG; shell locales like ' \
        'en_US.UTF-8 are ignored. SLUGS=quick-core-60 limits the run. SCOPE=seed translates ' \
        'every listed public content-user root (reindex inventory). DRY_RUN=1 lists roots. ' \
-       'Production (including Render staging) needs ALLOW_PROD_TRANSLATE=1; SCOPE=seed also ' \
+       'Production (including Cloud Run staging) needs ALLOW_PROD_TRANSLATE=1; SCOPE=seed also ' \
        'needs TRANSLATE_CONFIRM=1. CSV written to tmp/.'
   task translate_library_boards: :environment do
     dest_lang = LibraryBoardTranslator.parse_dest_lang(
