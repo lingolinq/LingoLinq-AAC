@@ -268,8 +268,17 @@ describe('speecher', function() {
     });
 
     it("should not error if set_voice has not been called", function() {
-      stub(window.speechSynthesis, 'speak', function() { });
+      var spoken = false;
+      stub(window.speechSynthesis, 'speak', function() { spoken = true; });
       expect(function() { speecher.speak_text("hippo"); }).not.toThrow();
+      // speak_text schedules the browser call through runLater. Keep this test's
+      // constructor and speak stubs installed until that callback has executed;
+      // otherwise teardown restores the real Chrome API while the fake utterance
+      // is still queued, leaking a global TypeError into this or the next test.
+      waitsFor(function() { return spoken; });
+      runs(function() {
+        expect(spoken).toEqual(true);
+      });
     });
     it("should set pitch and volume based on settings", function() {
       speecher.set_voice({volume: 0.5, pitch: 2.0});
