@@ -685,21 +685,30 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   `speak_utterance.call(_this)` at `:916` inside a `runLater` (`:915-917`); the two frames' line
   delta (+93) matches those two source lines (adversary's reading of the stack, round 20). About a
   dozen `runLater` call sites exist in the file. Storage: the `boards-layout-toggle` test installs a
-  bare `{}` as `window.localStorage` via `stubStorage` (`:40-42`, called at `:214`) and holds it
-  across its own `await` (`:223`). `capabilities.sync_access_token` reads
+  bare `{}` as `window.localStorage` via `stubStorage` (`:40-42`, called at `:214`) from that call
+  until `afterEach` restores the real storage (`:29-38`); the test's own promise chain (`:223`) is
+  native microtasks, so the exact scheduling gap is QUnit's, unverified. `capabilities.sync_access_token` reads
   `localStorage.getItem('debug_tokens')` behind a `typeof localStorage !== 'undefined'` guard that a
   bare object passes (`capabilities.js:305`), and it is called every 2000 ms by a `setInterval`
   installed at `capabilities.js:320-326` that nothing clears (`git grep clearInterval` over
   `app/frontend/app` and `app/frontend/tests` finds only the weblinger poll and `eval_gazer`); the
   caller frame delta (+18) matches `:305` to `:323`.
+- Completed after the stamp, read 2026-09-14T07:24Z, not counted above: 34811882616 (`1940d17c0`)
+  passed at 06:34:39Z (test 2469 at 949 ms against neighbours 952 and 952); 34812849886 (`f30c81bb4`)
+  failed at 06:55:21Z on test 2469, `# tests 2687`, `# fail 1` (1723 ms against 1189 and 1187, an
+  excess of 535 ms, outside the stamped range); 34814024174 (`3f336d05d`) passed at 07:05:12Z (947
+  against 943 and 937) and 34815070935 (`eef46b4b7`) passed at 07:19:56Z (944 against 942 and 943),
+  both `# tests 2687`; 34815003904 (`800401f28`) and 34815918413 (`53dbb4ebd`) were in progress.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
-  the fake utterance built under the stub. Within-run timing supports a late timer: in each failing
-  run test 2469 took 430 to 520 ms longer than the mean of its neighbours 2470 and 2471 (1629-1724 ms
+  the fake utterance built under the stub. Within-run timing supports a late timer: in each of the six
+  failing runs stamped above test 2469 took 430 to 520 ms longer than the mean of its neighbours 2470 and 2471 (1629-1724 ms
   against 1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
-  while in every passing run on this branch on the 2687 base and in both comparators it matched them (1038/1036,
-  1075/1092, 949/952, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34811882616, 34784704398,
-  34786101021). Read from the job logs on 2026-09-14; a reading, not a reproduction. The TypeError itself cannot occur in production, where the
+  while in both passing runs stamped above and in both comparators it matched them (1038/1036,
+  1075/1092, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34784704398, 34786101021).
+  Read from the job logs on 2026-09-14; a reading, not a reproduction. One rule for this record:
+  every number is as of the 06:32Z stamp; runs completing later are listed in the post-stamp
+  bullet with their own readings and are not folded into the range. The TypeError itself cannot occur in production, where the
   constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
   stale timer speaking or cancelling during a live session) is untested and is a separate question
   for the owner. (b) Storage: the never-cleared 2-second interval fires while the bare object is installed,
@@ -738,12 +747,15 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > only test 157 `boards-layout-toggle` with `TypeError: localStorage.getItem is not a function`
   > at `capabilities.sync_access_token` (`capabilities.js:305`), called by the 2-second
   > `setInterval` at `capabilities.js:320-326` that nothing clears, while the test holds a bare
-  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) from that call until `afterEach` restores the real storage (`:29-38`); two sibling tests in that
-  > module do the same (`stubStorage` at `:231` and `:245`), so a fix belongs in the module's hooks
-  > or in interval ownership, not in one test. Both tests
+  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) from that call until `afterEach` restores the real storage (`:29-38`); two sibling tests hold it the
+  > same way across a returned promise (`stubStorage` at `:231` and `:245`), and the module's other
+  > eight bare-object installs (eleven tests; one call site sits in a four-key loop) hold it across a
+  > synchronous body, so a fix belongs in the module's hooks or in interval ownership, not in one test. Both tests
   > passed on the 2529 suite before #963 (166 files, 33 new test files, +158 tests). The only two
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
-  > control set of two. Runs 34811882616 and 34812849886 were pending at the stamp. Cause
+  > control set of two. Runs 34811882616 and 34812849886 were pending at the stamp; the
+  > first passed at 06:34:39Z, the second failed at 06:55:21Z on test 2469 (excess 535 ms), and the
+  > next two heads (34814024174, 34815070935) passed. Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
@@ -830,14 +842,15 @@ Findings file `dual-review-round21-pra1.md`. Codex: approve, no findings. Advers
 Addressed above: the "810-923 ms in the passing ones" range I added in round 20 was the two
 other-branch comparators, not this branch's passing runs (1038, 1075, 949 ms), and it confounded
 runner speed with the effect; replaced with the within-run excess of test 2469 over its neighbours
-(about +500 ms in every failing run, about zero in every passing run and both comparators), with
-run ids, read from the job logs. The round-19 entry's "not order-dependent" is annotated as
+(about +500 ms in every failing run, about zero in every passing run and both comparators;
+superseded in round 22), with run ids, read from the job logs. The round-19 entry's "not order-dependent" is annotated as
 superseded by round 20, and its bare "no rebase happened" is scoped to the #963 window (the branch
 was rebased onto #961 earlier). The PR body's "two most recent heads" is replaced with the two run
 ids. The note says three tests in the `boards-layout-toggle` module hold the storage stub across
-an await, so the fix belongs in the module's hooks or in interval ownership. The pre-move range
+an await (superseded in round 22), so the fix belongs in the module's hooks or in interval ownership. The pre-move range
 parenthetical is dropped. Run 34811882616 (`1940d17c0`) passed at 06:34:39Z, after the stamp;
-the branch tally (stamped 06:32Z) does not count it; the timing reading, dated 2026-09-14, does.
+the branch tally (stamped 06:32Z) does not count it; the timing reading, dated 2026-09-14, does
+(superseded in round 24: the reading is as of the stamp too).
 Process note: the first attempt at this commit (`800401f28`) applied only the timing and
 parenthetical edits because the edit script stopped on a blockquote prefix; the rest landed in the
 following commit and round 22 was restarted against it.
@@ -848,7 +861,8 @@ Findings file `dual-review-round22-pra1.md`. Codex: approve, no findings. Advers
 1 Medium, 5 Low, all prose; every timing figure re-pulled and exact. Code unchanged and approved
 since `38559fd0e`. Addressed above in single clauses: the round-21 entry said the record does not
 count the post-stamp run while the timing sentence in the same round used it (now: the stamped
-tally does not, the dated timing reading does); "every passing run on this branch" scoped to the
+tally does not, the dated timing reading does; superseded in round 24, which scopes the reading
+to the stamp as well); "every passing run on this branch" scoped to the
 2687 base (on the 2529 base test 2469 is a different test); "about 500 ms" is a 430 to 520 ms
 range against the neighbour mean; the sibling locators point at the `stubStorage` calls; the
 storage stub is live from its call until `afterEach` restores it, not "across its await" (the
@@ -856,9 +870,26 @@ test's promises are native microtasks; the scheduling gap is QUnit's, unverified
 `800401f28`'s subject over-describes its contents; left as pushed history, disclosed here and in
 the PR body.
 
+## PR A1 dual review round 23 (head 53dbb4ebd, prose only) and fixes
+
+Findings file `dual-review-round23-pra1.md`. Codex: approve, 1 Low. Adversary: request-changes,
+2 Medium, 3 Low, all prose; every timing pair re-pulled and exact. Code unchanged and approved
+since `38559fd0e`. The two Mediums share one cause: round 22 admitted post-stamp completions into
+the timing reading, and the seventh failing run (34812849886, 06:55:21Z, excess 535 ms) then fell
+outside the 430 to 520 ms range while the pending-run note reported only the post-stamp pass.
+Restructured once rather than patched twice: every number in the CI record is now as of the 06:32Z
+stamp (the range is scoped to the six stamped failures and the passing set to the two stamped
+passes), and one dated bullet lists every post-stamp completion with its outcome and its own
+reading, in the record, the owner note and the PR body. The Lows: the facts bullet's "across its
+own await" replaced with the call-to-`afterEach` lifetime (Codex and adversary); the owner note's
+"two sibling tests do the same" now distinguishes the two promise-returning siblings from the
+module's eight other bare-object installs (verified against `origin/develop`: eleven `stubStorage({})`
+call sites, three tests return a promise); the round-21 entry annotated where round 22 superseded
+it, and the round-21 and round-22 clauses annotated where this round supersedes them.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-22 applied; round 23 re-review pending on prose only) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-23 applied; round 24 re-review pending on prose only) -> A2 -> B -> C.
