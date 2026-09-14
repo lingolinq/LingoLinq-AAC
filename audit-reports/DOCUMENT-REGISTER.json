@@ -3879,9 +3879,9 @@
         "COPPA"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "3eca66fafc6d3c7d3f8615a0924cb63042556c820fc4db8052e2943da0c5826b",
+      "contentHash": "4b019b81209fcad86ab39925c4afda22228ae5018ad01663153aec924bd2eb02",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -3915,7 +3915,7 @@
         "HIPAA"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2026-11-08",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -3932,7 +3932,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-f850df36ad",
       "id": "DOC-052b0e947c",
-      "contentHash": "9782371d55352ae25c0209f858a70fb33c2d502581a13fe821d226a8a04e7a1c",
+      "contentHash": "05bb2f10daad2bf1b98d7885ed6b4688acecd826c277bb0735436e90ce92adea",
       "attestation": {},
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
@@ -3952,7 +3952,7 @@
         "SOC2"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2026-11-22",
       "attestation": {},
       "bundles": [],
       "mirrors": [],
@@ -3983,7 +3983,7 @@
         "FERPA"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2027-08-02",
       "attestation": {},
       "bundles": [
         "soc2-evidence",
@@ -4002,7 +4002,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-28f19f73e4",
       "id": "DOC-f082212111",
-      "contentHash": "39db76fc0e65801e8123d94352284f8d7a244a4a5e2ed825d0ef9043d979b3b0",
+      "contentHash": "b3020e3ce763b9ce8eb69f41bfaebeb6fb919ef034a8f2f28d1162391832bbec",
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
     {
@@ -4022,7 +4022,7 @@
         "SOC2"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2026-11-25",
       "attestation": {},
       "bundles": [
         "soc2-evidence"
@@ -4056,7 +4056,7 @@
         "SOC2"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2027-07-22",
       "attestation": {},
       "contentHash": "14d50dab14a3f70e02e5899a65f1c0c99b4c9df229f315993b677e8d0a84252b",
       "bundles": [
@@ -4092,7 +4092,7 @@
         "SOC2"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2026-11-22",
       "attestation": {},
       "bundles": [
         "grant",
@@ -4126,9 +4126,9 @@
         "GDPR"
       ],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2027-07-23",
       "attestation": {},
-      "contentHash": "04c9cb46a7e7d0d2f01efc8b6e140a2504d3b531abde3f314478579fb86d28bd",
+      "contentHash": "16cd22bd731fed11d16a6f9f8acba6c71e39158a48ade7bf209f8280799cad12",
       "bundles": [
         "baa"
       ],
@@ -4155,7 +4155,7 @@
       "status": "draft",
       "frameworks": [],
       "lastReviewed": "2026-09-14",
-      "nextReviewDue": "2026-12-14",
+      "nextReviewDue": "2026-11-22",
       "attestation": {},
       "bundles": [],
       "mirrors": [],

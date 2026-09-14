@@ -2,7 +2,7 @@
 
 **Version:** v2.2.3 (2026-08-15)
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-08-15
+**Last reviewed:** 2026-09-14 (targeted: Render removed as an evidence source, alert channel, rollback target and vendor contact. Predecessor reviewed 2026-08-15; no full re-review performed)
 **Next review:** 2027-08-02
 **Classification:** Internal, share with counsel on demand
 **Supersedes (direct predecessor):** `docs/legal/2026-08-15_incident-response-breach-runbook.md` (register `DOC-28f19f73e4`), attested 2026-08-16 by Scot Wahlquist, CEO, and frozen. **During an incident, this 2026-09-14 record is the current one.**

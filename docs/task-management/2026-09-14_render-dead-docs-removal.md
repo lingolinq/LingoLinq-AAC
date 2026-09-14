@@ -197,6 +197,46 @@ Round 1, both reviewers, on `1d53ab658` / `4c378897d`.
   `auditedSha` not restamped). Applied: 1, 3, 4, 5, 6, 8, 9, 10, 11. Recorded as outstanding
   rather than applied: 2 (PR body), 7 and 12 (above).
 
+### Round 2, Codex: 2 findings, and a self-inflicted defect they exposed
+
+**P1, the structural one: a Path A successor promotes ALL inherited content to current.**
+`2026-09-14_gcp-baa-accepted.md` said the runtime AI egress path is covered by Anthropic's BAA.
+The 2026-08-16 determination in the subprocessor register says otherwise: `lib/ai_client.rb` calls
+`bedrock-runtime.<region>.amazonaws.com`, so **Amazon Bedrock RECEIVES the prompts, AWS is the
+processing party, and the AWS BAA of 2026-02-07 is the operative instrument**. Anthropic is the
+model provider, not the receiving processor.
+
+That contradiction is PRE-EXISTING: `GCP_BAA_ACCEPTED.md` has carried it since 2026-08-16 and
+nobody reconciled it. But it was frozen in an attested record; making a successor promoted it to
+the operative BAA record. Corrected in the successor, with the correction labelled as predating
+the Render work.
+
+**Lesson: a successor inherits every stale claim its predecessor carried.** Fixing only the
+paragraph you came for is not sufficient when the rest of the document becomes current in the
+process.
+
+**P2 exposed a defect I introduced.** I had blanket-set `nextReviewDue = 2026-12-14` on all nine
+successor rows, overwriting each document's real cadence. For five of them that pushed a compliance
+review date LATER:
+
+| Document | Real cadence | I had set |
+|---|---|---|
+| subprocessor register | 2026-11-08 (quarterly Article 28) | 2026-12-14 |
+| compliance program | 2026-11-22 | 2026-12-14 |
+| data governance | 2026-11-25 | 2026-12-14 |
+| posture report | 2026-11-22 | 2026-12-14 |
+| status snapshot | 2026-11-22 | 2026-12-14 |
+
+The subprocessor register documents a prior incident of exactly this mistake and warns against it:
+"Rather than re-date the schedule past that gap, which would have hidden an overdue Article 28
+review". Its own prose also asserts a three-way agreement between that line, the register row, and
+the compliance calendar item `rev-gdpr-subprocessor-quarterly`, which my edit broke.
+
+**A targeted correction does not reset the review clock.** Every successor now INHERITS its
+predecessor's `nextReviewDue`; `lastReviewed` is 2026-09-14 and says explicitly that the review was
+targeted, not a full re-review. Verified: 0 date mismatches between the nine files and their
+register rows.
+
 ### The one that mattered
 
 Finding 1, High: **I called the archive bucket "immutable" in six places and told the attester an

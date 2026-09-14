@@ -57,12 +57,19 @@ from the AWS BAA, which has a countersigned PDF (`docs/legal/AWS_BAA_2026-02.pdf
   inference path requires per-product covered-service verification before it may carry PHI or child
   data (Vertex AI is not covered as a whole; only specific products such as Vertex AI Workbench are
   listed as covered).
-- **Does NOT cover the Anthropic model-provider egress path** (the runtime AI features). This GCP
-  infrastructure BAA never extended to Anthropic; that path is now covered by **Anthropic's own
-  HIPAA-Ready BAA**, executed and enabled 2026-07-18 on the runtime-dedicated LingoLinq, LLC API org
-  (see `ANTHROPIC_BAA_ACCEPTED.md`), with the PiiScrubber and no-identifiable-data policy retained as
-  defense-in-depth. (The earlier "no BAA / provisional pending CEO review" language here is
-  superseded by that record.)
+- **Does NOT cover the runtime AI egress path.** This GCP infrastructure BAA never extended to it.
+  **CORRECTED 2026-09-14:** the predecessor said that path was covered by Anthropic's own
+  HIPAA-Ready BAA. That attribution was overtaken by the 2026-08-16 determination in the
+  subprocessor register and is wrong as stated. `lib/ai_client.rb` calls
+  `bedrock-runtime.<region>.amazonaws.com` over SigV4, so **Amazon Bedrock is the plane that
+  RECEIVES runtime AI prompts and AWS is the processing party**. Anthropic, PBC is the **model
+  provider, not the receiving processor**, and **the AWS BAA of 2026-02-07 is the operative
+  instrument for this flow** (see `docs/legal/2026-09-14_subprocessor-register.md`, rows 1 and 4,
+  and its 2026-08-16 change-log entry). The Anthropic HIPAA-Ready BAA of 2026-07-18 remains on file
+  for the model-provider relationship and the historical direct-API route, but it does not govern
+  the receiving processor. The PiiScrubber and no-identifiable-data policy are retained as
+  defense-in-depth. This correction predates the Render decommission: the contradiction has stood
+  since 2026-08-16 and was surfaced by the dual review on this PR.
 - **No Google inference path is live today, and BAA coverage of any future one is unverified.** The
   Gemini/Vertex runtime fallback was disabled 2026-07-09 (PR #570); no AI inference reaches Google
   today, and runtime inference is Anthropic-only. If a Vertex AI or Gemini inference path is ever
