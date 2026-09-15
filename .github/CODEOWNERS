@@ -1,3 +1,5 @@
-# CODEOWNERS - These users are required reviewers for all PRs
-# All files require review from swahlquist or MelissaOneil before merging
-* @swahlquist @MelissaOneil
+# CODEOWNERS - GitHub auto-requests these users as reviewers on every PR.
+# This is routing, NOT a gate. Branch protection on develop requires 1 approving
+# review from any collaborator with write access; require_code_owner_reviews is
+# off, so an approval from a code owner specifically is not required.
+* @swahlquist @MelissaOneil @traciday

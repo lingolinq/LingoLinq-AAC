@@ -1,10 +1,56 @@
 require 'spec_helper'
+require 'digest'
 
 describe BoardsController, :type => :controller do
   describe "index" do
     it "should render" do
       get "index"
       expect(response).to be_successful
+    end
+  end
+
+  # Add to Home Screen reads apple-touch-icon from layouts/application, not the
+  # title-bar <img>. The old coral/teal files in public/icons/ were a leftover
+  # from the 2025 rebrand (application.html.erb apple-touch-icon links).
+  describe "homescreen apple-touch-icon" do
+    render_views
+
+    def png_dimensions(path)
+      File.open(path, 'rb') do |f|
+        expect(f.read(8)).to eq("\x89PNG\r\n\x1a\n".b)
+        f.read(8) # chunk length + IHDR
+        f.read(8).unpack('NN')
+      end
+    end
+
+    it "should point Add to Home Screen at the current-brand 180 icon" do
+      get "index"
+      expect(response).to be_successful
+      expect(response.body).to include('rel="apple-touch-icon"')
+      expect(response.body).to include('/icons/logo-180.png')
+      expect(response.body).not_to include('https://www.lingolinq.com/icons/logo-60.png')
+    end
+
+    it "should ship square current-brand PNGs for each apple-touch size" do
+      {
+        60 => 'public/icons/logo-60.png',
+        76 => 'public/icons/logo-76.png',
+        120 => 'public/icons/logo-120.png',
+        152 => 'public/icons/logo-152.png',
+        180 => 'public/icons/logo-180.png'
+      }.each do |size, rel|
+        path = Rails.root.join(rel)
+        expect(File.exist?(path)).to eq(true), "missing #{rel}"
+        expect(png_dimensions(path)).to eq([size, size])
+      end
+      # Guard against restoring the Nov 2025 coral/teal logo-152.png.
+      expect(Digest::MD5.file(Rails.root.join('public/icons/logo-152.png')).hexdigest).not_to eq('09aafcc5c7757360bd0067355aa056ca')
+    end
+
+    it "should point ember serve at the same 180 icon" do
+      html = File.read(Rails.root.join('app/frontend/app/index.html'))
+      expect(html).to include('icons/logo-180.png')
+      expect(html).not_to include('rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png')
     end
   end
   
