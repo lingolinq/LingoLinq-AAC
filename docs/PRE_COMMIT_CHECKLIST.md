@@ -11,11 +11,11 @@ Check the PR's **Checks** section for the current required set.
 
 | Job | What it runs |
 |-----|--------------|
-| `build-and-test` | For application-relevant PRs and protected-branch pushes: Ember lint, build, and the full Chrome Headless suite. For PRs whose changes are entirely under `docs/**` and/or `audit-reports/**`: a fast-path classification step, while the required job still reports a result. |
+| `build-and-test` | For application-relevant PRs and protected-branch pushes: Ember lint, build, and the full Chrome Headless suite. For PRs whose changes are entirely under `docs/**` and/or `audit-reports/**`: reports success after classification without installing Node dependencies, linting, installing Chrome, building Ember, or running browser tests. |
 | `rspec` | `rails db:create db:schema:load`, repository guards, then `bundle exec rspec` (Postgres 15 + Redis 7, `RAILS_ENV=test`) |
 | `audit-artifacts-integrity` | Compliance register, publication, naming, attestation, capability, and consumer-integrity guards |
 | `codex-review-tests` | Codex review envelope, evidence-builder, and chunk-runner unit tests |
-| `security-scan` | Brakeman, bundle-audit, and npm audit |
+| `security-scan` | Brakeman and npm audit are advisory (`continue-on-error`); bundle-audit is blocking within this job |
 | `secret-detection` | Blocking gitleaks scan of newly introduced commit content |
 
 A green local `ember build`, `ember test`, and `rspec` covers the two full
@@ -88,5 +88,6 @@ Always re-run the whole `db:schema:load` step after a merge or any
 - Linting is not a separate gating job, but `ember test` will fail on any
   ESLint / ember-template-lint violation — treat lint as required.
 
-- `security-scan` / `secret-detection` are advisory only; do not block on
-  them, but do read gitleaks output for accidental secrets.
+- `security-scan` is blocking when `bundle-audit` fails; its Brakeman and npm-audit
+  steps are advisory. `secret-detection` is blocking and must be investigated—never
+  weaken or bypass its gitleaks scan to merge.
