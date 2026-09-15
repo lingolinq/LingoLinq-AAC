@@ -294,7 +294,7 @@ jobs:
     # two-person control: `prevent_self_review` is false, so whoever merges can approve their
     # own deployment. That is deliberate, so a single on-call engineer can ship a hotfix at
     # 2am. The actual two-person control is upstream and stronger: CODEOWNERS
-    # (`* @swahlquist @MelissaOneil`) plus `require_code_owner_reviews` plus a required
+    # (`* @swahlquist @MelissaOneil @traciday`) plus `require_code_owner_reviews` plus a required
     # approving review on `main`, which forces a second human onto every PR that gets here.
     # `staging` and `dev` carry no protection rules and proceed immediately.
     environment: ${{ needs.resolve.outputs.env_name }}
