@@ -438,9 +438,11 @@ Replaces the submitter-keyed gate that section 8 blocked. Two rules:
 
 ### Why this closes both blockers
 
-**BLOCKER 1 (laundering).** Authority flows only from NON-pending links
-(`Organization.manager_for?` filters `!l['state']['pending']`). A pending attachment grants the receiving
-org's managers nothing, so it no longer matters *who* submits. The throwaway-supervisor trick buys the
+**BLOCKER 1 (laundering).** The password-control path keys on NON-pending links
+(`Organization.manager_for?` filters `!l['state']['pending']`). Landing the attachment pending closes that
+path, so it no longer matters *who* submits. **Scope corrected 2026-09-15:** this sentence originally read
+"a pending attachment grants the receiving org's managers nothing". That was false and the second dual
+review falsified it; see section 11. The throwaway-supervisor trick buys the
 attacker nothing. Pinned by the spec "should defeat laundering through a second supervisor who manages
 nothing", which asserts `manager_for?` and `support_actions` both stay false.
 
@@ -524,3 +526,75 @@ end
 The code comment and section 10 previously stated the pending rule without qualification. That was an
 overclaim of the same kind as the retracted "fails closed" comment, and it is now corrected in
 `supervisor_key_authority.rb` rather than only here.
+
+
+---
+
+## 11. Second dual review: BLOCKED again. Two blockers, both re-verified.
+
+Run 2026-09-15 against `8b1267d4d` / `72b4d6be5`, baseline `4104b657b`. Codex senior-dev pass (exit 0) and
+Claude adversary pass, in parallel. PII guard PASS. Merged table:
+[2026-09-14_merged-findings-optionb.md](./2026-09-14_merged-findings-optionb.md).
+
+### BLOCKER 1 (Critical): `force_pending` reaches ONE of three link-creating branches
+
+`parse_activation_code` has three branches that create links. Only the communicator one was threaded:
+
+```ruby
+if type == 'communicator'
+  org_or_user.add_user(activate_for.user_name, force_pending, !!overrides['premium'], false)
+...
+elsif type == 'supporter'
+  org_or_user.add_supervisor(activate_for.user_name, false, !!overrides['premium'])
+```
+
+The supporter branch passes a hardcoded `false`, minting a NON-pending `org_supervisor` link, and
+`manager_for?` counts those alongside `org_user`. So minting the start code with `user_type: 'supporter'`
+bypasses option B entirely and reaches the same `support_actions` password write, with the same attacker
+preconditions. Neither task doc mentions `supporter`, `add_supervisor` or `user_type`: this branch was
+never examined, not examined and dismissed.
+
+### BLOCKER 2 (High): a pending attachment is NOT authority-free
+
+`User#managing_organization` ends with an unconditional fallback:
+
+```ruby
+org = orgs.detect{|o| o['type'] == 'user' && (pending ? o['pending'] : !o['pending']) && o['sponsored'] }
+org ||= orgs.detect{|o| o['type'] == 'user' && (pending ? o['pending'] : !o['pending']) }
+org ||= orgs.detect{|o| o['type'] == 'user' }
+```
+
+The third line applies no pending filter, so a user whose only org link is pending still resolves to that
+org. That method is what `lib/feature_flags.rb`, `lib/compliance/jurisdiction_resolver.rb`,
+`lib/compliance/segment_resolver.rb`, `lib/eu_jurisdiction.rb`, `app/models/ai_focus_word_set.rb` and
+`lib/system_feature_settings.rb` all read. A pending third-party attachment therefore still relocates the
+target's **data policy (including the logging kill switch), AI gating, EU jurisdiction and compliance
+segment**.
+
+This falsifies the claim option B was recommended on. The false sentence had propagated into three durable
+places (the authority object, the spec header, and this doc) and has been corrected in all three. Fixing
+the fallback is a compliance behaviour change, so it is held for a decision rather than patched.
+
+### The pattern, named rather than excused
+
+Two designs blocked, and both times the root cause was the same step of the fix discipline: fact (a),
+*where is the value actually READ*. The compliance readers were enumerated in the very first fact sheet of
+[the claim_user log](./2026-09-14_claim-user-cross-tenant-takeover.md), then never re-checked against the
+pending distinction the whole design rested on. Three overclaims have now been caught the same way
+("fails closed", "lands pending" unconditionally, "grants nothing"). The lesson is specific: when a design
+turns on a NEW distinction, every previously-enumerated reader must be re-read against that distinction,
+not assumed to inherit it.
+
+### Confirmed sound by this pass
+
+The ratification gate and its nil-org rejection; `claim_user`'s target guard and its four specs; the actor
+threading (the reviewer enumerated every `User#process` caller and found none reachable that omits the
+updater, which downgrades the fail-open soft spot in section 10); and the specs themselves, where all
+three degenerate implementations die.
+
+### Not fixed here
+
+Both blockers, and the two codex P1s (ratification never allocates a seat; `claim_user` has no row lock
+against concurrent claims). The supporter branch is a straightforward thread-through. The
+`managing_organization` fallback is not: making it pending-aware changes which org governs a user's data
+policy and AI gating, which is a compliance decision.

@@ -5,12 +5,24 @@
 #   ATTACHMENT by a third party is ALLOWED, but lands PENDING.
 #   RATIFICATION is SELF-ONLY, because consent is given BY a party, not FOR one.
 #
-# Why pending rather than refusing. Authority flows only from NON-pending links:
-# Organization.manager_for? selects the target's links with `!l['state']['pending']`,
-# app/models/user.rb grants 'support_actions' on that basis, and
-# Api::UsersController#update turns 'support_actions' into a password write. So a
-# pending attachment grants the receiving org's managers nothing, and the defect
-# is closed at the source instead of being gated after the fact.
+# Why pending rather than refusing. The PASSWORD-CONTROL path keys on NON-pending
+# links: Organization.manager_for? selects the target's links with
+# `!l['state']['pending']`, app/models/user.rb grants 'support_actions' on that
+# basis, and Api::UsersController#update turns 'support_actions' into a password
+# write. Landing the attachment pending therefore closes that path at the source.
+#
+# SCOPE, and do NOT widen this claim: pending closes the support_actions path
+# ONLY. It is NOT authority-free in general. An earlier version of this comment
+# said a pending attachment "grants the receiving org's managers nothing"; the
+# dual review falsified that. User#managing_organization
+# (app/models/concerns/supervising.rb) ends with an UNCONDITIONAL fallback,
+# `org ||= orgs.detect{|o| o['type'] == 'user' }`, which returns pending links,
+# and that method is what lib/feature_flags.rb, lib/compliance/jurisdiction_resolver.rb,
+# lib/compliance/segment_resolver.rb, lib/eu_jurisdiction.rb,
+# app/models/ai_focus_word_set.rb and lib/system_feature_settings.rb all read. So a
+# pending third-party attachment still relocates the target's data policy, AI
+# gating and EU/compliance jurisdiction. Closing that is a compliance behaviour
+# change and is held for a decision, not fixed here.
 #
 # This also defeats laundering, which is what sank the previous submitter-keyed
 # design: an attacker who manages the org could mint a throwaway supervisor via

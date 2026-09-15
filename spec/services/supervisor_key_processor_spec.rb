@@ -378,11 +378,15 @@ describe SupervisorKeyProcessor, :type => :model do
   # ATTACHMENT by a third party is allowed but lands PENDING, never active.
   # RATIFICATION is self-only, because consent is given BY a party, not FOR one.
   #
-  # Why pending rather than refusing: authority flows only from NON-pending links
-  # (Organization.manager_for? filters `!l['state']['pending']`), so a pending
-  # attachment grants the receiving org's managers nothing. That closes the
-  # laundering bypass, because it no longer matters WHO submits, and it keeps the
-  # school/clinic onboarding path working instead of failing it silently.
+  # Why pending rather than refusing: the PASSWORD-CONTROL path keys on
+  # NON-pending links (Organization.manager_for? filters `!l['state']['pending']`),
+  # so landing the attachment pending closes it, regardless of WHO submits, and
+  # keeps the school/clinic onboarding path working instead of failing it silently.
+  #
+  # These specs pin the support_actions property ONLY. Pending is NOT
+  # authority-free in general: User#managing_organization has an unconditional
+  # fallback that returns pending links, so compliance jurisdiction and AI gating
+  # still move. Do not read a green run here as proof of that broader property.
   #
   # Driven through User#process with an 'updater', the real request path, so these
   # pin behaviour rather than a method signature.
