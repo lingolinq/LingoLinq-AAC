@@ -55,7 +55,24 @@ class SupervisorKeyAuthority
     @actor.global_id == @target.global_id
   end
 
-  # Third-party attachment is permitted, but must land pending.
+  # Third-party attachment is permitted, but should land pending.
+  #
+  # "Should", not "will": this expresses the CALLER's intent, and
+  # User#update_subscription_organization (app/models/concerns/subscription.rb)
+  # overrides it to false in two cases, both verified:
+  #
+  #   1. `if new_org && self.settings['authored_organization_id'] == new_org.global_id
+  #       && self.created_at > 2.weeks.ago` -- an org that AUTHORED the account
+  #      attaches it immediately for the first two weeks. Defensible (the org
+  #      created the account) and not an escalation against a pre-existing user,
+  #      since the attacker would be attaching an account they made themselves.
+  #      But it is a real exception, so do not read this method as a guarantee.
+  #   2. `if link.id && !link.data['state']['pending']` -- an already-consented
+  #      link is never re-pended. Benign: consent was already given.
+  #
+  # Neither is changed here. They are recorded so nobody reads the pending rule
+  # as unconditional, and so case 1 gets its own decision rather than being
+  # inherited silently.
   def attachment_must_be_pending?
     !self_action?
   end

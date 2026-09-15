@@ -497,3 +497,30 @@ Phase 2.
 matters), but it is still an unauthenticated capability: anyone holding `edit` on a user can add arbitrary
 accounts as that user's supervisor. Separate finding, separate fix. The consent-actor defect in section 9.2
 is also untouched.
+
+### Correction: "lands pending" is not unconditional
+
+Found during the re-review pre-flight, before the reviewers reported. `force_pending: true` expresses the
+caller's intent, but `User#update_subscription_organization` overrides it to `false` in two places:
+
+```ruby
+if new_org && self.settings['authored_organization_id'] == new_org.global_id && self.created_at > 2.weeks.ago
+  pending = false
+end
+...
+link = UserLink.generate(self, new_org, 'org_user')
+if link.id && !link.data['state']['pending']
+  pending = false
+end
+```
+
+1. **Org-authored accounts, first two weeks.** An org that created the account attaches it immediately,
+   not pending. Defensible, and not an escalation against a pre-existing user (the attacker would be
+   attaching an account they created themselves), but it is a genuine exception to the rule as stated. It
+   also overlaps the school-authorized creation path that LL-c7bbfa452a is about, so it deserves its own
+   decision rather than being inherited by accident.
+2. **Already-consented links are never re-pended.** Benign: consent was already given.
+
+The code comment and section 10 previously stated the pending rule without qualification. That was an
+overclaim of the same kind as the retracted "fails closed" comment, and it is now corrected in
+`supervisor_key_authority.rb` rather than only here.
