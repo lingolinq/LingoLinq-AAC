@@ -1581,10 +1581,10 @@ tests/utils/scanner-test.js|ember/no-runloop|1424|9|2|513c0395fe72
 tests/utils/scanner-test.js|ember/no-runloop|938|28|2|5addc2170315
 tests/utils/scanner-test.js|ember/no-runloop|958|28|2|5addc2170315
 tests/utils/session-test.js|ember/no-runloop|385|11|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|732|13|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|735|9|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|754|13|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|938|7|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|741|13|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|744|9|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|763|13|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|947|7|2|b7a9757b024f
 tests/utils/stashes-test.js|ember/no-runloop|121|11|2|513c0395fe72
 tests/utils/stashes-test.js|ember/no-runloop|58|13|2|513c0395fe72
 tests/utils/stashes-test.js|ember/no-runloop|62|13|2|513c0395fe72
