@@ -4,13 +4,13 @@ import app_state from '../utils/app_state';
 import $ from 'jquery';
 import utterance from '../utils/utterance';
 import LingoLinq from '../app';
-import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet } from '@ember/object';
 import persistence from '../utils/persistence';
 import { computed, observer } from '@ember/object';
 import stashes from '../utils/_stashes';
 import { display_name_for } from '../utils/display_name';
+import backend_user_id from '../utils/backend_user_id';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -23,7 +23,7 @@ export default modal.ModalController.extend({
       button_list: settings.utterance, 
       timestamp: (new Date()).getTime() / 1000,
       sentence: utterance.sentence(settings.utterance),
-      user_id: app_state.get('referenced_user.id')
+      user_id: backend_user_id(app_state.get('referenced_user'))
     });
     this.set('text_only', !!app_state.get('text_only_shares') || !!stashes.get('text_only_shares'));
     u.assert_remote_urls();
@@ -46,7 +46,7 @@ export default modal.ModalController.extend({
         res.push({
           user_name: contact.name,
           avatar_url: contact.image_url,
-          id: app_state.get('referenced_user.id') + 'x' + contact.hash
+          id: backend_user_id(app_state.get('referenced_user')) + 'x' + contact.hash
         });
       });
       if(app_state.get('referenced_user.supporter_role')) {
@@ -157,7 +157,7 @@ export default modal.ModalController.extend({
     copy_event(res) {
       if(res) {
         this.set('copy_result', {succeeded: true});
-        runLater(function() {
+        window.setTimeout(function() {
           modal.close();
         }, 3000);
       } else {

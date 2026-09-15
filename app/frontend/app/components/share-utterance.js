@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { set as emberSet } from '@ember/object';
 import { computed, observer } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
 import modal from '../utils/modal';
@@ -13,6 +12,7 @@ import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
 import { display_name_for } from '../utils/display_name';
+import backend_user_id from '../utils/backend_user_id';
 
 /**
  * Share Utterance modal (Phase 2).
@@ -68,7 +68,7 @@ export default Component.extend({
       button_list: settings.utterance,
       timestamp: (new Date()).getTime() / 1000,
       sentence: utterance.sentence(settings.utterance),
-      user_id: app_state.get('referenced_user.id')
+      user_id: backend_user_id(app_state.get('referenced_user'))
     });
     this.set('text_only', !!app_state.get('text_only_shares') || !!stashes.get('text_only_shares'));
     // Contact list starts clamped to its first three rows (the clamp itself is a
@@ -141,7 +141,7 @@ export default Component.extend({
         res.push({
           user_name: contact.name,
           avatar_url: contact.image_url,
-          id: app_state.get('referenced_user.id') + 'x' + contact.hash
+          id: backend_user_id(app_state.get('referenced_user')) + 'x' + contact.hash
         });
       });
       if (app_state.get('referenced_user.supporter_role')) {
@@ -267,7 +267,7 @@ export default Component.extend({
     copy_event(res) {
       if (res) {
         this.set('copy_result', { succeeded: true });
-        runLater(() => {
+        window.setTimeout(() => {
           modal.close();
         }, 3000);
       } else {
