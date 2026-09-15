@@ -11,7 +11,7 @@
     {{#if this.model.progress}}
       {{#if this.model.progress.percent}}
         <div class="progress">
-          <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{this.num_style}}>
+          <div class="progress-bar" role="progressbar" aria-valuenow={{this.num_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.num_style}}>
             <span class="sr-only">
               {{t "%{pct}% Complete" key="percent_complete" pct=this.num_percent}}
             </span>

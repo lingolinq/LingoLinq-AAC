@@ -163,9 +163,14 @@
     {{/if}}
   {{/if}}
   </div>
-  <div class="md-logs__back-row">
-    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
-  </div>
+  {{!-- The "Back to Account" row was removed here (requested 2026-09-14). It was a
+       `.md-logs__back-row` holding one LinkTo, and the row carried the horizontal rule above
+       it, so both went together.
+       NOT a navigation dead end: the global navbar's identity dropdown
+       (app-navbar-authenticated-inner) is on this page and carries Account among its links,
+       so there is still a route back without the browser's back button.
+       The sibling pages user/goals.hbs and user/recordings.hbs still have the same row; they
+       were not part of the request, so they are untouched. --}}
 </div>
 {{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>

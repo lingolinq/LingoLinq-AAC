@@ -1,22 +1,32 @@
 {{#if this.model.valid_id}}
   {{outlet}}
 {{else}}
-  <div class="board_status">
+  {{!-- `board-load-error` + `role="alert"` added 2026-09-14 so this matches the panel
+       board/index.hbs and user/board-alt/index.hbs already render. This block replaces
+       `{{outlet}}`, so it has NO `.board` ancestor and `.board .board_status` (app.scss:8572)
+       — which is where centring and font-size come from — never matched it. That is why the
+       message sat hard left while the buttons centred themselves. `board_status` is kept so
+       the shared `.board_status` rules and the eval-intro hide still apply. --}}
+  <div class="board_status board-load-error" role="alert">
     {{#if (persistence-online)}}
       {{#if this.model.error.deleted}}
-        <p>{{t "This board has been deleted." key="board_deleted"}}</p>
+        <h2 class="board-load-error__title">{{t "Board deleted" key="board_deleted_title"}}</h2>
+        <p class="board-load-error__message">{{t "This board has been deleted." key="board_deleted"}}</p>
         {{#if this.model.show_history}}
           {{outlet}}
         {{else if this.model.error.key}}
           <p><LinkTo @route="board.history" @model={{this.model.error.id}}>{{t "Review the edit history for this board." key="review_edit_history"}}</LinkTo></p>
         {{/if}}
       {{else if this.model.error.never_existed}}
-        <p>{{t "It looks like this board doesn't exist. Please check the link that brought you here to make sure it's correct." key="board_doesnt_exist"}}</p>
+        <h2 class="board-load-error__title">{{t "Board not found" key="board_not_found_title"}}</h2>
+        <p class="board-load-error__message">{{t "It looks like this board doesn't exist. Please check the link that brought you here to make sure it's correct." key="board_doesnt_exist"}}</p>
       {{else}}
-        <p>{{t "You don't have permission to access this board, or it isn't currently available." key="no_permissions"}}</p>
+        <h2 class="board-load-error__title">{{t "Board unavailable" key="board_unavailable_title"}}</h2>
+        <p class="board-load-error__message">{{t "You don't have permission to access this board, or it isn't currently available." key="no_permissions"}}</p>
       {{/if}}
     {{else}}
-      <p>{{t "This board isn't available, or hasn't been synced for offline use." key="board_not_synced"}}</p>
+      <h2 class="board-load-error__title">{{t "Not available offline" key="board_offline_title"}}</h2>
+      <p class="board-load-error__message">{{t "This board isn't available, or hasn't been synced for offline use." key="board_not_synced"}}</p>
     {{/if}}
     {{#unless this.session.isAuthenticated}}
       <div style="margin: 50px 15px;">

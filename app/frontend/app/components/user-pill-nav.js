@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
+import { pendingUpdates, PENDING_UPDATE_KEYS } from '../utils/pending_updates';
 
 /**
  * Shared primary pill-nav for the user-level pages (Boards / Reports / the
@@ -37,6 +38,18 @@ export default Component.extend({
      role (2026-09-02); it used to read "Dashboard" for strictly-SLP users.
      Falls back to "Menu" only when `@active` names nothing this nav renders — the trigger
      must always have a label. */
+  /* The Updates badge count. Shares one definition with classic view's Updates tab via
+     utils/pending_updates — the arithmetic used to live only on
+     components/dashboard/authenticated-view.js, and a second copy here would have been free
+     to drift. PENDING_UPDATE_KEYS supplies the dependent keys so this cannot watch a subset
+     by accident and show a stale badge. */
+  pendingUpdates: computed(
+    ...PENDING_UPDATE_KEYS.map(function(k) { return 'appState.currentUser.' + k; }),
+    function() {
+      return pendingUpdates(this.appState.get('currentUser'));
+    }
+  ),
+
   activeLabel: computed('active', function() {
     switch (this.get('active')) {
       case 'home':
@@ -46,6 +59,7 @@ export default Component.extend({
       case 'boards': return i18n.t('boards', "Boards");
       case 'reports': return i18n.t('reports', "Reports");
       case 'extras': return i18n.t('extras', "Extras");
+      case 'updates': return i18n.t('updates', "Updates");
       default: return i18n.t('menu', "Menu");
     }
   })

@@ -1,8 +1,92 @@
-<header class="md-hero md-hero--dashboard md-hero--dashboard-user">
-  <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Account" key="my_account"}}</span></h1>
-  <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "View your account" key="account_sub_pre"}} <em class="md-hero__gradient-text">{{t "details" key="account_sub_em"}}</em></span></p>
-</header>
+{{!-- NOT RENDERED IN FOCUSED (fixed 2026-09-14). This hero was always rendered and then
+     hidden by `body.ll-layout-focused .md-hero--dashboard { display: none }`, and the class
+     that rule needs is applied from an OBSERVER on the user record
+     (services/app-state.js#sync_layout_scope) — which runs after first paint. So Focused
+     users saw the Gentle title and subtitle appear and then vanish.
+     Asking the layout directly means the element is never built. `effectiveLayout` lives on
+     app-state for exactly this: a template can read it, a body class cannot be read back.
+     The CSS rule is deliberately left in place — it still covers the other pages that share
+     `.md-hero--dashboard`, and it is the correct fallback for the one case this cannot fix
+     (a hard reload, where the user record is still resolving at first render). --}}
+{{#unless (is-equal this.app_state.effectiveLayout "focused")}}
+  <header class="md-hero md-hero--dashboard md-hero--dashboard-user">
+    <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Account" key="my_account"}}</span></h1>
+    <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "View your account" key="account_sub_pre"}} <em class="md-hero__gradient-text">{{t "details" key="account_sub_em"}}</em></span></p>
+  </header>
+{{/unless}}
 <div class="md-user-summary">
+  {{!-- ACCOUNT RAIL (requested 2026-09-14) — replaces the pill row that used to sit at the
+       top of this page. That row looked enough like the home dashboard's nav to read as
+       "you are on the home page"; a left rail reads as this page's own navigation. The
+       parent (templates/user.hbs) suppresses its pill row here via `accountRailContext`, so
+       there is exactly one menu.
+
+       IT FLOATS, and that is what satisfies "left of the account items but NOT left of the
+       boards". A wrapper div cannot do it: `.md-user-summary` spans this whole template and
+       the boards block sits inside an `{{#if}}`, so an element wrapping everything above it
+       would be unbalanced inside that block and Glimmer would reject it. A float needs no
+       wrapper — content flows beside it, and `.ub-boards-page` takes `clear: left` further
+       down so the boards start below the rail at full width.
+
+       Both groups the request named: the five destinations from the account pill row, then
+       the four quick links that used to be the `.md-user-summary__quick-pills` row below
+       (now removed, since they live here). --}}
+  {{!-- THE TOP REGION — rail beside the account content, boards full width below it.
+       A real two-column row, replacing the absolutely-positioned rail and the reserved
+       `padding-left` gutter it needed. That arrangement could not make the rail's panel end
+       where the action cards end (requested 2026-09-14): an out-of-flow element has no
+       relationship to its siblings' heights, and there was no container that stopped at the
+       actions to anchor it to. This flex row IS that container, so `align-items: stretch`
+       levels the two columns for free and the panel always ends exactly where the content
+       beside it does.
+       THE `view_detailed` GATE IS SPLIT to make this possible. It used to open above the
+       hero and close after the boards, which straddled this boundary — no element could wrap
+       the hero (outside it) and the action cards (inside it) without crossing the block, and
+       Glimmer requires elements to balance within one block. It now closes at the end of the
+       actions and reopens immediately for the rest, which is the same condition evaluated
+       twice and renders identically. --}}
+  <div class="md-acct-top">
+  <nav class="md-acct-rail" aria-label={{t "Account menu" key="account_menu"}}>
+    <LinkTo @route="index" class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Home" key="home"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-acct-rail__row is-active" aria-current="page">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Account" key="account_lower"}}</span>
+    </LinkTo>
+    {{#if this.model.permissions.edit}}
+    <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" stroke="#2A9D8F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Profile" key="profile_lower"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Settings" key="preferences_lower"}}</span>
+    </LinkTo>
+    {{/if}}
+    <LinkTo @route="user.logs" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Logs" key="logs"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#46505F"/><line x1="2" y1="10" x2="22" y2="10" stroke="#2A9D8F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "My Subscription" key="my_subscription"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#2A9D8F"/><path d="M5 10v2a7 7 0 0 0 14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="22" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Recordings" key="recordings"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="5" stroke="#46505F"/><circle cx="12" cy="12" r="1.5" fill="#2A9D8F" stroke="none"/></svg></span>
+    <span class="md-acct-rail__label">{{t "My Goals" key="goals"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.stats" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Reports" key="reports"}}</span>
+    </LinkTo>
+  </nav>
+    <div class="md-acct-main">
   <header class="md-hero md-hero--user">
     <div class="md-hero--user__avatar-wrap">
       <img src={{this.model.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} {{image-fallback-to-rel}} alt="" class="md-hero--user__avatar">
@@ -76,12 +160,9 @@
     </button>
   </header>
   <hr class="md-user-summary__page-divider" aria-hidden="true">
-  <div class="md-user-summary__quick-pills">
-    <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Subscription" key="my_subscription"}}</LinkTo>
-    <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "Recordings" key="recordings"}}</LinkTo>
-    <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Goals" key="goals"}}</LinkTo>
-    <LinkTo @route="user.stats" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "Reports" key="reports"}}</LinkTo>
-  </div>
+  {{!-- The four quick pills that sat here moved into `.md-acct-rail` above (2026-09-14) —
+       same four destinations, same four keys, now in the page's one menu instead of a second
+       row of their own. --}}
 {{#if this.model.permissions.view_detailed}}
   {{#if this.model.permissions.delete}}
     {{#if this.model.pending_org}}
@@ -173,8 +254,9 @@
             </span>
           </LinkTo>
         {{/if}}
-        {{!-- Reports + Goals big buttons removed — the quick pills at the top of
-             this page (.md-user-summary__quick-pill) are the canonical entry points. --}}
+        {{!-- Reports + Goals big buttons removed — the ACCOUNT RAIL at the top-left of this
+             page (.md-acct-rail) is the canonical entry point for both. It used to be the
+             quick-pill row, which the rail replaced on 2026-09-14. --}}
         {{!-- Supervision / Supervisors --}}
         <button type="button" class="md-acct-card md-acct-card--green" {{on "click" (this.ctrlAction "supervision_settings")}} aria-label={{if this.model.supporter_role (t "Supervision" key="supervision") (t "Supervisors" key="supervisors")}}>
           <span class="md-acct-card__icon" aria-hidden="true">
@@ -363,6 +445,10 @@
       {{! Launch wizard moved into user hero card }}
     {{/if}}
   </div>
+    {{/if}}
+    </div>
+  </div>
+  {{#if this.model.permissions.view_detailed}}
   {{#unless this.app_state.currentUser.preferences.new_index}}
   <div class="md-user-activity">
     {{#if this.model.permissions.edit}}
@@ -498,7 +584,12 @@
       </div>
     </div>
     {{/if}}
-    <div class="ub-boards-page">
+    {{!-- `--split` opts this embed into the SAME folders/boards layout the boards page
+         uses: folders beside the grid above 900px, stacked below it. The rules live in
+         app.scss scoped to that class; before it, they were scoped to `#content.boards-page`
+         and this page — which renders the identical <BoardsBrowser> — got the stacked
+         fallback at every width (requested 2026-09-14). --}}
+    <div class="ub-boards-page ub-boards-page--split">
       <BoardsBrowser @boardsCtrl={{this}} @showNewBoard={{false}} @headingId="available-boards-heading" @filterInputId="account-boards-filter" />
     </div>
   {{#if this.model.permissions.support_actions}}

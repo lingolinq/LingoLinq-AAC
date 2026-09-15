@@ -108,6 +108,11 @@ $brand-dusty-denim-aa:     #2860C9;  // 4.65:1 on white
 // most transparent, both under the 4.5:1 that 11px text needs. This one holds 5.4:1 at that
 // same worst case and 7.76:1 on white.
 $brand-verdigris-ink:      #115C5B;  // 7.76:1 on white, 5.41:1 worst case on the nav glass
+// The denim twin of the swatch above, and it exists for the same reason. $brand-dusty-denim-aa
+// is measured against #fff (5.82:1) and drops to 4.13:1 on the shared chip surface
+// (`_chips.scss`, darkest stop #D2DAE5) — under the 4.5:1 body text owes. This one holds
+// 5.49:1 there. Use it for a link on any surface that is not pure white.
+$brand-dusty-denim-ink:    #1F4EA8;  // 7.74:1 on white, 5.49:1 on the chip
 
 // Stone scale (warm neutral background gradient — used by hero/landing-alt)
 $brand-stone-100:          #F4F3F0;

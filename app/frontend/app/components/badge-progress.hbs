@@ -1,9 +1,35 @@
-<div style={{this.badge_container_style}}>
+{{!-- `badge-progress--modern` is opt-in via `@modern={{true}}`, passed only by classic-view's
+     communicator cards. It swaps the legacy Bootstrap bar and the generic medal for the same
+     treatment the Badge In Progress modal uses. The component's inline styles are suppressed
+     when the flag is set (badge-progress.js) — without that the stylesheet could not reach
+     these elements, since an inline style outranks it. The caseload page and the app-chrome
+     inline variant pass nothing and are unaffected. --}}
+<div class="badge-progress {{if this.modern 'badge-progress--modern'}}" style={{this.badge_container_style}}>
   <a href="#" {{on "click" (this.ctrlAction "badge_popup")}}>
-    {{#if this.badge.image_url}}
-      <img src={{this.badge.image_url}} style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+    {{#if this.modern}}
+      {{!-- LOCAL ARTWORK ONLY — the remote badge image is deliberately not requested here
+           (requested 2026-09-14).
+
+           WHY: `badge.image_url` is usually a remote OpenSymbols asset. On a cold load it is
+           not in the local cache, so the browser spends a full failed round-trip to S3 before
+           `onerror` fires and Button.broken_image swaps a placeholder in — the <img> is blank
+           for that whole time. The placeholder was only ever a FALLBACK, so it could not be
+           requested until the real URL had finished failing. Pointing `src` straight at the
+           local SVG removes the network step entirely and it paints on first render.
+
+           THE TRADE: a badge that DOES have working artwork no longer shows it on the card —
+           every in-progress badge renders as the generic placeholder. The badge's name and
+           its progress bar still identify it, and the modal it opens is unaffected and still
+           loads the real art.
+
+           TO REVERT: delete this branch. The `{{else if this.badge.image_url}}` below is the
+           original behaviour, untouched, and is still what the caseload page and the app
+           chrome use. --}}
+      <img src={{path "images/badge-in-progress.svg"}} alt="" style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+    {{else if this.badge.image_url}}
+      <img src={{this.badge.image_url}} alt="" style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     {{else}}
-      <img src={{path "images/badge-fallback.png"}} style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+      <img src={{path "images/badge-fallback.png"}} alt="" style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     {{/if}}
     <div class="progress" style={{this.progress_container_style}}>
       <div class="progress-bar progress-bar-warning" role="progressbar" aria-valuenow={{this.badge_progress}} aria-valuemin="0" aria-valuemax="100" style={{this.progress_style}}>

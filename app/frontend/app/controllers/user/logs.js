@@ -20,7 +20,16 @@ export default Controller.extend({
   app_state: alias('appState'),
   router: service('router'),
   store: service(),
-  queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
+  /* `nav` is NOT a filter — it records which menu the user arrived through, so
+     templates/user.hbs can keep the home pill-nav on screen instead of swapping to the
+     account nav (see `homeNavContext` on controllers/user.js). It lives in the URL rather
+     than in transient state so a reload, a bookmark or the back button all keep the nav the
+     user was actually using. Declared here because a query param Ember does not know about
+     is dropped from the URL on the next transition.
+     NOTE it is deliberately absent from `filtered_results` below: it does not narrow the
+     result set, and counting it as a filter would show a spurious "(filtered) clear filter"
+     on a page the user simply navigated to. */
+  queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id', 'nav'],
   user: reads('model'),
   reset_params: function() {
     var _this = this;
@@ -34,6 +43,7 @@ export default Controller.extend({
     return !!(this.get('start') || this.get('end') || this.get('device_id') || this.get('location_id'));
   }),
   type: null,
+  nav: null,
   start: null,
   end: null,
   device_id: null,

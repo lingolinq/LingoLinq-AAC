@@ -51,7 +51,7 @@
             <div class="md-modal-status md-modal-status--info">{{this.status_message}}</div>
             {{#if this.progress.percent}}
               <div class="md-modal-progress">
-                <div class="md-modal-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{this.num_style}}>
+                <div class="md-modal-progress__bar" role="progressbar" aria-valuenow={{this.num_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.num_style}}>
                 </div>
               </div>
             {{/if}}

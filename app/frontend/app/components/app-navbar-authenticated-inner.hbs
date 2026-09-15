@@ -16,7 +16,18 @@
          hide the search field on the device page and had nothing else inside. --}}
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
-        {{#unless this.isClassic}}{{#if this.appState.feature_flags.home_tour}}<GuidedTour />{{/if}}{{/unless}}
+        {{!-- MOUNTED IN CLASSIC TOO, with its button suppressed (fixed 2026-09-14).
+             This was `{{#unless this.isClassic}}…<GuidedTour />…{{/unless}}`, which hid the
+             navbar trigger in classic — correct, since the classic page offers the tour from
+             its own rail row and intro card — but it removed the COMPONENT, and the component
+             is what listens for `auto_open_home_tour`. Both classic buttons call
+             `start_tour` (components/dashboard/classic-view.js:296), which sets that flag and
+             nothing else; with no instance mounted, nothing consumed it and neither button
+             did anything. The classic tour itself was fine all along — utils/tours/registry.js
+             maps it to `buildClassicHomeSteps` and every one of its six targets is present in
+             classic-view.hbs.
+             `@triggerless` keeps the navbar chrome exactly as it was in both views. --}}
+        {{#if this.appState.feature_flags.home_tour}}<GuidedTour @triggerless={{this.isClassic}} />{{/if}}
         {{!-- Display Style button — home page ONLY. `empty_header` is true on every
              default-mode page (boards / reports / extras / account, etc.), so it must
              be further gated to the home dashboard route so the button doesn't leak

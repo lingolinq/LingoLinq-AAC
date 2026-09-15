@@ -1,4 +1,5 @@
 @use "variables" as *;
+@use "chips" as *;
 @use "focus" as *;
 
 /* ==============================================================
@@ -690,12 +691,13 @@ $bp-target: 44px;
   min-height: 64px;
   height: auto;
   padding: 8px 14px;
-  border: 1px solid rgba($la-navy, 0.09) !important;
   border-radius: $bp-radius-card !important;
-  background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFD 100%) !important;
-  box-shadow:
-    0 1px 2px rgba(27, 54, 93, 0.07),
-    0 4px 12px rgba(27, 54, 93, 0.08) !important;
+  // THE SAME CHIP AS EVERY OTHER BOARD CARD (requested 2026-09-14). A compact ROW and a
+  // detailed card are the same object at two densities, so they take one surface; only the
+  // radius differs, and it is stated above rather than coming from the mixin.
+  // `$imp` for the reason this block's header already gives: `board-card-modern` marks these
+  // `!important`, so a plain declaration here loses however specific it is.
+  @include ch-chip('!important');
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
 }
@@ -787,12 +789,18 @@ $bp-target: 44px;
      well rather than a bare glyph: it gives the right edge a defined affordance
      without competing with the name. */
   background: rgba($la-navy, 0.04);
-  color: rgba($la-navy, 0.42);
+  // 0.42 -> 0.64. The chevron is the row's only directional affordance, so it is non-text UI
+  // under WCAG 1.4.11 and owes 3:1 against its own well (the 0.04 navy above, #CBD3E0 once
+  // the card is the chip). It measured 2.29 on the old near-white row — already failing —
+  // and 2.12 on the chip; 0.64 reads 3.43.
+  color: rgba($la-navy, 0.64);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover .board-icon__row-chevron {
   background: rgba($brand-verdigris, 0.12);
-  color: $brand-verdigris-aa;
+  // $brand-verdigris-aa is measured on WHITE and drops to 3.26 against this well once the
+  // card is the chip. $brand-verdigris-ink is the token for teal that is NOT on white: 5.01.
+  color: $brand-verdigris-ink;
 }
 
 /* Suppressed in compact: size chip, language marker, CC-By credit, byline.
@@ -846,12 +854,13 @@ $bp-target: 44px;
   min-height: 64px;
   height: auto;
   padding: 8px 14px;
-  border: 1px solid rgba($la-navy, 0.09) !important;
   border-radius: $bp-radius-card !important;
-  background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFD 100%) !important;
-  box-shadow:
-    0 1px 2px rgba(27, 54, 93, 0.07),
-    0 4px 12px rgba(27, 54, 93, 0.08) !important;
+  // THE SAME CHIP AS EVERY OTHER BOARD CARD (requested 2026-09-14). A compact ROW and a
+  // detailed card are the same object at two densities, so they take one surface; only the
+  // radius differs, and it is stated above rather than coming from the mixin.
+  // `$imp` for the reason this block's header already gives: `board-card-modern` marks these
+  // `!important`, so a plain declaration here loses however specific it is.
+  @include ch-chip('!important');
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
 }
@@ -943,12 +952,18 @@ $bp-target: 44px;
      well rather than a bare glyph: it gives the right edge a defined affordance
      without competing with the name. */
   background: rgba($la-navy, 0.04);
-  color: rgba($la-navy, 0.42);
+  // 0.42 -> 0.64. The chevron is the row's only directional affordance, so it is non-text UI
+  // under WCAG 1.4.11 and owes 3:1 against its own well (the 0.04 navy above, #CBD3E0 once
+  // the card is the chip). It measured 2.29 on the old near-white row — already failing —
+  // and 2.12 on the chip; 0.64 reads 3.43.
+  color: rgba($la-navy, 0.64);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover .board-icon__row-chevron {
   background: rgba($brand-verdigris, 0.12);
-  color: $brand-verdigris-aa;
+  // $brand-verdigris-aa is measured on WHITE and drops to 3.26 against this well once the
+  // card is the chip. $brand-verdigris-ink is the token for teal that is NOT on white: 5.01.
+  color: $brand-verdigris-ink;
 }
 
 /* Suppressed in compact: language marker, CC-By credit, byline.

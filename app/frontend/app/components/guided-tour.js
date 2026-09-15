@@ -363,6 +363,33 @@ export default Component.extend({
     }
   }),
 
+  // A PLAIN, USER-REQUESTED TOUR — what the navbar trigger does, reachable by a page that
+  // renders its own button instead. The classic home page is the only caller today: it offers
+  // the tour from a rail row and from its intro card
+  // (components/dashboard/classic-view.js#start_tour), and has no handle on this component.
+  //
+  // IT IS DELIBERATELY NOT `auto_open_home_tour`, which is what classic used to raise and why
+  // its buttons misbehaved even once an instance was mounted. That flag is the
+  // NEWLY-REGISTERED-USER signal, and consuming it does two things a "Take a tour" button must
+  // never do: it binds `afterComplete` → `transitionTo('board-picker')`, so ANY ending of the
+  // tour (finish or cancel) yanks the user off the page they asked to be shown around
+  // (_startHomeAutoOpen), and for a supporter it routes to the caseload tour instead
+  // (_startAutoOpen's supporter branch). This path has neither: it starts the tour for the
+  // page the user is actually on and leaves them there.
+  //
+  // Cleared on consumption so a second click re-fires — an observer only runs on CHANGE, and
+  // a flag left true would make the button work exactly once per page load.
+  _manualStartWatcher: observer('appState.start_home_tour', function() {
+    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (!this.get('appState.start_home_tour')) { return; }
+    this.get('appState').set('start_home_tour', false);
+    // Nothing to start if this page has no tour. The button that raised the flag is expected
+    // to hide itself in that case (classic gates its row on the same feature flag), but a
+    // guard here keeps a stray signal from throwing inside the builder.
+    if (!this.get('tourBuilder')) { return; }
+    this._startTour();
+  }),
+
   // True only when THIS instance is the board-detail EDIT tour (edit mode on a
   // board-detail route → tourKey 'board_detail_edit_*'). The auto-start guard must
   // use this, NOT a bare `tourBuilder` truthy check: the pending flag would be

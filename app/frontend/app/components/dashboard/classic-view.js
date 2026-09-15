@@ -146,6 +146,36 @@ export default AuthenticatedView.extend({
   // two pages render the same `known_supervisees` list and should behave the same.
   superviseeFilter: '',
 
+  boardFilter: '',
+
+  /**
+   * Boards narrowed by `boardFilter`. Mirrors `filteredSupervisees` above so the two
+   * filters on this page behave the same way.
+   *
+   * GUARDED ON `list.filter`, deliberately. `current_boards`
+   * (authenticated-view.js:492) is not one type — it returns `popularBoards`,
+   * `personalBoards`, `homeBoards` or `recentOfflineBoards` depending on the subtab, some
+   * of which are plain objects carrying `loading` / `error` flags rather than collections.
+   * The parent guards the same way at :510 for the same reason. When there is nothing to
+   * filter this hands `current_boards` straight back, so the loading and error branches in
+   * the template keep working untouched.
+   *
+   * `b.get ? ... : ...` because these entries are Ember objects on some subtabs and plain
+   * payload objects on others.
+   */
+  filteredBoards: computed('current_boards', 'boardFilter', function() {
+    var list = this.get('current_boards');
+    var q = (this.get('boardFilter') || '').trim().toLowerCase();
+    if(!q || !list || !list.filter) { return list; }
+    return list.filter(function(b) {
+      if(!b) { return false; }
+      var name = (b.get ? b.get('name') : b.name) || '';
+      var key = (b.get ? b.get('key') : b.key) || '';
+      return String(name).toLowerCase().indexOf(q) !== -1 ||
+             String(key).toLowerCase().indexOf(q) !== -1;
+    });
+  }),
+
   // Case-insensitive substring match against the two things this card actually shows:
   // the user_name (classic-view.hbs:354) and the goal summary (:356). Caseload also
   // matches `displayed_goal_summary` and `active_goals`; neither is present on the raw
@@ -215,13 +245,61 @@ export default AuthenticatedView.extend({
     return this.get('loggingEnabled') || !!(this.get('logs') || {}).length;
   }),
 
+  /**
+   * Rail collapse. Stored in `stashes`, not in a user preference: this is a
+   * per-DEVICE viewing convenience — a supporter on a laptop and the same account on a
+   * classroom tablet want different answers — and a preference would sync one choice to
+   * both and cost a server round-trip per toggle. `stashes.persist` writes through to
+   * local storage, so the choice survives a reload on the device that made it.
+   *
+   * Reads through `stashes.classic_rail_collapsed` so the computed invalidates when
+   * `persist` sets the key (persist -> stashes.set, _stashes.js:231).
+   */
+  railCollapsed: computed('stashes.classic_rail_collapsed', function() {
+    return !!this.stashes.get('classic_rail_collapsed');
+  }),
+
   actions: {
-    // Same signal the navbar trigger and the parent's `intro` action use:
-    // guided-tour.js observes `auto_open_home_tour` and starts the tour for the
-    // current route + layout. Deliberately NOT a direct call into the tour
-    // component, so there is one entry point rather than two.
+    // Collapse the rail to its icons, or restore it. See `railCollapsed` for why the
+    // state lives in stashes rather than in a preference.
+    toggle_rail: function() {
+      this.stashes.persist('classic_rail_collapsed', !this.get('railCollapsed'));
+    },
+
+    // OVERRIDE. The parent (authenticated-view.js:1651) records the chosen tab and, for
+    // `updates`, marks notifications read; all of that still has to happen, so this calls
+    // through first and only then adds its own behaviour.
+    //
+    // The BOARDS tab collapses the rail. That tab renders a grid whose tiles size themselves
+    // to the available width, so it is the one tab that can actually use the ~270px the rail
+    // gives back; the other three are a fixed-width column of cards and gain nothing.
+    //
+    // ONE-WAY, on purpose. It does not re-expand on the way out, and it does not lock the
+    // rail: the toggle still works while Boards is open, and a manual choice made there
+    // survives, because this writes the same stashed key the toggle does rather than a
+    // separate override. Restoring the previous state on leaving would mean remembering a
+    // second value and would silently undo an expand the user had just asked for.
+    //
+    // Catches the <=550px `<select>` too — `handleTabSelect` (:71) sends this same action
+    // rather than duplicating the logic.
+    set_index_nav: function(nav) {
+      this._super.apply(this, arguments);
+      if(nav == 'boards') {
+        this.stashes.persist('classic_rail_collapsed', true);
+      }
+    },
+
+    // `start_home_tour`, NOT `auto_open_home_tour` (fixed 2026-09-14). The comment here used
+    // to claim this was "the same signal the navbar trigger uses" — it was not. The navbar
+    // trigger calls `onStartTour` → `send('startTour')`, a plain start;
+    // `auto_open_home_tour` is the newly-registered-user signal, and consuming it binds
+    // `afterComplete` → `transitionTo('board-picker')` (guided-tour.js#_startHomeAutoOpen),
+    // so finishing OR cancelling the tour would have thrown the user off the home page —
+    // and would have sent a supporter to the caseload tour instead of touring this page.
+    // `start_home_tour` is the manual equivalent: same "one entry point, no direct call into
+    // the component" shape, without the registration handoff.
     start_tour: function() {
-      this.appState.set('auto_open_home_tour', true);
+      this.appState.set('start_home_tour', true);
     },
 
     // OVERRIDE. The parent switches an inline dashboard tab (`activeTab`), which
@@ -306,6 +384,10 @@ export default AuthenticatedView.extend({
 
     clearSuperviseeFilter: function() {
       this.set('superviseeFilter', '');
+    },
+
+    clearBoardFilter: function() {
+      this.set('boardFilter', '');
     },
 
     // Notifications + recent sessions, reachable once logging is producing them.

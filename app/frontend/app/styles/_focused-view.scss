@@ -45,6 +45,7 @@
 // invent new focused colors here.
 
 @use "variables" as *;
+@use "chips" as *;
 @use "sass:color";
 
 // Shared focused "card" surface — the home page's badge-action card fill (white sheen
@@ -2024,8 +2025,16 @@ body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-manageme
 // A SECOND 30% lighter pass (2026-09-14), cumulative ~51% from the dark originals.
 // The near-black ink only gains from this: label and sub move to 7.38-9.27 and the cue to
 // 4.14-4.74. What it costs is EDGES — see the rims below.
-$ch-focused-speak-start:   #79AAD4;
-$ch-focused-speak-end:     #6299CB;
+// DESATURATED A FURTHER 35% (requested 2026-09-14). "Darker and less saturated" was asked
+// for and only the second half is possible here: these tiles carry DARK ink, so darkening the
+// fill closes the gap rather than opening it, and they are already near the floor — the end
+// stop measures 4.78:1 against `$ch-focused-ink-sub`, and a 6% darken takes it to 4.30 and
+// fails. Desaturation is free by comparison because it holds lightness: the same measurement
+// moves 4.78 -> 4.78. Hue and lightness are untouched; only saturation drops.
+// Going darker is still available, but only by flipping these to WHITE ink and the
+// `ch-focused-glass-tile-dark` mixin, which needs ~52% darkening before white clears.
+$ch-focused-speak-start:   #89A9C4;   // was #79AAD4
+$ch-focused-speak-end:     #7498B9;   // was #6299CB
 // Reports takes a deliberate three-stop verdigris ramp (specified 2026-09-14) rather than the
 // two-stop treatment its siblings use — it was the flattest of the four.
 //
@@ -2037,13 +2046,42 @@ $ch-focused-speak-end:     #6299CB;
 // It also narrows the collision with the account card's teal that was logged as CONFLICT 2:
 // the two were 0.01 apart in saturation and are now 0.15 apart (account #73C8BD sits at 0.44).
 // They remain close in HUE — 4.1 degrees — so that conflict is reduced, not resolved.
-$ch-focused-reports-start: #C4DEDC;
-$ch-focused-reports-mid:   #87BCB9;
-$ch-focused-reports-end:   #66A4A1;
-$ch-focused-ideas-start:   #B4AA93;
-$ch-focused-ideas-end:     #A79A81;
+// A FURTHER 35% off, same request and same reasoning as Speak above. Cumulative with the
+// earlier 35%, so these now sit well away from the account card's teal that CONFLICT 2 logged.
+// At the ramp's darkest point under the glass bottom shade: label 4.85, sub 4.63, more 4.67,
+// cue 3.18 — all still clear, but Reports is now the tightest of the four. Re-measure before
+// taking any more off, and do not darken it.
+$ch-focused-reports-start: #C9D9D8;   // was #C4DEDC
+$ch-focused-reports-mid:   #90B3B1;   // was #87BCB9
+$ch-focused-reports-end:   #719997;   // was #66A4A1
+// DESATURATED 35% (requested 2026-09-14), completing the pass across Speak, Reports, the
+// account card and this one. Lightness and hue are held, so its ink barely moves: at the
+// ramp's darkest point under the glass bottom shade, label 5.45 -> 5.28, sub 5.20 -> 5.04,
+// more 5.25 -> 5.09, cue 3.45 -> 3.38.
+//
+// Ideas keeps the most headroom of the four after this pass; Reports has the least at 4.63.
+// If the set is ever muted further, that is the one that breaks first.
+$ch-focused-ideas-start:   #AEA899;   // was #B4AA93
+$ch-focused-ideas-end:     #A09888;   // was #A79A81
 $ch-focused-extras-start:  #9EA5B1;
 $ch-focused-extras-end:    #8A93A3;
+// THE PANEL RAMP — the communicator cards, the boards container and the Updates cards.
+// `color.scale($lightness: 10%)` of the two extras stops above, written as the resolved hex
+// for the reason `$ch-focused-ink-sub` is (a fractional channel can be dropped whole by a
+// Cordova/Electron webview).
+//
+// THIS DELIBERATELY BREAKS THE PAIRING WITH THE EXTRAS TILE. The panels used to share the
+// extras ramp so that `.ch-comm` and `.ch-tile--big.ch-tile--extras-toggle` were one
+// material; lightening the panels was asked for (2026-09-14) and the tile was not, so they
+// are now two materials and the tile keeps the darker pair above. If the tile should follow,
+// point it at these tokens rather than re-lightening the originals — those two stops are
+// what the Extras tile is, and nothing else reads them.
+//
+// IT ALSO BUYS BACK CONTRAST HEADROOM. On the old ramp the darkest point was #7E8797, where
+// near-black read 4.91 and the link indigo 4.68 — both AA, but with ~0.4 of margin, so any
+// later nudge downward would have failed. At #88909F they read 5.58 and 5.32.
+$ch-focused-panel-start:   #A8AEB9;
+$ch-focused-panel-end:     #969EAC;
 
 // Ink for the mid-tone tinted surfaces. Measured on the gradient ENDS, which are the darker
 // stop and therefore the worst case for a dark ink: label and sub 4.61-6.92, cue at 0.70
@@ -2052,6 +2090,28 @@ $ch-focused-extras-end:    #8A93A3;
 // The sub runs at FULL strength here, not the 0.80 it used on the dark cards: at 0.85 it
 // measured 4.07 and failed. There is no muting headroom left on a mid-tone.
 $ch-focused-ink-on-tint:   #0F172A;
+
+// Descriptor ink for the four Actions cards — a HUE shift where opacity was impossible.
+// Muting the near-black was the obvious way to set the descriptor apart from the title and
+// it cannot be done here: 0.92 lands at 4.47 on Extras, 0.85 at 4.06, and $la-navy at full
+// strength only 3.33. What the maths actually forbids is LUMINANCE, not colour — on the
+// darkest of the four grounds any ink must sit at or below 0.0141 relative luminance to
+// clear 4.5:1. That leaves plenty of room for a saturated hue as long as it is dark enough,
+// which is why this is Brand Navy rather than a grey.
+//
+// -18%, not the -10% that first clears the floor: -10% measures exactly 4.50 on Extras with
+// nothing to spare, and $brand-navy at full strength (0.0175) FAILS at 4.27. At -18% the set
+// reads Speak 4.78 / Reports 5.08 / Ideas 5.20 / Extras 4.68. Re-measure before lightening.
+//
+// Deep teals were tried first and none of them work: green carries 0.7152 of the luminance
+// sum, so a teal dark enough to pass has no teal left in it.
+// THE RESOLVED HEX, NOT THE color.scale() CALL. `color.scale($brand-navy, $lightness: -18%)`
+// keeps fractional channels, and Sass emitted `rgb(14.76, 2.46, 104.96)` at all three use
+// sites — which a Cordova/Electron webview that cannot parse a fractional channel DROPS
+// ENTIRELY, taking the colour with it. Same hazard, and the same fix, as the `.ch-row--sync`
+// border in `_classic-home.scss`. The value is byte-identical rounded; only the emission
+// changes. If this ever needs retuning, scale it, read the result, and paste the hex back.
+$ch-focused-ink-sub:       #0F0269;   // = color.scale($brand-navy, $lightness: -18%)
 
 // The icon disc, 25% DARKER than the #F4F7FA it used to be (requested 2026-09-14), and
 // glassy rather than flat.
@@ -2101,7 +2161,11 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
 // ramp without this mixin needing a conditional. An `@if` cannot sit inside a comma-separated
 // value list, and Sass's `if()` FUNCTION is deprecated (`sass-lang.com/d/if-function`) —
 // passing the finished gradient sidesteps both rather than suppressing the warning.
-@mixin ch-focused-glass-tile($colour) {
+// `$hover` exists for surfaces that are NOT controls. The lift below is right for a tile the
+// user can click and wrong for a container they merely point at — a large panel brightening
+// because the cursor crossed it reads as a bug. Made a parameter rather than something a
+// caller overrides afterwards, so there is one place that decides and no shadow is restated.
+@mixin ch-focused-glass-tile($colour, $hover: true) {
   background:
     // corner specular — the highlight that makes it read as a curved surface
     radial-gradient(125% 95% at 18% 6%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 54%),
@@ -2123,12 +2187,74 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.10);
 
+  @if $hover {
+    &:hover,
+    &:focus-visible {
+      box-shadow:
+        0 14px 30px rgba($focus-shadow-ink, 0.30),
+        0 2px 5px rgba($focus-shadow-ink, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.70),
+        inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.08);
+    }
+  }
+}
+
+// THE PANEL SURFACE — the communicator cards, the boards container and the Updates cards.
+// Three places were asked, one at a time, to carry "the same background as" one of the
+// others; written out three times they would have drifted on the first retune. One caller
+// changes them all.
+//
+// IT IS A MID-TONE, AND THAT IS THE BINDING CONSTRAINT ON EVERYTHING DRAWN ON IT. The
+// darkest point is #88909F (the ramp's end stop under the mixin's 0.10 bottom shade), where
+// near-black ($ch-focused-ink-on-tint) reads 5.58 and $la-navy reads 3.78 AT FULL OPACITY.
+// Nothing on this surface can be muted with opacity and nothing can use the navy inks the
+// rest of the page uses; separation has to come from size and weight. Re-measure every ink
+// if either token moves.
+@mixin ch-focused-panel($hover: true) {
+  @include ch-focused-glass-tile(
+    linear-gradient(155deg, $ch-focused-panel-start 0%, $ch-focused-panel-end 100%),
+    $hover: $hover
+  );
+}
+
+// The DARK-GROUND twin of `ch-focused-glass-tile`. Same four layers in the same order —
+// corner specular, raking band, bottom shade, then the colour — so a tile using this reads
+// as the same material as the light ones beside it.
+//
+// THE HIGHLIGHTS ARE MUCH WEAKER, and that is a contrast requirement, not a taste call. The
+// light mixin carries a 0.55 specular over a 0.34 rake, roughly a 0.70 combined white veil
+// where they overlap. That is safe under DARK ink and ruinous under WHITE ink: on
+// $ch-focused-model-start it takes the white label from 8.89:1 to 1.67:1. The budget on
+// these fills is a combined veil of about 0.22 (4.93:1); 0.26 already fails. 0.14 over 0.09
+// composites to 0.218. Re-measure the label before raising either number.
+//
+// The bottom shade is left at the light mixin's 0.10 — darkening only ever helps white ink.
+// Border is deliberately NOT set here: the outline for these tiles is owned by the
+// `.ch-tile--primary, .ch-tile--setup` rule, which uses a white rim because a dark rim is
+// invisible on a dark fill.
+@mixin ch-focused-glass-tile-dark($colour) {
+  background:
+    radial-gradient(125% 95% at 18% 6%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 54%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.09) 0%,
+      rgba(255, 255, 255, 0.03) 24%,
+      rgba(255, 255, 255, 0) 44%),
+    linear-gradient(0deg,
+      rgba($ch-focused-ink-on-tint, 0.10) 0%,
+      rgba($ch-focused-ink-on-tint, 0) 38%),
+    $colour;
+  box-shadow:
+    0 8px 20px rgba($focus-shadow-ink, 0.22),
+    0 1px 3px rgba($focus-shadow-ink, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.10);
+
   &:hover,
   &:focus-visible {
     box-shadow:
       0 14px 30px rgba($focus-shadow-ink, 0.30),
       0 2px 5px rgba($focus-shadow-ink, 0.18),
-      inset 0 1px 0 rgba(255, 255, 255, 0.70),
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
       inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.08);
   }
 }
@@ -2198,12 +2324,160 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
 
     // FULL strength, not muted. On the previous dark cards these ran at white 0.80; on a
     // mid-tone there is no headroom — near-black at 0.85 measures 4.07 and fails.
-    .ch-tile__sub  { color: $ch-focused-ink-on-tint; }
-    .ch-tile__more { color: $ch-focused-ink-on-tint; }
+    //
+    // RE-MEASURED 2026-09-14 across all four fills, at each card's darkest point (the ramp's
+    // end under the mixin's 10% ink shade). Full strength holds Speak 5.02, Reports 5.32,
+    // Ideas 5.45, Extras 4.91 — Extras is the binding card. Every muted alternative fails
+    // THERE: ink at 0.92 gives 4.47, at 0.85 gives 4.06, and $la-navy at full gives 3.33.
+    // Even slate-800 #1E293B only reaches 4.02. So this ink cannot be MUTED — but it can be
+    // changed for another of equal darkness, which is what the descriptor now does. See
+    // $ch-focused-ink-sub.
+    .ch-tile__sub  { color: $ch-focused-ink-sub; }
+
+    // The description is asked to sit a step quieter than the descriptor above it, and this
+    // is the whole budget available for that: #0D1B33 is a slightly softer, warmer near-black
+    // than the ink, landing at 4.83 / 5.12 / 5.25 / 4.72 — perceptibly lighter than the
+    // descriptor's 4.91-5.45, still clear of 4.5 on all four.
+    //
+    // FULL STRENGTH, not the requested 0.86 alpha. At 0.86 this same colour measures 3.95 on
+    // Extras and fails; the alpha is what breaks it, not the hue, so the hue is kept and the
+    // alpha dropped. This text is at the card's BOTTOM, over the ramp's darkest stop, which
+    // is why it has less headroom than anything else on the card.
+    .ch-tile__more { color: #0D1B33; }
+
+    // Because all three levels share that one ink here, the 700/600/500 weight ladder is the
+    // ONLY thing separating them in Focused — and the descriptor sits just 1px and one weight
+    // step from the sentence below it, so the two middle tiers read as one. Gentle does not
+    // have this problem: there the three carry three different colours.
+    //
+    // Tracking REINFORCES that, and used to be the whole of it: this was added when a
+    // colour shift looked impossible, as the one axis left. `$ch-focused-ink-sub` now
+    // carries the separation and the tracking is the supporting half. `.ch-tile` sets
+    // -0.01em (`_classic-home.scss:938`) and every child inherits it, so without this the
+    // descriptor is tracked as tightly as the title.
+    // Safe against rewrap: the longest of the four is "Support language" at 16 characters,
+    // which grows ~5px at this delta inside a card that is at least 220px wide.
+    .ch-tile__sub { letter-spacing: 0.02em; }
 
     // Non-text affordance, 3:1 under WCAG 1.4.11. Near-black at 0.70 measures 3.07-4.00
     // across the four fills; 0.60 drops under the floor on Extras.
-    .ch-tile__rule { color: rgba($ch-focused-ink-on-tint, 0.70); }
+    // The cue read as a glyph floating between the descriptor and the description. Giving it
+    // a quiet glass disc makes it read as the card's affordance instead. Shape only — the
+    // arrow itself, the Extras chevron (`_classic-home.scss:1074`) and its `is-open` rotation
+    // all still come from the shared rules.
+    //
+    // NOT A CONTROL. The base rule carries `pointer-events: none` (_classic-home.scss:1052)
+    // and nothing here lifts it, so this cannot take a click or a tab stop — the whole card
+    // is the >=44px target, exactly as before. That is what keeps a 38px disc allowed.
+    //
+    // THE SIZES ARE HEIGHT-NEUTRAL AT BOTH BREAKPOINTS, because the cards must not change
+    // size and these cards are content-bound (Modeling Ideas runs ~301px against a 300px
+    // `min-height` floor, so anything added here would push the whole row taller):
+    //   >1024px:  28px glyph + 14px margin = 42  ->  38px disc + 4px margin = 42
+    //   <=1024px: 20px glyph +  8px margin = 28  ->  28px disc + 0px margin = 28
+    // The small breakpoint takes a 28px disc rather than the 36-40px the brief suggests
+    // because that range is what keeps the DESKTOP card the same height; matching it at
+    // mobile would have added 6px to every card in the 2x2.
+    //
+    // THE ARROW IS NOW PART OF THE CTA BAR, so the disc is gone (restructured 2026-09-14).
+    //
+    // It used to be a 28/38px translucent circle floating between the descriptor and the
+    // description, centred there by `margin: auto 0` with a matching `margin-top: 0` on
+    // `.ch-tile__more`. Both are removed: the shared block lays the arrow out as a flex item
+    // at the right end of `.ch-tile__cta`, and a disc inside that bar would be a nested glass
+    // container on a glass card — exactly the extra decorative layer this pass is meant to
+    // remove. The glyph alone, beside its label, is the affordance.
+    //
+    // The enclosing block already carries `.ch-tile--big`, so this is `&`-level, NOT
+    // `.ch-tile--big .ch-tile__rule` — that spelling compiles to a doubled class that matches
+    // nothing.
+    .ch-tile__rule {
+      // 0.72, matching Gentle. Measured on the focused CTA veil below: 4.12-4.40 against the
+      // 3:1 WCAG 1.4.11 floor for non-text UI, on all four card tints.
+      // §10, matching Gentle's step to a firmer glyph. 0.88 near-black reads 5.0-5.4 on the
+      // CTA veil, well clear of the 3:1 non-text floor.
+      color: rgba($ch-focused-ink-on-tint, 0.88);
+      background: none;
+      border: 0;
+      border-radius: 0;
+      width: auto;
+      height: auto;
+
+      // The ::before is a flex item here, so pinning its line box to exactly 1em keeps that
+      // box symmetric about the glyph instead of inheriting uneven half-leading.
+      &::before {
+        display: block;
+        line-height: 1;
+      }
+    }
+
+    // KEPT FROM THE DISC VERSION, because the problem it solves is not the disc's. Centring a
+    // line box only centres the BOX: in Helvetica/Arial metrics U+2192 draws on the math axis
+    // ~0.26em above a baseline that sits ~0.847em down a 1em line box, leaving its ink centre
+    // ~0.086em below the middle. That showed as a high-riding arrow in a circle and shows as a
+    // high-riding arrow in the CTA bar just the same.
+    //
+    // `transform`, not a margin: it shifts the painted glyph without touching layout, so the
+    // CTA bar keeps its exact height. In `em`, so it scales with the glyph at every breakpoint
+    // rather than being a figure that only holds on desktop.
+    //
+    // NOT APPLIED TO EXTRAS, for two reasons. Its glyph is U+25BE, a filled triangle with a
+    // different optical centre that this figure would not fit; and
+    // `.ch-tile--extras-toggle.is-open .ch-tile__rule` rotates the element 180deg
+    // (_classic-home.scss), which would invert this nudge into a downward one whenever the
+    // drawer is open.
+    &:not(.ch-tile--extras-toggle) .ch-tile__rule::before {
+      transform: translateY(-0.085em);
+    }
+
+    // THE INFORMATION PANEL, at this scheme's alpha. Gentle veils it 0.18 white over cards
+    // that are already near-white; these are mid-tones, where 0.18 would read as a slab. At
+    // 0.10 the panel sits 1.15-1.17:1 above its card and the CTA a further 1.17-1.20:1 above
+    // the panel — the same three-step ladder Gentle draws, in the range these fills allow.
+    //
+    // Every ink on it GAINS: near-black reads 5.68-6.43 here against 4.93-5.12 on the bare
+    // card, so this is headroom bought, not spent.
+    .ch-tile__info {
+      background: rgba(255, 255, 255, 0.10);
+      // §2, this scheme's weight. Gentle lights the panel's top edge at 0.35 over near-white
+      // cards; on these mid-tones that reads as a hard line, so it drops to 0.22 — still a
+      // lit edge, still no border and no outer shadow.
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+      // The divider in this scheme's inks. Gentle draws it as `rgba($la-navy, 0.10)` over a
+      // 0.5 white highlight, tuned for near-white cards; on these mid-tones the dark half
+      // needs more weight to register and the white half less, or the highlight reads as a
+      // second line rather than as the lit edge of a fold.
+      //
+      // Nothing to re-measure: a rule carries no text, and the two surfaces either side of
+      // it keep the grounds already measured above.
+      // §6. Quieted in step with Gentle: 0.16 -> 0.12 on the rule, 0.24 -> 0.18 on the
+      // highlight under it.
+      &::after {
+        background: rgba($ch-focused-ink-on-tint, 0.12);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+    }
+
+    // THE FOCUSED CTA SURFACE. Same white-veil idea as Gentle, at a lower alpha: these cards
+    // are mid-tones rather than near-whites, so 0.40 would read as a white slab on them.
+    // 0.22 lands the bar 1.35-1.40:1 above its card — the same subtle separation Gentle gets
+    // at 0.40 over a lighter ground — and it lightens rather than darkens, so the dark CTA
+    // label gains headroom on every tint (6.49:1 worst of the four).
+    // §8. Same move as Gentle: the rim steps back (0.42 -> 0.28) and depth does the work,
+    // with the inset edge-light kept and an ambient shadow added so the control reads as
+    // raised off the card while the panel above it reads as cut into it.
+    .ch-tile__cta {
+      background: rgba(255, 255, 255, 0.22);
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.40),
+        0 2px 6px rgba($focus-shadow-ink, 0.18);
+    }
+
+    // The action label keeps this scheme's descriptor indigo — same text, same role, and it
+    // reads 6.49-7.19 on the veil above.
+    .ch-tile__sub { color: $ch-focused-ink-sub; }
 
     // The disclosure chevron is a CSS triangle, so its colour is a border
     // (`_classic-home.scss:1390`); on dark, $la-navy at 0.55 is invisible.
@@ -2264,8 +2538,15 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
 // at every opacity, only reaching 3.92 at full strength — and lightening does not bring navy
 // back into play for the marks that sit directly on the pane, so the ink is left alone rather
 // than flipped twice.
-$ch-focused-rail-start:     #B1B6BD;   // $ch-focused-extras-start, +18% L, -25% sat
-$ch-focused-rail-end:       #A2A7B1;   // $ch-focused-extras-end,   +18% L, -25% sat
+//
+// LIGHTENED to cool blue-glass 2026-09-14 (requested): the slate ramp read as a control panel
+// rather than a navigation rail. These are the `$focus-surface-top` / `$focus-surface-bottom`
+// family — the same cool blue-gray glass the focused Boards card uses — pulled a little deeper
+// so the pane still separates from the page ground without the four-layer recipe changing.
+// Every ink measurement below IMPROVED as a result; they are re-recorded at the `.ch-rail`
+// rule rather than left at their slate values.
+$ch-focused-rail-start:     #E2EBF7;   // was #B1B6BD (slate); cf. $focus-surface-top #ECF1FA
+$ch-focused-rail-end:       #D5E0EF;   // was #A2A7B1 (slate); cf. $focus-surface-bottom #D4DCEC
 // These two were solved as dark ROW fills. The rows are light glass now (see the rows
 // block below), and what still uses them is the TAB STRIP and the subtabs, which are the
 // remaining neutral dark surfaces at these luminances. Kept under their original names
@@ -2282,8 +2563,11 @@ $ch-focused-row-start:      #3D434C;  // from $brand-cool-steel, Y 0.055 — fee
 // it sits in the same family as the navy pane behind it instead of reading as bare grey.
 // These are the DEEPEST silver the row ink can carry: see the note on `.ch-row` for the
 // arrow/sub opacities this ramp depends on, and why anything darker fails 1.4.11.
-$ch-focused-silver-hi: #EAEFF6;
-$ch-focused-silver-lo: #D2DAE5;
+// Aliases, not values. The ramp moved to `_chips.scss` when Gentle was asked to share this
+// scheme's chip; these two names stay because five other rules in this file read them.
+$ch-focused-silver-hi: $ch-chip-hi;
+$ch-focused-silver-lo: $ch-chip-lo;
+
 
 // MIRRORED, not imported. $ch-gentle-warn-honey and $ch-gentle-warn-peach are declared
 // inside _classic-home.scss (:441-442), and under Sass modules this file cannot reach
@@ -2296,8 +2580,21 @@ $ch-focused-warn-peach: #EAA68F;   // == $ch-gentle-warn-peach (_classic-home.sc
 // NOTE the cost: against the lightened rail pane it now reads 2.29:1, down from 4.77 — it is
 // still the only tinted block in the rail, but it no longer separates from the pane by
 // luminance alone and leans on its border to hold its edge.
-$ch-focused-identity-start: #80A3D2;
-$ch-focused-identity-end:   #73C8BD;
+//
+// DESATURATED 35% (requested 2026-09-14), the same amount and for the same reason as the
+// Speak and Reports tiles: saturation drops, hue and lightness are held, so nothing the card
+// carries shifts in contrast. Measured on the end stop under the 0.10 gloss budget above —
+// username 8.36:1, the "View my account" sub 6.33:1, the arrow 4.46:1 against a 3:1 non-text
+// floor. Every figure moved by less than a point.
+//
+// It slightly HELPS the note above, too: the card now reads 1.44:1 against the rail pane
+// rather than 1.28, because muting a tint moves it toward the pane's own neutral. It still
+// leans on its border for the edge — that has not changed — but by a little less.
+//
+// And it further narrows CONFLICT 2 (the account teal against the Reports tile): both were
+// cut 35% in the same pass, so their saturations stay apart rather than converging.
+$ch-focused-identity-start: #8EA5C4;   // was #80A3D2
+$ch-focused-identity-end:   #82B9B2;   // was #73C8BD
 
 body.ll-layout-focused .ch-rail {
   // Glassy silver: a corner specular, a raking band, a bottom shade, then the ramp — the same
@@ -2306,9 +2603,12 @@ body.ll-layout-focused .ch-rail {
   // Every layer is in `background`, never a pseudo-element: `.ch-rail` has no spare pseudo and,
   // more to the point, a pseudo-element would paint OVER the rows rather than under them.
   //
-  // Measured at the DARKEST point — the ramp's end under the bottom shade, #979DA8: the group
-  // label holds 5.19, a row's description 5.77, its arrow 5.28, and the global navy focus ring
-  // 4.45. Tonal range from the lit corner to that point is 1.95.
+  // Measured at the DARKEST point — the ramp's end under the bottom shade, #C7D2E1 since the
+  // 2026-09-14 lightening: the group label holds 8.26 and the rail arrow 5.37 directly on the
+  // pane, while a row's marks sit on the row's own 0.34 veil (#DAE1EB) — description 8.48,
+  // arrow 7.49, and the global navy focus ring 9.23. Every one of these was RAISED by the
+  // lightening — the slate ramp's figures were 5.19 / 5.77 / 5.28 / 4.45 against #979DA8 — so
+  // nothing here is running near a floor.
   background:
     radial-gradient(120% 80% at 16% 4%, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0) 56%),
     linear-gradient(180deg,
@@ -2319,7 +2619,9 @@ body.ll-layout-focused .ch-rail {
       rgba($ch-focused-ink-on-tint, 0.07) 0%,
       rgba($ch-focused-ink-on-tint, 0) 26%),
     linear-gradient(160deg, $ch-focused-rail-start 0%, $ch-focused-rail-end 100%);
-  border-color: rgba(255, 255, 255, 0.80);
+  // 0.80 -> 0.55: on the old slate ramp a near-white edge was the containment. On the light
+  // ramp it reads as a hard rim instead, and the shadow below already does the containing.
+  border-color: rgba(255, 255, 255, 0.55);
   box-shadow:
     0 18px 44px rgba($focus-shadow-ink, 0.16),
     0 3px 10px rgba($focus-shadow-ink, 0.09),
@@ -2376,13 +2678,29 @@ body.ll-layout-focused .ch-rail {
   // a style choice. With no fill the row's text sits directly on the pane, where the
   // description (navy at 0.82) measures 4.45:1 — under the 4.5 floor. A white veil at 0.18
   // lifts it to 4.87 while still reading as "very subtle". Title 7.30, arrow 4.45.
+  // Those figures were taken on the slate pane; on the light pane the veil is no longer
+  // load-bearing for contrast (the description reads 8.48 at 0.34), but it is KEPT and is now
+  // doing a DIFFERENT job: with the
+  // border transparent and the separators gone, this veil is the only thing that says
+  // "this is a row". 0.20 read as too close to the pane to carry that alone, so 0.34 —
+  // enough to be perceptible as a surface, still well short of a card.
   .ch-row {
     min-height: 64px;          // also clears the 44px WCAG 2.5.5 target minimum
     padding: 9px 15px;
     border-radius: 15px;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.30);
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.34);
+    // A SILVER HAIRLINE, not the white one and not nothing. This was transparent while the
+    // veil alone was meant to carry the row; it reads as under-defined on the light pane, so
+    // the edge is back — but in $brand-cool-steel, the silver the Gentle rows already use
+    // (_classic-home.scss:322), rather than a white that disappears into this pane or a dark
+    // line that would box the rows in.
+    border: 1px solid rgba($brand-cool-steel, 0.42);
+    // Soft and low, not a card lift: a close 2px ambient pass plus a wider 6px one, both
+    // inked with the page navy so they read as depth rather than as grey smudge. The rows
+    // still must not look like the four Actions cards, which carry 8-20px shadows.
+    box-shadow:
+      0 1px 2px rgba($la-navy, 0.06),
+      0 2px 6px rgba($la-navy, 0.10);
     // Gentle lifts a row 2px on hover; this variant uses 1px and only where motion is
     // welcome, so the resting state has to clear the inherited transform.
     transform: none;
@@ -2391,13 +2709,21 @@ body.ll-layout-focused .ch-rail {
   // The card gloss goes with the card.
   .ch-row::before { display: none; }
 
-  // 0.38 on hover AND on focus — hover is never the only signal, and the focus ring below
-  // is what carries keyboard state. Description holds at 5.37 here.
+  // 0.52 on hover AND on focus — hover is never the only signal, and the focus ring below
+  // is what carries keyboard state. This value TRACKS the resting veil: at rest 0.34, so 0.42
+  // would have left an 0.08 step that is not perceptible. 0.52 keeps roughly the same delta
+  // the pair had before the resting veil was raised.
+  // The edge IS the other half of the signal: resting is transparent, so hover paints one in.
   a.ch-row:hover, a.ch-row:focus-visible,
   button.ch-row:hover, button.ch-row:focus-visible {
-    background: rgba(255, 255, 255, 0.38);
-    border-color: rgba(255, 255, 255, 0.55);
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.52);
+    // Both edge and shadow step UP from the resting pair rather than being switched off —
+    // the resting row now carries its own silver hairline and ambient shadow, so removing
+    // them on hover would have read as the row receding under the cursor.
+    border-color: rgba($brand-cool-steel, 0.62);
+    box-shadow:
+      0 2px 4px rgba($la-navy, 0.08),
+      0 4px 10px rgba($la-navy, 0.14);
     transform: none;
   }
 
@@ -2406,21 +2732,38 @@ body.ll-layout-focused .ch-rail {
   // The state rows keep their hue as a WASH over the same flat base rather than as a filled
   // tile. Colour is not the only signal for any of them — each carries its own label
   // ("Logging is enabled", "Sync if planning to go offline"), so this is reinforcement.
-  .ch-row--minor { background: rgba(255, 255, 255, 0.12); }
+  //
+  // `.ch-row--minor` USED TO SIT HERE at 0.12 and no longer does. It was a de-emphasis that
+  // only worked while the base row was 0.18 — six points apart read as "slightly quieter".
+  // Raising the base to 0.34 turned those six points into twenty-two, and the two rows that
+  // carry the modifier ("Create a New Board" and "Organization Management") ended up visibly
+  // paler than their neighbours rather than quieter. They are ordinary destinations sitting in
+  // the same list as Rooms and Home Board, so they now take the base fill like every other row
+  // and the modifier carries no fill of its own in Focused. Gentle's own `.ch-row--minor`
+  // (_classic-home.scss:499) is untouched and still wins nothing here — the focused
+  // `.ch-row` base is (0,3,1) against its (0,1,0).
   .ch-row--todo  { background: rgba($ch-focused-warn-honey, 0.20); }
+  // Only the FILL differs. The white border-color and `box-shadow: none` that used to sit
+  // here existed to neutralise Gentle's peach-grey edge and three-layer glow back when the
+  // focused row was flat; now that the base row carries a silver hairline and an ambient
+  // shadow, restating them here would leave Sync the one row in the rail without either.
+  // The base `.ch-row` rule is (0,3,1) and still outranks Gentle's (0,1,0) on both.
   .ch-row--sync  {
     background: rgba($ch-focused-warn-peach, 0.22);
-    border-color: rgba(255, 255, 255, 0.30);
-    box-shadow: none;
   }
 
   // Retained as visual anchors, per the brief — but quietened to match the row: the
   // specular stack and drop shadow were part of the card language.
-  .ch-row__icon {
-    background: rgba(255, 255, 255, 0.55);
-    border-color: rgba(255, 255, 255, 0.60);
-    box-shadow: none;
-  }
+  // GLASSY, IN EVERY STATE — matching the shared treatment `.ch-row__icon` now carries in
+  // `_classic-home.scss`, in this scheme's silver rather than its near-white. This was a
+  // flat white veil with no shadow, chosen to let the chip recede behind its label; with the
+  // rail collapsible the chip has to hold up as the ONLY thing identifying a row, and a
+  // treatment that changed as the rail opened and closed would read as two components.
+  // NO `.ch-row__icon` RULE. This scheme used to repaint the chip in its own silver because
+  // Gentle's was a near-white glass; Gentle now uses that same silver from `_chips.scss`
+  // (requested 2026-09-14), so an override here would emit a byte-identical copy of the rule
+  // it beats. Deleted rather than left as a no-op — if the two schemes ever need to diverge
+  // again, the rule comes back here and only here.
 
   // ROW INK, RE-STATED. The flatten pass replaced this whole region and dropped the colour
   // and opacity overrides with it, so the rows silently fell back to Gentle's navy at 0.72
@@ -2503,13 +2846,21 @@ body.ll-layout-focused .ch-rail {
 // and the strip is not. Navy reads 7.59 / 7.44 here; white reads 1.60 and is unusable.
 $ch-focused-strip-start:  #C9CDD3;
 $ch-focused-strip-end:    #C7CBD2;
-$ch-focused-subtab:       $ch-focused-row-start;
-$ch-focused-subtab-hover: #474D57;
-// Active subtab. White text measures 4.58:1 on it, and it sits 2.18:1 from the inactive
-// fill — not a 3:1 separation on colour alone, so the active state ALSO carries a
-// much brighter border (0.55 vs 0.20). That is the same two-cue approach Gentle uses,
-// where the active pill is separated from its siblings by a denim border rather than by
-// fill luminance (`_classic-home.scss:895-899`).
+// INACTIVE SUBTABS ARE LIGHT NOW (requested 2026-09-14), with dark ink. They were
+// $ch-focused-row-start #3D434C — a dark charcoal carrying white text — which made the
+// strip the heaviest thing on a light page. These are the rail's own silver, so the pills
+// and the rail chips read as one family.
+//
+// Navy on the new fill measures 8.60:1, and on the hover step 7.66:1 — both far clear of the
+// 4.5 floor for the 14px/600 label. Do not lighten the INK back toward the old white: it
+// measures 1.4 here and vanishes.
+$ch-focused-subtab:       $ch-focused-silver-lo;
+$ch-focused-subtab-hover: #C3CDDA;
+// Active subtab. White text measures 4.58:1 on it. Against the OLD dark inactive fill it
+// sat only 2.18:1 and leaned on a brighter border to be distinguishable; against the light
+// fill above it now reads 3.25:1, so colour alone carries the 3:1 separation and the border
+// is reinforcement rather than the whole signal. That is the same two-cue approach Gentle
+// uses (`_classic-home.scss:895-899`).
 $ch-focused-subtab-active: #4E77B0;
 $ch-focused-tabselect:     #C7CBD2;   // matches the lightened strip
 
@@ -2518,11 +2869,26 @@ body.ll-layout-focused {
   // A light glass rail, replacing the grey trough (2026-09-14). Resolves to ~#FAFBFD over
   // the page ground, carrying the unselected navy label at 11.71:1.
   .ch-tabs {
-    background: rgba(255, 255, 255, 0.68);
-    border-color: rgba(255, 255, 255, 0.78);
+    // A TROUGH, not a flat plate. The strip was one opacity and one soft shadow, so it read
+    // as a painted rectangle and the active pill looked stuck to it rather than sitting in
+    // it. Four layers, the same recipe the rail and the Actions cards use: a raked fill, an
+    // ambient shadow, a close contact shadow, a top specular, and an inset bottom shade that
+    // is what actually makes the pills read as sitting INSIDE the strip.
+    //
+    // THE GRADIENT'S DARKEST STOP IS 0.68 — deliberately the flat value this replaces. The
+    // tab labels sit on this fill and measure 5.33:1 (see the note below); holding the
+    // bottom of the ramp at the old value means that figure still describes the worst point
+    // on the strip, and every part above it only got lighter. Do not deepen this end without
+    // re-measuring the labels.
+    background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.88) 0%,
+      rgba(255, 255, 255, 0.68) 100%);
+    border-color: rgba(255, 255, 255, 0.85);
     box-shadow:
-      0 8px 24px rgba($focus-shadow-ink, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.90);
+      0 10px 28px rgba($focus-shadow-ink, 0.14),
+      0 2px 6px rgba($focus-shadow-ink, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -2px 3px rgba($focus-shadow-ink, 0.07);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
   }
@@ -2570,8 +2936,17 @@ body.ll-layout-focused {
   //
   // NOT COLOUR ALONE: the selected tab also gains a filled pill (5.89:1 against the glass
   // rail), a heavier weight, and an elevation the unselected tabs do not have.
+  // Teal -> dusty-denim (requested 2026-09-14), replacing the blue -> slate ramp so the
+  // selected pill reads as part of the brand system rather than a separate indigo.
+  //
+  // THE START STOP IS NOT THE REQUESTED #3F91A5. That value measures 3.62:1 against the white
+  // label, and this label is 14px/750 — normal text, so the floor is 4.5:1, not 3:1. #367D8E
+  // is the same hue taken down 14% in lightness, the smallest step that clears it, at 4.69:1.
+  // The end stop #536FAE is the requested value unchanged; it already measures 4.94:1.
+  // This is the same trap $focus-pill-active-from/to were darkened 20% to escape — the note
+  // there records white on the undarkened pill at exactly 3.62:1. Re-measure before lightening.
   .ch-tab.is-active {
-    background: linear-gradient(135deg, $brand-dusty-denim-aa 0%, #5A6478 100%);
+    background: linear-gradient(135deg, #367D8E 0%, #536FAE 100%);
     color: $focus-on-dark;
     font-weight: 750;
     opacity: 1;
@@ -2583,13 +2958,17 @@ body.ll-layout-focused {
   // invert the moment the ground is darkened.
   .ch-subtab {
     background: $ch-focused-subtab;
-    border-color: rgba(255, 255, 255, 0.20);
-    color: rgba(255, 255, 255, 0.90);
+    // A DARK hairline, not the white one. White defined these pills while they were charcoal;
+    // on the light fill it is invisible, and the pill needs an edge to separate from the page
+    // ground behind it.
+    border-color: rgba($la-navy, 0.16);
+    color: $la-navy;
   }
 
   .ch-subtab:hover {
     background: $ch-focused-subtab-hover;
-    color: $focus-on-dark;
+    // Ink stays dark through hover — only the fill steps down a shade.
+    color: $la-navy;
   }
 
   .ch-subtab.is-active {
@@ -2670,6 +3049,73 @@ body.ll-layout-focused {
 
   .ch-card--alert {
     background: linear-gradient(160deg, $ch-focused-card-alert-start 0%, $ch-focused-card-alert-end 100%);
+  }
+
+  // ---------------------------------------------------------------------------
+  // THE UPDATES TAB — the same surface as the boards container (requested 2026-09-14)
+  // ---------------------------------------------------------------------------
+  // `--list` (Notifications, Recent Sessions) and `--install` (Try the App) are the only
+  // two cards in that panel and appear nowhere else in classic-view.hbs, so naming the two
+  // modifiers changes the Updates tab and nothing else. `--alert`, `--intro` and `--switch`
+  // live on the Actions tab and keep the dark navy above.
+  //
+  // THIS ALSO FIXES A LIVE CONTRAST FAILURE, which is most likely what prompted the ask.
+  // `.ch-note` and `.ch-empty` were flipped to $la-navy earlier in this scheme's life, when
+  // most of the classic page went from dark surfaces to light ones. These two cards did NOT
+  // go with it — they were still the dark navy `.ch-card` — so navy body text was sitting on
+  // a navy card at 1.35:1 and 1.27:1. The surface moving is what makes those inks correct.
+  .ch-card--list,
+  .ch-card--install {
+    @include ch-focused-panel($hover: false);
+
+    // The shared gloss is suppressed so this ground is EXACTLY the boards container's. The
+    // mixin already lays a specular and a raking band; `.ch-card::before` adds a third white
+    // veil that the boards panel does not have, which would lighten the top of these two
+    // cards alone and break the match that was asked for.
+    &::before { background: none; }
+
+    // EVERY INK, AT FULL STRENGTH. On this surface's darkest point (#7E8797) near-black
+    // reads 4.93 and $la-navy reads 3.35 — so the muted navies these elements carry from
+    // Gentle, and the white ink `.ch-card` gives them, all fail. There is no opacity budget
+    // to spend either: 0.88 already drops near-black under AA. Hierarchy comes from size and
+    // weight, exactly as on `.ch-comm`, which is the same material with the same problem.
+    .ch-card__title,
+    .ch-card__heading,
+    .ch-card__text,
+    .ch-note,
+    .ch-empty,
+    .ch-session__when,
+    .ch-session__who,
+    .ch-session__summary {
+      color: $ch-focused-ink-on-tint;
+      opacity: 1;
+    }
+
+    // Links. $brand-dusty-denim-aa reads 1.61 here and $ch-focused-link-ink is a LIGHT blue
+    // for dark grounds (it was never right for this card); the descriptor indigo is the
+    // dark-ground equivalent at 4.70 and still reads as a link against the near-black.
+    // Covers the bare <LinkTo> anchors <UserNotification> emits as well as `.ch-session__link`.
+    .ch-session__link,
+    .ch-note a,
+    .ch-notes a { color: $ch-focused-ink-sub; }
+
+    // <UserNotification> writes `style="color: #888"` on its timestamp/preview spans
+    // (components/user-notification.hbs). That is 1.02:1 here — effectively invisible — and
+    // it was already failing at 3.28 on the dark navy card. An inline style can only be beaten
+    // by `!important`; there is no other way to reach it short of editing that component,
+    // which renders on other surfaces too and is a wider change than this one.
+    .ch-notes span[style] { color: $ch-focused-ink-on-tint !important; }
+
+    // The "?" affordance and the session divider, both drawn for a dark card.
+    .ch-explain {
+      background: rgba($ch-focused-ink-on-tint, 0.10);
+      border-color: rgba($ch-focused-ink-on-tint, 0.30);
+      color: $ch-focused-ink-on-tint;
+    }
+    .ch-explain:hover,
+    .ch-explain:focus-visible { background: rgba($ch-focused-ink-on-tint, 0.18); }
+
+    .ch-session { border-bottom-color: rgba($ch-focused-ink-on-tint, 0.22); }
   }
 
   // The intro panel sets its own background at (0,1,0), so it needs its own override
@@ -2767,22 +3213,35 @@ body.ll-layout-focused {
       0 4px 10px rgba($focus-shadow-ink, 0.14);
   }
 
+  // ALL FOUR OF THESE WERE BUILT FOR A DARK PANEL AND THE PANEL IS LIGHT.
+  // Measured on the classic page ground: the ghost button's white-at-0.14 fill reads 1.02:1
+  // and its white label 1.10:1 — the "None found" message and the "Create a New Board" button
+  // were both there and both invisible. `$ch-focused-error-ink` #FFB4AB is a LIGHT red meant
+  // for dark grounds and lands at 1.50:1.
+  //
+  // Same failure as the Extras caret and the communicator card's ink: a surface flipped from
+  // dark to light and what was drawn on it did not follow.
+  //
+  // The button takes the silver the rail chips and the subtabs use, so the page's secondary
+  // controls are one family. Navy on that fill is 8.60:1.
   .ch-btn--ghost {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.28);
-    color: $focus-on-dark;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    background: linear-gradient(160deg, $ch-focused-silver-hi 0%, $ch-focused-silver-lo 100%);
+    border-color: rgba($la-navy, 0.16);
+    color: $la-navy;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
   .ch-btn--ghost:hover,
   .ch-btn--ghost:focus-visible {
-    background: rgba(255, 255, 255, 0.22);
-    color: $focus-on-dark;
+    background: linear-gradient(160deg, #fff 0%, $ch-focused-silver-hi 100%);
+    color: $la-navy;
   }
 
-  .ch-note  { color: $focus-on-dark; opacity: 0.88; }
-  .ch-empty { color: $focus-on-dark; opacity: 0.78; }
-  .ch-empty--error { color: $ch-focused-error-ink; opacity: 1; }
+  // Navy at the same opacities the white ink used, so only the hue flips: 7.66:1 and 5.75:1.
+  .ch-note  { color: $la-navy; opacity: 0.88; }
+  .ch-empty { color: $la-navy; opacity: 0.78; }
+  // $brand-danger is the dark-ground twin of $ch-focused-error-ink — 4.80:1 here.
+  .ch-empty--error { color: $brand-danger; opacity: 1; }
 
   .ch-explain {
     background: rgba(255, 255, 255, 0.14);
@@ -2823,23 +3282,81 @@ $ch-focused-link-ink:    #A8C8F7;
 
 body.ll-layout-focused {
 
-  // Same surface as `.ch-card` — these are the same kind of object, and sharing the tokens
-  // means the two cannot drift apart.
+  // THE EXTRAS TILE'S SURFACE (requested 2026-09-14). Same mixin, same two tokens as
+  // `.ch-tile--big.ch-tile--extras-toggle` on the home page (:2186), so the communicator
+  // cards and that tile are one material and cannot drift.
+  //
+  // This DELIBERATELY BREAKS the old pairing with `.ch-card`. These used to share
+  // $ch-focused-card-start/end on the reasoning that they were the same kind of object;
+  // the alert/install/intro/list cards keep that dark navy and only the communicator cards
+  // move, so the two are no longer interchangeable.
+  //
+  // IT ALSO INVERTS THE INK. The dark card carried white text; this fill is a mid-tone, and
+  // on its darkest point (#7E8797) the old inks measure white 3.64, white-at-0.78 2.87, and
+  // the #A8C8F7 link 2.13 — all failing. Every colour on this card flips to dark below, and
+  // none of them can be muted (the same no-headroom problem the Actions tiles have).
   .ch-comm {
-    background: linear-gradient(160deg, $ch-focused-card-start 0%, $ch-focused-card-end 100%);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow:
-      0 12px 34px rgba($focus-shadow-ink, 0.40),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    @include ch-focused-panel;
   }
 
-  // Matches `.ch-rail__avatar` so both avatars on the page keep one edge colour, which is
-  // the relationship Gentle states at `_classic-home.scss:1445-1448`.
-  .ch-comm__avatar { border-color: rgba(255, 255, 255, 0.45); }
+  // THE BOARDS PANEL (requested 2026-09-14). The board tiles used to sit loose on the page
+  // background; wrapping them gives that collection the same standing as the communicator
+  // cards, so the two pages read as the same kind of object.
+  //
+  // The FILL is deliberately a copy of the two lines above rather than a new pairing — same
+  // mixin, same two tokens, same angle — so the panel and the communicator cards cannot drift
+  // apart when either is retuned. If you change one, change both.
+  //
+  // `$hover: false` is the one difference, and it is the point of that parameter: a
+  // communicator card is a control and lifts under the cursor, this is a container the user
+  // points THROUGH to reach a board. Lifting it on hover would fire every time the pointer
+  // crossed the panel on its way to a tile.
+  //
+  // Geometry is restated here rather than shared with `.ch-comm`, because `.ch-comm` takes
+  // its padding/radius/border from its own base rule in `_classic-home.scss` — which Gentle
+  // needs and this panel, which is styled in Focused only, must not inherit. The numbers are
+  // matched to it on purpose: 16px padding, 20px radius, a 1px rim.
+  .ch-boards__panel {
+    padding: 16px;
+    border-radius: 20px;
+    border: 1px solid;
+    @include ch-focused-panel($hover: false);
+  }
 
-  .ch-comm__name     { color: $focus-on-dark; }
-  .ch-comm__goal     { color: $focus-on-dark; opacity: 0.78; }
-  .ch-comm__goal-set { color: $ch-focused-link-ink; }
+  // NO BOARD-CARD RULE. This scheme briefly repainted the classic board cards in its own
+  // silver with its own ink set; `board-card-modern` now carries that material and that ink
+  // for EVERY board card in the app (requested 2026-09-14), so Focused and Gentle render
+  // them from one place. An override here would emit a near-copy of the rule it beats and
+  // would be the thing that lets the two schemes drift.
+
+  // Matches `.ch-rail__avatar` so both avatars on the page keep one edge colour, which is
+  // the relationship Gentle states at `_classic-home.scss:1445-1448`. A DARK rim now, at the
+  // same 0.38 the rail avatar uses (:2364) — the white one was legible only while this card
+  // was navy.
+  .ch-comm__avatar { border-color: rgba($ch-focused-ink-on-tint, 0.38); }
+
+  // All three flipped from white to dark with the card's fill. Measured on the fill's darkest
+  // point (#7E8797): name 4.91, goal 4.91, the goal link 4.68 — against 3.64 / 2.87 / 2.13
+  // for the white set they replace.
+  .ch-comm__name     { color: $ch-focused-ink-on-tint; }
+  // `opacity: 1`, not just a new colour: the 0.78 that muted this against the navy card
+  // would take it to 3.70 here. A mid-tone leaves no room to mute, exactly as on the Actions
+  // tiles — the goal line is separated from the name by size and weight instead.
+  .ch-comm__goal     { color: $ch-focused-ink-on-tint; opacity: 1; }
+  // The "set a goal" link. $ch-focused-link-ink is a LIGHT blue for dark grounds and drops to
+  // 2.13 here; the descriptor indigo is the dark-ground equivalent and still reads as a link
+  // against the near-black around it.
+  .ch-comm__goal-set { color: $ch-focused-ink-sub; }
+
+  // NO DISC BEHIND THE BADGE ART. A silver glass disc used to be applied here, because the
+  // badge placeholder was built from pale greys for a light ground and sank into this
+  // mid-tone card. It is gone because the badge now carries its OWN backing disc inside the
+  // SVG (public/images/badge-in-progress.svg), which does the same job on every ground.
+  //
+  // That is the better place for it: applied here it only existed in Focused, so the same
+  // badge rendered as two visually different components depending on the view. Do not add a
+  // background back to this element — if the badge ever stops reading on a card, the fix
+  // belongs in the SVG's backing disc, where both views get it.
 
   // --- the per-supervisee action tiles --------------------------------------
   .ch-comm__actions .ch-tile {
@@ -2860,11 +3377,27 @@ body.ll-layout-focused {
     &::after { display: none; }
   }
 
-  .ch-comm__actions .ch-tile--speak   { @include ch-focused-tile($ch-focused-speak-start,   $ch-focused-speak-end); }
-  .ch-comm__actions .ch-tile--reports { @include ch-focused-tile($ch-focused-reports-start, $ch-focused-reports-end); }
-  .ch-comm__actions .ch-tile--ideas   { @include ch-focused-tile($ch-focused-ideas-start,   $ch-focused-ideas-end); }
-  .ch-comm__actions .ch-tile--extras  { @include ch-focused-tile($ch-focused-extras-start,  $ch-focused-extras-end); }
-  .ch-comm__actions .ch-tile--primary { @include ch-focused-tile($ch-focused-model-start,   $ch-focused-model-end); }
+  // MATCHED TO THE HOME PAGE (requested 2026-09-14). These took `ch-focused-tile` — a flat
+  // two-stop ramp — while the home tiles take `ch-focused-glass-tile`, the four-layer glass
+  // recipe. Same mixin and the same gradient ARGUMENTS as :2183-2186 now, so each of these
+  // is the same material as its counterpart rather than a lookalike. Note Reports carries a
+  // THREE-stop ramp at 145deg, not the two-stop 155deg the old mixin gave it.
+  .ch-comm__actions .ch-tile--speak   { @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-speak-start 0%, $ch-focused-speak-end 100%)); }
+  .ch-comm__actions .ch-tile--reports { @include ch-focused-glass-tile(linear-gradient(145deg, $ch-focused-reports-start 0%, $ch-focused-reports-mid 55%, $ch-focused-reports-end 100%)); }
+  .ch-comm__actions .ch-tile--ideas   { @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-ideas-start 0%, $ch-focused-ideas-end 100%)); }
+  // EXTRAS IS THE EXCEPTION, and has to be. Its home counterpart is the grey-blue
+  // $ch-focused-extras-* ramp — which is now also the communicator CARD's own fill, so an
+  // Extras tile in that colour would be a tile-shaped hole in the card. It takes the home
+  // page's ICON DISC ramp instead ($ch-focused-chip-lite -> $ch-focused-chip, :2069-2070,
+  // the `.ch-tile__chip` fill), which is the light surface it needs to read against the card
+  // while still coming from the same palette. Same mixin as its three siblings, so the
+  // elevation and rim stay consistent across the row.
+  .ch-comm__actions .ch-tile--extras  { @include ch-focused-glass-tile(linear-gradient(160deg, $ch-focused-chip-lite 0%, $ch-focused-chip 100%)); }
+  // Model gets the glass recipe too (requested 2026-09-14) — it sat flat next to Speak, which
+  // renders beside it in the same branch and is now glossy. The DARK variant, because this
+  // fill is dark and its label is white: see the note on the mixin for why the light one
+  // cannot be used here. Its white outline still comes from the shared rule below.
+  .ch-comm__actions .ch-tile--primary { @include ch-focused-glass-tile-dark(linear-gradient(155deg, $ch-focused-model-start 0%, $ch-focused-model-end 100%)); }
   .ch-comm__actions .ch-tile--setup   { @include ch-focused-tile($ch-focused-setup-start,   $ch-focused-setup-end); }
 
   // Gentle gives Model and Choose-Board a coloured halo to mark them as the priority
@@ -2890,26 +3423,48 @@ body.ll-layout-focused {
   // `stroke="currentColor"`, so the icon went with it. Dark ink is correct for that surface.
   .ch-comm__actions .ch-tile--locked { color: $ch-focused-ink-on-tint; }
 
-  .ch-tile__caret { border-top-color: rgba(255, 255, 255, 0.65); }
+  // DARK, not white. This was white at 0.65 because the Extras tile it sits on used to be a
+  // mid-DARK fill; when that tile moved to the light icon-disc ramp, the ground under this
+  // caret inverted and the white went to 1.84:1 — under the 3:1 WCAG 1.4.11 floor for a
+  // non-text affordance, and visibly a pale mark on a pale button.
+  //
+  // Ink at 0.70 measures 4.13:1 on the tile's darkest point. Full strength (7.34) was
+  // available but is not wanted: this is a disclosure cue, and the same 0.70 is what
+  // `.ch-tile__rule` uses for the arrow cue on the Actions cards, so the two affordances
+  // stay one weight.
+  //
+  // `border-top-color`, because the caret is a CSS triangle built from borders
+  // (_classic-home.scss:1358) rather than a glyph — there is no `color` to set.
+  .ch-tile__caret { border-top-color: rgba($ch-focused-ink-on-tint, 0.70); }
 
   // --- the Extras dropdown ---------------------------------------------------
+  // The Extras panel is a RECESSED WELL INSIDE the communicator card now, not a dark sheet
+  // floating over the page. Both of its old assumptions are gone: it no longer sits on the
+  // page ground (so the heavy drop shadow has nothing to lift off), and the card beneath it
+  // is a mid-tone rather than dark (so white ink no longer reads).
+  //
+  // Inset ink instead of a raised gradient — it belongs to the card, so it sinks into it.
   .ch-menu {
-    background: linear-gradient(160deg, $ch-focused-menu-start 0%, $ch-focused-menu-end 100%);
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow:
-      0 10px 26px rgba(0, 0, 0, 0.50),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    background: rgba($ch-focused-ink-on-tint, 0.10);
+    border-color: rgba($ch-focused-ink-on-tint, 0.14);
+    box-shadow: inset 0 1px 2px rgba($ch-focused-ink-on-tint, 0.10);
   }
 
-  .ch-menu__item { color: $focus-on-dark; }
+  // The chips carry the elevation the panel gave up, in the same silver as the rail's chips
+  // and the subtabs. Navy on that fill is 8.60:1 — white would be 1.4 and is what had to go.
+  .ch-menu__item {
+    background: linear-gradient(160deg, $ch-focused-silver-hi 0%, $ch-focused-silver-lo 100%);
+    border-color: rgba(255, 255, 255, 0.85);
+    color: $la-navy;
+  }
 
   .ch-menu__item:hover,
   .ch-menu__item:focus-visible {
-    background: rgba(255, 255, 255, 0.16);
-    color: $focus-on-dark;
+    background: linear-gradient(160deg, #fff 0%, $ch-focused-silver-hi 100%);
+    color: $la-navy;
   }
 
-  .ch-menu__item--note { color: $focus-on-dark; opacity: 0.80; }
+  .ch-menu__item--note { color: $la-navy; opacity: 0.80; }
   .ch-menu__item--note:hover { background: none; }
 }
 
@@ -2926,6 +3481,57 @@ body.ll-layout-focused {
 // Focused-only styling, so the absence of a rule that was here is worth explaining to whoever
 // looks for it next.
 
+
+// =============================================================================
+// CLASSIC HOME — Focused: the collapsed rail
+// =============================================================================
+//
+// The STRUCTURE of the collapse lives in `_classic-home.scss` and is shared; only the two
+// things this scheme repaints at a higher specificity need restating, or the shared rules
+// would lose to them.
+//
+// BOTH RULES BELOW ARE SPECIFICITY TIES, WON ON SOURCE ORDER — and that is safe here only
+// because they sit in the SAME FILE as the rules they beat, below them. `.ch-rail--collapsed`
+// simply swaps for `.ch-rail`, so `body.ll-layout-focused .ch-rail--collapsed .ch-row` is
+// (0,3,1), exactly what `body.ll-layout-focused .ch-rail .ch-row` (:2532) measures. This is
+// the "swap vs add" trap the scoping contract at the top of this file warns about; it is
+// tolerated within one file, and would NOT be safe from `_classic-home.scss`, which is
+// emitted after this partial and would lose a tie the other way.
+
+// Focused pins the row at `padding: 9px 15px`, which leaves no room for a 42px chip in an
+// 88px rail. Sides only — the vertical padding and the 64px min-height are still wanted.
+//
+// WIDE-SCREEN ONLY, matching the shared collapsed block this restates a value from
+// (`_classic-home.scss`, `@media (min-width: 901px)`). Below 901px the collapse is not
+// honoured at all and the rail's rows are full-width cards laid out as icon-title-arrow; a
+// leaked 8px side padding would have squeezed those against the chip in Focused alone, which
+// is exactly the half-reset bug the shared block was just fixed for.
+@media (min-width: 901px) {
+  body.ll-layout-focused .ch-rail--collapsed .ch-row {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+// The toggle sits on the focused rail's own glass, so it takes the silver ramp rather than
+// the near-white one the gentle rail gives it.
+body.ll-layout-focused .ch-rail__toggle {
+  background: linear-gradient(160deg, $ch-focused-silver-hi 0%, $ch-focused-silver-lo 100%);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 2px 6px rgba($focus-shadow-ink, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  color: $ch-focused-ink-on-tint;
+}
+
+// The separators are drawn between ITEMS, and with the labels gone they would run the full
+// width of a chip-only column and read as a stack of lines rather than a grouping.
+@media (min-width: 901px) {
+  body.ll-layout-focused .ch-rail--collapsed .ch-rail__item + .ch-rail__item {
+    border-top: 0;
+  }
+}
+
 // =============================================================================
 // CLASSIC HOME — Focused: rail row separators and the motion-guarded lift
 // =============================================================================
@@ -2935,7 +3541,15 @@ body.ll-layout-focused {
 // between grid cells rather than between stacked rows.
 @media (min-width: 901px) {
   body.ll-layout-focused .ch-rail__item + .ch-rail__item {
-    border-top: 1px solid rgba(255, 255, 255, 0.45);
+    // NO RULE LINE (2026-09-14). The divider was load-bearing while the rows were a nearly
+    // invisible 0.18 veil on a slate pane. Now that each row carries a perceptible 0.34
+    // surface of its own, a line between them is redundant and reads as noise — grouping
+    // comes from the gap, the surface, the icon and the arrow instead.
+    //
+    // The `padding-top` STAYS. It is not part of the divider: together with
+    // `.ch-rail__list`'s `gap: 6px` (_classic-home.scss:291) it is half of the 12px rhythm
+    // between rows. Dropping it with the border would have tightened every row gap to 6px,
+    // which is a spacing change nobody asked for.
     padding-top: 6px;
   }
 }

@@ -35,6 +35,19 @@
     <button type="button" class="md-pillnav__pill {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{on "click" (fn this.onGoTab "extras")}}>
       {{t "Extras" key="extras"}}
     </button>
+    {{!-- UPDATES (added 2026-09-14). Goes to the user's logs page filtered to notes, which is
+         where the messages the counter is mostly made of already live — the same destination
+         classic's own "You have N unread messages" link uses, so the two views agree.
+         THE BADGE IS `aria-hidden` WITH AN sr-only TWIN. A bare "3" beside "Updates" is
+         announced as "Updates 3", which reads as an ordinal, not a quantity; the visually
+         hidden phrase says what the number means. The count itself is not repeated in it on
+         purpose — it changes on its own schedule and a screen-reader user is about to land
+         on the list that states it.
+         Behind `updates_pill` (lib/feature_flags.rb): a new item in the primary nav is
+         exactly the kind of unexpected UI change the flag convention exists for. --}}
+    {{#if this.appState.feature_flags.updates_pill}}
+    <LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav__pill md-pillnav__pill--updates">{{t "Updates" key="updates"}}{{#if this.pending_updates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pending_updates.count}}{{this.pending_updates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo>
+    {{/if}}
     {{!-- Communicators get a far-right "Account" pill → My Account (Reports having
          moved to an Extras card for them) — but not on Focused (minimal nav). --}}
     {{#if this.showAccountPill}}
@@ -66,6 +79,11 @@
       <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "reports") "true" "false"}} class="md-pillnav-dropdown__option md-pillnav-dropdown__option--reports {{if (is-equal this.activeTab "reports") "is-active"}}" {{on "click" (fn this.onSelectTab "reports")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
       {{/if}}
       <li role="presentation"><button type="button" role="option" aria-selected={{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "true" "false"}} class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{on "click" (fn this.onSelectTab "extras")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
+      {{!-- Mirrors the Updates pill above; the two navs must agree (see the note at the top
+           of this nav). --}}
+      {{#if this.appState.feature_flags.updates_pill}}
+      <li role="presentation"><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>{{t "Updates" key="updates"}}{{#if this.pending_updates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pending_updates.count}}{{this.pending_updates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo></li>
+      {{/if}}
       {{#if this.showAccountPill}}
       <li role="presentation"><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{{t "Account" key="account"}}</LinkTo></li>
       {{/if}}

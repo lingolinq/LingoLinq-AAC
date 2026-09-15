@@ -3,7 +3,18 @@
      Shown only when the current page/layout actually has a tour (hasTour →
      utils/tours/registry). Scoped class `.md-tour__trigger` is styled in
      app.scss alongside the `.shepherd-*` overrides. --}}
-{{#if this.hasTour}}
+{{!-- `@triggerless` MOUNTS THE COMPONENT WITHOUT ITS BUTTON. The visible trigger is all this
+     template renders; everything that actually runs a tour lives in the JS — `_autoOpenWatcher`
+     observing `appState.auto_open_home_tour`, and the Shepherd instance it builds. A page that
+     raises that flag from its OWN button therefore still needs an instance mounted, or the flag
+     is set and nothing is listening. That is exactly what the classic home page hit: its rail
+     row and intro card both call `start_tour`, and the navbar's `{{#unless this.isClassic}}`
+     meant no instance existed to consume it.
+     NOT `@speakHost` / `@editHost` for this — those two make `_autoOpenWatcher` return early by
+     design, which is the opposite of what is wanted here. The component is `tagName: ''` and
+     reads nothing from its own DOM, so with the button suppressed it is a working headless
+     consumer. --}}
+{{#if this.hasTour}}{{#unless @triggerless}}
 <button
   type="button"
   class="md-tour__trigger"
@@ -29,4 +40,4 @@
     <span class="sr-only">{{t "Tour completed" key="home_tour_seen_sr"}}</span>
   {{/if}}
 </button>
-{{/if}}
+{{/unless}}{{/if}}

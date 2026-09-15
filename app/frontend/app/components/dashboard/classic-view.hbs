@@ -11,7 +11,7 @@
 <div class="ch-page">
 
   {{!-- ─────────────────────────── RAIL ─────────────────────────── --}}
-  <aside class="ch-rail" aria-label={{t "Your account" key="classic_rail_aria"}}>
+  <aside class="ch-rail {{if this.railCollapsed "ch-rail--collapsed"}}" aria-label={{t "Your account" key="classic_rail_aria"}}>
 
     {{!-- Identity — avatar + username, straight through to My Account. --}}
     <LinkTo @route="user.account" @model={{this.classicUser.user_name}} class="ch-rail__identity">
@@ -22,11 +22,52 @@
         {{/if}}
       </span>
       <span class="ch-rail__identity-text">
-        <span class="ch-rail__username">{{this.classicUser.user_name}}</span>
+        {{!-- The name WRAPS in full rather than ellipsising, so it needs break points:
+             `_` and `.` are class AL in UAX #14 and are not break opportunities on their
+             own, so `marcus_willa` is one unbreakable run. `break-on-separators` inserts a
+             <wbr> after each separator run, making the separator the preferred break and
+             leaving the copied text identical. Paired with `overflow-wrap: break-word` on
+             `.ch-rail__username`. Only this RENDERS the name — the `@model=` uses above
+             pass it as a route segment and must stay raw. --}}
+        <span class="ch-rail__username">{{break-on-separators this.classicUser.user_name}}</span>
         <span class="ch-rail__identity-sub">{{t "View my account" key="classic_view_my_account"}}</span>
       </span>
       <span class="ch-rail__arrow" aria-hidden="true">&rarr;</span>
     </LinkTo>
+
+    {{!-- Rail collapse control, sitting BETWEEN the account card and the first menu row.
+
+         IN FLOW, not absolutely positioned. It used to be pinned to the aside's top-right
+         corner, where it covered the account card. It cannot simply be given a fixed `top`
+         to land on this boundary either: the account card's height VARIES now that a long
+         username wraps to two lines, so any constant would drift off the seam. A flow
+         element between the two lands on it at every height by construction.
+
+         `.ch-rail__toggle-row` carries a negative right margin so the control straddles the
+         rail's right border — half outside, half over the padding — see _classic-home.scss.
+
+         A DISCLOSURE BUTTON, so `aria-expanded` is the whole contract — no `aria-controls`,
+         which would have to point at an ancestor of this button or at a wrapper invented
+         purely to be pointed at. Its accessible name CHANGES with state ("Collapse menu" /
+         "Expand menu") rather than staying fixed, so a screen-reader user hears the action
+         rather than the region. The label is `sr-only` text, not an `aria-label`, so it is
+         translated through the same `{{t}}` pipeline as everything else on the page.
+         Hidden below 901px — see the note on `.ch-rail--collapsed` in _classic-home.scss
+         for why collapsing is a wide-screen affordance only. --}}
+    <div class="ch-rail__toggle-row">
+      <button type="button" class="ch-rail__toggle" aria-expanded={{if this.railCollapsed "false" "true"}} {{on "click" (this.ctrlAction "toggle_rail")}}>
+        <svg class="ch-rail__toggle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <span class="sr-only">
+          {{#if this.railCollapsed}}
+            {{t "Expand menu" key="classic_rail_expand"}}
+          {{else}}
+            {{t "Collapse menu" key="classic_rail_collapse"}}
+          {{/if}}
+        </span>
+      </button>
+    </div>
 
     <ul class="ch-rail__list">
 
@@ -44,6 +85,7 @@
               <line x1="16" y1="6" x2="16" y2="22" stroke="#46505F"></line>
             </svg>
           </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Tour" key="classic_short_tour"}}</span>
           <span class="ch-row__body">
             <span class="ch-row__title">{{t "Welcome! Take a tour" key="classic_take_a_tour"}}</span>
             <span class="ch-row__sub">{{t "A quick walk through your home page" key="classic_take_a_tour_sub"}}</span>
@@ -63,6 +105,7 @@
             <span class="ch-row__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#C0392B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Account" key="classic_short_account"}}</span>
             <span class="ch-row__body">
               {{#if this.app_state.currentUser.expired}}
                 <span class="ch-row__title">{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</span>
@@ -91,6 +134,7 @@
             <span class="ch-row__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
             </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Home" key="classic_short_home"}}</span>
             <span class="ch-row__body">
               <span class="ch-row__title">{{t "Home Board" key="home_board"}}</span>
               <span class="ch-row__sub">{{this.homeBoardKey}}</span>
@@ -102,6 +146,7 @@
             <span class="ch-row__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
             </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Home" key="classic_short_home"}}</span>
             <span class="ch-row__body">
               <span class="ch-row__title">{{t "Home Board" key="home_board"}}</span>
               <span class="ch-row__sub">{{t "copying %{brd}..." key="copying_board" brd=this.classicUser.home_board_pending}}</span>
@@ -112,6 +157,7 @@
             <span class="ch-row__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
             </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Home" key="classic_short_home"}}</span>
             <span class="ch-row__body">
               <span class="ch-row__title">{{t "You haven't set a home board yet" key="choose_home_board"}}</span>
               <span class="ch-row__sub">{{t "Let us help you choose one." key="let_us_help_choose_home"}}</span>
@@ -131,6 +177,7 @@
           <span class="ch-row__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#4C86D8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Team" key="classic_short_team"}}</span>
           <span class="ch-row__body">
             {{#if this.hasSupervisors}}
               <span class="ch-row__title">{{t "supervisor" count=this.supervisorCount key="classic_supervisor_count"}}</span>
@@ -160,6 +207,7 @@
           <span class="ch-row__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15" stroke="#46505F"/><path d="M14 10h6a1 1 0 0 1 1 1v10" stroke="#46505F"/><line x1="2" y1="21" x2="22" y2="21" stroke="#46505F"/><rect x="6" y="9" width="2.6" height="2.6" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="6" y="14" width="2.6" height="2.6" rx="0.5" fill="#2A9D8F" stroke="none"/></svg>
           </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Rooms" key="classic_short_rooms"}}</span>
           <span class="ch-row__body">
             <span class="ch-row__title">{{t "Rooms" key="rooms"}}</span>
             <span class="ch-row__sub">{{t "room" count=this.sortedRooms.length key="slp_rooms"}}</span>
@@ -177,6 +225,7 @@
                  tile uses (ch-tile--create): charcoal board, teal plus. --}}
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2.5" y1="8.5" x2="15" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#2A9D8F"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#2A9D8F"/></svg>
           </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "New" key="classic_short_new"}}</span>
           <span class="ch-row__body">
             <span class="ch-row__title">{{t "Create a New Board" key="create_a_new_board"}}</span>
           </span>
@@ -192,9 +241,10 @@
             <span class="ch-row__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#4C86D8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
             </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Logging" key="classic_short_logging"}}</span>
             <span class="ch-row__body">
               {{#if this.loggingWithGeo}}
-                <span class="ch-row__title">{{t "Logging is fully enabled" key="classic_logging_full"}}</span>
+                <span class="ch-row__title">{{t "Logging is enabled" key="classic_logging_full"}}</span>
               {{else}}
                 <span class="ch-row__title">{{t "Logging is enabled (no geo)" key="classic_logging_no_geo"}}</span>
               {{/if}}
@@ -207,6 +257,7 @@
             <span class="ch-row__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
             </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Logging" key="classic_short_logging"}}</span>
             <span class="ch-row__body">
               <span class="ch-row__title">{{t "Logging is disabled" key="classic_logging_disabled"}}</span>
               <span class="ch-row__sub">{{t "Turn on reports to see your usage" key="classic_logging_disabled_sub"}}</span>
@@ -237,6 +288,7 @@
               <span class="ch-row__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
               </span>
+              <span class="ch-row__short" aria-hidden="true">{{t "Org" key="classic_short_org"}}</span>
               <span class="ch-row__body">
                 <span class="ch-row__title">{{t "Organization Management" key="org_management"}}</span>
                 <span class="ch-row__sub">{{org.name}}</span>
@@ -259,6 +311,7 @@
           <span class="ch-row__icon {{if (persistence-value 'syncing') "ch-row__icon--spinning"}}" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Sync" key="classic_short_sync"}}</span>
           <span class="ch-row__body">
             {{#if (persistence-value 'sync_succeeded')}}
               <span class="ch-row__title">{{t "Sync Done!" key="sync_done"}}</span>
@@ -450,32 +503,61 @@
 
                   {{!-- Extras — the modern dropdown pattern (button + aria-expanded
                        over a role="menu" list), not the Bootstrap data-toggle one. --}}
-                  <div class="ch-comm__extras {{if (is-equal this.openSuperviseeId supervisee.id) "is-open"}}">
+                  <div class="ch-comm__extras">
+                    {{!-- A DISCLOSURE, not a menu. This used to be `aria-haspopup="true"` over a
+                         `role="menu"` whose children were `role="menuitem"` — a contract this
+                         page never kept: `role="menu"` promises arrow-key navigation with a
+                         roving tabindex, and there is not a single keydown handler on it
+                         (toggle_supervisee_menu, classic-view.js:355, only flips a flag). A
+                         screen-reader user was told "menu" and given a list.
+                         What it actually is — a button that reveals a group of links and
+                         actions — is the ARIA disclosure pattern, which needs only
+                         `aria-expanded` and is Tab-navigable with no JS at all. `aria-controls`
+                         is valid here because the panel is a SIBLING, not an ancestor. --}}
                     <button type="button" class="ch-tile ch-tile--extras"
                             aria-expanded={{if (is-equal this.openSuperviseeId supervisee.id) "true" "false"}}
-                            aria-haspopup="true"
+                            aria-controls={{concat "ch-extras-" supervisee.id}}
                             aria-label={{concat (t "Extras for" key="classic_extras_for") " " supervisee.user_name}}
                             {{on "click" (this.ctrlAction "toggle_supervisee_menu" supervisee.id)}}>
                       <span class="ch-tile__label">{{t "Extras" key="extras"}}</span>
                       <span class="ch-tile__caret" aria-hidden="true"></span>
                     </button>
-                    <ul class="ch-menu" role="menu">
-                      {{#if supervisee.resolved_home_board_key}}
-                        <li role="none"><LinkTo @route="board" @model={{supervisee.resolved_home_board_key}} role="menuitem" class="ch-menu__item">{{t "Home Board" key="home_board"}}</LinkTo></li>
-                      {{/if}}
-                      <li role="none"><LinkTo @route="user" @model={{supervisee.user_name}} role="menuitem" class="ch-menu__item">{{t "Account" key="account"}}</LinkTo></li>
-                      <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "record_note" supervisee)}}>{{t "New Note" key="new_note"}}</button></li>
-                      <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "quick_assessment" supervisee)}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
-                      <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "run_eval" supervisee)}}>{{t "Run Evaluation" key="run_evaluation"}}</button></li>
-                      {{#if this.app_state.feature_flags.remote_modeling}}
-                        <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "remote_model" supervisee)}}>{{t "Remote Modeling" key="remote_modeling"}}</button></li>
-                      {{/if}}
-                    </ul>
                   </div>
                 </div>
 
+                {{!-- THE PANEL IS A SIBLING OF THE ACTIONS ROW, NOT A MEMBER OF IT.
+                     `.ch-comm__actions` is a flex row with `align-items: stretch`, which is
+                     deliberate — it levels "Model" and "Speak" (one-line labels) with "Usage
+                     Reports" and "Modeling Ideas" (two). But while this panel lived inside
+                     that row, it was one of the items being levelled: opening it made it the
+                     tallest, and every tile beside it stretched to match, turning four
+                     buttons into full-height columns.
+                     Out here it is full-card-width and only its OWN height changes, which is
+                     also what a disclosure should do — reveal below the control, not beside
+                     it. The button keeps `aria-controls` pointing at it; they no longer need
+                     to be DOM siblings for that, only for the id to resolve. --}}
+                    {{!-- The roles are gone with the popup: a plain <ul> of links and buttons
+                         is what a disclosure panel holds, and each item is reachable by Tab in
+                         document order. Kept a list because these ARE a list of destinations;
+                         only the false menu semantics were removed. --}}
+                <ul class="ch-menu ch-comm__extras-panel {{if (is-equal this.openSuperviseeId supervisee.id) "is-open"}}" id={{concat "ch-extras-" supervisee.id}}>
+                  {{#if supervisee.resolved_home_board_key}}
+                    <li><LinkTo @route="board" @model={{supervisee.resolved_home_board_key}} class="ch-menu__item">{{t "Home Board" key="home_board"}}</LinkTo></li>
+                  {{/if}}
+                  <li><LinkTo @route="user" @model={{supervisee.user_name}} class="ch-menu__item">{{t "Account" key="account"}}</LinkTo></li>
+                  <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "record_note" supervisee)}}>{{t "New Note" key="new_note"}}</button></li>
+                  <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "quick_assessment" supervisee)}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
+                  <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "run_eval" supervisee)}}>{{t "Run Evaluation" key="run_evaluation"}}</button></li>
+                  {{#if this.app_state.feature_flags.remote_modeling}}
+                    <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "remote_model" supervisee)}}>{{t "Remote Modeling" key="remote_modeling"}}</button></li>
+                  {{/if}}
+                </ul>
+
                 {{#if supervisee.current_badge}}
-                  <div class="ch-comm__badge"><BadgeProgress @badge={{supervisee.current_badge}} /></div>
+                  {{!-- `@modern` gives this the Badge In Progress modal's bar and artwork.
+                       Opt-in per call site: caseload.hbs and application.hbs render the same
+                       component without it and keep the legacy look. --}}
+                  <div class="ch-comm__badge"><BadgeProgress @badge={{supervisee.current_badge}} @modern={{true}} /></div>
                 {{else if supervisee.earned_badge}}
                   <div class="ch-comm__badge"><BadgeEarned @badge={{supervisee.earned_badge}} /></div>
                 {{/if}}
@@ -502,47 +584,99 @@
       <div class="ch-tabpanel" role="tabpanel">
         {{#if this.showOffline}}
           <h2 class="ch-panel__title">{{t "Recent boards" key="available_boards"}}</h2>
-          <div class="ch-boards__grid">
-            {{#if this.recentOfflineBoards}}
-              {{#each this.recentOfflineBoards as |board|}}
-                {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
-              {{/each}}
-            {{else}}
-              <p class="ch-empty">{{t "None found" key="none_found"}}</p>
-            {{/if}}
+          {{!-- Focused View wraps the board tiles in a panel that carries the same surface as a
+               communicator card, so the two collections read as the same kind of object. The
+               div is rendered in BOTH views; only Focused styles it, so Gentle is unchanged. --}}
+          <div class="ch-boards__panel">
+            <div class="ch-boards__grid">
+              {{#if this.recentOfflineBoards}}
+                {{#each this.recentOfflineBoards as |board|}}
+                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+                {{/each}}
+              {{else}}
+                <p class="ch-empty">{{t "None found" key="none_found"}}</p>
+              {{/if}}
+            </div>
           </div>
         {{else}}
-          <h2 class="ch-panel__title">{{t "Browse Boards" key="browse_boards"}}</h2>
+          {{!-- Title row: heading left, "Create a New Board" right. The button used to sit
+               below the grid in `.ch-boards__actions`; moved here (requested 2026-09-14) so
+               the page's one creative action is reachable without scrolling past every board.
+               Above the subtab/filter row, not inside it — that row is a tablist plus its
+               search box, and a create action belongs to the section, not to the filtering. --}}
+          <div class="ch-boards__titlerow">
+            <h2 class="ch-panel__title">{{t "Browse Boards" key="browse_boards"}}</h2>
+            <button type="button" class="ch-btn ch-btn--ghost ch-boards__create" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
+          </div>
+          {{!-- The subtab strip and the boards filter share one row. The filter is a SIBLING
+               of the tablist, never inside it: `role="tablist"` expects only tabs as
+               children, and a search box in there would be announced as one. --}}
+          <div class="ch-boards__head">
           <div class="ch-subtabs" role="tablist" aria-label={{t "Browse Boards" key="browse_boards"}}>
             <button type="button" role="tab" aria-selected={{if this.suggested_selected "true" "false"}} class="ch-subtab {{if this.suggested_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "suggested")}}>{{t "Suggested" key="suggested"}}</button>
             <button type="button" role="tab" aria-selected={{if this.personal_selected "true" "false"}} class="ch-subtab {{if this.personal_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "personal")}}>{{t "Mine" key="mine"}}</button>
             <button type="button" role="tab" aria-selected={{if this.popular_selected "true" "false"}} class="ch-subtab {{if this.popular_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "popular")}}>{{t "Community" key="community"}}</button>
             <button type="button" role="tab" aria-selected={{if this.recent_selected "true" "false"}} class="ch-subtab {{if this.recent_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "recent")}}>{{t "Recent" key="recent"}}</button>
           </div>
+            {{!-- Scope is named in BOTH the placeholder and the accessible name: the app
+                 header's global "Search Boards" field looks similar, and a placeholder is
+                 neither a label nor visible once the user has typed. Same reasoning as the
+                 supervisee filter above. --}}
+            <div class="ch-filter ch-filter--boards" role="search">
+              <span class="ch-filter__icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              <input type="search" value={{this.boardFilter}} class="ch-filter__input" placeholder={{t "Filter boards" key="classic_filter_boards_placeholder"}} aria-label={{t "Filter the boards shown below" key="classic_filter_boards"}} autocomplete="off" {{on "input" (set-field this "boardFilter")}} />
+              {{#if this.boardFilter}}
+                <button type="button" class="ch-filter__clear" {{on "click" (this.ctrlAction "clearBoardFilter")}} aria-label={{t "Clear filter" key="clear_filter"}} title={{t "Clear filter" key="clear_filter"}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              {{/if}}
+            </div>
+          </div>
           {{#if this.suggested_selected}}
             {{#unless this.app_state.currentUser.supporter_role}}
               <LinkTo @route="home-boards" class="ch-boards__lead">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</LinkTo>
             {{/unless}}
           {{/if}}
-          <div class="ch-boards__grid">
-            {{#if this.current_boards.loading}}
-              <p class="ch-empty">{{t "Loading..." key="loading"}}</p>
-            {{else if this.current_boards.error}}
-              <p class="ch-empty">{{t "Failed to load" key="failed_to_load"}}</p>
-            {{else if this.current_boards}}
-              {{#each this.current_boards as |board|}}
-                {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
-              {{/each}}
-            {{else}}
-              <p class="ch-empty">{{t "None found" key="none_found"}}</p>
-            {{/if}}
+          {{!-- Focused View wraps the board tiles in a panel that carries the same surface as a
+               communicator card, so the two collections read as the same kind of object. The
+               div is rendered in BOTH views; only Focused styles it, so Gentle is unchanged. --}}
+          <div class="ch-boards__panel">
+            <div class="ch-boards__grid">
+              {{#if this.current_boards.loading}}
+                <p class="ch-empty">{{t "Loading..." key="loading"}}</p>
+              {{else if this.current_boards.error}}
+                <p class="ch-empty">{{t "Failed to load" key="failed_to_load"}}</p>
+              {{else if this.current_boards}}
+                {{#each this.filteredBoards as |board|}}
+                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+                {{/each}}
+              {{else}}
+                <p class="ch-empty">{{t "None found" key="none_found"}}</p>
+              {{/if}}
+            </div>
           </div>
-          <div class="ch-boards__actions">
-            <button type="button" class="ch-btn ch-btn--ghost" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
-            {{#if this.personal_selected}}
+          {{!-- "See All My Boards" is COMMENTED OUT on the classic page (requested 2026-09-14),
+               kept rather than deleted so it can be restored in one step. Create a New Board
+               moved to the title row above, so this footer row has nothing else in it.
+
+               IF IT COMES BACK, FIX THE ROUTE FIRST: `@route="user"` is the ACCOUNT page —
+               templates/user/index.hbs opens with an "My Account" hero — not a board list.
+               The route it wants is almost certainly `user.boards` (/:user_id/boards,
+               router.js:131), which is nested under `user` and takes the same `:user_id`
+               model, so only the route name changes. That bug was reported and left
+               unfixed pending confirmation, so restoring this as-is brings it back.
+
+               The `see_all_my_boards` i18n key and the `.ch-boards__see-all` styles are both
+               left in place for the same reason.
+
+          {{#if this.personal_selected}}
+            <div class="ch-boards__actions">
               <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ch-boards__see-all">{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
-            {{/if}}
-          </div>
+            </div>
+          {{/if}}
+          --}}
         {{/if}}
       </div>
 
@@ -697,26 +831,74 @@
                longer match on screen. The shared call is kept because it still defines
                this tile; .ch-tile--account itself is currently unused. --}}
           <button type="button" class="ch-tile ch-tile--big ch-tile--speak-main" {{on "click" (this.ctrlAction "homeInSpeakMode")}}>
-            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5" stroke="#46505F"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2" stroke="#2873B4"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4" stroke="#2873B4"/></svg></span>
-            <span class="ch-tile__label">{{t "Speak" key="speak_short"}}</span>
-            <span class="ch-tile__sub">{{t "Start a session" key="classic_sub_speak"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Open the communication board and speak instantly." key="classic_more_speak"}}</span>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5" stroke="#46505F"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2" stroke="#2873B4"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4" stroke="#2873B4"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Speak" key="speak_short"}}</span>
+                <span class="ch-tile__more">{{t "Open the communication board and speak instantly." key="classic_more_speak"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Start a session" key="classic_sub_speak"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
           <button type="button" class="ch-tile ch-tile--big ch-tile--reports" {{on "click" (this.ctrlAction "stats")}}>
-            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
-            <span class="ch-tile__label">{{t "Reports" key="reports"}}</span>
-            <span class="ch-tile__sub">{{t "View progress" key="classic_sub_reports"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "See communication activity, patterns, and progress." key="classic_more_reports"}}</span>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Reports" key="reports"}}</span>
+                <span class="ch-tile__more">{{t "See communication activity, patterns, and progress." key="classic_more_reports"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "View progress" key="classic_sub_reports"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
           {{#if this.modeling_ideas_available}}
             <button type="button" class="ch-tile ch-tile--big ch-tile--ideas" {{on "click" (this.ctrlAction "modeling_ideas")}}>
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.15" y="9.4" width="5.7" height="5" rx="0.8" fill="#2A9D8F" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/></svg></span>
-              <span class="ch-tile__label">{{t "Modeling Ideas" key="modeling_ideas"}}</span>
-              <span class="ch-tile__sub">{{t "Support language" key="classic_sub_ideas"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-              <span class="ch-tile__more">{{t "Find practical ideas for modeling language throughout the day." key="classic_more_ideas"}}</span>
+            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+              <span class="ch-tile__info">
+                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.15" y="9.4" width="5.7" height="5" rx="0.8" fill="#2A9D8F" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/></svg></span>
+                <span class="ch-tile__text">
+                  <span class="ch-tile__label">{{t "Modeling Ideas" key="modeling_ideas"}}</span>
+                  <span class="ch-tile__more">{{t "Find practical ideas for modeling language throughout the day." key="classic_more_ideas"}}</span>
+                </span>
+              </span>
+              <span class="ch-tile__cta">
+                <span class="ch-tile__sub">{{t "Support language" key="classic_sub_ideas"}}</span>
+                <span class="ch-tile__rule" aria-hidden="true"></span>
+              </span>
             </button>
           {{/if}}
           {{!-- Extras — expands the row below. `show_main_extras` lives on the shared
@@ -728,13 +910,29 @@
                   aria-expanded={{if this.show_main_extras "true" "false"}}
                   aria-controls="ch-extras-row"
                   {{on "click" (this.ctrlAction "toggle_extras")}}>
-            <span class="ch-tile__chip" aria-hidden="true">
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true">
               <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/></svg>
             </span>
-            <span class="ch-tile__label">{{t "Extras" key="extras"}}<span class="ch-tile__toggle-caret" aria-hidden="true"></span></span>
-            <span class="ch-tile__sub">{{t "More tools" key="classic_sub_extras"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Access additional communication tools and resources." key="classic_more_extras"}}</span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Extras" key="extras"}}<span class="ch-tile__toggle-caret" aria-hidden="true"></span></span>
+                <span class="ch-tile__more">{{t "Access additional communication tools and resources." key="classic_more_extras"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "More tools" key="classic_sub_extras"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
         </div>
         {{!-- The expanded Extras row. The main grid above is deliberately just four
@@ -756,86 +954,246 @@
         {{#if this.show_main_extras}}
         <div class="ch-grid ch-grid--extras" id="ch-extras-row">
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
-            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
-            <span class="ch-tile__label">{{t "My Account" key="my_account"}}</span>
-            <span class="ch-tile__sub">{{t "Profile and subscription" key="classic_sub_account"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Name, password, subscription and the devices signed in to this account." key="classic_more_account"}}</span>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "My Account" key="my_account"}}</span>
+                <span class="ch-tile__more">{{t "Name, password, subscription and the devices signed in to this account." key="classic_more_account"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Account Profile" key="classic_sub_account_profile"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </LinkTo>
           <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "newBoard")}}>
-            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2.5" y1="8.5" x2="15" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#2A9D8F"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#2A9D8F"/></svg></span>
-            <span class="ch-tile__label">{{t "New Board" key="new_board"}}</span>
-            <span class="ch-tile__sub">{{t "Build one from scratch" key="classic_sub_new_board"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Start an empty board, choose its grid size, then add buttons." key="classic_more_new_board"}}</span>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2.5" y1="8.5" x2="15" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#2A9D8F"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#2A9D8F"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "New Board" key="new_board"}}</span>
+                <span class="ch-tile__more">{{t "Start an empty board, choose its grid size, then add buttons." key="classic_more_new_board"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Create Board" key="classic_sub_create_board"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
           <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "searchBoards")}}>
-            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#46505F"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="#4C86D8"/></svg></span>
-            <span class="ch-tile__label">{{t "Search Boards" key="search_boards"}}</span>
-            <span class="ch-tile__sub">{{t "Find boards to use or copy" key="classic_sub_search"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Browse public boards you can open, copy or set as a home board." key="classic_more_search"}}</span>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#46505F"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="#4C86D8"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Search Boards" key="search_boards"}}</span>
+                <span class="ch-tile__more">{{t "Browse public boards you can open, copy or set as a home board." key="classic_more_search"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Find Boards" key="classic_sub_find_boards"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
           <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "intro")}}>
-            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" stroke="#46505F"/><line x1="8.5" y1="8" x2="15.5" y2="8" stroke="#2A9D8F"/><line x1="8.5" y1="12" x2="13" y2="12" stroke="#2A9D8F"/></svg></span>
-            <span class="ch-tile__label">{{t "Learn and Setup" key="learn_and_setup"}}</span>
-            <span class="ch-tile__sub">{{t "Walk through the basics" key="classic_sub_learn"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "A guided pass through home boards, speak mode and logging." key="classic_more_learn"}}</span>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" stroke="#46505F"/><line x1="8.5" y1="8" x2="15.5" y2="8" stroke="#2A9D8F"/><line x1="8.5" y1="12" x2="13" y2="12" stroke="#2A9D8F"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Learn and Setup" key="learn_and_setup"}}</span>
+                <span class="ch-tile__more">{{t "A guided pass through home boards, speak mode and logging." key="classic_more_learn"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Let's Learn" key="classic_sub_lets_learn"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
           {{#unless this.app_state.currentUser.supporter_role}}
             <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manage_supervisors")}}>
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/></svg></span>
-              <span class="ch-tile__label">{{t "Supervisors" key="supervisors"}}</span>
-              <span class="ch-tile__sub">{{t "Who can help with this account" key="classic_sub_supervisors"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-              <span class="ch-tile__more">{{t "Add or remove the people who can view reports and edit boards." key="classic_more_supervisors"}}</span>
+            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+              <span class="ch-tile__info">
+                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/></svg></span>
+                <span class="ch-tile__text">
+                  <span class="ch-tile__label">{{t "Supervisors" key="supervisors"}}</span>
+                  <span class="ch-tile__more">{{t "Add or remove the people who can view reports and edit boards." key="classic_more_supervisors"}}</span>
+                </span>
+              </span>
+              <span class="ch-tile__cta">
+                <span class="ch-tile__sub">{{t "Who can help with this account" key="classic_sub_supervisors"}}</span>
+                <span class="ch-tile__rule" aria-hidden="true"></span>
+              </span>
             </button>
           {{/unless}}
           {{#if this.app_state.currentUser.preferences.logging}}
             <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manual_session")}}>
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
-              <span class="ch-tile__label">{{t "Manual Log Session" key="manual_log_session"}}</span>
-              <span class="ch-tile__sub">{{t "Record a session by hand" key="classic_sub_manual_log"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-              <span class="ch-tile__more">{{t "Record a session that happened away from the app, with your own notes." key="classic_more_manual_log"}}</span>
+            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+              <span class="ch-tile__info">
+                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
+                <span class="ch-tile__text">
+                  <span class="ch-tile__label">{{t "Manual Log Session" key="manual_log_session"}}</span>
+                  <span class="ch-tile__more">{{t "Record a session that happened away from the app, with your own notes." key="classic_more_manual_log"}}</span>
+                </span>
+              </span>
+              <span class="ch-tile__cta">
+                <span class="ch-tile__sub">{{t "Log Session" key="classic_sub_log_session"}}</span>
+                <span class="ch-tile__rule" aria-hidden="true"></span>
+              </span>
             </button>
           {{/if}}
           <LinkTo @route="user.preferences" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
-            <span class="ch-tile__chip" aria-hidden="true">
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true">
               <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2" stroke="#2A9D8F"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1A1.7 1.7 0 0 0 10.13 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9.1a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.03z" stroke="#46505F"/></svg>
             </span>
-            <span class="ch-tile__label">{{t "Settings" key="settings"}}</span>
-            <span class="ch-tile__sub">{{t "Preferences for this account" key="classic_sub_settings"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Voice, speed, scanning and the other preferences for this account." key="classic_more_settings"}}</span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Settings" key="settings"}}</span>
+                <span class="ch-tile__more">{{t "Voice, speed, scanning and the other preferences for this account." key="classic_more_settings"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Preferences" key="classic_sub_preferences"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </LinkTo>
           <LinkTo @route="user.logs" @model={{this.classicUser.user_name}} @query={{hash type="note"}} class="ch-tile ch-tile--big ch-tile--silver">
-            <span class="ch-tile__chip" aria-hidden="true">
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true">
               <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#46505F"/><polyline points="3.5 6.5 12 13 20.5 6.5" stroke="#2A9D8F"/></svg>
             </span>
-            <span class="ch-tile__label">{{t "Messages" key="messages"}}</span>
-            <span class="ch-tile__sub">{{t "Notes from your team" key="classic_sub_messages"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Notes sent between you and the people who supervise this account." key="classic_more_messages"}}</span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Messages" key="messages"}}</span>
+                <span class="ch-tile__more">{{t "Notes sent between you and the people who supervise this account." key="classic_more_messages"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Add Notes" key="classic_sub_add_notes"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </LinkTo>
           <LinkTo @route="user.recordings" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
-            <span class="ch-tile__chip" aria-hidden="true">
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true">
               <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" stroke="#2A9D8F"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" stroke="#46505F"/><line x1="12" y1="18" x2="12" y2="21" stroke="#46505F"/></svg>
             </span>
-            <span class="ch-tile__label">{{t "Recordings" key="recordings"}}</span>
-            <span class="ch-tile__sub">{{t "Your saved voice clips" key="classic_sub_recordings"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Voice clips recorded for buttons, ready to reuse on any board." key="classic_more_recordings"}}</span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Recordings" key="recordings"}}</span>
+                <span class="ch-tile__more">{{t "Voice clips recorded for buttons, ready to reuse on any board." key="classic_more_recordings"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Record voice" key="classic_sub_record_voice"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </LinkTo>
           <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "support")}}>
-            <span class="ch-tile__chip" aria-hidden="true">
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true">
               <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.6 3.9c-.6.4-.9.9-.9 1.6" stroke="#2A9D8F"/><line x1="12" y1="17.6" x2="12.01" y2="17.6" stroke="#2A9D8F"/></svg>
             </span>
-            <span class="ch-tile__label">{{t "Support" key="support"}}</span>
-            <span class="ch-tile__sub">{{t "Get help from our team" key="classic_sub_support"}}</span>
-            <span class="ch-tile__rule" aria-hidden="true"></span>
-            <span class="ch-tile__more">{{t "Opens a form to send a question straight to the %app_name% team." key="classic_more_support"}}</span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Support" key="support"}}</span>
+                <span class="ch-tile__more">{{t "Opens a form to send a question straight to the %app_name% team." key="classic_more_support"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Get help" key="classic_sub_get_help"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
           </button>
         </div>
         {{/if}}

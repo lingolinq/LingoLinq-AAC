@@ -42,6 +42,22 @@
     <LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
   {{/if}}
 
+  {{!-- UPDATES — the same item the home dashboard's own nav renders, in the same position,
+       so a user moving between Home and Boards sees one nav rather than two. Goes to the
+       logs page filtered to notes; see the fuller note in
+       components/dashboard/authenticated-view.hbs. --}}
+  {{#if this.appState.feature_flags.updates_pill}}
+    {{#if (is-equal @active "updates")}}
+      {{!-- A non-link span with `aria-current="page"`, the same shape every other pill uses
+           for its own page. The logs page passes `@active="updates"`, so arriving there from
+           this pill leaves the nav in place with Updates marked current rather than dropping
+           the user onto a page with no nav at all. --}}
+      <span class="md-pillnav__pill md-pillnav__pill--updates is-active" aria-current="page">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</span>
+    {{else}}
+      <LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav__pill md-pillnav__pill--updates">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo>
+    {{/if}}
+  {{/if}}
+
   {{#unless this.appState.currentUser.supporter_role}}
     <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
   {{/unless}}
@@ -74,6 +90,9 @@
     <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
     <li><LinkTo @route="user.stats" @model={{@userName}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav-dropdown__option {{if (is-equal @active "reports") "is-active"}}">{{t "Reports" key="reports"}}</LinkTo></li>
     <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>
+    {{#if this.appState.feature_flags.updates_pill}}
+      <li><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav-dropdown__option {{if (is-equal @active "updates") "is-active"}}">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo></li>
+    {{/if}}
     {{#unless this.appState.currentUser.supporter_role}}
       <li><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav-dropdown__option">{{t "Account" key="account"}}</LinkTo></li>
     {{/unless}}

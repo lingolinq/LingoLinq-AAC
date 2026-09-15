@@ -1,26 +1,24 @@
 <div class="md-shell md-shell--reports-view">
   <div class="md-workspace">
-    {{!-- Layout selector — SIDE-BY-SIDE (Folders 1/4 left, Boards 3/4 right) vs
-         TOP-DOWN (the original stacked order), so the two can be compared on the real
-         page. Sits here rather than in `.ub-boards-page__page-header` because that
-         header is `display: none` in Focused View, which would hide the selector on
-         exactly one of the two views it exists to compare.
-         RENDERED BEFORE <UserPillNav> so it is the workspace's first flex child and can
-         align to the content box's right edge; it carries `height: 0`, so despite coming
-         first it takes no vertical space and does NOT push the pill-nav down.
-         BEHIND `boards_side_by_side_layout` (lib/feature_flags.rb), which is CURRENTLY IN
-         BOTH `AVAILABLE_FRONTEND_FEATURES` AND `ENABLED_FRONTEND_FEATURES` — i.e.
-         TEMPORARILY FORCED ON FOR EVERYONE (2026-08-16) so the selector can be compared
-         on the real page without a per-user opt-in. Removing it from the ENABLED list
-         before production go-live returns it to beta-opt-in, and with the flag off this
-         never renders, no `data-boards-layout` is ever set on <body>, and the page keeps
-         the TOP-DOWN layout it has today. --}}
-    {{#if this.app_state.feature_flags.boards_side_by_side_layout}}
-      <BoardsLayoutToggle />
-    {{/if}}
+    {{!-- THE LAYOUT SELECTOR IS GONE (requested 2026-09-14). <BoardsLayoutToggle /> rendered
+         here behind the `boards_side_by_side_layout` flag and let the user pick between
+         SIDE-BY-SIDE and stacked, storing the choice on `preferences.boards_layout` and
+         reflecting it as `data-boards-layout` on <body>.
+
+         The arrangement is now decided by width instead: side-by-side from 901px up, stacked
+         at 900px and below, from plain media queries in app.scss. A control was the right
+         thing while the two arrangements were being compared on the real page; the answer is
+         that each one suits a different amount of room, which is a question about the
+         viewport and not about the user.
+
+         ONLY THE RENDER SITE IS REMOVED. components/boards-layout-toggle.js, its
+         `boards_layout` preference, utils/boards_layout_state.js and the
+         `boards_side_by_side_layout` flag are all left in place — nothing mounts the
+         component, so nothing writes the attribute and no rule reads it. Retiring that
+         plumbing touches a server-side preference constraint and is a separate change. --}}
     <UserPillNav @active="boards" @userName={{this.model.user_name}} />
 
-<div class="ub-boards-page ub-boards-page--below-dashboard-pills">
+<div class="ub-boards-page ub-boards-page--split ub-boards-page--below-dashboard-pills">
 
   <div class="la-section-header ub-boards-page__page-header" style="display: block; text-align: center;">
     <div class="la-hero-title-wrap">

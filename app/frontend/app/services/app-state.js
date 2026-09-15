@@ -31,6 +31,7 @@ import sessionHistory from '../utils/session_history';
 import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import { clearStoredLayout } from '../utils/boards_layout_state';
+import { readStoredDashboardLayout, writeStoredDashboardLayout, clearStoredDashboardLayout } from '../utils/dashboard_layout_state';
 import { clearFoldersExpanded } from '../utils/folders_panel_state';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
@@ -2217,6 +2218,16 @@ export default Service.extend({
     // account signed in on this tab.
     this.set('auto_open_home_tour', false);
     this.set('auto_open_home_tour_rearmed_at', null);
+    // The MANUAL twin, raised by a page that renders its own "Take a tour" button
+    // (components/dashboard/classic-view.js#start_tour). It is normally cleared the moment
+    // it is consumed, so it is only ever true here if the signal was raised with no
+    // <GuidedTour /> mounted to hear it — in which case it must not fire for the next
+    // account signed in on this tab.
+    this.set('start_home_tour', false);
+    /* The dashboard-layout mirror, cleared for the same reason as the boards one below: it
+       cannot be keyed by user id, so on a shared device the next person to sign in would
+       otherwise inherit this user's layout on their first frame. */
+    clearStoredDashboardLayout();
     try {
       if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
     } catch(e) { /* sessionStorage unavailable */ }
@@ -5036,11 +5047,49 @@ export default Service.extend({
    *  NOTE (security review — LOW, non-issue: "observer concurrency/flicker"): this
    *  only toggles ONE idempotent class; Ember observers already batch in the run loop,
    *  and it mirrors the long-shipped sync_fitzgerald_scope. No debounce needed. */
+  /**
+   * The layout actually RENDERED — the saved `dashboard_layout` pref validated to a known
+   * variant. Default 'gentle'; an unset pref or a legacy value (the removed 'balanced')
+   * resolves to it.
+   *
+   * ON THE SERVICE so a TEMPLATE can gate on it. `sync_layout_scope` below mirrors the same
+   * preference onto <body> for the CSS overlay, but that runs from an OBSERVER — it fires
+   * after the user record resolves, which is after first paint. Anything hidden only by
+   * `body.ll-layout-focused` therefore renders once and is then hidden, which is visible as a
+   * flash (reported 2026-09-14 for the account page's hero). A template that asks this
+   * computed instead never renders the element at all.
+   *
+   * components/dashboard/authenticated-view.js has its own identical `effectiveLayout`. It is
+   * left alone here rather than repointed, because that component reads it a dozen times
+   * through derived computeds and rewiring them is a separate change; this is the definition
+   * for everything OUTSIDE that component. If the two ever disagree, they should be merged.
+   */
+  effectiveLayout: computed('currentUser.preferences.dashboard_layout', function() {
+    var layout = this.get('currentUser.preferences.dashboard_layout');
+    /* THE PREFERENCE WINS WHENEVER IT EXISTS. The mirror is consulted ONLY while the user
+       record has not hydrated — which on a cold load is exactly the window in which the
+       first frame is painted, and the reason the template gate alone was not enough: it read
+       an absent preference, resolved to 'gentle', and rendered the Gentle header before the
+       real value arrived (reported 2026-09-14).
+       Once `currentUser.preferences.dashboard_layout` lands, the dependent key invalidates
+       and this recomputes from the authoritative value, so a stale mirror can only ever
+       affect the frames before hydration — never the settled page. */
+    if(!layout) { layout = readStoredDashboardLayout(); }
+    if(['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
+    return layout;
+  }),
+
   sync_layout_scope: observer('sessionUser', 'sessionUser.preferences.dashboard_layout', function() {
     var layout = this.get('sessionUser.preferences.dashboard_layout');
     if(window.LingoLinq && window.LingoLinq.set_layout_scope) {
       window.LingoLinq.set_layout_scope(layout);
     }
+    /* Mirror it for the NEXT cold load. This observer is the one place that reliably sees the
+       real preference — it fires when the user record resolves and again on every change — so
+       it is where the per-device copy is kept honest. Only a known variant is written; an
+       absent preference leaves whatever is stored alone rather than overwriting it with a
+       guess. See utils/dashboard_layout_state.js. */
+    writeStoredDashboardLayout(layout);
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
     if(change == 'sessionUser.preferences.cookies') {

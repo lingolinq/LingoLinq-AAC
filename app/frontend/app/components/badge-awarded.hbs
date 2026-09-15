@@ -124,8 +124,37 @@
               <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' aria-label={{t "Badge sound" key="badge_sound_label"}} />
             {{/if}}
           {{else}}
-            <div>
-              <img src={{this.model.badge.image_url}} alt="" style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+            <div class="md-badge-awarded__art">
+              {{!-- GUARDED, like the earned branch above. This one bound `src` straight to
+                    `image_url`, so a badge with no image rendered `src=""` — which browsers
+                    resolve to the page URL rather than failing cleanly, so `onerror` could
+                    not reliably rescue it and a broken-image glyph stayed on screen.
+
+                    BOTH PATHS LAND ON `badge-in-progress.svg`, and they are different failures.
+                    The `{{#if}}` covers a badge with NO artwork at all. The `data-fallback`
+                    covers the far more common case seen in practice: the badge HAS an
+                    `image_url` — usually a remote OpenSymbols asset — which is not in the
+                    local cache and cannot be fetched, so `Button.broken_image` swaps the
+                    fallback in. Before this, that second path landed on `badge-fallback.png`,
+                    the GENERIC medal that an EARNED badge also falls back to, so a badge still
+                    being worked toward rendered as a finished one.
+
+                    `badge-in-progress.svg` carries a deliberately incomplete ring, so the
+                    state reads without text. It lives in the Rails-served `public/images/` at
+                    the repo ROOT, alongside `badge-fallback.png` — NOT in
+                    `app/frontend/public/images/`. `{{path}}` resolves it to `/images/...`,
+                    which the Rails app serves and `.ember-cli` proxies in development.
+
+                    `badge-fallback.png` stays as the second-level fallback on the no-artwork
+                    branch: if the SVG itself ever fails, the generic medal is better than a
+                    broken glyph. `alt=""` on both, as before — the modal title already says
+                    "Badge In Progress", the badge name sits directly below, and the progress
+                    bar carries its own value, so this image is decorative. --}}
+              {{#if this.model.badge.image_url}}
+                <img src={{this.model.badge.image_url}} alt="" onerror='button_broken_image(this)' data-fallback={{path "images/badge-in-progress.svg"}} >
+              {{else}}
+                <img src={{path "images/badge-in-progress.svg"}} alt="" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+              {{/if}}
             </div>
           {{/if}}
           <div style='font-weight: bold; font-size: 30px;'>{{this.model.badge.name}}</div>
@@ -144,8 +173,20 @@
               {{/if}}
             </div>
             <div style='width: 200px; margin: 0 auto;'>
-              <div class="progress" style="border: 1px solid #aaa;height: 25px;">
-                <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{this.model.badge.progress_style}}>
+              {{!-- Track and fill are styled in app.scss, scoped via
+                    `.modal-content:has(.md-badge-awarded)`. The 1px #aaa border and 25px
+                    height that used to be inline here had to go: an inline style beats the
+                    stylesheet, so the modern treatment could not reach this element while
+                    they were present. The bar's WIDTH is still bound below via
+                    `progress_style` (models/badge.js:42), which sets width only. --}}
+              <div class="progress">
+                {{!-- `aria-valuenow` from `progress_out_of_100`, the SAME rounded value the
+                      width and the sr-only text below use — which is exactly why
+                      `progress_style` reuses it rather than recomputing the raw float
+                      (models/badge.js:43-46), so the three can never disagree. Matches
+                      badge-progress.hbs:9; its absence here left a `progressbar` with a min
+                      and a max and no current value. --}}
+                <div class="progress-bar" role="progressbar" aria-valuenow={{this.model.badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{this.model.badge.progress_style}}>
                   <span class="sr-only">
                     {{t "%{pct}% Complete" key="percent_complete" pct=this.model.badge.progress_out_of_100}}
                   </span>
@@ -154,7 +195,11 @@
             </div>
           {{/if}}
           {{#if this.model.badge.completion_explanation}}
-            <div style='font-size: 14px; margin: 10px auto; max-width: 300px;'>
+            {{!-- Was inline `max-width: 300px`, which pinned this to 300px however wide the
+                  modal got and left it as a narrow column with ~125px of dead space either
+                  side. Moved to a class so the width can be a percentage of the modal and so
+                  an inline style is not sitting where the stylesheet cannot reach it. --}}
+            <div class="md-badge-awarded__explain">
               <span style='color: #888;'>
                 {{#if this.model.badge.earned}}
                   {{t "To earn this badge, %{user} had to:" user=this.user_name key="to_earn_user_had_to"}}<br>

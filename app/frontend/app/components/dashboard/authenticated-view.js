@@ -19,6 +19,7 @@ import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
+import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates';
 
 export default Component.extend({
   tagName: '',
@@ -523,27 +524,18 @@ export default Component.extend({
       return res;
     }
   ),
+  /* The arithmetic moved to utils/pending_updates (2026-09-14) when the modern pill-nav
+     started showing the same counter — one definition, two callers, so the two badges
+     cannot come to disagree about what the number means. Behaviour here is unchanged.
+     NOTE the dependent keys now also include `parsed_notifications` and
+     `read_notifications`, which this computed READ but never WATCHED: a notification
+     arriving, or the user marking them read, did not recompute the badge until something
+     else on the list changed. That was a real bug and PENDING_UPDATE_KEYS fixes it for
+     both callers at once. */
   pending_updates: computed(
-    'appState.currentUser.pending_org',
-    'appState.currentUser.pending_supervision_org',
-    'appState.currentUser.pending_board_shares',
-    'appState.currentUser.unread_messages',
+    ...PENDING_UPDATE_KEYS.map(function(k) { return 'appState.currentUser.' + k; }),
     function() {
-      var important = this.appState.get('currentUser.pending_org') ||
-                  this.appState.get('currentUser.pending_supervision_org') ||
-                  (this.appState.get('currentUser.pending_board_shares') || []).length > 0 ||
-                  this.appState.get('currentUser.unread_messages');
-      var normal_new = this.appState.get('currentUser.unread_messages.length') || 0;
-      var unread_notifications = (this.appState.get('currentUser.parsed_notifications') || []).filter(function(n) { return n.unread; }).length;
-      normal_new = normal_new + (unread_notifications || 0);
-
-      if(normal_new && !this.appState.get('currentUser.read_notifications')) {
-        return {count: normal_new};
-      } else if(important) {
-        return true;
-      } else {
-        return null;
-      }
+      return pendingUpdates(this.appState.get('currentUser'));
     }
   ),
   update_selected: observer('selected', 'persistence.online', function() {
