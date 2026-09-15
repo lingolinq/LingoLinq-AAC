@@ -346,6 +346,47 @@ describe ButtonImage, :type => :model do
       expect(i.settings['pending']).to eq(false)
       expect(Worker.scheduled?(ButtonImage, 'perform_action', { 'id' => i.id, 'method' => 'upload_to_remote', 'arguments' => [Uploadable::UPLOAD_FROM_STORED_DATA_URI] })).to eq(true)
     end
+
+    it "stamps preserve_source_image when the client sends a button_label" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({
+        'url' => 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/caps-key.png',
+        'content_type' => 'image/png',
+        'button_label' => 'caps lock'
+      }, { :user => u })
+      expect(i.settings['preserve_source_image']).to eq(true)
+      i.url = 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/caps-key.png'
+      expect(i.needs_library_url_enrichment?).to eq(false)
+    end
+
+    it "does not stamp preserve_source_image for suggested-symbol creates without a button_label" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({
+        'url' => 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/dog.png',
+        'content_type' => 'image/png'
+      }, { :user => u })
+      expect(i.settings['preserve_source_image']).to eq(nil)
+    end
+
+    it "honors an explicit preserve_source_image on update when url is already set" do
+      u = User.create
+      library_skin = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/cap.png.varianted-skin.png'
+      i = ButtonImage.create(
+        :user => u,
+        :url => 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/caps-key.png',
+        :settings => {
+          'button_label' => 'caps lock',
+          'library_url_for_skin' => library_skin
+        }
+      )
+      expect(i.preserve_source_image?).to eq(false)
+      expect(i.skin_capable_url).to eq(Uploader.fronted_url(library_skin))
+      i.process_params({ 'preserve_source_image' => true }, { :user => u })
+      expect(i.preserve_source_image?).to eq(true)
+      expect(i.skin_capable_url).to eq(nil)
+    end
   end
    
   it "should securely serialize settings" do

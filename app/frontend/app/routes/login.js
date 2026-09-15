@@ -19,7 +19,7 @@ export default Route.extend({
     // when this hook runs.
     //
     // Redirecting on the stored token alone made a stale token UNRECOVERABLE: clicking
-    // "Sign In" bounced to index, index showed the "Preparing your workspace" loading state
+    // "Sign In" bounced to index, index showed the "Loading boards" loading state
     // while it resolved, the token check then failed, and the user was dropped back on the
     // landing page — with no way to reach the form and re-authenticate. Gating on
     // `token_validated` (runtime-only, set by check_token) keeps the original intent — a

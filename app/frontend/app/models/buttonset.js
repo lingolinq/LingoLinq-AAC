@@ -1218,6 +1218,17 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
     button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.protected_image_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
   }
   var image = images.find(function(img) { return img.get('id') === button.image_id; });
+  /* An image record can sit in the store WITHOUT being materialized — peekAll surfaces records
+     created by a relationship or still in flight — and `best_url` is
+     `data_url || personalized_url || ""` (models/image.js:129-131), so such a record yields ''.
+     Assigning that OVERWRITES the perfectly good url the server already put on the button, and
+     the stamp below then turns the empty string into images/blank.gif: a 1x1 OPAQUE WHITE gif.
+     So a button whose symbol was fine lost it to an unmaterialized record.
+     utils/button.js:576 already refuses this exact record shape; this call site was the outlier.
+     Only `!best_url` is tested — that is the whole mechanism. button.js also checks `isLoaded`,
+     but a record that is not loaded yet but DOES carry a usable best_url should still be used,
+     and discarding it here would send the button to blank.gif for no reason. */
+  if(image && !image.get('best_url')) { image = null; }
   if(image) {
     button.image = image.get('best_url');
     button.image_license = image.get('license');

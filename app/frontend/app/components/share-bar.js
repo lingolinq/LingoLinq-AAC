@@ -54,7 +54,7 @@ export default Component.extend({
     return 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(this.get('url'));
   }),
   twitter_url: computed('url', 'text', function () {
-    var res = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(this.get('url')) + '&text=' + encodeURIComponent(this.get('text'));
+    var res = 'https://x.com/intent/post?url=' + encodeURIComponent(this.get('url')) + '&text=' + encodeURIComponent(this.get('text'));
     if (this.appState.get('domain_settings.twitter_handle')) {
       res = res + '&related=' + encodeURIComponent(this.appState.get('domain_settings.twitter_handle'));
     }

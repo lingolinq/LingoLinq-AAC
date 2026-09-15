@@ -29,6 +29,7 @@ describe SystemSidebarBoards do
       expect(by_label['shift']['vocalization']).to eq(':shift')
       expect(by_label['space']['vocalization']).to eq(':space')
       expect(by_label['a']['vocalization']).to eq('+a')
+      expect(by_label['caps']['vocalization']).to eq(':caps')
     end
 
     it "falls back to copying the legacy example board when the OBZ is missing" do
@@ -71,6 +72,48 @@ describe SystemSidebarBoards do
       expect(by_label['shift']['vocalization']).to eq(':shift')
       expect(by_label['space']['vocalization']).to eq(':space')
       expect(by_label['a']['vocalization']).to eq('+a')
+    end
+
+    it "adds a caps key to an existing keyboard only in an empty cell after space" do
+      user = User.create(user_name: 'lingolinq')
+      Board.process_new({
+        'name' => 'Vocal Flair 84 - Keyboard',
+        'public' => true,
+        'locale' => 'en',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift', 'vocalization' => ':shift'},
+          {'id' => 44, 'label' => 'space', 'vocalization' => ':space'},
+          {'id' => 27, 'label' => 'a', 'vocalization' => '+a'}
+        ],
+        'grid' => {'rows' => 1, 'columns' => 4, 'order' => [[36, 44, nil, 27]]}
+      }, {user: user, key: 'keyboard'})
+
+      board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      by_label = board.buttons.index_by { |b| b['label'] }
+      expect(by_label['caps']['vocalization']).to eq(':caps')
+      expect(board.settings['grid']['order'][0][2]).to eq(by_label['caps']['id'])
+      expect(board.settings['grid']['order'][0][3]).to eq(27)
+
+      again = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      expect(again.buttons.count { |b| b['vocalization'] == ':caps' }).to eq(1)
+    end
+
+    it "does not add a caps key when the shift row has no empty cell after space" do
+      user = User.create(user_name: 'lingolinq')
+      Board.process_new({
+        'name' => 'Vocal Flair 84 - Keyboard',
+        'public' => true,
+        'locale' => 'en',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift', 'vocalization' => ':shift'},
+          {'id' => 44, 'label' => 'space', 'vocalization' => ':space'},
+          {'id' => 27, 'label' => 'a', 'vocalization' => '+a'}
+        ],
+        'grid' => {'rows' => 1, 'columns' => 3, 'order' => [[36, 44, 27]]}
+      }, {user: user, key: 'keyboard'})
+
+      board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      expect(board.buttons.any? { |b| b['vocalization'] == ':caps' }).to eq(false)
     end
 
     it "is idempotent" do

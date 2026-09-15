@@ -138,7 +138,37 @@ export default Controller.extend({
     };
   },
 
+  // Eye-gaze and switch users cannot flick-scroll, so the page provides explicit
+  // paging controls. Finds the real scroller at call time rather than assuming
+  // #content: this route renders inside the app shell on some entries and closer
+  // to the document on others, and a hardcoded id that stops matching would fail
+  // silently (the buttons would stay enabled and do nothing).
+  page_scroller: function() {
+    var el = document.querySelector('.la-utterance-page');
+    while(el && el !== document.body) {
+      var style = window.getComputedStyle(el);
+      var scrolls = /(auto|scroll)/.test(style.overflowY);
+      if(scrolls && el.scrollHeight > el.clientHeight + 1) { return el; }
+      el = el.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  },
   actions: {
+    // Pages by just under a viewportful so a line of context carries over,
+    // matching the big-button modal's `clientHeight - 20` (components/big-button.js).
+    scroll_page: function(direction) {
+      var el = this.page_scroller();
+      if(!el) { return; }
+      var step = Math.max(120, el.clientHeight - 20);
+      var target = direction === 'up' ? el.scrollTop - step : el.scrollTop + step;
+      var max = el.scrollHeight - el.clientHeight;
+      target = Math.min(Math.max(0, target), max);
+      if(el.scrollTo) {
+        el.scrollTo({top: target, behavior: 'smooth'});
+      } else {
+        el.scrollTop = target;
+      }
+    },
     clear_reply: function() {
       this.set('message', null);
     },

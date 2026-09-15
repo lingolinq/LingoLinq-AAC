@@ -3,7 +3,7 @@ require 'openssl'
 
 # Locks the backward-compatibility guarantee of RedisInit.redis_options: a
 # redis:// URI must keep producing the exact legacy connection hash (so the
-# Render environment is untouched), while a rediss:// URI (GCP Memorystore,
+# plain redis:// environment is untouched), while a rediss:// URI (GCP Memorystore,
 # AUTH + TLS, SERVER_AUTHENTICATION) enables :ssl and validates against the
 # supplied CA. See config/initializers/resque.rb.
 describe RedisInit do
@@ -36,7 +36,7 @@ describe RedisInit do
   end
 
   describe '.redis_options' do
-    it 'returns the exact legacy hash for redis:// (no :ssl, Render unchanged)' do
+    it 'returns the exact legacy hash for redis:// (no :ssl, plain redis:// unchanged)' do
       expect(RedisInit.redis_options(redis_uri)).to eq(
         :host => 'redis.example', :port => 6379, :password => 'secret'
       )
@@ -127,34 +127,53 @@ describe RedisInit do
   # through deploy-identity env vars before the dev-only literal.
   describe '.resolved_cache_token' do
     around(:each) do |example|
-      keys = %w[CACHE_TOKEN RENDER_GIT_COMMIT K_REVISION]
+      # Scrub every RENDER* key present plus the ones the examples set, so a tier gated on any
+      # Render platform variable is deterministic here.
+      keys = (%w[CACHE_TOKEN K_REVISION RENDER RENDER_GIT_COMMIT RENDER_SERVICE_ID] +
+              ENV.keys.grep(/\ARENDER/)).uniq
       saved = ENV.values_at(*keys)
       keys.each { |k| ENV.delete(k) }
       example.run
       keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
     end
 
-    it 'prefers CACHE_TOKEN when set' do
+    it 'prefers CACHE_TOKEN over the Cloud Run revision' do
       ENV['CACHE_TOKEN'] = 'explicit-secret'
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      ENV['K_REVISION'] = 'svc-00001-abc'
       expect(RedisInit.resolved_cache_token).to eq('explicit-secret')
     end
 
-    it 'falls back to the Render deploy SHA when CACHE_TOKEN is absent' do
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
-      ENV['K_REVISION'] = 'svc-00001-abc'
-      expect(RedisInit.resolved_cache_token).to eq('deadbeef')
-    end
-
-    it 'falls back to the Cloud Run revision when no CACHE_TOKEN/Render SHA' do
+    it 'falls back to the Cloud Run revision when CACHE_TOKEN is absent' do
       ENV['K_REVISION'] = 'svc-00001-abc'
       expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
     end
 
+    it 'ignores RENDER_GIT_COMMIT (Render was decommissioned 2026-09-09)' do
+      # No other source is set, so a Render tier reinstated at ANY position in the chain
+      # (above or below K_REVISION) would surface here instead of the legacy literal. RENDER and
+      # RENDER_SERVICE_ID are set too, so a tier gated on either of those two historical gates is
+      # caught; the source pin in the next example catches a literal RENDER token in the method text.
+      ENV['RENDER'] = 'true'
+      ENV['RENDER_SERVICE_ID'] = 'srv-test'
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      expect(RedisInit.resolved_cache_token).to eq('abc')
+    end
+
+    it 'has no Render-derived tier in the resolver source' do
+      # Companion to the probe above, which only catches a tier gated on a variable it sets: slice
+      # the method text (from its def to the next two-space def) and pin that no literal RENDER
+      # token appears, comments included, deliberately: a comment reintroducing the name is a
+      # prompt to re-check. Indirection (a constant, a helper, a regex over ENV.keys) is not caught.
+      src = File.read(Rails.root.join('config/initializers/resque.rb'))
+      body = src[/^  def self\.resolved_cache_token\n.*?(?=^  def |\z)/m]
+      expect(body).to be_present
+      expect(body).not_to match(/RENDER/)
+    end
+
     it 'treats a blank env value as unset (skips to the next source)' do
       ENV['CACHE_TOKEN'] = ''
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
-      expect(RedisInit.resolved_cache_token).to eq('deadbeef')
+      ENV['K_REVISION'] = 'svc-00001-abc'
+      expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
     end
 
     it 'falls back to the legacy literal only when nothing is set' do
@@ -162,7 +181,7 @@ describe RedisInit do
     end
 
     it 'is deterministic: repeated calls return the same value' do
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      ENV['CACHE_TOKEN'] = 'explicit-secret'
       expect(RedisInit.resolved_cache_token).to eq(RedisInit.resolved_cache_token)
     end
   end

@@ -188,22 +188,29 @@ longhand if the base is unfixable. Common pattern:
 
 ---
 
-## 6. `:has()`, `(and ...)`, `(not ...)` helpers don't exist
+## 6. `(and ...)`, `(or ...)`, `(not ...)` — LOCAL helpers, they DO exist
 
-**Symptom:** A template conditional like
-`{{else if (and (not this.x) (not this.y))}}` silently fails — the
-branch never matches.
+**STATUS: this entry was stale and is corrected (2026-09-11).** It previously
+said these helpers do not exist and told you to restructure templates into
+nested `{{#if}}` blocks. That is wrong and costs work for no reason.
 
-**Cause:** `ember-truth-helpers` is **not installed** in this
-codebase. `(and ...)` / `(or ...)` / `(not ...)` are template helpers
-from that package; without it they evaluate as undefined → the whole
-condition is falsy.
+`ember-truth-helpers` is indeed **not** a dependency — but the app defines the
+three helpers itself: `app/helpers/and.js`, `or.js`, `not.js`, added in
+`72aa21521` ("add missing `not` helper, make `and` variadic", #698). All three
+are variadic. They are used in production today, e.g.
+`app/templates/user/board-detail.hbs:1002`
+(`{{#if (and this.can_set_as_home (not (get this.speak_menu_hidden_set "set_as_home")))}}`)
+and `app/components/share-utterance.hbs:116` (`{{#if (or ...)}}`).
 
-**Fix:** Use plain nested `{{#if}}` / `{{else if}}` / `{{else}}`
-blocks. Restructure the logic to avoid compound boolean helpers.
+**What IS still true:** a missing helper is a RUNTIME failure, not a build one —
+Ember throws "Attempted to resolve `not`, which was expected to be a helper, but
+nothing was found" and only the affected screen breaks, so the build stays green.
+That is the hazard worth remembering, and it is why these three live in
+`app/helpers/`. If you reach for a fourth truth helper, add it there rather than
+assuming it exists.
 
-CSS `:has()` is available — that's a browser feature, not an Ember
-helper.
+CSS `:has()` is available — that's a browser feature, not an Ember helper, and
+is used in ~107 rules in `app.scss`.
 
 ---
 
@@ -233,6 +240,21 @@ standalone usage isn't affected:
 .modal .md-getting-started-modal__header,
 .modal .la-modal-header { ... }
 ```
+
+**Corollary (2026-08-27) — changing ONE modal's header/footer padding.**
+That universal block lives at the very end of `app.scss` and sets
+`padding-top/bottom: 28px` at specificity (0,2,0). A per-modal rule
+`.la-<x>-modal-wrap .la-modal-header` is also (0,2,0) and sits earlier,
+so its vertical padding **never applies** — editing it in place looks
+correct and changes nothing on screen. Fix: edit that modal's existing
+rule in place but qualify it, `.modal .la-<x>-modal-wrap .la-modal-header`
+(0,3,0). Never edit the universal block for a single modal.
+
+Also check whether the modal even *has* a footer: `modal-dialog.hbs`
+yields straight into `.modal-content`, so many modals render only a
+header and a body. For those the "footer padding" is the body rule's
+bottom padding, and the universal `*-modal-footer` selectors match
+nothing.
 
 ---
 

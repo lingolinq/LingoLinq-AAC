@@ -1328,6 +1328,37 @@ describe Uploader do
       ])
     end
 
+    # Giphy failures previously reached `results['data'].each` with data nil and
+    # raised NoMethodError -> 500. The commonest trigger is simply not having
+    # GIPHY_KEY set (it is absent from .env.example), but a rate limit, an outage
+    # or an HTML error page do the same thing.
+    it "returns no results, and does not call giphy, when GIPHY_KEY is unset" do
+      orig = ENV['GIPHY_KEY']
+      ENV.delete('GIPHY_KEY')
+      begin
+        expect(Typhoeus).not_to receive(:get)
+        expect(Uploader.find_images('bacon', 'giphy', 'en', nil)).to eq([])
+      ensure
+        ENV['GIPHY_KEY'] = orig if orig
+      end
+    end
+
+    it "returns no results when giphy responds without a data array" do
+      ENV['GIPHY_KEY'] = 'giphy'
+      expect(Typhoeus).to receive(:get).and_return(OpenStruct.new({
+        body: {meta: {status: 401, msg: 'Unauthorized'}}.to_json, code: 401, success?: false
+      }))
+      expect(Uploader.find_images('bacon', 'giphy', 'en', nil)).to eq([])
+    end
+
+    it "returns no results when giphy responds with a non-JSON body" do
+      ENV['GIPHY_KEY'] = 'giphy'
+      expect(Typhoeus).to receive(:get).and_return(OpenStruct.new({
+        body: '<html>502 Bad Gateway</html>', code: 502, success?: false
+      }))
+      expect(Uploader.find_images('bacon', 'giphy', 'en', nil)).to eq([])
+    end
+
     it "should handle giphy searches" do
       ENV['GIPHY_KEY'] = 'giphy'
       expect(Typhoeus).to receive(:get).with("https://api.giphy.com/v1/gifs/search?q=%23asl+bacon&api_key=giphy&lang=en&rating=pg13", {timeout: 5}).and_return(OpenStruct.new({

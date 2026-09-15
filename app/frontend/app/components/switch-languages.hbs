@@ -1,81 +1,97 @@
+{{!-- Modernised 2026-08-31: the Bootstrap horizontal-form grid (form-horizontal /
+      form-group / col-sm-* / control-label / form-control-static), the btn-group segmented
+      control, the input-group wrappers, the .checkbox block, the glyphicon font icons and
+      every inline style are gone, replaced by the la-modal-* chrome and a la-languages-*
+      block. The <form> and its submit guard are KEPT: `nothing()` exists to swallow the
+      submit so Enter inside a control cannot reload the page.
+
+      `.btn` is deliberately NOT carried over as a scanning hook the way repairs.hbs and
+      big-button.hbs carry it. Those modals are scannable; this one is not — it has neither
+      `modal_targets` nor `advanced_selection`, so modal.js#scannable_targets already matches
+      nothing inside it and dwell already resolves null here. Dropping `.btn` therefore takes
+      away no access that exists today. That this modal is unreachable by switch and gaze is
+      a real pre-existing gap, but it is a separate change from a restyle. --}}
 <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
-  <div class="modal-header md-modal-header">
-    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <h3>{{t "Switch Languages" key="switch_languages"}}</h3>
-  </div>
-  <div class="modal-body md-modal-body" id='languages_prompt'>
-    <form class="form-horizontal" {{on "submit" (this.ctrlAction "nothing")}}>
-      <div class="form-group">
-        <div class="col-sm-12">
-          <p class='form-control-static'>
-            {{t "This board supports multiple languages. You can quickly switch between languages for both the text labels and the system-generated speech." key="select_a_language_for_switching"}}
-          </p>
-        </div>
+  <div class="la-languages-modal-wrap">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--languages" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><path d="M3 12h18" stroke="#2A9D8F"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z" stroke="#2A9D8F"/></svg>
       </div>
-      <div class="form-group">
-        <label class="col-sm-4 control-label" for="vocalization_locale">
-          {{#if this.same_locale}}
-            <span class='glyphicon glyphicon-globe'></span>
-            {{t "Language" key="language"}}
-          {{else}}
-            <span class='glyphicon glyphicon-volume-up'></span>
-            {{t "Spoken Language" key="speech_generation"}}
-          {{/if}}
-        </label>
-        <div class="col-sm-8">
-          {{#if this.two_languages}}
-            <div class='btn-group' style='width: 100%;'>
-              {{#each this.locales as |locale|}}
-                <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{on "click" (this.ctrlAction "set_locale" "vocalization" locale.id)}} class={{if (is-equal this.vocalization_locale locale.id) "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
-              {{/each}}
-            </div>
-          {{else}}
-            <div class='input-group input-group-lg' style='min-width: 200px;'>
-              <BoundSelect @select_class="form-control big_select" @select_id="vocalization_locale" @content={{this.locales}} @selection={{this.vocalization_locale}} @action={{this.ctrlAction "set_locale" "vocalization"}} />
-            </div>
-          {{/if}}
-        </div>
-      </div>
-      <div class="form-group">
-        <div class='col-sm-8 col-sm-offset-4'>
-          <div class="checkbox big_checkbox">
-            <label>
-              <input type="checkbox" checked={{this.same_locale}} {{on "change" (set-field this "same_locale" "checkbox")}} />
-              {{t "Use the same language for button labels and speech generation" key="use_same_language"}}
-            </label>
-          </div>
-        </div>
-      </div>
-      {{#unless this.same_locale}}
-        <div class="form-group">
-          <label class="col-sm-4 control-label" for="label_locale">
-            <span class='glyphicon glyphicon-text-background'></span>
-            {{t "Text Language" key="text_language"}}
-          </label>
-          <div class="col-sm-8">
+      <h3 class="la-modal-header-label">{{t "Switch Languages" key="switch_languages"}}</h3>
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
+    </div>
+
+    <div class="la-languages-modal-body">
+      <form class="la-languages-form" {{on "submit" (this.ctrlAction "nothing")}}>
+        <p class="la-languages-desc">
+          {{t "This board supports multiple languages. You can quickly switch between languages for both the text labels and the system-generated speech." key="select_a_language_for_switching"}}
+        </p>
+
+        {{!-- Spoken language. The label is a <span> with an id rather than a <label for=…>
+              because in the two-language case the control is a group of buttons, which has no
+              single form element to point at; `aria-labelledby` names the group in both
+              branches, so the association does not change shape with the branch. --}}
+        <div class="la-languages-field">
+          <span class="la-languages-field__label" id="la-languages-speech-label">
+            <span class="la-languages-field__icon" aria-hidden="true">
+              {{#if this.same_locale}}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>
+              {{else}}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+              {{/if}}
+            </span>
+            {{#if this.same_locale}}
+              {{t "Language" key="language"}}
+            {{else}}
+              {{t "Spoken Language" key="speech_generation"}}
+            {{/if}}
+          </span>
+          <div class="la-languages-field__control">
             {{#if this.two_languages}}
-              <div class='btn-group' style='width: 100%;'>
+              <div class="la-languages-segmented" role="group" aria-labelledby="la-languages-speech-label">
                 {{#each this.locales as |locale|}}
-                  <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{on "click" (this.ctrlAction "set_locale" "label" locale.id)}} class={{if (is-equal this.label_locale locale.id) "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
+                  <button type="button" class="la-languages-segmented__btn {{if (is-equal this.vocalization_locale locale.id) 'la-languages-segmented__btn--on'}}" aria-pressed={{if (is-equal this.vocalization_locale locale.id) "true" "false"}} {{on "click" (this.ctrlAction "set_locale" "vocalization" locale.id)}}>{{locale.name}}</button>
                 {{/each}}
               </div>
             {{else}}
-              <div class='input-group input-group-lg' style='min-width: 200px;'>
-                <BoundSelect @select_class="form-control big_select" @select_id="label_locale" @content={{this.locales}} @selection={{this.label_locale}} @action={{this.ctrlAction "set_locale" "label"}} />
-              </div>
+              <BoundSelect @select_class="la-languages-select" @select_id="vocalization_locale" @content={{this.locales}} @selection={{this.vocalization_locale}} @action={{this.ctrlAction "set_locale" "vocalization"}} />
             {{/if}}
           </div>
         </div>
-      {{/unless}}
-    </form>
-  </div>
-  <div class="modal-footer md-modal-footer">
-    <button type="button" class="btn btn-lg btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
-    <button type="button" class="btn btn-lg btn-default" {{on "click" (this.ctrlAction "open_translate")}}>
-      {{t "Translate to Another Language" key="translate_another_language"}}
-    </button>
-    <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "set_languages")}}>{{t "Switch Languages" key="switch_languages"}}</button>
+
+        <label class="la-languages-check">
+          <input type="checkbox" class="la-languages-check__box" checked={{this.same_locale}} {{on "change" (set-field this "same_locale" "checkbox")}} />
+          <span class="la-languages-check__text">{{t "Use the same language for button labels and speech generation" key="use_same_language"}}</span>
+        </label>
+
+        {{#unless this.same_locale}}
+          <div class="la-languages-field">
+            <span class="la-languages-field__label" id="la-languages-text-label">
+              <span class="la-languages-field__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"/><path d="M9 19h6"/><path d="M12 5v14"/></svg>
+              </span>
+              {{t "Text Language" key="text_language"}}
+            </span>
+            <div class="la-languages-field__control">
+              {{#if this.two_languages}}
+                <div class="la-languages-segmented" role="group" aria-labelledby="la-languages-text-label">
+                  {{#each this.locales as |locale|}}
+                    <button type="button" class="la-languages-segmented__btn {{if (is-equal this.label_locale locale.id) 'la-languages-segmented__btn--on'}}" aria-pressed={{if (is-equal this.label_locale locale.id) "true" "false"}} {{on "click" (this.ctrlAction "set_locale" "label" locale.id)}}>{{locale.name}}</button>
+                  {{/each}}
+                </div>
+              {{else}}
+                <BoundSelect @select_class="la-languages-select" @select_id="label_locale" @content={{this.locales}} @selection={{this.label_locale}} @action={{this.ctrlAction "set_locale" "label"}} />
+              {{/if}}
+            </div>
+          </div>
+        {{/unless}}
+      </form>
+    </div>
+
+    <div class="la-languages-modal-footer">
+      <button type="button" class="la-languages-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+      <button type="button" class="la-languages-btn" {{on "click" (this.ctrlAction "open_translate")}}>{{t "Translate" key="translate"}}</button>
+      <button type="button" class="la-languages-btn la-languages-btn--primary" {{on "click" (this.ctrlAction "set_languages")}}>{{t "Switch Languages" key="switch_languages"}}</button>
+    </div>
   </div>
 </ModalDialog>

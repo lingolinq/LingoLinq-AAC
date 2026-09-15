@@ -1857,10 +1857,15 @@ class User < ApplicationRecord
         #
         # Safe to default only because the typing path is narrow: speak mode only
         # (buttonTracker.check returns null otherwise), never while scanning or dwelling, not
-        # while a modal is open, and — as of the same change as this default — not while the
-        # user is typing into a text field (raw_events.js#typing_into_a_field). Without that
-        # last guard this default would have made every search box on a speak-mode page
-        # inject into the utterance.
+        # while a modal is open, and not while the user is typing into a text field
+        # (raw_events.js#typing_into_a_field). Without that last guard this default would
+        # have made every search box on a speak-mode page inject into the utterance.
+        #
+        # That guard covers THREE handlers, and originally covered only one. Escape and
+        # Backspace are serviced by a separate `special_keys` keydown registration, so for a
+        # while this default meant Escape in the Phrase Builder's search box cleared the
+        # user's whole sentence. If another key is ever added to that branch, it needs the
+        # guard too.
         'external_keyboard' => true,
         'wakelock' => true
       },
@@ -3187,23 +3192,34 @@ class User < ApplicationRecord
     # coercing a missing key to false) because both describe what the grouped board
     # already does. An existing user whose stored hash predates these keys must keep
     # today's rendering, not lose their category headers and scrolling on next save.
-    entry = lambda { |v|
+    #
+    # `include_enabled` is false for PER-BOARD entries. Grouping on/off is a PER-USER
+    # setting that lives at the top level only (see board-detail.js#categorize_enabled); a
+    # per-board `enabled` would be a second, contradictory answer to a question the account
+    # already settles. It was also the mechanism of a real bug: the switch wrote only the
+    # board slot, so a stray account-wide `true` could never be turned off and every board
+    # without an entry of its own kept falling back to it. Because this method REBUILDS the
+    # hash, dropping the key here also retires it from stored data on the next save of any
+    # preference -- no migration needed.
+    entry = lambda { |v, include_enabled|
       v = {} unless v.is_a?(Hash)
       ord = v['order']
       ord = [] unless ord.is_a?(Array)
-      {
-        'enabled' => truthy.call(v['enabled']),
+      built = {
         # Known keys only, de-duplicated, and bounded by the registry itself.
         'order' => ord.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq,
         'show_category_names' => v.has_key?('show_category_names') ? truthy.call(v['show_category_names']) : true,
         'vertical_scroll' => v.has_key?('vertical_scroll') ? truthy.call(v['vertical_scroll']) : true
       }
+      built['enabled'] = truthy.call(v['enabled']) if include_enabled
+      built
     }
 
     # PER-BOARD overrides. The top-level keys stay the user's default, used by any board
-    # with no entry of its own; `boards` maps a board to a full settings hash in the same
-    # shape. Sanitized with the SAME lambda so an override cannot smuggle in a key or a
-    # category the top level would have rejected.
+    # with no entry of its own; `boards` maps a board to a DISPLAY-settings hash. Sanitized
+    # with the same lambda so an override cannot smuggle in a key or a category the top
+    # level would have rejected -- but with `include_enabled` false, because grouping on/off
+    # is per-user and belongs to the top level alone.
     #
     # This map has to be echoed here for the same reason every other sub-key does: this
     # method REBUILDS the hash, so anything not listed is discarded silently, server-side.
@@ -3231,11 +3247,11 @@ class User < ApplicationRecord
       break if clean_boards.size >= 500
       next unless bid.is_a?(String) && bid.length <= 128 && bid.match(board_ref)
       next unless bval.is_a?(Hash)
-      clean_boards[bid] = entry.call(bval)
+      clean_boards[bid] = entry.call(bval, false)
     end
 
     written = entry.call(
-      val.merge('enabled' => enabled, 'order' => order)
+      val.merge('enabled' => enabled, 'order' => order), true
     ).merge('boards' => clean_boards)
     log_board_category_grouping_enable!(written)
     prefs['board_category_grouping'] = written

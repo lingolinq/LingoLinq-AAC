@@ -50,6 +50,7 @@ LingoLinq.Image = BaseModel.extend({
   external_id: attr('string'),
   search_term: attr('string'),
   button_label: attr('string'),
+  preserve_source_image: attr('boolean'),
   source_url: attr('string'),
   license: attr('raw'),
   alternates: attr('raw'),

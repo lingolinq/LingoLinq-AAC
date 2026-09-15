@@ -3555,6 +3555,47 @@ describe Board, :type => :model do
       expect(by_id[2]['vocalization']).to eq(':space')
     end
 
+    it "should translate a speak vocalization when the hash has a dest string" do
+      u = User.create
+      b = Board.create(:user => u)
+      joke = 'what do you call an alligator in a vest?'
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'alligator joke', 'vocalization' => joke}
+      ]
+      b.save
+      b.translate_set({
+        'alligator joke' => 'chiste del caimán',
+        joke => '¿cómo se llama un caimán con chaleco?'
+      }, {
+        'source' => 'en', 'dest' => 'es', 'board_ids' => [b.global_id],
+        'default' => true, 'allow_fallbacks' => true,
+        'user_key' => u.global_id, 'user_local_id' => u.id
+      })
+      b.reload
+      btn = b.settings['buttons'][0]
+      expect(btn['label']).to eq('chiste del caimán')
+      expect(btn['vocalization']).to eq('¿cómo se llama un caimán con chaleco?')
+    end
+
+    it "should keep a speak vocalization when fallbacks are on and the hash has no dest string" do
+      u = User.create
+      b = Board.create(:user => u)
+      joke = 'what do you call an alligator in a vest?'
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'alligator joke', 'vocalization' => joke}
+      ]
+      b.save
+      b.translate_set({'alligator joke' => 'chiste del caimán'}, {
+        'source' => 'en', 'dest' => 'es', 'board_ids' => [b.global_id],
+        'default' => true, 'allow_fallbacks' => true,
+        'user_key' => u.global_id, 'user_local_id' => u.id
+      })
+      b.reload
+      btn = b.settings['buttons'][0]
+      expect(btn['label']).to eq('chiste del caimán')
+      expect(btn['vocalization']).to eq(joke)
+    end
+
     it "should return done if user_id doesn't match" do
       u = User.create
       b = Board.create(:user => u)
@@ -3959,7 +4000,10 @@ describe Board, :type => :model do
       })
       expect(res[:done]).to eq(true)
       expect(b1.reload.settings['buttons'].map{|b| b['label'] }).to eq(['top', 'feline', 'mouse'])
-      expect(b1.reload.settings['buttons'].map{|b| b['vocalization'] }).to eq([nil, 'meow', nil])
+      # Button 1 authored speak text is 'cap'. Fallbacks used to delete any
+      # vocalization missing from the dest hash; keep it so joke-style speak
+      # text is not wiped when only the label has a dest string.
+      expect(b1.reload.settings['buttons'].map{|b| b['vocalization'] }).to eq(['cap', 'meow', nil])
       expect(b2.reload.settings['buttons'].map{|b| b['label'] }).to eq(['fat']) # already translated
       expect(b2.reload.settings['buttons'].map{|b| b['vocalization'] }).to eq([nil])
       expect(b3.reload.settings['buttons'].map{|b| b['label'] }).to eq([nil])
