@@ -4,6 +4,13 @@ This doc captures the **post-#230 performance picture** for "Copy a full
 board set" and the recommended staging-side knobs for keeping the
 deferred-buttonset window short on large copies.
 
+> **Note 2026-09-14: the hosting mechanics below were rewritten for GCP.** This doc was written
+> against Render in 2026-05. Render was deleted on 2026-09-09. The queue analysis and the log
+> markers are unchanged and still correct; the service names, the config mechanism, and the
+> rollback steps are not. Worker configuration now lives in
+> `.github/workflows/deploy-cloudrun.yml` and `bin/docker-worker-entrypoint`, and takes effect on
+> the next deployed revision rather than through a dashboard edit.
+
 ## Background
 
 PR #230 changed `BoardSetCopier#copy_and_relink` so copied boards that
@@ -32,50 +39,54 @@ buttonset timeout before showing a selectable hierarchy. This doc is
 the backend/infrastructure side: keep the queue-drain time as short as
 possible so the partial-results window closes quickly.
 
-## Current staging worker config (read from Render dashboard 2026-05-09)
+## Current staging worker config (read from Cloud Run 2026-09-14)
 
 ```
-service:    lingolinq-dev-staging-worker
-id:         srv-d66jbilum26s73aa7mn0
-branch:     staging
-plan:       standard
-numInstances: 1
-startCommand: env QUEUES=priority,default,slow INTERVAL=5 TERM_CHILD=1 \
-              bundle exec rake environment resque:work
+worker pool: lingolinq-worker-staging
+project:     lingolinq-nonprod
+region:      us-central1
+command:     bin/docker-worker-entrypoint
+resources:   1 vCPU, 2Gi
 ```
 
-One worker process, polling Redis every 5s, sharing all three queues
-(`priority`, `default`, `slow`). When a 97-board copy queues roughly
-one `update_for` job per copied board onto `:slow`, the same worker
-pool that just ran the `BoardSetCopier` job drains them.
+The pool sets no `QUEUES` or `INTERVAL` of its own, so the entrypoint defaults apply
+(`bin/docker-worker-entrypoint:9-11`):
 
-## Drift between `render.yaml` and live services
+```
+QUEUES=priority,default,slow
+INTERVAL=0.1
+TERM_CHILD=1
+```
 
-`render.yaml` declares a service named `LingoLinq-AAC-Worker` with
-`INTERVAL=1.0`. The actual deployed worker is named
-`lingolinq-dev-staging-worker` with `INTERVAL=5`. The blueprint is not
-being re-applied to the live services, so `render.yaml` edits will
-not take effect on their own. **Any of the changes below need to be
-made manually in the Render dashboard** until the blueprint is
-re-synced (out of scope for this PR).
+One worker process sharing all three queues (`priority`, `default`, `slow`). When a 97-board copy
+queues roughly one `update_for` job per copied board onto `:slow`, the same worker that just ran
+the `BoardSetCopier` job drains them.
+
+Staging and dev share one worker pool and one Redis, so a queue change affects both. See the
+`DEPLOY_WORKER` notes in `.github/workflows/deploy-cloudrun.yml`.
+
+## How worker config is applied
+
+There is no dashboard and no blueprint drift any more. `.github/workflows/deploy-cloudrun.yml`
+is the deployed configuration, and `bin/docker-worker-entrypoint` supplies the queue defaults.
+**Any of the changes below is a code change to one of those two files, applied by a deploy**,
+not a console edit. The worker pool deploy is gated on the `DEPLOY_WORKER` repository variable.
 
 ## Recommended changes (staging only)
 
-### 1. Drop `INTERVAL` from 5 to 1
+### 1. Drop `INTERVAL` from 5 to 1 (already done, and then some)
 
 Smaller wins in queue latency. Resque polls Redis when idle; smaller
 INTERVAL means jobs are picked up sooner after the worker becomes idle.
 
-```
-INTERVAL=1
-```
+**Superseded 2026-09-14:** the GCP entrypoint already defaults to `INTERVAL=0.1`
+(`bin/docker-worker-entrypoint:10`), which is lower than this recommendation ever asked for.
+Nothing to change. Kept here because the reasoning still explains why the default is what it is.
 
-Reversible: set back to `INTERVAL=5`.
+### 2. (Optional) Bump worker instance count from 1 to 2
 
-### 2. (Optional) Bump worker `numInstances` from 1 to 2
-
-Doubles drain throughput at roughly double the worker cost on the
-`standard` plan. Useful as a temporary capacity bump while validating
+Doubles drain throughput at roughly double the worker cost. On Cloud Run this is the worker
+pool's instance count in `.github/workflows/deploy-cloudrun.yml`, not a dashboard scale control. Useful as a temporary capacity bump while validating
 PR #230 and #257 on production-scale board sets. Should be reverted
 back to 1 once validated, or moved to a dedicated `:slow`-only worker
 (option 3).
@@ -170,7 +181,7 @@ After applying changes 1 (and optionally 2 or 3):
 
 For any change above:
 
-1. Set the env var or scale value back to the previous setting in the
-   Render dashboard.
-2. The worker will redeploy (~30-60s downtime for staging worker).
+1. Revert the env var or instance count in `.github/workflows/deploy-cloudrun.yml` (or the
+   default in `bin/docker-worker-entrypoint`) and merge.
+2. Redeploy. The worker pool is replaced, with a short gap while the new revision starts.
 3. Confirm the queue drains a small (5-10 board) test copy normally.

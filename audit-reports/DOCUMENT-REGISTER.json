@@ -551,7 +551,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-25_compliance-data-governance.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -576,7 +576,8 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-9b299a785b",
       "notes": "Path A successor to DOC-9b299a785b (attested 2026-08-04), created 2026-08-25. Corrects the Bedrock runtime operational-status claim at THREE sites: the subprocessor table Anthropic row (:130, \"NOT OPERATIONAL as of 2026-08-04 ... Not operational before or since ... Nothing egresses while the path is dormant\") the data-flow table AI APIs (Anthropic) row (:212, \"Not operational as of 2026-08-04\" / \"not operational before or since\", found in round-5 review), and the architecture-diagram status note (:182-190, \"the model leg of this diagram is NOT OPERATIONAL. No lingolinq-web revision currently carries a Bedrock credential\"). Both were overtaken 53 minutes after the moment they describe by the 00015-9l9 re-mount (evidence: docs/legal/2026-08-16_subprocessor-register.md:99,268; row counts :96). Direction of error is understatement of live AI egress, and the predecessor is in the soc2-evidence bundle, so the claim travels to auditors and prospects. GOVERNANCE NOTE FOR THE ATTESTER: Path A leaves the repo-root COMPLIANCE.md frozen with the false claim and no in-file pointer, in a PUBLIC AGPLv3 repository. If that is unacceptable, Path B (re-pin and re-attest COMPLIANCE.md in place) is the alternative and only Scot can authorise it; this successor is drafted so its corrected text serves either path.",
-      "contentHash": "29588f8b4a86b9c1e66f731da9f762c7e896a28784f7c715ff0187d916ae6445"
+      "contentHash": "29588f8b4a86b9c1e66f731da9f762c7e896a28784f7c715ff0187d916ae6445",
+      "supersededBy": "DOC-2bff04d268"
     },
     {
       "title": "Compliance Program",
@@ -999,7 +1000,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-09_data-retention_draft.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -1027,7 +1028,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-e62caf7fb9"
+      "id": "DOC-e62caf7fb9",
+      "supersededBy": "DOC-4dc241c83a"
     },
     {
       "title": "Subprocessor Register",
@@ -1084,7 +1086,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-16_subprocessor-register.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -1119,7 +1121,8 @@
         "attestedDate": "2026-08-19",
         "attestedContentHash": "fd8224cdfd7efdc87113de028273317aa765d3d43c56520c1a3a7fe47f894e1c",
         "note": "First attestation of this dated successor (Path A successor to DOC-0387973005). Row 3's OpenAI note was corrected before signing: no OpenAI::Client.new call sites remain in the repository, so the prior 'in-repo OpenAI SDK clients target Gemini' wording no longer described the code. Runtime AI egress is received by AWS via Bedrock under the AWS BAA, with Anthropic, PBC as model provider."
-      }
+      },
+      "supersededBy": "DOC-052b0e947c"
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -1259,7 +1262,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-15_incident-response-breach-runbook.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -1295,7 +1298,8 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-d4e3b8be32",
       "id": "DOC-28f19f73e4",
-      "contentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d"
+      "contentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d",
+      "supersededBy": "DOC-f082212111"
     },
     {
       "title": "Incident Log",
@@ -1376,7 +1380,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/GCP_BAA_ACCEPTED.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR"
@@ -1411,7 +1415,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-f27de5cf05"
     },
     {
       "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
@@ -1901,7 +1906,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "dc95f7f8c35114ad3799f91f2ebce4b7c3f94d92e6e2ec597926051f17c701f3",
+      "contentHash": "895ca48f77961725e6f67ed363e0fac3fcf193c8ea0bf18ac043c2e83ce2a34d",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-75b4889dfd",
@@ -3227,7 +3232,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-09_compliance-program-overview_draft.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3253,7 +3258,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-90632edc44"
+      "id": "DOC-90632edc44",
+      "supersededBy": "DOC-9587d7124d"
     },
     {
       "title": "EU AI Act Article 50 Transparency: Implementation Milestone Plan",
@@ -3670,7 +3676,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-22_compliance-posture-report.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3699,7 +3705,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "de0e50fd746efd794069b2e991e7244d22af49b5d6d45f157b2f4859090e0f07"
+      "contentHash": "de0e50fd746efd794069b2e991e7244d22af49b5d6d45f157b2f4859090e0f07",
+      "supersededBy": "DOC-110d632550"
     },
     {
       "title": "Compliance & Security Program (2026-08-22 successor)",
@@ -3708,7 +3715,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-22_compliance-program.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3732,7 +3739,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "d623caff9f9bdc2adbf94d90385b644e51a575c0c18d4f3c2604550d43385692"
+      "contentHash": "d623caff9f9bdc2adbf94d90385b644e51a575c0c18d4f3c2604550d43385692",
+      "supersededBy": "DOC-c065db673f"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3741,7 +3749,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-22_compliance-status-snapshot.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [],
       "lastReviewed": "2026-08-22",
       "nextReviewDue": "2026-11-22",
@@ -3759,7 +3767,8 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "6c80055d174c17e32a419e8dd7eb0dc162da085fb9269e9cc65cc71502cc193a"
+      "contentHash": "6c80055d174c17e32a419e8dd7eb0dc162da085fb9269e9cc65cc71502cc193a",
+      "supersededBy": "DOC-39e71c72ee"
     },
     {
       "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
@@ -3884,6 +3893,314 @@
       "dispositionEligibleAfter": null,
       "id": "DOC-b7f15a728c",
       "contentHash": "86ab2195d0a4a4ea2ac060f202499bace020150e2ecdeb25a4b214bb19ac7579"
+    },
+    {
+      "title": "Data Retention Schedule (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission. The predecessor carried an explicit end condition on the Render backup row, \"ends when the Render fallback is decommissioned\". That condition was met on 2026-09-09. The 35 day Render-managed window is marked ENDED and a new row records the GCS archive that replaced it, under a one-year retention policy that is NOT locked and is therefore removable by a project admin.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_data-retention.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2027-04-20",
+      "attestation": {},
+      "contentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO COPIED FORWARD from PR #969, which landed on the predecessor after this branch started: cadence-versus-execution language for LL-3e36a18199. Without that copy-forward this successor would have re-asserted that retention jobs run as of 2026-09-14.",
+      "supersedes": "DOC-e62caf7fb9",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-4dc241c83a"
+    },
+    {
+      "title": "Subprocessor Register (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission. Rows 2 (Render Services, Inc.) and 10 (Render Managed PostgreSQL) are marked ENDED 2026-09-09 and RETAINED as history rather than deleted. Row 8 (n8n) MOVES rather than ends: n8n is now self-hosted on GCP Cloud Run, not on Render. Section 5.2 restated.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_subprocessor-register.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2026-11-08",
+      "bundles": [
+        "school-dpa-package",
+        "soc2-evidence",
+        "security-review"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-f850df36ad",
+      "id": "DOC-052b0e947c",
+      "contentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
+      "attestation": {},
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
+    },
+    {
+      "title": "Compliance & Security Program v1.3.2 (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission at six sites, plus the gate-table row moving from Pending to Complete. The predecessor snapshot boundary 64cdccba1 is retained for every count and finding figure; the decommission is a later infrastructure fact recorded on top of that snapshot, not a re-derivation.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_compliance-program.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-e5e85eccb1",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO COPIED FORWARD from PR #969, which landed on the predecessor after this branch started: cadence-versus-execution language for LL-3e36a18199. Without that copy-forward this successor would have re-asserted that product controls are implemented and operating as of 2026-09-14.",
+      "id": "DOC-c065db673f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "contentHash": "425337e19cd8e2713bdb0b50ee5db36ca779abd3041da3e982d2cca33d681d6e"
+    },
+    {
+      "title": "Incident Response & Breach Runbook (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission. The predecessor instructed responders to treat Render as a live evidence source, alert channel, rollback target and vendor contact; none of those were executable after 2026-09-09. Also records a LOST capability: Render-side service and audit logs are no longer obtainable for any window.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_incident-response-breach-runbook.md",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2027-08-02",
+      "attestation": {},
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-28f19f73e4",
+      "id": "DOC-f082212111",
+      "contentHash": "a5ff3188832ab1439d30cf0ebb72a3cd978d878784552dc1598e865870bbdfc8",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
+    },
+    {
+      "id": "DOC-2bff04d268",
+      "title": "Compliance & Data Governance (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission at six sites: the MCP table, the data-flow table, the subprocessor table, the MCP security matrix, rule A3, and the review calendar. Ended rows retained with an end date. n8n relocated to GCP Cloud Run.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_compliance-data-governance.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-f6d26afec8",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. (3) the formal disposition of the Ember 3.28 accepted risk, which this successor marks HISTORICAL but deliberately does NOT close: the Ember 3.28 to 5.12 upgrade shipped in PR #490 (merged 2026-07-08) and app/frontend/package.json pins ember-source ~5.12.0, ember-data ~5.3.8 and ember-cli ~5.12.0, so the condition the CEO accepted on 2026-02-23 no longer exists. NON-RENDER CORRECTION, flagged as such: item (3) is the only change in this successor that does not describe Render. It is included because a Path A successor reproduces inherited content and presents it as current as of its own date, and this document is in the soc2-evidence bundle, so the stale acceptance would have travelled to auditors as a 2026-09-14 statement of posture. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "contentHash": "c65c23e76fcda7eb6081e2d3a4e8c4c2dbe757e108ea1379178e3a41ddfb9608"
+    },
+    {
+      "title": "Security, Privacy & Compliance Overview (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission in the subprocessor sentence. No other change.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_compliance-program-overview.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "d40eae1ae95d8c2eda6f7696d6068cfdcc38013d41fbdb2ce0f3efa243e36140",
+      "bundles": [
+        "security-review"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersedes": "DOC-90632edc44",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-9587d7124d"
+    },
+    {
+      "title": "Compliance Posture Report (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission. Two sites described Render as a live write-frozen rollback fallback. This report ships in the grant, school-dpa-package and security-review bundles, so the stale claim reached funders, districts and security reviewers. No count, finding or other posture claim changed.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_compliance-posture-report.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [
+        "grant",
+        "school-dpa-package",
+        "security-review"
+      ],
+      "mirrors": [],
+      "supersedes": "DOC-c5408d90b7",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO QUALIFIED 2026-09-14: inherited \"implemented and operating\" overclaim on Active product controls, same class as PR #969 / LL-3e36a18199. The predecessor was not edited by #969; this live head is.",
+      "id": "DOC-110d632550",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "contentHash": "8320904378cabbd933c9e6079150f8f5b248b36ea0e3a0860e5c2e691a9fd93b"
+    },
+    {
+      "title": "GCP BAA Acceptance Record (2026-09-14 successor)",
+      "description": "Path A successor to the CEO-attested GCP BAA acceptance record. TWO substantive changes. (1) Render: the predecessor said Render remained listed until the write-frozen fallback was deleted or restricted; it was deleted 2026-09-09. (2) Runtime AI BAA attribution: the predecessor said that path is covered by Anthropic's HIPAA-Ready BAA. That was overtaken by the 2026-08-16 determination and is wrong as stated. Amazon Bedrock RECEIVES the prompts, AWS is the processing party, and the AWS BAA of 2026-02-07 is the operative instrument; Anthropic is the model provider, not the receiving processor. That contradiction predates the Render work and stood in an attested record since 2026-08-16. The BAA acceptance facts themselves are unchanged.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_gcp-baa-accepted.md",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2027-07-23",
+      "attestation": {},
+      "contentHash": "16cd22bd731fed11d16a6f9f8acba6c71e39158a48ade7bf209f8280799cad12",
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (0) the corrected runtime-AI BAA attribution, namely that the AWS BAA of 2026-02-07 governs the Bedrock path rather than the Anthropic BAA. This is the most consequential change in this successor and determines which contract covers PHI on the AI path; (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "id": "DOC-f27de5cf05",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-5b14b08908"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-09-14 successor)",
+      "description": "Path A successor recording the Render decommission. The \"Render decommission / restrict\" gate moves from Pending to Complete 2026-09-09. The 2026-07-22 Gate 1 row is left as written because it correctly describes that date.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_compliance-status-snapshot.md",
+      "status": "draft",
+      "frameworks": [],
+      "lastReviewed": "2026-09-14",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "id": "DOC-39e71c72ee",
+      "retention": {
+        "class": "working-note",
+        "rule": "90 days",
+        "disposition": "delete",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-af01c65b10",
+      "contentHash": "ae2494e951f1e7bac2702b322be60a419938d1685cbfbf5d7ad29611fcf8e869"
     }
   ]
 }
