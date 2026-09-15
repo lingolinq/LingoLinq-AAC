@@ -226,6 +226,71 @@ promised, not about the code. Scope B, not A.
 - `SupervisorMailer#consent_denied` is registered and has zero call sites; expiry is silent.
 - Three Mediums and three Lows in the merged-findings table, untouched.
 
+### 2.7 Design intent: what `pending` does and does not block — DO NOT REGRESS
+
+Added 2026-09-15 after Scot reviewed the branch. This section exists because the deliberate
+bypasses below look like bugs and a well-meaning change could remove them.
+
+**The operating policy, stated by Scot (product/operational, not legal advice).** Families sign
+a contract with the district at the start of the year authorizing the district to create
+accounts, pull usage data and so on. So when a district adds a new therapist, that therapist
+should be able to start working with the student **without waiting for any in-app family
+approval**. The concern raised was that this branch might have introduced a barrier that should
+not exist.
+
+**It did not.** Verified 2026-09-15 by an executed throwaway spec against HEAD:
+
+| Scenario | Attached | `pending` | `manager_for?` (admin/password path) | Therapist can supervise and edit |
+|---|---|---|---|---|
+| Org-authored student account, therapist redeems the org's start code for them | yes | **false** | **true** | yes |
+| Therapist self-redeems the org's `user_type: 'supporter'` code | yes | **false** | n/a | yes |
+| Family-authored student account, therapist redeems the code for them | yes | **true** | false | **yes** (`supervisor_for?` and `edit_permission_for?` both true) |
+
+In the third row the student is still returned by `Organization#users`, because
+`attached_users('user')` does **not** filter on pending; only the `'approved_user'` type does.
+
+**So `pending` withholds administrative control of the account, not clinical use of it.** What it
+actually gates is `Organization.manager_for?`, which is what grants `support_actions`,
+`manage_supervision` and `link_auth` in `app/models/user.rb`. The reset-token password write is
+the terminal. Supervision, board editing, modelling and roster visibility are all unaffected,
+because they come from the separate `type == 'supervisor'` `UserLink`, which has no pending
+dimension at all (see 2.6).
+
+**Three deliberate behaviours. Do not remove any of them without Scot's sign-off.**
+
+1. **Org-authored accounts bypass pending entirely.** `update_subscription_organization`
+   (`app/models/concerns/subscription.rb`) sets `pending = false` when
+   `settings['authored_organization_id'] == new_org.global_id && created_at > 2.weeks.ago`.
+   `Organization#add_supervisor` carries the same override. This runs **after**
+   `force_pending` is threaded in, which is why row 1 of the table is non-pending. This is the
+   district onboarding path and it must keep working.
+2. **Self-redemption is non-pending.** `force_pending` is false when the person redeeming the
+   code is the account holder, which is the literal value the call site used before this branch.
+   Row 2 is therefore byte-identical to pre-branch behaviour.
+3. **`management_action` has always created pending links.** `Organization#process_params`
+   calls `self.add_user(key, true, ...)` and `self.add_supervisor(key, true)` with pending
+   hardcoded to `true`. This predates the branch. The district admin console flow was already
+   pending-by-default, so this branch introduced no new barrier there.
+
+**The distinction to preserve when reasoning about this.** FERPA-authorized data access and
+administrative control of an account are different things, and only the second is gated. A
+signed district agreement addresses the district's access to education records. It does not
+follow that the district should be able to take over a pre-existing personal account that a
+family created and uses at home. The pending gate exists for account takeover, which is why it
+applies to family-authored accounts and not to district-authored ones. Whether that line is
+drawn in the right place is a product decision (section 5), not a code one.
+
+**Open item for the developers to confirm, UNVERIFIED.** The org-authored bypass has a
+two-week window. In normal operation the student is attached at creation, so the window should
+never be the binding constraint. If a real workflow exists where a district creates accounts in
+one month and attaches them to an org in a later month, that attachment will pend. Confirm
+against actual district onboarding rhythm before assuming it is harmless.
+
+**Recommended work, and a genuine gap.** The three scenarios in the table above have **no
+permanent regression test**. They were demonstrated once and the spec was deleted. Turning them
+into real specs belongs in Scope A, because they are exactly what a future change to
+`force_pending`, to the two-week bypass, or to `attached_users` would silently break.
+
 ---
 
 ## 3. Proposed developer scope
@@ -353,6 +418,11 @@ notices and has been missed before.
 ---
 
 ## 5. Decisions for Scot
+
+**Already decided, 2026-09-15.** A district-provisioned account needs no in-app family approval
+for a therapist to begin working with the student, on the basis of the start-of-year district
+agreement. The branch already behaves this way (see 2.7); the bypasses that deliver it are
+deliberate and must not be removed. The questions below are the ones still open.
 
 Product and policy only; the developers cannot infer these. Keep them as **distinct
 permissions**. The three-role model and the role names in the design sketch are **not** adopted
