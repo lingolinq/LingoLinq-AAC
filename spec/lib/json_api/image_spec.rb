@@ -19,6 +19,14 @@ describe JsonApi::Image do
         expect(JsonApi::Image.build_json(i).keys).to be_include(key)
       end
     end
+
+    it "includes preserve_source_image only when the image is stamped" do
+      plain = ButtonImage.new(settings: {})
+      expect(JsonApi::Image.build_json(plain).keys).not_to be_include('preserve_source_image')
+
+      kept = ButtonImage.new(settings: {'preserve_source_image' => true})
+      expect(JsonApi::Image.build_json(kept)['preserve_source_image']).to eq(true)
+    end
     
     it "should include permissions" do
       u = User.new

@@ -1073,7 +1073,7 @@
               <br>
               {{#if this.model.apps.android.custom}}
                 {{t "App-registered URL/scheme:" key="custom_launch_android"}}
-                <input value={{this.model.apps.android.launch_url}} class="form-control" aria-label={{t "Custom Android launch URL or scheme" key="custom_android_launch_url"}} placeholder="i.e. https://www.twitter.com/" {{on "input" (set-field this "model.apps.android.launch_url")}} />
+                <input value={{this.model.apps.android.launch_url}} class="form-control" aria-label={{t "Custom Android launch URL or scheme" key="custom_android_launch_url"}} placeholder="i.e. https://www.x.com/" {{on "input" (set-field this "model.apps.android.launch_url")}} />
               {{else}}
                 {{#if this.model.apps.android.launch_url}}
                   <em class="text-muted">{{t "This app will be launched by LingoLinq" key="app_can_be_launched"}}</em>

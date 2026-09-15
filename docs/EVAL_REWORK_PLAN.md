@@ -1,9 +1,9 @@
 # Eval Rework — Tiered SLP Assessment Suite
 
-**Branch:** `traci/feature/eval-rework`
-**Status:** Plan, awaiting approval to scaffold
+**Branch:** `traci/feature/eval-rework` (never pushed; the eval report shipped from `traci/styling/checklist` as PR #807, merged 2026-08-17)
+**Status:** Partially implemented. The report/recommendation schema below is live (`lib/eval_recommend.rb` cites it); the tiered administration modes are still a plan.
 **Owner:** Traci
-**Last updated:** 2026-05-09
+**Last updated:** 2026-09-12 (status block only; plan text unchanged since 2026-05-09)
 
 ---
 

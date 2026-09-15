@@ -43,6 +43,20 @@
       <div class="md-copying-board-loading">
         <div class="md-loading-spinner" aria-hidden="true"></div>
         <p class="md-copying-board-loading__label">{{t "Copying the board <strong>%{board_key}</strong>, this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}}</p>
+        {{!-- Determinate ONLY once the server reports a figure. A board copy runs in two
+              phases and only the second is measured (edit_manager#copy_board), so
+              `copy_percent` is null for the first one and the bar sweeps instead of sitting
+              at a made-up 0%. progressbar role carries the same distinction to assistive
+              tech: aria-valuenow is omitted entirely when there is no measurement. --}}
+        <div class="ll-copy-meter {{if this.copy_percent 'll-copy-meter--determinate'}}"
+             role="progressbar" aria-valuemin="0" aria-valuemax="100"
+             aria-valuenow={{this.copy_percent}}
+             aria-valuetext={{if this.copy_percent (concat this.copy_percent "%") (t "Copying, progress not yet measurable" key="copy_progress_indeterminate")}}>
+          <div class="ll-copy-meter__fill" style={{safe-style (concat "width:" (or this.copy_percent 0) "%")}}></div>
+        </div>
+        {{#if this.copy_percent}}
+          <p class="ll-copy-meter__value">{{this.copy_percent}}%</p>
+        {{/if}}
       </div>
     {{/if}}
   </div>

@@ -1895,9 +1895,7 @@ export default Controller.extend({
     var label = (button.get && button.get('label')) || button.label;
     var vocalization = (button.get && button.get('vocalization')) || button.vocalization;
     // Spelling-style "+s" on a dedicated "-s" modifier should inflect (walks), not append "s" (watchs).
-    if((vocalization || '').match(/^\+s$/i) && (label || '').trim().match(/^-?s$/i)) {
-      vocalization = ':plural';
-    }
+    vocalization = Button.vocalization_for_activation(vocalization, label);
     var obj = {
       label: label,
       vocalization: vocalization,

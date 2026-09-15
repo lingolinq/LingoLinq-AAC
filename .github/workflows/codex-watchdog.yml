@@ -11,7 +11,7 @@ name: Codex Review Watchdog
 # `fail-stale-pending`, and the only writer to the stale list is gated on
 # `age_min -ge 30`. There is no `github.event_name` branching anywhere in this
 # file, so NEITHER trigger provides prompt recovery:
-#   1. workflow_run(completed) — codex-review.yml or claude-fix.yml concluded
+#   1. workflow_run(completed) — codex-review.yml concluded
 #      (crashed, cancelled, or exited nonzero) but deep-pass is still pending.
 #      This fires immediately and then does NOTHING unless the status is
 #      already 30+ minutes old. Do not describe it as a fast path: a run that
@@ -42,9 +42,11 @@ name: Codex Review Watchdog
 #   a. the status-write-failure path, where codex-review.yml provably cannot
 #      resolve its own status because the status API is what is failing;
 #   b. a hung `codex exec` — run_model in scripts/codex-review-run-chunks.py
-#      passes no timeout= to subprocess.run, so the job stalls to the 90-minute
-#      ceiling and emits no workflow_run event while it hangs. This is a known
-#      unfixed limit, not a hypothetical.
+#      caps each call at CODEX_REVIEW_MODEL_CALL_TIMEOUT seconds (default 1500)
+#      and retries once, so one hung call costs up to about 50 minutes before
+#      that chunk is NEEDS_HUMAN; several hung calls can still reach the
+#      90-minute ceiling, and no workflow_run event is emitted while a call
+#      hangs. That residual is what this sweep covers.
 # In both, this sweep is the only recovery mechanism and its timing is
 # unbounded. Everywhere else codex-review.yml's own terminal-status step
 # (PR #702) resolves the status and this sweep never needs to act.
@@ -57,7 +59,7 @@ name: Codex Review Watchdog
 # monitor outside GitHub Actions; scheduling cannot provide one.
 on:
   workflow_run:
-    workflows: ["Codex Review", "Claude Fix"]
+    workflows: ["Codex Review"]
     types: [completed]
   schedule:
     - cron: "*/10 * * * *"
@@ -72,9 +74,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout (for the labeling helper script only)
-        uses: actions/checkout@v6
-
       - name: Find open PRs with a pending codex-review/deep-pass status
         id: find_pending
         run: |

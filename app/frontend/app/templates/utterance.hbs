@@ -1,169 +1,217 @@
-<div style="margin: 20px 50px;">
-  {{#if this.model.error}}
-    <div style='max-width: 500px; margin: 0 auto;'>
-      {{#if this.model.not_found}}
-        <h2>{{t "Message Not Found" key="message_not_found"}}</h2>
-      {{else if this.model.expired}}
-        <h2>{{t "Message Not Available" key="message_not_available"}}</h2>
-      {{/if}}
-      <p>{{t "The message you were looking for is no longer available through this link. For privacy and security reasons message links are only active for 7 days. You can still message %app_name% users by logging in and sharing a message with them from your dashboard." key="message_no_longer_available"}}</p>
-    </div>
-  {{else}}
-    {{#unless this.model.private_only}}
-      <h2>
-        <span style='font-size: 14px;'>
-        {{#if this.user_showable}}
-          <LinkTo @route="user.index" @model={{this.model.user.user_name}}>
-            {{display-name this.model.user}}
-          </LinkTo>
-          {{t "said:" key="said_colon"}}
-        {{else}}
-          <span style="color: #aaa;">
-            {{t "Someone said:" key="someone_said"}}
-          </span>
+{{!-- Public / private share page for a single message. Reached from the Share Text modal's
+     "Link" action (components/share-utterance.js#share_via 'link'), and from any link the
+     communicator hands out. Three distinct audiences share this template: someone who was
+     sent a message, the communicator themselves, and a stranger following a public link --
+     hence the grouping into discrete cards rather than one running column. --}}
+<div class="la-utterance-page">
+  <div class="la-utterance-page__inner">
+    {{#if this.model.error}}
+      <div class="la-utterance-card la-utterance-card--notice">
+        {{#if this.model.not_found}}
+          <h1 class="la-utterance-card__title">{{t "Message Not Found" key="message_not_found"}}</h1>
+        {{else if this.model.expired}}
+          <h1 class="la-utterance-card__title">{{t "Message Not Available" key="message_not_available"}}</h1>
         {{/if}}
-        </span>
-        "<span id="sentence">{{this.model.sentence}}</span>"
-      </h2>
-      {{#if this.single_button_full_sentence}}
-        <div style='margin-bottom: 50px;'>{{this.model.sentence}}</div>
-      {{else}}
-        <div id="utterance" class="button_list" {{on "click" (this.ctrlAction "vocalize")}}>
-          {{#let this.model.button_list as |button_list|}}
-            {{#if button_list}}
-              <ButtonList @buttonList={{button_list}} />
-            {{/if}}
-          {{/let}}
-        </div>
-      {{/if}}
-    {{/unless}}
-    <div style="clear: both;"></div>
-    {{#if this.model.permissions.reply}}
-      {{#if this.model.prior}}
-        <div style='margin: -10px 0 30px 20px;'>
-          <em>{{t "in reply to" key="in_reply_to"}}{{#if (display-name this.model.prior.author)}} {{t "message from" key="message_from"}} {{display-name this.model.prior.author}}{{/if}}:</em>
-          <div style="border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line;">{{this.model.prior.text}}</div>
-        </div>
-      {{/if}}
-      <h3>
-        {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if (display-name this.model.user)}} {{t "to" key="to"}} {{display-name this.model.user}}{{/if}}{{t ":" key="colon"}}
-      </h3>
-      <div style='margin: -5px 0 30px;'>
-        {{#if this.reachable_core}}
-          {{#if this.reachable_core.length}}
-            <span class='text-muted'>{{t "%{n} high-frequency words in the user's vocabulary" n=this.reachable_core.length key="n_core_words"}}</span>
-            {{#if this.expanded_list}}
-               - {{this.spaced_core}}
-            {{else}}
-              <a href="#" {{on "click" (this.ctrlAction "expand_core")}}>{{t "Show All" key="show_all"}}</a>
-              <div class='text-muted'>
-                {{t "Used vocabulary words: " key="used_words"}}
-                <span style='color: #000;'>{{this.used_core}}</span>
-              </div>
-            {{/if}}
-          {{/if}}
-        {{/if}}
-        <textarea class="form-control" id="utterance_reply" aria-label={{t "Reply" key="reply"}} {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
-        <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "reply")}} disabled={{this.reply_status.loading}}>
-          {{#if this.reply_status.loading}}
-            {{t "Sending Reply..." key="sending_reply"}}
-          {{else if this.reply_status.error}}
-            {{t "Error Sending Reply" key="error_sending_reply"}}
-          {{else}}
-            {{t "Send Reply" key="send_reply"}}
-          {{/if}}
-        </button>
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "clear_reply")}}>{{t "Clear" key="clear"}}</button>
-        {{#if this.reply_status.sent}}
-          <p class='text-success'>{{t "Message successfully sent!" key="message_sent"}}</p>
-        {{/if}}
+        <p class="la-utterance-card__body">{{t "The message you were looking for is no longer available through this link. For privacy and security reasons message links are only active for 7 days. You can still message %app_name% users by logging in and sharing a message with them from your dashboard." key="message_no_longer_available"}}</p>
       </div>
-
-      {{#if this.model.private_only}}
-        <p>{{t "This is a private link that can be used to send messages to a %app_name% communicator. Please respect the communicator's privacy and security by not sharing it with others." key="keep_private_link_secure"}}</p>
-      {{else}}
-        <p>{{t "This is a private link and will expire after 7 days. You can navigate to the public link for this message if the communicator has given you permission and you would like to share it with others." key="private_link_warning"}}</p>
-        <a href={{this.model.link}} target="_blank" class='btn btn-default btn-lg' rel="noopener"><span class='glyphicon glyphicon-hand-up'></span> {{t "Public Link" key="public_link"}}</a>
-      {{/if}}
     {{else}}
-      {{#if this.speakable}}
-        <div style="float: left; margin-right: 15px;">
-          <button class='btn btn-primary btn-lg' {{on "click" (this.ctrlAction "vocalize")}}>{{t "Speak This Sentence" key="speak_this_sentence"}}</button>
+      {{!-- Context first: a stranger following a public link needs to know what AAC
+           is before the message makes sense. Gated on `unless permissions.reply`,
+           which is the same visibility it had when it sat lower in the public
+           branch -- recipients composing a reply already know what this is. --}}
+      {{#unless this.model.permissions.reply}}
+        <p class="la-utterance-explainer">
+          {{t "This message was written with AAC — software that helps people communicate by choosing words and pictures." key="aac_explainer_short"}}
+          <a href="https://www.asha.org/public/speech/disorders/AAC/" target="_blank" rel="noopener" class="la-utterance-explainer__link">{{t "What is AAC?" key="what_is_aac"}}</a>
+        </p>
+      {{/unless}}
+
+      {{#unless this.model.private_only}}
+        {{!-- The message itself, as the page's one hero. --}}
+        <section class="la-utterance-card la-utterance-card--message">
+          <p class="la-utterance-card__eyebrow">
+            {{#if this.user_showable}}
+              <LinkTo @route="user.index" @model={{this.model.user.user_name}} class="la-utterance-card__author">
+                {{display-name this.model.user}}
+              </LinkTo>
+              {{t "said:" key="said_colon"}}
+            {{else}}
+              {{t "Someone said:" key="someone_said"}}
+            {{/if}}
+          </p>
+          <blockquote class="la-utterance-quote">
+            <span class="la-utterance-quote__mark" aria-hidden="true">&ldquo;</span>
+            {{!-- id=sentence is the ShareBar clipboard target (@element_id="sentence" below)
+                 and is read by components/share-bar.js -- do not rename. --}}
+            <span class="la-utterance-quote__text" id="sentence">{{this.model.sentence}}</span>
+            <span class="la-utterance-quote__mark" aria-hidden="true">&rdquo;</span>
+          </blockquote>
+
+          {{#if this.single_button_full_sentence}}
+            {{!-- One button already carrying the whole sentence: the quote above has said it,
+                 so repeating the tiles adds nothing. --}}
+          {{else}}
+            {{!-- id=utterance + .button_list carry existing layout rules (app.scss #utterance.button_list). --}}
+            <div id="utterance" class="button_list la-utterance-card__buttons" {{on "click" (this.ctrlAction "vocalize")}}>
+              {{#let this.model.button_list as |button_list|}}
+                {{#if button_list}}
+                  <ButtonList @buttonList={{button_list}} />
+                {{/if}}
+              {{/let}}
+            </div>
+          {{/if}}
+        </section>
+      {{/unless}}
+
+      {{#if this.model.permissions.reply}}
+        {{#if this.model.prior}}
+          <section class="la-utterance-card la-utterance-card--quoted">
+            <p class="la-utterance-card__eyebrow">
+              {{t "in reply to" key="in_reply_to"}}{{#if (display-name this.model.prior.author)}} {{t "message from" key="message_from"}} {{display-name this.model.prior.author}}{{/if}}{{t ":" key="colon"}}
+            </p>
+            <div class="la-utterance-prior">{{this.model.prior.text}}</div>
+          </section>
+        {{/if}}
+
+        <section class="la-utterance-card la-utterance-card--reply">
+          <h2 class="la-utterance-card__title">
+            {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if (display-name this.model.user)}} {{t "to" key="to"}} {{display-name this.model.user}}{{/if}}
+          </h2>
+
+          {{#if this.reachable_core}}
+            {{#if this.reachable_core.length}}
+              <div class="la-utterance-vocab">
+                <span class="la-utterance-vocab__count">{{t "%{n} high-frequency words in the user's vocabulary" n=this.reachable_core.length key="n_core_words"}}</span>
+                {{#if this.expanded_list}}
+                  <span class="la-utterance-vocab__words">{{this.spaced_core}}</span>
+                {{else}}
+                  <a href="#" class="la-utterance-vocab__more" {{on "click" (this.ctrlAction "expand_core")}}>{{t "Show All" key="show_all"}}</a>
+                  <div class="la-utterance-vocab__used">
+                    {{t "Used vocabulary words: " key="used_words"}}
+                    <span class="la-utterance-vocab__words">{{this.used_core}}</span>
+                  </div>
+                {{/if}}
+              </div>
+            {{/if}}
+          {{/if}}
+
+          <textarea class="form-control la-utterance-reply__input" id="utterance_reply" aria-label={{t "Reply" key="reply"}} {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
+
+          <div class="la-utterance-actions">
+            <button class='btn btn-lg btn-primary la-utterance-actions__primary' {{on "click" (this.ctrlAction "reply")}} disabled={{this.reply_status.loading}}>
+              {{#if this.reply_status.loading}}
+                {{t "Sending Reply..." key="sending_reply"}}
+              {{else if this.reply_status.error}}
+                {{t "Error Sending Reply" key="error_sending_reply"}}
+              {{else}}
+                {{t "Send Reply" key="send_reply"}}
+              {{/if}}
+            </button>
+            <button class='btn btn-lg btn-default la-utterance-actions__secondary' {{on "click" (this.ctrlAction "clear_reply")}}>{{t "Clear" key="clear"}}</button>
+          </div>
+
+          {{#if this.reply_status.sent}}
+            <p class='la-utterance-status la-utterance-status--ok'>{{t "Message successfully sent!" key="message_sent"}}</p>
+          {{/if}}
+        </section>
+
+        <div class="la-utterance-note">
+          {{#if this.model.private_only}}
+            <p class="la-utterance-note__text">{{t "This is a private link that can be used to send messages to a %app_name% communicator. Please respect the communicator's privacy and security by not sharing it with others." key="keep_private_link_secure"}}</p>
+          {{else}}
+            <p class="la-utterance-note__text">{{t "This is a private link and will expire after 7 days. You can navigate to the public link for this message if the communicator has given you permission and you would like to share it with others." key="private_link_warning"}}</p>
+            <a href={{this.model.link}} target="_blank" class='btn btn-default btn-lg la-utterance-note__action' rel="noopener"><span class='glyphicon glyphicon-hand-up' aria-hidden="true"></span> {{t "Public Link" key="public_link"}}</a>
+          {{/if}}
         </div>
-      {{/if}}
-      <ShareBar @url={{this.model.link}} @text={{this.model.sentence}} @element_id="sentence" @user={{this.app_state.currentUser}} @utterance={{this.model}} @copy_event="copy_event" />
-      <div style="clear: left;"></div>
-      <p style="margin-top: 15px; margin-bottom: 15px;">
-        {{t "This person uses software running on a tablet, phone or computer to help them communicate. People use " key="stash_explanation_1"}}
-        <a href="https://www.asha.org/public/speech/disorders/AAC/">{{t "Augmentative and Alternative Communication" key="aac"}}</a>
-        {{t "for many different reasons. It's really not that different from using a keyboard to write messages online, except some people have to type even what they want to say out loud. Using pictures to help identify words and ideas can sometimes make it easier to find the right words to say." key="stash_explanation_2"}}
-      </p>
-      {{#if this.model.permissions.edit}}
-        {{#unless this.single_button_full_sentence}}
-          <div class="row"><div class="col-sm-6">
-          <form class="form-horizontal well" {{on "submit" (this.ctrlAction "update_utterance")}} style="margin-top: 20px;">
-            <div class="form-group">
-              <div class="col-sm-8">
-                <h2>{{t "Sentence settings" key="sentence_settings"}}</h2>
-              </div>
-            </div>
-            <div class="form-group">
-              <div class="col-sm-8">
-                <div class="checkbox big_checkbox">
-                  <label>
-                    <input type="checkbox" checked={{this.model.show_user}} {{on "change" (set-field this "model.show_user" "checkbox")}} />
-                    {{t "Show author name when sharing" key="show_author"}}
-                  </label>
+      {{else}}
+        {{!-- Public view: speak it, share it, then a one-line explainer for the stranger
+             who followed the link and has never seen an AAC message before. --}}
+        <section class="la-utterance-card la-utterance-card--share">
+          {{#if this.speakable}}
+            <button class='btn btn-primary btn-lg la-utterance-speak' {{on "click" (this.ctrlAction "vocalize")}}>
+              <span class="glyphicon glyphicon-volume-up" aria-hidden="true"></span>
+              {{t "Speak This Sentence" key="speak_this_sentence"}}
+            </button>
+          {{/if}}
+          <div class="la-utterance-sharebar">
+            <ShareBar @url={{this.model.link}} @text={{this.model.sentence}} @element_id="sentence" @user={{this.app_state.currentUser}} @utterance={{this.model}} @copy_event="copy_event" />
+          </div>
+        </section>
+
+        {{#if this.model.permissions.edit}}
+          {{#unless this.single_button_full_sentence}}
+            <section class="la-utterance-card la-utterance-card--settings">
+              <h2 class="la-utterance-card__title">{{t "Sentence settings" key="sentence_settings"}}</h2>
+              <form {{on "submit" (this.ctrlAction "update_utterance")}}>
+                <label class="la-utterance-check">
+                  <input type="checkbox" class="la-utterance-check__box" checked={{this.model.show_user}} {{on "change" (set-field this "model.show_user" "checkbox")}} />
+                  <span class="la-utterance-check__label">{{t "Show author name when sharing" key="show_author"}}</span>
+                </label>
+
+                <div class="la-utterance-preview">
+                  <p class="la-utterance-preview__help">{{t "In some web sites, an image preview will be shown. You can select the image you would like to appear in these cases." key="preview_symbol"}}</p>
+                  <div class="la-utterance-preview__picker">
+                    <button type='button' class='btn btn-default la-utterance-preview__nav' aria-label={{t "Previous image" key="previous_image"}} {{on "click" (this.ctrlAction "change_image" "prev")}}><span class='glyphicon glyphicon-chevron-left' aria-hidden="true"></span></button>
+                    <span class="la-utterance-preview__frame">
+                      <img src={{this.image_url}} class="la-utterance-preview__img" alt={{t "preview symbol" key="preview_symbol_alt"}}>
+                    </span>
+                    <button type='button' class='btn btn-default la-utterance-preview__nav' aria-label={{t "Next image" key="next_image"}} {{on "click" (this.ctrlAction "change_image" "next")}}><span class='glyphicon glyphicon-chevron-right' aria-hidden="true"></span></button>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <div class="col-sm-12">
-                <p class="form-control-static">
-                  {{t "In some web sites, an image preview will be shown. You can select the image you would like to appear in these cases." key="preview_symbol"}}<br>
-                  <button type='button' {{on "click" (this.ctrlAction "change_image" "prev")}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-left'></span></button>
-                  <span style="width: 400px; height: 200px; display: inline-block; overflow: hidden; vertical-align: middle; text-align: center;">
-                  <img src={{this.image_url}} style="max-height: 200px; max-width: 400px;" alt="preview symbol">
-                  </span>
-                  <button type='button' {{on "click" (this.ctrlAction "change_image" "next")}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-right'></span></button>
-                </p>
-              </div>
-            </div>
-            <div class="form-group">
-              <div class="col-sm-8">
-                <button class='btn btn-primary' type='submit'>{{t "Save Settings" key="save_settings"}}</button>
-              </div>
-            </div>
-          </form>
-          </div></div>
+
+                <div class="la-utterance-actions">
+                  <button class='btn btn-primary btn-lg la-utterance-actions__primary' type='submit'>{{t "Save Settings" key="save_settings"}}</button>
+                </div>
+              </form>
+            </section>
+          {{/unless}}
+        {{/if}}
+
+        {{#unless this.model.show_attribution}}
+          <p class="la-utterance-attrib__toggle"><a href="#" {{on "click" (this.ctrlAction "show_attribution")}}>{{t "show attributions" key="show_attribution"}}</a></p>
+        {{else}}
+          <section class="la-utterance-card la-utterance-card--attrib">
+            <h2 class="la-utterance-card__title">{{t "Image License Attribution" key="image_license_attribution"}}</h2>
+            <ul class="la-utterance-attrib__list">
+              {{#each this.model.button_list as |button|}}
+                {{#if button.image}}
+                  <li class="la-utterance-attrib__item">
+                    <img src={{button.image}} alt={{button.label}} title={{button.label}} class="la-utterance-attrib__thumb">
+                    <LicenseAttribution @license={{button.image_license}} />
+                  </li>
+                {{/if}}
+              {{/each}}
+              {{#each this.model.button_list as |button|}}
+                {{#if button.sound}}
+                  <li class="la-utterance-attrib__item la-utterance-attrib__item--sound">
+                    <strong class="la-utterance-attrib__sound-label">{{button.label}}</strong>
+                    <audio controls src={{button.sound}} class="la-utterance-attrib__audio" aria-label={{t "Button sound" key="button_sound"}}></audio>
+                    <LicenseAttribution @license={{button.sound_license}} />
+                  </li>
+                {{/if}}
+              {{/each}}
+            </ul>
+          </section>
         {{/unless}}
       {{/if}}
-      {{#unless this.model.show_attribution}}
-        <p><a href="#" {{on "click" (this.ctrlAction "show_attribution")}}>{{t "show attributions" key="show_attribution"}}</a></p>
-      {{else}}
-        <h4>{{t "Image License Attribution" key="image_license_attribution"}}</h4>
-        <ul class="list-unstyled">
-          {{#each this.model.button_list as |button|}}
-            {{#if button.image}}
-              <li>
-                <img src={{button.image}} alt={{button.label}} title={{button.label}} style="width: 30px;">
-                <LicenseAttribution @license={{button.image_license}} />
-              </li>
-            {{/if}}
-          {{/each}}
-          {{#each this.model.button_list as |button|}}
-            {{#if button.sound}}
-              <li>
-                <strong>{{button.label}}</strong><br>
-                <audio controls src={{button.sound}} style="width: 100%;" aria-label={{t "Button sound" key="button_sound"}}></audio><br>
-                <span style="padding-left: 20px;">
-                  <LicenseAttribution @license={{button.sound_license}} />
-                </span>
-              </li>
-            {{/if}}
-          {{/each}}
-        </ul>
-      {{/unless}}
     {{/if}}
-  {{/if}}
+  </div>
+
+  {{!-- Eye-gaze and switch users cannot flick-scroll, and this page is long enough
+       to run past the viewport on a reply thread or a full attribution list. These
+       page the real scroll container (controllers/utterance.js#page_scroller finds
+       it at call time). Deliberately always present rather than shown only when
+       scrollable: a control that appears and disappears is a worse target for gaze
+       dwell than one that is always in the same place, and paging at the end of the
+       page is simply a no-op (the action clamps to the scroll range). --}}
+  <div class="la-utterance-pager" role="group" aria-label={{t "Move the page up or down" key="scroll_the_page"}}>
+    <button type="button" class="la-utterance-pager__btn" {{on "click" (this.ctrlAction "scroll_page" "up")}} aria-label={{t "Page up" key="page_up"}}>
+      <svg class="la-utterance-pager__icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+      <span class="la-utterance-pager__label">{{t "Up" key="up"}}</span>
+    </button>
+    <button type="button" class="la-utterance-pager__btn" {{on "click" (this.ctrlAction "scroll_page" "down")}} aria-label={{t "Page down" key="page_down"}}>
+      <svg class="la-utterance-pager__icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      <span class="la-utterance-pager__label">{{t "Down" key="down"}}</span>
+    </button>
+  </div>
 </div>

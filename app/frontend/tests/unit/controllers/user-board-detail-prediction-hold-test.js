@@ -16,6 +16,21 @@ import aiPredictor from 'frontend/utils/ai_word_predictor';
    (scripts/prediction-rail-qa.mjs) covers neither: it hardcodes the side_rail placement and
    never inspects suggestion.image. */
 
+/* A resolved symbol is now DECODED before it replaces the placeholder
+   (board-detail.js `_decorate_suggestion_images`), so these memo tests have to drive that
+   step. The assertion they exist for — which url the memo replays, and that it is never
+   replayed across board sets — is unchanged; only the moment of application moved. */
+function stubImage() {
+  var created = [];
+  var orig = window.Image;
+  window.Image = function() { created.push(this); };
+  return {
+    created: created,
+    decode: function(idx) { created[idx || 0].onload(); },
+    restore: function() { window.Image = orig; }
+  };
+}
+
 function stubService() {
   return EmberObject.create({
     get: function() { return null; },
@@ -58,6 +73,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     controller._find_local_image_for_label = function() { return null; };
     controller._suggestion_lookup_board_ids = function() { return []; };
     controller._republish_suggestion_list = function() {};
+    const imgs = stubImage();
 
     try {
       const first = [{ word: 'hello' }];
@@ -65,6 +81,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.ok(capturedCallback, 'the first lookup requests an image');
 
       capturedCallback('https://example.test/hello.png');
+      imgs.decode();
       assert.strictEqual(first[0].image, 'https://example.test/hello.png', 'the requesting list gets the image');
 
       /* Every lookup builds FRESH item objects (word_suggestions#merge_suggestions), so this
@@ -75,6 +92,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.strictEqual(second[0].image, 'https://example.test/hello.png',
         'a later lookup of the same word keeps the symbol instead of coming back bare');
     } finally {
+      imgs.restore();
       controller.destroy();
     }
   });
@@ -95,12 +113,14 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const controller = buildController();
     controller._find_local_image_for_label = function() { return null; };
     controller._republish_suggestion_list = function() {};
+    const imgs = stubImage();
 
     try {
       controller._suggestion_lookup_board_ids = function() { return ['board-a']; };
       const onA = [{ word: 'mom' }];
       controller._decorate_suggestion_images(onA);
       capturedCallback('https://example.test/mom-on-a.png');
+      imgs.decode();
       assert.strictEqual(onA[0].image, 'https://example.test/mom-on-a.png', 'resolves on board A');
 
       controller._suggestion_lookup_board_ids = function() { return ['board-b']; };
@@ -109,6 +129,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.strictEqual(calls, 2, 'a different board set triggers a fresh lookup');
       assert.notOk(onB[0].image, "and board A's symbol is not replayed onto board B");
     } finally {
+      imgs.restore();
       controller.destroy();
     }
   });
@@ -774,11 +795,18 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     controller._sync_prediction_tile_size();
     const c = f.card.getBoundingClientRect();
     const t = f.tile.getBoundingClientRect();
+    const r = f.rail.getBoundingClientRect();
+    const rs = window.getComputedStyle(f.rail);
+    const railInnerW = r.width - (parseFloat(rs.paddingLeft) || 0) - (parseFloat(rs.paddingRight) || 0);
     return {
       dH: Math.round(t.height - c.height),
-      dW: Math.round(t.width - c.width),
       dTop: Math.round(t.top - c.top),
-      cardH: Math.round(c.height)
+      cardH: Math.round(c.height),
+      /* Width parity with the board card is deliberately NOT asserted: the tile fills the
+         PANEL, which is sized to the inline sidebar. What must hold is that it fills the
+         panel exactly and never overhangs it. */
+      dPanelW: Math.round(t.width - railInnerW),
+      overhang: Math.round(t.right - r.right)
     };
   }
 
@@ -838,6 +866,12 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        labels have always truncated; this pins the rail to the same behaviour. */
     document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
     const f = boardAndRailFixture(5, 14, 'md-board-detail-grid--shape-square');
+    /* The tile now takes its width from the PANEL, which CSS sizes to the inline sidebar.
+       A 14-column board carries .md-shell--many-columns, where that is 53px at <=768px
+       (app.scss). The fixture does not match media queries, so set it explicitly — without
+       it the panel falls back to 100px and the narrow-tile condition this test needs never
+       arises. */
+    f.rail.style.setProperty('--bd-sidebar-w', '53px');
     const controller = buildController();
     controller.set('ordered_buttons', Array.from({ length: 5 }, function() {
       return Array.from({ length: 14 }, function() { return {}; });
@@ -946,7 +980,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
-  test('a rail symbol paints at the same size as a board symbol', function(assert) {
+  test('a rail symbol never paints SMALLER than a board symbol', function(assert) {
     assert.expect(4);
     document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
     const f = boardAndRailFixture(5, 14, 'md-board-detail-grid--shape-square');
@@ -961,19 +995,29 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        roomy the two could agree for reasons unrelated to the fix. */
     assert.ok(boardSym > 0, 'guard: the board symbol actually rendered');
     assert.ok(boardSym < 60, 'guard: and is width-constrained, so the comparison is meaningful');
-    assert.strictEqual(railSym, boardSym, 'the rail symbol paints at the board symbol size');
+    /* Exact size parity no longer holds: the tile fills the PANEL (sidebar-width) rather
+       than matching the board card's width, and object-fit:contain paints at
+       min(width, height), so a wider tile paints a larger symbol. The defect this test
+       exists for is the opposite — a rail symbol 24% SMALLER than the board's, which is what
+       shipped once — so the guard is that it is never smaller, not that it is identical. */
+    assert.ok(railSym >= boardSym,
+      'the rail symbol is at least the board symbol size (rail ' + railSym + ' vs board ' + boardSym + ')');
     assert.strictEqual(Math.round(f.tile.getBoundingClientRect().height),
                        Math.round(f.card.getBoundingClientRect().height),
                        'and the tile is the height of a PLAIN button, not the folder in cell 1');
   });
 
-  test('a rail tile is the same box as a board button, in every button shape', function(assert) {
-    assert.expect(10);
+  test('a rail tile fills the panel and keeps the board button\'s height, in every shape', function(assert) {
+    assert.expect(13);
     ['square', 'tall', 'wide'].forEach(function(shape) {
       const m = measureParity('md-board-detail-grid--shape-' + shape, false);
       assert.strictEqual(m.dH, 0, shape + ': tile height matches the board card');
-      assert.strictEqual(m.dW, 0, shape + ': tile width matches the board card');
+      assert.strictEqual(m.dPanelW, 0, shape + ': tile fills the panel width');
       assert.strictEqual(m.dTop, 0, shape + ': tile top aligns with the board card');
+      /* The reported symptom: a tile sized to a board button WIDER than the sidebar hung
+         over the panel's edge. Asserted separately from dPanelW so an overhang is named as
+         an overhang rather than showing up as an unexplained width delta. */
+      assert.ok(m.overhang <= 0, shape + ': tile does not overhang the panel (' + m.overhang + 'px)');
     });
     /* Guard the guard: `wide` must actually be a SHORTER card than the others, or all
        three assertions above could be passing against a fixture where the shape class
@@ -983,15 +1027,15 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
               'the wide shape really did produce a shorter card');
   });
 
-  test('a rail tile matches the board button whether the sidebar is open or closed', function(assert) {
+  test('a rail tile fills the panel whether the sidebar is open or closed', function(assert) {
     assert.expect(7);
     const closed = measureParity('md-board-detail-grid--shape-square', false);
     const open = measureParity('md-board-detail-grid--shape-square', true);
     assert.strictEqual(closed.dH, 0, 'sidebar closed: height matches');
-    assert.strictEqual(closed.dW, 0, 'sidebar closed: width matches');
+    assert.strictEqual(closed.dPanelW, 0, 'sidebar closed: tile fills the panel');
     assert.strictEqual(closed.dTop, 0, 'sidebar closed: top aligns');
     assert.strictEqual(open.dH, 0, 'sidebar open: height matches');
-    assert.strictEqual(open.dW, 0, 'sidebar open: width matches');
+    assert.strictEqual(open.dPanelW, 0, 'sidebar open: tile fills the panel');
     assert.strictEqual(open.dTop, 0, 'sidebar open: top aligns');
     /* The board buttons themselves get narrower when the sidebar takes width, so the tile
        must track them rather than hold a fixed size. If these were equal, the fixture never
@@ -999,59 +1043,5 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     assert.strictEqual(open.cardH, closed.cardH, 'row heights are unaffected by the sidebar');
   });
 
-  /* The rail width solver. Arithmetic, not DOM: the point of the closed form is that it
-     does NOT need a settled layout, so a test that built one would be testing the wrong
-     thing. */
-  test('solves a rail width equal to one board button, from ANY current split', function(assert) {
-    assert.expect(4);
-    const controller = buildController();
-    /* Split-invariance is the property the whole fix rests on: the grid is flex:1, so
-       fade + rail is one budget however it currently divides. Three different splits of the
-       same 500px budget must agree, or the value chases its own tail across ResizeObserver
-       passes — the circular-measure bug recorded in LEARNINGS. */
-    const a = controller._solve_prediction_rail_width(400, 100, 4, 0, 1);
-    const b = controller._solve_prediction_rail_width(450, 50, 4, 0, 1);
-    const c = controller._solve_prediction_rail_width(499, 1, 4, 0, 1);
-    assert.strictEqual(Math.round(a), 100, 'solved from a 400/100 split');
-    assert.strictEqual(Math.round(b), 100, 'same answer from a 450/50 split');
-    assert.strictEqual(Math.round(c), 100, 'same answer from a 499/1 split');
-    /* A genuine fixed point: leaving the grid 400px over 4 columns gives a 100px cell,
-       which is the tile width just solved. */
-    assert.strictEqual(Math.round((500 - a) / 4), Math.round(a), 'tile equals the resulting cell');
-  });
-
-  test('solves a NARROWER tile for a tall button shape', function(assert) {
-    assert.expect(3);
-    const controller = buildController();
-    /* shape-tall makes the card 66.6667% of its cell (app.scss:80286), so the tile must
-       fall by the same ratio. A solver ignoring `ratio` returns 100 here; one using the
-       full-column `cols + 1` denominator returns 67. Neither is 71. */
-    const square = controller._solve_prediction_rail_width(400, 100, 4, 0, 1);
-    const tall = controller._solve_prediction_rail_width(400, 100, 4, 0, 2 / 3);
-    assert.strictEqual(Math.round(square), 100, 'square shape fills the column');
-    assert.strictEqual(Math.round(tall), 71, 'tall shape tracks the card, not the column');
-    assert.ok(tall < square, 'a tall button yields a narrower tile');
-  });
-
-  test('is stable on a one-column board, where iterating would oscillate forever', function(assert) {
-    assert.expect(2);
-    const controller = buildController();
-    /* The iterative form has gain -ratio/cols, exactly -1 at cols === 1: a permanent
-       period-2 flip. Feeding the closed form its own output returns the same number. */
-    const once = controller._solve_prediction_rail_width(400, 100, 1, 0, 1);
-    const twice = controller._solve_prediction_rail_width(500 - once, once, 1, 0, 1);
-    assert.strictEqual(Math.round(once), 250, 'solved once');
-    assert.strictEqual(Math.round(twice), Math.round(once), 're-solving from its own output is a no-op');
-  });
-
-  test('returns 0 rather than a bogus width when the board is not measurable', function(assert) {
-    assert.expect(3);
-    const controller = buildController();
-    /* The caller falls back to the measured card width on 0, so a bail must be
-       distinguishable from a real answer. */
-    assert.strictEqual(controller._solve_prediction_rail_width(0, 100, 4, 0, 1), 0, 'unmeasured grid');
-    assert.strictEqual(controller._solve_prediction_rail_width(400, 100, 0, 0, 1), 0, 'no columns');
-    assert.strictEqual(controller._solve_prediction_rail_width(400, 100, 4, 0, 0), 0, 'no shape ratio');
-  });
 
 });

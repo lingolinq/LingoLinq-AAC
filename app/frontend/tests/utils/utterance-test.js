@@ -11,6 +11,8 @@ import { stashesTarget, appStateTarget } from '../helpers/service-stub';
 import utterance from '../../utils/utterance';
 import speecher from '../../utils/speecher';
 import stashes from '../../utils/_stashes';
+import app_state from '../../utils/app_state';
+import Button from '../../utils/button';
 import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 
@@ -343,6 +345,76 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list')[0].label).toEqual("A");
       expect(appStateForTest().get('button_list')[0].vocalization).toEqual("A");
       expect(appStateForTest().get('button_list')[0].in_progress).toEqual(false);
+    });
+
+    it("should keep capitalizing letters while caps_lock is on", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', false);
+      appStateForTest().set('caps_lock', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("A");
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+
+      addButtonForTest({label: "b", vocalization: "+b"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("AB");
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+    });
+
+    it("should spell STAR in all caps at the start of a sentence when caps_lock is on", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', true);
+      appStateForTest().set('caps_lock', true);
+      var first = Button.vocalization_for_activation('+s', 's');
+      addButtonForTest({label: "s", vocalization: first});
+      addButtonForTest({label: "t", vocalization: "+t"});
+      addButtonForTest({label: "a", vocalization: "+a"});
+      addButtonForTest({label: "r", vocalization: "+r"});
+      expect(appStateForTest().get('button_list').length).toEqual(1);
+      expect(appStateForTest().get('button_list')[0].label).toEqual("STAR");
+    });
+
+    it("should stop forcing capitals after caps_lock is turned off", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', false);
+      appStateForTest().set('caps_lock', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      appStateForTest().set('caps_lock', false);
+      addButtonForTest({label: "b", vocalization: "+b"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("Ab");
+    });
+
+    it("should still clear shift after one letter when caps_lock is off", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', true);
+      appStateForTest().set('shift', true);
+      appStateForTest().set('caps_lock', false);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("A");
+      expect(appStateForTest().get('shift')).toBeFalsy();
+    });
+
+    it("should keep caps_lock on through clear and backspace", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', false);
+      appStateForTest().set('caps_lock', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      utterance.clear({skip_logging: true});
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+
+      addButtonForTest({label: "b", vocalization: "+b"});
+      utterance.backspace({button_triggered: true});
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+      expect(appStateForTest().get('button_list').length).toEqual(0);
+    });
+
+    it("should toggle caps_lock when the :caps special action runs", function() {
+      var action = LingoLinq.find_special_action(':caps');
+      expect(action).toBeTruthy();
+      var appState = appStateForTest();
+      Button._services = Button._services || {};
+      Button._services.appState = appState;
+      stub(app_state, 'refresh_suggestions', function() { });
+      stub(appState, 'refresh_suggestions', function() { });
+      appState.set('caps_lock', false);
+      action.trigger();
+      expect(appState.get('caps_lock')).toEqual(true);
+      action.trigger();
+      expect(appState.get('caps_lock')).toEqual(false);
     });
   });
 

@@ -105,6 +105,9 @@ class SystemSidebarBoards
     if spec[:slug] == 'keyboard' && spec[:obz_source]
       changed = true if restore_keyboard_control_vocalizations!(board, spec)
     end
+    if spec[:slug] == 'keyboard'
+      changed = true if ensure_keyboard_caps_button!(board)
+    end
     board.save! if changed
     board
   end
@@ -146,10 +149,59 @@ class SystemSidebarBoards
   def self.keyboard_control_vocalizations_missing?(board)
     (board.buttons || []).any? do |button|
       label = button['label'].to_s
-      next false unless label.match?(/\A(shift|space|[a-z0-9]|[:.])\z/i)
+      next false unless label.match?(/\A(shift|space|caps|[a-z0-9]|[:.])\z/i)
       current = button['vocalization'].to_s
       current.blank? || current == label
     end
+  end
+
+  # Place a :caps key in the first empty cell after space on the shift row.
+  # Does not grow the grid or fill the leading gutter. No-ops when caps
+  # already exists or that row has no empty cell after space/shift.
+  def self.ensure_keyboard_caps_button!(board)
+    buttons = Array(board.buttons)
+    return false if buttons.any? { |b|
+      b['vocalization'].to_s == ':caps' || b['label'].to_s.match?(/\Acaps(\s*lock)?\z/i)
+    }
+
+    order = board.settings.dig('grid', 'order')
+    return false unless order.is_a?(Array)
+
+    shift = buttons.find { |b|
+      b['vocalization'].to_s == ':shift' || b['label'].to_s.match?(/\A\[?\s*shift\s*\]?\z/i)
+    }
+    return false unless shift
+
+    space = buttons.find { |b|
+      b['vocalization'].to_s == ':space' || b['label'].to_s.match?(/\A\[?\s*space\s*\]?\z/i)
+    }
+
+    row_idx = order.index { |row| Array(row).any? { |id| id.to_s == shift['id'].to_s } }
+    return false unless row_idx
+
+    row = Array(order[row_idx])
+    space_idx = space && row.index { |id| id.to_s == space['id'].to_s }
+    shift_idx = row.index { |id| id.to_s == shift['id'].to_s }
+    start = space_idx ? space_idx + 1 : shift_idx + 1
+    empty_idx = (start...row.length).find { |i| row[i].nil? }
+    return false unless empty_idx
+
+    new_id = buttons.map { |b| Integer(b['id']) rescue 0 }.max.to_i + 1
+    caps = {
+      'id' => new_id,
+      'label' => 'caps',
+      'vocalization' => ':caps',
+      'background_color' => 'rgb(255, 255, 255)',
+      'border_color' => 'rgb(204, 204, 204)'
+    }
+    board.settings['buttons'] = buttons.map { |b| b.dup } + [caps]
+    new_order = order.map.with_index do |existing, idx|
+      next existing unless idx == row_idx
+      existing.each_with_index.map { |cell, col| col == empty_idx ? new_id : cell }
+    end
+    board.settings['grid'] = (board.settings['grid'] || {}).merge('order' => new_order)
+    board.instance_variable_set('@buttons_changed', 'added caps lock key')
+    true
   end
 
   def self.generate_keyboard(user)

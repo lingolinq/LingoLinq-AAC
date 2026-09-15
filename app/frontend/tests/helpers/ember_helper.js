@@ -1050,6 +1050,7 @@ function setupUtteranceTestHarness() {
     appStateSvc.set('button_list', []);
     appStateSvc.set('insertion', null);
     appStateSvc.set('shift', null);
+    appStateSvc.set('caps_lock', null);
     appStateSvc.set('inflection_shift', null);
     appStateSvc.set('clearable_history', 0);
     appStateSvc.set('sessionUser', EmberObject.create({

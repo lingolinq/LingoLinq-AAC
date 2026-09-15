@@ -840,9 +840,10 @@ export function assign_columns(groups, column_count, inner_columns) {
  *
  * A slot may be an ARRAY, meaning "whichever of these this board actually carries". The
  * key right of `space` is the case that needs it: the inline keyboard on a vocabulary
- * board puts `?` there, while a full keyboard board puts `:`. One slot, two boards, and
- * only ever one of them present — an array says that without inventing a column that
- * stands empty on whichever board lacks the other.
+ * board puts `?` there, a full keyboard board puts `:`, and the system keyboard may put
+ * `caps` in that empty slot. One slot, those alternatives, and only ever one of them
+ * present — an array says that without inventing a column that stands empty on whichever
+ * board lacks the others.
  *
  * The NUMBER row is part of the block, not a separate category. Filed by colour those
  * buttons are Fitzgerald blue, so they came out as "Describe" — a row of digits sitting
@@ -858,7 +859,7 @@ export const QWERTY_LAYOUT = [
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
   ['.', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-  ['shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'space', ['?', ':']]
+  ['shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'space', ['?', ':', 'caps']]
 ];
 
 /* Tracks in the keyboard panel — the width of the widest row. Nothing reads this today;

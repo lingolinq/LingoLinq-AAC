@@ -3,7 +3,6 @@ name: accessibility-auditor
 description: Read-only WCAG 2.1 AA / EN 301 549 accessibility finder for LingoLinq-AAC. Statically scans templates, components, and SCSS for deterministic accessibility defects (alt/aria, label association, semantic landmarks, focus-visible, roles, lang, contrast tokens); emits register-shaped WCAG findings. Never edits code. Spawned by the /audit-run orchestrator.
 tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: opus
-memory: project
 skills:
   - accessibility-audit
 mcpServers:
@@ -116,9 +115,9 @@ Return a single JSON object: `{ "domain": "accessibility", "auditedSha": "<sha y
 findings, and the adversary verifier confirms first. If the relevant code is absent, return
 `"findings": []` with a short `"note"`.
 
-## Memory policy (`memory: project`)
-Your project memory holds PROCESS knowledge only: where the render paths / SCSS interactive
-selectors / token definitions live, and date-stamped "remediated in commit X" notes. It MUST NOT
-hold findings, code snippets, or any assertion of current conformance. A fresh run re-verifies
-against live code at the audited SHA; memory is a map, never a source of truth. If you ever find
-run-specific findings or data in memory, treat it as a defect and do not rely on it.
+## Memory
+This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
+denies every write). Process knowledge that used to live in per-machine memory (the render-path
+map, the switch-scanning contract, the Ember 5 template co-location rule) is in the
+`accessibility-audit` skill so every machine sees it. A fresh run re-verifies against live code
+at the audited SHA; never rely on prior-run state.

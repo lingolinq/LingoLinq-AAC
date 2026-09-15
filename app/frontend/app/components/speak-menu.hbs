@@ -3,6 +3,44 @@
     {{!-- Header with close button --}}
     <div class="md-speak-menu__header pass_to_btn_list">
       <h2 id="md-speak-menu__title" class="md-speak-menu__title">{{t "Speak Options" key="speak_options"}}</h2>
+      {{!-- Scroll the modal from the HEADER, which is sticky, so these stay reachable no
+            matter how far down the content runs. `.md-speak-menu` is the scroll container
+            (max-height off --sm-menu-top, overflow-y: auto), and on a short viewport or a
+            large vocalization-size preference its content runs past the bottom with no way
+            for a dwell or switch user to scroll it -- neither can flick-scroll, and the
+            scanner can only bring targets into view, not pan a container.
+
+            SAME STRUCTURE as the phrase pager further down this file and the GIF modal's
+            pager: icon plus a visible Up / Down label, and `disabled` at the ends of the
+            range rather than removed. Removing one mid-scroll made the other jump as the row
+            reflowed -- on a surface someone is dwelling on, the target moves out from under
+            them mid-dwell. They share `.md-speak-menu__phrase-page-btn`'s rule in app.scss
+            so the two pagers cannot drift apart.
+
+            The PAIR is removed together, and only when there is nothing to scroll, so there
+            is no half-rendered state. It is absolutely centred, so appearing or disappearing
+            cannot move the title or the close button either.
+
+            `md-speak-menu__scroll-btn` is registered in modal.js#scannable_targets. Dwell
+            comes free: raw_events.js:2651 matches a bare `button` inside #speak_menu.
+            No `pass_to_btn_list` -- that class only does anything in the global HEADER
+            region branch (raw_events.js:2653), not in this one. --}}
+      {{#if this.menu_scrollable}}
+        <div class="md-speak-menu__scroll-pager">
+          <button type="button" class="md-speak-menu__phrase-page-btn md-speak-menu__scroll-btn"
+                  id="menu_scroll_up_button" disabled={{this.at_scroll_top}}
+                  {{on "click" (this.ctrlAction "scroll_menu" "up")}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+            {{t "Up" key="up"}}
+          </button>
+          <button type="button" class="md-speak-menu__phrase-page-btn md-speak-menu__scroll-btn"
+                  id="menu_scroll_down_button" disabled={{this.at_scroll_bottom}}
+                  {{on "click" (this.ctrlAction "scroll_menu" "down")}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            {{t "Down" key="down"}}
+          </button>
+        </div>
+      {{/if}}
       <button type="button" class="md-speak-menu__close pass_to_btn_list" aria-label={{t "Close" key="close"}} {{on "click" (this.ctrlAction "close")}}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -10,9 +48,19 @@
 
     {{#if this.app_state.feature_flags.new_speak_menu}}
       {{!-- Punctuation — moved to the TOP (first section of the modal). --}}
+      {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+           into a phrases-only view: the PHRASES subheader and the list stay, everything
+           else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+           purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+           visibility filter, so a hidden-by-CSS control would still be handed to the
+           scanner and a switch user would scan onto something invisible. --}}
+      {{#unless this.phrases_expanded}}
+        {{!-- Punctuation is hidden while the Repeats group is open: that view has its own
+             sections (Volume & Repeat, Repeat Words), and the modal is already tall. --}}
+        {{#unless this.repeat_menu}}
       <div class="md-speak-menu__section md-speak-menu__section--punctuation">
         <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
-        <ButtonListener @buttonEvent={{this.ctrlAction "button_event"}}>
+        <ButtonListener @buttonEvent={{this.eventAction "button_event"}}>
           {{!-- All punctuation is shown in ONE row so it's reachable in a single tap.
                This previously showed 5 buttons plus a "More" toggle that swapped in a
                second punctuation submenu (which duplicated , ? ! and hid contraction/
@@ -44,101 +92,345 @@
           </div>
         </ButtonListener>
       </div>
+        {{/unless}}
+      {{/unless}}
 
-      <ButtonListener @buttonEvent={{this.ctrlAction "button_event"}}>
+      <ButtonListener @buttonEvent={{this.eventAction "button_event"}}>
         {{#if this.repeat_menu}}
-          {{!-- Repeat / Volume group --}}
-          <div class="md-speak-menu__section">
-            <div class="md-speak-menu__section-label">{{t "Volume & Repeat" key="volume_repeat"}}</div>
-            <div class="md-speak-menu__row md-speak-menu__row--3">
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_quieter'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Quiet" key="quiet"}}</span>
-              </div>
-              <div class='md-speak-menu__btn radial radial_on_click' role="button" tabindex="0" id='menu_repeat_button'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Back" key="back"}}</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_louder'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#46505F"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Loud" key="loud"}}</span>
+          {{!-- REPEAT WORDS — recent sentences the user can say again. Source is
+                `stashes.prior_utterances` over the same 24h window the Phrases modal's Recent
+                tab uses (components/phrases.js:114-122); assembled by `repeatPhrases` in
+                speak-menu.js.
+
+                Ids are INDEXED for the same reason `menu_held_` is: two recent sentences can
+                legitimately read the same, and the scanner/dwell path dispatches by id, so
+                button_event maps `menu_repeat_phrase_<n>` back through `repeatPhrases`. Without
+                that, these rows would work for a pointer and be dead for switch and eye-gaze.
+
+                Gated on there being something to show — this component does not put a heading
+                over an empty row (see 562da8070, where dropping a button left a "SPEAK MODE"
+                heading over nothing). --}}
+          {{#if this.repeatPhrases}}
+            <div class="md-speak-menu__section">
+              <div class="md-speak-menu__section-label">{{t "Repeat Words" key="repeat_words"}}</div>
+              <div class="md-speak-menu__phrase-list">
+                {{#each this.repeatPhrases as |phrase index|}}
+                  <button type="button" id="menu_repeat_phrase_{{index}}" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered" {{on "click" (this.ctrlAction "select_repeat_phrase" phrase)}}>
+                    <span class="md-speak-menu__remembered-text">"{{phrase.sentence}}"</span>
+                  </button>
+                {{/each}}
               </div>
             </div>
-          </div>
-          <div class="md-speak-menu__section">
-            <div class="md-speak-menu__section-label">{{t "More Options" key="more_options"}}</div>
-            <div class="md-speak-menu__row md-speak-menu__row--3">
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_text'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="#46505F"/><line x1="12" y1="17" x2="12" y2="21" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Button" key="Button"}}</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_flip'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15" stroke="#46505F"/><path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Flip Text" key="flip_text"}}</span>
-              </div>
-              {{#if this.app_state.referenced_user.preferences.hide_gif}}
-                <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_share_button'>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="#46505F"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="#46505F"/></svg>
-                  <span class="md-speak-menu__btn-label">{{t "Share" key="share"}}</span>
-                </div>
-              {{else}}
-                <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_gif'>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#46505F"/><polyline points="21 15 16 10 5 21" stroke="#46505F"/></svg>
-                  <span class="md-speak-menu__btn-label">{{t "GIF" key="gif"}}</span>
-                </div>
-              {{/if}}
-            </div>
-          </div>
+          {{/if}}
 
         {{else}}
-          {{!-- Main actions group --}}
-          {{!-- HIDDEN Actions section (kept for possible re-enable later): Share +
-               Repeats. Repairs was moved into the Tools section below.
+          {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+               into a phrases-only view: the PHRASES subheader and the list stay, everything
+               else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+               purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+               visibility filter, so a hidden-by-CSS control would still be handed to the
+               scanner and a switch user would scan onto something invisible. --}}
+          {{#unless this.phrases_expanded}}
+          {{!-- Main actions group.
+
+               SHARE is live again: it opens the Share Text modal
+               (components/share-utterance) with the current message, which is the
+               only route to it from this menu. The handler was never removed --
+               speak-menu.js#button_event has always routed `menu_share_button` to
+               `modalUtil.open('share-utterance', ...)`, and still does; only this
+               markup was commented out, which left that branch unreachable in the
+               default menu. The one other render of this id is in the repeat_menu
+               arm above, behind `preferences.hide_gif`, so a user without that
+               preference had no way in at all.
+
+               No `{{on "click"}}`: every button in this menu is a div with an id
+               that the enclosing <ButtonListener> resolves, so that the same
+               control is reachable by switch scanning and by pointer alike. Adding
+               a click handler here would fire twice.
+
+               REPEATS is the one control here that does NOT act on the message: it
+               toggles `repeat_menu`, swapping this whole group for the Volume &
+               Repeat / More Options pair above. That is why button_event exempts
+               `menu_repeat_button` from the close-the-menu rule every other id
+               follows -- the menu has to survive its own toggle. It also carries
+               `radial radial_on_click`, which is what gives it the swipe
+               directions button_event reads off `full_event.swipe_direction`
+               (east/west louder-quieter, north flip, south big-button). Both
+               classes are required for that; a plain button here would silently
+               lose four gestures. --}}
           <div class="md-speak-menu__section">
-            <div class="md-speak-menu__section-label">{{t "Actions" key="actions_lower"}}</div>
-            <div class="md-speak-menu__row md-speak-menu__row--3">
+            {{!-- Its OWN key. `actions_lower` belongs to the Fitzgerald colour legend —
+                  app.js:377/:450 register it as the green verb-button hint — and the
+                  locales translate it in that sense: es "comportamiento" (behaviour), de
+                  "Aktionen", ru "действия". Borrowing it here headed this section with a
+                  colour description in every non-English locale, and correcting en.json
+                  instead would have rewritten the board legend everywhere. The reuse was
+                  invisible until now only because this whole section was commented out. --}}
+            <div class="md-speak-menu__section-label">{{t "Actions" key='speak_menu_actions'}}</div>
+            {{!-- Five across, wrapping to 2 under 768px. All five ACT ON THE CURRENT
+                  MESSAGE, which is what makes them one group: share it, repeat it,
+                  repair it, park it (Hold Thought), or read what came back (Alerts).
+                  Phrases moved out to its own section below because it is the one
+                  control here that opens a LIBRARY rather than doing something to the
+                  message in the box. --}}
+            <div class="md-speak-menu__row md-speak-menu__row--5">
               <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_share_button'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="#46505F"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="#46505F"/></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="#46505F"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="#46505F"/></svg>
                 <span class="md-speak-menu__btn-label">{{t "Share" key='share'}}</span>
               </div>
               <div class='md-speak-menu__btn radial radial_on_click' role="button" tabindex="0" id='menu_repeat_button'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15" stroke="#46505F"/><path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="#46505F"/></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15" stroke="#46505F"/><path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="#46505F"/></svg>
                 <span class="md-speak-menu__btn-label">{{t "Repeats" key='repeats'}}</span>
               </div>
-            </div>
-          </div>
-          --}}
-
-          <div class="md-speak-menu__section">
-            <div class="md-speak-menu__section-label">{{t "Tools" key="tools"}}</div>
-            <div class="md-speak-menu__row md-speak-menu__row--1">
-              {{!-- HIDDEN (commented out — kept for possible re-enable later): Repairs.
               <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repair_button'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#46505F"/></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#46505F"/></svg>
                 <span class="md-speak-menu__btn-label">{{t "Repairs" key='repairs'}}</span>
               </div>
-              --}}
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_phrases_button'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="8" x2="16" y2="8" stroke="#46505F"/><line x1="8" y1="12" x2="13" y2="12" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Phrases" key='phrases'}}</span>
-              </div>
-              {{!-- HIDDEN (kept for possible re-enable later): Alerts + Hold Thought.
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_inbox_button'>
-                ALERTS badge: shown when unread_alerts / request_alert present.
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" stroke="#46505F"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                <span class="md-speak-menu__btn-label">Alerts</span>
+              {{!-- ALERTS carries the unread count, on the same two signals the navbar's
+                    speak-options badge uses (templates/application.hbs:161-166) so the two
+                    cannot disagree about whether something is waiting: a number from
+                    `unread_alerts`, else a bare `*` for a pending `request_alert`. The
+                    count is also spoken into the button's accessible name — a red disc is
+                    not information a screen-reader or a switch user receives. --}}
+              <div class='md-speak-menu__btn md-speak-menu__btn--badged' role="button" tabindex="0" id='menu_inbox_button'>
+                {{#if this.app_state.referenced_user.unread_alerts}}
+                  <span class="md-speak-menu__badge" aria-hidden="true">{{this.app_state.referenced_user.unread_alerts}}</span>
+                  <span class="sr-only">{{this.app_state.referenced_user.unread_alerts}} {{t "unread" key='unread'}}</span>
+                {{else if this.app_state.referenced_user.request_alert}}
+                  <span class="md-speak-menu__badge" aria-hidden="true">*</span>
+                  <span class="sr-only">{{t "pending request" key='pending_request'}}</span>
+                {{/if}}
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" stroke="#46505F"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                <span class="md-speak-menu__btn-label">{{t "Alerts" key='alerts'}}</span>
               </div>
               <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_hold_thought_button'>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="none"><rect x="7" y="4" width="3.5" height="16" rx="1" fill="#2A9D8F"/><rect x="13.5" y="4" width="3.5" height="16" rx="1" fill="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">Hold Thought</span>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><rect x="7" y="4" width="3.5" height="16" rx="1" fill="#2A9D8F"/><rect x="13.5" y="4" width="3.5" height="16" rx="1" fill="#46505F"/></svg>
+                <span class="md-speak-menu__btn-label">{{t "Hold Thought" key='hold_thought'}}</span>
               </div>
-              --}}
             </div>
+            {{!-- HELD THOUGHTS sit directly under the row, inside Actions, because this is
+                  where the thought was parked from. They used to be the first rows of the
+                  phrase library below, behind the "Show My Phrases" expander that
+                  `opening()` re-collapses on every open -- two activations away, and filed
+                  under a library they are not part of. A held thought exists in one slot,
+                  is saved nowhere, and is lost if it is not picked back up.
+
+                  `md-speak-menu__bottom-btn` is REQUIRED on these rows, not decorative: it
+                  is one of the class names raw_events.js matches to resolve a dwell/gaze
+                  tap inside the speak_menu region, and modal.js#scannable_targets lists it
+                  for switch scanning. Renaming it would leave these reachable by mouse only.
+
+                  The `id` is what makes a row selectable by SCANNING -- scanner.js reads
+                  `dom.attr('id')` and fires speakmenuselect with it; with no id the
+                  selection arrives as `undefined` and silently does nothing. Indexed, not
+                  named, because two held thoughts can legitimately read the same. The
+                  index is into `heldThoughts`, which button_event reads back. --}}
+            {{#if this.heldThoughts}}
+              <div class="md-speak-menu__section-label md-speak-menu__held-label">{{t "Held Thoughts" key='held_thoughts'}}</div>
+              <div class="md-speak-menu__phrase-list md-speak-menu__held-list">
+                {{#each this.heldThoughts as |utterance index|}}
+                  <button type="button" id="menu_held_{{index}}" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered md-speak-menu__bottom-btn--resume" {{on "click" (this.ctrlAction "selectButton" utterance)}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                    {{!-- Two different promises, so two different words. "Resume:" is the
+                          user's own -- they hit Hold Thought and this is what they parked.
+                          "Swap back:" is the app's: their sentence was bumped here to make
+                          room for whatever they just resumed or said. --}}
+                    {{#if utterance.swapped}}
+                      <span class="md-speak-menu__remembered-kind">{{t "Swap back: " key='swap_back_colon'}}</span>
+                    {{else}}
+                      <span class="md-speak-menu__remembered-kind">{{t "Resume: " key="resume_colon"}}</span>
+                    {{/if}}
+                    <span class="md-speak-menu__remembered-text">"{{utterance.sentence}}"</span>
+                  </button>
+                {{/each}}
+                {{!-- Expands the list IN PLACE; only rendered when there is something to
+                      expand. It deliberately does NOT hand off to the Phrases modal, which
+                      was the first design: that modal renders only `category_phrases`, and
+                      that filters on `u.category === cat` (components/phrases.js:124) while
+                      held thoughts are pushed in with no `category` at all -- so they appear
+                      in none of its tabs, and "More Thoughts" would have led to an empty
+                      list. Expanding here keeps them where they actually render.
+
+                      `aria-expanded` because this is a disclosure, not navigation, and a
+                      switch or screen-reader user gets no other signal that the same control
+                      will collapse it again. --}}
+                {{#if this.heldThoughtsOverflow}}
+                  <button type="button" id="menu_more_thoughts_button"
+                          class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--more-thoughts {{if this.held_expanded 'md-speak-menu__bottom-btn--more-thoughts-open'}}"
+                          aria-expanded={{if this.held_expanded "true" "false"}}
+                          {{on "click" (this.ctrlAction "more_thoughts")}}>
+                    <svg class="md-speak-menu__more-thoughts-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                    <span class="md-speak-menu__remembered-text">
+                      {{#if this.held_expanded}}
+                        {{t "Fewer Thoughts" key='fewer_thoughts'}}
+                      {{else}}
+                        {{t "More Thoughts" key='more_thoughts'}}
+                      {{/if}}
+                    </span>
+                  </button>
+                {{/if}}
+              </div>
+            {{/if}}
+          </div>
+
+          {{/unless}}
+           {{!-- MORE OPTIONS precedes PHRASES, and hides while the phrase library is open.
+                 `phrases_expanded` already hides Punctuation, Actions, Board Languages and
+                 Speak Mode, so More Options staying put was the odd one out — the library
+                 needs the height, and a row of unrelated tiles above it is noise.
+
+                 PHRASES stays LAST and is deliberately NOT wrapped: it is the section doing
+                 the expanding. Its list and pager live inside it, so they open at the bottom
+                 of the modal and travel with the section. --}}
+          {{!-- MORE OPTIONS. Moved out of the Repeats group so it is reachable from the main
+                view without opening Repeats first.
+
+                The Share fallback that used to fill the third slot when `hide_gif` is set is
+                deliberately NOT carried over: Share already renders in the Actions row above
+                (`menu_share_button`), and duplicating that id here makes the template invalid
+                (ember-template-lint no-duplicate-id). With GIF hidden the row is simply
+                two-up. --}}
+          {{#unless this.phrases_expanded}}
+            <div class="md-speak-menu__section">
+              <div class="md-speak-menu__section-label">{{t "More Options" key="more_options"}}</div>
+              <div class="md-speak-menu__row md-speak-menu__row--3">
+                <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_text'>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="#46505F"/><line x1="12" y1="17" x2="12" y2="21" stroke="#46505F"/></svg>
+                  <span class="md-speak-menu__btn-label">{{t "Button" key="Button"}}</span>
+                </div>
+                <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_flip'>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15" stroke="#46505F"/><path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="#46505F"/></svg>
+                  <span class="md-speak-menu__btn-label">{{t "Flip Text" key="flip_text"}}</span>
+                </div>
+                {{#unless this.app_state.referenced_user.preferences.hide_gif}}
+                  <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_gif'>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#46505F"/><polyline points="21 15 16 10 5 21" stroke="#46505F"/></svg>
+                    <span class="md-speak-menu__btn-label">{{t "GIF" key="gif"}}</span>
+                  </div>
+                {{/unless}}
+              </div>
+            </div>
+          {{/unless}}
+          {{!-- PHRASES on its own. It is not an action on the current message like
+                the five above -- it opens the saved-phrase library (and the Recent
+                tab), so it reads as a destination rather than a verb. Its own section
+                rather than a sixth tile in Actions, which is also what keeps that row
+                at five and comfortably hittable. --}}
+          <div class="md-speak-menu__section">
+            <div class="md-speak-menu__section-label">{{t "Phrases" key='phrases'}}</div>
+            <div class="md-speak-menu__row {{if this.phrase_total "md-speak-menu__row--2" "md-speak-menu__row--1"}}">
+              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_phrases_button'>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="8" x2="16" y2="8" stroke="#46505F"/><line x1="8" y1="12" x2="13" y2="12" stroke="#46505F"/></svg>
+                <span class="md-speak-menu__btn-label">{{t "Create Phrases" key='create_phrases'}}</span>
+              </div>
+              {{!-- Peer tile of Create Phrases, deliberately the same `.md-speak-menu__btn`
+                    shape: same size, same 44px+ target, same position in the scan order, and
+                    it inherits the same three input paths for free — the enclosing
+                    <ButtonListener> resolves a click, the `speak_menu` dwell branch in
+                    raw_events matches `.md-speak-menu__btn`, and modal.js's scannable
+                    selector already lists that class. That is also why there is NO
+                    `{{on "click"}}` here: like Create Phrases, activation arrives through
+                    button_event by id, and adding a click handler as well would fire twice.
+                    Rendered only when there is something to show (phrase_total). --}}
+              {{#if this.phrase_total}}
+                <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_more_phrases_button'
+                     aria-expanded={{if this.phrases_expanded "true" "false"}}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+                  <span class="md-speak-menu__btn-label">
+                    {{#if this.phrases_expanded}}{{t "Hide My Phrases" key="hide_my_phrases"}}{{else}}{{t "Show My Phrases" key="show_my_phrases"}}{{/if}}
+                  </span>
+                </div>
+              {{/if}}
+            </div>
+            {{!-- The saved/stashed phrases themselves, listed under the button that
+                  opens the full library. These used to render in the bottom bar below
+                  every section, where they read as loose rows belonging to nothing --
+                  a "Resume:" and a "Say:" floating under the modal. They are the
+                  CONTENTS of this section, so they live in it.
+
+                  `md-speak-menu__bottom-btn` is kept on them despite no longer being in
+                  the bottom bar: it is not only a style hook, it is one of the class
+                  names raw_events.js:2594 matches on to resolve a tap inside the
+                  speak_menu region. Renaming it here without editing that selector would
+                  make these unreachable by switch scanning and eye-gaze while still
+                  looking fine to a mouse. --}}
+            {{#if this.rememberedUtterances}}
+              <div class="md-speak-menu__phrase-list">
+                {{#each this.rememberedUtterances as |utterance index|}}
+                  {{!-- RESUME is not one of the saved phrases, and it should not read as
+                        one. It is the single message the user parked with Hold Thought —
+                        unfinished, theirs, and about to be lost if they do not pick it back
+                        up. The saved phrases below it are a library they can return to any
+                        time. Same row, deliberately different weight: an accent edge, a
+                        tinted surface, and its own icon (an arrow going back, not a speech
+                        bubble). --}}
+                  {{!-- The id is what makes this row reachable by SWITCH SCANNING:
+                        scanner.js reads `dom.attr('id')` off the matched element and fires
+                        speakmenuselect with it, and with no id the selection arrived as
+                        `undefined` and did nothing. Indexed rather than named because two
+                        saved phrases can legitimately hold the same text. --}}
+                  <button type="button" id="menu_remembered_{{index}}" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered {{if utterance.stash 'md-speak-menu__bottom-btn--resume'}}" {{on "click" (this.ctrlAction "selectButton" utterance)}}>
+                    {{#if utterance.stash}}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                      {{!-- Two different promises, so two different words. "Resume:" is the
+                            user's own — they hit Hold Thought and this is what they parked.
+                            "Swap back:" is the app's: their sentence was bumped here to make
+                            room for whatever they just resumed or said, and this says where
+                            it went. Calling both "Resume:" is what made the slot look like it
+                            had filled itself with something random. --}}
+                      {{#if utterance.swapped}}
+                        <span class="md-speak-menu__remembered-kind">{{t "Swap back: " key='swap_back_colon'}}</span>
+                      {{else}}
+                        <span class="md-speak-menu__remembered-kind">{{t "Resume: " key="resume_colon"}}</span>
+                      {{/if}}
+                    {{else}}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      <span class="md-speak-menu__remembered-kind">{{t "Say: " key="say_colon"}}</span>
+                    {{/if}}
+                    <span class="md-speak-menu__remembered-text">"{{utterance.sentence}}"</span>
+                  </button>
+                {{/each}}
+              </div>
+            {{/if}}
+            {{!-- Up / Down PAGING, not scrolling. The list is sliced to one page in
+                  speak-menu.js, so it is never taller than the panel and there is no scroll
+                  container — an eye-gaze user on dwell cannot scroll anything, and the
+                  scanner can only bring targets into view for SWITCH users. These are
+                  ordinary buttons, so both groups can reach every phrase. Same approach as
+                  the Big Button modal's Up/Down.
+                  The ids are load-bearing: scanner.js reads dom.attr('id') and
+                  speak-menu.js#button_event routes them WITHOUT closing the menu. --}}
+            {{#if this.phrase_paging}}
+              <div class="md-speak-menu__phrase-pager">
+                <button type="button" class="md-speak-menu__phrase-page-btn" id="menu_phrase_up_button"
+                        disabled={{this.phrase_page_first}}
+                        {{on "click" (this.ctrlAction "phrase_page_move" "up")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                  {{t "Up" key="up"}}
+                </button>
+                <span class="md-speak-menu__phrase-pager-status" aria-live="polite">
+                  {{t "Page %{n} of %{t}" n=this.phrase_page_human t=this.phrase_page_count key="phrase_page_status"}}
+                </span>
+                <button type="button" class="md-speak-menu__phrase-page-btn" id="menu_phrase_down_button"
+                        disabled={{this.phrase_page_last}}
+                        {{on "click" (this.ctrlAction "phrase_page_move" "down")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                  {{t "Down" key="down"}}
+                </button>
+              </div>
+            {{/if}}
           </div>
         {{/if}}
       </ButtonListener>
 
       {{!-- Board Languages — sits below the Punctuation section and above Speak Mode. --}}
+      {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+           into a phrases-only view: the PHRASES subheader and the list stay, everything
+           else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+           purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+           visibility filter, so a hidden-by-CSS control would still be handed to the
+           scanner and a switch user would scan onto something invisible. --}}
+      {{#unless this.phrases_expanded}}
       {{#if this.localeBoardModel}}
         {{#if this.app_state.currentBoardState.translatable}}
           <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools">
@@ -155,23 +447,39 @@
           </div>
         {{/if}}
       {{/if}}
+      {{/unless}}
 
-      {{!-- Speak Mode section — moved to the BOTTOM of the modal (was at the top,
-            above Board Languages). Gated on speak_mode_possible, which is exactly
-            when it showed before (showSpeakLocaleSection is true whenever
-            speak_mode_possible is), so visibility is unchanged. --}}
-      {{#if this.app_state.speak_mode_possible}}
+      {{!-- Speak Mode section. Entry only — there is deliberately NO Exit Speak Mode
+            button here.
+
+            Exit lives on board-detail's OWN options menu (the ⋮ toggle,
+            user/board-detail.hbs:895): "Exit Boards / To Home Page" at :1349, which runs
+            `exit_to_home` (board-detail.js:6210) -> `app_state.finish_speak_mode_exit()`.
+            That path is better than a bare toggle would be here — it gates on the
+            speak-mode exit PIN via `open_speak_mode_exit_pin` before leaving, so it
+            cannot be used to walk out of a locked session.
+
+            It is reachable for scanning users too: the ⋮ toggle sits INSIDE `#speak`
+            (the sentence row opens at :619 and closes at :1364), and scanner.js:257
+            collects `button:visible` within `#speak` for board-detail's header row.
+
+            History, so this does not get "restored" a third time: removed in 562da8070,
+            wrongly restored in 7a16a1a31 on the claim that board-detail had no reachable
+            exit, removed again 2026-08-27. That claim came from grepping
+            `key="exit_speak_mode"`, which does not match this control — it is labelled
+            "Exit Boards" (key `exit_boards`, action `exit_to_home`). Search for the
+            CAPABILITY, not one label. --}}
+      {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+           into a phrases-only view: the PHRASES subheader and the list stay, everything
+           else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+           purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+           visibility filter, so a hidden-by-CSS control would still be handed to the
+           scanner and a switch user would scan onto something invisible. --}}
+      {{#unless this.phrases_expanded}}
+      {{#if (and this.app_state.speak_mode_possible (not this.app_state.speak_mode))}}
         <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools md-speak-menu__section-wrap--no-divider">
           <div class="md-speak-menu__section">
             <div class="md-speak-menu__section-label">{{t "Speak Mode" key="speak_mode"}}</div>
-            {{#if this.app_state.speak_mode}}
-              <div class="md-speak-menu__row md-speak-menu__row--1">
-                <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{on "click" (this.ctrlAction "speak_mode_toggle")}}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15" stroke="#46505F"/><line x1="17" y1="9" x2="23" y2="15" stroke="#46505F"/></svg>
-                  <span class="md-speak-menu__btn-label">{{t "Exit Speak Mode" key="exit_speak_mode"}}</span>
-                </button>
-              </div>
-            {{else}}
               {{#if this.applicationController.currentUser.supporter_view}}
                 <div class="md-speak-menu__row md-speak-menu__row--2">
                   {{#if this.applicationController.currentUser.communicator_in_supporter_view}}
@@ -218,10 +526,10 @@
                   </button>
                 </div>
               {{/if}}
-            {{/if}}
           </div>
         </div>
       {{/if}}
+      {{/unless}}
 
     {{else}}
       {{!-- Legacy menu --}}
@@ -230,7 +538,7 @@
           {{this.working_vocalization_text}}
         </li>
         <li>
-          <a href="#" title={{t "Save this message as a phrase you can open again from Phrases" key="speak_menu_hint_remember"}} {{on "click" (this.ctrlAction "selectButton" "remember" this.preventDefault)}}>{{t "Remember this" key='remember_this'}}</a>
+          <a href="#" title={{t "Save this message as a phrase you can open again from Phrases" key="speak_menu_hint_remember"}} {{on "click" (this.ctrlAction "selectButton" "remember" this.preventDefault)}}>{{t "Save Phrase from Sentence Bar" key='save_phrase'}}</a>
         </li>
         {{#if this.sharing_allowed}}
           <li>
@@ -246,12 +554,50 @@
     {{!-- Bottom actions --}}
     <div class='md-speak-menu__bottom pass_to_btn_list'>
       {{#if this.app_state.feature_flags.new_speak_menu}}
+        <div class="md-speak-menu__bottom-row">
         {{#if this.working_vocalization_text}}
-          <button type="button" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remember" {{on "click" (this.ctrlAction "selectButton" "remember")}}>
+          {{!-- "Save Phrase", not the "Remember this" this said until now. The old label
+                named the DEVICE's behaviour ("it will remember") rather than the user's
+                intent, and never said where the message went. This one matches the
+                destination word-for-word: the section heading directly above it and the
+                modal it opens are both called Phrases, so tapping "Save Phrase" and
+                seeing the message appear under "PHRASES" is a mapping that can be learnt
+                once, and it names the SOURCE too, so it cannot be confused with the
+                Add Phrase box in the Phrases modal, which saves whatever is typed there.
+
+                `remember_this` was retired rather than reworded, because all twelve other
+                locales had translated it literally (de "Merk dir das", fr "Souviens-toi de
+                ça") and a translated value beats the English default. This key's English
+                HAS since been edited in place, which is only safe because no locale
+                carries a real translation of it yet -- every one is still the generator's
+                `*** ` untranslated marker, which i18n.js ignores. Do not read that as a
+                general licence to edit English under an existing key.
+
+                The title is the existing hint string, reused rather than re-written: it
+                spells the whole thing out for anyone who hovers or uses a reader. --}}
+          <button type="button" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remember" title={{t "Save this message as a phrase you can open again from Phrases" key="speak_menu_hint_remember"}} {{on "click" (this.ctrlAction "selectButton" "remember")}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            {{t "Remember this" key="remember_this"}}
+            {{t "Save Phrase from Sentence Bar" key="save_phrase"}}
           </button>
         {{/if}}
+          {{!-- Volume, moved out of the Repeats group so it is reachable from the main view
+                without opening Repeats first. Right-aligned on the Save Phrase row.
+
+                The ids are UNCHANGED (`menu_repeat_quieter` / `menu_repeat_louder`) because the
+                scanner and dwell paths dispatch by id and button_event already routes both
+                (speak-menu.js) — renaming them here would silently break volume for switch and
+                eye-gaze users while still working for a pointer. --}}
+          <div class="md-speak-menu__bottom-volume">
+            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_quieter'>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15" stroke="#46505F"/></svg>
+            <span class="md-speak-menu__btn-label">{{t "Quiet" key="quiet"}}</span>
+            </div>
+            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_repeat_louder'>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#46505F"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#46505F"/></svg>
+            <span class="md-speak-menu__btn-label">{{t "Loud" key="loud"}}</span>
+            </div>
+          </div>
+        </div>
       {{/if}}
       {{#if this.app_state.reply_note}}
         <button type="button" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--action" {{on "click" (this.ctrlAction "reply_note")}}>
@@ -272,17 +618,6 @@
           {{t "Un-Flip Text" key='unflip_text'}}
         </button>
       {{/if}}
-      {{#each this.rememberedUtterances as |utterance|}}
-        <button type="button" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered" {{on "click" (this.ctrlAction "selectButton" utterance)}}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          {{#if utterance.stash}}
-            {{t "Resume: " key="resume_colon"}}
-          {{else}}
-            {{t "Say: " key="say_colon"}}
-          {{/if}}
-          <span class="md-speak-menu__remembered-text">"{{utterance.sentence}}"</span>
-        </button>
-      {{/each}}
     </div>
   </div>
 </ModalDialog>
