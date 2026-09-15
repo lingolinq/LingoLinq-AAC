@@ -411,7 +411,7 @@ end
 
 describe SentryTracesSampler do
   describe '.call' do
-    it 'returns 0.0 for /api/v1/health (Render health probe)' do
+    it 'returns 0.0 for /api/v1/health (platform health probe)' do
       expect(described_class.call(transaction_context: { name: '/api/v1/health' })).to eq(0.0)
     end
 
@@ -578,10 +578,183 @@ describe SentryInitializer do
       expect(config.before_send).to be_a(Proc)
       expect(config.before_breadcrumb).to be_a(Proc)
     end
+
+    # LL-40f3571b19: the release tag used to read RENDER_GIT_COMMIT, which Cloud Run
+    # never sets, so production events carried no release. Resolution now lives in
+    # configure! so the same path the initializer runs is the one under test.
+    # Cloud Run injects K_REVISION into services and CLOUD_RUN_REVISION into worker
+    # pools; Jobs get neither (container contract, checked 2026-09-12).
+    describe 'release resolution' do
+      around(:each) do |example|
+        keys = %w[SENTRY_RELEASE K_REVISION CLOUD_RUN_REVISION RENDER_GIT_COMMIT]
+        saved = ENV.values_at(*keys)
+        keys.each { |k| ENV.delete(k) }
+        example.run
+        keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
+      end
+
+      it 'tags the release with K_REVISION on a Cloud Run service' do
+        ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to eq('lingolinq-web-00042-abc')
+      end
+
+      it 'tags the release with CLOUD_RUN_REVISION on a Cloud Run worker pool' do
+        ENV['CLOUD_RUN_REVISION'] = 'lingolinq-worker-00020-b7v'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to eq('lingolinq-worker-00020-b7v')
+      end
+
+      it 'prefers K_REVISION when both revision variables are present' do
+        ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+        ENV['CLOUD_RUN_REVISION'] = 'lingolinq-worker-00020-b7v'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to eq('lingolinq-web-00042-abc')
+      end
+
+      it 'assigns nothing when SENTRY_RELEASE is set, so the SDK-read operator value wins' do
+        ENV['SENTRY_RELEASE'] = 'sha-from-operator'
+        ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+
+      it 'treats a blank K_REVISION as unset' do
+        ENV['K_REVISION'] = '   '
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+
+      it 'treats a blank CLOUD_RUN_REVISION as unset' do
+        ENV['CLOUD_RUN_REVISION'] = '   '
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+
+      it 'never reads RENDER_GIT_COMMIT' do
+        ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+    end
   end
 end
 
 describe 'config/initializers/sentry.rb' do
+  # Wiring check: loads the real initializer so a stray `config.release = ENV[...]`
+  # inside the Sentry.init block (not just the helper) is caught. Sentry.init runs the
+  # block first and calls detect_release after it (sentry-ruby 6.5.0, lib/sentry-ruby.rb),
+  # so these examples exercise the real precedence between our assignment and the SDK.
+  describe 'release wiring through Sentry.init' do
+    around do |example|
+      keys = %w[SENTRY_DSN SENTRY_ENVIRONMENT SENTRY_RELEASE K_REVISION CLOUD_RUN_REVISION RENDER_GIT_COMMIT]
+      saved = ENV.values_at(*keys)
+      keys.each { |k| ENV.delete(k) }
+      ENV['SENTRY_DSN'] = 'https://examplePublicKey@o0.ingest.sentry.io/0'
+      example.run
+    ensure
+      Sentry.close if Sentry.initialized?
+      keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
+    end
+
+    # The initializer builds its own Configuration; append the no-egress settings the
+    # keep_cache_error group sets by hand, so no HTTP transport or worker thread exists.
+    before do
+      allow(Sentry::Configuration).to receive(:new).and_wrap_original do |original, &block|
+        original.call do |config|
+          block&.call(config)
+          config.transport.transport_class = Sentry::DummyTransport
+          config.background_worker_threads = 0
+        end
+      end
+    end
+
+    def load_initializer!
+      silence_warnings { load Rails.root.join('config/initializers/sentry.rb').to_s }
+    end
+
+    it 'uses K_REVISION as the release on a Cloud Run service' do
+      ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+      load_initializer!
+      expect(Sentry.configuration.release).to eq('lingolinq-web-00042-abc')
+    end
+
+    it 'uses CLOUD_RUN_REVISION as the release on a Cloud Run worker pool' do
+      ENV['CLOUD_RUN_REVISION'] = 'lingolinq-worker-00020-b7v'
+      load_initializer!
+      expect(Sentry.configuration.release).to eq('lingolinq-worker-00020-b7v')
+    end
+
+    it 'lets an operator SENTRY_RELEASE win over the revision (SDK reads it after the block)' do
+      ENV['SENTRY_ENVIRONMENT'] = 'staging' # sending must be allowed for the SDK to detect a release
+      ENV['SENTRY_RELEASE'] = 'sha-from-operator'
+      ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+      load_initializer!
+      expect(Sentry.configuration.release).to eq('sha-from-operator')
+    end
+
+    it 'leaves the release nil with no revision variable and sending disabled (local, test)' do
+      load_initializer!
+      expect(Sentry.configuration.release).to be_nil
+    end
+
+    # Models the scheduler Job: SENTRY_ENVIRONMENT=production (sending allowed, so the SDK's
+    # detect_release chain runs), no revision variable, and no .git directory in the image
+    # (.dockerignore excludes it), so the git fallback yields nothing. Stubbed rather than
+    # observed because this spec's own checkout may contain .git.
+    it 'leaves the release nil on a Cloud Run Job (sending allowed, no revision variable, no .git)' do
+      ENV['SENTRY_ENVIRONMENT'] = 'production'
+      # verify_partial_doubles is off in spec_helper, so pin the stubbed method's existence:
+      # an SDK rename would otherwise turn the stub into a silent no-op.
+      expect(Sentry::ReleaseDetector).to respond_to(:detect_release_from_git)
+      allow(Sentry::ReleaseDetector).to receive(:detect_release_from_git).and_return(nil)
+      load_initializer!
+      expect(Sentry.configuration.sending_allowed?).to eq(true)
+      expect(Sentry.configuration.release).to be_nil
+    end
+
+    it 'does not let RENDER_GIT_COMMIT reach the release' do
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      load_initializer!
+      expect(Sentry.configuration.release).to be_nil
+    end
+
+    # The Job shape above is untagged only because the image carries no .git directory; pin the
+    # .dockerignore entry that guarantees it (removing it would also ship git history in the
+    # image) and pin the exact set of `!` re-include entries. This is deliberately literal and
+    # models no Docker matching: earlier revisions translated each pattern with a model of moby's
+    # matcher, and every refinement of that model flipped some previously correct case to fail-open
+    # (see the PR #962 working log, rounds 8 to 12). Any new `!` entry, or any respelling of the
+    # `.git` exclusion, fails this example and must be reviewed here on purpose. The file is also
+    # pinned to printable ASCII plus tab, LF and CR, in both directions: moby strips a first-line
+    # byte-order mark and trims Unicode spaces (U+00A0, U+0085, U+2028) before recognising `!`
+    # while Ruby's strip does not, so a non-ASCII byte before `!` could hide a re-include; and
+    # Ruby's strip removes a NUL that moby keeps, so `.git` plus a NUL would read as the exclusion
+    # here while matching nothing in Docker. Finally, a Dockerfile-specific ignore file
+    # (`Dockerfile.dockerignore`) takes precedence over `.dockerignore` in Docker, so no other
+    # root entry other than the pinned file may have a name ending in `.dockerignore`; checked with
+    # a directory listing and plain string tests, no glob and no regex, so neither a metacharacter
+    # in the checkout path nor an unusual name (leading dot, embedded newline) can slip past it.
+    it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
+      others = Dir.children(Rails.root).select { |n| n != '.dockerignore' && n.end_with?('.dockerignore') }
+      expect(others).to eq([])
+      raw = File.binread(Rails.root.join('.dockerignore'))
+      expect(raw.bytes).to all(satisfy { |b| [9, 10, 13].include?(b) || (32..126).cover?(b) })
+      entries = raw.lines.map(&:strip)
+      entries = entries.reject { |e| e.empty? || e.start_with?('#') }
+      reincludes, excludes = entries.partition { |e| e.start_with?('!') }
+      expect(excludes).to include('.git')
+      expect(reincludes.sort).to eq(['!.env.example', '!.env.op.template', '!tmp/keep'])
+    end
+  end
+
   it 'does not boot Sentry when SENTRY_DSN is blank' do
     # The initializer is gated on ENV['SENTRY_DSN']. In the test env we boot
     # without a DSN, so Sentry should remain uninitialized.
