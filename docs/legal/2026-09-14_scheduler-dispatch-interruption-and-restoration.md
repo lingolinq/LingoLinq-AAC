@@ -198,7 +198,16 @@ disclosure already made.
 
 ## 7. Related records
 
-- `LL-3e36a18199` (high, open): scheduler dispatch has no trigger since the GCP cutover.
+- `LL-3e36a18199` (high, open): scheduler dispatch HAD no trigger from the GCP cutover until
+  2026-09-02. Sections 3.1 and 3.2 of this record establish an enabled trigger and 278 executions
+  covering every expected hourly slot from `2026-09-02T18:00Z` through `2026-09-14T07:00Z`. The
+  finding remains OPEN because its closure conditions are unmet, not because a trigger is still
+  absent. Section 5 records one of those conditions, the outstanding impact assessment for the
+  interruption window; the full set is held in the finding's own entry in
+  `audit-reports/FINDINGS.json`. Its stored title still asserts that absence in the present tense,
+  and therefore renders that way in generated artifacts, including
+  `audit-reports/notion/compliance-audit-page.md`. Retitling a finding is Scot's decision and is
+  recorded as a deferred follow-up; this record does not restate the stale claim as current.
 - `LL-933e61efd7` (high, open): privacy-page retention and deletion promises with no implementing
   mechanism.
 - `rev-coppa-retention-quarterly` in `audit-reports/compliance-calendar.json`: overdue since
