@@ -20,9 +20,18 @@
 # and that method is what lib/feature_flags.rb, lib/compliance/jurisdiction_resolver.rb,
 # lib/compliance/segment_resolver.rb, lib/eu_jurisdiction.rb,
 # app/models/ai_focus_word_set.rb and lib/system_feature_settings.rb all read. So a
-# pending third-party attachment still relocates the target's data policy, AI
-# gating and EU/compliance jurisdiction. Closing that is a compliance behaviour
-# change and is held for a decision, not fixed here.
+# pending third-party attachment still SETS the target's data policy, AI gating
+# and EU/compliance jurisdiction.
+#
+# But be equally precise about the direction: option B did not MOVE any of that.
+# Before it, the same third-party attachment landed NON-pending and resolved one
+# line earlier, on `!o['pending']`, to the same org. The fallback is exactly what
+# makes option B jurisdiction-neutral -- the password path closes and governance
+# stays where it was. Making the fallback pending-aware would be a NEW tightening
+# (the user resolves to NO governing org), not a repair of something option B
+# broke. That is Scot's decision and is not taken here. Two specs in
+# spec/services/supervisor_key_processor_spec.rb pin the neutrality so the change
+# cannot land silently as a refactor.
 #
 # This also defeats laundering, which is what sank the previous submitter-keyed
 # design: an attacker who manages the org could mint a throwaway supervisor via

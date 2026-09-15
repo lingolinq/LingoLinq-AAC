@@ -24,3 +24,22 @@ PII pre-flight: scripts/codex-review-guard.sh PASS (exit 0); no data-bearing pat
 - The self/third-party split and the policy object are the right structure.
 - The `!pending` gate on the licence fast-path is correct in principle (claim_user has no pending concept).
 - The test suite is meaningful: earlier mutation testing showed neither allow-everything nor refuse-everything passes.
+
+## Status after 2026-09-15 (commit `4318d53e0` and the jurisdiction specs)
+
+The table above is the review baseline and is left intact so `/apply-check` has something to diff.
+This section records what has actually moved since, verified here rather than asserted.
+
+| Row | Status | Evidence |
+|---|---|---|
+| **Critical** supporter branch | **FIXED** | `force_pending` threaded at `app/models/organization.rb`, supporter branch. Three specs added; before the change the red run saw `Organization.manager_for?` return `true` through a supporter code. Mutating the argument back to the literal `false` kills two of the three; the third is the self-redemption regression guard and correctly survives. |
+| **High** `managing_organization` fallback | **REFRAMED, still open, still Scot's** | The finding is true but the verb was wrong. "Relocates" implies option B moved jurisdiction. It did not: before option B the same attachment landed NON-pending and resolved one line earlier to the same org. The pending-blind fallback is what makes option B jurisdiction-neutral, and it is only reached when the user has no non-pending `org_user` attachment at all. Pinned by two new specs; mutation-verified (removing the fallback makes `managing_organization` return `nil`, so the user resolves to no governing org). |
+| Medium `supervisors` override + personal-code branch | **CONFIRMED, and confirmed not threadable** | The re-sweep found four link-creating sites in `parse_activation_code`, not three. These two call `User.link_supervisor_to_user`, and a `type == 'supervisor'` link carries no `pending` key; no reader anywhere filters one on `pending`. Making these pending needs a new state dimension on user-to-user links, which is a design change, not a thread-through. |
+| Everything else | **Unchanged** | Both codex P1s, the three remaining Mediums and the three Lows are untouched. |
+
+The `Low | docs` row is closed: the "grants nothing" overclaim was corrected in all three durable places on
+`d4eabca34`, and the residual "relocates" imprecision in the same three places is corrected here.
+
+Verdict is unchanged: **REQUEST-CHANGES**, and this pass is still not recorded via `record-pr-review.sh`.
+One Critical is closed; the second blocker is now a decision rather than a defect, and the two codex P1s
+remain.

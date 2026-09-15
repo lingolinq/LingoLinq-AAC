@@ -554,7 +554,20 @@ bypasses option B entirely and reaches the same `support_actions` password write
 preconditions. Neither task doc mentions `supporter`, `add_supervisor` or `user_type`: this branch was
 never examined, not examined and dismissed.
 
-### BLOCKER 2 (High): a pending attachment is NOT authority-free
+**FIXED 2026-09-15** (`4318d53e0`). `force_pending` is threaded through the supporter branch exactly as
+through the communicator branch. Demonstrated rather than inferred: the red test saw
+`Organization.manager_for?` return `true` through a supporter code before the change. Self-redemption is
+byte-identical, because `force_pending` is `false` there, which is the literal the call used to pass.
+
+The re-sweep for this defect class found that `parse_activation_code` has **four** link-creating sites, not
+the three the blocker assumed. The other two both call `User.link_supervisor_to_user` (once for each name in
+`overrides['supervisors']`, once in the `org_or_user.is_a?(User)` branch), and those cannot be threaded: a
+`type == 'supervisor'` user-to-user link carries no `pending` key, and no reader anywhere filters one on
+`pending`. So a third-party redemption still attaches the code's named supervisors with immediate edit
+permission over the target. That is a real FERPA/HIPAA exposure and a separate finding; it is NOT an
+escalation to `support_actions`, which reads only `org_manager` / `org_user` / `org_supervisor`.
+
+### BLOCKER 2 (High, REFRAMED): a pending attachment is not authority-free, but option B did not move anything
 
 `User#managing_organization` ends with an unconditional fallback:
 
@@ -575,6 +588,24 @@ This falsifies the claim option B was recommended on. The false sentence had pro
 places (the authority object, the spec header, and this doc) and has been corrected in all three. Fixing
 the fallback is a compliance behaviour change, so it is held for a decision rather than patched.
 
+**Correction to the framing, 2026-09-15.** "Relocates" was the wrong verb, and it made this read as a hole
+option B opened. It is not. Before option B the same third-party attachment landed NON-pending and resolved
+one line earlier, on `!o['pending']`, to the **same org**. The pending-blind fallback is precisely what makes
+option B jurisdiction-neutral: the `support_actions` password path closes and governance does not move. The
+fallback is only reached when the user has no non-pending `org_user` attachment at all, and a user who does
+have one keeps it, so the outcome is identical or strictly more conservative, never less.
+
+That inverts the decision in front of Scot. Making the fallback pending-aware is not a repair of damage
+option B did; it is a **new tightening**, and the mutation says what it would do: with the third line removed,
+`managing_organization` returns `nil`, so the user resolves to no governing org at all and the compliance
+readers fall back to whatever each does with nil. That is the change to weigh, and it is much larger than
+"make the fallback pending-aware" suggests.
+
+Two specs now pin the neutrality (`should leave compliance jurisdiction where it was when the attachment
+lands pending`, `should keep an existing non-pending org as the governing org over a pending attachment`) so
+the change cannot land silently as a refactor. Both were verified by mutation: removing the fallback kills
+the first and correctly spares the second.
+
 ### The pattern, named rather than excused
 
 Two designs blocked, and both times the root cause was the same step of the fix discipline: fact (a),
@@ -594,7 +625,8 @@ three degenerate implementations die.
 
 ### Not fixed here
 
-Both blockers, and the two codex P1s (ratification never allocates a seat; `claim_user` has no row lock
-against concurrent claims). The supporter branch is a straightforward thread-through. The
-`managing_organization` fallback is not: making it pending-aware changes which org governs a user's data
-policy and AI gating, which is a compliance decision.
+Blocker 1 is fixed (`4318d53e0`). Still open: the two codex P1s (ratification never allocates a seat;
+`claim_user` has no row lock against concurrent claims); the `managing_organization` fallback, now reframed
+above as a decision about a NEW tightening rather than a repair; the third-party supervisor attachment via
+`User.link_supervisor_to_user`, which has no pending concept to thread; `process_add` still ungated; and the
+`consent_transition` actor defect in section 9.2.

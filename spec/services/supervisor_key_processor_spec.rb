@@ -385,8 +385,10 @@ describe SupervisorKeyProcessor, :type => :model do
   #
   # These specs pin the support_actions property ONLY. Pending is NOT
   # authority-free in general: User#managing_organization has an unconditional
-  # fallback that returns pending links, so compliance jurisdiction and AI gating
-  # still move. Do not read a green run here as proof of that broader property.
+  # fallback that returns pending links, so a pending attachment still SETS
+  # compliance jurisdiction and AI gating. Do not read a green run here as proof
+  # of that broader property. It does not MOVE them either -- see the
+  # jurisdiction-boundary specs below, which pin option B as jurisdiction-neutral.
   #
   # Driven through User#process with an 'updater', the real request path, so these
   # pin behaviour rather than a method signature.
@@ -515,6 +517,50 @@ describe SupervisorKeyProcessor, :type => :model do
       expect(org.reload.pending_user?(target.reload)).to eq(true)
       expect(Organization.manager_for?(attacker.reload, target.reload)).to eq(false)
       expect(target.reload.allows?(attacker.reload, 'support_actions')).to eq(false)
+    end
+
+    # --- option B's jurisdiction boundary, pinned deliberately ---
+    #
+    # User#managing_organization ends on a fallback with no pending filter:
+    #   org ||= orgs.detect{|o| o['type'] == 'user' }
+    # in app/models/concerns/supervising.rb. Every compliance reader goes
+    # through that method -- lib/feature_flags.rb,
+    # lib/compliance/jurisdiction_resolver.rb, lib/compliance/segment_resolver.rb,
+    # lib/eu_jurisdiction.rb, app/models/ai_focus_word_set.rb,
+    # lib/system_feature_settings.rb -- so a pending attachment DOES set data
+    # policy, AI gating and EU jurisdiction. Pending is not authority-free.
+    #
+    # That is not a hole option B opened. Before option B the same third-party
+    # attachment landed NON-pending and resolved one line earlier to the same
+    # org. The fallback is precisely what makes option B jurisdiction-neutral:
+    # the support_actions password path closes and governance does not move.
+    # Making the fallback pending-aware would be a NEW tightening, not a repair,
+    # and that is Scot's decision (2026-09-14). These specs exist so it cannot
+    # land silently as a refactor.
+
+    it "should leave compliance jurisdiction where it was when the attachment lands pending" do
+      actor, target = supervised_pair
+      org = org_managed_by(actor)
+      code = Organization.activation_code(org, {'proposed_code' => 'bjurisdicta'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+
+      expect(org.reload.pending_user?(target.reload)).to eq(true)
+      expect(target.reload.managing_organization).to_not eq(nil)
+      expect(target.reload.managing_organization.global_id).to eq(org.global_id)
+    end
+
+    it "should keep an existing non-pending org as the governing org over a pending attachment" do
+      actor, target = supervised_pair
+      home = Organization.create(:settings => {'total_licenses' => 5})
+      home.add_user(target.user_name, false)
+      other = org_managed_by(actor)
+      code = Organization.activation_code(other, {'proposed_code' => 'bjurisdictb'})
+
+      target.reload.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+
+      expect(other.reload.pending_user?(target.reload)).to eq(true)
+      expect(target.reload.managing_organization.global_id).to eq(home.global_id)
     end
 
     # --- ratification: self-only ---
