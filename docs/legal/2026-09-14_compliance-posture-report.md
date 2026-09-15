@@ -9,7 +9,9 @@
 > 2026-09-09.** Two sites described it as a live rollback fallback. This report ships in the
 > `grant`, `school-dpa-package` and `security-review` bundles, so the stale claim travels to
 > funders, districts and security reviewers. The attester must confirm the deletion date against
-> the vendor record. No count, finding or other posture claim is changed.
+> the vendor record. No count, finding or other posture claim is changed, except the inherited
+> "implemented and operating" overclaim on Active product controls, which is qualified here the
+> same way PR #969 qualified the compliance-program predecessor (`LL-3e36a18199`).
 >
 > That predecessor in turn succeeded attested `docs/legal/2026-08-20_compliance-posture-report.md`
 > (ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
@@ -197,7 +199,7 @@ framework tag (engineering-quality and API-contract items).
 
 ### Active product controls (evidence in code)
 
-These are implemented and operating, not aspirational:
+These are implemented, not aspirational. **Qualified 2026-09-14:** "implemented" states what the code does, not that it executed. Where a control depends on scheduled dispatch, see `LL-3e36a18199` (open) and `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`.
 
 - **PiiScrubber backstop** (`lib/pii_scrubber.rb`): identifiable data is redacted before any
   external model call. This is the enforced control, independent of any vendor data-retention

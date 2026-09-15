@@ -12,8 +12,12 @@
 > (v1.3, ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
 > `docs/legal/2026-08-09_compliance-program_draft.md`, which itself succeeded attested
 > `docs/legal/COMPLIANCE_PROGRAM.md` (v1.2). This successor exists ONLY to correct the defects listed below, carried
-> by its predecessor. Those include the Article 50(1) enablement claim, which IS a program claim;
-> nothing else in the program is changed. Internal use only; not authorized for
+> by its predecessor. Those include the Article 50(1) enablement claim, which IS a program claim.
+> **Also copied forward from PR #969 (2026-09-14), which landed on the predecessor after this
+> branch started:** cadence-versus-execution language for `LL-3e36a18199`. Without that
+> copy-forward this successor would have re-asserted that product controls are "implemented and
+> operating" as of 2026-09-14. See `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`.
+> Internal use only; not authorized for
 > external sharing, in full or in summary, until the CEO explicitly releases a version for that
 > purpose (see Section 15, point 6). This document supersedes the external "Master Compliance &
 > Security Program v1.1" (Dominic, 2026-06-15). It is an honest, evidence-backed statement of the
@@ -156,7 +160,7 @@ hand-edit.
 
 ## 5. Active product controls (implemented, evidence in code)
 
-These are implemented and operating, not aspirational. Each cites its evidence.
+These are implemented, not aspirational. Each cites its evidence. **Qualified 2026-09-14:** "implemented" states what the code does, not that it executed. Where a control depends on scheduled dispatch, its row carries the cadence-versus-execution distinction and the 2026-07-21 to 2026-09-02 interruption (`LL-3e36a18199`, open).
 
 | Control | What it does | Evidence |
 |---|---|---|
@@ -169,7 +173,7 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 | Parental consent flow | Child registration gated; parent confirms via secure tokenized link; consent recorded with timestamp; 14-day expiry | `app/controllers/parental_consents_controller.rb`; `app/models/user.rb` (`grant_parental_consent!`) |
 | Encryption of sensitive fields | Server-side encryption layer for sensitive data | `secure_serialize` concern |
 | Rate limiting | Edge throttling on protected paths including consent endpoints | `config/initializers/throttling.rb` (Rack::Attack); LL-ca38d4d99e verified-closed |
-| Retention enforcement | Scheduled deletion per the retention schedule | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
+| Retention enforcement | Deletion **configured** for daily scheduled execution per the retention schedule; see the 2026-07-21 to 2026-09-02 dispatch interruption noted in the known-residuals paragraph below (`LL-3e36a18199`, open) | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
 | Article 50(2) marking | Server-signed provenance markers on in-scope generative paths | `lib/art50_marker.rb` (board generation and word prediction). Article 50(1) disclosure UI is built and its server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19); the flag is AVAILABLE-only in `lib/feature_flags.rb` at `64cdccba1` -- a code default; the runtime state was verified ENABLED on 2026-08-23; see Section 12 and the runtime caveat there. |
 
 **Known residuals (tracked, not hidden):** live open Highs that touch product controls include
@@ -189,6 +193,7 @@ disclosure contrast finding (LL-a9d6d5a46b) is remediated-unverified, not open -
 2026-07-28 (#694); the register recorded it as open until this refresh caught the drift. The
 AiApiLog IP-address scrub is implemented and scheduled (`AiApiLog.redact_old_ip_addresses!`,
 wired into the daily `scheduler:dispatch` block in `lib/tasks/scheduler.rake` by PR #222).
+**Added 2026-09-14:** that states code wiring and configured cadence, not execution or outcome. Production scheduled dispatch of `rake scheduler:dispatch` was interrupted from 2026-07-21 to 2026-09-02 (finding `LL-3e36a18199`, open), so this task was not run by the scheduler in that window; whether it ran by any other route has not been established. Captures dated 2026-09-14 record hourly execution from 2026-09-02 and one run of the daily 06:00 UTC block on each of the twelve UTC dates 2026-09-03 through 2026-09-14. Across September 3 to 14, each of the six inspected task summaries appeared once per UTC date and reported zero for its stated result. Six of the eleven daily tasks were inspected; the remainder were not queried. These observations do not verify every daily task, do not establish stored population size or contents, and do not evidence completion of downstream asynchronous work. See `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`. On each observed execution the update reported zero affected rows, which does not establish whether qualifying rows existed at other times. At the 2026-08-17 live re-verification recorded in `docs/legal/2026-08-25_ai-data-flow-classification.md`, `ip_address` was null on all 64 `AiApiLog` rows then present; the table has not been re-queried since, so the current population is unknown.
 None of the above are undiscovered risks; all are register-tracked.
 
 ---
