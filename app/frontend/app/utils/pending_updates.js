@@ -24,7 +24,15 @@ export function pendingUpdates(user) {
                   (user.get('pending_board_shares') || []).length > 0 ||
                   user.get('unread_messages');
 
-  var normal_new = user.get('unread_messages.length') || 0;
+  /* `unread_messages` is a COUNT, not a collection — `attr('number')` on models/user.js,
+     emitted as `user.settings['unread_messages'] || 0` by lib/json_api/user.rb. Reading
+     `.length` off it was always `undefined`, so unread messages contributed nothing here:
+     a user with 4 messages and no unread notifications fell through to the `important`
+     branch and rendered a bare "!" instead of "4", and with notifications in play the
+     badge under-reported by the whole message count. The navbar's own badge
+     (app-navbar-authenticated-inner.hbs) renders `unread_messages` directly, so the two
+     badges on the same screen disagreed. */
+  var normal_new = user.get('unread_messages') || 0;
   var unread_notifications = (user.get('parsed_notifications') || []).filter(function(n) {
     return n.unread;
   }).length;
@@ -38,6 +46,29 @@ export function pendingUpdates(user) {
     return true;
   }
   return null;
+}
+
+/* Clear the notification half of the signal above.
+ *
+ * WHY THIS EXISTS. `read_notifications` is the only thing that retires a counted badge, and
+ * until now the ONLY writer was `set_index_nav('updates')` on
+ * components/dashboard/authenticated-view.js — reachable exclusively from the Classic
+ * view's Updates tab. The Card-view Updates pills route to the notes log instead, which
+ * renders no notifications and marks nothing read, so the server kept re-emitting
+ * `read_notifications: false` and the badge sat there permanently with no way for the user
+ * to dismiss it short of switching to Classic.
+ *
+ * Mirrors what `set_index_nav('updates')` does, so the two entry points cannot drift: set
+ * the flag, save, swallow the failure. A failed save is deliberately silent — the badge is
+ * an ambient hint, not an action the user asked to confirm, and the value re-syncs on the
+ * next user reload.
+ */
+export function markUpdatesRead(user) {
+  if (!user || typeof user.set !== 'function') { return false; }
+  if (user.get('read_notifications')) { return false; }
+  user.set('read_notifications', true);
+  if (user.save) { user.save().then(null, function() { }); }
+  return true;
 }
 
 /* The dependent keys every caller's computed must declare. Exported so a caller cannot

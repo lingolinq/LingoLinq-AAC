@@ -649,8 +649,16 @@
               {{else if this.current_boards.error}}
                 <p class="ch-empty">{{t "Failed to load" key="failed_to_load"}}</p>
               {{else if this.current_boards}}
+                {{!-- The `{{else}}` on THIS each — not on the `{{#if}}` below — is what
+                      covers "the filter matched nothing". The outer branch tests
+                      `current_boards`, which is still a full list while a filter is
+                      narrowing it, so without this the grid rendered completely empty
+                      with no text, indistinguishable from a failed load. Mirrors the
+                      supervisee filter's "No one matches that filter." above. --}}
                 {{#each this.filteredBoards as |board|}}
                   {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+                {{else}}
+                  <p class="ch-empty">{{t "No boards match that filter." key="no_matching_boards"}}</p>
                 {{/each}}
               {{else}}
                 <p class="ch-empty">{{t "None found" key="none_found"}}</p>

@@ -921,6 +921,9 @@ button.ch-row--sync:focus-visible {
 .ch-chip {
   display: inline-flex;
   align-items: center;
+  // Each chip is a real LinkTo into an organization, and they sit 6px apart — 5px padding
+  // on a 14px label computed to ~32px, so adjacent targets were both small AND close.
+  min-height: 44px;
   padding: 5px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.85);
@@ -1094,14 +1097,19 @@ button.ch-row--sync:focus-visible {
 
   &::placeholder {
     color: $la-navy;
-    // 0.62 measures 4.51:1 on this field -- placeholder text is real content until the
-    // user types, so it is held to 4.5:1 rather than treated as decoration.
-    opacity: 0.62;
+    // Placeholder text is real content until the user types, so it is held to 4.5:1 rather
+    // than treated as decoration. 0.62 was recorded here as 4.51:1 and does not measure
+    // that: $la-navy at 0.62 over this field's own ground (rgba(255,255,255,0.92) on the
+    // page wash, resolving to #FCFEFE) composites to #708296 and lands at 3.87:1. 0.70
+    // composites to #5E7290 and measures 4.85:1.
+    opacity: 0.70;
   }
   &::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 }
 
 .ch-filter__clear {
+  // `relative` for the ::before hit area only — no offset of its own.
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1115,6 +1123,19 @@ button.ch-row--sync:focus-visible {
   color: $la-navy;
   opacity: 0.6;
   cursor: pointer;
+
+  // Invisible 44x44 target on a 28px control, as `.ch-rail__toggle` and `.ch-explain` do.
+  // The visual size is deliberate — it sits INSIDE the filter field and a larger painted
+  // button would crowd the input — so the hit area is what grows, not the chrome.
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 
   &:hover,
   &:focus-visible {
@@ -1188,6 +1209,12 @@ button.ch-row--sync:focus-visible {
 .ch-tab {
   position: relative;
   flex: 1 1 auto;
+  // 9px padding on a 14px label computes to ~38px, under the 44px WCAG 2.5.5 target this
+  // file holds itself to elsewhere (`.ch-rail__toggle`, `.ch-menu__item`). The Focused
+  // scheme already carried this fix; GENTLE IS THE DEFAULT, so the majority of users were
+  // the ones getting the short target. Set here on the base rule so both schemes inherit
+  // it from one place.
+  min-height: 44px;
   padding: 9px 16px;
   border: 0;
   border-radius: 999px;
@@ -1234,6 +1261,11 @@ button.ch-row--sync:focus-visible {
 }
 
 .ch-subtab {
+  // Same 44px floor as `.ch-tab` above — 6px padding plus a 1px border computed to ~34px.
+  // `inline-flex` + centring so the taller box does not leave the label top-aligned.
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 999px;
@@ -2088,13 +2120,20 @@ button.ch-tile--silver:focus-visible {
   margin: 2px 0 0;
   font-size: 14px;
   line-height: 1.35;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.78;
+  // ALPHA BAKED INTO THE COLOUR, NOT `opacity` — this row is the one muted line on the
+  // page with an interactive CHILD (`.ch-comm__goal-set`, the only way to set a goal from
+  // this card). `opacity` composites the whole subtree, so it was multiplying that link's
+  // $brand-dusty-denim-ink down to 4.46:1 at the top of the chip and 3.62:1 at the bottom,
+  // under the 4.5:1 it is documented as meeting. `--md-muted` is `$la-navy` at :root
+  // (app.scss:45926), so this renders the paragraph itself identically.
+  color: rgba($la-navy, 0.78);
 }
 
 .ch-comm__goal--none { font-style: italic; }
 
 .ch-comm__goal-set {
+  // `relative` for the ::before hit area only.
+  position: relative;
   padding: 0;
   border: 0;
   background: none;
@@ -2106,6 +2145,20 @@ button.ch-tile--silver:focus-visible {
   color: $brand-dusty-denim-ink;
   cursor: pointer;
   text-decoration: underline;
+
+  // Invisible 44px-tall hit area. This is an inline link inside a 14px paragraph, so it
+  // computed to roughly 60x19 — and it is the ONLY way to set a goal from this card, which
+  // makes it the one control on the row a motor-impaired user cannot afford to miss.
+  // Height only: widening it would overlap the sentence text either side.
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 44px;
+    transform: translateY(-50%);
+  }
 }
 
 .ch-comm__actions {
@@ -2441,7 +2494,10 @@ button.ch-tile--silver:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  // 44px, not 40 — four short of the WCAG 2.5.5 target. This is Sign Out on the
+  // re-login card and Create a New Board, both of which are the primary action on
+  // their surface.
+  min-height: 44px;
   padding: 9px 18px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.55);
@@ -2533,6 +2589,8 @@ button.ch-tile--silver:focus-visible {
 
 // The small "?" that reveals the notifications / sessions explanation.
 .ch-explain {
+  // `position: relative` is for the ::before hit area below, not for any offset of its own.
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2550,6 +2608,19 @@ button.ch-tile--silver:focus-visible {
   line-height: 1;
   cursor: pointer;
   vertical-align: middle;
+}
+// Invisible 44x44 hit area, centred on the 24px disc. Same device `.ch-rail__toggle` uses:
+// the control keeps its quiet visual size while meeting WCAG 2.5.5, which matters more than
+// usual here — AAC users frequently have motor impairments, and this sits inline next to
+// running text where a 24px target is easy to miss.
+.ch-explain::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .ch-explain:hover,

@@ -38,8 +38,19 @@ export function other_view_style(user) {
 export function set_view_style(user, style) {
   if(!user || typeof user.set !== 'function') { return false; }
   var next = (style === 'classic') ? 'classic' : 'modern';
+  /* CREATE THE CONTAINERS FIRST — BEFORE the writes below, not between them. A nested
+     `set()` THROWS ("object in path could not be found") on a record whose `preferences`
+     carry no such container, and it throws from inside the caller's click handler: the
+     style would flip in memory at best, the save would never run, and the caller's overlay
+     and transition after this call would never execute, so the choice silently failed to
+     persist. Both writes need the guard — `preferences` for the style itself and
+     `preferences.device` for the dirty bit. components/boards-layout-toggle.js hit this and
+     guards the same way; this helper was one of the "other call sites" its comment says
+     assume the containers exist. */
+  if(!user.get('preferences')) { user.set('preferences', {}); }
   user.set('preferences.board_view_style', next);
   if(user.save) {
+    if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
     user.set('preferences.device.updated', true);
     user.save().then(null, function() { });
   }

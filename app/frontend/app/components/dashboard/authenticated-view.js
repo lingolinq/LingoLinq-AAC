@@ -1377,7 +1377,11 @@ export default Component.extend({
         if (target && target.key) {
           var parts = target.key.split('/');
           if(parts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+            // Route by the user's view preference, not hardcoded to the modern shell —
+            // same resolution `goToBoard` above already uses. A classic-preference user
+            // tapping Continue Speaking was landing in `user.board-detail`, the exact
+            // ejection utils/board_view.js exists to prevent.
+            this.get('router').transitionTo(board_view_route(user), parts[0], parts[1]);
           } else {
             this.get('router').transitionTo('board', target.key);
             this.appState.toggle_mode('speak', {force: true, override_state: target});
@@ -1400,7 +1404,8 @@ export default Component.extend({
         if (lb && lb.key) {
           var lbp = lb.key.split('/');
           if (lbp.length === 2) {
-            this.get('router').transitionTo('user.board-detail', lbp[0], lbp[1]);
+            // View-preference routing, as in `goToBoard` and the 'speak' branch above.
+            this.get('router').transitionTo(board_view_route(u2), lbp[0], lbp[1]);
           } else {
             this.get('router').transitionTo('board', lb.key);
             this.appState.toggle_mode('speak', {force: true, override_state: lb});

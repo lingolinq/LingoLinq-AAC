@@ -2900,8 +2900,10 @@ body.ll-layout-focused {
   // `body` element — so THIS rule outranks the active-tab colour. The active block below
   // must keep re-stating `color` or the active pill inherits this one.
   // Unselected tabs live directly on the glass — no per-tab surface.
-  // `min-height` added: at 9px padding on a 14px label these computed to ~37px, under the
-  // 44px WCAG 2.5.5 target this file holds itself to elsewhere.
+  // `min-height` now comes from the base `.ch-tab` in _classic-home.scss, which carries the
+  // same 44px WCAG 2.5.5 floor for BOTH schemes; it was fixed here first and restated below
+  // only so this block keeps reading as self-contained. Identical value — if the base moves,
+  // this is the line to delete, not to re-tune.
   .ch-tab {
     min-height: 44px;
     background: transparent;
@@ -3321,6 +3323,20 @@ body.ll-layout-focused {
     border-radius: 20px;
     border: 1px solid;
     @include ch-focused-panel($hover: false);
+
+    // RE-INK THE EMPTY/ERROR TEXT. `ch-focused-panel` is a mid-tone ramp, and the mixin
+    // header above states the constraint it imposes: nothing drawn on it may be muted
+    // with opacity and nothing may use the navy inks the rest of the page uses. The
+    // scheme-wide `.ch-empty` is `$la-navy` at `opacity: 0.78`, which lands at 3.67:1 on
+    // the panel's top stop and 2.80:1 at its darkest (#88909F) — under the 4.5:1 body
+    // text owes, on precisely the strings that carry all the information when the grid
+    // has nothing to show ("Loading…", "Failed to load", "None found").
+    //
+    // Same treatment `.ch-card--list` / `--install` already use for the same reason.
+    .ch-empty {
+      color: $ch-focused-ink-on-tint;
+      opacity: 1;
+    }
   }
 
   // NO BOARD-CARD RULE. This scheme briefly repainted the classic board cards in its own

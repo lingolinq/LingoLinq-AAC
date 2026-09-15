@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { computed, set as emberSet } from '@ember/object';
 import AuthenticatedView from './authenticated-view';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -131,13 +131,27 @@ export default AuthenticatedView.extend({
   // caseload page uses (utils/supervisee_home_board.js): reading `home_board_key`
   // alone — as the 2020 template did — misses three other shapes the payload can
   // use, which would wrongly grey out Model/Speak for a supervisee who has a board.
+  //
+  // DECORATE IN PLACE — DO NOT REBUILD THE ENTRIES AS COPIES. This returned the raw
+  // entries through `Object.assign({}, s)` copies, and the cards then froze: the
+  // parent writes `current_badge` / `earned_badge` (authenticated-view.js#reload_logs)
+  // and `goal` (#set_goal) onto the RAW entries with `emberSet`, and a write to an
+  // array ELEMENT does not invalidate a dependent key on the array itself. The
+  // computed stayed cached, the copies never saw the write, and a supervisor who set
+  // a goal kept reading "no goal set" until a full browser reload — the same symptom
+  // controllers/caseload.js works around with `current.reload()` at :573.
+  //
+  // `.@each.goal` would not fix it either: `known_supervisees` (models/user.js:871)
+  // returns a NATIVE array, and `@each` needs an EmberArray to observe. Handing back
+  // the same objects the writers mutate sidesteps dependent-key tracking entirely,
+  // and it is the idiom this data already uses — models/user.js:876 marks `online` on
+  // these very entries the same way.
   decoratedSupervisees: computed('appState.currentUser.known_supervisees', function() {
     var list = this.appState.get('currentUser.known_supervisees') || [];
-    return list.map(function(s) {
-      var copy = Object.assign({}, s);
-      copy.resolved_home_board_key = resolveSuperviseeHomeBoardKey(s);
-      return copy;
+    list.forEach(function(s) {
+      emberSet(s, 'resolved_home_board_key', resolveSuperviseeHomeBoardKey(s));
     });
+    return list;
   }),
 
   // Communicators-tab filter. Mirrors the caseload page's `superviseeFilter` /

@@ -35,5 +35,11 @@
       <div class="progress-bar progress-bar-warning" role="progressbar" aria-valuenow={{this.badge_progress}} aria-valuemin="0" aria-valuemax="100" style={{this.progress_style}}>
       </div>
     </div>
+    {{!-- THE LINK'S ONLY ACCESSIBLE NAME. Everything else inside this anchor is either a
+         decorative image (`alt=""`) or a progressbar with no label, so without this the
+         link computes to an empty name and is announced as bare "link" — WCAG 2.4.4 /
+         4.1.2. It carries the badge name so the three badges a caseload row can show are
+         distinguishable from one another, not just from the page. --}}
+    <span class="sr-only">{{t "Badge progress: %{badge_name}" badge_name=this.badge.name key='badge_progress_for_badge'}}</span>
   </a>
 </div>

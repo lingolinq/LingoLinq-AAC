@@ -93,9 +93,11 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  // 0.62 on the menu's near-white surface measures 4.6:1 -- these are real labels, so
-  // they are held to the 4.5:1 text floor rather than treated as decoration.
-  color: rgba($la-navy, 0.62);
+  // These are real labels, so they are held to the 4.5:1 text floor rather than treated as
+  // decoration. 0.62 was recorded here as 4.6:1 and does not measure that -- $la-navy at
+  // 0.62 over the menu's near-white surface composites to #708296 and lands at 3.87:1, the
+  // same arithmetic slip the boards filter placeholder carried. 0.72 measures 5.14:1.
+  color: rgba($la-navy, 0.72);
   cursor: default;
 }
 

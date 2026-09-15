@@ -9399,5 +9399,7 @@
   "classic_sub_preferences": "*** Preferences",
   "classic_sub_add_notes": "*** Add Notes",
   "classic_sub_record_voice": "*** Record voice",
-  "classic_sub_get_help": "*** Get help"
+  "classic_sub_get_help": "*** Get help",
+  "badge_progress_for_badge": "*** Badge progress: %{badge_name}",
+  "no_matching_boards": "*** No boards match that filter."
 }

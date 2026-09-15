@@ -1089,11 +1089,20 @@ export default Component.extend({
     });
 
     // The board-picker handoff, returning-user topic MENU, and post-registration
-    // setup handoff are all HOME-tour concepts. Scope them to the home tour so
+    // setup handoff are all MODERN HOME-tour concepts. Scope them to that tour so
     // OTHER tours built on this runner (board-picker, board-detail edit) get a
-    // plain linear walkthrough with no cross-page handoff. (Home behavior is
-    // unchanged: isHomeTour is true there.)
-    var isHomeTour = (this.get('appState.current_route') === 'user.home');
+    // plain linear walkthrough with no cross-page handoff.
+    //
+    // `!isClassicView` IS LOAD-BEARING, not belt-and-braces. The classic home page
+    // renders at `user.home` too (routes/user/home.js sets templateName 'index', and
+    // routes/index.js#_land_on_default sends everyone there), so a route-only test was
+    // true for classic as well — and utils/tours/classic-home.js#doneStep states the
+    // opposite contract: "No handoff — unlike the modern home tour there is no
+    // board-picker step to pass to." A first-time classic user pressing "Got it" on an
+    // outro that says the tour can be retaken from the rail was instead transitioned to
+    // the board picker, which then auto-opened a second, unrequested tour.
+    var isHomeTour = (this.get('appState.current_route') === 'user.home') &&
+                     !this.get('isClassicView');
     // A user who has NOT completed THIS page+layout's tour is "first time" —
     // however the tour was launched (post-registration auto-open OR a manual
     // "Take a tour"). First-timers get the linear walkthrough whose outro previews

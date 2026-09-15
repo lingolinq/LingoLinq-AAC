@@ -8952,6 +8952,8 @@
   "classic_sub_add_notes": "*** Add Notes",
   "classic_sub_record_voice": "*** Record voice",
   "classic_sub_get_help": "*** Get help",
+  "badge_progress_for_badge": "*** Badge progress: %{badge_name}",
+  "no_matching_boards": "*** No boards match that filter.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "No encontro [[ On the Date",
   "after_time": "Depois do Tempo [[ After Time",

@@ -46368,34 +46368,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    White on $brand-danger measures 5.44:1, so the numeral clears AA on its own disc.
    COLOUR IS NOT THE ONLY CUE: the disc carries the number, and the pill's own text label
    says "Updates" beside it, so nothing here depends on red being perceived as red. */
-.md-pillnav__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  margin-left: 8px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: $brand-danger;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  /* The pill sets `font-size: 15px !important`; this element is a child, so it is not
-     caught by that, but the pill also centres its own text — the badge needs to sit on the
-     same optical line rather than on the text baseline. */
-  vertical-align: middle;
-}
 
 /* The pill has to become a flex row for the label and badge to centre against each other.
    `!important` only because `.md-pillnav__pill` above declares its own layout that way —
    this matches the weight it has to sit beside, it is not winning an unrelated cascade. */
-.md-pillnav__pill--updates {
-  display: inline-flex !important;
-  align-items: center !important;
-}
-
 .md-pillnav__pill {
   /* Sleek nav row — tightened from `padding: 14px 18px` + min-height
      48px. Vertical padding reduced to 4px and min-height to 32px so
@@ -46518,20 +46494,45 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
 
 }
+/* Unread-count badge, shared by the dashboard and user pill navs.
+
+   COLOUR: `$brand-danger`, NOT `--md-coral`. White on coral (#F06A5B) measures 3.04:1,
+   under the 4.5:1 a 14px/700 numeral owes; `$brand-danger` (#C0392B) measures 5.44:1 and
+   matches the classic `.ch-tab__badge` this is meant to read as. The `!important` here is
+   inherited from the rule's original form, not added — every declaration in this block
+   already carried it, and the active-pill override above is `!important` too, so dropping
+   it on `background` alone would flip which rule wins.
+
+   The geometry below (flex centring, 20px round target) is declared HERE rather than in a
+   separate earlier block: an identical-specificity rule whose properties are all
+   `!important` beats a later plain one regardless of source order, so a second block could
+   only restate what this one already owns. */
 .md-pillnav__badge {
+  display: inline-flex !important;
+
+  align-items: center !important;
+
+  justify-content: center !important;
+
+  min-width: 20px !important;
+
+  height: 20px !important;
+
   margin-left: 6px !important;
 
-  padding: 2px 6px !important;
+  padding: 0 6px !important;
 
   border-radius: 999px !important;
 
-  background: var(--md-coral) !important;
+  background: $brand-danger !important;
 
   color: #fff !important;
 
   font-size: 14px !important;
 
   font-weight: 700 !important;
+
+  line-height: 1 !important;
 
 }
 .md-pillnav__spacer { flex: 1; min-width: 12px; }
@@ -53622,11 +53623,18 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 /* The SECOND "+ New Board" button — the one pinned in the tabs row — is redundant beside
    the section header's own New Board button, and side-by-side has markedly less
    horizontal room for the tabs row. Focused View already dropped it for the same reason
-   (_focused-view.scss); this extends that to side-by-side in BOTH views. The section
-   header button remains the single Boards-page CTA. */
+   (_focused-view.scss).
+
+   SCOPED TO THE BOARDS PAGE ONLY, and it must stay that way. This hide is safe only
+   where the section-header button exists to take over as the page's CTA, i.e. where
+   `<BoardsBrowser>` is rendered with `@showNewBoard={{true}}` (boards-browser.hbs:16 gates
+   it on that arg). The account page (templates/user/index.hbs) renders the identical
+   component with `@showNewBoard={{false}}` and carries `.ub-boards-page--split` for the
+   folders-beside-grid layout — so matching on that class hid the ONLY create-board entry
+   point it had at >=901px, while leaving it present below 901px. Hide on the page, never
+   on the layout class. */
 @media (min-width: 901px) {
-  #content.boards-page .ub-boards-page__boards-summary-new-btn,
-  .ub-boards-page--split .ub-boards-page__boards-summary-new-btn {
+  #content.boards-page .ub-boards-page__boards-summary-new-btn {
     display: none;
   }
 }
