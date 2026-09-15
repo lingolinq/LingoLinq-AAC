@@ -223,26 +223,6 @@ export default Service.extend({
     return res;
   },
 
-  // READ by app-state setup_controller find_user to decide force_logout.
-  // extras.js already calls force_logout when result.invalid_token is set and
-  // speak mode is off; this helper covers the Ember Data reject shapes that
-  // reach find_user without going through that extras branch.
-  is_logout_worthy_auth_error: function(err) {
-    if(!err) { return false; }
-    if(err.invalid_token || (err.result && err.result.invalid_token)) { return true; }
-    var err_msg = err.error || (err.result && err.result.error);
-    if(err.errors && err.errors[0] && !err_msg) {
-      err_msg = err.errors[0].error || err.errors[0].detail || err.errors[0];
-    }
-    var status = err.status || (err.result && err.result.status);
-    if(status != 400) { return false; }
-    return err_msg == 'Not authorized' ||
-           err_msg == 'Invalid token' ||
-           err_msg == 'Expired token' ||
-           err_msg == 'Token needs refresh' ||
-           err_msg == 'Disabled token';
-  },
-
   check_token: function(allow_invalidate) {
     if(!this) { return RSVP.resolve({ success: false }); }
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
@@ -251,6 +231,7 @@ export default Service.extend({
     if(this.persistence && !this.persistence.tokens) {
       this.persistence.tokens = {};
     }
+    // Confirmed tokens[key]=true is set only after the server accepts, below.
 
     var access_token = store_data.access_token || "none";
     var url = '/api/v1/token_check?access_token=' + access_token + "&rnd=" + Math.round(Math.random() * 999999);
@@ -654,6 +635,26 @@ export default Service.extend({
     if (!isTesting() && typeof window !== 'undefined') {
       window.alert(message);
     }
+  },
+
+  // READ by app-state setup_controller find_user to decide force_logout.
+  // extras.js already calls force_logout when result.invalid_token is set and
+  // speak mode is off; this helper covers the Ember Data reject shapes that
+  // reach find_user without going through that extras branch.
+  is_logout_worthy_auth_error: function(err) {
+    if(!err) { return false; }
+    if(err.invalid_token || (err.result && err.result.invalid_token)) { return true; }
+    var err_msg = err.error || (err.result && err.result.error);
+    if(err.errors && err.errors[0] && !err_msg) {
+      err_msg = err.errors[0].error || err.errors[0].detail || err.errors[0];
+    }
+    var status = err.status || (err.result && err.result.status);
+    if(status != 400) { return false; }
+    return err_msg == 'Not authorized' ||
+           err_msg == 'Invalid token' ||
+           err_msg == 'Expired token' ||
+           err_msg == 'Token needs refresh' ||
+           err_msg == 'Disabled token';
   },
 
   // Clear in-memory + persisted auth without reload. Used when the

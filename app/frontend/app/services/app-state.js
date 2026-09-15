@@ -578,10 +578,7 @@ export default Service.extend({
           console.log(err);
           console.log(err.status);
           console.log(err.error);
-          // Check if it's an auth error (should force logout).
-          // extras.js rejects as {result: {error, invalid_token, status}};
-          // "Token needs refresh" must count or find_user never logs out and
-          // boot stays on "Preparing your workspace".
+          // Check if it's an auth error (should force logout)
           var do_logout = !!( _this.session && typeof _this.session.is_logout_worthy_auth_error === 'function' && _this.session.is_logout_worthy_auth_error(err));
           // Check if it's a timeout/network error (should NOT force logout, just retry or fail gracefully)
           var is_timeout = !err.status || err.status === 0 || err.error === 'timeout' || (err.errors && err.errors[0] === 'timeout');
