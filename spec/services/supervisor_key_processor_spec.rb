@@ -443,6 +443,51 @@ describe SupervisorKeyProcessor, :type => :model do
       expect(org.reload.pending_user?(target.reload)).to eq(false)
     end
 
+    # --- attachment: the SUPPORTER branch of parse_activation_code ---
+    #
+    # Organization.parse_activation_code has two org-side link-creating branches,
+    # keyed on the code's user_type: 'communicator' calls add_user, 'supporter'
+    # calls add_supervisor. The first round threaded force_pending into add_user
+    # only, so a supporter code still minted a NON-pending org_supervisor link.
+    # Organization.manager_for? counts org_supervisor links exactly as it counts
+    # org_user ones -- its filter is
+    # "(l['type'] == 'org_user' || l['type'] == 'org_supervisor') && ... && !l['state']['pending']"
+    # in app/models/organization.rb -- so the support_actions path reopened
+    # through the supporter code, with no guard in between.
+
+    it "should attach a SUPPORTER code as PENDING when a third party redeems it" do
+      actor, target = supervised_pair
+      org = org_managed_by(actor)
+      code = Organization.activation_code(org, {'user_type' => 'supporter', 'proposed_code' => 'bsupthirdone'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+
+      expect(org.reload.supervisor?(target.reload)).to eq(true)
+      expect(org.reload.pending_supervisor?(target.reload)).to eq(true)
+    end
+
+    it "should attach a SUPPORTER code NON-pending when the user redeems it on their own account" do
+      target = User.create
+      org = Organization.create(:settings => {'total_licenses' => 5})
+      code = Organization.activation_code(org, {'user_type' => 'supporter', 'proposed_code' => 'bsupselfone'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => target})
+
+      expect(org.reload.supervisor?(target.reload)).to eq(true)
+      expect(org.reload.pending_supervisor?(target.reload)).to eq(false)
+    end
+
+    it "should not grant support_actions through a third-party SUPPORTER code" do
+      actor, target = supervised_pair
+      org = org_managed_by(actor)
+      code = Organization.activation_code(org, {'user_type' => 'supporter', 'proposed_code' => 'bsupnoauthy'})
+
+      target.process({'supervisor_key' => "start-#{code}"}, {'updater' => actor})
+
+      expect(Organization.manager_for?(actor.reload, target.reload)).to eq(false)
+      expect(target.reload.allows?(actor.reload, 'support_actions')).to eq(false)
+    end
+
     # --- the whole point: a pending attachment confers no authority ---
 
     it "should not grant the receiving org's manager any authority over the target" do

@@ -1528,7 +1528,15 @@ class Organization < ApplicationRecord
               activate_for.reload
             end
           elsif type == 'supporter'
-            org_or_user.add_supervisor(activate_for.user_name, false, !!overrides['premium'])
+            # Same `force_pending` thread-through as the communicator branch
+            # above. `add_supervisor` defaults `pending` to true, so the literal
+            # `false` that used to sit here was a deliberate non-pending attach;
+            # passing force_pending keeps that for self-redemption (false) and
+            # lands a third-party redemption pending instead. It matters because
+            # manager_for? counts org_supervisor links on the same footing as
+            # org_user ones, so a non-pending supervisor link reopened the
+            # support_actions password path this design exists to close.
+            org_or_user.add_supervisor(activate_for.user_name, force_pending, !!overrides['premium'])
             org_or_user.reload
             if activate_for && activate_for.settings['subscription'] && !(activate_for.settings['subscription']['extras'] || {})['enabled']
               org_or_user.add_extras_to_user(activate_for.user_name) if overrides['premium'] && overrides['premium_symbols']
