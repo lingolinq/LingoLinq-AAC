@@ -6,16 +6,18 @@ on:
   pull_request:
     branches: [ main, develop, staging ]
 
-# Every job only reads the checkout; nothing here comments, labels, or pushes.
+# Every job is read-only; nothing here comments, labels, or pushes.
 permissions:
   contents: read
-  pull-requests: read
 
 # A new commit on the same PR makes the older result obsolete. Keep protected-branch
 # pushes separate from PR runs so a merge cannot cancel its own branch validation.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A newer PR commit supersedes the older PR result. Protected-branch pushes
+  # remain uncancelled: each merged commit can deploy independently and must
+  # retain its own complete validation run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   rspec:
@@ -108,6 +110,9 @@ jobs:
 
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout repository
@@ -137,7 +142,19 @@ jobs:
             });
             const allowed = (path) =>
               path.startsWith('docs/') || path.startsWith('audit-reports/');
+            // GitHub caps listFiles at 3,000 paths. The payload's changed_files
+            // count lets us detect truncation and fail toward the full suite.
+            const reportedCount = context.payload.pull_request.changed_files;
+            const completeList =
+              Number.isInteger(reportedCount) && files.length === reportedCount;
+            if (!completeList) {
+              core.warning(
+                `PR reports ${reportedCount} changed files but the API returned ${files.length}; ` +
+                'run the full frontend suite.'
+              );
+            }
             const documentationOnly =
+              completeList &&
               files.length > 0 &&
               files.every((file) =>
                 allowed(file.filename) &&
