@@ -1358,6 +1358,67 @@ describe('app_state', function() {
       app_state.set('currentBoardState', {key: 'trains', id: 'trains-1'});
     });
 
+    /* Switching communicators while ALREADY in speak mode is the ordinary caseload flow, and it
+       takes the else branch of set_speak_mode_user (services/app-state.js:2358). That branch calls
+       toggle_speak_mode ONLY when speak mode is off (:2359), so here it does not run and
+       `root_board_state` is never rewritten - it keeps whatever the PREVIOUS session left, which is
+       the supervisor's home board or the previous student's.
+
+       Two readers make that wrong rather than untidy: the classic Home control
+       (controllers/application.js:902, :908 - the second press clears the temporary root and falls
+       through to this value) and prediction scope (utils/word_suggestions.js:1448). */
+    it("should record the new communicator's home board as the root when switching in speak mode", function() {
+      stashes.persist('current_mode', 'speak');
+      // The stale value this is meant to correct: the supervisor's own home board.
+      stashes.persist('root_board_state', {key: 'sup/home', id: 'sup-home-1'});
+      var toggled = false;
+      stub(app_state, 'toggle_speak_mode', function() { toggled = true; });
+      stub(app_state, 'home_in_speak_mode', function() { });
+      queryLog.defineFixture({
+        method: 'GET', type: 'user', id: '1234',
+        response: RSVP.resolve({user: withSpeakModeProgress({
+          id: '1234', user_name: 'kiddo',
+          preferences: {home_board: {key: 'kiddo/home', id: 'kiddo-home-1'}}
+        })})
+      });
+
+      app_state.set_speak_mode_user('1234', false, true);
+      waitsFor(function() { return app_state.get('referenced_speak_mode_user'); });
+      runs(function() {
+        expect(toggled).toEqual(false);
+        expect(stashes.get('root_board_state.id')).toEqual('kiddo-home-1');
+      });
+    });
+
+    /* Switching communicators must not leave a temporary home pointing at the PREVIOUS
+       communicator's board. Traci's call (2026-09-09): Home should go to the new communicator's
+       own home board, and prediction scope should reset to their boards.
+
+       TRADE-OFF, recorded because it is a real loss: the switch no longer preserves "return to
+       where you were". You stay on the board you were on — nothing navigates — but Home now takes
+       you to the new communicator's home rather than back to that board. The Set As Temporary
+       Home feature is untouched; it has its own writer (app-state.js:1167). */
+    it("should clear the temporary home when switching communicators so Home returns to theirs", function() {
+      stashes.persist('current_mode', 'speak');
+      stub(app_state, 'toggle_speak_mode', function() { });
+      stub(app_state, 'home_in_speak_mode', function() { });
+      queryLog.defineFixture({
+        method: 'GET', type: 'user', id: '3234',
+        response: RSVP.resolve({user: withSpeakModeProgress({
+          id: '3234', user_name: 'kiddo3',
+          preferences: {home_board: {key: 'kiddo3/home', id: 'kiddo3-home-1'}}
+        })})
+      });
+
+      app_state.set_speak_mode_user('3234', false, true);
+      waitsFor(function() { return app_state.get('referenced_speak_mode_user'); });
+      runs(function() {
+        expect(stashes.get('temporary_root_board_state')).toEqual(null);
+        expect(stashes.get('root_board_state.id')).toEqual('kiddo3-home-1');
+      });
+    });
+
+
     it("should clear SpeakModeUser if set to self", function() {
       stashes.set('current_mode', 'speak');
       app_state.set('sessionUser', null);
@@ -1598,10 +1659,12 @@ describe('app_state', function() {
       app_state.set_speak_mode_user('2345', false, true);
       waitsFor(function() { return app_state.get('modeling'); });
       runs(function() {
-        expect(stashes.get('root_board_state.id')).toEqual('111');
-        expect(stashes.get('root_board_state.key')).toEqual('home/one');
-        expect(stashes.get('temporary_root_board_state.key')).toEqual('trains');
-        expect(stashes.get('temporary_root_board_state.id')).toEqual('trains-1');
+        /* The MODELLED user's home, as originally shipped (5cc7645f2). The BEHAVIOUR broke at
+           e88180d38 (2018-08-17); 5b8c9f2fd only re-pinned the EXPECTATION, 7.5 years later. */
+        expect(stashes.get('root_board_state.id')).toEqual('222');
+        expect(stashes.get('root_board_state.key')).toEqual('home/two');
+        // Cleared on a communicator switch (2026-09-09) so Home goes to THEIR home board.
+        expect(stashes.get('temporary_root_board_state')).toEqual(null);
         expect(app_state.get('currentBoardState.key')).toEqual('trains');
         expect(app_state.get('currentBoardState.id')).toEqual('trains-1');
         expect(app_state.get('currentUser.id')).toEqual('234');
@@ -1611,7 +1674,7 @@ describe('app_state', function() {
       });
     });
 
-    it('should mark the current board as temporary home if already in speak mode and switching without jumping', function() {
+    it('should NOT mark the current board as temporary home when switching without jumping', function() {
       primeSessionUser();
       stashes.set('current_mode', 'speak');
       queryLog.defineFixture({
@@ -1630,8 +1693,11 @@ describe('app_state', function() {
       app_state.set_speak_mode_user('2345', false, true);
       waitsFor(function() { return app_state.get('modeling_for_user'); });
       runs(function() {
-        expect(stashes.get('root_board_state')).toEqual(null);
-        expect(stashes.get('temporary_root_board_state')).toEqual({key: 'trains', id: 'trains-1'});
+        /* Originally {id:'222', key:'home/two'} (5cc7645f2). Behaviour broke at e88180d38 (2018);
+           5b8c9f2fd only re-pinned the expectation. */
+        expect(stashes.get('root_board_state')).toEqual({id: '222', key: 'home/two'});
+        // Cleared on a communicator switch (2026-09-09) so Home goes to THEIR home board.
+        expect(stashes.get('temporary_root_board_state')).toEqual(null);
         expect(app_state.get('currentUser.id')).toEqual('234');
         expect(app_state.get('referenced_speak_mode_user.id')).toEqual('2345');
         expect(app_state.get('currentBoardState.key')).toEqual('trains');
@@ -1679,8 +1745,11 @@ describe('app_state', function() {
       app_state.set_speak_mode_user('2345', false, true);
       waitsFor(function() { return app_state.get('modeling_for_user'); });
       runs(function() {
-        expect(stashes.get('root_board_state')).toEqual(null);
-        expect(stashes.get('temporary_root_board_state')).toEqual({key: 'trains', id: 'trains-1'});
+        /* Originally {id:'222', key:'home/two'} (5cc7645f2). Behaviour broke at e88180d38 (2018);
+           5b8c9f2fd only re-pinned the expectation. */
+        expect(stashes.get('root_board_state')).toEqual({id: '222', key: 'home/two'});
+        // Cleared on a communicator switch (2026-09-09) so Home goes to THEIR home board.
+        expect(stashes.get('temporary_root_board_state')).toEqual(null);
         expect(app_state.get('referenced_speak_mode_user.id')).toEqual('2345');
         expect(app_state.get('currentBoardState.key')).toEqual('trains');
         expect(app_state.get('currentBoardState.id')).toEqual('trains-1');
@@ -1709,8 +1778,8 @@ describe('app_state', function() {
       runs(function() {
         expect(stashes.get('root_board_state.id')).toEqual('222');
         expect(stashes.get('root_board_state.key')).toEqual('home/two');
-        expect(stashes.get('temporary_root_board_state.key')).toEqual('trains');
-        expect(stashes.get('temporary_root_board_state.id')).toEqual('trains-1');
+        // Cleared on a communicator switch (2026-09-09) so Home goes to THEIR home board.
+        expect(stashes.get('temporary_root_board_state')).toEqual(null);
         expect(app_state.get('currentUser.id')).toEqual('2345');
         expect(app_state.get('referenced_speak_mode_user.id')).toEqual('2345');
         expect(app_state.get('currentBoardState.key')).toEqual('trains');
@@ -1855,10 +1924,12 @@ describe('app_state', function() {
       app_state.set_speak_mode_user('2345', false, true);
       waitsFor(function() { return stashes.get('root_board_state'); });
       runs(function() {
-        expect(stashes.get('root_board_state.id')).toEqual('111');
-        expect(stashes.get('root_board_state.key')).toEqual('home/one');
-        expect(stashes.get('temporary_root_board_state.key')).toEqual('trains');
-        expect(stashes.get('temporary_root_board_state.id')).toEqual('trains-1');
+        /* The MODELLED user's home, as originally shipped (5cc7645f2). The BEHAVIOUR broke at
+           e88180d38 (2018-08-17); 5b8c9f2fd only re-pinned the EXPECTATION, 7.5 years later. */
+        expect(stashes.get('root_board_state.id')).toEqual('222');
+        expect(stashes.get('root_board_state.key')).toEqual('home/two');
+        // Cleared on a communicator switch (2026-09-09) so Home goes to THEIR home board.
+        expect(stashes.get('temporary_root_board_state')).toEqual(null);
         expect(app_state.get('referenced_speak_mode_user.id')).toEqual('2345');
         expect(app_state.get('currentUser.id')).toEqual('234');
         expect(app_state.get('currentBoardState.key')).toEqual('trains');

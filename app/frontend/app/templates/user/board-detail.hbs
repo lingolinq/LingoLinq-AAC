@@ -651,11 +651,37 @@
           </svg>
           <span class="md-board-detail-nav-btn__label">{{t "Home" key="board_detail_home"}}</span>
         </button>
-        {{!-- Modeling control — was a pill inside the sentence bar; it now reads as
-             a third nav button under Home. The long "Modeling is paused" caption
-             the pill carried is dropped: it cannot fit a 60px button, and each
-             state's aria-label already says it in full for screen readers, with
-             the play/pause icon and colour carrying it visually. --}}
+        {{!-- Modeling indicator — was a pill inside the sentence bar, then a third nav
+             button under Home, and is now a read-only badge in that same slot. The long
+             "Modeling is paused" caption the pill carried is still dropped: it cannot fit a
+             60px box, and the aria-label says it in full for screen readers. The play/pause
+             icon that used to carry the state visually is gone with the toggle; colour and
+             the aria-label carry it now. --}}
+        {{!-- STATUS BADGE, not a control. The manual pause/resume toggle is commented out
+              below rather than deleted, pending verification — restore that block and drop
+              this span to bring it back.
+
+              What was removed is only the MANUAL toggle. `modeling_paused` itself is still
+              live and still written by the edit route (routes/user/board-detail/edit.js:69
+              on entry, :126 on exit), because app-state.js:4072 reads it to keep a
+              supervisor's taps while editing OUT of the communicator's report data. That
+              behaviour is untouched; only the user-facing button is gone.
+
+              The badge still distinguishes the paused case, because saying "Modeling" while
+              modeling is suppressed would misreport what the system is doing. It is a
+              <span role="status"> in both states, so it is no longer a scan or dwell target
+              — two fewer stops in the cycle. --}}
+        {{#if this.app_state.modeling_session_active}}
+          <span class="md-board-detail-modeling-btn md-board-detail-modeling-btn--badge {{if this.edit_mode 'md-board-detail-modeling-btn--paused'}}" role="status"
+                aria-label={{if this.edit_mode
+                             (t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit")
+                             (t "Modeling mode is active" key="board_detail_modeling_active")}}>
+            <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+          </span>
+        {{/if}}
+        {{!-- COMMENTED OUT 2026-08-31 — manual modeling pause/resume. Restore verbatim to
+              re-enable, and remove the badge above. The controller action it calls
+              (`toggle_modeling_pause`) is commented out in board-detail.js in the same pass.
         {{#if this.app_state.modeling_session_active}}
           {{#if this.edit_mode}}
             <span class="md-board-detail-modeling-btn md-board-detail-modeling-btn--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
@@ -681,6 +707,7 @@
             </button>
           {{/if}}
         {{/if}}
+        --}}
         </div>
         {{#if this.show_board_back_nav}}
           <button type="button" class="md-board-detail-nav-stack__back" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>
@@ -691,13 +718,45 @@
           </button>
         {{/if}}
       </div>
+      {{!-- Non-transformed wrapper. It exists ONLY so the quick-actions popover below
+            can escape the sentence bar, which is a STACKING CONTEXT of its own: the bar
+            carries backdrop-filter plus a transform/will-change GPU layer, and any one of
+            those traps its descendants. A popover rendered inside it could never paint
+            above the board however high its z-index went — measured at 640/480/375px, the
+            panel lost 2 of 5 hit-tests to board buttons carrying a mere `z-index: 1`
+            (scripts/speak-header-narrow-qa.mjs). `position: fixed` would not have escaped
+            either; a transformed ancestor captures that too. Moving the markup OUT is the
+            only fix that does not mean stripping the frosted bar of its own styling. --}}
+      <div class="md-board-detail-sentence-bar-wrap">
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
+        {{!-- Un-Flip. Rendered only while the message is flipped, at the far left of the bar
+             and OUTSIDE the rotated wrapper, so it stays upright and usable while the message
+             behind it is upside down. data-bd-action keeps it on the dwell/eye-gaze dispatch
+             path in raw_events like every other control in this row. Reuses the existing
+             `unflip_text` key, so no new locale strings. --}}
+        {{#if this.app_state.flipped}}
+          <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--unflip" aria-label={{t "Un-Flip Text" key="unflip_text"}} title={{t "Un-Flip Text" key="unflip_text"}} data-bd-action="flip_text" {{on "click" (this.ctrlAction "flip_text")}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span class="md-board-detail-sentence-bar__btn-label">{{t "Un-Flip Text" key="unflip_text"}}</span>
+          </button>
+        {{/if}}
         {{!-- Tapping the composed message also speaks it (mouse/touch bonus —
              the inline mic below is the keyboard/SR speak control, so this
              stays a plain click target with no tabindex/role to avoid a
              duplicate "Speak sentence" tab stop). --}}
         <div class="md-board-detail-sentence-bar__text {{if (and this.utterance_show_symbols this.has_sentence) "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
           {{#if this.has_sentence}}
+            {{!-- Flip Text (speak-menu "More Options") rotates the composed message 180 degrees so a
+                 partner sitting opposite the device can read it. app_state.flipped is set by
+                 app_state.flip_text() (services/app-state.js:2487). The classic bar does this on
+                 #button_list via _header_sizing.scss:54; board-detail has no #button_list, so the
+                 flag had no consumer here and the control did nothing.
+
+                 The wrapper is `display: contents` unless flipped, so in the normal case the chips
+                 stay direct flex children of __text and layout is unchanged. Predictions are a
+                 SIBLING of this wrapper and deliberately stay upright -- they are buttons for the
+                 AAC user, not text for the partner. --}}
+            <span class="md-board-detail-sentence-bar__utterance {{if this.app_state.flipped 'is-flipped'}}">
             {{#if (or this.utterance_show_symbols this.sentence_bar_editing_enabled)}}
               {{#each this.sentence_parts as |part index|}}
                 <SentenceBarChip
@@ -721,6 +780,7 @@
             {{else}}
               {{this.sentence_text}}
             {{/if}}
+            </span>
             {{!-- Inline word predictions --}}
             {{#if this.show_word_suggestions}}
               {{#if this.suggestions.ready}}
@@ -728,12 +788,12 @@
                   {{!-- --is-loading is set only once a lookup has been running longer
                        than the cue delay (see suggestions_loading_visible); the words
                        themselves stay put and stay clickable while it is on. --}}
-                  <span class="md-board-detail-sentence-bar__prediction-group {{if this.suggestions_loading_visible 'md-board-detail-sentence-bar__prediction-group--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
-                    {{#each this.prediction_suggestions key="word" as |suggestion|}}
+                  <span class="md-board-detail-sentence-bar__prediction-group {{this.button_text_position_class}} {{if this.suggestions_loading_visible 'md-board-detail-sentence-bar__prediction-group--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
+                    {{#each this.prediction_bar_suggestions key="word" as |suggestion|}}
                       <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                         {{#if this.utterance_show_symbols}}
                           {{#if suggestion.image}}
-                            <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                            <img src={{suggestion.image}} rel={{suggestion.fallback_image}} {{image-fallback-to-rel}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
                           {{/if}}
                         {{/if}}
                         <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
@@ -843,45 +903,46 @@
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
             </button>
-            {{#if this.quick_actions_open}}
-              <div class="md-board-detail-sentence-bar__quick-actions" role="menu" aria-label={{t "Sentence actions" key="board_detail_sentence_actions"}}>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                    <line x1="12" y1="19" x2="12" y2="23"/>
-                    <line x1="8" y1="23" x2="16" y2="23"/>
-                  </svg>
-                  <span>{{t "Speak" key="board_detail_speak"}}</span>
-                </button>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="backspace_sentence" {{on "click" (this.ctrlAction "backspace_sentence")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-                    <line x1="18" y1="9" x2="12" y2="15"/>
-                    <line x1="12" y1="9" x2="18" y2="15"/>
-                  </svg>
-                  <span>{{t "Backspace" key="backspace_lower"}}</span>
-                </button>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="clear_sentence" {{on "click" (this.ctrlAction "clear_sentence")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    <line x1="10" y1="11" x2="10" y2="17"/>
-                    <line x1="14" y1="11" x2="14" y2="17"/>
-                  </svg>
-                  <span>{{t "Clear" key="board_detail_clear"}}</span>
-                </button>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action md-board-detail-sentence-bar__quick-action--more" data-bd-action="open_speak_menu" {{on "click" (this.ctrlAction "open_speak_menu")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                  </svg>
-                  <span>{{t "More" key="board_detail_more"}}</span>
-                </button>
-              </div>
-            {{/if}}
             {{/unless}}
           </div>
         </div>
+      </div>
+        {{#if this.quick_actions_open}}
+          <div class="md-board-detail-sentence-bar__quick-actions" role="menu" aria-label={{t "Sentence actions" key="board_detail_sentence_actions"}}>
+            <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            <span>{{t "Speak" key="board_detail_speak"}}</span>
+          </button>
+        <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="backspace_sentence" {{on "click" (this.ctrlAction "backspace_sentence")}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/>
+            <line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        <span>{{t "Backspace" key="backspace_lower"}}</span>
+        </button>
+        <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="clear_sentence" {{on "click" (this.ctrlAction "clear_sentence")}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        <line x1="10" y1="11" x2="10" y2="17"/>
+        <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+        <span>{{t "Clear" key="board_detail_clear"}}</span>
+        </button>
+        <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action md-board-detail-sentence-bar__quick-action--more" data-bd-action="open_speak_menu" {{on "click" (this.ctrlAction "open_speak_menu")}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+        </svg>
+        <span>{{t "More" key="board_detail_more"}}</span>
+        </button>
+        </div>
+        {{/if}}
       </div>
       <div class="md-board-detail-sentence-bar__actions-wrap md-board-detail-sentence-bar__actions-wrap--stacked">
         <button type="button"
@@ -999,6 +1060,16 @@
                    Customize Menu. --}}
               {{#if this.speak_section_visible_buttons}}
               <div class="md-board-detail-actions-menu__section">
+                {{!-- On a communicator-only account the three controls below ARE the
+                      section, so the "Buttons" toggle is not rendered and they sit flat at
+                      top level. Find a Button / Focus Words / Show Hidden are a
+                      communicator's primary actions, and an accordion costs a switch or
+                      eye-gaze user an extra selection to reach every one of them. Supporter
+                      accounts keep the grouping, where the menu is long enough to need it.
+                      Removed from the DOM rather than hidden in CSS: modal.js#scannable_targets
+                      is a bare querySelectorAll with no visibility filter, so a
+                      hidden-by-CSS toggle would still be handed to the scanner. --}}
+                {{#unless this.is_communicator_only_account}}
                 <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.buttons_submenu_open "true" "false"}} data-bd-action="toggle_buttons_submenu" {{on "click" (this.ctrlAction "toggle_buttons_submenu")}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>
@@ -1006,8 +1077,12 @@
                   <span>{{t "Buttons" key="buttons"}}</span>
                   <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                {{#if this.buttons_submenu_open}}
-                  <div class="md-board-detail-actions-menu__submenu">
+                {{/unless}}
+                {{#if this.buttons_section_expanded}}
+                  {{!-- `__submenu` carries the indent rail and the smaller 15px item size,
+                        which only make sense under a parent toggle. Flat mode drops the class
+                        so the items inherit top-level `__item` sizing. --}}
+                  <div class={{if this.is_communicator_only_account "md-board-detail-actions-menu__section-items" "md-board-detail-actions-menu__submenu"}}>
                     {{#unless (get this.speak_menu_hidden_set "find_button")}}
                     {{#if this.app_state.currentBoardState}}
                       {{#unless this.app_state.eval_mode}}
@@ -1231,19 +1306,7 @@
                         {{/if}}
                         {{#unless (get this.speak_menu_hidden_set "pause_logging")}}
                         {{#if this.app_state.currentUser.preferences.logging}}
-                          <button type="button" class="md-board-detail-actions-menu__item" aria-pressed={{if this.app_state.logging_paused "true" "false"}} data-bd-action="toggle_pause_logging" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>
-                            {{#if this.app_state.logging_paused}}
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <polygon points="5 3 19 12 5 21 5 3"/>
-                              </svg>
-                              <span>{{t "Resume Logging" key="resume_logging"}}</span>
-                            {{else}}
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-                              </svg>
-                              <span>{{t "Pause Logging" key="pause_logging"}}</span>
-                            {{/if}}
-                          </button>
+                          <PauseLoggingButton @paused={{this.app_state.logging_paused}} @onToggle={{this.ctrlAction "toggle_pause_logging"}} />
                         {{/if}}
                         {{/unless}}
                       {{/unless}}
@@ -1279,6 +1342,26 @@
                     </div>
                   {{/if}}
                 </div>
+              </div>
+              {{/if}}
+
+              {{!-- Pause Logging, for a communicator-only account.
+
+                   The row proper lives in the Session submenu just above, and
+                   speak_section_visible_session returns false for a communicator-only
+                   account before it considers any single item (board-detail.js:4321) —
+                   deliberately, because the board lock lives in that section and a locked
+                   communicator must not be able to release it. So the item is offered here
+                   instead, as its own top-level row: the classic speak menu
+                   (application.hbs:1239) has always offered it to communicators with no role
+                   gate, and this restores that parity without opening the Session section.
+
+                   pause_logging_row_visible carries the whole condition — communicator-only,
+                   not super-protected, logging enabled, not hidden in the Customize Menu.
+                   Top-level rather than in a submenu, so it needs no expanding. --}}
+              {{#if this.pause_logging_row_visible}}
+              <div class="md-board-detail-actions-menu__section">
+                <PauseLoggingButton @paused={{this.app_state.logging_paused}} @onToggle={{this.ctrlAction "toggle_pause_logging"}} />
               </div>
               {{/if}}
 
@@ -1952,6 +2035,49 @@
         </div>
       {{else}}
       <div class="md-board-detail-grid-fade {{if this.grid_loading 'md-board-detail-grid-fade--loading'}}">
+
+        {{!-- Word-prediction BELOW-BAR panel. Sits directly under the speak bar and spans
+              exactly the board buttons' width, because it is the first child of grid-fade
+              (the block that holds the grid). Same glass surface as the side rail, laid out
+              horizontally with a FIXED height, so the board never reflows as predictions come
+              and go. CSS decides whether it shows (see app.scss .md-shell--wordpred-below-bar);
+              like the rail, the markup is kept isolated rather than shared with the in-bar
+              group so a change here cannot regress the other placements. --}}
+        {{#unless this.edit_mode}}
+          {{#if this.show_word_suggestions}}
+            <div class="md-board-detail-prediction-below {{this.button_text_position_class}} {{if this.suggestions_loading_visible 'md-board-detail-prediction-below--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
+              {{#each this.prediction_below_suggestions key="word" as |suggestion|}}
+                <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
+                  {{#if this.utterance_show_symbols}}
+                    {{#if suggestion.image}}
+                      <img src={{suggestion.image}} rel={{suggestion.fallback_image}} {{image-fallback-to-rel}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                    {{/if}}
+                  {{/if}}
+                  <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
+                </button>
+              {{else}}
+                {{!-- Same empty state as the side rail, laid out along the panel instead of
+                      down it: glyph + copy on the left, ghost tiles filling the rest. The
+                      panel keeps its fixed height either way, so the board never moves as
+                      predictions arrive or clear. Copy and label reuse the rail's i18n keys —
+                      it is the same message on a different surface. --}}
+                <div class="md-board-detail-prediction-below__empty">
+                  <span class="md-board-detail-prediction-below__empty-lead">
+                    {{!-- Decorative: the copy carries the meaning, and the group already has
+                          an accessible label. --}}
+                    <svg class="md-board-detail-prediction-below__empty-glyph" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span class="md-board-detail-prediction-below__empty-copy">{{t "Tap board button to see Options:" key="board_detail_prediction_empty"}}</span>
+                  </span>
+                  <span class="md-board-detail-prediction-below__empty-ghosts" aria-hidden="true">
+                    {{#each this.prediction_below_ghost_slots}}
+                      <span class="md-board-detail-prediction-below__empty-ghost"></span>
+                    {{/each}}
+                  </span>
+                </div>
+              {{/each}}
+            </div>
+          {{/if}}
+        {{/unless}}
       <BoardDetailGrid
         @board={{this.model}}
         @orderedButtons={{this.ordered_buttons}}
@@ -2029,7 +2155,7 @@
               <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                 {{#if this.utterance_show_symbols}}
                   {{#if suggestion.image}}
-                    <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                    <img src={{suggestion.image}} rel={{suggestion.fallback_image}} {{image-fallback-to-rel}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
                   {{/if}}
                 {{/if}}
                 <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
@@ -2038,10 +2164,27 @@
               {{!-- The rail stays mounted with no predictions so the board does not resize
                     under the user, which leaves a blank panel. Say why it is empty. --}}
               <div class="md-board-detail-prediction-rail__empty">
+                {{!-- Decorative only: the copy below carries the meaning, so this is
+                      aria-hidden and adds no announcement to a panel a screen reader
+                      already reaches through the group's label. --}}
+                <svg class="md-board-detail-prediction-rail__empty-glyph" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 {{!-- Both are rendered; CSS picks one by panel width. Below 640px the panel
                       is too narrow for a sentence, so it becomes a vertical spine label. --}}
-                <span class="md-board-detail-prediction-rail__empty-copy">{{t "Tap a board button, and we'll suggest words here." key="board_detail_prediction_empty"}}</span>
+                <span class="md-board-detail-prediction-rail__empty-copy">{{t "Tap board button to see Options:" key="board_detail_prediction_empty"}}</span>
                 <span class="md-board-detail-prediction-rail__empty-spine">{{t "Word prediction panel" key="board_detail_prediction_panel_label"}}</span>
+                {{!-- Ghost tiles: they show WHERE words will land rather than leaving the
+                      column blank below the copy, which is what made the empty panel read as
+                      unfinished. Purely decorative, aria-hidden, no animation (this surface
+                      is used with eye-gaze and switch scanning). The count comes from
+                      prediction_ghost_slots — the rail's row count less the rows the glyph and
+                      copy occupy — so every ghost is whole. There is no overflow mask: it
+                      dimmed the last ghost even when it fitted, which is the opposite of what
+                      this state is for. --}}
+                <span class="md-board-detail-prediction-rail__empty-ghosts" aria-hidden="true">
+                  {{#each this.prediction_ghost_slots}}
+                    <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  {{/each}}
+                </span>
               </div>
             {{/each}}
           </div>
@@ -3606,9 +3749,9 @@
             </summary>
             <p class="md-board-category-order__info-body">
               {{#if this.categorize_enabled}}
-                {{t "Organize this board's buttons into ordered category groups. Use the arrows below to change the order." key="board_categorize_group_hint"}}
+                {{t "Buttons are grouped into categories. This switch applies to every board in this account; the display options below apply to this board only." key="board_categorize_group_hint"}}
               {{else}}
-                {{t "Grouping is off. This board's buttons are shown in their original order." key="board_categorize_group_hint_off"}}
+                {{t "Grouping is off. Buttons appear in their original order on every board in this account." key="board_categorize_group_hint_off"}}
               {{/if}}
             </p>
           </details>

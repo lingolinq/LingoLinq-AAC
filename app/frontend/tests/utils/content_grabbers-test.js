@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  itAsync,
   xit,
   expect,
   beforeEach,
@@ -449,6 +450,20 @@ describe("contentGrabbers", function() {
       stub(contentGrabbers, 'check_for_dropped_file', function() {});
     });
 
+    /* `file_dropped` schedules `runLater(check_for_dropped_file, 100)`. That timer outlives the
+       test: `restoreStubs` puts the REAL handler back at test end and nothing cancels the timer
+       (`cancelHarnessAsyncWork` only cancels sync-harness work), so it fires against whatever
+       `droppedFile` is still on the singleton -- `{a: 1}`, which is not a Blob. `read_file`
+       builds its FileReader INSIDE an RSVP executor, so the `readAsDataURL` TypeError surfaces
+       as an unhandled rejection, which QUnit charges to whichever unrelated test is running.
+
+       This leak is PRE-EXISTING, not introduced here: the two original tests in this block
+       strand `{a: 1}` the same way. Nulling makes the late call a no-op, because
+       `check_for_dropped_file` is guarded by `if(drop)` (services/content-grabbers.js:414). */
+    afterEach(function() {
+      contentGrabbers.droppedFile = null;
+    });
+
     it("should set droppedFile", function() {
       var file = {a: 1};
       contentGrabbers.board_controller = controller.get('board');
@@ -461,6 +476,108 @@ describe("contentGrabbers", function() {
       contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
       expect(controller.get('board').sentMessages['buttonSelect']).not.toEqual(null);
+    });
+
+    /* `file_dropped` reads `board_controller` as its FIRST statement and calls `.send()` on it
+       unguarded (services/content-grabbers.js:384). The slot has three production writers
+       (routes/board/index.js:124, routes/user/board-detail.js:551,
+       routes/user/board-alt/index.js:115) and NO writer that releases it, so the reader has to
+       tolerate every shape the slot can actually hold.
+
+       These cases assert on `sentMessages` and `droppedFile`, never on "does not throw". The
+       stub's `send` is a plain assignment onto a plain object (:33-38), not `this.set()`, so a
+       destroyed stub does NOT throw -- an "it does not throw" assertion is green before the fix
+       and proves nothing.
+
+       `droppedFile` matters independently: the `.send('buttonSelect')` is what OPENS the
+       button-settings modal, and the modal is what consumes `droppedFile`
+       (components/button-settings.js:140, controllers/button-settings.js:41). A file left
+       stranded here is applied to whatever button the user opens NEXT. */
+    function dropTarget() {
+      return EmberObject.create({
+        sentMessages: {},
+        send: function(message) {
+          this.sentMessages[message] = arguments;
+        }
+      });
+    }
+
+    it("still sends buttonSelect to a live board_controller", function() {
+      var live = dropTarget();
+      contentGrabbers.board_controller = live;
+      contentGrabbers.file_dropped('abc', 'image', {a: 1});
+      expect(live.sentMessages['buttonSelect']).toBeTruthy();
+      expect(contentGrabbers.droppedFile.type).toEqual('image');
+    });
+
+    it("does not send to a destroying board_controller, and strands no file", function() {
+      var dead = dropTarget();
+      contentGrabbers.board_controller = dead;
+      dead.destroy();
+      /* PRECONDITION, asserted rather than assumed. The whole test body runs inside one
+         emberRun (tests/helpers/jasmine.js:101), so the destroy queue has not flushed yet:
+         `isDestroying` is true and `isDestroyed` is still FALSE. The isDestroyed clause is
+         covered by the itAsync case below, not by this one. */
+      expect(dead.isDestroying).toBe(true);
+      expect(dead.isDestroyed).toBe(false);
+
+      contentGrabbers.file_dropped('abc', 'image', {a: 1});
+
+      expect(dead.sentMessages['buttonSelect']).toBe(undefined);
+      /* toBe, not toEqual: the shim's toEqual treats undefined and null as "both empty
+         values" (tests/helpers/jasmine.js:274-276), which would pass on a slot that was
+         never written. */
+      expect(contentGrabbers.droppedFile).toBe(null);
+    });
+
+    /* Named for what it actually pins. It does NOT discriminate the `isDestroyed` clause:
+       destruction only ever advances state and `isDestroying` is `state >= Destroying`, so a
+       destroyed object reports BOTH flags and `isDestroyed && !isDestroying` is unreachable.
+       Mutating that clause away kills nothing, which is expected, not a gap. What this case
+       does pin is that the guard still holds once the destroy queue has actually flushed --
+       the sync case above runs inside one emberRun and never gets there. */
+    itAsync("the guard still holds after the destroy queue flushes", function() {
+      var dead = dropTarget();
+      contentGrabbers.board_controller = dead;
+      emberRun(function() { dead.destroy(); });
+      return new RSVP.Promise(function(resolve) {
+        later(function() {
+          expect(dead.isDestroyed).toBe(true);
+          contentGrabbers.file_dropped('abc', 'image', {a: 1});
+          expect(dead.sentMessages['buttonSelect']).toBe(undefined);
+          expect(contentGrabbers.droppedFile).toBe(null);
+          resolve();
+        }, 50);
+      });
+    });
+
+    it("clears a file stranded by an earlier drop", function() {
+      /* Without this the `droppedFile = null` clause cannot be falsified: the describe's
+         afterEach already nulls it, so every other case starts at null and the assertion
+         passes whether or not the clause exists. The guard also sits BEFORE the assignment,
+         so `file_dropped` never strands the file it clears -- the clause only ever matters
+         for a file left by a PREVIOUS call, which is the precondition established here.
+         Stranded state matters because the next button-settings modal opened for ANY button
+         consumes it (components/button-settings.js:140). */
+      contentGrabbers.droppedFile = { type: 'image', file: { stale: true } };
+      contentGrabbers.board_controller = null;
+      contentGrabbers.file_dropped('abc', 'image', {a: 1});
+      expect(contentGrabbers.droppedFile).toBe(null);
+    });
+
+    it("tolerates a board_controller that is null", function() {
+      contentGrabbers.board_controller = null;
+      contentGrabbers.file_dropped('abc', 'image', {a: 1});
+      expect(contentGrabbers.droppedFile).toBe(null);
+    });
+
+    it("tolerates a board_controller with no send method", function() {
+      /* The slot's default is `undefined` -- nothing declares it -- and the proxy in
+         utils/content_grabbers.js returns undefined for any property before `window.cg` is an
+         instance. This is the case that makes the `typeof ctrl.send` clause load-bearing. */
+      contentGrabbers.board_controller = {};
+      contentGrabbers.file_dropped('abc', 'image', {a: 1});
+      expect(contentGrabbers.droppedFile).toBe(null);
     });
   });
 

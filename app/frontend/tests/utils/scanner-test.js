@@ -1653,6 +1653,70 @@ describe('scanner', function() {
       };
     };
 
+    /* Same shape as railFindElem, for the BELOW-BAR placement. Kept as its own helper rather
+       than parameterising the rail's, because every existing test in this describe binds to
+       that one and a shared signature change would touch all of them. */
+    var belowFindElem = function(tile_count) {
+      var base = scannerFindElemStub({
+        '.md-board-detail-prediction-below:visible': domStub(1, {
+          hasClass: function(cls) { return cls === 'md-board-detail-prediction-below'; },
+          find: function(sel) {
+            if(sel !== '.md-board-detail-sentence-bar__prediction') { return domStub(0); }
+            return domStub(tile_count, {
+              each: function(cb) {
+                for(var i = 0; i < tile_count; i++) { cb.call({prediction_index: i}); }
+              }
+            });
+          }
+        })
+      });
+      return function(str) {
+        if(str && str.prediction_index !== undefined) {
+          return domStub(1, { text: function() { return ['cream', 'crunch'][str.prediction_index]; } });
+        }
+        return base(str);
+      };
+    };
+
+    /* THE THIRD PLACEMENT. 'speak_bar' is reached by the header's "#speak button:visible"
+       sweep because it lives inside the sentence row; 'side_rail' by the test below. This
+       panel is inside the board's own block, so it is in NEITHER — without its own row a
+       scanning or eye-gaze user could not select a prediction at all while it is chosen. */
+    it('registers the BELOW-BAR panel as its own scan row, with its tiles as children', function() {
+      var rows = null;
+      stub(scanner, 'find_elem', belowFindElem(2));
+      stubScannerModalClosed();
+      stub(scanner, 'scan_content', function() { return { rows: 0, columns: 0, order: [[]] }; });
+      stub(scanner, 'scan_elements', function(r) { rows = r; });
+
+      scanner.start({});
+
+      var panel = (rows || []).filter(function(r) {
+        return r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-below');
+      })[0];
+      expect(!!panel).toEqual(true);
+      expect(panel.children.length).toEqual(2);
+      expect(panel.children[0].label).toEqual('cream');
+    });
+
+    it('leaves the BELOW-BAR panel on escape instead of trapping the user in it', function() {
+      /* Every placement must have a way OUT under switch scanning. escape() levels up only for
+         parents it recognises; an unrecognised one falls through to stop(), which ends the scan
+         rather than returning to the row above — a dead end for a switch user. */
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+      var parent = {
+        higher_level: [{ label: 'board' }], higher_level_index: 0,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-below'; } }
+      };
+      scanner.scanning = true;
+      scanner.elements = [{ label: 'child' }, parent];
+      scanner.escape();
+      expect(levelled).toEqual(parent);
+      expect(stopped).toEqual(false);
+    });
+
     it('registers the rail as its own scan row, with its tiles as children', function() {
       var rows = null;
       stub(scanner, 'find_elem', railFindElem(2));
@@ -1771,8 +1835,94 @@ describe('scanner', function() {
   });
 
   describe('axis scanning', function() {
-    xit('should have specs', function() {
-      expect('test').toEqual('todo');
+    /* `axes_advance` computes a floor (`min`) for the horizontal sweep when the
+       scanning_skip_header preference is on, and the only observable effect of that
+       floor is where it parks `axes.horizontal.style.top`. With `top` seeded at
+       '-1000px' the function takes `y = min` and advances one `rate` step, so
+       `top === min + rate` -- which is what these specs assert against. */
+    var RATE = 100 / 3 / 60;
+    var inserted = [];
+    var real_raf;
+
+    function advance_with_skip_header() {
+      scanner.options = { skip_header: true };
+      scanner.scanning_distances = { x: 0, y: 0 };
+      var horizontal = document.createElement('div');
+      horizontal.style.top = '-1000px';
+      var vertical = document.createElement('div');
+      vertical.style.left = '-1000px';
+      scanner.axes = { x: null, y: 'scanning-forward', horizontal: horizontal, vertical: vertical };
+      scanner.axes_advance();
+      return parseFloat(scanner.axes.horizontal.style.top);
+    }
+
+    function insert(el) {
+      document.body.appendChild(el);
+      inserted.push(el);
+      return el;
+    }
+
+    beforeEach(function() {
+      /* axes_advance re-arms itself with requestAnimationFrame every time it moves an
+         axis, so each spec below would leave a frame queued. That frame reads
+         `scanner.options.sweep` as its FIRST statement (utils/scanner.js:1087), and this
+         file's outer afterEach sets `scanner.options = null` (:135) -- so the frame throws,
+         and QUnit charges the global failure to whichever spec is running by then. Nulling
+         the axis directions does not help: the sweep read happens before axes is consulted.
+         Replacing the scheduler is what stops a frame existing at all. Observed: the control
+         spec below failed on one run and passed on the next with no code change. */
+      real_raf = window.requestAnimationFrame;
+      window.requestAnimationFrame = function() { return 0; };
+    });
+
+    afterEach(function() {
+      window.requestAnimationFrame = real_raf;
+      scanner.axes = null;
+      inserted.forEach(function(el) { el.parentNode && el.parentNode.removeChild(el); });
+      inserted = [];
+    });
+
+    it('measures the global header when one is present', function() {
+      /* Control. Without this the spec below could pass for the wrong reason -- any
+         change that stopped measuring a header at all would satisfy it. */
+      var wrap = document.createElement('div');
+      wrap.id = 'within_ember';
+      var header = document.createElement('header');
+      header.style.height = '70px';
+      wrap.appendChild(header);
+      insert(wrap);
+
+      var expected_min = (header.getBoundingClientRect().height / window.innerHeight) * 100;
+      expect(expected_min).toBeGreaterThan(0);
+      var top = advance_with_skip_header();
+      expect(top).toBeGreaterThan(expected_min);
+      expect(top).toBeLessThan(expected_min + 1);
+    });
+
+    it('ignores a non-global <header> that precedes the global one in the document', function() {
+      /* components/beta-feedback-panel.hbs:2 opens <header class="beta-feedback-panel__header">
+         unconditionally, and templates/application.hbs:1499 mounts that panel BEFORE
+         #content -- so on user.board-detail.edit it is the first <header> in the document.
+         Measured live at 295px against a 900px viewport: reading it as the page header
+         excludes the top 32.8% of the screen from axes scanning instead of 7.8%, silently,
+         for an eye-gaze user. */
+      var panel = document.createElement('header');
+      panel.className = 'beta-feedback-panel__header';
+      panel.style.height = '300px';
+      insert(panel);
+
+      var top = advance_with_skip_header();
+      expect(top).toBeGreaterThan(0);
+      expect(top).toBeLessThan(1);
+    });
+
+    it('does not throw when no global header is rendered', function() {
+      /* board-detail's model.error and model.integration branches render no <header> of
+         their own, so once the global header stops rendering on that route there is no
+         header left to measure. An unguarded read throws inside the requestAnimationFrame
+         sweep, which stops scanning outright. */
+      expect(document.querySelector('#within_ember > header')).toEqual(null);
+      expect(function() { advance_with_skip_header(); }).not.toThrow();
     });
   });
 });

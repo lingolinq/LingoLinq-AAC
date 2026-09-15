@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# NOTE 2026-09-12: this script ran for the 2026-07-22 cutover. Render was deleted on 2026-09-09 and
+# scripts/sync-render-env.js (cited below as the canonical manifest) was removed from the repo;
+# the comments naming it describe the pre-cutover state. Secrets now live in GCP Secret Manager.
 #
 # phase4-seed-boot-secrets.sh - LingoLinq Render -> GCP Cloud Run migration, Phase 4 (cutover).
 #

@@ -1,0 +1,43 @@
+{{!--
+  Ember loading substate for `user.board-detail`. Renders automatically while that
+  route's model() hook resolves, and is torn down when it settles.
+
+  WHY THIS EXISTS. Without a substate Ember keeps the PREVIOUS route rendered while
+  model() blocks -- and `app_state.current_route` is already updated by then (set on
+  routeWillChange, services/app-state.js), so `#within_ember` has carried
+  `board-detail-view` since the transition started. That applies board-detail's immersive
+  CSS to the old page: the global header is translated off-screen, `--topbar-height` is
+  forced to 0, `#content` padding is zeroed and `#within_ember` clips overflow. The result
+  is the previous page squashed against the top of the viewport and cut off.
+
+  MEASURED, before this file existed: transitioning to a board that the user's prefetch had
+  not warmed, with `/api/v1/boards/*` delayed 5s, left the ACCOUNT page on screen with its
+  pill nav at y=110 for 5.4 seconds, with no loading state of any kind. Warm boards resolve
+  in ~65ms and never reach this template, which is the point -- it costs nothing in the
+  common case and covers exactly the case that is slow.
+
+  A cold board fetch is `/tree?root_only=1`, then a fallback single-board GET, then one
+  retry, each with a 45s ajax timeout (utils/persistence.js, routes/user/board-detail.js),
+  so the window this covers can be long.
+
+  Chrome AND COPY deliberately match the boot skeleton (boards/index.html.erb,
+  app/frontend/app/index.html) and templates/index-loading.hbs: all of them are
+  `.ll-premium-progress` showing the SAME two strings.
+
+  The copy matching is not cosmetic. This card replaces the boot overlay mid-load, and when
+  it said something different -- it previously read "Loading your board..." while the shell
+  had already moved on to "Still working…" -- the change of wording read as a RESTART, and
+  a single load looked like two or three separate loading processes. Reported twice.
+  Keeping one message across both elements makes the handoff between them invisible, which
+  is the only way a user can tell they are not waiting twice.
+
+  So: if you change the wording here, change it in BOTH boot shells too, or the seam
+  comes back.
+--}}
+<div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
+  <div class="ll-premium-progress__card">
+    <h2 class="ll-premium-progress__title">{{t "Loading boards" key="loading_boards_title"}}</h2>
+    <p class="ll-premium-progress__sub">{{t "Preparing communication resources" key="preparing_communication_resources"}}</p>
+    <div class="ll-premium-progress__bar" aria-hidden="true"></div>
+  </div>
+</div>

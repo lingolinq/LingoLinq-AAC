@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { next, run, scheduleOnce } from '@ember/runloop';
 
 /**
@@ -35,6 +35,31 @@ export default Component.extend({
   // Ember classic uses `layout` for the compiled template.
   grid: false,
   gridColumns: 3,
+  /* Opt-in PAGING (registration year picker). Opt-in rather than automatic because every
+     other BoundSelect in the app shares this component and most of their lists are short
+     enough that paging would be pure clutter.
+
+     This replaced scroll-by-pixels, which was broken two ways at once. Sticky controls
+     INSIDE a scrollport have content slide underneath them, so whole rows of years were
+     unreadable at rest; and the pixel step was larger than the un-occluded band, so a row
+     was skipped on every click -- 2014-2011 could not be reached at all. Neither is
+     fixable by tuning the step, because content always slides under a sticky element. A
+     page renders only what fits, so there is no scrollport and nothing can hide. */
+  paged: false,
+  /* 12 = three rows of the 4-column year grid, which is exactly the band that was legible
+     before, so the first page still reads 2026..2015. */
+  pageSize: 12,
+  _page: 0,
+  /* Opt-in MEASURED placement (registration month/year). Those sit near the bottom of
+     their step, so a downward panel runs past the fold and the page has to be scrolled to
+     see the whole thing. Opt-in for the same reason as above: ~200 other dropdowns open
+     downward correctly and must not start moving.
+
+     Measured rather than always-up: flipping unconditionally just trades a clipped bottom
+     for a clipped top on a short viewport. */
+  auto_flip: false,
+  /* The measured answer, recomputed each time the list opens. Never set by a caller. */
+  _flipped: false,
 
   isOpen: false,
   searchQuery: '',
@@ -99,9 +124,60 @@ export default Component.extend({
     });
   }),
 
+  _pageSize() {
+    var n = parseInt(this.get('pageSize'), 10);
+    return (!n || n < 1) ? 12 : n;
+  },
+
+  /* What the template renders. The whole filtered list when not paged, so the ~200
+     existing callers are untouched. */
+  pagedContent: computed('renderContent', 'paged', 'pageSize', '_page', function() {
+    var all = this.get('renderContent') || [];
+    if(!this.get('paged')) { return all; }
+    var size = this._pageSize();
+    var start = this.get('_page') * size;
+    return all.slice(start, start + size);
+  }),
+
+  pageCount: computed('renderContent', 'paged', 'pageSize', function() {
+    if(!this.get('paged')) { return 1; }
+    var total = (this.get('renderContent') || []).length;
+    return Math.max(1, Math.ceil(total / this._pageSize()));
+  }),
+
+  hasPrevPage: computed('_page', 'paged', function() {
+    return !!this.get('paged') && this.get('_page') > 0;
+  }),
+
+  hasNextPage: computed('_page', 'pageCount', 'paged', function() {
+    return !!this.get('paged') && this.get('_page') < this.get('pageCount') - 1;
+  }),
+
+  /* A filtered list is a different list, so a page number carried over from the old one is
+     meaningless -- it would show a search's third page as its first result. */
+  _resetPageOnSearch: observer('searchQuery', function() {
+    if(this.get('paged') && this.get('_page') !== 0) { this.set('_page', 0); }
+  }),
+
+  /* Open on the page holding the current selection, so a stored year is on screen rather
+     than several pages away with nothing indicating which way to go. */
+  _pageForSelection() {
+    if(!this.get('paged')) { return 0; }
+    var all = this.get('renderContent') || [];
+    var sel = this.get('selection');
+    if(sel == null || sel === '') { return 0; }
+    var i = all.findIndex(function(c) { return c && String(c.id) === String(sel); });
+    if(i < 0) { return 0; }
+    return Math.floor(i / this._pageSize());
+  },
+
   close() {
     this.set('isOpen', false);
     this.set('searchQuery', '');
+    /* Cleared on close so the next open measures where the trigger is THEN. The page may
+       have scrolled, or the viewport resized, since the last time it was open. */
+    this.set('_flipped', false);
+    this.set('_page', 0);
   },
 
   _clickOutside: null,
@@ -161,6 +237,47 @@ export default Component.extend({
     }
   },
 
+  /* Should the panel open upward?
+     Pure arithmetic, so the rule can be pinned without a stylesheet or a real layout --
+     `#ember-testing` applies a transform, which would make any assertion built on real
+     rects measure the harness as much as the component.
+
+     Prefers DOWN, and flips only when down cannot show the WHOLE panel and up has more
+     room. The second condition is what stops a short viewport trading a clipped bottom for
+     a clipped top. */
+  _shouldFlip(triggerTop, triggerBottom, need, viewportHeight, gap) {
+    const g = (gap == null) ? 6 : gap;
+    const below = viewportHeight - triggerBottom - g;
+    const above = triggerTop - g;
+    if (need <= below) { return false; }
+    return above > below;
+  },
+
+  /* How much room the panel COULD want, not how much it currently occupies.
+     The max-height cap wins when there is one, for two reasons: it answers the question
+     actually being asked ("would the page have to scroll to see all of it"), and it makes
+     the month and year pickers agree — both grid listboxes share one 360px cap, so a row
+     of them flips together instead of splitting apart at some viewport heights. */
+  _panelSpaceNeeded(maxHeightCss, contentHeight) {
+    const cap = parseFloat(maxHeightCss);
+    if (!isNaN(cap) && cap > 0) { return cap; }
+    return contentHeight;
+  },
+
+  /* Read the live geometry and record the decision. Runs in afterRender, so the list
+     exists to be measured; setting `_flipped` there re-renders within the same runloop
+     flush, before the browser paints, so the panel does not visibly jump. */
+  _measurePlacement() {
+    if (!this.get('auto_flip')) { return; }
+    if (!this.element) { return; }
+    const list = this.element.querySelector('.bound-select__list');
+    const trigger = this.element.querySelector('.bound-select__trigger');
+    if (!list || !trigger) { return; }
+    const rect = trigger.getBoundingClientRect();
+    const need = this._panelSpaceNeeded(window.getComputedStyle(list).maxHeight, list.scrollHeight);
+    this.set('_flipped', this._shouldFlip(rect.top, rect.bottom, need, window.innerHeight));
+  },
+
   _gridColumnCount() {
     var cols = parseInt(this.get('gridColumns'), 10);
     if(!cols || cols < 2) { return 3; }
@@ -207,7 +324,11 @@ export default Component.extend({
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;
-        scheduleOnce('afterRender', this, function() { self._focusInitialControl(); });
+        this.set('_page', this._pageForSelection());
+        scheduleOnce('afterRender', this, function() {
+          self._measurePlacement();
+          self._focusInitialControl();
+        });
       }
     },
     choose(item, ev) {
@@ -229,6 +350,19 @@ export default Component.extend({
         self.close();
         self._focusTrigger();
       });
+    },
+    /** Move one page. A switch or eye-gaze user has no wheel and cannot drag a scrollbar,
+     *  so a long list needs hit targets to move through it.
+     *
+     *  Whole pages, never pixels: the boundary here is the same value the template slices
+     *  on, so the first item of the next page is BY CONSTRUCTION the one after the last
+     *  item of this page. That is the property the pixel version could not hold. */
+    page_move(direction) {
+      const pages = this.get('pageCount');
+      const at = this.get('_page');
+      const next = (direction === 'prev') ? at - 1 : at + 1;
+      if(next < 0 || next > pages - 1) { return; }
+      this.set('_page', next);
     },
     /** Arrow/Enter/Escape navigation on a focused option. */
     option_keydown(item, ev) {

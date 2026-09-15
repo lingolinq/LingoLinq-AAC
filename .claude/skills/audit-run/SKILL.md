@@ -81,7 +81,7 @@ register-shaped findings with `status: "open"`.
 >    (a finder that audited the wrong tree shows up as dropped/`skipped` findings).
 > 2. For LIVE-infra checks there is no citation gate (runtime evidence is SKIPped). To avoid
 >    concurrent finders observing a moving target, the orchestrator (trusted main session) should
->    pull the live Render/AWS/GCP read-state ONCE and pass that snapshot to the infra finder, rather
+>    pull the live GCP/AWS read-state ONCE and pass that snapshot to the infra finder, rather
 >    than letting parallel finders hit live APIs independently. The first run emitted no runtime
 >    findings (all 7 were committed-file `type:"code"`), so the race did not bite - keep this as the
 >    standing instruction until/unless a snapshot mechanism is built.

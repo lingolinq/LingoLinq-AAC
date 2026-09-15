@@ -163,6 +163,15 @@ LingoLinq.Board = BaseModel.extend({
   locale: attr('string'),
   localized_name: attr('string'),
   localized_locale: attr('string'),
+  /* The name to SHOW. `localized_name` is returned by the boards index only when the request
+     carried a `locale` (lib/json_api/board.rb), and it resolves to the board's name in that
+     locale. So when a language filter is active, a board that is listed BECAUSE it is
+     translated into that language shows its translated name instead of its English one; with
+     no filter, or for a board with no translated board_name, the server falls the value back
+     to the plain name and so does this. */
+  display_name: computed('localized_name', 'name', function() {
+    return this.get('localized_name') || this.get('name');
+  }),
   button_locale: attr('string'),
   translated_locales: attr('raw'),
   full_set_revision: attr('string'),
@@ -896,6 +905,21 @@ LingoLinq.Board = BaseModel.extend({
   hide_empty: attr('boolean'),
   buttons: attr('raw'),
   grid: attr('raw'),
+  /* Rows/columns only, and present on LIST payloads where `grid` is not (lib/json_api/board.rb
+     omits grid/buttons/intro/background when paginated). The board-collection panel reads this
+     so its grid-size pill works for listed boards, not just ones already fully fetched. */
+  grid_size: attr('raw'),
+  /* One place to ask "how big is this board's grid", rather than four copies of the fallback
+     in the template. `grid_size` is the normal source; `grid` covers records already sitting
+     in the local/offline store from before grid_size was served, which would otherwise show a
+     blank pill until the next sync. */
+  grid_dimensions: computed('grid_size', 'grid', function() {
+    var size = this.get('grid_size');
+    if(size && size.rows && size.columns) { return size; }
+    var grid = this.get('grid');
+    if(grid && grid.rows && grid.columns) { return grid; }
+    return null;
+  }),
   license: attr('raw'),
   images: hasMany('image', { async: true, inverse: null }),
   permissions: attr('raw'),
@@ -1400,7 +1424,7 @@ LingoLinq.Board = BaseModel.extend({
     var trans = this.get('translations') || {};
     var loc = this.appState.get('label_locale') == this.appState.get('vocalization_locale') ? this.appState.get('label_locale') : null;
     buttons.forEach(function(button) {
-      var cap = _this.appState.get('shift');
+      var cap = _this.appState.get('capitalizing') || _this.appState.get('shift') || _this.appState.get('caps_lock');
       if((button.vocalization || '').match(/^:/)) {
       } else if(button.tweaked) {
         var revert = (history.length == 0 && !_this.appState.get('inflection_shift'));
@@ -1488,7 +1512,7 @@ LingoLinq.Board = BaseModel.extend({
       if(last_button && !last_button.modified && act && last_pos && act.types.indexOf(last_pos) != -1 && act.alter) {
         var res = {part_of_speech: last_pos};
         act.alter(null, last_button.label, last_button.label, res);
-        if(_this.appState.get('shift')) {
+        if(_this.appState.get('capitalizing') || _this.appState.get('shift') || _this.appState.get('caps_lock')) {
           res.label = utterance.capitalize(res.label);
         }
         _this.update_suggestion_button(infl, {word: res.label, temporary: true});
@@ -1518,7 +1542,7 @@ LingoLinq.Board = BaseModel.extend({
         (result || []).forEach(function(sugg, idx) {
           if(suggested_buttons[idx]) {
             var suggestion_button = suggested_buttons[idx];
-            if(sugg.word && _this.appState.get('shift')) {
+            if(sugg.word && (_this.appState.get('capitalizing') || _this.appState.get('shift') || _this.appState.get('caps_lock'))) {
               sugg = $.extend({}, sugg);
               sugg.word = utterance.capitalize(sugg.word);
             }

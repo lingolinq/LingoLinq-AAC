@@ -20,7 +20,7 @@ The code is open source so you're free to run it yourself. We require a code con
 We welcome contributions! Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** before opening a pull request. Key points:
 
 - All PRs should target the `develop` branch (not `main`)
-- Every PR receives an automated AI code review from Gemini Code Assist
+- Every PR to `develop` receives an automated Copilot code review
 - See CONTRIBUTING.md for branch naming conventions, the review process, and deployment workflow
 
 ### Technical Notes
@@ -138,7 +138,7 @@ In order to support generating utterances for sharing, downloading pdfs, and upl
 
 If using Postgres.app on a Mac, you'll want to open the config for the db and increase max_connections to, say, 999.
 
-There are also some rake tasks you'll want to schedule to run periodically. On Render, these are configured as cron jobs:
+There are also some rake tasks you'll want to schedule to run periodically. In production they are scheduled outside the app (see `docs/INFRASTRUCTURE.md`):
 
 ```
 rake check_for_expiring_subscriptions (run daily)
@@ -165,7 +165,7 @@ Additionally, the admin organization has a special importing tool, "Word Data Im
 
 ##### Troubleshooting
 
-Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (the Render Shell tab, a Cloud Run exec shell, or a local checkout). It sets `USER_KEY` so any record changes you make during the session are attributed to you via PaperTrail. Prefer this wrapper over a bare `bundle exec rails console` for write attribution. Note that `USER_KEY` is self-asserted: the value you type is recorded verbatim and is not verified against the platform principal, so attribution is spoofable by anyone with shell access and is not yet a tamper-evident actor record. The wrapper is also opt-in; a bare `bundle exec rails console` bypasses it entirely with no attribution. It does not yet provide per-session `AuditEvent` logging or enforce refusal of an un-keyed console; both that bypass and the self-asserted-actor gap are tracked as LL-7f7372e3eb.
+Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (a Cloud Run exec shell or a local checkout). It prompts for `USER_KEY` up front; with it set, `bin/rails` writes a session-open `AuditEvent` and PaperTrail attributes any record changes to you (`lib/audit/console_guard.rb`, `config/initializers/auditing.rb`). In production the same hooks refuse an un-keyed `rails console` or `rails runner` and refuse `rails db`/`dbconsole` outright. Two residuals remain, tracked as LL-7f7372e3eb: `USER_KEY` is self-asserted (the value you type is recorded verbatim, not verified against the platform principal, so attribution is spoofable by anyone with shell access), and only `console` and `runner` are audited; `rake`, other `bin/rails` subcommands, direct Ruby boots and `psql` reach the database with no `AuditEvent`.
 
 ```
 b = Board.find_by_path('example/keyboard')

@@ -2688,24 +2688,31 @@ class Board < ApplicationRecord
         # half) DELETED when no translation is found. Without this guard, translating a set
         # with fallbacks on stripped every keyboard key and prediction slot from every board
         # in it, permanently and with no error.
+        dest_vocalization = translations[button['vocalization']]
+        dest_vocalization ||= translations[button['vocalization'].to_s.strip] if button['vocalization']
         if button['vocalization'].to_s.match(/^[:+]/)
           # leave it exactly as authored
-        elsif button['vocalization'] && translations[button['vocalization']]
+        elsif button['vocalization'] && dest_vocalization
           self.settings['translations'][button['id'].to_s] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang]['vocalization'] ||= button['vocalization']
           self.settings['translations'][button['id'].to_s][dest_lang] ||= {}
-          self.settings['translations'][button['id'].to_s][dest_lang]['vocalization'] = translations[button['vocalization']]
-          button['vocalization'] = translations[button['vocalization']] if set_as_default_here
+          self.settings['translations'][button['id'].to_s][dest_lang]['vocalization'] = dest_vocalization
+          button['vocalization'] = dest_vocalization if set_as_default_here
           @buttons_changed = 'translated'
-        elsif  allow_fallbacks && set_as_default_here
+        elsif allow_fallbacks && set_as_default_here
           fallback = ((self.settings['translations'][button['id'].to_s] || {})[dest_lang] || {})['vocalization']
           if fallback
-            button['vocalization'] = fallback 
+            button['vocalization'] = fallback
             @buttons_changed = 'translated'
           elsif button['vocalization']
-            button.delete('vocalization')
-            @buttons_changed = 'translated'
+            # Keep authored speak text when the dest hash has no vocalization.
+            # Fallbacks used to delete it (jokes: label translated, joke sentence
+            # wiped). Action tokens are already guarded above. translate_set
+            # applies a hash; it does not call Google.
+            self.settings['translations'][button['id'].to_s] ||= {}
+            self.settings['translations'][button['id'].to_s][source_lang] ||= {}
+            self.settings['translations'][button['id'].to_s][source_lang]['vocalization'] ||= button['vocalization']
           end
         end
         if allow_fallbacks && set_as_default_here

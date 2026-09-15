@@ -112,6 +112,7 @@ var contentGrabbers = Service.extend({
             external_id: object.get('external_id'),
             search_term: object.get('search_term'),
             button_label: object.get('button_label'),
+            preserve_source_image: true,
             license: object.get('license'),
             protected: object.get('protected'),
             protected_source: object.get('protected_source'),
@@ -374,13 +375,34 @@ var contentGrabbers = Service.extend({
     return new Blob([new Uint8Array(array)], {type: type});
   },
   file_dropped: function(id, type, file) {
+    /* `board_controller` is written by three routes (routes/board/index.js:124,
+       routes/user/board-detail.js:551, routes/user/board-alt/index.js:115) and released by
+       NOTHING, so by the time a drop lands here it can hold a controller from a board the user
+       has since left -- or nothing at all, since the slot has no declared default and this
+       method is reached from a module-scope `document` drop listener (:3214) never removed.
+       In production the clause that actually fires is `!ctrl`: all three writers store an
+       owner-singleton route controller, destroyed only at app teardown. The destroy clauses are
+       defensive and cover the test-teardown shape; they are not known to be reachable in a
+       running app. Note the guard does NOT help a slot holding a stale-but-live controller --
+       that needs a release at the three write sites, which is a separate unit.
+
+       The `.send()` below is what OPENS the button-settings modal, and that modal is what
+       consumes `droppedFile` (components/button-settings.js:140, controllers/button-settings.js:41).
+       So bailing without clearing would strand the file: the next time button settings opened
+       for ANY button, the stale drop would be applied to it. Clear, then bail. */
+    var ctrl = this.board_controller;
+    if(!ctrl || ctrl.isDestroyed || ctrl.isDestroying || typeof ctrl.send !== 'function') {
+      this.droppedFile = null;
+      return;
+    }
+
     this.droppedFile = {
       type: type,
       file: file
     };
 
     var state = type == 'image' ? 'picture' : 'sound';
-    this.board_controller.send('buttonSelect', id, state);
+    ctrl.send('buttonSelect', id, state);
     var _this = this;
     runLater(function() {
       _this.check_for_dropped_file();
@@ -1410,6 +1432,7 @@ var pictureGrabber = EmberObject.extend({
           height: data.height,
           hc: preview.hc,
           button_label: label || preview.suggestion,
+          preserve_source_image: true,
           license: preview.license || {type: 'private'},
           protected: preview.protected,
           protected_source: preview.protected_source
@@ -1431,6 +1454,7 @@ var pictureGrabber = EmberObject.extend({
                 height: data.height,
                 hc: preview.hc,
                 button_label: label || preview.suggestion,
+                preserve_source_image: true,
                 license: preview.license || {type: 'private'},
                 protected: preview.protected,
                 protected_source: preview.protected_source
@@ -1481,6 +1505,9 @@ var pictureGrabber = EmberObject.extend({
       });
 
       if(existing_image) {
+        if(!existing_image.get('preserve_source_image')) {
+          existing_image.set('preserve_source_image', true);
+        }
         if(existing_image.get('isNew')) {
           return window.cg.save_record(existing_image);
         }
@@ -1518,6 +1545,7 @@ var pictureGrabber = EmberObject.extend({
         external_id: preview.external_id,
         search_term: preview.search_term,
         button_label: label || preview.suggestion,
+        preserve_source_image: true,
         license: _this.normalize_preview_license(preview),
         protected: preview.protected,
         protected_source: preview.protected_source,

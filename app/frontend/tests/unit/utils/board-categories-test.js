@@ -478,6 +478,14 @@ module('Unit | Utility | board_categories', function() {
     assert.strictEqual(pos.size, 40, 'all forty keys placed');
   });
 
+  test('caps in the slot right of space is still a keyboard key', function(assert) {
+    var rows = full_kb_board();
+    rows[3][9] = { id: 'b-caps', label: 'caps', background_color: '#FFFFFF' };
+    var pos = qwerty_positions(rows);
+    assert.deepEqual(pos.get(find_btn(rows, 'caps')), { row: 4, col: 10 }, 'caps takes the slot right of space');
+    assert.strictEqual(pos.size, 40, 'the block stays forty keys wide');
+  });
+
   test('the number row and the colon leave Describe and Controls empty', function(assert) {
     // Both were categories on the real board purely because the key block did not claim
     // them: the digits are Fitzgerald blue, so they were filed under Describe.
