@@ -162,7 +162,8 @@ else
   out << "| Title | System | Location | Last reviewed | Status | Why |\n"
   out << "|---|---|---|---|---|---|\n"
   review_stale.sort_by { |d| [d['canonicalSystem'].to_s, d['title'].to_s] }.each do |d|
-    out << "| #{esc(d['title'])} | #{d['canonicalSystem']} | #{link_for(d)} | #{d['lastReviewed']} | #{d['status']} | Review date is older than #{latest_source}. |\n"
+    reason = d['lastReviewed'].to_s.strip.empty? ? "No review recorded." : "Review date is older than #{latest_source}."
+    out << "| #{esc(d['title'])} | #{d['canonicalSystem']} | #{link_for(d)} | #{d['lastReviewed']} | #{d['status']} | #{reason} |\n"
   end
   out << "\n"
 end

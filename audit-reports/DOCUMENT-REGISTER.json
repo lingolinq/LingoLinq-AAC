@@ -1009,7 +1009,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "603325c273bfb489c5d1804e09e5c4f1ff6b8dbc17a684e8a4f35ecb2ed05132",
+      "contentHash": "246a4ae192bd7678599c75259485b96f289cd01b13bce2e3d0a8dba93bc42e45",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1684,7 +1684,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "b80de96c3d07da48453d0bcd7b22824d814e123d822eabdb245468dbc61946c4",
+      "contentHash": "0524ef4a397f3386dadd4778b6cf048de02f594c2c319937dee0bd2d00421e7a",
       "bundles": [],
       "mirrors": [
         {
@@ -1722,7 +1722,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "113334ce9f06c2f8df598bd8b979663f1933939fdffe581ffd140143399f1b03",
+      "contentHash": "c24b43ba6405a2bae7d9daa8a633cea6a2a68b37f63c572e715569ca202ade34",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -3102,7 +3102,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-6d37a68cf4",
       "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). No data was retained longer than a rule permits; this is an enforcement-description defect, not a retention violation. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time. ALIGNED 2026-08-26 after external review: an earlier phrasing here called the control \"structurally dormant\", which overstated it. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver and the purge deletes the row, so the mechanism is verified end to end. Zero production matches reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), not a broken control. What the predecessor got wrong is that it matches EU rows in production today.",
-      "contentHash": "cc3eb2d246b39561bf45810b4aa9c5ab3f7c881d5c72c831444391533eff7e99"
+      "contentHash": "1aec6facbc709e5a732fea83c29d34d0092db2c7237ae41089497ea980d5296a"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -3732,7 +3732,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "d304c29f355b4cd43e99f55270eff7f9641ef22e550416d9c6c18a5b14daff2c"
+      "contentHash": "d623caff9f9bdc2adbf94d90385b644e51a575c0c18d4f3c2604550d43385692"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3821,7 +3821,7 @@
       "supersedes": "DOC-39f37f8200",
       "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "6a44bb9d66857c4ccbf10a701b85012654baf8b72f8aca01d19b8f1f9e839e23"
+      "contentHash": "57260a915a824f2fd9e16c3ce55c8bfd93fc3a40caaaf8b6d64086503ea2d601"
     },
     {
       "title": "Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft)",
@@ -3853,7 +3853,37 @@
       "dispositionEligibleAfter": null,
       "notes": "Created 2026-08-30 as a NEW review record, not a successor: it supersedes no row and leaves every attested record frozen and byte-identical. Verified against origin/staging 8afabd1d2. Records three classes of finding for counsel. (1) LEGAL PREMISE: the five-year EU AiApiLog tier is attributed to 'EU AI Act Article 50 record-keeping', but Article 50 imposes no record-keeping duty; the AI Act's only log-retention duty is Article 19, a six-month floor binding providers of HIGH-RISK systems. The six-year 'HIPAA floor' over ai_api_logs cites 45 CFR 164.316(b)(2)(i), which applies six years to DOCUMENTATION required by the Security Rule, not to PHI or application logs. Both are proposed for withdrawal/narrowing and are put to counsel at questions 6, 7 and 13; neither is applied to any record here. This matters operationally because lib/tasks/scheduler.rake:174-181 names the six-year floor as the reason the ratified 24-month and 12-month AiApiLog tiers were never built. (2) DOC-VS-CODE: DATA_RETENTION.md states a 3-year LogSession default (no default exists in code), a 6-year PaperTrail cold-storage archival job (does not exist; User.flush_old_versions DELETES those versions at 1 week / 1 month / 6 months), a ClusterLocation 90-day nightly trim, a children's age-18 sweeper, a LogSnapshot cascade, 'raw events 2 years', and 2-year inactivity (code is 12 months). TelemetryEvent.flush and ApiCall.flush exist with no caller. Each NOT-FOUND was verified by grep at the audited commit. (3) URGENT, CUSTOMER-FACING: app/frontend/app/templates/privacy.hbs:67 tells users 'Today none of these features send any user content to an AI vendor, because the Bedrock path is inactive'; no inactive switch exists in code and this register records 63 production Bedrock calls. Raised as question 21. Also records four non-Bedrock egress paths our AI documents do not cover (Google Speech-to-Text carrying raw child voice audio gated only by the coarse external_ai_processing switch, Google TTS, Google Translate, OpenSymbols), none gated by COPPA/EU/Art50 and none written to AiApiLog. Unattested and remains so: only Scot attests, and this record is explicitly marked DRAFT FOR COUNSEL REVIEW, NOT LEGAL ADVICE. SECOND RESEARCH PASS (same day) added four items, each verified before inclusion. (a) EU AI ACT TIMELINE: the Digital Omnibus, Regulation (EU) 2026/1744, in force 2026-07-27, deferred stand-alone Annex III high-risk obligations to 2027-12-02 and Annex I to 2028-08-02, but did NOT amend Article 50, which has applied since 2026-08-02. Generative systems already on the market before that date appear to have until 2026-12-02 to retrofit Article 50(2) machine-readable marking. That is the only dated obligation in the memo and it bears directly on boards_controller.rb:635-641, whose own comment records that the marker is not persisted onto saved/exported/shared boards. PROVENANCE CORRECTED on the review pass: an earlier version of this note said the omnibus was sourced from law-firm analyses rather than EUR-Lex. That was true when written and became false in the same change set, because CELEX:32026R1744 was then retrieved from EUR-Lex directly and the memo was updated to say so; this note was not. The memo's section 16 is authoritative: the omnibus WAS pulled from EUR-Lex, Article 1(38) inserting the four-month Article 50(2) marking transition into Article 111 and Article 1(40) amending Article 113, with one residual caution recorded there that the retrieved wording reads as recital language. (b) COPPA SCHOOL PATHWAY: the FTC expressly DECLINED to codify the ed-tech/school-authorization pathway in the 2025 amendments, so it rests on 1999 staff guidance rather than Rule text; privacy.hbs:74 relies on it. (c) ORPHANED CONSENT: the versioned verifiable-AI-consent mechanism (ai_consent_granted?/grant_ai_consent!/revoke_ai_consent!, versioned disclosures, AuditEvents) has NO runtime caller outside user.rb, verified by grep; what actually gates AI is the account-activation COPPA consent, while privacy.hbs:74 promises consent 'under 16 CFR Part 312' for AI use specifically. (d) INERT COLUMN: no AI call site passes ip_address or organization_global_id to AiApiLog.log_ai_call, so the scheduled 90-day IP redaction has nothing to redact. Also records that eval narration writes the FULL untruncated clinical narrative into response_summary (eval_narrator.rb:219). A first-pass US state student-privacy survey (CA SOPIPA/AB 1584, NY Ed Law 2-d, IL SOPPA) was added as questions rather than positions, explicitly flagged as sourced from secondary summaries rather than statute text. REVIEW PASS (Codex on PR #889) produced five accepted findings, all fixed rather than argued: gap 20 still claimed EU routing would END the Chapter V transfer after section 5.2 had been corrected to say it removes one onward leg; this register note contradicted the memo on omnibus provenance; six question cross-references pointed at the wrong question and three gaps (public-read upload ACL, Sentry telemetry, the OpenSymbols instrument) had no question at all; Sentry was absent from the external-egress remediation list while section 5.3 documented it as a live user-data egress; and proposed rule 6 described a no-instrument-no-content rule as 'current practice' when no OpenSymbols DPA or BAA is recorded anywhere. Questions renumbered to 31 across eight subsections and every reference re-verified programmatically.",
       "id": "DOC-58b3944cad",
-      "contentHash": "a82116b03b78e1826355e3750e40cc213f91de466fa7fd4f153ba579d7dc13b1"
+      "contentHash": "3ce82beec52f159ad368b6a85ef4b32cd83a5623f704f57f77721ea0c6c473ea"
+    },
+    {
+      "title": "Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)",
+      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, open) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA",
+        "COPPA",
+        "SOC2"
+      ],
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Prepared 2026-09-14; carries its own evidence. NO REVIEW of this record has occurred, so lastReviewed is DELIBERATELY OMITTED and the resulting review-stale entry in the publication-status report is expected and must not be cleared by supplying a date. A review and an attestation are separate events; this record is both unreviewed and unattested, and neither implies the other. nextReviewDue is omitted pending a scheduling decision. Supersedes nothing: created as a new evidence record so that five drafts can cite one dated set of facts rather than paraphrase them separately. Raw receipts are held outside this public repository at ~/ai-company-brain/outputs/docs/2026-09-14-scheduler-evidence-receipts/run-20260914T072304Z-945417/ and are cited by sha256 in section 3; whether to publish them is an open decision.",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-b7f15a728c",
+      "contentHash": "86ab2195d0a4a4ea2ac060f202499bace020150e2ecdeb25a4b214bb19ac7579"
     }
   ]
 }
