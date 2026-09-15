@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { set as emberSet } from '@ember/object';
 import { computed, observer } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
 import modal from '../utils/modal';
@@ -268,7 +267,7 @@ export default Component.extend({
     copy_event(res) {
       if (res) {
         this.set('copy_result', { succeeded: true });
-        runLater(() => {
+        window.setTimeout(() => {
           modal.close();
         }, 3000);
       } else {

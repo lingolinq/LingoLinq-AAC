@@ -83,6 +83,7 @@ module('Unit | Component | confirm-notify-user share send', function(hooks) {
   }
 
   test('online with no utterance record POSTs /share instead of log-fallback', function(assert) {
+    assert.expect(6);
     var done = assert.async();
     var created = null;
     this.owner.unregister('service:store');
@@ -115,15 +116,17 @@ module('Unit | Component | confirm-notify-user share send', function(hooks) {
 
     RSVP.resolve().then(function() {
       assert.strictEqual(logCalls, 0, 'does not queue a share log event while online');
-      assert.ok(created && created.type === 'utterance', 'creates an utterance when the snapshot was empty');
+      assert.ok(created, 'creates a record when the snapshot was empty');
+      assert.strictEqual(created.type, 'utterance', 'creates an utterance when the snapshot was empty');
       assert.strictEqual(ajaxCalls.length, 1, 'POSTs /share');
-      assert.ok(ajaxCalls[0].url.indexOf('/api/v1/utterances/utt-new/share') !== -1, 'share URL uses the new utterance id');
+      assert.notStrictEqual(ajaxCalls[0].url.indexOf('/api/v1/utterances/utt-new/share'), -1, 'share URL uses the new utterance id');
       assert.strictEqual(ajaxCalls[0].opts.data.sharer_id, '1_42', 'sharer_id is global_id, not self');
       done();
     });
   });
 
   test('jqXHR status 400 shows an error instead of the logs toast', function(assert) {
+    assert.expect(2);
     var done = assert.async();
     this.restorePersistence = stubSharePersistence({
       online: true,
@@ -144,12 +147,13 @@ module('Unit | Component | confirm-notify-user share send', function(hooks) {
 
     RSVP.resolve().then(function() {
       assert.strictEqual(logCalls, 0, '4xx is not treated as a queue-with-logs success');
-      assert.strictEqual(component.get('error'), true, 'shows the send-error state');
+      assert.true(component.get('error'), 'shows the send-error state');
       done();
     });
   });
 
   test('share POST uses global_id when the session record id is self', function(assert) {
+    assert.expect(2);
     var done = assert.async();
     this.restorePersistence = stubSharePersistence({
       online: true,
@@ -178,6 +182,7 @@ module('Unit | Component | confirm-notify-user share send', function(hooks) {
   // Mutation: restore `again` so it always `_this.set('seconds', diff)` after
   // confirm/cancel/destroy; this test goes red (setSecondsWhileDead > 0).
   test('countdown does not set seconds after the modal is destroyed', function(assert) {
+    assert.expect(1);
     var done = assert.async();
     var component = this.owner.factoryFor('component:confirm-notify-user').create();
     var originalSet = component.set.bind(component);

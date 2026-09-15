@@ -4,7 +4,6 @@ import app_state from '../utils/app_state';
 import $ from 'jquery';
 import utterance from '../utils/utterance';
 import LingoLinq from '../app';
-import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet } from '@ember/object';
 import persistence from '../utils/persistence';
@@ -158,7 +157,7 @@ export default modal.ModalController.extend({
     copy_event(res) {
       if(res) {
         this.set('copy_result', {succeeded: true});
-        runLater(function() {
+        window.setTimeout(function() {
           modal.close();
         }, 3000);
       } else {
