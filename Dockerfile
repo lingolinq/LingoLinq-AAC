@@ -107,6 +107,7 @@ ENTRYPOINT ["docker-entrypoint"]
 
 # EXPOSE documents the local docker-compose port. Cloud Run ignores it and injects PORT
 # (8080) at runtime; config/puma.rb already binds ENV['PORT'], so no change is needed there.
-# The Cloud Run web service uses a startup probe against GET /api/v1/health before taking traffic.
+# No HTTP startup probe is configured on the Cloud Run services; the deploy workflow itself probes
+# GET /api/v1/health on the new revision before shifting traffic (.github/workflows/deploy-cloudrun.yml).
 EXPOSE 3000
 CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
