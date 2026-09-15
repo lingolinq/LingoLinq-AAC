@@ -534,7 +534,7 @@ For each match, you must either justify the removal (the guard is redundant beca
 
 **🟡 WARN — For every external service this code path touches, verify graceful degradation.**
 
-LingoLinq depends on Postgres, Redis, S3 (extra_data, file uploads), SES (email), SNS (notifications), Elastic Transcoder, Stripe, Google APIs (Places, Translate, Maps, TTS), and optionally OpenSymbols. Plus the WebSocket server. Any new code that hits any of these must answer:
+LingoLinq depends on Postgres, Redis, S3 (extra_data, file uploads), SES (email), SNS (notifications), MediaConvert, Stripe, Google APIs (Places, Translate, Maps, TTS), and optionally OpenSymbols. Plus the WebSocket server. Any new code that hits any of these must answer:
 
 | Failure | What should happen | Verify |
 |---|---|---|
