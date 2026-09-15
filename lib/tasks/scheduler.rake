@@ -1,4 +1,10 @@
-desc "This task is called by the Heroku scheduler add-on"
+# Nothing in this repo invokes this task (git grep): scheduler:dispatch runs the same operational
+# calls through an inline copy ("Daily tasks" below). Live state, per read-only gcloud on 2026-09-13
+# (not derivable from this tree): the prod scheduler Cloud Run Job (lingolinq-scheduler) runs
+# scheduler:dispatch on an hourly Cloud Scheduler trigger, so the daily block runs at 06:00 UTC;
+# the staging Job (lingolinq-scheduler-staging) has no trigger and has never executed. Keep the
+# copy in sync. rake -T prints only the first sentence of a desc, which is why the detail lives here.
+desc "Check for expiring subscriptions; no code path invokes this task (see the comment above)"
 
 task :check_for_expiring_subscriptions => :environment do
   puts "Checking for expiring subscriptions..."
@@ -63,7 +69,7 @@ task :expire_stale_supervisor_consent_requests => :environment do
   puts "done, #{count} expired."
 end
 
-desc "Unified scheduler dispatch for Render cron job - runs all hourly tasks, daily tasks at 6 AM UTC"
+desc "Unified scheduler dispatch for the scheduler Cloud Run Job (lingolinq-scheduler*) - runs all hourly tasks, daily tasks at 6 AM UTC"
 task "scheduler:dispatch" => :environment do
   # One task's failure must not skip the rest (that is why each is rescued), but the RUN must
   # still fail. Before this, every task could raise and the process still exited 0.
@@ -134,6 +140,8 @@ task "scheduler:dispatch" => :environment do
   if hour == 6
     puts "--- Daily tasks (6 AM UTC) ---"
 
+    # Inline copy of the operational calls of the top-level :check_for_expiring_subscriptions task
+    # (its puts lines are omitted); keep the two in sync.
     run_task.call("check_for_expiring_subscriptions") do
       res = User.check_for_subscription_updates
       User.schedule_for('slow', :check_for_subscription_updates)

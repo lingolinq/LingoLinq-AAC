@@ -733,7 +733,7 @@ class SessionController < ApplicationController
   end
 
   def health
-    # Lightweight health check for Render/orchestrators: verify DB and Redis
+    # Lightweight health check for orchestrators and the deploy health gate: verify DB and Redis
     ActiveRecord::Base.connection.execute('SELECT 1')
     RedisInit.default.ping
     render json: {ok: true}, status: 200

@@ -3,8 +3,9 @@
 # Guard for the clean-DB GCP cutover (Render -> Cloud Run).
 #
 # `db:schema:load` loads db/schema.rb with `force: :cascade`, which DROPS every table. That is
-# correct against a fresh empty Cloud SQL DB and catastrophic against a populated one (e.g. the
-# still-authoritative Render prod DB, if DATABASE_URL is mis-pointed). The committed migrate Job
+# correct against a fresh empty Cloud SQL DB and catastrophic against a populated one (at cutover
+# time, the then-authoritative Render prod DB if DATABASE_URL had been mis-pointed; Render is gone
+# since 2026-09-09, but the same hazard applies to any populated target). The committed migrate Job
 # (.github/workflows/deploy-cloudrun.yml) deliberately runs db:migrate ONLY and forbids schema-load
 # for exactly this reason; the clean-DB path re-introduces schema-load, so it MUST be guarded.
 #

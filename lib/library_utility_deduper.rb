@@ -1,10 +1,10 @@
-# Dry-run planner for collapsing identical imported utility pages
-# (emoji / keyboard / numbers) on the content account.
-#
-# Does not write. APPLY is a separate follow-up: each cluster is one
-# fingerprint (grid + sorted labels). Vocal Flair 66-key and Quick Core
+# Clusters identical imported utility pages (emoji / keyboard / numbers)
+# on the content account. Dry-run by default. APPLY skips any cluster that
+# touches <user>/keyboard (default sidebar slug), relinks remaining
+# parents first, then destroys extras. Vocal Flair 66-key and Quick Core
 # 30-key keyboards stay in different clusters.
 class LibraryUtilityDeduper
+  TRUTHY = /^(1|true|yes)$/i.freeze
   STEMS = %w[emoji emojis keyboard numbers].freeze
   BRAND_PREFIX = '(?:vocal-flair|quick-core|core|sequoia|communikate)'
   # Vocal Flair "with keyboard" roots are home boards, not utility pages.
@@ -154,8 +154,89 @@ class LibraryUtilityDeduper
       lines << ''
     end
 
-    lines << 'No writes. Re-run after review to apply (not implemented in this rake).'
+    lines << 'No writes. Re-run with APPLY=1 APPLY_CONFIRM=1 on nonprod to apply.'
     lines.join("\n")
+  end
+
+  def self.prod_database?(db_config = {})
+    cfg = (db_config || {}).with_indifferent_access
+    database = cfg[:database].to_s
+    host = cfg[:host].to_s
+    return true if database.match?(/production/)
+    return true if host.include?('lingolinq-prod:')
+    return true if host.include?('/lingolinq-prod/')
+    false
+  end
+
+  def self.assert_apply_allowed!(env, db_config)
+    env = env.stringify_keys if env.respond_to?(:stringify_keys)
+    unless env['APPLY'].to_s =~ TRUTHY
+      raise ArgumentError, 'APPLY is not set.'
+    end
+    unless env['APPLY_CONFIRM'].to_s =~ TRUTHY
+      raise ArgumentError, 'APPLY_CONFIRM=1 is required with APPLY=1.'
+    end
+    if prod_database?(db_config)
+      raise ArgumentError, 'Refusing APPLY against a production database. Run on nonprod first.'
+    end
+    true
+  end
+
+  def self.format_apply_report(result)
+    lines = []
+    lines << "Library utility dedupe APPLY for #{result[:user_name]}"
+    lines << "Skipped sidebar-slug clusters: #{result[:skipped_sidebar_clusters]}"
+    lines << "Parents relinked: #{result[:relinked_parents].length}"
+    result[:relinked_parents].each { |key| lines << "  RELINKED: #{key}" }
+    lines << "Extras destroyed: #{result[:destroyed_keys].length}"
+    result[:destroyed_keys].each { |key| lines << "  DESTROYED: #{key}" }
+    lines.join("\n")
+  end
+
+  # Relink every remaining parent, then destroy extras. Does not touch a
+  # cluster whose extras/canonical include <user>/keyboard.
+  # replace_links! matches load_board id only (app/models/concerns/relinking.rb:107).
+  def self.apply!(user)
+    raise ArgumentError, 'user required' unless user
+
+    plan = plan(user)
+    applyable = plan.clusters.reject(&:sidebar_slug_warning)
+    skipped = plan.clusters.select(&:sidebar_slug_warning)
+    destroy_ids = applyable.flat_map { |cluster| cluster.extras.map(&:id) }.to_set
+
+    relinked = []
+    applyable.flat_map(&:relinks).group_by(&:parent_key).each do |parent_key, relinks|
+      parent = Board.find_by_path(parent_key)
+      next unless parent
+      next if destroy_ids.include?(parent.id)
+
+      relinks.each do |relink|
+        next if relink.from_id.blank?
+        parent.replace_links!(relink.from_id, {id: relink.to_id, key: relink.to_key})
+      end
+      parent.instance_variable_set('@buttons_changed', true)
+      parent.instance_variable_set('@button_links_changed', true)
+      parent.save!
+      relinked << parent_key
+    end
+
+    destroyed = []
+    applyable.each do |cluster|
+      cluster.extras.each do |board|
+        next if sidebar_slug?(board.key, plan.user_name)
+        record = Board.where(id: board.id).first
+        next unless record
+        record.destroy
+        destroyed << board.key
+      end
+    end
+
+    {
+      user_name: plan.user_name,
+      skipped_sidebar_clusters: skipped.length,
+      relinked_parents: relinked.sort,
+      destroyed_keys: destroyed.sort
+    }
   end
 
   def self.find_relinks(user, extras, canonical)

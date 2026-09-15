@@ -3,7 +3,7 @@ namespace :lingolinq do
        'Does not change the English default. DEST_LANG wins over LANG; shell locales like ' \
        'en_US.UTF-8 are ignored. SLUGS=quick-core-60 limits the run. SCOPE=seed translates ' \
        'every listed public content-user root (reindex inventory). DRY_RUN=1 lists roots. ' \
-       'Production (including Render staging) needs ALLOW_PROD_TRANSLATE=1; SCOPE=seed also ' \
+       'Production (including Cloud Run staging) needs ALLOW_PROD_TRANSLATE=1; SCOPE=seed also ' \
        'needs TRANSLATE_CONFIRM=1. CSV written to tmp/.'
   task translate_library_boards: :environment do
     dest_lang = LibraryBoardTranslator.parse_dest_lang(
@@ -203,14 +203,12 @@ namespace :lingolinq do
     puts "OK: imported #{result.length} board(s). Root: #{root&.dig('key')} (#{root&.dig('id')})"
   end
 
-  desc 'DRY RUN: cluster identical emoji/keyboard/numbers pages on the content ' \
-       'user and list parent relinks. Never writes. USER_NAME defaults to lingolinq. ' \
-       'Test on GCP nonprod first (see docs/ops/gcp-staging-dedupe-utility-boards.md).'
+  desc 'Cluster identical emoji/keyboard/numbers pages on the content user. ' \
+       'Default is dry-run. APPLY=1 APPLY_CONFIRM=1 on nonprod relinks then ' \
+       'destroys extras; skips the default sidebar keyboard slug. See ' \
+       'docs/ops/gcp-staging-dedupe-utility-boards.md.'
   task dedupe_shared_utility_boards: :environment do
     require Rails.root.join('lib', 'library_utility_deduper')
-    if ENV['APPLY'].to_s =~ BetaSeed::TRUTHY_PATTERN
-      abort 'APPLY is not implemented. This task is dry-run only.'
-    end
 
     user_name = ENV['USER_NAME'].presence || SystemBoardSources::USER_NAME
     user = User.find_by(user_name: user_name)
@@ -218,8 +216,21 @@ namespace :lingolinq do
 
     db = ActiveRecord::Base.connection_db_config.configuration_hash
     db_desc = "#{db[:database]}@#{db[:host] || 'local'}"
-    puts "[DRY RUN] Library utility dedupe on user '#{user_name}' (id #{user.id}) DB #{db_desc}"
-    plan = LibraryUtilityDeduper.plan(user)
-    puts LibraryUtilityDeduper.format_report(plan)
+    apply = ENV['APPLY'].to_s =~ BetaSeed::TRUTHY_PATTERN
+
+    if apply
+      begin
+        LibraryUtilityDeduper.assert_apply_allowed!(ENV, db)
+      rescue ArgumentError => e
+        abort e.message
+      end
+      puts "[APPLY] Library utility dedupe on user '#{user.user_name}' (id #{user.id}) DB #{db_desc}"
+      result = LibraryUtilityDeduper.apply!(user)
+      puts LibraryUtilityDeduper.format_apply_report(result)
+    else
+      puts "[DRY RUN] Library utility dedupe on user '#{user.user_name}' (id #{user.id}) DB #{db_desc}"
+      plan = LibraryUtilityDeduper.plan(user)
+      puts LibraryUtilityDeduper.format_report(plan)
+    end
   end
 end
