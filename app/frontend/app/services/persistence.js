@@ -4295,6 +4295,15 @@ var persistence = Service.extend({
   }
 });
 
+persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_online) {
+  if(!(err && (err.invalid_token || (err.result && err.result.invalid_token)))) {
+    return null;
+  }
+  if(!still_online) { return true; }
+  var modelName = type && type.modelName;
+  return !(modelName === 'user' && (id === 'self' || id === 'me'));
+};
+
 // Attach DSExtend for backward compatibility with adapters
 persistence.DSExtend = {
   grabRecord: function(type, id, opts) {
@@ -4476,9 +4485,16 @@ persistence.DSExtend = {
             }
             var error = function(err) {
               var local_fallback = false;
-              if(err && (err.invalid_token || (err.result && err.result.invalid_token))) {
-                // for expired tokens, allow local results as a fallback
+              var still_online = false;
+              try {
+                var persistenceForFallback = getPersistence();
+                still_online = !!(persistenceForFallback && typeof persistenceForFallback.get === 'function' && persistenceForFallback.get('online'));
+              } catch(e) { still_online = false; }
+              var tokenFallback = persistence.allowInvalidTokenLocalFallback(err, type, id, still_online);
+              if(tokenFallback === true) {
                 local_fallback = true;
+              } else if(tokenFallback === false) {
+                local_fallback = false;
               } else if(err && err.errors && err.errors[0] && err.errors[0].status && err.errors[0].status.toString().substring(0, 1) == '5') {
                 // for server errors, allow local results as a fallback
                 local_fallback = true;

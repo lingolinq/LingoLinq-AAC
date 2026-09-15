@@ -4289,6 +4289,18 @@ setInterval(function() {
   }
 }, 30000);
 
+// Online user/self must not resolve from IndexedDB on an invalid token
+// (boot then stays authenticated while APIs 400). Other models still
+// fall back so AAC boards work. Offline always falls back.
+persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_online) {
+  if(!(err && (err.invalid_token || (err.result && err.result.invalid_token)))) {
+    return null;
+  }
+  if(!still_online) { return true; }
+  var modelName = type && type.modelName;
+  return !(modelName === 'user' && (id === 'self' || id === 'me'));
+};
+
 persistence.DSExtend = {
   grabRecord: function(type, id, opts) {
     // 1. Try to peek for the record
@@ -4372,9 +4384,12 @@ persistence.DSExtend = {
             }
             var error = function(err) {
               var local_fallback = false;
-              if(err && (err.invalid_token || (err.result && err.result.invalid_token))) {
-                // for expired tokens, allow local results as a fallback
+              var still_online = p && typeof p.get === 'function' ? p.get('online') : false;
+              var tokenFallback = persistence.allowInvalidTokenLocalFallback(err, type, id, still_online);
+              if(tokenFallback === true) {
                 local_fallback = true;
+              } else if(tokenFallback === false) {
+                local_fallback = false;
               } else if(err && err.errors && err.errors[0] && err.errors[0].status && err.errors[0].status.toString().substring(0, 1) == '5') {
                 // for server errors, allow local results as a fallback
                 local_fallback = true;
