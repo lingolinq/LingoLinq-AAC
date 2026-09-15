@@ -286,6 +286,55 @@ I had the evidence for this in hand and misread it: I saw a retention policy plu
 that "cannot be removed before 2027-09-08" and concluded immutability. The proof object's
 protection is real; the POLICY's removability is the separate fact I did not check.
 
+### Round 3, narrow verification: the round-2 fixes held, and one more inherited-content defect
+
+Scoped to confirming round 2 landed and introduced nothing, with no fresh hunting. The round-2
+fixes verified clean: the signed v1.3 statement is byte-identical to the frozen predecessor; no
+line anchor into any `2026-09-14_` successor survives anywhere in the tree; the register's
+subprocessor table carries an explicit `#` column, so "row 4 (Anthropic, PBC)" is a locator that
+does not shift when a line is inserted, which was the point of the fix; the F10 pad sits in the
+Time-to-evidence column, restoring a cell the predecessor's 7-column header had silently dropped.
+`attestation: {}` on all nine successors matches the register's own convention for unattested rows
+(22 other draft rows use it), so it is not the empty-string truthiness trap.
+
+The round still found one defect, and it is the **third** instance of a single class: **inherited
+content promoted to current by the Path A mechanism.**
+
+`2026-09-14_compliance-data-governance.md` reproduced an **open accepted risk** titled "Ember 3.28
+Frontend Framework", status Accepted, owner the CEO, dated 2026-02-23. Its entire premise is dead:
+the repo pins `ember-source ~5.12.0` / `ember-data ~5.3.8` / `ember-cli ~5.12.0`
+(`app/frontend/package.json`), because the 3.28 to 5.12 upgrade shipped in PR #490, merged
+2026-07-08. The document asserts the frontend is on an end-of-life 3.x LTS with ~180 npm
+vulnerabilities, gives "upgrading to Ember 5.x would be significant throwaway work" as reason 3 for
+not upgrading, and names an incremental React migration as the real fix. None of that describes the
+repo. **This document is in the `soc2-evidence` bundle**, so it travels to auditors, dated
+2026-09-14.
+
+Direction of error is overstatement of risk, which is the safer direction, but an "Accepted Risk:
+EOL framework" entry that is actually resolved invites scrutiny and reads as a stale program.
+
+What makes this worth writing down: the identical defect class was already fixed **twice on this
+branch** and I did not sweep for it a third time. Codex R2 P1 was inherited content (the BAA
+attribution). Adversary F11 was literally "Ember 3.28 should be Ember 5.12", in
+`docs/native-apps/privacy-data-flow-evidence-map.md`. I fixed that one string and never re-swept
+`docs/legal/` for the same string. The rule I was given says to re-sweep for the defect class you
+just fixed, and the sweep that found this was three greps.
+
+Fixed with the smaller blast radius: a dated correction banner heads the section, the heading is
+marked HISTORICAL, and **the analysis below it is retained unedited** as the record of why the risk
+was accepted. The acceptance is deliberately NOT closed: it was a CEO risk acceptance and only the
+CEO dispositions it. The register row carries a new `ATTESTER MUST CONFIRM (3)` saying so, and
+flags this as the one change in the successor that does not describe Render.
+
+Gates after the fix: `regenerate-register.sh` 198 PASS / 0 FAIL, 9 added / 0 modified under
+`docs/legal/`, `FINDINGS.json` absent from the diff, tables uniform.
+
 ## History
 
 - 2026-09-14: audit; sections 1-3; nine compliance successors; dual review round 1 applied.
+- 2026-09-14: dual review round 2 applied (adversary closed 10 of 12, raised 5; Codex raised 2).
+  N1 High: a round-1 fix had repointed 3 citations to a line that a later commit shifted onto the
+  wrong vendor row. Also restored a signed attestation statement I had edited in place.
+- 2026-09-14: narrow verification round. Round-2 fixes confirmed clean. One further defect found
+  and fixed: an inherited Ember 3.28 accepted-risk section, resolved by PR #490 since 2026-07-08,
+  was being carried into a `soc2-evidence` document dated 2026-09-14.

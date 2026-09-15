@@ -522,7 +522,27 @@ Perform an immediate review when:
 
 ## 12. Accepted Risks & Vulnerability Management
 
-### Ember 3.28 Frontend Framework — Accepted Risk
+### Ember 3.28 Frontend Framework, Accepted Risk (HISTORICAL: resolved by upgrade)
+
+> **CORRECTED 2026-09-14. This accepted risk is not live, and the condition it was accepted
+> against no longer exists.** The Ember 3.28 to 5.12 upgrade shipped in PR #490, merged
+> 2026-07-08. The repo pins `ember-source ~5.12.0`, `ember-data ~5.3.8` and `ember-cli ~5.12.0`
+> (`app/frontend/package.json`) and Node 22 (`.nvmrc`), read 2026-09-14. Every premise below is
+> therefore overtaken: the frontend is not on an end-of-life 3.x LTS, the "~180 npm
+> vulnerabilities in the Ember 3.28 dependency tree" figure does not describe the current tree,
+> and reason 3 ("upgrading to Ember 5.x would be significant throwaway work") describes work that
+> was subsequently done. The incremental React migration named in reasons 3 and 4 as the
+> alternative to upgrading is not the path that was taken.
+>
+> **Why this correction appears in a Render decommission successor.** It does not describe Render.
+> A Path A successor reproduces inherited content and presents it as current as of this
+> document's date, so creating this record is what would have promoted a February 2026 risk
+> acceptance to a 2026-09-14 statement of posture. This document is in the `soc2-evidence`
+> bundle, so that statement would have travelled to auditors.
+>
+> The analysis is retained unedited below as the record of why the risk was accepted on
+> 2026-02-23. **Formally dispositioning the acceptance is the attester's call, not this
+> document's:** it was accepted by the CEO and only the CEO closes it.
 
 **Status:** Accepted
 **Date accepted:** 2026-02-23
