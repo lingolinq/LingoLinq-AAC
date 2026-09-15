@@ -10,13 +10,20 @@ on:
 permissions:
   contents: read
 
-# A new commit on the same PR makes the older result obsolete. Keep protected-branch
-# pushes separate from PR runs so a merge cannot cancel its own branch validation.
+# A new commit on the same PR makes the older result obsolete, so PR runs share a
+# group and supersede each other. Every protected-branch push instead gets its OWN
+# singleton group keyed by run id, because a group of one is never cancelled.
+#
+# cancel-in-progress is NOT sufficient on its own here: GitHub cancels a PENDING run
+# in a group by default, independent of that setting ("any existing pending job or
+# workflow in the same concurrency group will be canceled and the new queued job or
+# workflow will take its place"). With a shared per-branch group, three merges inside
+# one CI window (build-and-test runs ~37 min) leave the middle run cancelled in the
+# queue. deploy-cloudrun.yml is `on: push` and deliberately NOT CI-gated, so that
+# commit would deploy with no validation run at all. Same reasoning, and the same
+# run-id remedy, as the concurrency note in deploy-cloudrun.yml.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # A newer PR commit supersedes the older PR result. Protected-branch pushes
-  # remain uncancelled: each merged commit can deploy independently and must
-  # retain its own complete validation run.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('push-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

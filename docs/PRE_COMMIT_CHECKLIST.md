@@ -88,6 +88,11 @@ Always re-run the whole `db:schema:load` step after a merge or any
 - Linting is not a separate gating job, but `ember test` will fail on any
   ESLint / ember-template-lint violation — treat lint as required.
 
-- `security-scan` is blocking when `bundle-audit` fails; its Brakeman and npm-audit
-  steps are advisory. `secret-detection` is blocking and must be investigated—never
-  weaken or bypass its gitleaks scan to merge.
+- Within `security-scan`, Brakeman and npm audit are advisory (`continue-on-error`)
+  and only `bundle-audit` can fail the job. Whether that job blocks a merge depends on
+  the branch: it is required on `main` only, not on `develop` or `staging`. Note that
+  `bundle-audit check --update` fetches the advisory database at run time, so a release
+  PR to `main` can turn red overnight with no code change.
+
+- `secret-detection` is required on `main`, `develop` and `staging`. Investigate any
+  hit; never weaken or bypass its gitleaks scan to merge.
