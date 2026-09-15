@@ -80,7 +80,7 @@
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `3e8f43b12186` | baa |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-05-27 | 2026-08-27 | 2026-06-21 | `e4e7c0b98d3f` | soc2-evidence |
 | Incident Log (branded) | Drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | published | HIPAA, GDPR | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
-| Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` | draft | GDPR, FERPA, HIPAA, COPPA, SOC2 | Scot Wahlquist |  |  | no | `7338bdcf32bf` |  |
+| Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` | draft | GDPR, FERPA, HIPAA, COPPA, SOC2 | Scot Wahlquist |  |  | no | `86ab2195d0a4` |  |
 | Security Risk Assessment 2026 Q2 | Drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 
 ### audit-artifact (19)

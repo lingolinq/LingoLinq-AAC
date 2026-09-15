@@ -152,7 +152,9 @@ Daily tasks (06:00 UTC): the eleven listed in section 3.4.
 
 Two of the daily tasks have an independent reason for a zero result that is unrelated to dispatch.
 `purge_old_eu_ai_api_logs` matched no production row as of the 2026-08-23 audited read because
-nothing had been stamped with an EU jurisdiction. `expire_offboarding_coppa_consents` returns zero
+none of the rows PRESENT AT THAT READ carried an EU jurisdiction stamp. That read describes the
+rows then present. It does not establish that no row had ever been stamped, since a stamped row
+could have been deleted before the read. `expire_offboarding_coppa_consents` returns zero
 in `:disabled` mode without scanning. Neither is evidence about dispatch, and dispatch is not
 evidence about either.
 
