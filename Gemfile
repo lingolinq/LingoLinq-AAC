@@ -64,7 +64,7 @@ gem 'typhoeus'
 gem 'aws-sdk-rails'
 gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
-gem 'aws-sdk-elastictranscoder', '~> 1'
+gem 'aws-sdk-mediaconvert', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
 # Required by Anthropic::BedrockClient (classic Bedrock plane, see lib/ai_client.rb).

@@ -527,16 +527,50 @@ import app_state from './app_state';
   if(!extras.storage && extras.prototype && extras.prototype.storage) {
     extras.storage = extras.prototype.storage;
   }
-  extras.advance.watch('device', function() {
-    capabilities.invoke({type: 'lingoLinqExtras', method: 'init'}).then(function(res) {
+  // capabilities.init returns setup_database()'s promise. dbman.setup_database
+  // has no timeout (dbman.js:534-627); onblocked only alerts. A pending-forever
+  // open leaves extras.enable uncalled, Ember deferred, and production
+  // #loading_box in place (app-state.js:629 is the only remover). iPad
+  // standalone is the reported case; timeout only there so desktop IDB
+  // upgrades are unchanged.
+  extras.init_timeout_ms = function(opts) {
+    if(opts && opts.timeout_ms != null) { return opts.timeout_ms; }
+    if(capabilities.browserless || (typeof navigator !== 'undefined' && navigator.standalone)) {
+      return 8000;
+    }
+    return 0;
+  };
+  extras.start_after_device_init = function(opts) {
+    opts = opts || {};
+    var timeoutMs = extras.init_timeout_ms(opts);
+    var invoke = opts.invoke || function() {
+      return capabilities.invoke({type: 'lingoLinqExtras', method: 'init'});
+    };
+    var settled = false;
+    var finish = function(err) {
+      if(settled) { return; }
+      settled = true;
+      if(err) {
+        extras.set('offline_available', false);
+      }
       extras.enable();
+    };
+    var timer = null;
+    if(timeoutMs > 0) {
+      timer = setTimeout(function() {
+        finish({error: 'capabilities init timed out'});
+      }, timeoutMs);
+    }
+    invoke().then(function() {
+      if(timer) { clearTimeout(timer); }
+      finish();
     }, function(err) {
-      // TODO: this happens when there is no db, in which case the web site should still
-      // work, but we should really keep track of whether extras happened correctly, since
-      // it could affect the interface.
-      extras.set('offline_available', false);
-      extras.enable();
+      if(timer) { clearTimeout(timer); }
+      finish(err || {error: 'capabilities init failed'});
     });
+  };
+  extras.advance.watch('device', function() {
+    extras.start_after_device_init();
   });
 
   var status_listener = function(e) {

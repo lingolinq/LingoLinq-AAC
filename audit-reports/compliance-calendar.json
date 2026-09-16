@@ -85,7 +85,23 @@
       "nextDue": "2026-07-26",
       "drafts": "verify enforced deletion of children's data per written retention policy; verify separate verifiable parental consent for any disclosure not integral to the service (incl. AI training)",
       "watch": "amended COPPA Rule compliance deadline 2026-04-22 PASSED and is enforceable (~$51.7k/incident/day). Watch FTC enforcement actions.",
-      "basis": "plan 1.3, 2.4; docs/legal/COPPA_VERIFICATION_2026-04-26.md; docs/legal/DATA_RETENTION.md"
+      "basis": "plan 1.3, 2.4; docs/legal/COPPA_VERIFICATION_2026-04-26.md; docs/legal/DATA_RETENTION.md",
+      "acceptanceCriteria": [
+        "Consent paths: re-verify the account-activation COPPA gate AND the separate versioned AI-consent mechanism, which DOC-58b3944cad records as having no runtime caller outside user.rb while privacy.hbs:74 promises consent under 16 CFR Part 312 for AI use specifically. Record the resolved gate value with the execution identifier that produced it.",
+        "Retention claims re-traced against code rather than copied forward. State separately what held across 2026-07-21 to 2026-09-02 and what holds now. The attested, frozen docs/legal/COPPA_VERIFICATION_2026-04-26.md states the IP redaction job 'runs daily today' and that other jobs run 'daily at 6 AM UTC'; those statements cannot be corrected in place and are addressed here.",
+        "Independent sweep state recorded explicitly. OffboardingCoppaExpirationWorker.perform returns 0 in BOTH :disabled and :report by construction, so a bare 0 is ambiguous; always record the logged mode alongside the count. Disabled mode was logged in production 2026-09-04 through 2026-09-14; the 2026-09-03 entry does not identify the mode.",
+        "Candidate selection verified in BOTH windows: inside User::OFFBOARDING_SWEEP_LOOKBACK and outside it. A dry-run zero inside the window does not cover consents that started before it.",
+        "Export/deletion progression exercised on CONTROLLED NON-ZERO test evidence (staging or a seeded fixture) driven through export, schedule_deletion_at, and flush. A production report-mode zero must never be presented as deletion proof. If no controlled run is available, record the criterion as unmet.",
+        "Failures: any task failure in the window, from dispatch abort output and job-execution status, with dates.",
+        "Audit coverage: all-time parental_consent_offboarding_started counts and distinct user keys, with the query and window stated. A zero is reported as zero IN THE QUERIED DATASET, never as proof no such event ever occurred.",
+        "Interruption impact on COPPA controls specifically, cross-referenced to LL-3e36a18199 and to docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md.",
+        "Evidence is aggregate counts and dates. global_id values are PSEUDONYMOUS IDENTIFIERS, not non-personal data: pairing one with reason=declined is a COPPA-adjacent inference, which is why the worker caps per-account report lines. Include per-account identifiers only where a criterion cannot otherwise be met, and do not reproduce them in the review record."
+      ],
+      "linkedFindings": [
+        "LL-3e36a18199",
+        "LL-933e61efd7"
+      ],
+      "criteriaNote": "Acceptance criteria added 2026-09-14. lastDone and nextDue are DELIBERATELY UNCHANGED: the review has not been performed. Only Scot records a review as completed."
     },
     {
       "id": "rev-soc2-quarterly",

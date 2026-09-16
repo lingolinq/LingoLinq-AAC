@@ -146,6 +146,23 @@ recurring.each do |item|
   lines << "- **Drafts:** #{item['drafts'] || '(none recorded)'}"
   lines << "- **Watch:** #{item['watch'] || '(none recorded)'}"
   lines << "- **Basis:** #{item['basis'] || '(none recorded)'}"
+
+  linked = Array(item['linkedFindings'])
+  lines << "- **Linked findings:** #{linked.empty? ? '(none recorded)' : linked.join(', ')}"
+
+  criteria = Array(item['acceptanceCriteria'])
+  unless criteria.empty?
+    lines << ''
+    lines << "**Acceptance criteria (#{criteria.length}).** A review is not complete until every one is met."
+    lines << ''
+    criteria.each_with_index { |c, i| lines << "#{i + 1}. #{c}" }
+  end
+
+  note = item['criteriaNote']
+  if note && !note.to_s.strip.empty?
+    lines << ''
+    lines << "> #{note}"
+  end
 end
 
 lines << ''

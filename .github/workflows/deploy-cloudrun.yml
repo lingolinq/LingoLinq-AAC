@@ -192,6 +192,10 @@ name: Deploy to Cloud Run
 #                             it shares staging's secrets but must be built for dev.lingolinq.com.
 #                             Blank = read DEFAULT_HOST from Secret Manager (today's behaviour).
 #   STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL -- optional, unchanged; appended when set.
+#   APP_MEDIACONVERT_ROLE_ARN -- optional. IAM role MediaConvert assumes for S3 I/O.
+#                             Omitted when blank; Transcoder.convert_* then no-ops (issue #966).
+#   APP_MEDIACONVERT_QUEUE_ARN -- optional. MediaConvert queue ARN; omitted = account default.
+#   APP_MEDIACONVERT_ENDPOINT -- optional. Account-specific MediaConvert endpoint URL.
 #
 # RUNTIME IDENTITY: the web service, worker pool, and Jobs all RUN AS the runtime service
 # account lingolinq-run@${GCP_PROJECT_ID}.iam.gserviceaccount.com (derived inline from
@@ -294,7 +298,7 @@ jobs:
     # two-person control: `prevent_self_review` is false, so whoever merges can approve their
     # own deployment. That is deliberate, so a single on-call engineer can ship a hotfix at
     # 2am. The actual two-person control is upstream and stronger: CODEOWNERS
-    # (`* @swahlquist @MelissaOneil`) plus `require_code_owner_reviews` plus a required
+    # (`* @swahlquist @MelissaOneil @traciday`) plus `require_code_owner_reviews` plus a required
     # approving review on `main`, which forces a second human onto every PR that gets here.
     # `staging` and `dev` carry no protection rules and proceed immediately.
     environment: ${{ needs.resolve.outputs.env_name }}
@@ -614,7 +618,8 @@ jobs:
         # A blank bucket would make the app fall back to a hard-coded bucket name (`lingolinq`,
         # see app/models/user.rb / lib/uploader.rb), i.e. silently write somewhere unintended.
         # OPTIONAL (omitted entirely when blank, never set to ""): UPLOADS_S3_CDN,
-        # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL.
+        # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL,
+        # MEDIACONVERT_ROLE_ARN, MEDIACONVERT_QUEUE_ARN, MEDIACONVERT_ENDPOINT.
         # Omission matters: REMOTE_EXTRA_DATA is a presence check in Ruby, and
         # config/initializers/resque.rb only falls through to its default namespace when
         # REDIS_NAMESPACE_SUFFIX is UNSET, not when it is empty.
@@ -627,6 +632,9 @@ jobs:
           V_REMOTE_EXTRA_DATA: ${{ vars.APP_REMOTE_EXTRA_DATA }}
           V_STRIPE_PUBLIC_KEY: ${{ vars.STRIPE_PUBLIC_KEY }}
           V_NEW_REGISTRATION_EMAIL: ${{ vars.NEW_REGISTRATION_EMAIL }}
+          V_MEDIACONVERT_ROLE_ARN: ${{ vars.APP_MEDIACONVERT_ROLE_ARN }}
+          V_MEDIACONVERT_QUEUE_ARN: ${{ vars.APP_MEDIACONVERT_QUEUE_ARN }}
+          V_MEDIACONVERT_ENDPOINT: ${{ vars.APP_MEDIACONVERT_ENDPOINT }}
         run: |
           set -euo pipefail
           missing=""
@@ -673,7 +681,9 @@ jobs:
           for pair in "APP_UPLOADS_S3_BUCKET=$V_UPLOADS_S3_BUCKET" "APP_STATIC_S3_BUCKET=$V_STATIC_S3_BUCKET" \
                       "APP_UPLOADS_S3_CDN=${V_UPLOADS_S3_CDN:-}" "APP_SENTRY_ENVIRONMENT=$V_SENTRY_ENVIRONMENT" \
                       "APP_REDIS_NAMESPACE_SUFFIX=${V_REDIS_NAMESPACE_SUFFIX:-}" "APP_REMOTE_EXTRA_DATA=${V_REMOTE_EXTRA_DATA:-}" \
-                      "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}"; do
+                      "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}" \
+                      "APP_MEDIACONVERT_ROLE_ARN=${V_MEDIACONVERT_ROLE_ARN:-}" "APP_MEDIACONVERT_QUEUE_ARN=${V_MEDIACONVERT_QUEUE_ARN:-}" \
+                      "APP_MEDIACONVERT_ENDPOINT=${V_MEDIACONVERT_ENDPOINT:-}"; do
             val="${pair#*=}"
             # Shell pattern, not grep: grep is line-oriented and a value containing a newline would
             # pass it. `[:space:]` here includes newline, tab, and carriage return.
@@ -692,6 +702,9 @@ jobs:
           [ -n "${V_REMOTE_EXTRA_DATA:-}" ]      && ev="$ev,REMOTE_EXTRA_DATA=$V_REMOTE_EXTRA_DATA"
           [ -n "${V_STRIPE_PUBLIC_KEY:-}" ]      && ev="$ev,STRIPE_PUBLIC_KEY=$V_STRIPE_PUBLIC_KEY"
           [ -n "${V_NEW_REGISTRATION_EMAIL:-}" ] && ev="$ev,NEW_REGISTRATION_EMAIL=$V_NEW_REGISTRATION_EMAIL"
+          [ -n "${V_MEDIACONVERT_ROLE_ARN:-}" ]  && ev="$ev,MEDIACONVERT_ROLE_ARN=$V_MEDIACONVERT_ROLE_ARN"
+          [ -n "${V_MEDIACONVERT_QUEUE_ARN:-}" ] && ev="$ev,MEDIACONVERT_QUEUE_ARN=$V_MEDIACONVERT_QUEUE_ARN"
+          [ -n "${V_MEDIACONVERT_ENDPOINT:-}" ]  && ev="$ev,MEDIACONVERT_ENDPOINT=$V_MEDIACONVERT_ENDPOINT"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
           # Values are non-secret by construction (buckets, labels, a publishable key); print the
           # NAMES so a wrong-environment deploy is visible in the log without leaking anything new.

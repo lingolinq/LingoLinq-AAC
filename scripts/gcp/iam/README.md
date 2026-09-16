@@ -1,9 +1,16 @@
 # New least-privilege AWS IAM user for Cloud Run (migration 4.E1)
 
+> **Note 2026-09-14: this is a historical migration document.** It was written before the
+> 2026-07-22 cutover, and the Render workspace was deleted on 2026-09-09. The sentences below
+> describing what Render does, holds, or authenticates as are the pre-cutover state, kept because
+> they explain why the least-privilege user exists. The user, policy, and account facts are
+> current. The one action still worth confirming is whether the old broad `lingolinq-app` access
+> key was ever actually deactivated; Render's deletion removed the consumer, not the key.
+
 The hybrid cutover keeps **S3 (uploads/static) and SES (email) on AWS**, reached from GCP Cloud Run.
-Render currently authenticates to AWS as the broad `lingolinq-app` IAM user. For the GCP cutover we
-mint a **new, least-privilege user** scoped to exactly the prod S3 buckets + SES send, so Render's key
-can be **deactivated** after cutover and the GCP runtime never carries the broad key. Decision: Scot,
+Render authenticated to AWS as the broad `lingolinq-app` IAM user. For the GCP cutover we
+minted a **new, least-privilege user** scoped to exactly the prod S3 buckets + SES send, so Render's key
+could be **deactivated** after cutover and the GCP runtime never carries the broad key. Decision: Scot,
 2026-06-29 (env-reconciliation plan, Group A `AWS_KEY` / `AWS_SECRET`).
 
 - **User:** `lingolinq-cloudrun-prod`

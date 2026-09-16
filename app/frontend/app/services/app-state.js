@@ -580,7 +580,7 @@ export default Service.extend({
           console.log(err.status);
           console.log(err.error);
           // Check if it's an auth error (should force logout)
-          var do_logout = err.status == 400 && (err.error == 'Not authorized' || err.error == "Invalid token");
+          var do_logout = !!( _this.session && typeof _this.session.is_logout_worthy_auth_error === 'function' && _this.session.is_logout_worthy_auth_error(err));
           // Check if it's a timeout/network error (should NOT force logout, just retry or fail gracefully)
           var is_timeout = !err.status || err.status === 0 || err.error === 'timeout' || (err.errors && err.errors[0] === 'timeout');
           console.log("will log out: " + (do_logout || (last_try && !is_timeout)));
