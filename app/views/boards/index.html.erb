@@ -712,6 +712,36 @@
     }
   })();
 </script>
+<script>
+  // Production does not define LingoLinqHideBootOverlay on purpose
+  // (boot-overlay-hide.js:10-12): hiding on first routeDidChange would
+  // flash the signed-in index → user.home hop. Ember serve still has a
+  // 12s safety net; Rails did not. If application.js finished
+  // (load_state.js_loaded) but setup_controller never ran — hung
+  // capabilities.init / extras.enable — standalone and anonymous
+  // visitors stayed behind #loading_box forever. Only those two
+  // contexts, and only after js_loaded, so a slow signed-in workspace
+  // boot keeps the skeleton.
+  (function () {
+    var SAFETY_MS = 20000;
+    var FADE_MS = 400;
+    setTimeout(function () {
+      var box = document.getElementById('loading_box');
+      if (!box || !box.parentNode) { return; }
+      if (!(window.load_state && window.load_state.js_loaded)) { return; }
+      var standalone = !!(navigator && navigator.standalone);
+      var anonymous = box.classList && box.classList.contains('is-anonymous');
+      if (!standalone && !anonymous) { return; }
+      box.classList.add('is-fading');
+      if (document.body && document.body.classList) {
+        document.body.classList.remove('pretty_loader');
+      }
+      setTimeout(function () {
+        if (box.parentNode) { box.parentNode.removeChild(box); }
+      }, FADE_MS);
+    }, SAFETY_MS);
+  })();
+</script>
 
 <!-- ignore below this when generating -->
 <% if Rails.env.production? %>
