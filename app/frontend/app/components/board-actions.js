@@ -94,6 +94,27 @@ export default Component.extend({
   }),
 
   actions: {
+    /* Page the modal body by just under a viewportful so a row of context carries over,
+       matching components/speak-menu.js#scroll_menu. Smooth so the movement is
+       followable — a panel that teleports is disorienting on a surface someone is
+       scanning — with the instant fallback for browsers without scrollTo options.
+
+       `update_scroll_affordances` runs again after the scroll because the `scroll` event
+       does not fire for a smooth scroll until it actually moves, and the button just
+       activated may need to disable itself at the end of the range. */
+    scroll_actions(direction) {
+      var body = document.querySelector('#board_actions_body');
+      if(!body) { return; }
+      var step = Math.max(120, body.clientHeight - 20);
+      var target = direction === 'up' ? body.scrollTop - step : body.scrollTop + step;
+      target = Math.min(Math.max(0, target), body.scrollHeight - body.clientHeight);
+      if(body.scrollTo) {
+        body.scrollTo({ top: target, behavior: 'smooth' });
+      } else {
+        body.scrollTop = target;
+      }
+      this.update_scroll_affordances();
+    },
     close() {
       this.get('modal').close();
     },
@@ -243,6 +264,69 @@ export default Component.extend({
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
+
+    /* Wire up the header's Up/Down pager. `tagName: ''` means this component has no
+       element of its own, so the body is found by id rather than through `this.element`.
+
+       Double rAF, copied from components/speak-menu.js and for its stated reasons: the
+       rows do not exist in the DOM until Ember has rendered this open, and the
+       container's `scrollHeight` is not meaningful until layout has run.
+       `requestAnimationFrame` rather than anything from @ember/runloop because that
+       import is lint-banned in this app (ember/no-runloop).
+
+       Re-measured on scroll so the two buttons disable at the ends of the range, and on
+       resize because `max-height: 70vh` means the viewport decides whether there is
+       anything to scroll at all. Both listeners are read-only, hence `passive`. */
+    this._scrollHandler = function() { self.update_scroll_affordances(); };
+    this._measureFrame = window.requestAnimationFrame(function() {
+      self._measureFrame = window.requestAnimationFrame(function() {
+        self._measureFrame = null;
+        if(self.isDestroyed || self.isDestroying) { return; }
+        var body = document.querySelector('#board_actions_body');
+        if(body && self._scrollHandler) {
+          body.addEventListener('scroll', self._scrollHandler, { passive: true });
+        }
+        window.addEventListener('resize', self._scrollHandler, { passive: true });
+        self.update_scroll_affordances();
+      });
+    });
 },
+
+  willDestroyElement() {
+    this._super(...arguments);
+    /* Paired teardown for everything didInsertElement set up. The modal is torn down and
+       rebuilt every time it opens, so a listener left behind would accumulate one per
+       open and keep firing against a destroyed component — and the pending rAF would run
+       `update_scroll_affordances` (which calls `set`) on a destroyed object if the modal
+       is closed within a frame or two of opening. */
+    if(this._measureFrame) {
+      window.cancelAnimationFrame(this._measureFrame);
+      this._measureFrame = null;
+    }
+    if(this._scrollHandler) {
+      var body = document.querySelector('#board_actions_body');
+      if(body) { body.removeEventListener('scroll', this._scrollHandler); }
+      window.removeEventListener('resize', this._scrollHandler);
+    }
+    this._scrollHandler = null;
+  },
+
+  /* Three values, not two, matching components/speak-menu.js#update_scroll_affordances:
+   *   `menu_scrollable`   whether the pair renders at all — nothing to scroll, no control
+   *   `at_scroll_top`     Up is disabled
+   *   `at_scroll_bottom`  Down is disabled
+   *
+   * The 1px tolerance absorbs sub-pixel rounding: a container scrolled fully to the
+   * bottom commonly reports `scrollTop + clientHeight` a fraction under `scrollHeight`,
+   * which without it leaves a Down control that can no longer move anything.
+   */
+  update_scroll_affordances() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var body = document.querySelector('#board_actions_body');
+    if(!body) { this.set('menu_scrollable', false); return; }
+    this.set('menu_scrollable', body.scrollHeight > body.clientHeight + 1);
+    this.set('at_scroll_top', body.scrollTop <= 1);
+    this.set('at_scroll_bottom', (body.scrollTop + body.clientHeight) >= (body.scrollHeight - 1));
+  },
 
 });

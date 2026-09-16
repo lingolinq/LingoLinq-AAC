@@ -1837,7 +1837,13 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
 .la-board-mobile-menu {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  /* Anchored to the hamburger's LEFT edge so the menu opens down-and-to-the-RIGHT.
+     It was `right: 0`, which pins the two right edges together and makes a menu wider
+     than its trigger grow LEFTWARDS — and this trigger sits at the left end of the
+     header, so a 240px-min-width menu ran off the side of the page and clipped its own
+     labels. Same correction, same reason, as `.ll-viewswitch__menu` in
+     _view-switcher.scss: anchor a dropdown on the side its trigger is nearest. */
+  left: 0;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba($la-navy, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -1917,15 +1923,14 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
     display: flex !important;
   }
 
-  /* Hide Exit Boards button (it's in the hamburger menu now) */
-  #inner_header #board_done {
-    display: none !important;
-  }
+  /* Exit Boards (`#board_done`) is NOT hidden here — it folds into the hamburger at
+     ≤640px instead, in the block further down (search "EXIT BOARDS FOLDS INTO THE
+     HAMBURGER HERE"). It used to go at this same 1500px breakpoint, which took the
+     primary way out of a board off screen on every laptop. */
 
-  /* Hide Exit Boards and all action buttons — use class on #normal_mode children */
-  .nav-header__board-bar #board_done {
-    display: none !important;
-  }
+  /* Hide the action buttons — use class on #normal_mode children. Exit Boards is NOT in
+     this list: it sits OUTSIDE `#normal_mode`, so the selector below never reached it and
+     the two rules that did have moved to the ≤640px block. */
   .nav-header__board-bar #normal_mode .btn,
   .nav-header__board-bar #normal_mode .btn-group,
   .nav-header__board-bar #normal_mode .dropdown,
@@ -1975,6 +1980,25 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
 }
 
 @media (max-width: 640px) {
+  /* EXIT BOARDS FOLDS INTO THE HAMBURGER HERE, not at the 1500px collapse above
+     (moved 2026-09-15). It is the primary way out of a board, and at 1500px it vanished
+     from the header on every laptop — leaving the hamburger, whose Exit Boards row is the
+     last item in a long menu, as the only route out. The rest of the action cluster still
+     collapses at 1500px: those are secondary controls and the header genuinely has no
+     room for them, which is what that breakpoint was raised for.
+
+     All four selectors that hid it are gathered here. `#board_done` sits OUTSIDE
+     `#normal_mode`, so the `#normal_mode .btn` hides in the 1500px block never reached it
+     — these four were the only thing hiding it. The board-alt / board-view pair is far
+     higher specificity than the first two and has to travel with them, or it alone would
+     keep the button hidden up to 1500px. */
+  #inner_header #board_done,
+  .nav-header__board-bar #board_done,
+  #within_ember.board-alt-view #inner_header:has(#nav_header) #board_done,
+  #within_ember.board-view #inner_header:has(#nav_header) #board_done {
+    display: none !important;
+  }
+
   #board_id {
     font-size: 14px !important;
   }
@@ -2287,10 +2311,20 @@ header:has(#normal_mode) #inner_header {
 
 /* Board-alt page in normal (non-speak) mode: pin the inner_header to a
    consistent 84px so the toolbar height doesn't fluctuate with content
-   wrapping (was rendering at 72.5px before this rule). */
+   wrapping (was rendering at 72.5px before this rule).
+
+   The horizontal padding insets BOTH end clusters at once (requested 2026-09-15):
+   Speak Mode + the hamburger were sitting almost flush against the left edge and the
+   identity avatar against the right. `#nav_header` (left cluster) and `#identity`
+   (right cluster) are SIBLING flex children of this element, not nested, so padding on
+   the shared parent moves them inward symmetrically — one rule instead of a left inset
+   here and a right inset on `#identity`, which is global and would have shifted the
+   avatar on every other page too. Vertical padding stays 0: `min-height` above owns the
+   header's height, and adding vertical padding on top of it would grow the bar. */
 #within_ember.board-alt-view header:has(#normal_mode) #inner_header {
   min-height: 84px !important;
   height: auto !important;
+  padding: 0 18px !important;
 }
 /* Let the classic normal-mode nav header grow when the toolbar (now
    including the View Style toggle) wraps, instead of clipping the
@@ -10075,13 +10109,28 @@ body.pretty_loader #loading_box {
   font-family: serif;
   font-size: 18px;
   vertical-align: top;
-  white-space: normal;
+  /* ONE LINE, FULL SIZE, CLIPPED — never wrapped (2026-09-15).
+     This was `white-space: normal` with `word-wrap`/`overflow-wrap: break-word`, which
+     let a label break MID-WORD onto a second line; `height: 23px` then fits only one
+     line, so `overflow: hidden` cut the remainder off. A long label did not read as
+     truncated, it read as misspelled: "want" rendered as "wa", "look" as "loo",
+     "questions" as "questios", "again" as "agai". On an AAC board, where the label IS
+     the word the user is selecting, a silently mangled word is worse than a visibly
+     clipped one.
+
+     The label now keeps its declared size and clips horizontally instead. No
+     `text-overflow: ellipsis` on purpose: an ellipsis spends two or three characters of
+     an already narrow button to say something the hard edge already says.
+
+     Classic board grid only — the modern board (templates/user/board-detail.hbs) does
+     not use this class. Both Classic render paths do share it: the template and the
+     `fast_html` string builder in utils/button.js both emit `class='button-label'`, so
+     fixing it here covers both without touching either. */
+  white-space: nowrap;
   overflow: hidden;
   display: block;
   max-width: 100%;
   line-height: 1.1;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
 }
 /* Short viewports (<=800px tall): grow the button label area by 15% so
    the label has more breathing room when the board grid is vertically
@@ -10126,8 +10175,16 @@ body.pretty_loader #loading_box {
      JS-sized img_holder to protect: its symbol is a flex child that already
      gives up space to the label, so the compensation is not just unnecessary
      there, it is harmful. Excluded by class rather than moved so the classic
-     board keeps this behavior byte-for-byte. */
-  .button:not(.md-board-detail-symbol-card) img.symbol {
+     board keeps this behavior byte-for-byte.
+     BOARD-ALT IS EXCLUDED TOO (2026-09-15), for the same reason and by the same shape.
+     Its holder is no longer the JS-sized inline-block this rule compensates for: the
+     `#within_ember.board-alt-view .board a.button .img_holder` block below sizes the holder
+     to the band the label leaves, so the label's space is already reserved and
+     `object-fit: contain` means the symbol cannot crop against it. All this rule can do
+     there now is shrink the symbol away from the band it is supposed to fill — 0.93x at a
+     729px viewport, 0.6x at 400px. The legacy `board` route still renders through the JS
+     inline sizing, so it keeps the compensation. */
+  #within_ember:not(.board-alt-view) .button:not(.md-board-detail-symbol-card) img.symbol {
     transform: scale(clamp(0.6, calc(0.6 + (100vh - 400px) / 1000px), 1));
     transform-origin: center;
   }
@@ -14603,6 +14660,58 @@ video.button_image {
   overflow-y: auto;
 }
 
+/* Up/Down pager, pinned to the header so it stays put while the body scrolls under it.
+   The header is already `position: relative` for the close button, and 56px of
+   padding-right is reserved for that button, so the pager sits just inside it.
+
+   Button styling is NOT here — these share the speak-menu pager's declaration block so
+   the two cannot drift. Only placement differs, because the two headers differ: speak
+   menu centres its pager (no title competing for the row), this one right-aligns beside
+   the "Board Actions" title.
+
+   The header grows to fit the 44px targets, which is deliberate: 44px is the WCAG 2.5.5
+   floor and these are a primary affordance for anyone who cannot make a scroll gesture,
+   so the control keeps full size and the header gives way. `flex-wrap` lets the pair drop
+   under the title rather than collide with it on a narrow modal. */
+/* Centred on the header, the same placement `.md-speak-menu__scroll-pager` uses.
+   Absolute + 50%/50% rather than a flex row so the pager's width cannot shift the title
+   or the close button as it appears and disappears with `menu_scrollable`.
+
+   It clears both neighbours at the modal's full 680px: the title runs to roughly 174px
+   and the close occupies 16px-60px from the right (`.md-modal-header .la-modal-close`,
+   `right: 16px` on a 44px WCAG target), while a centred ~190px pager sits between 245px
+   and 435px. */
+.la-board-actions__scroll-pager {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Below this the modal is `94vw` rather than 680px (see `.modal-dialog:has(...)` above),
+   and a centred pager starts overlapping the title — at a 360px phone it would run from
+   74px to 264px, straight through it. Stacking rather than shrinking: these are 44px WCAG
+   targets and a primary affordance for anyone who cannot make a scroll gesture, so the
+   header gives way and the buttons keep their size. The pager follows the <h3> in source
+   order, so dropping it back into flow puts it directly under the title. The close button
+   moves off centre-vertical to the top for the same reason — on a two-row header it would
+   otherwise float beside the gap between them. */
+@media (max-width: 680px) {
+  .la-board-actions__scroll-pager {
+    position: static;
+    transform: none;
+    justify-content: center;
+    margin-top: 12px;
+  }
+  .la-board-actions-wrap > .modal-header .la-modal-close {
+    top: 14px;
+    transform: none;
+  }
+}
+
 /* Permission notice */
 .la-board-actions-notice {
   display: flex;
@@ -19053,28 +19162,50 @@ form.row.subscription-form-with-cards {
   margin-top: 6px;
   padding-left: 12px;
 }
-.md-speak-menu__phrase-page-btn {
+/* The Board Actions modal's Up/Down pager is listed here rather than given a rule of its
+   own, for the same reason `.md-speak-menu__scroll-btn` has no separate declarations: one
+   block governs every pager in the app so they cannot drift apart. Only POSITIONING
+   differs between them, and that lives on each modal's own `__scroll-pager` wrapper. */
+/* GLASS SURFACE from the shared `ch-chip` recipe (_chips.scss) rather than the flat
+   translucent-white fill this carried, so the pagers match the app's raised-glass objects.
+   The mixin supplies background, border and box-shadow only — radius, size and type stay
+   here, which is the split it documents ("same material, different object").
+
+   INK IS `$la-navy`, NOT `$brand-slate-blue`. The chip is a silver ramp, not near-white:
+   slate blue (#5A6A85) measures 3.88:1 on its darkest stop (#D2DAE5), under the 4.5:1 a
+   14px/700 label owes — the flat white fill it used to sit on was hiding that. `$la-navy`
+   measures 8.60:1 there, and `$indigo` on hover 10.10:1. */
+.md-speak-menu__phrase-page-btn,
+.la-board-actions__scroll-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
   min-height: 44px;
   padding: 6px 16px;
-  border: 1px solid rgba($la-navy, 0.14);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.75);
-  color: $brand-slate-blue;
+  @include ch-chip;
+  color: $la-navy;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.md-speak-menu__phrase-page-btn:hover:not([disabled]) {
-  background: #fff;
+/* Hover lifts the glass rather than flattening it to solid white: the chip's two insets
+   are restated so the sheen survives, with the ambient shadow deepened. Restating is
+   required — `box-shadow` is one property, so naming it here at all replaces the mixin's
+   whole stack. */
+.md-speak-menu__phrase-page-btn:hover:not([disabled]),
+.la-board-actions__scroll-btn:hover:not([disabled]) {
   border-color: rgba($brand-verdigris, 0.5);
   color: $indigo;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 4px rgba(#0F172A, 0.10),
+    0 5px 12px rgba($focus-shadow-ink, 0.26);
 }
-.md-speak-menu__phrase-page-btn[disabled] {
+.md-speak-menu__phrase-page-btn[disabled],
+.la-board-actions__scroll-btn[disabled] {
   opacity: 0.4;
   cursor: default;
 }
@@ -21503,17 +21634,20 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
    wants the larger pill to disappear on smaller screens regardless
    of route — keeping only the circular β as the compact entry point. */
 
-/* Header right-cluster spacing at ≤1200px on board-alt — fix the
-   visual overlap reported between the circular β, the settings cog,
-   and the identity avatar by giving each element comfortable gutter
-   space. Prior margin-right: 4px on the β at line 16653 left the
-   β and the settings cog (just below it in DOM order) tightly
-   packed; the avatar circle on the right then crowded the β. This
-   block bumps the β's left+right margins and adds breathing room to
-   the settings cog so the trio reads as a properly-spaced cluster
-   instead of three near-overlapping circles. Scoped to board-alt
-   (and speak headers) so other routes' header layouts aren't
-   touched. */
+/* Header right-cluster spacing at ≤1200px on board-alt: gutters between the
+   circular β and the identity avatar so they don't touch when the row flows
+   tight. Scoped to board-alt so other routes' header layouts aren't touched.
+
+   THIS BLOCK IS SPACING ONLY — IT DOES NOT, AND DID NOT, FIX AN OVERLAP.
+   It was written against a reported overlap of β / settings cog / avatar and
+   claimed to give the cog breathing room; it never contained a settings-cog
+   rule, and a margin could not have moved that cog anyway. The cog was
+   `position: absolute` from the unscoped ≤1024px `.ll-header-settings-btn`
+   rule (search "NOT ON THE CLASSIC BOARD PAGE" in this file), so it was out of
+   flow and landed on top of the β regardless of what its neighbours did. The
+   overlap was still reported afterwards. That rule is now scoped to exclude
+   board-alt, which is what actually fixed it; these margins only tune the
+   spacing of a row that is finally all in flow. */
 @media (max-width: 1200px) {
   #within_ember.board-alt-view #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular,
   #within_ember.board-alt-view #inner_header:has(#nav_header) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular,
@@ -21555,7 +21689,12 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
 .dropdown-menu__exit-boards-divider {
   display: none !important;
 }
-@media (max-width: 1024px) {
+/* Moved 1024px → 640px (2026-09-15) to follow `#board_done`. This row exists, per the note
+   above, to give a secondary way out at the width where the header's own Exit Boards is
+   gone. That now happens at ≤640px, so leaving this at ≤1024px would put TWO Exit Boards
+   on screen between 641px and 1024px — one in the header, one in the dropdown. The two
+   breakpoints have to move together. */
+@media (max-width: 640px) {
   #within_ember.board-alt-view .dropdown-menu__exit-boards-item {
     display: list-item !important;
   }
@@ -24037,9 +24176,26 @@ header.header--unauthenticated ~ #content .la-topbar {
 /* At ≤1024px, lift the settings shortcut out of the navbar flow and pin it
    into the empty space on the right side of #inner_header. The positioning
    ancestor (.app-navbar__inner) already gets `position: relative` at this
-   breakpoint (see ~33389), so absolute positioning here resolves against it. */
+   breakpoint (see ~33389), so absolute positioning here resolves against it.
+
+   NOT ON THE CLASSIC BOARD PAGE. That ancestor only exists when the modern
+   navbar renders, and controllers/application.js#useAppNavbarInHeader returns
+   false outright for `user.board-alt.index` — so on the classic board this rule
+   pulled the gear out of #identity's flex row and resolved `right: 48px`
+   against a different ancestor entirely, dropping it on top of the beta button.
+   Visible from 1025px down to 769px: below that the ≤768px block further down
+   takes over, and it already carries this same `:not(.board-alt-view)` guard
+   "so board-alt's flex-flow header layout is preserved".
+
+   The classic header has no empty right-hand slot to pin into — its View
+   switcher, beta button, settings gear and identity dropdown are already
+   siblings in one flex row (#inner_header is `display: flex`, #identity is a
+   nested flex), so leaving all four IN flow is what spreads them correctly.
+   The added `#within_ember` chain raises this to (1,2,0); verified against
+   every other `.ll-header-settings-btn` rule that none sets position/top/
+   right/transform, so nothing else changes hands. */
 @media (max-width: 1024px) {
-  .ll-header-settings-btn {
+  #within_ember:not(.board-alt-view) .ll-header-settings-btn {
     position: absolute;
     top: 50%;
     right: 48px;
@@ -65885,22 +66041,120 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     color: $indigo !important;
   }
-  /* Add interior padding directly on the <a class="button"> link element.
-     The inner img_holder and button-label-holder are absolutely positioned
-     against this link's padding box, so insetting them by 4px each gives
-     the visible "more padding inside the button" effect. */
+  /* Interior padding on the <a class="button"> link element, for anything that flows.
+     It does NOT inset the img_holder or the button-label-holder: those are absolutely
+     positioned, and an absolutely positioned child's containing block is this link's PADDING
+     box — the padding is inside it, not outside. Measured: with the holder pinned to 0 its
+     left edge lands on the border (x=2 of a 100px button), padding notwithstanding. That is
+     the intent — the symbol gets the whole band — but do not read this declaration as the
+     margin around the picture, because it is not one. */
   .board a.button {
     padding: 4px !important;
   }
-  .board a.button .img_holder {
-    top: 4px !important;
-    left: 4px !important;
-    right: 4px !important;
-    width: calc(100% - 8px) !important;
+  /* SYMBOL FILLS ITS BAND, CENTRED IN IT.
+     These four declarations were already written as though `.img_holder` were absolutely
+     positioned — the comment above says so — but nothing ever gave it `position`, so
+     `top`/`left`/`right` did nothing and only `width` applied. What actually placed the
+     symbol was the inline style utils/button.js#image_holder_style writes: an
+     `inline-block` with a JS `margin-top` and a JS width/height, both computed at `* 0.9`
+     of the available box (controllers/board/index.js#computeHeight). That is where "down
+     and right of centre, not filling" came from — the margin pushed it down, the 0.9
+     shrink left it short of the edges, and the inline-block sat wherever the line box put
+     it rather than centred in the band.
+
+     Now it really is absolute, so it spans the band the label leaves and centres the
+     symbol inside it. `object-fit: contain` on the image means filling the band never
+     distorts artwork — a wide symbol letterboxes rather than stretching, which matters on
+     an AAC board where the picture carries the meaning.
+
+     The three offsets are 0, not 4px (2026-09-15): the symbol takes the band EDGE TO EDGE.
+     The `padding: 4px` on the button above is already the gap between the border and the
+     picture, so a further 4px inset here just spent a second margin out of the one part of
+     the button the symbol has to itself — on a ~70px tile that is over a tenth of the
+     picture. Only `--ll-symbol-band` is subtracted now, and that is the label's own
+     footprint.
+
+     `--ll-symbol-band` is the space the LABEL needs, and nothing more — it is the only
+     thing subtracted from the button before the symbol gets the rest. */
+  .board a.button {
+    /* Reserve the label's INK, not its box (measured on
+       `marcus_williams_slp/vocal-flair-84`, 1280x729, 100x83 buttons: the label's line box
+       ends 25px into the button while the label BOX runs to 36px, and the band was starting
+       at 37 — twelve dead pixels between the text and the top of the picture, on a button
+       whose picture only had 44 to live in).
+       The box is that much taller than the text because two rules pad it and neither is ink:
+       `@media (max-height: 800px)` bumps the label's height to 27px for breathing room, and
+       this block adds a 0.3em descender pad below it. The symbol may sit in both — they are
+       empty, the label-holder paints no background, and a descender cannot reach there.
+       So the reserve is derived from the label's FONT SIZE instead: 1.25em covers the inline
+       box (measured 1.17em, and 1.265 when that media rule sets line-height) and 4px is the
+       holder's 2px offset plus a 2px gap under the text. One formula, one number per text
+       size, instead of a table of hand-tuned pixel values that has to be re-derived every
+       time a label rule moves.
+       `button_text` (device preference) puts the size class on `.board`
+       (controllers/board/index.js#text_style -> #display_class); the classic renderer adds
+       `small_text` / `really_small_text` per BUTTON when the grid gets dense
+       (models/board.js#render_fast_html). */
+    --ll-label-size: 18px;
+    --ll-symbol-band: calc(4px + 1.25 * var(--ll-label-size));
   }
+  .board.text_small a.button,
+  .board a.button.small_text {
+    --ll-label-size: 14px;
+  }
+  .board.text_large a.button {
+    --ll-label-size: 25px;
+  }
+  .board.text_huge a.button {
+    --ll-label-size: 35px;
+  }
+  /* This one label DOES paint a background — a white pill, `padding: 3px 10px` — so here the
+     box is visible and the reserve has to clear the box, not the ink. */
+  .board a.button.really_small_text {
+    --ll-label-size: 14px;
+    --ll-symbol-band: calc(10px + 1.25 * var(--ll-label-size));
+  }
+  /* No label, nothing to reserve: the symbol gets the whole button. */
+  .board.text_none a.button {
+    --ll-symbol-band: 0px;
+  }
+  .board a.button .img_holder {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: var(--ll-symbol-band) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    line-height: normal !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  /* Label on TOP — the symbol's band is the BOTTOM portion, so flip which end is reserved.
+     This is the arrangement in use when the board sets `button_text_position: top`. */
+  .board a.button:has(.button-label-holder.top) .img_holder {
+    top: var(--ll-symbol-band) !important;
+    bottom: 0 !important;
+  }
+  .board a.button .img_holder img.symbol {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+  /* THE LABEL IS NOT INSET BY THE BUTTON PADDING.
+     It used to carry a 4px inset of its own, to match the one `.img_holder` had at the
+     time, and that cost the label 8px of a button only ~70px wide: roughly an eighth of the
+     line, and with `white-space: nowrap` that is a whole character or two clipped off every
+     long word. The label is a single line of type against a border, and 1px is enough to
+     keep it off the edge.
+
+     `width: 100%` here resolves against the button's PADDING box, so 1px/-2px puts the
+     label just inside the 2px border and lets it use the full interior, padding included. */
   .board a.button .button-label-holder {
-    left: 4px !important;
-    width: calc(100% - 8px) !important;
+    left: 1px !important;
+    width: calc(100% - 2px) !important;
   }
   .board a.button .button-label-holder:not(.top) {
     bottom: 2px !important;
@@ -65956,7 +66210,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     box-shadow: 0 0 0 3px rgba(123, 174, 140, 0.25) !important;
   }
 
-  .board .button .img_holder {
+  /* EDIT MODE ONLY — deliberately, not by accident. This opaque band has only ever painted
+     in edit mode, because that is the one mode whose markup carried `.img_holder`; the two
+     fast-HTML renderers (speak mode and plain browsing) emitted an unclassed span until the
+     centring fix gave them the class too. Keeping the selector unscoped would newly paint a
+     mint rectangle behind every symbol and inside every empty button on the speak board, and
+     would defeat the `symbol_background` preference: those rules (`.symbol_background_clear
+     .button img.symbol` and its siblings, this file) style the IMAGE, so an opaque holder
+     behind a transparent symbol shows mint instead of the button's own colour.
+     `docs/SYMBOL_IMPORT_SKIN_TONE_FINDINGS.md` already names this band as what masks that
+     colour. Scoped to `.board.edit` so rendering is unchanged in both modes. */
+  .board.edit .button .img_holder {
     background: #e8f5f4 !important;
   }
 
@@ -66328,7 +66592,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     border-radius: 12px !important;
     color: #fff !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
-    display: inline-flex !important;
+    /* Bounded to >=641px so it cannot fight the ≤640px hide that folds Exit Boards into
+       the hamburger. Once nested, this selector resolves to the SAME specificity as that
+       hide and sits ~65,000 lines later, so an unbounded `display: inline-flex !important`
+       won on source order and the button never disappeared. Only `display` needs the
+       bound — everything else here is cosmetics on a button hidden below 641px anyway. */
+    @media (min-width: 641px) {
+      display: inline-flex !important;
+    }
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
@@ -66691,10 +66962,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    hamburger reveals action items the header was no longer rendering
    at the wider 1024-1500 range. */
 @media (max-width: 1500px) {
-  #within_ember.board-alt-view #inner_header:has(#nav_header) #board_done,
-  #within_ember.board-view #inner_header:has(#nav_header) #board_done {
-    display: none !important;
-  }
+  /* Exit Boards is NOT hidden here either — moved to ≤640px with the two rules in the
+     earlier 1500px collapse block. This pair is much higher specificity than those two,
+     so moving only them would have left this one hiding the button all the way to 1500px
+     and the change would have looked like a no-op on the Classic board. The per-icon
+     action hides below still collapse at 1500px. */
   #within_ember.board-alt-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-home) {
     display: none !important;
   }
@@ -101816,17 +102088,28 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    modifiers inheriting the transparent `__row` base, so they read as plain list items
    beside the outlined Board Actions toggle.
 
-   Both now carry the SAME elevated surface, one step above the Board Actions
-   `__filter-toggle`: more opaque fill, a tinted rather than neutral border, 600 weight,
-   and a real drop shadow. Geometry (radius, padding, min-height) still matches the
-   toggle so the three read as one family — the hierarchy is expressed in WEIGHT, not
-   by making one of them a different shape.
+   All three now carry the SAME elevated surface: more opaque fill, a tinted rather than
+   neutral border, 600 weight, and a real drop shadow.
 
-   Board Collections then leads on its own with a GLOW (below). It is the only one of
+   BOARD ACTIONS JOINS THEM AS OF 2026-09-15 (requested). It previously sat one step
+   below on the flatter `__filter-toggle` surface — a deliberate weight difference, on
+   the reasoning that geometry should stay shared and hierarchy should live in weight.
+   That step is now gone by request: beside Categorize the lighter fill and neutral
+   border read as inactive rather than as secondary, which is the wrong signal for a
+   control that opens the panel's main action list.
+
+   Added to THIS selector list rather than given an override block of its own, so the
+   family keeps one definition. `.md-board-edit-panel__filter--actions
+   .md-board-edit-panel__filter-toggle` is (0,2,0), which outranks the flatter
+   `.md-board-edit-panel__filter-toggle` base (0,1,0) further down the file on its own,
+   without needing `!important` or a source-order bet.
+
+   Board Collections still leads on its own with a GLOW (below). It is the only one of
    the three that navigates AWAY into another board; the other two act on the board in
-   front of you. */
+   front of you — so that distinction survives flattening the other two apart. */
 .md-board-edit-panel__row--collection,
-.md-board-edit-panel__row--categorize {
+.md-board-edit-panel__row--categorize,
+.md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle {
   padding: 6px 10px 6px 9px;
   border: 1px solid rgba($brand-slate-blue, 0.30);
   border-radius: 12px;
@@ -101858,13 +102141,17 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .md-board-edit-panel__row--collection:hover,
 .md-board-edit-panel__row--collection:focus-visible,
 .md-board-edit-panel__row--categorize:hover,
-.md-board-edit-panel__row--categorize:focus-visible {
+.md-board-edit-panel__row--categorize:focus-visible,
+.md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle:hover,
+.md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle:focus-visible {
   background: rgba($brand-slate-blue, 0.14);
   border-color: rgba($brand-slate-blue, 0.44);
   color: $brand-slate-blue;
 }
 .md-board-edit-panel__row--categorize:hover,
-.md-board-edit-panel__row--categorize:focus-visible {
+.md-board-edit-panel__row--categorize:focus-visible,
+.md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle:hover,
+.md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle:focus-visible {
   box-shadow:
     inset 0 1px 2px rgba($la-navy, 0.04),
     0 2px 4px rgba($la-navy, 0.08),
@@ -102324,8 +102611,14 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    the toggle's padding-left+gap math assumes. Otherwise the panel's
    global `.md-board-edit-panel .__icon { width: 1.5em }` rule wins
    by source order and the icon renders at 21px in this 14px-font
-   toggle. */
-.md-board-edit-panel__filter-toggle .md-board-edit-panel__icon {
+   toggle.
+
+   FILTER BY CATEGORY ONLY. The 16px is about pairing with the search magnifier directly
+   beside it, which Board Actions does not sit next to — and holding the gear at 16px
+   while Categorize's icon renders at the panel's default 1.5em left the two visibly
+   mismatched once they were given the same surface. Board Actions is excluded so it
+   takes the default and the pair reads as one family, icon included. */
+.md-board-edit-panel__filter:not(.md-board-edit-panel__filter--actions) .md-board-edit-panel__filter-toggle .md-board-edit-panel__icon {
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
@@ -102501,7 +102794,13 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    the glow, which on a dark ground is where a halo actually reads BEST — a drop shadow
    disappears against dark, an accent glow does not. */
 .md-board-detail--dark .md-board-edit-panel__row--collection,
-.md-board-detail--dark .md-board-edit-panel__row--categorize {
+/* Board Actions is listed here for the same reason it joined the light-mode surface
+   above: without it the flattening would hold in light mode and silently revert in dark,
+   where the toggle's own rule paints a dimmer fill (.06/.10) than Categorize (.13/.26).
+   The `--actions` chain is (0,3,0) and so outranks the dark `__filter-toggle` rule at
+   (0,2,0) on specificity, not source order. */
+.md-board-detail--dark .md-board-edit-panel__row--categorize,
+.md-board-detail--dark .md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle {
   background: rgba(255, 255, 255, 0.13);
   border-color: rgba(255, 255, 255, 0.26);
   color: #ffffff;
@@ -102519,7 +102818,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .md-board-detail--dark .md-board-edit-panel__row--collection:hover,
 .md-board-detail--dark .md-board-edit-panel__row--collection:focus-visible,
 .md-board-detail--dark .md-board-edit-panel__row--categorize:hover,
-.md-board-detail--dark .md-board-edit-panel__row--categorize:focus-visible {
+.md-board-detail--dark .md-board-edit-panel__row--categorize:focus-visible,
+.md-board-detail--dark .md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle:hover,
+.md-board-detail--dark .md-board-edit-panel__filter--actions .md-board-edit-panel__filter-toggle:focus-visible {
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.40);
 }
@@ -102562,25 +102863,27 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   color: #cfd8e8;
 }
 
-/* In compact-rail mode the panel collapses to icons; the filter's
-   expanded list would consume too much horizontal space, so we
-   force the section closed and hide the badge/chevron. The header
-   still shows as an icon-only row that opens the toolbar's
-   existing categories dropdown for filtering. */
-@media (max-width: 1023px) {
-  .md-board-edit-panel__filter-toggle .md-board-edit-panel__filter-text,
-  .md-board-edit-panel__filter-toggle .md-board-edit-panel__filter-chevron {
-    display: none;
-  }
-  .md-board-edit-panel__filter-list {
-    display: none;
-  }
-  .md-board-edit-panel__filter-toggle {
-    justify-content: center;
-    padding: 8px 0;
-    width: 100%;
-  }
-}
+/* REMOVED (2026-09-15): an `@media (max-width: 1023px)` block that stripped BOTH panel
+   filter toggles — it hid `__filter-text` and `__filter-chevron`, hid
+   `__filter-list`, and centred the toggle's icon with `justify-content: center`.
+
+   It was a width test standing in for "the panel is a rail", and those are not the same
+   thing. Rail state is `.md-board-edit-panel--collapsed`, driven by
+   `left_panel_collapsed`; the resize handler that sets it at <=1200px explicitly does not
+   fight a manual re-expand ("manually expanding while already narrow isn't fought",
+   controllers/user/board-detail.js). An EXPANDED panel at <=1023px is therefore a normal,
+   reachable state, and in it both toggles have a full-width surface with room for their
+   labels — but were being drawn as ~200px pills containing one centred icon. Board
+   Actions additionally lost its accessible name entirely that way, since the button's
+   name comes only from its inner label span.
+
+   Nothing is lost by deleting it rather than rescoping it: the genuine rail case is
+   already handled, unscoped by width, by the `.md-board-edit-panel--collapsed` rules
+   further up — they hide `__filter-list` and `__filter-chevron` and restyle the toggle to
+   the icon-over-caption rail item, while deliberately KEEPING `__filter-text` visible so
+   the icon can carry its caption. `toggle_panel_filter` and `toggle_board_actions` both
+   expand the panel first when collapsed, for exactly that reason, so the rail path stays
+   correct with no width rule at all. */
 
 /* ── Confirm-Leave-Edit modal — Discard + Save glass pills that
    mirror the toolbar's Cancel/Save aesthetic. ───────────────── */
@@ -103053,7 +103356,11 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   gap: 10px;
 }
 .md-board-edit-view-style--theme {
-  /* Slight separation from the View Style block above. */
+  /* Separator rule above the Board Display toggle. It was described as separating this
+     from "the View Style block above"; that block moved out to the Board Actions modal,
+     and the View Style shortcut that returned in its place sits BELOW `__bottom`, not
+     above. The rule earns its place either way — it divides Display from the rows above
+     it — so it stays, but not for the reason previously written here. */
   border-top: 1px solid rgba($la-navy, 0.08);
   padding-top: 10px;
 }

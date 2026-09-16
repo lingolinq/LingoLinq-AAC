@@ -501,20 +501,23 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
               </span>
             </button>
-            <span class="md-board-edit-panel__label-collapsed">{{t "Mode" key="mode_short"}}</span>
+            {{!-- "Display", not "Mode" (requested 2026-09-15): this pill is the rail's
+                 stand-in for the expanded "Board Display" toggle in __bottom, so the two
+                 states now name the same control the same way. "Mode" also collided with
+                 the app's other meanings of the word — speak mode, edit mode. --}}
+            <span class="md-board-edit-panel__label-collapsed">{{t "Display" key="display"}}</span>
           </div>
         {{/if}}
 
-        {{!-- ── VIEW STYLE + THEME (bottom of left panel) ───────────
-             View Style: explains the current (Modern) view and offers a
-             single button to switch to Classic, which persists the
-             preference and navigates to the board-alt page (normal mode).
-             Theme: segmented Light/Dark toggle directly beneath, both
-             options always visible. --}}
+        {{!-- ── BOARD DISPLAY (bottom of left panel) ────────────────
+             Segmented Light/Dark toggle, both options always visible. Expanded panel
+             only — `__bottom` is `display: none` on the collapsed rail, which is why the
+             rail carries its own Display pill higher up instead. --}}
         <div class="md-board-edit-panel__bottom">
-          {{!-- View Style (Classic/Modern) was MOVED to the Board Actions modal
-               (components/board-actions) — between Record Messages and Delete
-               Board. The Theme (Board Display) toggle stays here. --}}
+          {{!-- This block no longer holds View Style. The full Classic/Card toggle lives
+               in the Board Actions modal (components/board-actions, between Record
+               Messages and Delete Board); a one-click shortcut to Classic sits just
+               BELOW this block, outside `__bottom` so it survives the collapsed rail. --}}
           <div class="md-board-edit-panel__group md-board-edit-panel__group--theme">
             <div class="md-board-edit-view-style md-board-edit-view-style--theme">
               <div class="md-board-edit-panel__subheader">{{t "Board Display" key="board_detail_board_display_label"}}</div>
@@ -538,6 +541,57 @@
           </div>
 
         </div>
+
+        {{!-- VIEW STYLE SHORTCUT — switch this board to the Classic full-device grid.
+             Restored to this panel 2026-09-15 (it lived here before 2026-08-24, when it
+             moved into the Board Actions modal). The modal is still the other way in, via
+             "Other Actions" above; this is the shortcut, because reaching a view switch
+             from edit mode otherwise took two clicks through a modal — and the navbar
+             View dropdown deliberately hides during an edit session
+             (components/view-switcher.js#available).
+
+             LAST CHILD OF THE ASIDE, DELIBERATELY — it has to sit at the bottom in BOTH
+             panel states, and that is the one position that gets it for free. It cannot
+             go inside `__bottom` (hidden outright on the collapsed rail) and it cannot go
+             above `__bottom` (then it is not last when expanded). After it, the expanded
+             panel shows it below Board Display, and the collapsed rail — where `__bottom`
+             is gone — shows it below the Display pill. One row, no duplicate for the
+             other state.
+
+             Same reason it is not inside the Board Actions group: rows in a
+             `md-board-edit-panel__collapse` list are `display: none` on the rail. The
+             `__label` / `__label-collapsed` pair every always-visible row uses gives
+             "Classic View" expanded and "Style" on the rail — "Style" rather than
+             "Classic" because the caption names the CONTROL, matching its Display
+             neighbour, while the expanded label names the destination.
+
+             Destination labelling matches components/view-switcher.hbs, which shows the
+             style you would move TO. This page is the Card-view board, so that is always
+             Classic.
+
+             `go_to_classic` prompts through confirm-discard-changes when the edit session
+             is dirty — see the action for why that guard is not optional here. --}}
+        <button
+          type="button"
+          class="md-board-edit-panel__row md-board-edit-panel__row--view-style"
+          data-tooltip={{t "Classic View" key="classic_view"}}
+          data-bd-action="go_to_classic"
+          {{on "click" (this.ctrlAction "go_to_classic")}}>
+          {{!-- A board frame with a double-headed arrow across it: "swap what this board
+               is displayed as". The previous icon was a plain 3x3 grid, which named the
+               DESTINATION layout rather than the act of switching — and read as yet
+               another grid among the panel's other square icons. Two-tone as elsewhere in
+               this panel: frame in currentColor, the swap arrow in verdigris so the
+               moving part is what catches the eye. --}}
+          <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="2.5" stroke="currentColor"/>
+            <path d="M7.5 12h9" stroke="#2A9D8F"/>
+            <path d="M9.75 9.75 7.5 12l2.25 2.25" stroke="#2A9D8F"/>
+            <path d="M14.25 9.75 16.5 12l-2.25 2.25" stroke="#2A9D8F"/>
+          </svg>
+          <span class="md-board-edit-panel__label">{{t "Classic View" key="classic_view"}}</span>
+          <span class="md-board-edit-panel__label-collapsed">{{t "Style" key="board_view_style_short"}}</span>
+        </button>
 
       </aside>
     {{/if}}

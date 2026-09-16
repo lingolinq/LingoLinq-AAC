@@ -449,7 +449,17 @@ var Button = EmberObject.extend({
       res = res + "</div>";
 
       var appState = this.appState || app_state;
-      res = res + "<span style='" + this.get('image_holder_style') + "'>";
+      /* `img_holder` is what the board-alt rules match on (app.scss, inside
+         `#within_ember.board-alt-view`): they absolutely position this span into the band the
+         label leaves and flex-centre the symbol in it. The handlebars renderers
+         (templates/user/board-alt/index.hbs, templates/board/index.hbs, templates/button.hbs,
+         components/button-stash.hbs) have always emitted the class; the two fast-HTML builders
+         did not, so on the classic board the symbol was placed by the inline style alone — an
+         inline-block wider than the button's content box on any dense grid, so it sat left of
+         centre, was clipped on the right by `.button { overflow: hidden }`, and was pushed down
+         by `margin-top` rather than centred in the band. Same element, same class, all three
+         paths. */
+      res = res + "<span class='img_holder' style='" + this.get('image_holder_style') + "'>";
       if(!appState.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
         var symbol_alt = clean_text(this.get('label') || '').replace(/"/g, '&quot;');
         res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" alt=\"" + symbol_alt + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
@@ -469,18 +479,19 @@ var Button = EmberObject.extend({
           text_style = "style='font-size: " + fit.size + "px;'";
           holder_style = "style='position: absolute;'";
         }
-      } else if(txt && this.get('positioning.width')) {
-        var pos = this.get('positioning');
-        var baseFontSize = pos.base_text_height || 18;
-        var estCharWidth = baseFontSize * 0.6;
-        var maxChars = Math.floor(pos.width / estCharWidth);
-        if(txt.length > maxChars && maxChars > 0) {
-          var scaledSize = Math.max(Math.floor(pos.width / (txt.length * 0.6)), 8);
-          if(scaledSize < baseFontSize) {
-            text_style = "style='font-size: " + scaledSize + "px;'";
-          }
-        }
       }
+      /* NO SHRINK-TO-FIT FOR LABELLED BUTTONS (removed 2026-09-15, requested). An `else if`
+         here estimated a character width and scaled the font down whenever a label looked
+         too long for its button, to a floor of 8px. A label is meant to KEEP ITS SIZE: on
+         an AAC board the same word should be the same size on every button, and type that
+         silently resizes per button makes the grid harder to read at a glance, not easier.
+         Long labels now stay at full size and clip at one line — see
+         `.button span.button-label` in app.scss, which sets `white-space: nowrap` and does
+         the clipping for BOTH render paths.
+
+         The TEXT-ONLY branch above is deliberately kept. Those buttons carry no symbol, so
+         the label is the whole tile rather than a caption under a picture, and it is fitted
+         to the tile by design. Removing it there would overflow text-only boards. */
       res = res + "<div class='" + button_class + "' " + holder_style + ">";
       res = res + "<span " + text_style + " class='" + (this.get('hide_label') ? "button-label hide-label" : "button-label") + "'>" + txt + "</span>";
       res = res + "</div>";

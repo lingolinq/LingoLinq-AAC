@@ -1345,14 +1345,22 @@
         </span>
       </div>
     </LinkTo>
+    {{!-- BETA BEFORE SETTINGS (requested 2026-09-15), and swapped in the DOM rather than
+         with flex `order` so the tab order keeps matching the visual order — these are
+         siblings in #identity's flex row, so source order IS the rendered order.
+
+         This also makes the two breakpoints agree: above 1200px the FULL beta pill (a few
+         elements up) already renders before the settings gear, while the circular β that
+         replaces it below 1200px used to render after it, so the pair visibly traded places
+         as the window crossed that threshold. --}}
+    <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
+      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
+    </a>
     <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     </LinkTo>
-    <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
-      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
-    </a>
     {{/if}}
     <span style="display: inline-block;" class="dropdown">
       {{#if this.app_state.currentUser}}

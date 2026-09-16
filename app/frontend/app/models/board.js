@@ -1776,7 +1776,10 @@ LingoLinq.Board = BaseModel.extend({
       res = res + "</span>";
       res = res + "</div>";
 
-      res = res + "<span style='" + opts.image_holder_style + "'>";
+      /* `img_holder` — see the note in utils/button.js#button_html. This is the speak-mode
+         renderer for the classic board; without the class the board-alt centring rules in
+         app.scss never matched it. */
+      res = res + "<span class='img_holder' style='" + opts.image_holder_style + "'>";
       var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
       var userForDisplay = (appState && appState.get('speak_mode')) ? appState.get('referenced_user') : appState.get('currentUser');
       if(appState && userForDisplay && !userForDisplay.get('hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {

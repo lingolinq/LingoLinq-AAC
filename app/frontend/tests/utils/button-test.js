@@ -795,6 +795,13 @@ context('Button', function() {
       expect(String(html).indexOf("<script>alert('asdf');</script>")).toEqual(-1);
       expect(String(html).indexOf("&lt;script&gt;alert('asdf');&lt;/script&gt;")).toNotEqual(-1);
     });
+
+    it('should mark the symbol holder with img_holder so the board-alt centering rules match', function() {
+      var b = Button.create();
+      b.set('positioning', {width: 70, height: 90, image_width: 60, image_height: 55, image_top_margin: 22});
+      var html = String(b.get('fast_html'));
+      expect(html).toMatch(/<span class='img_holder'/);
+    });
   });
 
   context('update_translations', function() {

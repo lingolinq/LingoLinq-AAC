@@ -5,8 +5,37 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <h3>{{t "Board Actions" key="board_actions"}}</h3>
+    {{!-- Up / Down pager for the list below, the same control the Speak Options menu
+         uses (components/speak-menu.hbs). This modal's body caps at 70vh and scrolls
+         (`.la-board-actions-wrap > .modal-body` in app.scss), and the action list runs
+         well past that, so the end of it was reachable only by a scroll gesture.
+
+         Behaviour copied deliberately, not re-invented: icon plus a VISIBLE Up/Down
+         label, and `disabled` at the ends of the range rather than removed — removing
+         one mid-scroll makes the other jump as the row reflows, which on a surface
+         someone is dwelling on moves the target out from under them. The pair renders
+         only when there is something to scroll, so there is no half state.
+
+         Styling comes from the speak-menu pager's own rule, which these selectors were
+         added to rather than copied, so the two pagers cannot drift apart. --}}
+    {{#if this.menu_scrollable}}
+      <div class="la-board-actions__scroll-pager">
+        <button type="button" class="la-board-actions__scroll-btn"
+                id="board_actions_scroll_up_button" disabled={{this.at_scroll_top}}
+                {{on "click" (this.ctrlAction "scroll_actions" "up")}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+          {{t "Up" key="up"}}
+        </button>
+        <button type="button" class="la-board-actions__scroll-btn"
+                id="board_actions_scroll_down_button" disabled={{this.at_scroll_bottom}}
+                {{on "click" (this.ctrlAction "scroll_actions" "down")}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          {{t "Down" key="down"}}
+        </button>
+      </div>
+    {{/if}}
   </div>
-  <div class="modal-body md-modal-body">
+  <div class="modal-body md-modal-body" id="board_actions_body">
     {{#unless this.model.board.permissions.edit}}
       <div class="la-board-actions-notice">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

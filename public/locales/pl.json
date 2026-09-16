@@ -9401,5 +9401,6 @@
   "classic_sub_record_voice": "*** Record voice",
   "classic_sub_get_help": "*** Get help",
   "badge_progress_for_badge": "*** Badge progress: %{badge_name}",
-  "no_matching_boards": "*** No boards match that filter."
+  "no_matching_boards": "*** No boards match that filter.",
+  "board_view_style_short": "*** Style"
 }

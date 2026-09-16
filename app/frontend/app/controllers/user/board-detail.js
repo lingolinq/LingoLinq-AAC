@@ -13,6 +13,7 @@ import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
 import paint_view_switch_overlay from '../../utils/view_switch_overlay';
+import { set_view_style } from '../../utils/view_style';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
@@ -7373,39 +7374,61 @@ export default Controller.extend(prefClasses, {
     // accentLight:true so the parenthesized clarifier in the title
     // renders at a lighter font-weight on this direction, per the
     // design ask.
+    /* GATED ON UNSAVED CHANGES. Switching view style navigates to `user.board-alt`, which
+       leaves the edit session — so without this it would be a THIRD way out of edit mode
+       that never asks, alongside `exit_to_home_from_edit` and `cancel_edit` which both
+       prompt via confirm-discard-changes. components/view-switcher.js#available documents
+       exactly this: it hides the navbar View switch during an edit session "so unsaved
+       button edits would go without a word". Re-adding a shortcut to this panel without
+       the same guard would have reopened that hole from inside edit mode, where the risk
+       is highest — a therapist may have spent a session laying the board out.
+
+       Same shape as the other two exits: no dialog on a clean session (a confirm that only
+       ever says "you will lose nothing" trains people to click through the one that
+       matters), confirm on a dirty one, and nothing happens unless they choose discard. */
     go_to_classic: function() {
-      var user = this.get('user');
-      var boardname = this.get('boardname');
-      var prefUser = this.get('app_state.currentUser');
-      if(prefUser) {
-        prefUser.set('preferences.board_view_style', 'classic');
-        if(prefUser.save) {
-          prefUser.set('preferences.device.updated', true);
-          prefUser.save();
+      var _this = this;
+      /* The navigation half, as a local so the guard below reads as a guard. Mirrors
+         components/board-actions.js#set_view_style, the same switch reached from the
+         Board Actions modal. */
+      var doSwitch = function() {
+        var user = _this.get('user');
+        var boardname = _this.get('boardname');
+        var prefUser = _this.get('app_state.currentUser');
+        /* Shared helper rather than an inline preference write: it guards the `preferences`
+           and `preferences.device` containers before setting the nested dirty bit, which
+           THROWS ("object in path could not be found") on a record that carries neither.
+           The inline version here did not, and it ran before the navigation, so the throw
+           would have taken the switch down with it. */
+        if(prefUser) { set_view_style(prefUser, 'classic'); }
+        if(!user || !boardname) { return; }
+        var userName = user.get('user_name');
+        var routerSvc = _this.get('router');
+        // Theme detection mirrors go_to_modern: prefer the user's explicit
+        // light signal, otherwise default dark so the mockup matches the
+        // destination's typical theme.
+        var appStateService = _this.get('app_state');
+        var isDark = true;
+        if (appStateService && typeof appStateService.get === 'function') {
+          var themeMode = appStateService.get('themeMode');
+          if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+            isDark = false;
+          }
         }
-      }
-      if(!user || !boardname) { return; }
-      var userName = user.get('user_name');
-      var routerSvc = this.get('router');
-      // Theme detection mirrors go_to_modern: prefer the user's explicit
-      // light signal, otherwise default dark so the mockup matches the
-      // destination's typical theme.
-      var appStateService = this.get('app_state');
-      var isDark = true;
-      if (appStateService && typeof appStateService.get === 'function') {
-        var themeMode = appStateService.get('themeMode');
-        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
-          isDark = false;
-        }
-      }
-      paint_view_switch_overlay({
-        routerSvc: routerSvc,
-        isDark: isDark,
-        accentLight: true,
-        transition: function() {
-          return routerSvc.transitionTo('user.board-alt', userName, boardname);
-        }
-      });
+        paint_view_switch_overlay({
+          routerSvc: routerSvc,
+          isDark: isDark,
+          accentLight: true,
+          transition: function() {
+            return routerSvc.transitionTo('user.board-alt', userName, boardname);
+          }
+        });
+      };
+
+      if(!this.edit_session_has_changes()) { doSwitch(); return; }
+      modal.open('confirm-discard-changes', {}).then(function(result) {
+        if(result === 'discard') { doSwitch(); }
+      }, function() { });
     },
 
     toggle_board_collapsed: function() {
