@@ -100,7 +100,8 @@ Choosing 2026-09-14 to avoid it would misstate the preparation date and is not r
   31 steps OK, 0 FAILED, exit 0, "All artifacts regenerated and every integrity check passed."
   Reported separately: citation-check printed 16 distinct [SKIP] lines (accepted-risk / superseded /
   attestation / runtime evidence not citation-validated). Write mode runs citation-check twice (gate
-  plus verify), so the log shows them twice; the set is identical to the untouched baseline. No warnings.
+  plus verify), so the log shows them twice; the set is identical to the untouched baseline. Its
+  summary line was PASS 198, FAIL 0, SKIP 16, warnings 18, the same as the baseline.
   The wrapper restored the Notion mirror's timestamp-only churn, so the final scratch diff is 3 files.
 - Scratch diff: 4 files, `DOCUMENT-REGISTER.json` (1 line), `DOCUMENT-REGISTER.md` (2 lines),
   `COMPLIANCE-PUBLICATION-STATUS.md`, and the Notion mirror timestamp line only.
