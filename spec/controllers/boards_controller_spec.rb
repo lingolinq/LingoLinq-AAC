@@ -53,6 +53,24 @@ describe BoardsController, :type => :controller do
       expect(html).not_to include('rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png')
     end
   end
+
+  # iPad Add-to-Home-Screen can finish application.js (js_loaded) and still
+  # never reach app-state setup_controller if capabilities.init hangs.
+  # Production must not define LingoLinqHideBootOverlay (that would hide on
+  # the first routeDidChange and flash signed-in index → home). The escape
+  # is a late, scoped remove for standalone/anonymous after js_loaded.
+  describe "homescreen boot overlay safety" do
+    render_views
+
+    it "should include a js_loaded standalone-or-anonymous overlay escape" do
+      get "index"
+      expect(response).to be_successful
+      expect(response.body).to include('load_state.js_loaded')
+      expect(response.body).to include('navigator.standalone')
+      expect(response.body).to include('is-anonymous')
+      expect(response.body).not_to include('window.LingoLinqHideBootOverlay =')
+    end
+  end
   
   describe "about" do
     it "should render" do
