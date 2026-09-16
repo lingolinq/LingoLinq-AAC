@@ -9951,8 +9951,11 @@ body.pretty_loader #loading_box {
 }
 #within_ember.board-alt-view #sidebar {
   background: $brand-charcoal-blue;
-  border-left-color: #6b737d;
-  border-bottom-color: #6b737d;
+  /* #6b737d measured 1.70:1 on this slate — below the 3:1 non-text floor, and these
+     borders are the only thing marking the boundary between #content and #sidebar,
+     which are the same fill. $brand-cool-steel is 3.21:1. */
+  border-left-color: $brand-cool-steel;
+  border-bottom-color: $brand-cool-steel;
   padding-top: 4px;
   padding-bottom: 8px;
 }
@@ -9973,8 +9976,59 @@ body.pretty_loader #loading_box {
 }
 #within_ember.board-alt-view #sidebar_tease {
   background: $brand-charcoal-blue;
-  border-color: #6b737d;
+  /* Same 1.70:1 -> 3.21:1 correction. This one is a live <button>
+     (components/sidebar-tease.hbs), so 1.4.11 applies to its boundary directly. */
+  border-color: $brand-cool-steel;
   color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   Board Alt: ink on the slate ground.
+
+   #content, #sidebar and .board are all $brand-charcoal-blue #46505F (L 0.0787).
+   The four surfaces below either set no colour of their own — inheriting
+   Bootstrap's body #333 (bootstrap.css:1084, loaded via vendor.css before
+   frontend.css) — or carry a colour authored for a light ground. All four are
+   normal weight, so the threshold is 4.5:1 for text and 3:1 for the borders
+   above. Note .board_status is 20px/400: NOT WCAG large text, which needs 24px
+   regular or 18.66px bold.
+
+   The only ink rule that existed for .board_status is nested in
+   #within_ember.color_black (line ~1293), so the black high-contrast mode was
+   the one case where this copy was readable.
+   --------------------------------------------------------------------------- */
+
+/* "Loading...", "this board isn't set up yet", "Grid not defined!".
+   Subject matches the base rule (.board .board_status) so this cannot reach the
+   .board-load-error panel in board.hbs, which replaces {{outlet}} and therefore
+   has no .board ancestor. 1.55:1 -> 8.16:1. */
+#within_ember.board-alt-view .board .board_status {
+  color: #fff;
+}
+
+/* 18px/400 fallback copy ("Word suggestions failed to load" / "Loading word
+   suggestions..."). Set on the container because the strings are bare text
+   nodes; the .suggestion chips inside carry their own fill and ink, so they are
+   unaffected. 1.55:1 -> 8.16:1. */
+#within_ember.board-alt-view #word_suggestions {
+  color: #fff;
+}
+
+/* Secondary copy — kept a step below the #fff above so the hierarchy survives.
+   #888 was authored for a light ground. 2.30:1 -> 6.88:1. */
+#within_ember.board-alt-view #board_description {
+  color: $bento-ink-light;
+}
+
+/* Integration error copy (templates/board/index.hbs:5 and :15). Bootstrap's
+   .text-danger #a94442 is 1.40:1 here — the worst ink on this page, on the
+   strings a user most needs to read. Anchored to #content, which excludes
+   <ModalContainer /> (a sibling of #content, not a descendant); descendant
+   rather than child because ButtonListener renders its own div wrapper.
+   Same hex as $ch-focused-error-ink (_focused-view.scss:3018), re-measured
+   here: its 5.08:1 was against the alert card, this ground gives 4.81:1. */
+#within_ember.board-alt-view #content p.text-danger {
+  color: #FFB4AB;
 }
 .noselect {
   -webkit-touch-callout: none; /* iOS Safari */
