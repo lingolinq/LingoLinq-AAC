@@ -76,6 +76,18 @@
         <input value={{this.model.image_url}} class="md-org-settings-input" id="org_image_url" placeholder="URL to (circular) image, ~50px" {{on "input" (set-field this "model.image_url")}} />
       </div>
     {{/if}}
+
+    <div class="md-org-settings-field">
+      <label class="md-org-settings-field__label">{{t "Clever district ID" key="clever_district_id"}}</label>
+      <input value={{this.model.clever_district_id}} class="md-org-settings-input" id="clever_district_id" placeholder={{t "Clever district ID" key="clever_district_id"}} aria-label={{t "Clever district ID" key="clever_district_id"}} {{on "input" (set-field this "model.clever_district_id")}} />
+      <span class="md-org-settings-field__hint">
+        {{t "Paste the district ID from the Clever dashboard. Roster login only works for orgs with this set." key="clever_district_id_hint"}}
+      </span>
+      <label class="md-org-settings-toggle">
+        <input type="checkbox" checked={{this.model.clever_sync_enabled}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.clever_sync_enabled" "checkbox")}} />
+        <span class="md-org-settings-toggle__label">{{t "Sync roster from Clever" key="clever_sync_enabled"}}</span>
+      </label>
+    </div>
   </section>
 
   {{!-- ═══════════ Admin Settings ═══════════ --}}
@@ -138,12 +150,6 @@
             </label>
           </div>
         {{/if}}
-        <label class="md-org-settings-field__label">{{t "Clever district ID" key="clever_district_id"}}</label>
-        <input value={{this.model.clever_district_id}} class="md-org-settings-input" placeholder={{t "Clever district ID" key="clever_district_id"}} aria-label={{t "Clever district ID" key="clever_district_id"}} {{on "input" (set-field this "model.clever_district_id")}} />
-        <label class="md-org-settings-toggle">
-          <input type="checkbox" checked={{this.model.clever_sync_enabled}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.clever_sync_enabled" "checkbox")}} />
-          <span class="md-org-settings-toggle__label">{{t "Sync roster from Clever" key="clever_sync_enabled"}}</span>
-        </label>
       </div>
     </section>
   {{/if}}

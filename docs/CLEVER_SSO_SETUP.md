@@ -61,10 +61,14 @@ After certification, production uses a separate Clever app and separate credenti
 
 ## Bind a sandbox district
 
-1. Create or open a LingoLinq organization.
-2. Organization settings → Authentication → paste the Clever district ID.
-3. Leave **Sync roster from Clever** on.
+Do this in **LingoLinq**, not the Clever dashboard. Copy the district ID from Clever first.
+
+1. Open the org at **Organizations → Settings** (Edit Organization Details). The site-admin org works; you do not need a child org.
+2. In the **General** card, paste the Clever district ID and leave **Sync roster from Clever** on.
+3. Click **Update Organization**.
 4. Raise `total_licenses` high enough for the sandbox (Certification ISD is large). Users still provision as pending/unsponsored if seats run out.
+
+The older **Authentication** SAML controls stay in the Administration card, which does not appear on the site-admin org. Clever bind is on General so `lingolinq_admin` can set it here.
 
 ## Login paths
 

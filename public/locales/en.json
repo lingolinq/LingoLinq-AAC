@@ -5678,6 +5678,7 @@
   "clever_auth_user_not_provisioned": "No LingoLinq account is ready for this Clever user yet. Ask your administrator to connect the district roster.",
   "clever_auth_org_sso_required": "Your organization requires a different sign-in method.",
   "clever_district_id": "Clever district ID",
+  "clever_district_id_hint": "Paste the district ID from the Clever dashboard. Roster login only works for orgs with this set.",
   "clever_sync_enabled": "Sync roster from Clever",
   "cant_login": "Can't Log In",
   "privacy_wont_work": "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements.",
