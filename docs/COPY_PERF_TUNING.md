@@ -50,15 +50,15 @@ resources:   1 vCPU, 2Gi
 ```
 
 The pool sets no `QUEUES` or `INTERVAL` of its own, so the entrypoint defaults apply
-(`bin/docker-worker-entrypoint:9-11`):
+(`bin/docker-worker-entrypoint:9-13`):
 
 ```
-QUEUES=priority,default,slow
+QUEUES=priority,default,slow,whenever
 INTERVAL=0.1
 TERM_CHILD=1
 ```
 
-One worker process sharing all three queues (`priority`, `default`, `slow`). When a 97-board copy
+One worker process sharing all four queues (`priority`, `default`, `slow`, `whenever`). When a 97-board copy
 queues roughly one `update_for` job per copied board onto `:slow`, the same worker that just ran
 the `BoardSetCopier` job drains them.
 
