@@ -119,3 +119,25 @@ Retitle LL-3e36a18199; COPPA verification record successor; review scheduling fo
 DOC-b7f15a728c; public operational detail and raw receipts decision; overdue quarterly
 audit/reviews (the two overdue rows above included); `lastReviewed` semantics; the 31 vs 34
 counsel-question note.
+
+## Execution (authorized by Scot 2026-09-15)
+
+Executed on 2026-09-15, so the preview date stands; no backdating. Branch rebased onto
+`origin/develop` at `7ac9c0357` first (three app commits since the preview, none touching
+`audit-reports/`, `docs/legal/`, or `scripts/`).
+
+- Edited exactly one field: `meta.generatedDate` `2026-07-23` -> `2026-09-15`.
+- `scripts/regenerate-register.sh` (write mode): 31 steps OK, 0 FAILED, exit 0.
+  citation-check: PASS 198, FAIL 0, SKIP 16, warnings 18, identical to the untouched baseline.
+- `scripts/regenerate-register.sh --check`: every check OK, 0 FAILED, exit 0 ("All checks passed"); the attestation harness restored `docs/legal/AI_GOVERNANCE_MEMO.md` and the tree shows no extra change.
+- Structural checks: `documents[]` byte-identical to develop (jq -S diff empty); `meta` identical
+  except `generatedDate`; `FINDINGS.json`, `compliance-calendar.json`, `CAPABILITY-LEDGER.json`
+  untouched; `docs/legal/**` has no changes.
+- Attested selector: 26 attested git rows selected, 26 with `attestedContentHash == contentHash`,
+  0 of their files differ from `origin/develop`.
+- Result: stale queue 58 -> 72, Drive refresh 27 -> 27, two rows surface as overdue by
+  `nextReviewDue`. Exactly the preview.
+
+The 14 newly flagged rows are an artifact of the existing cutoff heuristic (`lastReviewed`
+strictly before the register snapshot date). They are not evidence that a review failed or that
+a compliance violation occurred. Redesigning that heuristic is out of scope.
