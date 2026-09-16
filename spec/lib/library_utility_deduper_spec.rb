@@ -128,10 +128,20 @@ describe LibraryUtilityDeduper do
           database: 'lingolinq_production',
           host: '/cloudsql/lingolinq-prod:us-central1:lingolinq-prod-pg'
         )
-      }.to raise_error(/production/)
+      }.to raise_error(/ALLOW_PROD_APPLY/)
     end
 
-    it 'allows APPLY with confirm on nonprod' do
+    it 'allows APPLY on production with confirm and ALLOW_PROD_APPLY' do
+      expect {
+        described_class.assert_apply_allowed!(
+          {'APPLY' => '1', 'APPLY_CONFIRM' => '1', 'ALLOW_PROD_APPLY' => '1'},
+          database: 'lingolinq_production',
+          host: '/cloudsql/lingolinq-prod:us-central1:lingolinq-prod-pg'
+        )
+      }.not_to raise_error
+    end
+
+    it 'allows APPLY with confirm on nonprod without ALLOW_PROD_APPLY' do
       expect {
         described_class.assert_apply_allowed!(
           {'APPLY' => '1', 'APPLY_CONFIRM' => '1'},
@@ -219,6 +229,57 @@ describe LibraryUtilityDeduper do
 
       expect(result[:skipped_sidebar_clusters]).to eq(1)
       expect(result[:destroyed_keys]).to match_array([emoji_extra.key, keyboard_extra.key])
+    end
+
+    it 'retargets user sidebar keys that point at a destroyed extra, not the sidebar slug' do
+      owner = User.create
+      keyboard_keep = Board.process_new({
+        name: 'Keyboard',
+        public: true,
+        buttons: [{id: 1, label: 'a'}, {id: 2, label: 'b'}],
+        grid: {rows: 3, columns: 10, order: [[1, 2]]}
+      }, {user: owner, key: 'keyboard_12'})
+      keyboard_extra = Board.process_new({
+        name: 'Keyboard',
+        public: true,
+        buttons: [{id: 1, label: 'a'}, {id: 2, label: 'b'}],
+        grid: {rows: 3, columns: 10, order: [[1, 2]]}
+      }, {user: owner, key: 'keyboard_16'})
+      sidebar = Board.process_new({
+        name: 'Vocal Flair 84 - Keyboard',
+        public: true,
+        buttons: [{id: 1, label: 'q'}, {id: 2, label: 'w'}, {id: 3, label: 'e'}],
+        grid: {rows: 7, columns: 12, order: [[1, 2, 3]]}
+      }, {user: owner, key: 'keyboard'})
+      Board.process_new({
+        name: 'Vocal Flair 84 - Keyboard',
+        public: true,
+        buttons: [{id: 1, label: 'q'}, {id: 2, label: 'w'}, {id: 3, label: 'e'}],
+        grid: {rows: 7, columns: 12, order: [[1, 2, 3]]}
+      }, {user: owner, key: 'vocal-flair-84-keyboard'})
+
+      viewer = User.create
+      viewer.settings ||= {}
+      viewer.settings['preferences'] ||= {}
+      viewer.settings['preferences']['sidebar_boards'] = [
+        {'name' => 'Keyboard', 'key' => sidebar.key},
+        {'name' => 'QC Keyboard', 'key' => keyboard_extra.key, 'id' => keyboard_extra.global_id}
+      ]
+      viewer.save!
+
+      result = described_class.apply!(owner)
+      viewer.reload
+
+      keys = Array(viewer.settings.dig('preferences', 'sidebar_boards')).map { |e| e['key'] }
+      expect(keys).to include(sidebar.key)
+      expect(keys).to include(keyboard_keep.key)
+      expect(keys).not_to include(keyboard_extra.key)
+      qc_entry = Array(viewer.settings.dig('preferences', 'sidebar_boards')).detect { |e| e['key'] == keyboard_keep.key }
+      expect(qc_entry['id']).to eq(keyboard_keep.global_id)
+      expect(Board.find_by_path(keyboard_extra.key)).to eq(nil)
+      expect(result[:retargeted_user_refs]).to include(
+        hash_including(user_name: viewer.user_name, kind: 'sidebar', from_key: keyboard_extra.key, to_key: keyboard_keep.key)
+      )
     end
   end
 end
