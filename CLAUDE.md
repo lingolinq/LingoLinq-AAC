@@ -9,7 +9,7 @@ is kept under 200 lines. Everything else loads on demand:
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
-| `/fix-proposal` skill | before a bug fix or behaviour change in app code | fact sheet, red test first, proposal review, falsification |
+| `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
 
@@ -59,8 +59,9 @@ everything else in this file.
     discipline is the `/fix-proposal` skill. In one line each: where is the value READ;
     what are ALL the shapes it can hold; is each cross-file claim TRUE. Label every fact
     CONFIRMED (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is
-    obvious" is the signal to write the sheet, not to skip it. Docs, config, and tooling
-    changes get items 1 to 11 and 13, not the sheet.
+    obvious" is the signal to write the sheet, not to skip it. Only a change that cannot
+    alter runtime behaviour (docs, agent instructions, comments) skips the sheet; config,
+    entrypoints, workflows and migrations count as application code.
 13. **One coherent change per unit, and stop when the error rate rises.** Two
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,

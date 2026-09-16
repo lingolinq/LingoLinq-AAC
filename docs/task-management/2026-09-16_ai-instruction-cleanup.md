@@ -1,7 +1,7 @@
 # AI instruction cleanup: entry points for Claude, Codex and Copilot
 
 **Started:** 2026-09-16
-**Status:** in review (branch `scot/chore/ai-instruction-cleanup`, PR to `develop`)
+**Status:** in review (PR #988 to `develop`, branch `scot/chore/ai-instruction-cleanup`)
 **Scope:** the repo-owned instruction entry points only (`CLAUDE.md`, `AGENTS.md`,
 `.github/copilot-instructions.md`, `app/frontend/CLAUDE.md`, `.claude/rules/*.md`,
 `.claude/settings.json`). Shared instruction sources, the installed global copies, the
@@ -41,7 +41,8 @@ approval steps written for older models.
    styling" and the skill's own description scopes it to "any bug fix or behaviour change".
    A docs or config change had no sensible way to satisfy "write the red test first".
    FIXED: item 12 and the table row now say bug fix or behaviour change in application
-   code; docs, config and tooling changes get items 1 to 11 and 13.
+   code; only a change that cannot alter runtime behaviour skips the sheet (adversary
+   review moved the exemption from file class to runtime effect).
 3. **Rule #0 item 8 required reading the whole curated `LEARNINGS.md` (294 lines) before
    any researched task.** FIXED: grep both files for the surface's keywords and read the
    matching entries, which is what the archive README already describes.
@@ -81,6 +82,8 @@ globally, and were not touched.
 
 - `git diff --check` clean; no em dashes in touched files.
 - Path-rule globs resolve to tracked files (`git ls-files` per glob, see PR body).
-- Codex byte budget: `~/.codex/AGENTS.md` plus `AGENTS.md` stay under `project_doc_max_bytes`.
+- Codex byte budget on 2026-09-16: `~/.codex/AGENTS.md` 48151 B plus `AGENTS.md` 3609 B against
+  `project_doc_max_bytes` 65536, so 13776 B of headroom. Codex drops whole files at the cap,
+  and the global file is brain-owned, so this is a measurement, not a guarantee.
 - `CLAUDE.md` 195 lines (cap 200).
 - Codex review of the diff (Tier 2: docs only, no data-bearing paths).
