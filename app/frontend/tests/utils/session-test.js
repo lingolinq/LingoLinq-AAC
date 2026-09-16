@@ -637,7 +637,10 @@ describe('session', function() {
       session.check_token();
       waitsFor(function() { return called; });
       runs(function() {
-        expect(persistenceTarget().tokens['none']).toEqual(true);
+        // Offline reject must not mark the token confirmed (that used to skip
+        // restore's later check_token(true) after a racing check_token(false)).
+        // It also must not clear the cache — the online error path does that.
+        expect(persistenceTarget().tokens['none']).toEqual('asdf');
       });
     });
 
@@ -755,6 +758,67 @@ describe('session', function() {
       runs(function() {
         expect(invalidated).toEqual(false);
       });
+    });
+
+    it('stale-token: should not mark the token confirmed when the server rejects it', function() {
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') {
+          return {access_token: 'stale_token'};
+        }
+      });
+      persistenceTarget().tokens = {};
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        return RSVP.resolve({authenticated: false});
+      });
+      session.check_token();
+      waitsFor(function() { return session.get('invalid_token'); });
+      runs(function() {
+        expect(persistenceTarget().tokens['stale_token']).not.toEqual(true);
+      });
+    });
+  });
+
+  describe('is_logout_worthy_auth_error', function() {
+    it('stale-token: should treat refreshable and expired token payloads as logout-worthy', function() {
+      expect(session.is_logout_worthy_auth_error({status: 400, error: 'Token needs refresh'})).toEqual(true);
+      expect(session.is_logout_worthy_auth_error({status: 400, error: 'Expired token'})).toEqual(true);
+      expect(session.is_logout_worthy_auth_error({result: {invalid_token: true, error: 'Token needs refresh'}})).toEqual(true);
+      expect(session.is_logout_worthy_auth_error({invalid_token: true})).toEqual(true);
+      expect(session.is_logout_worthy_auth_error({status: 400, error: 'Not authorized'})).toEqual(true);
+      expect(session.is_logout_worthy_auth_error({status: 400, error: 'Invalid token'})).toEqual(true);
+    });
+
+    it('stale-token: should not treat timeouts or blank errors as logout-worthy', function() {
+      expect(session.is_logout_worthy_auth_error({error: 'timeout'})).toEqual(false);
+      expect(session.is_logout_worthy_auth_error({status: 0})).toEqual(false);
+      expect(session.is_logout_worthy_auth_error({status: 500, error: 'boom'})).toEqual(false);
+      expect(session.is_logout_worthy_auth_error(null)).toEqual(false);
+    });
+  });
+
+  describe('force_logout', function() {
+    it('stale-token: should tear down a dead session even when the force-logout modal can open', function() {
+      modal.route = {};
+      var opened = null;
+      stub(modal, 'open', function(template, opts) {
+        opened = {template: template, opts: opts};
+      });
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() {
+        invalidated = true;
+      });
+      stub(sessionTarget(), 'persist', function() {
+        return RSVP.resolve();
+      });
+      session.set('isAuthenticated', true);
+      session.set('access_token', 'dead-token');
+      session.set('token_validated', true);
+      session.force_logout('session expired');
+      expect(opened && opened.template).toEqual('force-logout');
+      expect(session.get('access_token')).toEqual(null);
+      expect(session.get('isAuthenticated')).toEqual(false);
+      expect(session.get('invalid_token')).toEqual(true);
+      expect(invalidated).toEqual(false);
     });
   });
 });
