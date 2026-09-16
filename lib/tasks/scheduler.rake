@@ -228,6 +228,11 @@ task "scheduler:dispatch" => :environment do
       "#{count} EU AI logs purged (5-year retention)"
     end
 
+    run_task.call("sync_clever_rosters") do
+      count = Organization.sync_all_clever_rosters
+      "#{count} clever orgs scheduled"
+    end
+
     run_task.call("expire_stale_supervisor_consent_requests") do
       count = SupervisorConsentExpirationWorker.perform
       "#{count} expired"

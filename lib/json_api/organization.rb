@@ -43,6 +43,8 @@ module JsonApi::Organization
       end
       json['saml_metadata_url'] = org.settings['saml_metadata_url']
       json['saml_sso_url'] = org.settings['saml_sso_url']
+      json['clever_district_id'] = org.settings['clever_district_id']
+      json['clever_sync_enabled'] = org.settings['clever_sync_enabled'] != false && org.settings['clever_district_id'].present?
 
       if org.admin
         json['sale_cutoff_date'] = Setting.get('sale_cutoff_date')

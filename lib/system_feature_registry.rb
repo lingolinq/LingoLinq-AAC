@@ -50,6 +50,7 @@ module SystemFeatureRegistry
     'tarheel_reader' => { name: 'Tar Heel Reader', category: 'Integrations', description: 'Tar Heel Reader integration' },
     'auth_spa_transition' => { name: 'Auth SPA transition', category: 'Account', description: 'SPA auth transition flow' },
     'google_sso' => { name: 'Google SSO', category: 'Account', description: 'Google single sign-on' },
+    'clever_sso' => { name: 'Clever SSO', category: 'Account', description: 'Clever district single sign-on and rostering' },
     'quick_screen_eval' => { name: 'Quick screen eval', category: 'Evaluations', description: 'Quick screen evaluation' },
     'comprehensive_eval_ai' => { name: 'Comprehensive eval AI', category: 'AI', description: 'AI comprehensive evaluation', ai_feature: true },
     'multi_user_board_import' => { name: 'Multi-user board import', category: 'Boards', description: 'Import boards for multiple users' },

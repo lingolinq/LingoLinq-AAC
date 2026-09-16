@@ -361,10 +361,12 @@
           </div>
         </div>
       </form>
-      {{#if this.googleSsoEnabled}}
+      {{#if this.ssoDividerEnabled}}
         <div class="login-google-divider">
           <span>{{t "or" key="google_or_divider"}}</span>
         </div>
+      {{/if}}
+      {{#if this.googleSsoEnabled}}
         <div class="form-group">
           {{!-- Sign-in-with-Google button per Google's official Identity
                Branding Guidelines (https://developers.google.com/identity/branding-guidelines):
@@ -385,6 +387,25 @@
                 {{t "Redirecting..." key="redirecting_upper"}}
               {{else}}
                 {{t "Continue with Google" key="continue_with_google"}}
+              {{/if}}
+            </span>
+          </button>
+        </div>
+      {{/if}}
+      {{#if this.cleverSsoEnabled}}
+        <div class="form-group">
+          <button type="button" {{on "click" this.onContinueWithClever}} class="login-btn login-btn--clever" disabled={{this.noSecret}}>
+            <span class="login-btn--google__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <rect width="24" height="24" rx="4" fill="#4274F6"/>
+                <path d="M7 7.5h3.2c2.3 0 3.8 1.3 3.8 3.3 0 1.3-.7 2.3-1.8 2.8L14.8 17h-2.2l-2.3-3.1H9.2V17H7V7.5zm2.2 5h1c1.2 0 1.9-.6 1.9-1.5S12.4 9.5 11.2 9.5h-1v3z" fill="#fff"/>
+              </svg>
+            </span>
+            <span class="login-btn--google__label">
+              {{#if this.redirecting}}
+                {{t "Redirecting..." key="redirecting_upper"}}
+              {{else}}
+                {{t "Log in with Clever" key="log_in_with_clever"}}
               {{/if}}
             </span>
           </button>

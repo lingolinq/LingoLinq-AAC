@@ -138,6 +138,12 @@
             </label>
           </div>
         {{/if}}
+        <label class="md-org-settings-field__label">{{t "Clever district ID" key="clever_district_id"}}</label>
+        <input value={{this.model.clever_district_id}} class="md-org-settings-input" placeholder={{t "Clever district ID" key="clever_district_id"}} aria-label={{t "Clever district ID" key="clever_district_id"}} {{on "input" (set-field this "model.clever_district_id")}} />
+        <label class="md-org-settings-toggle">
+          <input type="checkbox" checked={{this.model.clever_sync_enabled}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.clever_sync_enabled" "checkbox")}} />
+          <span class="md-org-settings-toggle__label">{{t "Sync roster from Clever" key="clever_sync_enabled"}}</span>
+        </label>
       </div>
     </section>
   {{/if}}

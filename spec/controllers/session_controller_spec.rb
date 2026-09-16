@@ -2827,4 +2827,165 @@ describe SessionController, :type => :controller do
     end
   end
 
+  describe "clever auth" do
+    let(:clever_profile) do
+      {
+        id: 'clever-user-1',
+        district_id: 'dist-1',
+        email: 'clever@example.com',
+        name: 'Clever User',
+        first_name: 'Clever',
+        last_name: 'User',
+        roles: ['teacher'],
+        schools: []
+      }
+    end
+
+    before do
+      allow(CleverOAuth).to receive(:enabled?).and_return(true)
+      allow(CleverOAuth).to receive(:client_id).and_return('clever-id')
+      allow(CleverOAuth).to receive(:client_secret).and_return('clever-secret')
+    end
+
+    it "stores return origin and redirects to Clever on start" do
+      expect(CleverOAuth).to receive(:store_state) do |_code, config|
+        expect(config['return_origin']).to eq('http://localhost:8184')
+        expect(config['flow']).to eq('login')
+      end
+      expect(CleverOAuth).to receive(:authorization_url).and_return('https://clever.com/oauth/authorize?state=abc')
+      get :clever_start, params: { flow: 'login', device_id: 'my-device', return_origin: 'http://localhost:8184' }
+      expect(response).to redirect_to('https://clever.com/oauth/authorize?state=abc')
+    end
+
+    it "finishes login from a Portal callback without state" do
+      org = Organization.create
+      org.settings['clever_district_id'] = 'dist-1'
+      org.save
+      linked = User.process_new({
+        'user_name' => 'linked_clever_user',
+        'name' => 'Clever User',
+        'email' => 'clever@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_clever!(clever_profile[:id], email: clever_profile[:email], name: clever_profile[:name], org_id: org.global_id, district_id: 'dist-1')
+      allow(CleverOAuth).to receive(:fetch_state).and_return(nil)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      get :clever_callback, params: { code: 'xyz' }
+      expect(response.location).to match(%r{/login\?auth-})
+    end
+
+    it "finishes login when a LIWC callback includes state" do
+      org = Organization.create
+      org.settings['clever_district_id'] = 'dist-1'
+      org.save
+      linked = User.process_new({
+        'user_name' => 'linked_clever_liwc',
+        'name' => 'Clever User',
+        'email' => 'clever@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_clever!(clever_profile[:id], org_id: org.global_id, district_id: 'dist-1')
+      allow(CleverOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184'
+      })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{http://localhost:8184/login\?auth-})
+    end
+
+    it "shows a friendly error when token exchange fails" do
+      allow(CleverOAuth).to receive(:fetch_state).and_return({ 'return_origin' => 'http://localhost:8184' })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_raise(CleverOAuth::Error, 'token_exchange_failed')
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to include('clever_error=auth_failed')
+    end
+
+    it "shows unknown_district when the district is not bound" do
+      allow(CleverOAuth).to receive(:fetch_state).and_return({ 'return_origin' => 'http://localhost:8184' })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to include('clever_error=unknown_district')
+    end
+
+    it "matches an in-org user by email when no Clever ID link exists" do
+      org = Organization.create
+      org.settings['clever_district_id'] = 'dist-1'
+      org.save
+      existing = User.process_new({
+        'user_name' => 'email_clever_user',
+        'name' => 'Clever User',
+        'email' => 'clever@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      org.add_user(existing.user_name, false, false)
+      allow(CleverOAuth).to receive(:fetch_state).and_return({ 'return_origin' => 'http://localhost:8184' })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{/login\?auth-})
+      expect(existing.reload.clever_linked?).to eq(true)
+    end
+
+    it "shows user_not_provisioned when the user is unknown and roster sync is off" do
+      org = Organization.create
+      org.settings['clever_district_id'] = 'dist-1'
+      org.settings['clever_sync_enabled'] = false
+      org.save
+      allow(CleverOAuth).to receive(:fetch_state).and_return({ 'return_origin' => 'http://localhost:8184' })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to include('clever_error=user_not_provisioned')
+    end
+
+    it "shows user_not_provisioned when roster lookup fails for an unknown user" do
+      org = Organization.create
+      org.settings['clever_district_id'] = 'dist-1'
+      org.settings['clever_sync_enabled'] = true
+      org.save
+      allow(CleverOAuth).to receive(:fetch_state).and_return({ 'return_origin' => 'http://localhost:8184' })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      allow(CleverRosterSync).to receive(:sync_user_on_login!).and_raise(CleverApi::Error, 'not_configured')
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to include('clever_error=user_not_provisioned')
+    end
+
+    it "does not persist the Clever access token on the user" do
+      org = Organization.create
+      org.settings['clever_district_id'] = 'dist-1'
+      org.save
+      linked = User.process_new({
+        'user_name' => 'no_store_clever',
+        'name' => 'Clever User',
+        'email' => 'clever@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_clever!(clever_profile[:id], org_id: org.global_id, district_id: 'dist-1')
+      allow(CleverOAuth).to receive(:fetch_state).and_return({ 'return_origin' => 'http://localhost:8184' })
+      allow(CleverOAuth).to receive(:clear_state)
+      allow(CleverOAuth).to receive(:exchange_code).and_return('token-abc')
+      allow(CleverOAuth).to receive(:identify_user).and_return(clever_profile)
+      get :clever_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{/login\?auth-})
+      expect(linked.reload.settings['clever_access_token']).to be_blank
+      expect(linked.settings['access_token']).to be_blank
+    end
+  end
+
 end

@@ -17,7 +17,7 @@ export default Controller.extend({
     _this.set('status', null);
     // Clear edit cache so the textarea re-seeds from model.home_board_keys.
     _this.set('_home_board_key_lines', undefined);
-    if(_this.get('model.saml_metadata_url')) {
+    if(_this.get('model.saml_metadata_url') || _this.get('model.clever_district_id')) {
       _this.set('external_auth', true);
     }
     _this.set('allow_support_target', !!_this.get('model.support_target'));

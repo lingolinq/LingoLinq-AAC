@@ -13,6 +13,7 @@ class User < ApplicationRecord
   include BoardCaching
   include Renaming
   include GoogleAuthentication
+  include CleverAuthentication
   has_many :log_sessions
   has_many :boards
   has_many :devices

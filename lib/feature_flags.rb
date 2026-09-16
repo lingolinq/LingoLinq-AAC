@@ -113,7 +113,13 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent']
+              'sms_recipient_consent',
+              # Clever District SSO + Secure Sync. AVAILABLE-only so the login
+              # button stays off globally until an org opts in via system/user
+              # flags. Portal Instant Login still hits /auth/clever/callback
+              # whenever CLEVER_CLIENT_ID/SECRET are set. Do not add this to
+              # ENABLED_FRONTEND_FEATURES until a staged rollout.
+              'clever_sso']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -168,7 +174,8 @@ module FeatureFlags
     'comprehensive_eval_ai' => 'May 12, 2026',
     'multi_user_board_import' => 'May 15, 2026',
     'compliance_workflow_kernel' => 'Jul 23, 2026',
-    'text_symbol_fallback' => 'Jul 28, 2026'
+    'text_symbol_fallback' => 'Jul 28, 2026',
+    'clever_sso' => 'Sep 15, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze

@@ -1005,6 +1005,80 @@ class SessionController < ApplicationController
     finish_google_link_json(user, config)
   end
 
+  def clever_start
+    unless clever_sso_available?
+      return render inline: 'Clever sign-in is not available', status: :not_found
+    end
+    code = GoSecure.nonce('clever_oauth_state')
+    config = {
+      'flow' => 'login',
+      'device_id' => params['device_id'] || request.headers['X-Device-Id'] || 'default',
+      'popout_id' => params['popout_id'],
+      'app' => ActiveModel::Type::Boolean.new.cast(params['app'] || false)
+    }
+    return_origin = params['return_origin'].to_s.strip
+    origin = GoogleOAuth.frontend_origin(request, return_origin.present? ? { 'return_origin' => return_origin } : nil)
+    config['return_origin'] = origin if origin.present?
+    district_id = params['district_id'].to_s.strip
+    config['district_id'] = district_id if district_id.present?
+    CleverOAuth.store_state(code, config)
+    redirect_to CleverOAuth.authorization_url(request, code, config), allow_other_host: true
+  end
+
+  def clever_callback
+    unless clever_sso_available?
+      return redirect_to clever_frontend_redirect('/login', nil), allow_other_host: true
+    end
+    if params['error'].present?
+      return redirect_to clever_auth_error_redirect('access_denied', nil), allow_other_host: true
+    end
+    config = CleverOAuth.fetch_state(params['state'])
+    config = clever_portal_config if config.blank?
+    CleverOAuth.clear_state(params['state']) if params['state'].present?
+    begin
+      access_token = CleverOAuth.exchange_code(request, params['code'], config)
+      profile = CleverOAuth.identify_user(access_token)
+    rescue CleverOAuth::Error
+      return redirect_to clever_auth_error_redirect('auth_failed', config), allow_other_host: true
+    end
+    unless profile && profile[:id].present? && profile[:district_id].present?
+      return redirect_to clever_auth_error_redirect('auth_failed', config), allow_other_host: true
+    end
+
+    org = Organization.find_by_clever_district_id(profile[:district_id])
+    unless org
+      return redirect_to clever_auth_error_redirect('unknown_district', config), allow_other_host: true
+    end
+
+    user = User.find_by_clever_id(profile[:id])
+    if user.nil? && profile[:email].present?
+      matches = User.clever_users_matching_email_in_org(profile[:email], org)
+      user = matches.first if matches.length == 1
+    end
+    if user.nil? && org.clever_sync_enabled?
+      begin
+        user = CleverRosterSync.sync_user_on_login!(org, profile[:id])
+      rescue CleverApi::Error, CleverRosterSync::Error, CleverOAuth::Error
+        user = nil
+      end
+    end
+    unless user
+      return redirect_to clever_auth_error_redirect('user_not_provisioned', config), allow_other_host: true
+    end
+    user.link_clever!(profile[:id], {
+      email: profile[:email],
+      name: profile[:name],
+      org_id: org.global_id,
+      district_id: profile[:district_id],
+      roles: profile[:roles],
+      schools: profile[:schools]
+    })
+    if org.clever_sync_enabled?
+      org.schedule_for(:slow, :sync_clever_user, profile[:id])
+    end
+    clever_finish_login(user, config)
+  end
+
   def status
     # Security: only expose internal diagnostics to authenticated API users.
     # Unauthenticated callers get a minimal response (use /api/v1/health for orchestrators).
@@ -1035,6 +1109,60 @@ class SessionController < ApplicationController
   protected
   def google_sso_available?
     GoogleOAuth.enabled?
+  end
+
+  def clever_sso_available?
+    CleverOAuth.enabled?
+  end
+
+  def clever_portal_config
+    origin = GoogleOAuth.frontend_origin(request, nil)
+    config = {
+      'flow' => 'login',
+      'device_id' => params['device_id'] || request.headers['X-Device-Id'] || 'default'
+    }
+    config['return_origin'] = origin if origin.present?
+    config
+  end
+
+  def clever_auth_error_redirect(error_code, config = nil)
+    clever_frontend_redirect("/login?clever_error=#{CGI.escape(error_code.to_s)}", config)
+  end
+
+  def clever_frontend_redirect(path, config = nil)
+    GoogleOAuth.frontend_redirect_url(request, config, path)
+  end
+
+  def clever_finish_login(user, config)
+    if user.coppa_parental_consent_revoked?
+      return redirect_to clever_frontend_redirect('/login?coppa_revoked=1', config), allow_other_host: true
+    end
+    if user.coppa_parental_consent_declined?
+      return redirect_to clever_frontend_redirect('/login?coppa_declined=1', config), allow_other_host: true
+    end
+    if user.coppa_needs_parent_email?
+      return redirect_to clever_frontend_redirect('/login?coppa_parent_email=1', config), allow_other_host: true
+    end
+    if user.coppa_parental_consent_pending?
+      return redirect_to clever_frontend_redirect('/register?coppa_waiting=1', config), allow_other_host: true
+    end
+    if user.clever_sso_blocked?
+      return redirect_to clever_auth_error_redirect('org_sso_required', config), allow_other_host: true
+    end
+    clever_replace_other_sessions!(user)
+    data = google_login_response(user, config)
+    if data[:popout_id]
+      return redirect_to clever_frontend_redirect("/login?google_popout=#{data[:popout_id]}", config), allow_other_host: true
+    end
+    redirect_to clever_frontend_redirect(data[:redirect], config), allow_other_host: true
+  end
+
+  def clever_replace_other_sessions!(user)
+    Device.where(user_id: user.id, developer_key_id: 0).find_each do |device|
+      device.logout!
+    end
+  rescue StandardError
+    nil
   end
 
   def sanitize_google_signup_name(name)

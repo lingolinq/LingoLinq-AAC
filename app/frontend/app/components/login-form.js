@@ -38,6 +38,7 @@ export default Component.extend({
     var params = new URLSearchParams(window.location.search || '');
     var googleLink = params.get('google_link');
     var googleError = params.get('google_error');
+    var cleverError = params.get('clever_error');
     var googlePopout = params.get('google_popout');
     var coppaRevoked = params.get('coppa_revoked');
     var coppaDeclined = params.get('coppa_declined');
@@ -50,6 +51,10 @@ export default Component.extend({
     if(googleError && !this.get('google_error')) {
       this.set('google_error', googleError);
       this.set('login_error', this.googleAuthErrorMessage(googleError));
+    }
+    if(cleverError && !this.get('clever_error')) {
+      this.set('clever_error', cleverError);
+      this.set('login_error', this.cleverAuthErrorMessage(cleverError));
     }
     if(googlePopout && !this.get('google_popout_id')) {
       this.set('google_popout_id', googlePopout);
@@ -118,6 +123,9 @@ export default Component.extend({
     this.ensureGoogleLinkLoaded();
     if(this.get('google_error') && !this.get('login_error')) {
       this.set('login_error', this.googleAuthErrorMessage(this.get('google_error')));
+    }
+    if(this.get('clever_error') && !this.get('login_error')) {
+      this.set('login_error', this.cleverAuthErrorMessage(this.get('clever_error')));
     }
     if(this.get('google_popout_id')) {
       var popoutId = this.get('google_popout_id');
@@ -210,6 +218,17 @@ export default Component.extend({
       }
     });
   },
+  cleverAuthErrorMessage: function(code) {
+    var map = {
+      access_denied: ['clever_auth_access_denied', "Clever sign-in was cancelled."],
+      auth_failed: ['clever_auth_failed', "Clever sign-in failed. Please try again."],
+      unknown_district: ['clever_auth_unknown_district', "This Clever district is not connected to LingoLinq yet."],
+      user_not_provisioned: ['clever_auth_user_not_provisioned', "No LingoLinq account is ready for this Clever user yet. Ask your administrator to connect the district roster."],
+      org_sso_required: ['clever_auth_org_sso_required', "Your organization requires a different sign-in method."]
+    };
+    var entry = map[code] || map.auth_failed;
+    return i18n.t(entry[0], entry[1]);
+  },
   googleAuthErrorMessage: function(code) {
     var map = {
       access_denied: ['google_auth_access_denied', "Google sign-in was cancelled."],
@@ -257,6 +276,15 @@ export default Component.extend({
   },
   googleLoginStartUrl: function(flow) {
     var url = '/auth/google/start?flow=' + encodeURIComponent(flow || 'login');
+    url = url + '&device_id=' + encodeURIComponent(capabilities.device_id());
+    url = url + '&return_origin=' + encodeURIComponent(window.location.origin);
+    if(capabilities.installed_app) {
+      url = url + '&app=true&popout_id=' + encodeURIComponent((new Date()).getTime() + 'T' + Math.round(Math.random() * 999999));
+    }
+    return url;
+  },
+  cleverLoginStartUrl: function() {
+    var url = '/auth/clever/start?flow=' + encodeURIComponent('login');
     url = url + '&device_id=' + encodeURIComponent(capabilities.device_id());
     url = url + '&return_origin=' + encodeURIComponent(window.location.origin);
     if(capabilities.installed_app) {
@@ -409,6 +437,13 @@ export default Component.extend({
   }),
   googleSsoEnabled: computed('app_state.feature_flags.google_sso', function() {
     return !!this.get('app_state.feature_flags.google_sso');
+  }),
+  cleverSsoEnabled: computed('app_state.feature_flags.clever_sso', function() {
+    if(this.get('app_state.feature_flags.clever_sso')) { return true; }
+    return !!(typeof window !== 'undefined' && window.clever_sso_available);
+  }),
+  ssoDividerEnabled: computed('googleSsoEnabled', 'cleverSsoEnabled', function() {
+    return !!(this.get('googleSsoEnabled') || this.get('cleverSsoEnabled'));
   }),
   showGoogleLinkStep: computed('google_link_nonce', 'google_link_state', function() {
     return !!this.get('google_link_nonce');
@@ -725,6 +760,7 @@ export default Component.extend({
     this.onSubmitParentConsentEmail = () => { send('submitParentConsentEmail'); };
     this.onLogout = () => { send('logout'); };
     this.onContinueWithGoogle = (event) => { send('continue_with_google', event); };
+    this.onContinueWithClever = (event) => { send('continue_with_clever', event); };
   },
 
   actions: {
@@ -1067,6 +1103,19 @@ export default Component.extend({
         event.preventDefault();
       }
       this.redirect_login(this.googleLoginStartUrl('login'));
+      return false;
+    },
+    continue_with_clever: function(event) {
+      if(this.get('noSecret')) {
+        if(event && event.preventDefault) {
+          event.preventDefault();
+        }
+        return false;
+      }
+      if(event && event.preventDefault) {
+        event.preventDefault();
+      }
+      this.redirect_login(this.cleverLoginStartUrl());
       return false;
     },
     confirm_google_link: function() {

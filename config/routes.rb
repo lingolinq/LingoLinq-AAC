@@ -72,6 +72,8 @@ LingoLinq::Application.routes.draw do
   get 'auth/google/start' => 'session#google_start'
   post 'auth/google/start' => 'session#google_start'
   get 'auth/google/callback' => 'session#google_callback'
+  get 'auth/clever/start' => 'session#clever_start'
+  get 'auth/clever/callback' => 'session#clever_callback'
   get 'auth/google/link' => 'session#google_link_candidates'
   post 'auth/google/link' => 'session#google_link_complete'
   get 'auth/google/signup' => 'session#google_signup_candidates'

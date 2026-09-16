@@ -179,6 +179,13 @@ describe FeatureFlags do
     end
   end
 
+  describe "clever_sso" do
+    it "is registered as available but OFF by default" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('clever_sso')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('clever_sso')
+    end
+  end
+
   describe "boards_layout preference" do
     # The Boards-page arrangement is persisted per USER so the choice follows them to a
     # new login. Two things have to hold for that: the key must be in the preference

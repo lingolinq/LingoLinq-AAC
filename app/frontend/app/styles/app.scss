@@ -45520,7 +45520,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      --google exclusion this rule has higher specificity than the
      scoped .login-btn.login-btn--google override below and was
      leaking the dark navy fill into Google's branded button. */
-  .login-btn:not(.login-btn--outline):not(.login-btn--google) {
+  .login-btn:not(.login-btn--outline):not(.login-btn--google):not(.login-btn--clever) {
     background: rgba($brand-charcoal-dark, 1);
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: rgba(255, 255, 255, 0.95);
@@ -45594,7 +45594,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      Overrides the page-default .login-btn pill chrome so the
      Google button reads as a recognizable platform-standard control
      rather than a custom-styled CTA. */
-  &.login-btn--google {
+  &.login-btn--google,
+  &.login-btn--clever {
     display: inline-flex;
     align-items: center;
     justify-content: center;

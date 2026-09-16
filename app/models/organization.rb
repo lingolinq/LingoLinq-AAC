@@ -748,6 +748,34 @@ class Organization < ApplicationRecord
     self.attached_users('subscription')
   end
 
+  def clever_sync_enabled?
+    district_id = (self.settings || {})['clever_district_id'].to_s.strip
+    return false if district_id.blank?
+    self.settings['clever_sync_enabled'] != false
+  end
+
+  def sync_clever_roster
+    CleverRosterSync.sync_organization!(self)
+  end
+
+  def sync_clever_user(clever_id)
+    CleverRosterSync.sync_user_on_login!(self, clever_id)
+  end
+
+  def self.find_by_clever_district_id(district_id)
+    return nil if district_id.to_s.strip.blank?
+    wanted = district_id.to_s.strip
+    Organization.find_each do |org|
+      stored = org.settings && org.settings['clever_district_id'].to_s.strip
+      return org if stored == wanted
+    end
+    nil
+  end
+
+  def self.sync_all_clever_rosters
+    CleverRosterSync.sync_all!
+  end
+
   def self.find_by_saml_issuer(eid)
     return nil unless eid
     key = GoSecure.sha512(eid, 'external_auth_key')
@@ -1726,6 +1754,17 @@ class Organization < ApplicationRecord
     self.settings['saml_metadata_url'] = params['saml_metadata_url'] if params['saml_metadata_url'] != nil
     self.settings['saml_sso_url'] = params['saml_sso_url'] if params['saml_sso_url'] != nil
     self.settings['saml_enforced'] = params['saml_enforced'] if params['saml_enforced'] != nil
+    if params['clever_district_id'] != nil
+      district_id = params['clever_district_id'].to_s.strip
+      if district_id.blank?
+        self.settings.delete('clever_district_id')
+      else
+        self.settings['clever_district_id'] = district_id
+      end
+    end
+    if params['clever_sync_enabled'] != nil
+      self.settings['clever_sync_enabled'] = ActiveModel::Type::Boolean.new.cast(params['clever_sync_enabled'])
+    end
 
     if params[:host_settings]
       self.settings['host_settings'] ||= {}

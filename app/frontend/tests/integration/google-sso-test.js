@@ -27,6 +27,31 @@ describe('login-form google SSO', function() {
     expect(component.get('googleSsoEnabled')).toEqual(false);
   });
 
+  it('enables clever button when the feature flag is on', function() {
+    component.set('app_state', EmberObject.create({
+      feature_flags: { clever_sso: true }
+    }));
+    expect(component.get('cleverSsoEnabled')).toEqual(true);
+  });
+
+  it('hides clever button when the feature flag is off and credentials are absent', function() {
+    var previous = window.clever_sso_available;
+    window.clever_sso_available = false;
+    try {
+      component.set('app_state', EmberObject.create({
+        feature_flags: { clever_sso: false }
+      }));
+      expect(component.get('cleverSsoEnabled')).toEqual(false);
+    } finally {
+      window.clever_sso_available = previous;
+    }
+  });
+
+  it('maps clever_error codes to a friendly login error', function() {
+    expect(String(component.cleverAuthErrorMessage('unknown_district'))).toMatch(/district is not connected/);
+    expect(String(component.cleverAuthErrorMessage('user_not_provisioned'))).toMatch(/No LingoLinq account/);
+  });
+
   it('requires username picker selection for duplicate emails', function() {
     component.set('google_link_state', {
       mode: 'email_match',
