@@ -110,8 +110,13 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
   changes.
 - Prefixes: `images/*`, `sounds/*`, `downloads/*`, `extras*/*`, `imports/*`.
 - CloudFront (`UPLOADS_S3_CDN`) fronts production uploads.
-- Other AWS integrations: SES (email), SNS (notifications), Elastic Transcoder (media),
+- Other AWS integrations: SES (email), SNS (notifications), MediaConvert (media; Elastic Transcoder was discontinued 2025-11-13),
   Bedrock (runtime AI; credentials provisioned separately from developer tooling).
+- MediaConvert (issue #966): `lib/transcoder.rb` submits jobs only when `MEDIACONVERT_ROLE_ARN` and
+  `UPLOADS_S3_BUCKET` are set (`MEDIACONVERT_QUEUE_ARN` and `MEDIACONVERT_ENDPOINT` optional).
+  Completion is EventBridge -> SNS -> `POST /api/v1/callback`. Until the Role and EventBridge
+  rule exist, convert_* logs and returns false instead of raising. `lingolinq-app` still needs
+  `mediaconvert:*` + `iam:PassRole` (not granted as of 2026-09-13).
 
 ## Background jobs (Resque)
 
