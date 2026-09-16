@@ -3,7 +3,7 @@
     "schemaVersion": "1.0",
     "register": "LingoLinq-AAC compliance document register",
     "description": "Single source of truth for WHERE every compliance document lives across the codebase (git), Google Drive, and Notion - its canonical home, its mirrors, its owner, its review dates, and which compliance bundles it belongs to. This is the document-level analogue of audit-reports/FINDINGS.json (which tracks finding status). The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are referenced by URL, never copied. See docs/legal/COMPLIANCE_DOCS_GUIDE.md.",
-    "generatedDate": "2026-07-23",
+    "generatedDate": "2026-09-15",
     "idAlgorithm": "id = 'DOC-' + sha256(canonicalLocation) first 10 hex chars; stable across runs so a moved/renamed doc reads as a diff. Computed and written back by scripts/document-register-render.rb.",
     "contentHashNote": "contentHash is sha256 of the canonical content. For canonicalSystem=git rows the render script computes it from the file bytes at its repo path and CI verifies it in --check (a tracked doc edited without updating its row fails). For drive/notion rows the hash is externally supplied: Notion-row hashes can be refreshed automatically by the network-capable Notion-sync run (--refresh-notion-hashes); DRIVE-row hashes have NO automated refresh and must be supplied by the operator (the sync script carries no Google credentials), so Drive freshness is a dated review obligation, not an automated guarantee. CI is network-free: a null/empty drive/notion hash is allowed and surfaced as an advisory, never a CI failure.",
     "typeEnum": [
