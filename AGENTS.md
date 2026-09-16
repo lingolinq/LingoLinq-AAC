@@ -46,6 +46,15 @@ template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test
 
 ## Where things are
 
+Path-scoped rules that Claude loads by file path and Codex does not: before editing
+under `docs/legal/` or `audit-reports/` read `.claude/rules/compliance-docs.md`
+(registers are the source of truth; attested bytes are frozen); before touching
+fixtures, factories, cassettes, seeds, migrations or `lib/tasks/` read
+`.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
+deploy workflow, `Dockerfile` or `scripts/gcp/` read `.claude/rules/deploy.md`.
+For a bug fix or behaviour change, the fact-sheet and red-test discipline is
+`.claude/skills/fix-proposal/SKILL.md`.
+
 Backend architecture and hotspots: `CLAUDE.md`. Frontend: `app/frontend/CLAUDE.md`.
 Infra: `docs/INFRASTRUCTURE.md`. Debugging: `docs/CODE_INVESTIGATION.md`. Durable
 lessons: `docs/task-management/LEARNINGS.md` (curated) and

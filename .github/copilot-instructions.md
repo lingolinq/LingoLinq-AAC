@@ -22,6 +22,7 @@ Key characteristics:
 - **Refactors** never remove or change functionality.
 - **Never commit secrets.** Reference them by name; values live in 1Password and GCP Secret Manager.
 - **No em dashes** in user-facing prose.
+- **Path-scoped rules** live in `.claude/rules/`: `compliance-docs.md` for `docs/legal/` and `audit-reports/` (registers are the source of truth; attested bytes are frozen), `data-bearing-paths.md` for fixtures, seeds, cassettes, migrations and `lib/tasks/` (the Tier 1 data boundary), `deploy.md` for the deploy workflow, `Dockerfile` and `scripts/gcp/`. Read the one whose paths a change touches.
 
 ## Development considerations
 - **i18n**: All user-facing strings MUST use i18n helpers. No raw text strings in templates or JS.
@@ -63,6 +64,3 @@ New user-facing features MUST be behind a feature flag in `lib/feature_flags.rb`
 ## Testing
 - **Backend**: RSpec (`bundle exec rspec`).
 - **Frontend**: QUnit (`ember test`).
-
----
-*Last Updated: 2026-09-12*
