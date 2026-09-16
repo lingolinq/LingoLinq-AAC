@@ -1,6 +1,6 @@
 ---
 name: fix-proposal
-description: The LingoLinq-AAC discipline for any bug fix or behaviour change, from diagnosis to landed test. Write the three facts (where the value is read, every shape it can hold, whether each cross-file claim is true), label each CONFIRMED or ASSUMED, write the red test first, propose at least two candidate fixes with risks and unresolved questions, put the proposal through adversarial review before editing code, and falsify the test after the fix lands. Use before implementing any fix; invoke as /fix-proposal.
+description: The LingoLinq-AAC discipline for any bug fix or behaviour change, from diagnosis to landed test. Write the three facts (where the value is read, every shape it can hold, whether each cross-file claim is true), label each CONFIRMED or ASSUMED, write the red test first, propose at least two candidate fixes with risks and unresolved questions, put the proposal through adversarial review before editing code, and falsify the test after the fix lands. Use before a bug fix or behaviour change in application code; invoke as /fix-proposal.
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
 
