@@ -3938,7 +3938,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_subprocessor-register.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -3963,7 +3963,12 @@
       "supersedes": "DOC-f850df36ad",
       "id": "DOC-052b0e947c",
       "contentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-15",
+        "attestedContentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
+        "note": "First attestation of these bytes. Path A successor to DOC-f850df36ad (2026-08-16_subprocessor-register.md, attested 2026-08-19), which remains frozen and byte-identical. Scope of this pin: the Render decommission changes only, namely rows 2 and 10 ended 2026-09-09, row 8 (n8n) relocated to self-hosted GCP Cloud Run rather than ended, and section 5.2 restated. No other vendor row was re-reviewed; the last full line-by-line review remains 2026-08-08 per section 4.1. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
+      },
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
     {
@@ -4006,7 +4011,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_incident-response-breach-runbook.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -4014,7 +4019,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-08-02",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-15",
+        "attestedContentHash": "a5ff3188832ab1439d30cf0ebb72a3cd978d878784552dc1598e865870bbdfc8",
+        "note": "First attestation of these bytes. Path A successor to DOC-28f19f73e4 (2026-08-15_incident-response-breach-runbook.md, attested 2026-08-16), which remains frozen and byte-identical. Scope of this pin: the Render decommission restatements, plus a drill-table repair where the 2026-05-19 row carried six cells under a seven-column header, silently dropping the Time-to-evidence value; it now reads 'n/a (paper exercise)'. No incident-response procedure, clock, or notification obligation changed. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
+      },
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -4150,14 +4160,19 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_gcp-baa-accepted.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR"
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-07-23",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-15",
+        "attestedContentHash": "16cd22bd731fed11d16a6f9f8acba6c71e39158a48ade7bf209f8280799cad12",
+        "note": "First attestation of these bytes. Path A successor to DOC-5b14b08908 (GCP_BAA_ACCEPTED.md, attested 2026-07-23, prior 2026-07-16), which remains frozen. Scope of this pin: TWO changes, not one. (a) The Render decommission restatement. (b) The runtime-AI BAA attribution, which is the consequential one: runtime AI egress is received by AWS via bedrock-runtime.<region>.amazonaws.com, so the operative instrument is the AWS account BAA of 2026-02-07 (countersigned PDF at docs/legal/AWS_BAA_2026-02.pdf), NOT the Anthropic BAA of 2026-07-18. The attester questioned this on 2026-09-15, on the reasoning that Bedrock was not configured until August 2026 and so could not fall under a February BAA. Re-verified before attesting and the document is correct as written: an AWS account-level BAA covers HIPAA-eligible services adopted after signing (AWS HIPAA compliance page: customers may use any AWS service in a HIPAA account but should only process PHI in the HIPAA-eligible services defined in the BAA), and Bedrock's HIPAA-eligibility was verified against AWS's reference list in the 2026-08-12 record. Anthropic is retained as model provider and as the basis for the direct api.anthropic.com route, which PR #681 removed and CI enforces. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
+      },
       "contentHash": "16cd22bd731fed11d16a6f9f8acba6c71e39158a48ade7bf209f8280799cad12",
       "bundles": [
         "baa"
