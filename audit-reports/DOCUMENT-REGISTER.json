@@ -3901,7 +3901,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_data-retention.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -3910,7 +3910,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-04-20",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
+        "note": "Path A successor to DOC-e62caf7fb9 (2026-08-09_data-retention_draft.md), frozen, and a DRAFT. Scope of this pin: the Render decommission restatements, plus the archive retention correction, which is the most consequential content here and is NOT about customer data. An earlier draft called gs://lingolinq-prod-render-archive immutable and said an Article 17 erasure could not be executed against it. Both were false. The bucket's retentionPolicy has NO isLocked field, re-verified live at attestation 2026-09-16 (retentionPeriod 31557600s, effectiveTime 2026-09-02T17:30:22Z, isLocked absent), so a project admin can remove the policy and then delete. The document states that erasure is a DECISION, not a technical impossibility. This matters for the schedule's accuracy about GCS retention mechanics generally, not because the archive holds customer data: it does not. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "contentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
       "bundles": [
         "soc2-evidence",
@@ -3978,7 +3983,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-program.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3988,7 +3993,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "425337e19cd8e2713bdb0b50ee5db36ca779abd3041da3e982d2cca33d681d6e",
+        "note": "Path A successor to DOC-e5e85eccb1 (2026-08-22_compliance-program.md), frozen. Scope of this pin: the Render decommission restatements, and section 7, which had named a two-generations-stale register and described the AI path as not operational as of 2026-08-04. This document reproduces the v1.3 attestation statement signed 2026-08-20 under a guard requiring it to be byte-for-byte. Four numbered clauses inside that signed statement had been edited during drafting; they were restored byte-for-byte against the predecessor and verified by diff before this pin, and the decommission is noted OUTSIDE the statement. The reproduced statement belongs to its 2026-08-20 signature, not to this attestation. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-e5e85eccb1",
@@ -4053,7 +4063,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-data-governance.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -4063,7 +4073,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-25",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "c65c23e76fcda7eb6081e2d3a4e8c4c2dbe757e108ea1379178e3a41ddfb9608",
+        "note": "Path A successor to DOC-f6d26afec8 (2026-08-25_compliance-data-governance.md), frozen. Scope of this pin: the Render decommission restatements, plus the Ember 3.28 accepted-risk section, marked HISTORICAL with its analysis retained unedited. Ember disposition decided at attestation: the 2026-02-23 risk acceptance is NOT formally closed. The condition no longer exists, because the Ember 3.28 to 5.12 upgrade shipped in PR #490 (merged 2026-07-08) and app/frontend/package.json pins ember-source ~5.12.0, but these bytes record it as historical rather than closed. Read the banner, not the retained 2026-02-23 analysis, for current frontend posture. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [
         "soc2-evidence"
       ],
@@ -4087,7 +4102,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-program-overview.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -4097,7 +4112,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-07-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "d40eae1ae95d8c2eda6f7696d6068cfdcc38013d41fbdb2ce0f3efa243e36140",
+        "note": "Path A successor to DOC-90632edc44 (2026-08-09_compliance-program-overview_draft.md), frozen, and a DRAFT. Scope of this pin: the Render decommission restatements, plus three citations that an earlier review round had repointed to a line anchor which a later commit shifted onto the wrong subprocessor row. They now name 'row 4 (Anthropic, PBC)' against the register's own numbered column rather than a line number. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "contentHash": "d40eae1ae95d8c2eda6f7696d6068cfdcc38013d41fbdb2ce0f3efa243e36140",
       "bundles": [
         "security-review"
@@ -4122,7 +4142,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-posture-report.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -4133,7 +4153,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "8320904378cabbd933c9e6079150f8f5b248b36ea0e3a0860e5c2e691a9fd93b",
+        "note": "Path A successor to DOC-c5408d90b7 (2026-08-22_compliance-posture-report.md), frozen. Scope of this pin is TWO changes, not one. (a) The Render decommission restatements. (b) The inherited 'implemented and operating' overclaim on Active product controls, which is QUALIFIED in this successor, in the same way PR #969 qualified the compliance-program predecessor (finding LL-3e36a18199). Item (b) is not a Render change and is the more consequential of the two: this report ships in the grant, school-dpa-package and security-review bundles, so the qualified claim travels to funders, districts and prospects. No count or finding is changed. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [
         "grant",
         "school-dpa-package",
@@ -4197,11 +4222,16 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-status-snapshot.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "ae2494e951f1e7bac2702b322be60a419938d1685cbfbf5d7ad29611fcf8e869",
+        "note": "Path A successor to DOC-af01c65b10 (2026-08-22_compliance-status-snapshot.md), frozen. Scope of this pin: the Render decommission restatements, including the Gate 2 row which had read 'Pending explicit go' and completed 2026-09-09, plus a GCP BAA / CDPA / SCCs row edit. The 2026-07-22 Gate 1 row is left as written. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [],
       "mirrors": [],
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
