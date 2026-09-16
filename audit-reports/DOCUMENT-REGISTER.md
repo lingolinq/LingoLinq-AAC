@@ -4,12 +4,12 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 103 (git 71 / drive 28 / notion 4)
+> Generated: 2026-09-15 | Documents: 103 (git 71 / drive 28 / notion 4)
 
 ## Headline
 
 - **Status:** draft 23, approved 7, published 42, superseded 31
-- **Overdue for review** (as of 2026-07-23): none
+- **Overdue for review** (as of 2026-09-15): Incident Log (2026-08-27); EU AI Act Article 50 Transparency: Implementation Milestone Plan (2026-08-02)
 - **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-25 successor); AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Article 50(1) Disclosure - Production Feature-Flag Verification; AI Governance Memo (2026-08-24 successor); Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft); Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft); Data Retention Schedule (2026-09-14 successor); Subprocessor Register (2026-09-14 successor); Compliance & Security Program v1.3.2 (2026-09-14 successor); Incident Response & Breach Runbook (2026-09-14 successor); Compliance & Data Governance (2026-09-14 successor); Security, Privacy & Compliance Overview (2026-09-14 successor); Compliance Posture Report (2026-09-14 successor); GCP BAA Acceptance Record (2026-09-14 successor); Compliance Status Snapshot (2026-09-14 successor)
 
 ## Documents by type
