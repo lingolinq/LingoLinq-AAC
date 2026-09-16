@@ -154,7 +154,7 @@ class LibraryUtilityDeduper
       lines << ''
     end
 
-    lines << 'No writes. Re-run with APPLY=1 APPLY_CONFIRM=1 on nonprod to apply.'
+    lines << 'No writes. Re-run with APPLY=1 APPLY_CONFIRM=1 to apply (production also needs ALLOW_PROD_APPLY=1).'
     lines.join("\n")
   end
 
@@ -177,7 +177,9 @@ class LibraryUtilityDeduper
       raise ArgumentError, 'APPLY_CONFIRM=1 is required with APPLY=1.'
     end
     if prod_database?(db_config)
-      raise ArgumentError, 'Refusing APPLY against a production database. Run on nonprod first.'
+      unless env['ALLOW_PROD_APPLY'].to_s =~ TRUTHY
+        raise ArgumentError, 'Refusing APPLY against a production database without ALLOW_PROD_APPLY=1.'
+      end
     end
     true
   end
@@ -188,13 +190,18 @@ class LibraryUtilityDeduper
     lines << "Skipped sidebar-slug clusters: #{result[:skipped_sidebar_clusters]}"
     lines << "Parents relinked: #{result[:relinked_parents].length}"
     result[:relinked_parents].each { |key| lines << "  RELINKED: #{key}" }
+    lines << "User sidebar/home refs retargeted: #{Array(result[:retargeted_user_refs]).length}"
+    Array(result[:retargeted_user_refs]).each do |ref|
+      lines << "  RETARGETED: #{ref[:user_name]} #{ref[:kind]} #{ref[:from_key]} -> #{ref[:to_key]}"
+    end
     lines << "Extras destroyed: #{result[:destroyed_keys].length}"
     result[:destroyed_keys].each { |key| lines << "  DESTROYED: #{key}" }
     lines.join("\n")
   end
 
-  # Relink every remaining parent, then destroy extras. Does not touch a
-  # cluster whose extras/canonical include <user>/keyboard.
+  # Relink every remaining parent, retarget applyable user sidebar/home
+  # keys, then destroy extras. Does not touch a cluster whose
+  # extras/canonical include <user>/keyboard.
   # replace_links! matches load_board id only (app/models/concerns/relinking.rb:107).
   def self.apply!(user)
     raise ArgumentError, 'user required' unless user
@@ -220,6 +227,8 @@ class LibraryUtilityDeduper
       relinked << parent_key
     end
 
+    retargeted = retarget_user_refs!(applyable, plan.user_name)
+
     destroyed = []
     applyable.each do |cluster|
       cluster.extras.each do |board|
@@ -235,6 +244,7 @@ class LibraryUtilityDeduper
       user_name: plan.user_name,
       skipped_sidebar_clusters: skipped.length,
       relinked_parents: relinked.sort,
+      retargeted_user_refs: retargeted,
       destroyed_keys: destroyed.sort
     }
   end
@@ -270,6 +280,56 @@ class LibraryUtilityDeduper
     clusters.flat_map { |c| c.extras.map(&:key) }
   end
 
+  def self.retarget_user_refs!(applyable, user_name)
+    mapping = {}
+    Array(applyable).each do |cluster|
+      Array(cluster.extras).each do |board|
+        next if sidebar_slug?(board.key, user_name)
+        mapping[board.key] = {
+          'key' => cluster.canonical.key,
+          'id' => cluster.canonical.global_id
+        }
+      end
+    end
+    return [] if mapping.empty?
+
+    retargeted = []
+    User.find_each do |user|
+      settings = (user.settings || {}).deep_dup
+      prefs = settings['preferences']
+      next unless prefs.is_a?(Hash)
+
+      changed = false
+      home = prefs['home_board']
+      if home.is_a?(Hash) && mapping[home['key']]
+        from_key = home['key']
+        target = mapping[from_key]
+        home['key'] = target['key']
+        home['id'] = target['id']
+        changed = true
+        retargeted << {user_name: user.user_name, kind: 'home_board', from_key: from_key, to_key: target['key']}
+      end
+
+      boards = Array(prefs['sidebar_boards'])
+      boards.each do |entry|
+        next unless entry.is_a?(Hash) && mapping[entry['key']]
+        from_key = entry['key']
+        target = mapping[from_key]
+        entry['key'] = target['key']
+        entry['id'] = target['id']
+        changed = true
+        retargeted << {user_name: user.user_name, kind: 'sidebar', from_key: from_key, to_key: target['key']}
+      end
+      if changed
+        prefs['sidebar_boards'] = boards.uniq { |entry| entry.is_a?(Hash) ? entry['key'] : entry }
+        settings['preferences'] = prefs
+        user.settings = settings
+        user.save!
+      end
+    end
+    retargeted.sort_by { |ref| [ref[:user_name], ref[:kind], ref[:from_key]] }
+  end
+
   def self.find_user_refs(delete_keys)
     return [] if delete_keys.empty?
 
@@ -288,5 +348,5 @@ class LibraryUtilityDeduper
     end
     refs.sort_by { |r| [r.user_name, r.kind, r.key] }
   end
-  private_class_method :find_relinks, :extras_keys, :find_user_refs
+  private_class_method :find_relinks, :extras_keys, :find_user_refs, :retarget_user_refs!
 end
