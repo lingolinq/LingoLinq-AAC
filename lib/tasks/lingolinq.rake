@@ -204,9 +204,9 @@ namespace :lingolinq do
   end
 
   desc 'Cluster identical emoji/keyboard/numbers pages on the content user. ' \
-       'Default is dry-run. APPLY=1 APPLY_CONFIRM=1 on nonprod relinks then ' \
-       'destroys extras; skips the default sidebar keyboard slug. See ' \
-       'docs/ops/gcp-staging-dedupe-utility-boards.md.'
+       'Default is dry-run. APPLY=1 APPLY_CONFIRM=1 relinks then destroys extras; ' \
+       'production also needs ALLOW_PROD_APPLY=1. Skips the default sidebar ' \
+       'keyboard slug. See docs/ops/gcp-staging-dedupe-utility-boards.md.'
   task dedupe_shared_utility_boards: :environment do
     require Rails.root.join('lib', 'library_utility_deduper')
 
