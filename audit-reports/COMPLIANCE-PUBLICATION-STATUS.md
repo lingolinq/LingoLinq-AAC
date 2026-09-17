@@ -36,7 +36,7 @@
 | Anthropic Business Associate Agreement (2026-05-06) | drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | 2026-07-22 | draft | Review date is older than 2026-09-15. |
 | Audit Results Report | drive | [open](https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit) | 2026-06-19 | published | Review date is older than 2026-09-15. |
 | Business Continuity and Disaster Recovery Plan | drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | 2026-06-19 | published | Review date is older than 2026-09-15. |
-| COPPA Final-Rule Verification (branded) | drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | 2026-06-19 | published | Review date is older than 2026-09-15. |
+| COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) | drive | [open](https://docs.google.com/document/d/1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0/edit) |  | draft | No review recorded. |
 | Compliance & Security - Semi-Annual Program Report (H1 2026) | drive | [open](https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit) | 2026-06-19 | published | Review date is older than 2026-09-15. |
 | Compliance & Security Overhaul - Completion Report | drive | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | 2026-06-19 | published | Review date is older than 2026-09-15. |
 | Compliance & Security Program v1.0 (Attested) | drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | 2026-06-19 | published | Review date is older than 2026-09-15. |
@@ -113,7 +113,7 @@
 | Anthropic Business Associate Agreement (2026-05-06) | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | 2026-07-22 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Audit Results Report | [open](https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Business Continuity and Disaster Recovery Plan | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
-| COPPA Final-Rule Verification (branded) | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
+| COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) | [open](https://docs.google.com/document/d/1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0/edit) |  | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Compliance & Security - Semi-Annual Program Report (H1 2026) | [open](https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Compliance & Security Overhaul - Completion Report | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Compliance & Security Program v1.0 (Attested) | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
@@ -146,6 +146,7 @@
 | Audit Results Report | drive | [open](https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Business Continuity and Disaster Recovery Plan | drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | COPPA Final-Rule Verification (branded) | drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
+| COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) | drive | [open](https://docs.google.com/document/d/1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Compliance & Security - Semi-Annual Program Report (H1 2026) | drive | [open](https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Compliance & Security Overhaul - Completion Report | drive | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Compliance & Security Program v1.0 (Attested) | drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
@@ -180,7 +181,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
 | `policy-version` | supersession + 7 years | archive | 56 | draft |
-| `audit-evidence` | 7 years | archive | 20 | draft |
+| `audit-evidence` | 7 years | archive | 21 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `questionnaire-response` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -188,7 +189,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 3 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 104 rows carry a retention block.
+All 105 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -246,6 +247,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
 | COPPA Final-Rule Verification | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | COPPA Final Rule Code Verification (2026-09-17 successor) | school-dpa-package |
+| COPPA Final-Rule Verification (branded) | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) | compliance-records-set-2026-06, school-dpa-package |
 | Compliance & Data Governance (2026-08-25 successor) | `docs/legal/2026-08-25_compliance-data-governance.md` | Compliance & Data Governance (2026-09-14 successor) | soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | Compliance & Data Governance (2026-08-25 successor) | soc2-evidence |
 | Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program (2026-08-22 successor) | (none) |
@@ -320,4 +322,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_104 documents tracked. 72 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 30 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_105 documents tracked. 72 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 31 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
