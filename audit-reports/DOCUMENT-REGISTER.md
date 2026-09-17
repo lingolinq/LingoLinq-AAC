@@ -4,13 +4,13 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-09-15 | Documents: 104 (git 72 / drive 28 / notion 4)
+> Generated: 2026-09-15 | Documents: 105 (git 72 / drive 29 / notion 4)
 
 ## Headline
 
-- **Status:** draft 15, approved 15, published 42, superseded 32
+- **Status:** draft 16, approved 15, published 41, superseded 33
 - **Overdue for review** (as of 2026-09-15): Incident Log (2026-08-27); EU AI Act Article 50 Transparency: Implementation Milestone Plan (2026-08-02)
-- **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); COPPA Final Rule Code Verification (2026-09-17 successor); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-25 successor); AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Article 50(1) Disclosure - Production Feature-Flag Verification; AI Governance Memo (2026-08-24 successor); Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft); Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)
+- **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); COPPA Final Rule Code Verification (2026-09-17 successor); COPPA Final-Rule Verification (branded, 2026-07-23 regeneration); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-25 successor); AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Article 50(1) Disclosure - Production Feature-Flag Verification; AI Governance Memo (2026-08-24 successor); Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft); Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)
 
 ## Documents by type
 
@@ -71,7 +71,7 @@
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, dsar |
 | Security, Privacy & Compliance Overview (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program-overview.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-09-14 | 2027-07-22 | 2026-09-16 | `d40eae1ae95d` | security-review |
 
-### evidence (15)
+### evidence (16)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -82,7 +82,8 @@
 | AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | superseded | HIPAA | Scot Wahlquist | 2026-08-04 | 2027-05-11 | 2026-08-04 | `376b1e18ce52` |  |
 | COPPA Final Rule Code Verification (2026-09-17 successor) | git | `docs/legal/2026-09-17_coppa-final-rule-code-verification.md` | draft | COPPA | Scot Wahlquist |  | 2026-10-22 | no | `90a0d1a4f90a` | school-dpa-package |
 | COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | superseded | COPPA | Scot Wahlquist | 2026-07-23 | 2026-10-22 | 2026-07-23 | `35a6298e2df5` | school-dpa-package |
-| COPPA Final-Rule Verification (branded) | Drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
+| COPPA Final-Rule Verification (branded) | Drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | superseded | COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
+| COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) | Drive | [open](https://docs.google.com/document/d/1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0/edit) | draft | COPPA | Scot Wahlquist |  | 2026-09-19 | no | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | GCP BAA Acceptance Record (2026-09-14 successor) | git | `docs/legal/2026-09-14_gcp-baa-accepted.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-09-14 | 2027-07-23 | 2026-09-15 | `16cd22bd731f` | baa |
 | Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14) | Drive | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | baa |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | superseded | HIPAA, GDPR | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `3e8f43b12186` | baa |
@@ -100,7 +101,7 @@
 | Compliance & Security - Semi-Annual Program Report (H1 2026) | Drive | [open](https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit) | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Compliance & Security Overhaul - Completion Report | Drive | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) |  |
 | Compliance Calendar (branded) | Drive | [open](https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit) | published | COPPA, GDPR, HIPAA, FERPA, WCAG | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
-| Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | published | COPPA, GDPR, HIPAA, FERPA, WCAG | compliance-officer | 2026-06-16 | 2026-09-16 | no | `c24b43ba6405` | compliance-records-set-2026-06 |
+| Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | published | COPPA, GDPR, HIPAA, FERPA, WCAG | compliance-officer | 2026-06-16 | 2026-09-16 | no | `4f1e3955ffc3` | compliance-records-set-2026-06 |
 | Compliance Program - Claim vs Code Review | Drive | [open](https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) |  |
 | Compliance Status Snapshot (2026-04-23) | git | `docs/legal/COMPLIANCE_STATUS_2026-04-23.md` | superseded |  | Scot Wahlquist | 2026-04-23 |  | no | `0cacd835e906` |  |
 | Compliance Status Snapshot (2026-06-18) | git | `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` | superseded |  | Scot Wahlquist | 2026-06-18 |  | no | `155c8a1a6102` |  |
@@ -109,7 +110,7 @@
 | Compliance Status Snapshot (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-status-snapshot.md` | approved |  | Scot Wahlquist | 2026-09-14 | 2026-11-22 | 2026-09-16 | `ae2494e951f1` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `0524ef4a397f` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `cadf80612118` |  |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `2fa16153772c` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
@@ -159,7 +160,7 @@
 
 The attested, externally-released branded binder generated 2026-06-19 and held in the Drive 'Branded Records Set' folder. Frozen point-in-time records; the living sources are the git docs and the auto-synced Notion findings board.
 
-- **Members (22):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT) (branded); AI Governance Memo; AI Governance Memo (branded); Audit Results Report; Business Continuity and Disaster Recovery Plan; Compliance & Security - Semi-Annual Program Report (H1 2026); Compliance & Security Program v1.0 (Attested); Compliance Calendar (branded); Compliance Calendar (compliance-calendar.json); Compliance Posture Report (branded); Compliance Program; COPPA Final-Rule Verification (branded); Data Retention Schedule (branded); Incident Log (branded); Incident Response and Breach Runbook (branded); Parental Consent (COPPA / under-13) (branded); Records of Processing Activities (RoPA) and Data Map; Security Risk Assessment 2026 Q2; Subprocessor Register (branded); Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
+- **Members (23):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT) (branded); AI Governance Memo; AI Governance Memo (branded); Audit Results Report; Business Continuity and Disaster Recovery Plan; Compliance & Security - Semi-Annual Program Report (H1 2026); Compliance & Security Program v1.0 (Attested); Compliance Calendar (branded); Compliance Calendar (compliance-calendar.json); Compliance Posture Report (branded); Compliance Program; COPPA Final-Rule Verification (branded); COPPA Final-Rule Verification (branded, 2026-07-23 regeneration); Data Retention Schedule (branded); Incident Log (branded); Incident Response and Breach Runbook (branded); Parental Consent (COPPA / under-13) (branded); Records of Processing Activities (RoPA) and Data Map; Security Risk Assessment 2026 Q2; Subprocessor Register (branded); Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
 - **Required member check:** passing
 - **Known gaps:** none recorded
 
@@ -178,7 +179,7 @@ Documents a SOC 2 readiness reviewer expects to see for the security-program con
 
 What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).
 
-- **Members (22):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); AI Data-Flow Classification (2026-08-25 successor); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report; Compliance Posture Report (2026-08-22 successor); Compliance Posture Report (2026-09-14 successor); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final Rule Code Verification (2026-09-17 successor); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (2026-09-14 successor); Data Retention Schedule (branded); Incident Response & Breach Runbook (2026-09-14 successor); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register (2026-08-16 successor); Subprocessor Register (2026-09-14 successor); Subprocessor Register (branded)
+- **Members (23):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); AI Data-Flow Classification (2026-08-25 successor); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report; Compliance Posture Report (2026-08-22 successor); Compliance Posture Report (2026-09-14 successor); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final Rule Code Verification (2026-09-17 successor); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); COPPA Final-Rule Verification (branded, 2026-07-23 regeneration); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (2026-09-14 successor); Data Retention Schedule (branded); Incident Response & Breach Runbook (2026-09-14 successor); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register (2026-08-16 successor); Subprocessor Register (2026-09-14 successor); Subprocessor Register (branded)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Signed per-district NDPA instances (register-backed series; none executed yet)
@@ -246,7 +247,7 @@ What a federal or foundation grant application needs from the compliance library
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
 | `policy-version` | supersession + 7 years | superseded | archive | 56 |
-| `audit-evidence` | 7 years | finding-closed | archive | 20 |
+| `audit-evidence` | 7 years | finding-closed | archive | 21 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
 | `questionnaire-response` | 3 years | sent | delete | 0 |
@@ -359,6 +360,7 @@ frozen point-in-time binder. Only the pointer is added.
 | Compliance Status Snapshot (2026-08-09) (`DOC-3468caf949`) | Compliance Status Snapshot (2026-08-22) (`DOC-af01c65b10`) | (none) |
 | Compliance Status Snapshot (2026-08-22) (`DOC-af01c65b10`) | Compliance Status Snapshot (2026-09-14 successor) (`DOC-39e71c72ee`) | (none) |
 | COPPA Final-Rule Verification (`DOC-407d2c2bf4`) | COPPA Final Rule Code Verification (2026-09-17 successor) (`DOC-c658279924`) | school-dpa-package |
+| COPPA Final-Rule Verification (branded) (`DOC-509843e543`) | COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) (`DOC-7a7c5282d8`) | compliance-records-set-2026-06, school-dpa-package |
 | Data Retention Schedule (`DOC-bff9acf51f`) | Data Retention Schedule (2026-08-09 draft) (`DOC-e62caf7fb9`) | (none) |
 | Data Retention Schedule (2026-08-09 draft) (`DOC-e62caf7fb9`) | Data Retention Schedule (2026-09-14 successor) (`DOC-4dc241c83a`) | soc2-evidence, school-dpa-package, security-review, dsar |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record (`DOC-5b14b08908`) | GCP BAA Acceptance Record (2026-09-14 successor) (`DOC-f27de5cf05`) | baa |
@@ -371,4 +373,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_104 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_105 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._

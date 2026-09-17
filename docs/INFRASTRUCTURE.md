@@ -111,11 +111,17 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
 - CloudFront (`UPLOADS_S3_CDN`) fronts production uploads.
 - Other AWS integrations: SES (email), SNS (notifications), MediaConvert (media; Elastic Transcoder was discontinued 2025-11-13),
   Bedrock (runtime AI; credentials provisioned separately from developer tooling).
-- MediaConvert (issue #966): `lib/transcoder.rb` submits jobs only when `MEDIACONVERT_ROLE_ARN` and
-  `UPLOADS_S3_BUCKET` are set (`MEDIACONVERT_QUEUE_ARN` and `MEDIACONVERT_ENDPOINT` optional).
-  Completion is EventBridge -> SNS -> `POST /api/v1/callback`. Until the Role and EventBridge
-  rule exist, convert_* logs and returns false instead of raising. `lingolinq-app` still needs
-  `mediaconvert:*` + `iam:PassRole` (not granted as of 2026-09-13).
+- MediaConvert (issues #966, #981): `lib/transcoder.rb` submits jobs only when
+  `MEDIACONVERT_ROLE_ARN` and `UPLOADS_S3_BUCKET` are set. `MEDIACONVERT_QUEUE_ARN` is
+  optional in nonprod (omit = account Default queue) and required in production so jobs
+  cannot land on the shared nonprod queue. `MEDIACONVERT_ENDPOINT` is optional. Completion
+  is EventBridge -> SNS -> `POST /api/v1/callback`. Subscription confirmation needs
+  `SNS_ARNS` (one topic ARN per environment; the deploy shape check rejects commas) and
+  `SNS_REGION` on the web service. Those GitHub vars are `APP_SNS_ARNS` and
+  `APP_SNS_REGION` in `deploy-cloudrun.yml`. Applied IAM documents live in
+  `scripts/gcp/iam/`. Staging uses `lingolinq-dev-uploads`; subscribe only the staging
+  host on the nonprod topic (staging and dev share one database). Convert_* still logs
+  and returns false when the Role is unset.
 
 ## Background jobs (Resque)
 

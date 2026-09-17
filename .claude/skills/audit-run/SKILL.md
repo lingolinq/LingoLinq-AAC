@@ -123,7 +123,12 @@ ruby scripts/audit-merge.rb \
 ```
 
 The merge NEVER sets `verified-closed` and NEVER downgrades an existing finding. New findings
-land as `open`; regressions land as `open` with `regression: true` and a loud note for Scot.
+land as `open`. A regression (an id Scot closed, accepted, superseded or dispositioned that a finder
+re-surfaced) KEEPS its Scot-owned status and disposition: the merge only sets `regression: true` and
+appends a loud note (`scripts/audit-merge.rb`). So a regression still renders as closed in
+`FINDINGS.md`, the Notion page and every headline until Scot reopens it or records accepted risk.
+Surface every regression to Scot explicitly in Step 6 and get that decision before the register PR
+merges.
 
 > **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** This is a
 > whole-tree scan, so the audit pointer legitimately moves to the audited commit (a governance act:

@@ -1153,7 +1153,13 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit"
+          "location": "https://docs.google.com/document/d/1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0/edit",
+          "note": "CUSTOMER-READY. The copy districts receive: folder 01 - CUSTOMER-READY, titled 'LingoLinq COPPA Final-Rule Verification - Attested 2026-07-23'. Registered in its own right as DOC-7a7c5282d8. Annotated 2026-09-17 with a correction retracting the 'runs daily today' claim; the body below that annotation is unchanged. No contentHash or lastVerified is carried for Drive files, so this description is operator-asserted and nothing in CI goes red if the file is later edited or retitled."
+        },
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit",
+          "note": "ARCHIVED. Folder x-Archive - Superseded, titled 'SUPERSEDED - 2026-06-19 - ...'. No longer customer-facing, but it WAS externally released as part of the frozen compliance-records-set-2026-06 binder, so districts that received that binder hold this file. Registered as DOC-509843e543, now superseded by DOC-7a7c5282d8."
         }
       ],
       "id": "DOC-407d2c2bf4",
@@ -1165,7 +1171,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "supersededBy": "DOC-c658279924"
+      "supersededBy": "DOC-c658279924",
+      "notes": "MIRROR POINTER CORRECTED 2026-09-17. This row previously listed exactly one Drive mirror, the ARCHIVED copy in x-Archive - Superseded. The copy districts actually receive, in 01 - CUSTOMER-READY, was not recorded here at all. A reader asking 'what do districts see for this record' would have been sent to the archived file and concluded, wrongly, that nothing customer-facing existed. Both mirrors are now listed, customer-ready first, each carrying a note naming its role. Scope of that visibility, stated precisely because an earlier draft of this note overstated it: the role notes live in DOCUMENT-REGISTER.json only. document-register-notion-sync.rb renders only m['system'] and m['location'], and neither mirrors nor notes is read by document-register-render.rb or compliance-publication-status.rb, so NO rendered surface shows the distinction. What makes the customer-ready copy visible to a reader of a generated artifact is its own row, DOC-7a7c5282d8, not this mirror entry."
     },
     {
       "id": "DOC-c658279924",
@@ -1184,7 +1191,7 @@
       ],
       "nextReviewDue": "2026-10-22",
       "attestation": {},
-      "notes": "Path A successor to DOC-407d2c2bf4 (COPPA_VERIFICATION_2026-04-26.md, attested 2026-07-23 by Scot Wahlquist, CEO; first attested 2026-06-21), created 2026-09-17. The predecessor remains frozen and its bytes still match its recorded attestedContentHash, so this is a CONTENT correction, not tampering. ONLY THE BANNER IS REWRITTEN; the body is reproduced byte-for-byte and is not re-verified. Corrects two banner defects. (1) The banner asserted that AiApiLog.redact_old_ip_addresses! 'was wired into lib/tasks/scheduler.rake by PR #222 and runs daily today'. That sentence was introduced 2026-07-23 and attested the same day, but rake scheduler:dispatch had NO production trigger from 2026-07-21 to 2026-09-02 (finding LL-3e36a18199, high, open), so the claim was not true when written, two days into that window. It did not go stale. The wiring itself is real (lib/tasks/scheduler.rake:187, gated on hour == 6 at :140; method at app/models/ai_api_log.rb:225, 90-day default) and the job has been observed running daily since 2026-09-03, reporting 0 rows redacted on each of the twelve dates through 2026-09-14; evidence and its limits are in docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md. (2) The banner cited 'section 10' for that finding; this document has no numbered sections, and the finding is under Phase 2B 'Item 3 - Retention Policy Enforcement'. ATTESTER MUST CONFIRM: this record is in the school-dpa-package bundle and is Drive-mirrored, so the corrected text is exported to school districts; the predecessor's Drive mirror still carries the inaccurate sentence and is NOT updated by this change, so refreshing or retiring that mirror is a separate act. This successor closes, downgrades or supersedes no finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "notes": "Path A successor to DOC-407d2c2bf4 (COPPA_VERIFICATION_2026-04-26.md, attested 2026-07-23 by Scot Wahlquist, CEO; first attested 2026-06-21), created 2026-09-17. The predecessor remains frozen and its bytes still match its recorded attestedContentHash, so this is a CONTENT correction, not tampering. ONLY THE BANNER IS REWRITTEN; the body is reproduced byte-for-byte and is not re-verified. Corrects two banner defects. (1) The banner asserted that AiApiLog.redact_old_ip_addresses! 'was wired into lib/tasks/scheduler.rake by PR #222 and runs daily today'. That sentence was introduced 2026-07-23 and attested the same day, but rake scheduler:dispatch had NO production trigger from 2026-07-21 to 2026-09-02 (finding LL-3e36a18199, high, open), so the claim was not true when written, two days into that window. It did not go stale. The wiring itself is real (lib/tasks/scheduler.rake:187, gated on hour == 6 at :140; method at app/models/ai_api_log.rb:225, 90-day default) and the job has been observed running daily since 2026-09-03, reporting 0 rows redacted on each of the twelve dates through 2026-09-14; evidence and its limits are in docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md. (2) The banner cited 'section 10' for that finding; this document has no numbered sections, and the finding is under Phase 2B 'Item 3 - Retention Policy Enforcement'. ATTESTER MUST CONFIRM: this record is in the school-dpa-package bundle. It has NO Drive mirror of its own and its mirrors array is deliberately empty, because it is an unattested draft and attestation and external release are separate gates, neither of which has occurred. Rather than publish this draft to districts, the predecessor's customer-ready Drive copy (DOC-7a7c5282d8) was ANNOTATED IN PLACE on 2026-09-17 with a correction retracting the 'runs daily today' claim. SCOPE OF THAT CORRECTION, stated precisely: it reaches the Drive copy only. The canonical git file docs/legal/COPPA_VERIFICATION_2026-04-26.md still contains 'runs daily today' at line 8, carries no banner and no pointer to this successor, and by the attested-bytes freeze can never carry one. That path is what school-dpa-package binds and this repository is public, so a reader of the corpus still meets the uncorrected claim with no signal. Closing that gap requires promoting this successor, not another mirror edit. This successor closes, downgrades or supersedes no finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
       "mirrors": [],
       "contentHash": "90a0d1a4f90a4720340a86c02a29d30f4d40add2932dc21a751ca1bb1ec604fe",
       "retention": {
@@ -1720,7 +1727,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "0524ef4a397f3386dadd4778b6cf048de02f594c2c319937dee0bd2d00421e7a",
+      "contentHash": "cadf80612118edb2c90d11e4d3ac9abce25cf3569957a20d4894e68e1de3985a",
       "bundles": [],
       "mirrors": [
         {
@@ -1758,7 +1765,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "c24b43ba6405a2bae7d9daa8a633cea6a2a68b37f63c572e715569ca202ade34",
+      "contentHash": "4f1e3955ffc3159144ba53a81140da60d26e966f1807135890bd8c9da2140388",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -2374,7 +2381,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "drive",
       "canonicalLocation": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit",
-      "status": "published",
+      "status": "superseded",
       "frameworks": [
         "COPPA"
       ],
@@ -2404,7 +2411,46 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "driveFileId": "1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY"
+      "driveFileId": "1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY",
+      "supersededBy": "DOC-7a7c5282d8",
+      "notes": "Superseded 2026-09-17 by DOC-7a7c5282d8. Its canonicalLocation is the branded copy generated for the 2026-06-19 records set, which was archived to x-Archive - Superseded when the document was regenerated at the 2026-07-23 re-attestation. This row kept pointing at it and kept status:published, so every rendered surface named an archived file as the published customer record for roughly two months. Bundle membership is retained per meta.supersessionNote: a superseded record keeps its row, its title and its bundle membership, and compliance-records-set-2026-06 is a frozen point-in-time binder that genuinely contains this file. The attestation of 2026-06-19 is left exactly as recorded and is NOT moved to the replacement file; moving an attestation onto different bytes is Scot's act, not index maintenance."
+    },
+    {
+      "title": "COPPA Final-Rule Verification (branded, 2026-07-23 regeneration)",
+      "description": "Branded COPPA verification, customer-ready copy; living source is docs/legal/COPPA_VERIFICATION_2026-04-26.md.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0/edit",
+      "status": "draft",
+      "frameworks": [
+        "COPPA"
+      ],
+      "nextReviewDue": "2026-09-19",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/COPPA_VERIFICATION_2026-04-26.md"
+        }
+      ],
+      "id": "DOC-7a7c5282d8",
+      "supersedes": "DOC-509843e543",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1FmufWcZHUIscnm-JyA3cgj6Qbz6FB_UomdZs5PU3UH0",
+      "notes": "Registered 2026-09-17. This is the branded COPPA copy in Drive folder 01 - CUSTOMER-READY, titled 'LingoLinq COPPA Final-Rule Verification - Attested 2026-07-23'. It was regenerated at the 2026-07-23 re-attestation of the git source and the predecessor was archived, but NO register row was ever created for it, so from 2026-07-23 until 2026-09-17 the register's only published COPPA Drive row (DOC-509843e543) pointed at a file sitting in x-Archive - Superseded and titled 'SUPERSEDED - 2026-06-19 ...'. Every rendered surface inherited that error: DOCUMENT-REGISTER.md and COMPLIANCE-PUBLICATION-STATUS.md all linked readers to the archived copy. STATUS IS DELIBERATELY draft WITH AN EMPTY ATTESTATION. The register does not record an attestation for this Drive file, and meta.governance reserves both attesting and moving a row to approved/published to Scot. The file's own Drive TITLE asserts 'Attested 2026-07-23'; that date is the git source's re-attestation (DOC-407d2c2bf4), not a recorded attestation of these Drive bytes. Promoting this row is Scot's act, and doing so is what would restore an attested published COPPA record to the school-dpa-package bundle. DELIBERATE EXCEPTION REQUIRING SIGN-OFF: on 2026-09-17 this file was ANNOTATED IN PLACE with a correction retracting the 'runs daily today' claim, inserted above the notice it corrects; the body below is unchanged. docs/legal/COMPLIANCE_DOCS_GUIDE.md states 'Edit the canonical copy; never hand-edit a mirror to fix a difference.' This is that, done knowingly: the canonical git copy is attested and frozen, so it cannot carry a banner, and leaving districts with an uncorrected record was judged worse. Recorded here as an exception rather than narrated as routine. The annotation points readers to docs/legal/2026-09-17_coppa-final-rule-code-verification.md, which is itself an unattested draft."
     },
     {
       "title": "Parental Consent (COPPA / under-13) (branded)",

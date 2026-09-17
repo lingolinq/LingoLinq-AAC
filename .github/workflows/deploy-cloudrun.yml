@@ -194,8 +194,15 @@ name: Deploy to Cloud Run
 #   STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL -- optional, unchanged; appended when set.
 #   APP_MEDIACONVERT_ROLE_ARN -- optional. IAM role MediaConvert assumes for S3 I/O.
 #                             Omitted when blank; Transcoder.convert_* then no-ops (issue #966).
-#   APP_MEDIACONVERT_QUEUE_ARN -- optional. MediaConvert queue ARN; omitted = account default.
+#   APP_MEDIACONVERT_QUEUE_ARN -- optional in nonprod, REQUIRED in production. MediaConvert
+#                             queue ARN; omitted = account default. Production must set this so
+#                             jobs cannot land on the shared nonprod Default queue (issue #981).
 #   APP_MEDIACONVERT_ENDPOINT -- optional. Account-specific MediaConvert endpoint URL.
+#   APP_SNS_ARNS -- optional. One SNS topic ARN for callback SubscriptionConfirmation
+#                             (issue #981). The shape check rejects commas, so this is one
+#                             topic per environment; a second topic (SMS) needs its own change.
+#   APP_SNS_REGION -- optional. Region for the SNS client in Api::CallbacksController.
+#                             Required for SubscriptionConfirmation; omitted when blank.
 #
 # RUNTIME IDENTITY: the web service, worker pool, and Jobs all RUN AS the runtime service
 # account lingolinq-run@${GCP_PROJECT_ID}.iam.gserviceaccount.com (derived inline from
@@ -619,7 +626,8 @@ jobs:
         # see app/models/user.rb / lib/uploader.rb), i.e. silently write somewhere unintended.
         # OPTIONAL (omitted entirely when blank, never set to ""): UPLOADS_S3_CDN,
         # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL,
-        # MEDIACONVERT_ROLE_ARN, MEDIACONVERT_QUEUE_ARN, MEDIACONVERT_ENDPOINT.
+        # MEDIACONVERT_ROLE_ARN, MEDIACONVERT_QUEUE_ARN, MEDIACONVERT_ENDPOINT,
+        # SNS_ARNS, SNS_REGION.
         # Omission matters: REMOTE_EXTRA_DATA is a presence check in Ruby, and
         # config/initializers/resque.rb only falls through to its default namespace when
         # REDIS_NAMESPACE_SUFFIX is UNSET, not when it is empty.
@@ -635,6 +643,8 @@ jobs:
           V_MEDIACONVERT_ROLE_ARN: ${{ vars.APP_MEDIACONVERT_ROLE_ARN }}
           V_MEDIACONVERT_QUEUE_ARN: ${{ vars.APP_MEDIACONVERT_QUEUE_ARN }}
           V_MEDIACONVERT_ENDPOINT: ${{ vars.APP_MEDIACONVERT_ENDPOINT }}
+          V_SNS_ARNS: ${{ vars.APP_SNS_ARNS }}
+          V_SNS_REGION: ${{ vars.APP_SNS_REGION }}
         run: |
           set -euo pipefail
           missing=""
@@ -661,13 +671,19 @@ jobs:
           [ -n "${V_UPLOADS_S3_BUCKET:-}" ]  || missing_vars="$missing_vars APP_UPLOADS_S3_BUCKET"
           [ -n "${V_STATIC_S3_BUCKET:-}" ]   || missing_vars="$missing_vars APP_STATIC_S3_BUCKET"
           [ -n "${V_SENTRY_ENVIRONMENT:-}" ] || missing_vars="$missing_vars APP_SENTRY_ENVIRONMENT"
-          # In production these two are not optional: UPLOADS_S3_CDN is what the URL-keyed Ember
-          # offline cache depends on, and REMOTE_EXTRA_DATA unset is the exact state that zeroed
-          # 1754 of 2061 button sets (PR #724, see the header). A blank value in the production
-          # environment is a configuration error, never an intended omission.
+          # In production these are not optional: UPLOADS_S3_CDN is what the URL-keyed Ember
+          # offline cache depends on, REMOTE_EXTRA_DATA unset is the exact state that zeroed
+          # 1754 of 2061 button sets (PR #724, see the header), and MEDIACONVERT_QUEUE_ARN
+          # omitted would submit prod jobs onto the nonprod Default queue (issue #981).
+          # A blank value in the production environment is a configuration error, never an
+          # intended omission.
           if [ "$ENV_NAME" = "production" ]; then
             [ -n "${V_UPLOADS_S3_CDN:-}" ]    || missing_vars="$missing_vars APP_UPLOADS_S3_CDN"
             [ -n "${V_REMOTE_EXTRA_DATA:-}" ] || missing_vars="$missing_vars APP_REMOTE_EXTRA_DATA"
+            # Prod jobs must name the prod MediaConvert queue. Omitting QUEUE_ARN uses the
+            # account Default queue, which is the nonprod EventBridge rule's match, so a
+            # prod job would complete onto the nonprod SNS topic (issue #981).
+            [ -n "${V_MEDIACONVERT_QUEUE_ARN:-}" ] || missing_vars="$missing_vars APP_MEDIACONVERT_QUEUE_ARN"
           fi
           if [ -n "$missing_vars" ]; then
             echo "::error::Required environment variable(s) blank in GitHub environment '$ENV_NAME':$missing_vars"
@@ -683,7 +699,8 @@ jobs:
                       "APP_REDIS_NAMESPACE_SUFFIX=${V_REDIS_NAMESPACE_SUFFIX:-}" "APP_REMOTE_EXTRA_DATA=${V_REMOTE_EXTRA_DATA:-}" \
                       "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}" \
                       "APP_MEDIACONVERT_ROLE_ARN=${V_MEDIACONVERT_ROLE_ARN:-}" "APP_MEDIACONVERT_QUEUE_ARN=${V_MEDIACONVERT_QUEUE_ARN:-}" \
-                      "APP_MEDIACONVERT_ENDPOINT=${V_MEDIACONVERT_ENDPOINT:-}"; do
+                      "APP_MEDIACONVERT_ENDPOINT=${V_MEDIACONVERT_ENDPOINT:-}" \
+                      "APP_SNS_ARNS=${V_SNS_ARNS:-}" "APP_SNS_REGION=${V_SNS_REGION:-}"; do
             val="${pair#*=}"
             # Shell pattern, not grep: grep is line-oriented and a value containing a newline would
             # pass it. `[:space:]` here includes newline, tab, and carriage return.
@@ -705,6 +722,8 @@ jobs:
           [ -n "${V_MEDIACONVERT_ROLE_ARN:-}" ]  && ev="$ev,MEDIACONVERT_ROLE_ARN=$V_MEDIACONVERT_ROLE_ARN"
           [ -n "${V_MEDIACONVERT_QUEUE_ARN:-}" ] && ev="$ev,MEDIACONVERT_QUEUE_ARN=$V_MEDIACONVERT_QUEUE_ARN"
           [ -n "${V_MEDIACONVERT_ENDPOINT:-}" ]  && ev="$ev,MEDIACONVERT_ENDPOINT=$V_MEDIACONVERT_ENDPOINT"
+          [ -n "${V_SNS_ARNS:-}" ]               && ev="$ev,SNS_ARNS=$V_SNS_ARNS"
+          [ -n "${V_SNS_REGION:-}" ]             && ev="$ev,SNS_REGION=$V_SNS_REGION"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
           # Values are non-secret by construction (buckets, labels, a publishable key); print the
           # NAMES so a wrong-environment deploy is visible in the log without leaking anything new.

@@ -13,12 +13,12 @@
     {
       "id": "rev-audit-run-quarterly-full",
       "framework": "SOC2",
-      "title": "Full /audit-run (4 finders, full scope) + adversary verify - all frameworks",
+      "title": "Full /audit-run (6 finders, full scope) + adversary verify - all frameworks",
       "cadence": "quarterly",
-      "lastDone": "2026-06-14",
-      "nextDue": "2026-09-14",
-      "drafts": "Full fan-out: privacy/infra/api/dependency finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).",
-      "watch": "Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db).",
+      "lastDone": "2026-09-16",
+      "nextDue": "2026-12-16",
+      "drafts": "Full fan-out: privacy/infra/api/dependency/accessibility/code-hygiene finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).",
+      "watch": "Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db). Q3 2026 run (2026-09-16) had PARTIAL coverage (finders without checklist skills or read-only guard, no AWS read, no bundle-audit, accessibility static only); its make-up pass is due before the October monthly light run.",
       "basis": "plan 5.1, 9.1 (decision: quarterly full + monthly light); .claude/skills/audit-run cadence section"
     },
     {
@@ -26,10 +26,10 @@
       "framework": "SOC2",
       "title": "Monthly light /audit-run (diff-since-last-run scope, no full re-scan)",
       "cadence": "monthly",
-      "lastDone": "2026-06-14",
-      "nextDue": "2026-07-14",
+      "lastDone": "2026-08-18",
+      "nextDue": "2026-10-16",
       "drafts": "Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.",
-      "watch": "Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim.",
+      "watch": "Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).",
       "basis": "plan 5.1, 9.1; .claude/skills/audit-run cadence section"
     },
     {
@@ -179,6 +179,17 @@
       "drafts": "The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2.2 (2026-08-02), pending Scot's re-attestation; the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content and is now three revisions behind. Regenerate the branded Google Doc from the v2.2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json. Mirror ONLY from v2.2.2 bytes, and only AFTER Scot re-attests them. Two superseded revisions must NOT be used as the source: v2.2 (hash 0ee1b92e @ commit 456b6735a6 / PR #703) is superseded, and v2.2.1 (hash 2b788387) described Anthropic as the active runtime AI provider and asserted active Bedrock egress, which v2.2.2 retracts (see BREACH_RUNBOOK.md section 13). Mirroring either would republish a known-false claim into a customer-shared Drive doc. CORRECTED 2026-08-02: this item previously targeted v2.2.1; also retracts an earlier fbdf49a1 pin that is not retrievable from merged ancestry.",
       "watch": "document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequenced AFTER the v2.2.2 re-attestation so the Drive doc is re-branded from the final attested bytes. PR #703 merged 2026-07-29T23:05Z; v2.2.1-interim (2026-07-31) was superseded by v2.2.1 (2026-08-01), then by v2.2.2 on 2026-08-02. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.",
       "basis": "senior-dev content-integrity review of PR #703 (finding M4); docs/legal/BREACH_RUNBOOK.md; DOCUMENT-REGISTER.json DOC-f576f43250"
+    },
+    {
+      "id": "rev-audit-run-q3-makeup",
+      "framework": "SOC2",
+      "title": "Q3 2026 /audit-run make-up pass (partial-coverage gaps)",
+      "cadence": "one-time",
+      "lastDone": null,
+      "nextDue": "2026-10-09",
+      "drafts": "Re-run the six finders with checklist skills and the read-only guard verified by a canary; run bundle-audit; take an AWS account-level read; merge into FINDINGS.json and record in runs.jsonl.",
+      "watch": "Approved by Scot on 2026-09-17 as the condition for keeping the Q3 audit pointer with a partial-coverage qualifier. Due before the October monthly light run.",
+      "basis": "Scot decision 2026-09-17; LL-c667ec15e3"
     }
   ],
   "fixedRegulatoryDates": [
