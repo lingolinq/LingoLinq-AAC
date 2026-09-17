@@ -1,7 +1,8 @@
 # Branch naming convention: `<type>/<dev>-<kebab-slug>`
 
 **Date:** 2026-09-17. **Branch:** `docs/scot-branch-naming-convention-f3117a76` from `origin/develop` at d76081fe9.
-**Scope:** docs only. No code, config, workflow or hook changes.
+**Scope:** docs, plus one glob in `.github/workflows/codex-review.yml` (see "Adversary
+findings" below). No hook, script or application code changes.
 
 ## What changed
 
@@ -23,11 +24,34 @@ every launcher-owned branch. PR #988's body recorded the departure; this PR clos
 ## Facts checked
 
 - No CI job, hook or script in this repo validates branch names against a pattern
-  (`grep` over `.github/workflows`, `scripts`, `.claude/hooks`, `bin`: only
-  `codex-review.yml` reads `headRefName`, for scoping, not validation).
+  (`grep` over `.github/workflows`, `scripts`, `.claude/hooks`, `bin`). One consumer
+  MATCHES on the prefix: `codex-review.yml` `scot)` scope arm,
+  `[[ "$PR_HEAD_REF" == scot/* ]]`, which decides chunked versus bounded evidence.
+  Under the new form Scot's branches never match it. Fixed in this PR, see below.
 - Teammates have used both forms in merged branches (`feat/melissa-sms-consent-page`,
   `melissa/fix/whenever-queue-drain`), so the generalised form has precedent.
 - Rule #0 item 12 does not apply: this change cannot alter runtime behaviour.
+
+## Adversary findings applied (2026-09-17)
+
+1. **Medium.** `codex-review.yml` line 150 matched only `scot/*`, so the live
+   `CODEX_REVIEW_CHUNKED_SCOPE=scot` arm would drop every launcher-named Scot PR to the
+   60,000-byte bounded path once the gate is revived (last run 2026-08-04; not a
+   required check). Widened to `scot/* || */scot-*`; `.github/codex/README.md` updated
+   to match. Proof, run in bash with the new expression:
+   `scot/chore/x` MATCH, `docs/scot-branch-naming-convention-f3117a76` MATCH,
+   `fix/melissa-scot-thing` no, `melissa/fix/x` no. The old expression misses the
+   second input.
+2. **Medium.** "The isolated launchers generate this form" overclaimed: the deployed
+   launcher hardcodes `branch="$type/scot-$slug-$token"`. Reworded to "Scot's isolated
+   launcher generates `<type>/scot-<slug>-<token>`" in `CLAUDE.md` and `CONTRIBUTING.md`.
+3. **Medium.** `AGENTS.md` and `.github/copilot-instructions.md` grandfathered the old
+   form without forbidding new branches in it. Added "do not start new ones in that form".
+4. **Low.** The launcher whitelists nine types and refuses `hotfix` and `release`. Docs
+   now say those branches are created by hand.
+
+Launcher-side follow-ups outside this repo (ai-company-brain `scripts/lib/wt-common.sh`):
+the hardcoded `scot` handle, and `wt_session_name` still stripping a `scot/` prefix.
 
 ## Assumption stated in the PR body
 

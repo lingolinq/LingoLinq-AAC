@@ -74,13 +74,14 @@ everything else in this file.
   Prefer an isolated worktree when other sessions share the checkout.
 - **Name:** `<type>/<developer>-<kebab-slug>`, for example `fix/melissa-sidebar-actions`,
   `chore/scot-staging-slow-queue-capacity`. `<type>` is one of `fix`, `feat`, `chore`,
-  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The isolated launchers
-  generate this form plus an 8-hex token (`docs/scot-branch-naming-convention-f3117a76`);
+  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. Scot's isolated launcher
+  generates `<type>/scot-<slug>-<token>` (`docs/scot-branch-naming-convention-f3117a76`);
   the token is part of the name, never strip it. Branches opened before 2026-09-16 in the
   `<dev>/<type>/<slug>` form keep their names through merge; do not start new ones in it.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` as
   `hotfix/<dev>-<slug>`, opens a PR directly against `main` (Scot approves), and is merged
-  back to `develop` immediately afterwards. See `CONTRIBUTING.md`.
+  back to `develop` immediately afterwards. Hotfix and release branches are created by
+  hand; the launcher does not offer those types. See `CONTRIBUTING.md`.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.

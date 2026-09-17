@@ -20,7 +20,8 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   as `<type>/<dev>-<kebab-slug>` (types: fix, feat, chore, docs, perf, refactor, test,
   compliance, security; the launcher's 8-hex token suffix is part of the name;
   `hotfix/<dev>-<slug>` from `main` only for urgent production fixes, merged back to
-  `develop`; branches opened before 2026-09-16 as `<dev>/<type>/<slug>` keep their names).
+  `develop`; branches opened before 2026-09-16 as `<dev>/<type>/<slug>` keep their names,
+  do not start new ones in that form).
   PRs target `develop`; `develop` promotes to `staging`, then a
   release PR goes `staging` to `main`.
 - **i18n and quotes.** No raw user-facing text. Templates use

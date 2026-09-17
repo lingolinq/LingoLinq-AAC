@@ -31,8 +31,10 @@ Format: `type/name-short-description`
   `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
   and `release` for a time-bound release branch
 - `name` -- your first name or GitHub username (lowercase)
-- `short-description` -- 2-4 words, kebab-case. The isolated launchers append an
+- `short-description` -- 2-4 words, kebab-case. Scot's isolated launcher appends an
   8-hex token (`docs/scot-branch-naming-convention-f3117a76`); it is part of the name.
+  The launcher only offers the nine types above; `hotfix` and `release` branches are
+  created by hand.
 
 Examples:
 - `feat/melissa-add-sso-login`
