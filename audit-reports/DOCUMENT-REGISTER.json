@@ -1131,7 +1131,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COPPA_VERIFICATION_2026-04-26.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "COPPA"
       ],
@@ -1164,7 +1164,38 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-c658279924"
+    },
+    {
+      "id": "DOC-c658279924",
+      "title": "COPPA Final Rule Code Verification (2026-09-17 successor)",
+      "canonicalLocation": "docs/legal/2026-09-17_coppa-final-rule-code-verification.md",
+      "canonicalSystem": "git",
+      "type": "evidence",
+      "status": "draft",
+      "frameworks": [
+        "COPPA"
+      ],
+      "owner": "Scot Wahlquist",
+      "supersedes": "DOC-407d2c2bf4",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "nextReviewDue": "2026-10-22",
+      "attestation": {},
+      "notes": "Path A successor to DOC-407d2c2bf4 (COPPA_VERIFICATION_2026-04-26.md, attested 2026-07-23 by Scot Wahlquist, CEO; first attested 2026-06-21), created 2026-09-17. The predecessor remains frozen and its bytes still match its recorded attestedContentHash, so this is a CONTENT correction, not tampering. ONLY THE BANNER IS REWRITTEN; the body is reproduced byte-for-byte and is not re-verified. Corrects two banner defects. (1) The banner asserted that AiApiLog.redact_old_ip_addresses! 'was wired into lib/tasks/scheduler.rake by PR #222 and runs daily today'. That sentence was introduced 2026-07-23 and attested the same day, but rake scheduler:dispatch had NO production trigger from 2026-07-21 to 2026-09-02 (finding LL-3e36a18199, high, open), so the claim was not true when written, two days into that window. It did not go stale. The wiring itself is real (lib/tasks/scheduler.rake:187, gated on hour == 6 at :140; method at app/models/ai_api_log.rb:225, 90-day default) and the job has been observed running daily since 2026-09-03, reporting 0 rows redacted on each of the twelve dates through 2026-09-14; evidence and its limits are in docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md. (2) The banner cited 'section 10' for that finding; this document has no numbered sections, and the finding is under Phase 2B 'Item 3 - Retention Policy Enforcement'. ATTESTER MUST CONFIRM: this record is in the school-dpa-package bundle and is Drive-mirrored, so the corrected text is exported to school districts; the predecessor's Drive mirror still carries the inaccurate sentence and is NOT updated by this change, so refreshing or retiring that mirror is a separate act. This successor closes, downgrades or supersedes no finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "mirrors": [],
+      "contentHash": "90a0d1a4f90a4720340a86c02a29d30f4d40add2932dc21a751ca1bb1ec604fe",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "description": "Verification record against the amended COPPA Rule (effective 2026-04-22)."
     },
     {
       "title": "Parental Consent Email (COPPA / under-13)",
