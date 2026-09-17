@@ -50,6 +50,19 @@ every launcher-owned branch. PR #988's body recorded the departure; this PR clos
 4. **Low.** The launcher whitelists nine types and refuses `hotfix` and `release`. Docs
    now say those branches are created by hand.
 
+Second-round items applied: `docs/pre-merge-audit-checklist.md` 4.1 now lists
+`hotfix/` and `release/`, exempts release branches from the handle
+(`release/staging-into-main-<YYYY-MM-DD>` is the merged precedent, five PRs since
+2026-08-21), and scopes its `git branch -m` hint to unpushed new branches;
+`CONTRIBUTING.md` names all five files in the "change together" pointer and states the
+release form; `AGENTS.md` bullet reflowed so the token clause no longer reads as a type.
+
+Recorded, not fixed: the new form joins handle and slug with the same delimiter, so
+a hyphenated login (`traci-day`) is not machine-parseable from the branch name. No
+tooling depends on it today. Scot settled the form; this is a consequence to know, not
+a reason to reopen it. The type list is also fixed at nine; the merged
+`scot/ci/docs-only-fast-path` used a `ci` type that is not in it.
+
 Launcher-side follow-ups outside this repo (ai-company-brain `scripts/lib/wt-common.sh`):
 the hardcoded `scot` handle, and `wt_session_name` still stripping a `scot/` prefix.
 

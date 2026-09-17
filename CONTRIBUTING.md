@@ -29,7 +29,8 @@ Format: `type/name-short-description`
 
 - `type` -- one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`,
   `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
-  and `release` for a time-bound release branch
+  and `release` for a release PR (`release/staging-into-main-<YYYY-MM-DD>`, no handle,
+  date suffix; the one branch type that does not carry a developer name)
 - `name` -- your first name or GitHub username (lowercase)
 - `short-description` -- 2-4 words, kebab-case. Scot's isolated launcher appends an
   8-hex token (`docs/scot-branch-naming-convention-f3117a76`); it is part of the name.
@@ -41,8 +42,9 @@ Examples:
 - `fix/scot-memory-leak-puma`
 - `chore/dom-update-ember-deps`
 
-The same spec is stated in `CLAUDE.md` (Branching), `AGENTS.md` and
-`.github/copilot-instructions.md`; change all four together. This form was settled on
+The same spec is stated in `CLAUDE.md` (Branching), `AGENTS.md`,
+`.github/copilot-instructions.md` and `docs/pre-merge-audit-checklist.md` section 4.1;
+change all five together. This form was settled on
 2026-09-16. Branches opened before then in the `name/type/description` form keep their
 names through merge, but do not start new ones that way.
 
