@@ -56,11 +56,52 @@ Cloud Run job lingolinq-scheduler       (scheduled rake tasks; see below)
 | `lingolinq-web` | Cloud Run service | Rails web app behind the load balancer |
 | `lingolinq-worker` | Cloud Run worker pool | Resque workers |
 | `lingolinq-migrate` | Cloud Run job | runs migrations; also the recipe for one-off `rails runner` work (override args, `USER_KEY` required) |
-| `lingolinq-scheduler` | Cloud Run job | scheduled rake tasks. The job is deployed on every release; whether Cloud Scheduler triggers are attached must be verified live (`gcloud scheduler jobs list`) before assuming the tasks run |
+| `lingolinq-scheduler` | Cloud Run job | scheduled rake tasks. The job is deployed on every release; whether Cloud Scheduler triggers are attached must be verified live (`gcloud scheduler jobs list`) before assuming the tasks run. Missed-run detection: see "Scheduler liveness" below |
 | `lingolinq-prod-pg` | Cloud SQL PostgreSQL | private-IP only |
 | `lingolinq-prod-redis` | Memorystore Redis | TLS; app connects with `rediss://` |
 | `lingolinq-lb-ip` | global address | `136.68.41.122` |
 | Google-managed certificate | SSL | `app.lingolinq.com`; recreate a cert stuck in `FAILED_NOT_VISIBLE` before touching DNS |
+
+### Scheduler liveness (missed-run detection)
+
+Production alerting can see a scheduler run that FAILS. Until this was added it could not
+see one that never happened, and those are different events: `PROD Cloud Run job execution
+FAILED` filters on `metric.label.result="failed"`, and a run that does not happen produces
+no execution to count.
+
+That gap was not theoretical. When the Render cron was suspended at the GCP cutover and
+nothing replaced it, `scheduler:dispatch` did not run for 43 days (2026-07-21 to
+2026-09-02). Nothing alerted, and every retention, purge, flush and expiry task silently
+stopped with it, including `Flusher.flush_deleted_users` (a GDPR Art. 17 exposure).
+Finding `LL-3e36a18199`.
+
+The detector is a Cloud Monitoring **metric-absence** policy on
+`run.googleapis.com/job/completed_execution_count` for the `lingolinq-scheduler` job,
+firing after 90 minutes with no completed execution. The job runs hourly, so 90 minutes
+cannot be produced by normal jitter, and the window is deliberately far shorter than a day
+because the 06:00 UTC daily block is what carries the retention work.
+
+```bash
+scripts/gcp/prod-scheduler-liveness-alert.sh --check   # read-only: is the detector in place?
+scripts/gcp/prod-scheduler-liveness-alert.sh --apply   # create or update it (WRITES to prod)
+```
+
+The policy definition lives beside the script in
+`scripts/gcp/prod-scheduler-liveness-alert.json`, so the alert is reviewable in a diff
+rather than existing only as console state.
+
+**Delivery, proven 2026-09-18.** The policy was applied that day
+(`alertPolicies/16889750021495574173`). To prove the email channel it notifies actually
+delivers, a temporary threshold policy on the same channel was created to fire at once on the
+healthy state (a completed execution in the last hour). Scot confirmed the email arrived, and the
+temporary policy was deleted. The Cloud Monitoring API has no "send test notification" method,
+which is why a firing policy was used. All four production policies notify that same channel
+(`notificationChannels/2035727736516782378`), so this proves delivery for each of them at the
+channel level.
+
+What it does not prove is that the absence condition itself fires, because inducing a real
+90-minute production outage to test it is not acceptable. Re-prove delivery the same way
+whenever the notification channel changes.
 
 Secrets are read from GCP Secret Manager by name (`--set-secrets` in the deploy
 workflow). The list each project must hold is in the workflow header. Authentication

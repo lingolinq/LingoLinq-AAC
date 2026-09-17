@@ -1,0 +1,31 @@
+{
+  "displayName": "PROD scheduler dispatch MISSED RUN (no execution in 90m)",
+  "documentation": {
+    "content": "The hourly Cloud Run job `lingolinq-scheduler` has not COMPLETED an execution for 90 minutes.\n\nThis is the ABSENCE case, and it is the one the existing alerting does not cover: `PROD Cloud Run job execution FAILED` counts executions whose result is `failed`, and a run that never happens produces no failed execution to count. That exact failure mode was silent for 43 days (2026-07-21 to 2026-09-02), after the Render cron was suspended at the GCP cutover and nothing replaced it, which stopped all retention, purge, flush and expiry work including `Flusher.flush_deleted_users`.\n\nWhat to check, in order:\n\n1. `gcloud scheduler jobs describe lingolinq-scheduler-hourly --location=us-central1 --project=lingolinq-prod` (state should be ENABLED, schedule `0 * * * *`)\n2. `gcloud run jobs executions list --job=lingolinq-scheduler --region=us-central1 --project=lingolinq-prod --limit=5`\n3. Cloud Run job logs for `=== Scheduler Dispatch Complete ===`\n\nA missed hour is usually benign on its own. A missed DAY means the 06:00 UTC daily block did not run, so retention and deletion work did not happen that day.\n\nFinding: LL-3e36a18199. Owner: Scot Wahlquist.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "No completed lingolinq-scheduler execution for 90m",
+      "conditionAbsent": {
+        "filter": "resource.type = \"cloud_run_job\" AND resource.label.job_name = \"lingolinq-scheduler\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\"",
+        "duration": "5400s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "notificationChannels": [
+    "projects/lingolinq-prod/notificationChannels/2035727736516782378"
+  ],
+  "enabled": true
+}
