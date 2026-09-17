@@ -52,7 +52,7 @@ Scopes used: `openid`, `email`, `profile`.
 
 ## Environment variables
 
-Set on each Render service (and locally):
+In deployed environments, store both in GCP Secret Manager under these names; `.github/workflows/deploy-cloudrun.yml` mounts them onto the Cloud Run services by name through `--set-secrets`. Locally, set them in `.env`:
 
 ```bash
 GOOGLE_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com

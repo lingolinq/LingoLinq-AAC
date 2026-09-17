@@ -215,22 +215,18 @@ module Uploader
     total
   end
 
-  # Elastic Transcoder's own {count} substitution (verified against AWS's SDK
-  # docs) makes a real thumbnail key <video_key>.mp4.NNNNN.<fmt>: a five-digit
-  # sequence starting at 00001, plus the preset's thumbnail format (ETS only
-  # ever produces jpg or png) -- two extension-like segments after the media
-  # stem, where the generic rule below intentionally allows just one. Rather
-  # than loosen that shared rule (it gates every remote_remove caller in the
-  # app) for one AWS-shaped exception, recognize this exact shape on its own:
-  # same LingoLinq media-object prefix/stem constraint as the generic rule,
-  # 'videos/' (the only file_type a UserVideo -- the only source of thumbnails
-  # -- ever uses, see Uploadable#file_type), '.mp4' (the only container
-  # Transcoder.convert_video produces), an exact five-digit counter, and only
-  # the two formats ETS can actually generate. Anchored start-to-end, so a
-  # trailing suffix, a wrong digit count, or an unsupported format can't sneak
-  # through.
+  # Transcoder thumbnails are <video_key>.mp4.<count>.<fmt>: five digits
+  # (Elastic Transcoder leftovers, starting at 00001) or seven (MediaConvert
+  # Frame Capture). jpg or png only. Two extension-like segments after the
+  # media stem, where the generic remote_remove rule allows just one. Keep
+  # this exception narrow: videos/ prefix, .mp4 container, 5- or 7-digit
+  # counter, jpg|png, anchored start-to-end.
+  def self.transcoded_thumbnail_key?(remote_path)
+    !!remote_path.to_s.match(/\Avideos\/.+\/\w+-\w+\.mp4\.(?:\d{5}|\d{7})\.(jpg|png)\z/)
+  end
+
   def self.elastic_transcoder_thumbnail_key?(remote_path)
-    !!remote_path.to_s.match(/\Avideos\/.+\/\w+-\w+\.mp4\.\d{5}\.(jpg|png)\z/)
+    transcoded_thumbnail_key?(remote_path)
   end
 
   # Read-only, caller-bounded prefix listing -- used by MediaObject's
@@ -306,6 +302,13 @@ module Uploader
   # guessing loop.
   FALLBACK_MAX_GUESS = 5
 
+  def self.fallback_thumbnail_counts
+    [
+      (1..FALLBACK_MAX_GUESS).map { |n| n.to_s.rjust(5, '0') },
+      (0..FALLBACK_MAX_GUESS).map { |n| n.to_s.rjust(7, '0') }
+    ]
+  end
+
   def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)
     owner = "#{owner_class_name}:#{owner_global_id}"
     found = list_remote_keys_with_prefix("#{stem}.")
@@ -318,35 +321,36 @@ module Uploader
       # when the family may hold more.
       Rails.logger.error("Uploader.remote_remove_thumbnail_family enumeration failed owner=#{owner} stem=#{stem}; falling back to a bounded guessed-sequence delete")
       deleted = 0
-      (1..FALLBACK_MAX_GUESS).each do |n|
-        count = n.to_s.rjust(5, '0')
-        found_this_index = false
-        errored_this_index = false
-        ['png', 'jpg'].each do |ext|
-          key = "#{stem}.#{count}.#{ext}"
-          begin
-            if remote_remove(key)
-              found_this_index = true
-              deleted += 1
+      fallback_thumbnail_counts.each do |counts|
+        counts.each do |count|
+          found_this_index = false
+          errored_this_index = false
+          ['png', 'jpg'].each do |ext|
+            key = "#{stem}.#{count}.#{ext}"
+            begin
+              if remote_remove(key)
+                found_this_index = true
+                deleted += 1
+              end
+            rescue StandardError => e
+              # remote_remove itself already treats a confirmed-absent object
+              # (head_object 404) as a clean nil return, never a raise -- so
+              # anything landing here is a genuine error (permission, network,
+              # throttling), not proof this index doesn't exist. Stopping on it
+              # the same way as a clean "not found" would silently truncate the
+              # guess sequence on a transient blip, defeating the whole point
+              # of this fallback (see the enumeration-failure log line above).
+              errored_this_index = true
+              Rails.logger.error("Uploader.remote_remove_thumbnail_family fallback delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
             end
-          rescue StandardError => e
-            # remote_remove itself already treats a confirmed-absent object
-            # (head_object 404) as a clean nil return, never a raise -- so
-            # anything landing here is a genuine error (permission, network,
-            # throttling), not proof this index doesn't exist. Stopping on it
-            # the same way as a clean "not found" would silently truncate the
-            # guess sequence on a transient blip, defeating the whole point
-            # of this fallback (see the enumeration-failure log line above).
-            errored_this_index = true
-            Rails.logger.error("Uploader.remote_remove_thumbnail_family fallback delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
           end
+          break if !found_this_index && !errored_this_index
         end
-        break if !found_this_index && !errored_this_index
       end
       Rails.logger.info("Uploader.remote_remove_thumbnail_family fallback owner=#{owner} stem=#{stem} deleted=#{deleted}")
       return
     end
-    strict = /\A#{Regexp.escape(stem)}\.\d{5}\.(jpg|png)\z/
+    strict = /\A#{Regexp.escape(stem)}\.(?:\d{5}|\d{7})\.(jpg|png)\z/
     matched = found.select { |k| k.match?(strict) }
     if matched.empty?
       Rails.logger.info("Uploader.remote_remove_thumbnail_family found no matching objects owner=#{owner} stem=#{stem}")
@@ -368,7 +372,7 @@ module Uploader
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
     remote_path = remote_path.sub(/^#{ENV['UPLOADS_S3_CDN']}/, '')
     remote_path = remote_path.sub(/^\//, '')
-    unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/) || elastic_transcoder_thumbnail_key?(remote_path)
+    unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/) || transcoded_thumbnail_key?(remote_path)
       raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
     end
 

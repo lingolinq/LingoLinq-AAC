@@ -3,8 +3,9 @@ require 'spec_helper'
 describe Api::CallbacksController, :type => :controller do
   describe 'callback' do
     it 'should error on confirming invalid arn' do
-      expect(ENV).to receive('[]').with('SNS_ARNS').and_return('bacon,fried')
-      expect(ENV).to receive('[]').with('DISABLE_API_CALL_LOGGING').and_return('true')
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('SNS_ARNS').and_return('bacon,fried')
+      allow(ENV).to receive(:[]).with('DISABLE_API_CALL_LOGGING').and_return('true')
       expect(JsonApi::Json).to receive(:load_domain)
       request.headers['x-amz-sns-message-type'] = 'SubscriptionConfirmation'
       request.headers['x-amz-sns-topic-arn'] = 'ham'
@@ -117,64 +118,92 @@ describe Api::CallbacksController, :type => :controller do
       expect(json).to eq({'handled' => true})
     end
     
-    it "should handle transcoding" do
-      u = User.create
-      expect(GoSecure).to receive(:nonce).with("security_nonce").and_return("abcdefg")
-      expect(GoSecure).to receive(:nonce).with("transcoding_key").and_return("abcdefg")
-      bs = ButtonSound.create(:user => u, :settings => {
-        'full_filename' => 'sounds/4/3/0-something.wav'
-      })
-      # The prefix embeds Time.now.to_i captured inside schedule_transcoding (media_object.rb).
-      # Read it back from the scheduled job rather than recomputing Time.now here, which flakes
-      # when a second ticks over between ButtonSound.create and this line.
-      action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
-      expect(action).to_not eq(nil)
-      prefix = action['args'][3]
-      expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, "abcdefg")).to eq(true)
-      config = OpenStruct.new
-      expect(bs.settings['transcoding_attempted']).to eq(true)
-      job = OpenStruct.new
-      job.id = 'onetwo'
-      resp = OpenStruct.new
-      resp.job = job
-      expect(config).to receive(:create_job){|job_args|
-        expect(job_args[:pipeline_id]).to eq(ENV['TRANSCODER_AUDIO_PIPELINE'])
-        expect(job_args[:user_metadata]).to_not eq(nil)
-        expect(job_args[:input]).to_not eq(nil)
-        expect(job_args[:outputs]).to_not eq(nil)
-        expect(job_args[:outputs][0][:preset_id]).to eq(Transcoder::AUDIO_PRESET)
-        expect(job_args[:outputs][1][:preset_id]).to eq(Transcoder::AUDIO_TRANSCRIBE_PRESET)
-        expect(job_args[:user_metadata]).to_not eq(nil)
-        expect(job_args[:user_metadata][:conversion_type]).to eq('audio')
-        expect(job_args[:user_metadata][:audio_id]).to eq(bs.global_id)
-        job.user_metadata = job_args[:user_metadata].with_indifferent_access
-        job.outputs = [OpenStruct.new(job_args[:output])]
-        job.outputs[0].duration = 111
-        job.outputs[0].key = job_args[:outputs][0][:key]
-      }.and_return(resp)
-      
-      expect(config).to receive(:read_job).with({id: 'onetwo'}).and_return(resp)
-      # expect(Uploader).to receive(:remote_remove).with('sounds/4/3/0-something.wav')
-      expect(Transcoder).to receive(:config).and_return(config).at_least(1).times
+    env_wrap({
+      'MEDIACONVERT_ROLE_ARN' => 'arn:aws:iam::123:role/MediaConvert',
+      'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'
+    }) do
+      it "should handle transcoding" do
+        u = User.create
+        expect(GoSecure).to receive(:nonce).with("security_nonce").and_return("abcdefg")
+        expect(GoSecure).to receive(:nonce).with("transcoding_key").and_return("abcdefg")
+        bs = ButtonSound.create(:user => u, :settings => {
+          'full_filename' => 'sounds/4/3/0-something.wav'
+        })
+        # The prefix embeds Time.now.to_i captured inside schedule_transcoding (media_object.rb).
+        # Read it back from the scheduled job rather than recomputing Time.now here, which flakes
+        # when a second ticks over between ButtonSound.create and this line.
+        action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
+        expect(action).to_not eq(nil)
+        prefix = action['args'][3]
+        expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, "abcdefg")).to eq(true)
+        config = OpenStruct.new
+        expect(bs.settings['transcoding_attempted']).to eq(true)
+        job = OpenStruct.new
+        job.id = 'onetwo'
+        resp = OpenStruct.new
+        resp.job = job
+        expect(config).to receive(:create_job){|job_args|
+          expect(job_args[:role]).to eq('arn:aws:iam::123:role/MediaConvert')
+          expect(job_args[:user_metadata]).to_not eq(nil)
+          expect(job_args[:user_metadata]['conversion_type']).to eq('audio')
+          expect(job_args[:user_metadata]['audio_id']).to eq(bs.global_id)
+          expect(job_args[:settings][:inputs][0][:file_input]).to eq("s3://lingolinq-test-uploads/sounds/4/3/0-something.wav")
+          job.user_metadata = job_args[:user_metadata].with_indifferent_access
+          job.output_group_details = [
+            OpenStruct.new({
+              output_details: [
+                OpenStruct.new({
+                  duration_in_ms: 111_000,
+                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.mp3"]
+                }),
+                OpenStruct.new({
+                  duration_in_ms: 111_000,
+                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.wav"]
+                })
+              ]
+            })
+          ]
+        }.and_return(resp)
 
-      Worker.process_queues
+        expect(config).to receive(:get_job).with({id: 'onetwo'}).and_return(resp)
+        expect(Transcoder).to receive(:config).and_return(config).at_least(1).times
 
-      v = OpenStruct.new
-      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
-      expect(v).to receive(:authentic?).and_return(true)
-      request.headers['x-amz-sns-message-type'] = 'Notification'
-      request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
-      post 'callback', body: {'Message' => {
-        'jobId' => 'onetwo',
-        'state' => 'COMPLETED'
-      }.to_json }.to_json
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json).to eq({'handled' => true})
-      bs.reload
-      expect(bs.settings['full_filename']).to eq(prefix + '.mp3')
-      expect(bs.settings['content_type']).to eq('audio/mp3')
-      expect(bs.settings['duration']).to eq(111)
+        Worker.process_queues
+
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(true)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
+        post 'callback', body: {'Message' => {
+          'detail-type' => 'MediaConvert Job State Change',
+          'source' => 'aws.mediaconvert',
+          'detail' => {
+            'jobId' => 'onetwo',
+            'status' => 'COMPLETE'
+          }
+        }.to_json }.to_json
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json).to eq({'handled' => true})
+        bs.reload
+        expect(bs.settings['full_filename']).to eq(prefix + '.mp3')
+        expect(bs.settings['content_type']).to eq('audio/mp3')
+        expect(bs.settings['duration']).to eq(111)
+      end
+
+      it "should accept a mediaconvert-named SNS topic for transcoding events" do
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(true)
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-events'
+        post 'callback', body: {a: '1'}.to_json
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json).to eq({'handled' => true})
+      end
     end
 
     env_wrap({

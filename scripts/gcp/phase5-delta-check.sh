@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 #
+# NOTE 2026-09-14: this script ran for the 2026-07-22 cutover and CANNOT run now. Render was
+# deleted on 2026-09-09, so RENDER_DATABASE_URL (required at the forward-mode check below) can no
+# longer point at anything. The comments describing live Render prod are the pre-cutover state.
+# Kept for the reverse-mode logic and as the record of how the cutover was gated.
+#
 # phase5-delta-check.sh - LingoLinq Render -> GCP Cloud Run migration, Phase 5 (cutover).
 #
 # The PRE-DNS delta check (PHASE5-CUTOVER-RUNBOOK.md step 7). Immediately before the DNS flip,

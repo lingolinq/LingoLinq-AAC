@@ -23,7 +23,7 @@ class Api::CallbacksController < ApplicationController
     elsif request.headers['x-amz-sns-message-type'] == 'Notification'
       if !topic_arn
         api_error 400, {error: 'missing topic arn'}
-      elsif topic_arn.match(/audio_conversion_events/) || topic_arn.match(/video_conversion_events/)
+      elsif topic_arn.match(/audio_conversion_events/) || topic_arn.match(/video_conversion_events/) || topic_arn.match(/mediaconvert/i)
         verifier = Aws::SNS::MessageVerifier.new
         if !verifier.authentic?(body)
           return api_error 401, {error: 'inauthentic message'}

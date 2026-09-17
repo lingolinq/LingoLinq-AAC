@@ -1518,8 +1518,13 @@ LingoLinq.Board = BaseModel.extend({
         _this.update_suggestion_button(infl, {word: res.label, temporary: true});
       }
     });
-    var lookup_ids = word_suggestions.lookup_board_ids(_this.appState, _this.stashes, (board_ids || []).concat(_this.get('id')));
-    word_suggestions.load_vocabulary_button_sets(_this.appState, _this.stashes, (board_ids || []).concat(_this.get('id'))).then(function(warmed_sets) {
+    var extra = (board_ids || []).concat(_this.get('id'));
+    var ctrl_for_ids = editManager.controller;
+    var lookup_ids = (ctrl_for_ids && ctrl_for_ids.get && ctrl_for_ids.get('is_board_detail') &&
+      ctrl_for_ids._suggestion_lookup_board_ids)
+      ? ctrl_for_ids._suggestion_lookup_board_ids()
+      : word_suggestions.lookup_board_ids(_this.appState, _this.stashes, extra);
+    word_suggestions.load_vocabulary_button_sets(_this.appState, _this.stashes, lookup_ids).then(function(warmed_sets) {
       word_suggestions.lookup({
         last_finished_word: last_word || "",
         second_to_last_word: second_to_last_word,
@@ -1573,23 +1578,65 @@ LingoLinq.Board = BaseModel.extend({
     if(url && this.persistence && this.persistence.url_cache && this.persistence.url_cache[url]) {
       url = this.persistence.url_cache[url];
     }
+    /* lookup() often returns the word before its symbol. The rail then pairs a
+       picture via _find_local_image_for_label / attach_image_for_label; the
+       in-grid :suggestion slots did not, so a word like "can" showed its PCS on
+       the rail and as a chip but as text-only in the slot. */
+    if(!url && ctrl._cached_image_for_label) {
+      url = ctrl._cached_image_for_label(suggestion.word);
+    } else if(!url && ctrl._find_local_image_for_label) {
+      url = ctrl._find_local_image_for_label(suggestion.word);
+    }
     var show_predictions = word_predictions_visible(this.appState);
     var changed = false;
     var newOb = ordered.map(function(row) {
       return (row || []).map(function(btn) {
         if(!btn || btn.id == null || btn.id.toString() !== button_id) { return btn; }
         if(!show_predictions) { return btn; }
-        var updates = {};
-        if(btn.label !== suggestion.word) { updates.label = suggestion.word; }
-        if(url && btn.image_url !== url) { updates.image_url = url; }
-        if(!Object.keys(updates).length) { return btn; }
+        var next = (ctrl._paint_suggestion_slot)
+          ? ctrl._paint_suggestion_slot(btn, suggestion.word, url)
+          : btn;
+        if(next === btn) { return btn; }
         changed = true;
-        return Object.assign({}, btn, updates);
+        return next;
       });
     });
     if(changed) {
       ctrl.set('ordered_buttons', newOb);
     }
+    if(!url) {
+      this._fill_suggestion_slot_image(button, suggestion, ctrl);
+    }
+    if(ctrl._repaint_slots_from_suggestion_list) {
+      ctrl._repaint_slots_from_suggestion_list();
+    }
+  },
+  _fill_suggestion_slot_image: function(button, suggestion, ctrl) {
+    if(!button || !suggestion || !suggestion.word || !ctrl) { return; }
+    if(!this._slot_image_lookups) { this._slot_image_lookups = {}; }
+    var key = String(button.id) + '|' + suggestion.word.toLowerCase();
+    if(this._slot_image_lookups[key]) { return; }
+    this._slot_image_lookups[key] = true;
+    var lookup_ids = (ctrl._suggestion_lookup_board_ids && ctrl._suggestion_lookup_board_ids()) || [];
+    var _this = this;
+    var requested = suggestion.word.toLowerCase();
+    word_suggestions.attach_image_for_label(suggestion.word, lookup_ids, function(img) {
+      if(_this.isDestroyed || _this.isDestroying || !img) { return; }
+      /* The slot is one button id reused for every guess. A late lookup
+         for "we" must not paint, or put the label back, after the cell
+         already moved on to "need". */
+      var still = false;
+      (ctrl.get('ordered_buttons') || []).forEach(function(row) {
+        (row || []).forEach(function(btn) {
+          if(btn && String(btn.id) === String(button.id) &&
+             (btn.label || '').toLowerCase() === requested) {
+            still = true;
+          }
+        });
+      });
+      if(!still) { return; }
+      _this.update_suggestion_button(button, Object.assign({}, suggestion, { image: img }));
+    }, { appState: ctrl.get('app_state'), stashes: ctrl.get('stashes') });
   },
   update_suggestion_button: function(button, suggestion) {
     var _this = this;
@@ -1622,6 +1669,14 @@ LingoLinq.Board = BaseModel.extend({
               lbl.classList.add('tweaked_label');
               var display_word = show_predictions ? suggestion.word : button.label;
               lbl.innerText = display_word;
+              /* In-grid prediction slots must show the word even when the authored
+                 button has hide_label (the picture-only checkbox). Same policy as
+                 the rail: a predicted word with no text is unreadable. */
+              if(show_predictions && display_word &&
+                 (button.vocalization === ':suggestion' || button.suggestion_slot)) {
+                lbl.classList.remove('hide-label');
+                btn.classList.remove('md-board-detail-symbol-card--hide-label');
+              }
               if(btn.classList.contains('md-board-detail-symbol-card') && display_word) {
                 if(btn.getAttribute('original-aria-label') == null) {
                   btn.setAttribute('original-aria-label', btn.getAttribute('aria-label') || '');
@@ -1643,15 +1698,27 @@ LingoLinq.Board = BaseModel.extend({
               }
             }
             if(img) {
-              if(!img.getAttribute('original-src') && img.src) {
-                img.setAttribute('original-src', img.src);
-              }
-              if(url) {
-                img.style.display = '';
-                img.src = show_predictions ? url : (img.getAttribute('original-src') || url);
-              } else if(show_predictions && !suggestion.temporary && img.getAttribute('original-src')) {
-                img.style.display = '';
-                img.src = img.getAttribute('original-src');
+              var detail_ctrl = editManager.controller;
+              var is_board_detail = !!(detail_ctrl && detail_ctrl.get &&
+                detail_ctrl.get('is_board_detail'));
+              /* Board-detail slots are Ember-painted (`_paint_suggestion_slot`).
+                 lookup() stamps square.svg, so resolve_word_image is null here
+                 even after Ember paired the on-board PCS. Hiding .symbol then
+                 blanks want/like/to into a white square on the next refresh.
+                 Classic Speak Mode still owns this DOM path. */
+              if(!is_board_detail) {
+                if(!img.getAttribute('original-src') && img.src) {
+                  img.setAttribute('original-src', img.src);
+                }
+                if(url) {
+                  img.style.display = '';
+                  img.src = show_predictions ? url : (img.getAttribute('original-src') || url);
+                } else if(!show_predictions && img.getAttribute('original-src')) {
+                  img.style.display = '';
+                  img.src = img.getAttribute('original-src');
+                } else if(show_predictions) {
+                  img.style.display = 'none';
+                }
               }
             }
           }
