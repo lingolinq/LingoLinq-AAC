@@ -52,3 +52,30 @@ Retry of the 53 failed jobs. Backfill older than the two-week window.
 6. Confirm output encryption matches the uploads bucket.
 
 **Attested follow-up:** `docs/legal/AWS_BAA_ACCEPTED.md` still names Elastic Transcoder. Do not edit attested bytes here; Scot `/re-attest-record` after this merges.
+
+## Deploy wiring (2026-09-17, issue #981)
+
+AWS IAM, queues, EventBridge, and SNS topics were applied 2026-09-16 (account
+`239044785114`, us-west-2). This follow-up only teaches `deploy-cloudrun.yml` to
+set `SNS_ARNS` / `SNS_REGION` from GitHub vars and requires
+`APP_MEDIACONVERT_QUEUE_ARN` in production. Applied policy JSON lives in
+`scripts/gcp/iam/`.
+
+(a) READ: `Api::CallbacksController#callback` uses `ENV['SNS_ARNS']` (comma-split
+allowlist) and `ENV['SNS_REGION']` for `SubscriptionConfirmation`. Deploys use
+`--set-env-vars`, which replaces the whole environment, so hand-set Cloud Run
+values are erased. CONFIRMED: `app/controllers/api/callbacks_controller.rb:12-17`,
+`.github/workflows/deploy-cloudrun.yml`.
+
+(b) Shapes: `APP_SNS_ARNS` is one topic ARN per environment. The deploy shape
+check rejects commas, so SMS cannot share this var until a later change.
+`APP_SNS_REGION` is a region string (`us-west-2`). Blank = omitted, never `""`.
+CONFIRMED: shape-check loop in `deploy-cloudrun.yml`; Scot handoff on #981.
+
+(c) Production `APP_MEDIACONVERT_QUEUE_ARN` is required because omitting it
+submits to the account Default queue, which is the nonprod EventBridge match.
+CONFIRMED: issue #981 handoff (events routed by queue).
+
+Not in this change: setting the GitHub vars, creating the HTTPS subscription,
+staging/prod smoke tests, #965 retries, `ButtonSound.schedule_missing_transcodings`
+log shape, `docs/legal/SUBPROCESSORS.md`.

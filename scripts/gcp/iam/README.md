@@ -40,9 +40,9 @@ transcode/SES notifications via SNS - see `lib/transcoder.rb`, `app/controllers/
 strict S3+SES user will make **media transcoding and SNS callbacks fail**.
 
 This is acceptable for the **clean-DB rehearsal** (its smoke path is login / board / S3 / SES / Resque -
-no transcoding) and while prod has no real users. **Before real-user cutover**, confirm whether
-transcoding is in scope and, if so, add an Elastic Transcoder + SNS statement to the policy (a
-commented template is in the plan). Do not silently assume S3+SES is the full app surface.
+no transcoding) and while prod has no real users. **Update 2026-09-16:** transcoding now uses
+MediaConvert, not Elastic Transcoder. The applied role and submit policies live in this
+directory; see the MediaConvert section below. Do not silently assume S3+SES is the full app surface.
 
 ## Create commands (run with an AWS ADMIN principal - NOT the app user)
 
@@ -158,3 +158,35 @@ item). Seed / mount `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET` on every service 
 (Cloud Run `NON_BOOT_SECRETS`, Render, workers). Until both are present as a pair,
 `AiClient.configured?` stays false and callers keep the existing "AI is not configured" degrade
 path — by design.
+
+## MediaConvert (applied 2026-09-16)
+
+These documents record what AWS already has (issue #981). They are not applied by this
+repo's deploy workflow. Elastic Transcoder was discontinued 2025-11-13; encoding lives in
+`lib/transcoder.rb`. Staging uses `lingolinq-dev-uploads` (SSE-S3); production uses
+`lingolinq-prod-uploads` (CMK). Prod and nonprod each have their own queue, EventBridge
+rule, and SNS topic so jobs cannot cross the bucket boundary through MediaConvert.
+
+### Roles MediaConvert assumes (trust + inline policy)
+
+Both roles use `lingolinq-mediaconvert-trust-policy.json` (`mediaconvert.amazonaws.com`,
+source account `239044785114`).
+
+| Role | Inline policy | Bucket scope |
+|---|---|---|
+| `lingolinq-mediaconvert-prod` | `lingolinq-mediaconvert-prod-role-policy.json` | `lingolinq-prod-uploads` plus the uploads CMK |
+| `lingolinq-mediaconvert-nonprod` | `lingolinq-mediaconvert-nonprod-role-policy.json` | `lingolinq-dev-uploads` only |
+
+### Submit policies on the runtime principals
+
+These customer-managed policies let the app create jobs on its own queue, pass only its
+own role, and confirm only its own SNS topic.
+
+| Policy file | Attached to | Queue it may submit to |
+|---|---|---|
+| `lingolinq-cloudrun-mediaconvert-prod-policy.json` | IAM user `lingolinq-cloudrun-prod` | `lingolinq-prod` |
+| `lingolinq-app-mediaconvert-nonprod-policy.json` | IAM group `LingoLinq_app_service` (`lingolinq-app`; staging and dev) | account `Default` |
+
+Production must set `APP_MEDIACONVERT_QUEUE_ARN` to the prod queue. Nonprod leaves it
+blank so jobs use `Default`. Subscribe only `https://staging.lingolinq.com/api/v1/callback`
+on the nonprod topic: staging and dev share one database.
