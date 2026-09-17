@@ -522,7 +522,7 @@ module('Unit | Utility | prediction symbol pairing', function(hooks) {
     });
     assert.notStrictEqual(img.style.display, 'none',
       'placeholder lookup must not hide the Ember-paired PCS');
-    assert.ok((img.getAttribute('src') || img.src || '').indexOf('to.svg') !== -1);
+    assert.notStrictEqual((img.getAttribute('src') || img.src || '').indexOf('to.svg'), -1);
     editManager.controller = prev;
     document.body.removeChild(boardEl);
     board.unloadRecord();
