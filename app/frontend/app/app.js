@@ -562,6 +562,8 @@ LingoLinq.licenseOptions.license_url = function(id) {
 };
 
 LingoLinq.iconUrls = [
+    {alt: 'board dark', url: '/images/LingoLinq-board-icon-dark.png'},
+    {alt: 'board light', url: '/images/LingoLinq-board-icon-light.png'},
     {alt: 'house', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/house.svg'},
     {alt: 'food', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/food.svg'},
     {alt: 'verbs', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verbs.png'},

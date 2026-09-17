@@ -68,26 +68,26 @@
 | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | git | `docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` | 2026-08-16 | approved | Review date is older than 2026-09-15. |
 | Article 50(1) Disclosure - Production Feature-Flag Verification | git | `docs/legal/2026-08-23_article-50-production-flag-verification.md` | 2026-08-23 | draft | Review date is older than 2026-09-15. |
 | Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-09-15. |
-| COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | 2026-07-23 | approved | Review date is older than 2026-09-15. |
-| Compliance & Data Governance (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-data-governance.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
-| Compliance & Security Program v1.3.2 (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
+| COPPA Final Rule Code Verification (2026-09-17 successor) | git | `docs/legal/2026-09-17_coppa-final-rule-code-verification.md` |  | draft | No review recorded. |
+| Compliance & Data Governance (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-data-governance.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
+| Compliance & Security Program v1.3.2 (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-09-15. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-09-15. |
-| Compliance Posture Report (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-posture-report.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
-| Compliance Status Snapshot (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-status-snapshot.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
-| Data Retention Schedule (2026-09-14 successor) | git | `docs/legal/2026-09-14_data-retention.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
+| Compliance Posture Report (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-posture-report.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
+| Compliance Status Snapshot (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-status-snapshot.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
+| Data Retention Schedule (2026-09-14 successor) | git | `docs/legal/2026-09-14_data-retention.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-09-15. |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-09-15. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-09-15. |
-| GCP BAA Acceptance Record (2026-09-14 successor) | git | `docs/legal/2026-09-14_gcp-baa-accepted.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
+| GCP BAA Acceptance Record (2026-09-14 successor) | git | `docs/legal/2026-09-14_gcp-baa-accepted.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-09-15. |
-| Incident Response & Breach Runbook (2026-09-14 successor) | git | `docs/legal/2026-09-14_incident-response-breach-runbook.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
+| Incident Response & Breach Runbook (2026-09-14 successor) | git | `docs/legal/2026-09-14_incident-response-breach-runbook.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-09-15. |
 | Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft) | git | `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` | 2026-08-30 | draft | Review date is older than 2026-09-15. |
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-07-23 | approved | Review date is older than 2026-09-15. |
 | Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` |  | draft | No review recorded. |
-| Security, Privacy & Compliance Overview (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program-overview.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
-| Subprocessor Register (2026-09-14 successor) | git | `docs/legal/2026-09-14_subprocessor-register.md` | 2026-09-14 | draft | Review date is older than 2026-09-15. |
+| Security, Privacy & Compliance Overview (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program-overview.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
+| Subprocessor Register (2026-09-14 successor) | git | `docs/legal/2026-09-14_subprocessor-register.md` | 2026-09-14 | approved | Review date is older than 2026-09-15. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-09-15. |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-09-15. |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | 2026-08-12 | published | Review date is older than 2026-09-15. |
@@ -180,7 +180,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
 | `policy-version` | supersession + 7 years | archive | 56 | draft |
-| `audit-evidence` | 7 years | archive | 19 | draft |
+| `audit-evidence` | 7 years | archive | 20 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `questionnaire-response` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -188,7 +188,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 3 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 103 rows carry a retention block.
+All 104 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -226,7 +226,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-26 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+35 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -245,6 +245,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
+| COPPA Final-Rule Verification | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | COPPA Final Rule Code Verification (2026-09-17 successor) | school-dpa-package |
 | Compliance & Data Governance (2026-08-25 successor) | `docs/legal/2026-08-25_compliance-data-governance.md` | Compliance & Data Governance (2026-09-14 successor) | soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | Compliance & Data Governance (2026-08-25 successor) | soc2-evidence |
 | Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program (2026-08-22 successor) | (none) |
@@ -319,4 +320,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_103 documents tracked. 72 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 29 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_104 documents tracked. 72 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 30 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

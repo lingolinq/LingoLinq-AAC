@@ -1097,14 +1097,38 @@ export default Controller.extend(prefClasses, {
    *     str …), matching classic speak-bar behavior. When the word
    *     completes (space or prediction), the symbol image is added.
    */
+  _norm_prediction_label: function(value) {
+    return String(value || '').toLowerCase().replace(/^\s+|\s+$/g, '');
+  },
+
+  _usable_button_image_url: function(btn) {
+    if(!btn) { return null; }
+    var url = btn.local_image_url || btn.image_url;
+    if(!url && btn.image) {
+      if(typeof btn.image === 'string') {
+        url = btn.image;
+      } else {
+        url = emberGet(btn, 'image.best_url') || emberGet(btn, 'image.url') || emberGet(btn, 'image.image_url');
+      }
+    }
+    if(url && !wordSuggestionsModule.is_placeholder_image(url)) { return url; }
+    return null;
+  },
+
   _find_local_image_for_label: function(label) {
-    var key = (label || '').toLowerCase();
+    var key = this._norm_prediction_label(label);
     if(!key) { return null; }
+    var _this = this;
     var flat = this.get('flat_ordered_buttons') || [];
     for(var idx = 0; idx < flat.length; idx++) {
       var btn = flat[idx];
       if(!btn) { continue; }
-      var lbl = (btn.label || btn.vocalization || '').toLowerCase();
+      /* Painted in-grid prediction slots reuse the guessed word as their label.
+         Matching them would return nothing (they have no symbol of their own) or
+         a stale leftover, and skip the real vocabulary button for the same word. */
+      if(btn.suggestion_slot) { continue; }
+      if(/^[:+]/.test(String(btn.vocalization || ''))) { continue; }
+      var lbl = _this._norm_prediction_label(btn.label || btn.vocalization);
       if(lbl !== key) { continue; }
       /* SAME PRECEDENCE THE GRID PAINTS WITH. board-detail-grid.hbs:152 renders the board
          button as `{{or btn.local_image_url btn.image_url}}`: local_image_url is the locally
@@ -1115,12 +1139,180 @@ export default Controller.extend(prefClasses, {
          board/index.js:357, edit_manager.js:178, button-preview.js:78); this was the outlier.
          A button showing the missing-image placeholder still offers nothing to borrow, so the
          loop keeps looking rather than returning it. */
-      var url = btn.local_image_url || btn.image_url;
-      if(url && !wordSuggestionsModule.is_placeholder_image(url)) {
-        return url;
+      var url = _this._usable_button_image_url(btn);
+      if(url) { return url; }
+    }
+    /* Display copies can lack image_url (cache hit before image_urls hydrated)
+       while the tap path still resolves the symbol from raw.image_urls — the
+       "you" slot stayed blank even though clicking the you button painted a
+       chip. Search that map too. */
+    var raw = this._last_raw;
+    var image_map = (raw && raw.image_urls) || {};
+    var preferred = this._preferred_symbols;
+    var raw_buttons = (raw && raw.buttons) || [];
+    for(var rdx = 0; rdx < raw_buttons.length; rdx++) {
+      var raw_btn = raw_buttons[rdx];
+      if(!raw_btn) { continue; }
+      if(raw_btn.vocalization === ':suggestion' || /^[:+]/.test(String(raw_btn.vocalization || ''))) { continue; }
+      if(_this._norm_prediction_label(raw_btn.label || raw_btn.vocalization) !== key) { continue; }
+      var raw_url = null;
+      if(raw_btn.image_id && image_map) {
+        if(preferred && image_map[raw_btn.image_id + '-' + preferred]) {
+          raw_url = image_map[raw_btn.image_id + '-' + preferred];
+        } else {
+          raw_url = image_map[raw_btn.image_id];
+        }
+      }
+      if(!raw_url) { raw_url = raw_btn.image_url || raw_btn.image; }
+      if(raw_url && !wordSuggestionsModule.is_placeholder_image(raw_url)) {
+        return this._resolve_cached_image_url(raw_url) || raw_url;
       }
     }
     return null;
+  },
+
+  /* Instant sources only. attach_image_for_label walks button sets and can
+     take long enough that a slot stays blank after we drop the previous
+     guess's PCS. Prefer, in order: this session's already-resolved
+     prediction memo, a speak-bar chip for the same word, the board's own
+     buttons / image_urls map. persistence.url_cache is a URL→local-file
+     map, so it is applied after we have a url, not searched by word. */
+  _cached_image_for_label: function(label) {
+    var key = this._norm_prediction_label(label);
+    if(!key) { return null; }
+    var lookups = this._suggestion_image_lookups || {};
+    var lookup_ids = (this._suggestion_lookup_board_ids && this._suggestion_lookup_board_ids()) || [];
+    var memo = lookups[this._suggestion_memo_scope(lookup_ids) + '|' + key];
+    if(typeof memo === 'string' && !wordSuggestionsModule.is_placeholder_image(memo)) {
+      return this._prefer_local_image_url(memo);
+    }
+    var chips = this._resolved_label_images || {};
+    var chip = chips['l:' + key];
+    if(chip && !wordSuggestionsModule.is_placeholder_image(chip)) {
+      return this._prefer_local_image_url(chip);
+    }
+    var parts = this.get('sentence_parts') || [];
+    for(var idx = 0; idx < parts.length; idx++) {
+      var part = parts[idx];
+      if(!part || part.in_progress) { continue; }
+      if(this._norm_prediction_label(part.label) !== key) { continue; }
+      if(part.image_url && !wordSuggestionsModule.is_placeholder_image(part.image_url)) {
+        return this._prefer_local_image_url(part.image_url);
+      }
+    }
+    /* Spoken buttons carry `image` on app_state.button_list before
+       sentence_parts has copied it. A tapped "to" is therefore visible
+       on the chip while prediction lookup still misses if we only read
+       the chip cache's l: key (tapped board buttons are stored as b:id). */
+    var spoken = this.get('app_state.button_list') || [];
+    for(var sdx = 0; sdx < spoken.length; sdx++) {
+      var spoken_btn = spoken[sdx];
+      if(!spoken_btn || emberGet(spoken_btn, 'in_progress') || emberGet(spoken_btn, 'ghost')) { continue; }
+      var spoken_label = emberGet(spoken_btn, 'label') || emberGet(spoken_btn, 'vocalization');
+      if(this._norm_prediction_label(spoken_label) !== key) { continue; }
+      var spoken_img = wordSuggestionsModule.resolve_word_image({
+        image: emberGet(spoken_btn, 'image'),
+        original_image: emberGet(spoken_btn, 'original_image')
+      }) || this._usable_button_image_url({
+        image: emberGet(spoken_btn, 'image'),
+        image_url: emberGet(spoken_btn, 'image_url'),
+        local_image_url: emberGet(spoken_btn, 'local_image_url')
+      });
+      if(spoken_img) { return this._prefer_local_image_url(spoken_img); }
+    }
+    var local = this._find_local_image_for_label(label);
+    return local ? this._prefer_local_image_url(local) : null;
+  },
+
+  _prefer_local_image_url: function(url) {
+    if(!url) { return null; }
+    var cached = this._locally_cached_image_url(url);
+    return cached || url;
+  },
+
+  _locally_cached_image_url: function(url) {
+    if(!url) { return null; }
+    if(/^data:/i.test(url) || /^blob:/i.test(url)) { return url; }
+    var cache = persistence.url_cache;
+    if(cache && cache[url] && cache[url] !== false) { return cache[url]; }
+    return null;
+  },
+
+  /* The rail pairs pictures in `_decorate_suggestion_images`. In-grid
+     `:suggestion` slots are a different list (`ordered_buttons`) and only
+     render an <img> when `image_url` is set (board-detail-grid.hbs). Copy
+     a resolved prediction symbol onto every slot offering the same word so
+     the slot matches the rail and the speak-bar chip. */
+  /* One paint rule for a prediction slot. The grid keys cards by button id,
+     so the same DOM <img> is reused when the guessed word changes. We stamp
+     `suggestion_image_word` next to the url and refuse to keep a picture
+     whose word no longer matches — otherwise "we"'s people stay on a slot
+     that now reads "need". A later lookup for the SAME word with no url
+     yet must not wipe a picture we already paired. */
+  _paint_suggestion_slot: function(btn, word, url) {
+    if(!btn) { return btn; }
+    var want = String(word || '').toLowerCase();
+    var image_word = String(btn.suggestion_image_word || '').toLowerCase();
+    var clean = (url && !wordSuggestionsModule.is_placeholder_image(url)) ? url : null;
+    var updates = {};
+    if(word && btn.label !== word) { updates.label = word; }
+    if(clean) {
+      if(btn.image_url !== clean || btn.local_image_url || image_word !== want || btn.text_symbol !== false) {
+        updates.image_url = clean;
+        updates.local_image_url = null;
+        updates.text_symbol = false;
+        updates.suggestion_image_word = want;
+      }
+    } else if(image_word && image_word !== want) {
+      updates.image_url = null;
+      updates.local_image_url = null;
+      updates.text_symbol = true;
+      updates.suggestion_image_word = null;
+    } else if(!image_word && (btn.image_url || btn.local_image_url) && want && (btn.label || '').toLowerCase() !== want) {
+      /* Slots painted before this stamp existed: if the label is moving
+         on and we have no url for the new word, drop the leftover PCS. */
+      updates.image_url = null;
+      updates.local_image_url = null;
+      updates.text_symbol = true;
+      updates.suggestion_image_word = null;
+    }
+    if(!Object.keys(updates).length) { return btn; }
+    return Object.assign({}, btn, updates);
+  },
+
+  _apply_suggestion_image_to_slots: function(word, url) {
+    if(!word || !url || wordSuggestionsModule.is_placeholder_image(url)) { return false; }
+    var ordered = this.get('ordered_buttons');
+    if(!ordered || !ordered.length) { return false; }
+    var want = String(word).toLowerCase();
+    var _this = this;
+    var changed = false;
+    var newOb = ordered.map(function(row) {
+      return (row || []).map(function(btn) {
+        if(!btn || !btn.suggestion_slot) { return btn; }
+        if((btn.label || '').toLowerCase() !== want) { return btn; }
+        var next = _this._paint_suggestion_slot(btn, word, url);
+        if(next !== btn) { changed = true; }
+        return next;
+      });
+    });
+    if(changed) { this.set('ordered_buttons', newOb); }
+    return changed;
+  },
+
+  /* Slots get their label in a later _sync than the rail decorate pass.
+     Re-apply every already-resolved suggestion picture once those labels
+     exist, so a word like "you" does not stay blank after we dropped the
+     previous guess's PCS. */
+  _repaint_slots_from_suggestion_list: function() {
+    var list = this.get('suggestions.list') || [];
+    var _this = this;
+    list.forEach(function(item) {
+      if(!item || !item.word) { return; }
+      var url = wordSuggestionsModule.resolve_word_image(item) ||
+        _this._cached_image_for_label(item.word);
+      if(url) { _this._apply_suggestion_image_to_slots(item.word, url); }
+    });
   },
 
   /* The SET a symbol resolution belongs to, for the memo key below.
@@ -1251,10 +1443,27 @@ export default Controller.extend(prefClasses, {
     var ctx = { appState: _this.get('app_state'), stashes: _this.get('stashes') };
     list.forEach(function(item) {
       if(!item || !item.word) { return; }
-      if(wordSuggestionsModule.resolve_word_image(item)) { return; }
-      var local = _this._find_local_image_for_label(item.word);
-      if(local) {
-        item.image = local;
+      var want_word = (item.word || '').toLowerCase();
+      /* Same object can be reused with a new word. A leftover image_for_word
+         from the previous guess must not be treated as this word's PCS. */
+      if(item.image_for_word && item.image_for_word !== want_word) {
+        item.image = null;
+        item.original_image = null;
+        item.data_image = null;
+        item.image_for_word = null;
+      }
+      var existing = wordSuggestionsModule.resolve_word_image(item);
+      if(existing) {
+        item.image_for_word = want_word;
+        _this._apply_suggestion_image_to_slots(item.word, existing);
+        return;
+      }
+      var cached = _this._cached_image_for_label(item.word);
+      if(cached) {
+        item.image = cached;
+        item.image_for_word = want_word;
+        lookups[_this._suggestion_memo_scope(lookup_ids) + '|' + want_word] = cached;
+        _this._apply_suggestion_image_to_slots(item.word, cached);
         return;
       }
       /* Key by the CONTEXT the resolution depends on, not the bare word.
@@ -1276,7 +1485,12 @@ export default Controller.extend(prefClasses, {
          the map. Type "h" and "hello" has its symbol; type "he" and it comes back bare. For a
          symbol-reliant user that is the word becoming unreadable. Mirrors the fix the
          sentence-chip pipeline already uses (_resolved_label_images). */
-      if(typeof seen === 'string') { item.image = seen; return; }
+      if(typeof seen === 'string') {
+        item.image = seen;
+        item.image_for_word = want_word;
+        _this._apply_suggestion_image_to_slots(item.word, seen);
+        return;
+      }
       /* A MISS is remembered with the warm state it was observed under, and is only binding
          while that state holds. attach_image_for_label invokes its callback ONLY on success,
          so a miss leaves whatever was written here before the call — which is why writing a
@@ -1285,8 +1499,26 @@ export default Controller.extend(prefClasses, {
       /* Written BEFORE the async call so it also serves as the in-flight guard: a second
          decorate pass while this one is outstanding must not fire a duplicate request. */
       lookups[key] = { miss: sets_sig };
+      /* Closed over so a late onload cannot paint this url onto a tile whose
+         word has since changed (the wilted flower that stayed on "a break"). */
+      var requested_word = (item.word || '').toLowerCase();
       wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
         if(_this.isDestroyed || _this.isDestroying || !url) { return; }
+        var paint_resolved = function(ready_url) {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          lookups[key] = ready_url;
+          var current_word = (item.word || '').toLowerCase();
+          if(current_word !== requested_word) { return; }
+          item.image = ready_url;
+          item.image_for_word = requested_word;
+          _this._apply_suggestion_image_to_slots(item.word, ready_url);
+          _this._republish_suggestion_list();
+        };
+        var already = _this._locally_cached_image_url(url);
+        if(already) {
+          paint_resolved(already);
+          return;
+        }
         /* DECODE BEFORE SWAP. Assigning `url` straight onto the item paints an <img> whose
            bytes have not arrived yet: an empty box, and a WHITE BLOCK under
            symbol_background_clear (whose white-backing filter applies to a broken image just
@@ -1297,10 +1529,7 @@ export default Controller.extend(prefClasses, {
            board_preview_warmer.js uses to stop grid pop-in. */
         var probe = new Image();
         probe.onload = function() {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
-          lookups[key] = url;
-          item.image = url;
-          _this._republish_suggestion_list();
+          paint_resolved(url);
         };
         probe.onerror = function() {
           /* Deliberately leaves the memo on its `{miss}` entry rather than latching the url:
@@ -1320,26 +1549,66 @@ export default Controller.extend(prefClasses, {
   _chip_image_key: function(id, label) {
     return (id && String(id).indexOf('utt-') !== 0) ? ('b:' + id) : ('l:' + (label || '').toLowerCase());
   },
+  /* Chip rebuilds key by button_id so two same-label buttons keep their
+     own symbols. Predictions look up by WORD, so a tapped "to" stored
+     only as b:846 never reached the "to" tile. Write the label key too;
+     last write wins, which is the symbol the user just saw. */
+  _index_chip_image: function(id, label, url) {
+    if(!url || wordSuggestionsModule.is_placeholder_image(url)) { return; }
+    if(!this._resolved_label_images) { this._resolved_label_images = {}; }
+    if(id && String(id).indexOf('utt-') !== 0) {
+      this._resolved_label_images['b:' + id] = url;
+    }
+    var key = this._norm_prediction_label(label);
+    if(key) { this._resolved_label_images['l:' + key] = url; }
+  },
+  /* Chip images often resolve AFTER the prediction list already rendered
+     square.svg. Mutate the matching items and republish so the rail/bar
+     swap in one step; slots use the same url. */
+  _paint_prediction_image: function(word, url) {
+    if(!word || !url || wordSuggestionsModule.is_placeholder_image(url)) { return; }
+    this._apply_suggestion_image_to_slots(word, url);
+    var current = this.get('suggestions');
+    if(!current || !current.list || !current.list.length) { return; }
+    var want = String(word).toLowerCase();
+    var changed = false;
+    current.list.forEach(function(item) {
+      if(!item || (item.word || '').toLowerCase() !== want) { return; }
+      if(item.image === url && item.image_for_word === want) { return; }
+      item.image = url;
+      item.original_image = url;
+      item.image_for_word = want;
+      changed = true;
+    });
+    if(changed) { this._republish_suggestion_list(); }
+  },
   _apply_sentence_chip_image: function(part, img) {
     if(!part || !img) { return false; }
     // Carry this resolved image forward across rebuilds/reorders (raw_index isn't
     // stable). Keyed by button_id when present so it can't leak to a different
-    // same-label button.
+    // same-label button. Also index by label so a prediction for that word
+    // can reuse the chip PCS (see _index_chip_image).
     if(part.label) {
-      if(!this._resolved_label_images) { this._resolved_label_images = {}; }
-      this._resolved_label_images[this._chip_image_key(part.id, part.label)] = img;
+      this._index_chip_image(part.id, part.label, img);
     }
     var current = (this.get('sentence_parts') || []).slice();
+    var want = (part.label || '').toLowerCase();
     var idx = current.findIndex(function(p) {
-      return p && ((part.raw_index != null && p.raw_index === part.raw_index) ||
-        (p.label === part.label && !p.image_url));
+      /* Label first. Matching raw_index alone stamped "need"'s flower onto the
+         chip that now read "a break" when the slot was reused before the async
+         lookup returned. */
+      if(!p || !want || (p.label || '').toLowerCase() !== want) { return false; }
+      if(part.raw_index != null && p.raw_index === part.raw_index) { return true; }
+      return !p.image_url;
     });
+    var applied = false;
     if(idx >= 0 && current[idx].image_url !== img) {
       current[idx] = Object.assign({}, current[idx], { image_url: img });
       this.set('sentence_parts', current);
-      return true;
+      applied = true;
     }
-    return false;
+    this._paint_prediction_image(part.label, img);
+    return applied;
   },
 
   // ----- Speak-bar active edit (feature: sentence_bar_editing) -----
@@ -1458,7 +1727,7 @@ export default Controller.extend(prefClasses, {
     var label_images = this._resolved_label_images;
     old_parts.forEach(function(p) {
       if(p && p.label && p.image_url && !p.in_progress) {
-        label_images[_this._chip_image_key(p.id, p.label)] = p.image_url;
+        _this._index_chip_image(p.id, p.label, p.image_url);
       }
     });
     var parts = [];
@@ -1492,7 +1761,11 @@ export default Controller.extend(prefClasses, {
         // Carry forward a previously-resolved image (async lookup, or a value
         // resolved before a reorder/swap shuffled raw_index) so it doesn't flicker.
         if(!image_url) {
-          image_url = label_images[_this._chip_image_key(emberGet(b, 'button_id'), label)] || null;
+          image_url = label_images[_this._chip_image_key(emberGet(b, 'button_id'), label)] ||
+            label_images['l:' + _this._norm_prediction_label(label)] || null;
+        }
+        if(image_url && !wordSuggestionsModule.is_placeholder_image(image_url)) {
+          _this._index_chip_image(emberGet(b, 'button_id'), label, image_url);
         }
       }
       // Keep vocalization on the chip mirror so Speak-bar / mic replay can
@@ -1598,9 +1871,8 @@ export default Controller.extend(prefClasses, {
     var lookups = this._sentence_image_lookups;
     var lookup_ids = wordSuggestionsModule.lookup_board_ids(this.get('app_state'), this.get('stashes'), [this.get('model.id')]);
     pending.forEach(function(part) {
-      var key = part.raw_index != null ?
-        ('r:' + part.raw_index) :
-        ('l:' + (part.label || '').toLowerCase());
+      var key = (part.raw_index != null ? ('r:' + part.raw_index) : 'l') +
+        ':' + (part.label || '').toLowerCase();
       if(lookups[key]) { return; }
       var local_img = _this._find_local_image_for_label(part.label);
       if(local_img && _this._apply_sentence_chip_image(part, local_img)) {
@@ -2322,7 +2594,7 @@ export default Controller.extend(prefClasses, {
       link_disabled: Button.coerce_level_value('link_disabled', level_attrs.link_disabled),
       sound_id: btn.sound_id,
       hidden: btn.hidden,
-      hide_label: !!btn.hide_label,
+      hide_label: Button.coerce_level_value('hide_label', btn.hide_label),
       display_as_hidden: display_as_hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
@@ -2365,7 +2637,7 @@ export default Controller.extend(prefClasses, {
     // flashed via the classic fast-HTML paint, then the Ember grid re-rendered without
     // it (Button.create doesn't reliably propagate it — same reason the level path in
     // edit_manager sets it explicitly).
-    button.set('hide_label', !!btn.hide_label);
+    button.set('hide_label', Button.coerce_level_value('hide_label', btn.hide_label));
     /* Set explicitly for exactly the reason `hide_label` above is: `Button.create` does not
        reliably carry a plain field through. Without it the word-prediction slots group by
        their (white) colour in EDIT mode and land in Connectors, while the speak-mode copy —
@@ -8834,7 +9106,7 @@ export default Controller.extend(prefClasses, {
       };
 
       var image_url = wordSuggestionsModule.resolve_word_image(word) ||
-        _this._find_local_image_for_label(text) ||
+        _this._cached_image_for_label(text) ||
         word.original_image;
       if(image_url) {
         activate(image_url);

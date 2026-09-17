@@ -1131,7 +1131,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COPPA_VERIFICATION_2026-04-26.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "COPPA"
       ],
@@ -1164,7 +1164,38 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-c658279924"
+    },
+    {
+      "id": "DOC-c658279924",
+      "title": "COPPA Final Rule Code Verification (2026-09-17 successor)",
+      "canonicalLocation": "docs/legal/2026-09-17_coppa-final-rule-code-verification.md",
+      "canonicalSystem": "git",
+      "type": "evidence",
+      "status": "draft",
+      "frameworks": [
+        "COPPA"
+      ],
+      "owner": "Scot Wahlquist",
+      "supersedes": "DOC-407d2c2bf4",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "nextReviewDue": "2026-10-22",
+      "attestation": {},
+      "notes": "Path A successor to DOC-407d2c2bf4 (COPPA_VERIFICATION_2026-04-26.md, attested 2026-07-23 by Scot Wahlquist, CEO; first attested 2026-06-21), created 2026-09-17. The predecessor remains frozen and its bytes still match its recorded attestedContentHash, so this is a CONTENT correction, not tampering. ONLY THE BANNER IS REWRITTEN; the body is reproduced byte-for-byte and is not re-verified. Corrects two banner defects. (1) The banner asserted that AiApiLog.redact_old_ip_addresses! 'was wired into lib/tasks/scheduler.rake by PR #222 and runs daily today'. That sentence was introduced 2026-07-23 and attested the same day, but rake scheduler:dispatch had NO production trigger from 2026-07-21 to 2026-09-02 (finding LL-3e36a18199, high, open), so the claim was not true when written, two days into that window. It did not go stale. The wiring itself is real (lib/tasks/scheduler.rake:187, gated on hour == 6 at :140; method at app/models/ai_api_log.rb:225, 90-day default) and the job has been observed running daily since 2026-09-03, reporting 0 rows redacted on each of the twelve dates through 2026-09-14; evidence and its limits are in docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md. (2) The banner cited 'section 10' for that finding; this document has no numbered sections, and the finding is under Phase 2B 'Item 3 - Retention Policy Enforcement'. ATTESTER MUST CONFIRM: this record is in the school-dpa-package bundle and is Drive-mirrored, so the corrected text is exported to school districts; the predecessor's Drive mirror still carries the inaccurate sentence and is NOT updated by this change, so refreshing or retiring that mirror is a separate act. This successor closes, downgrades or supersedes no finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "mirrors": [],
+      "contentHash": "90a0d1a4f90a4720340a86c02a29d30f4d40add2932dc21a751ca1bb1ec604fe",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "description": "Verification record against the amended COPPA Rule (effective 2026-04-22)."
     },
     {
       "title": "Parental Consent Email (COPPA / under-13)",
@@ -3901,7 +3932,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_data-retention.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -3910,7 +3941,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-04-20",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
+        "note": "Path A successor to DOC-e62caf7fb9 (2026-08-09_data-retention_draft.md), frozen, and a DRAFT. Scope of this pin: the Render decommission restatements, plus the archive retention correction, which is the most consequential content here and is NOT about customer data. An earlier draft called gs://lingolinq-prod-render-archive immutable and said an Article 17 erasure could not be executed against it. Both were false. The bucket's retentionPolicy has NO isLocked field, re-verified live at attestation 2026-09-16 (retentionPeriod 31557600s, effectiveTime 2026-09-02T17:30:22Z, isLocked absent), so a project admin can remove the policy and then delete. The document states that erasure is a DECISION, not a technical impossibility. This matters for the schedule's accuracy about GCS retention mechanics generally, not because the archive holds customer data: it does not. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "contentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
       "bundles": [
         "soc2-evidence",
@@ -3938,7 +3974,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_subprocessor-register.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -3963,7 +3999,12 @@
       "supersedes": "DOC-f850df36ad",
       "id": "DOC-052b0e947c",
       "contentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-15",
+        "attestedContentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
+        "note": "First attestation of these bytes. Path A successor to DOC-f850df36ad (2026-08-16_subprocessor-register.md, attested 2026-08-19), which remains frozen and byte-identical. Scope of this pin: the Render decommission changes only, namely rows 2 and 10 ended 2026-09-09, row 8 (n8n) relocated to self-hosted GCP Cloud Run rather than ended, and section 5.2 restated. No other vendor row was re-reviewed; the last full line-by-line review remains 2026-08-08 per section 4.1. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
+      },
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
     {
@@ -3973,7 +4014,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-program.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3983,7 +4024,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "425337e19cd8e2713bdb0b50ee5db36ca779abd3041da3e982d2cca33d681d6e",
+        "note": "Path A successor to DOC-e5e85eccb1 (2026-08-22_compliance-program.md), frozen. Scope of this pin: the Render decommission restatements, and section 7, which had named a two-generations-stale register and described the AI path as not operational as of 2026-08-04. This document reproduces the v1.3 attestation statement signed 2026-08-20 under a guard requiring it to be byte-for-byte. Four numbered clauses inside that signed statement had been edited during drafting; they were restored byte-for-byte against the predecessor and verified by diff before this pin, and the decommission is noted OUTSIDE the statement. The reproduced statement belongs to its 2026-08-20 signature, not to this attestation. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-e5e85eccb1",
@@ -4006,7 +4052,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_incident-response-breach-runbook.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -4014,7 +4060,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-08-02",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-15",
+        "attestedContentHash": "a5ff3188832ab1439d30cf0ebb72a3cd978d878784552dc1598e865870bbdfc8",
+        "note": "First attestation of these bytes. Path A successor to DOC-28f19f73e4 (2026-08-15_incident-response-breach-runbook.md, attested 2026-08-16), which remains frozen and byte-identical. Scope of this pin: the Render decommission restatements, plus a drill-table repair where the 2026-05-19 row carried six cells under a seven-column header, silently dropping the Time-to-evidence value; it now reads 'n/a (paper exercise)'. No incident-response procedure, clock, or notification obligation changed. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
+      },
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -4043,7 +4094,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-data-governance.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -4053,7 +4104,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-25",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "c65c23e76fcda7eb6081e2d3a4e8c4c2dbe757e108ea1379178e3a41ddfb9608",
+        "note": "Path A successor to DOC-f6d26afec8 (2026-08-25_compliance-data-governance.md), frozen. Scope of this pin: the Render decommission restatements, plus the Ember 3.28 accepted-risk section, marked HISTORICAL with its analysis retained unedited. Ember disposition decided at attestation: the 2026-02-23 risk acceptance is NOT formally closed. The condition no longer exists, because the Ember 3.28 to 5.12 upgrade shipped in PR #490 (merged 2026-07-08) and app/frontend/package.json pins ember-source ~5.12.0, but these bytes record it as historical rather than closed. Read the banner, not the retained 2026-02-23 analysis, for current frontend posture. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [
         "soc2-evidence"
       ],
@@ -4077,7 +4133,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-program-overview.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -4087,7 +4143,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-07-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "d40eae1ae95d8c2eda6f7696d6068cfdcc38013d41fbdb2ce0f3efa243e36140",
+        "note": "Path A successor to DOC-90632edc44 (2026-08-09_compliance-program-overview_draft.md), frozen, and a DRAFT. Scope of this pin: the Render decommission restatements, plus three citations that an earlier review round had repointed to a line anchor which a later commit shifted onto the wrong subprocessor row. They now name 'row 4 (Anthropic, PBC)' against the register's own numbered column rather than a line number. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "contentHash": "d40eae1ae95d8c2eda6f7696d6068cfdcc38013d41fbdb2ce0f3efa243e36140",
       "bundles": [
         "security-review"
@@ -4112,7 +4173,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-posture-report.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -4123,7 +4184,12 @@
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "8320904378cabbd933c9e6079150f8f5b248b36ea0e3a0860e5c2e691a9fd93b",
+        "note": "Path A successor to DOC-c5408d90b7 (2026-08-22_compliance-posture-report.md), frozen. Scope of this pin is TWO changes, not one. (a) The Render decommission restatements. (b) The inherited 'implemented and operating' overclaim on Active product controls, which is QUALIFIED in this successor, in the same way PR #969 qualified the compliance-program predecessor (finding LL-3e36a18199). Item (b) is not a Render change and is the more consequential of the two: this report ships in the grant, school-dpa-package and security-review bundles, so the qualified claim travels to funders, districts and prospects. No count or finding is changed. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [
         "grant",
         "school-dpa-package",
@@ -4150,14 +4216,19 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_gcp-baa-accepted.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR"
       ],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-07-23",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-15",
+        "attestedContentHash": "16cd22bd731fed11d16a6f9f8acba6c71e39158a48ade7bf209f8280799cad12",
+        "note": "First attestation of these bytes. Path A successor to DOC-5b14b08908 (GCP_BAA_ACCEPTED.md, attested 2026-07-23, prior 2026-07-16), which remains frozen. Scope of this pin: TWO changes, not one. (a) The Render decommission restatement. (b) The runtime-AI BAA attribution, which is the consequential one: runtime AI egress is received by AWS via bedrock-runtime.<region>.amazonaws.com, so the operative instrument is the AWS account BAA of 2026-02-07 (countersigned PDF at docs/legal/AWS_BAA_2026-02.pdf), NOT the Anthropic BAA of 2026-07-18. The attester questioned this on 2026-09-15, on the reasoning that Bedrock was not configured until August 2026 and so could not fall under a February BAA. Re-verified before attesting and the document is correct as written: an AWS account-level BAA covers HIPAA-eligible services adopted after signing (AWS HIPAA compliance page: customers may use any AWS service in a HIPAA account but should only process PHI in the HIPAA-eligible services defined in the BAA), and Bedrock's HIPAA-eligibility was verified against AWS's reference list in the 2026-08-12 record. Anthropic is retained as model provider and as the basis for the direct api.anthropic.com route, which PR #681 removed and CI enforces. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
+      },
       "contentHash": "16cd22bd731fed11d16a6f9f8acba6c71e39158a48ade7bf209f8280799cad12",
       "bundles": [
         "baa"
@@ -4182,11 +4253,16 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-status-snapshot.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-16",
+        "attestedContentHash": "ae2494e951f1e7bac2702b322be60a419938d1685cbfbf5d7ad29611fcf8e869",
+        "note": "Path A successor to DOC-af01c65b10 (2026-08-22_compliance-status-snapshot.md), frozen. Scope of this pin: the Render decommission restatements, including the Gate 2 row which had read 'Pending explicit go' and completed 2026-09-09, plus a GCP BAA / CDPA / SCCs row edit. The 2026-07-22 Gate 1 row is left as written. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
+      },
       "bundles": [],
       "mirrors": [],
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
