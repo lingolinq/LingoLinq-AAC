@@ -11,7 +11,7 @@
 | `main` | lingolinq-prod | Production. Only receives merges from `staging`. |
 | `staging` | lingolinq-staging | Pre-production validation. Merges from `develop`. |
 | `develop` | lingolinq-dev | Integration branch. **All PRs target this branch.** |
-| `name/type/description` | PR Preview (auto) | Individual work. Branched from `develop`. |
+| `type/name-description` | PR Preview (auto) | Individual work. Branched from `develop`. |
 
 ## Contributor Access
 
@@ -25,24 +25,26 @@ to `develop`. A core team member will review your PR and may request changes.
 
 ## Branch Naming
 
-Format: `name/type/short-description`
+Format: `type/name-short-description`
 
-- `name` -- your first name or GitHub username (lowercase)
 - `type` -- one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`,
   `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
   and `release` for a time-bound release branch
-- `short-description` -- 2-4 words, kebab-case
+- `name` -- your first name or GitHub username (lowercase)
+- `short-description` -- 2-4 words, kebab-case. The isolated launchers append an
+  8-hex token (`docs/scot-branch-naming-convention-f3117a76`); it is part of the name.
 
 Examples:
-- `melissa/feat/add-sso-login`
-- `scot/fix/memory-leak-puma`
-- `dom/chore/update-ember-deps`
+- `feat/melissa-add-sso-login`
+- `fix/scot-memory-leak-puma`
+- `chore/dom-update-ember-deps`
 
-The same spec is stated in `CLAUDE.md` (Branching) and `AGENTS.md`; change all three
-together. Older branches in the `type/name-description` form may finish through merge,
-but do not start new ones that way.
+The same spec is stated in `CLAUDE.md` (Branching), `AGENTS.md` and
+`.github/copilot-instructions.md`; change all four together. This form was settled on
+2026-09-16. Branches opened before then in the `name/type/description` form keep their
+names through merge, but do not start new ones that way.
 
-For hotfixes that go directly to prod: `name/hotfix/description`
+For hotfixes that go directly to prod: `hotfix/name-description`
 
 ## Workflow
 
@@ -51,13 +53,13 @@ For hotfixes that go directly to prod: `name/hotfix/description`
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b yourname/feature/what-you-are-building
+git checkout -b feat/yourname-what-you-are-building
 ```
 
 ### 2. Push and Open a PR Against `develop`
 
 ```bash
-git push -u origin yourname/feature/what-you-are-building
+git push -u origin feat/yourname-what-you-are-building
 ```
 
 Open a PR targeting `develop` on GitHub. Since `develop` is the default branch,
@@ -112,7 +114,7 @@ After staging has been validated:
 
 For urgent production issues:
 
-1. Branch from `main`: `yourname/hotfix/description`
+1. Branch from `main`: `hotfix/yourname-description`
 2. Open a PR directly against `main`. **Scot must approve.**
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.

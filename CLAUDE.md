@@ -70,14 +70,16 @@ everything else in this file.
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work: `git checkout develop && git pull && git checkout -b <dev>/<type>/<slug>`.
+  regular work: `git checkout develop && git pull && git checkout -b <type>/<dev>-<slug>`.
   Prefer an isolated worktree when other sessions share the checkout.
-- **Name:** `<developer>/<type>/<kebab-slug>`, for example `melissa/fix/sidebar-actions`,
-  `scot/chore/staging-slow-queue-capacity`. `<type>` is one of `fix`, `feat`, `chore`,
-  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The older
-  `<type>/<dev>-<slug>` form may finish through merge; do not start new branches in it.
+- **Name:** `<type>/<developer>-<kebab-slug>`, for example `fix/melissa-sidebar-actions`,
+  `chore/scot-staging-slow-queue-capacity`. `<type>` is one of `fix`, `feat`, `chore`,
+  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The isolated launchers
+  generate this form plus an 8-hex token (`docs/scot-branch-naming-convention-f3117a76`);
+  the token is part of the name, never strip it. Branches opened before 2026-09-16 in the
+  `<dev>/<type>/<slug>` form keep their names through merge; do not start new ones in it.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` as
-  `<dev>/hotfix/<slug>`, opens a PR directly against `main` (Scot approves), and is merged
+  `hotfix/<dev>-<slug>`, opens a PR directly against `main` (Scot approves), and is merged
   back to `develop` immediately afterwards. See `CONTRIBUTING.md`.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
