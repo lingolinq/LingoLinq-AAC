@@ -70,7 +70,10 @@
   // It was `right: 0`, which pinned the right edges together and made a wider menu
   // than its trigger grow leftwards.
   left: 0;
-  min-width: 170px;
+  // Wide enough for the one-line description under each option. At 170px (the width
+  // this menu had while each group held a single bare label) every description wrapped
+  // to three or four lines and the two groups stopped reading as two short lists.
+  min-width: 268px;
   margin: 0;
   padding: 5px;
   list-style: none;
@@ -107,20 +110,88 @@
   background: rgba($la-navy, 0.10);
 }
 
+// Each option is a two-row grid: a tick gutter on the left, label over description on
+// the right. The gutter is reserved by the ALWAYS-present ::before rather than added
+// only when selected -- a ::before that appeared with `.is-selected` would be a new grid
+// item, so the label would shift sideways as the selection moved between the two
+// options in a group.
 .ll-viewswitch__item {
-  display: block;
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  column-gap: 9px;
   width: 100%;
   padding: 9px 11px;
   border: 0;
   border-radius: 9px;
   background: none;
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
   text-align: left;
   color: $la-navy;
   cursor: pointer;
   transition: background 0.14s ease;
+}
+
+.ll-viewswitch__item::before {
+  content: '';
+  grid-column: 1;
+  grid-row: 1;
+  width: 15px;
+  height: 15px;
+  // Optically centres the tick on the label's cap height rather than its line box.
+  margin-top: 2px;
+  background-color: transparent;
+}
+
+// The tick marks the option currently in effect. Decoration only -- `aria-checked` on
+// the button is what reports the state to assistive tech.
+.ll-viewswitch__item.is-selected::before {
+  background-color: $brand-dusty-denim;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+.ll-viewswitch__item-label {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+// "Recommended" beside Modern View. A deliberate nudge rather than a neutral menu: the
+// two layouts are not equivalent, and Modern is the one that keeps gaining features.
+// Kept as its own element (not baked into the label string) so it can be moved or
+// dropped without touching a translated sentence.
+//
+// $brand-dusty-denim at full strength on the near-white menu is the same ink the
+// selected tick uses, so the tag reads as part of the menu's own palette rather than a
+// warning colour. Uppercase + letter-spacing matches `.ll-viewswitch__group` above.
+.ll-viewswitch__item-tag {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba($brand-dusty-denim, 0.13);
+  color: $brand-dusty-denim;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// Reuses the 0.72 alpha proved against this same near-white menu surface for
+// `.ll-viewswitch__group` above: it composites to 5.14:1, so the description is held to
+// the 4.5:1 text floor rather than treated as decoration. Do not lower it without
+// re-measuring -- 0.62 looks similar and lands at 3.87:1.
+.ll-viewswitch__item-desc {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba($la-navy, 0.72);
 }
 
 .ll-viewswitch__item:hover,

@@ -1,18 +1,20 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { is_classic, other_view_style, set_view_style } from '../utils/view_style';
+import { is_classic, view_style, set_view_style } from '../utils/view_style';
 import { board_view_route } from '../utils/board_view';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 /**
- * The navbar "View" dropdown — the app-wide Classic/Modern switch.
+ * The navbar "View" dropdown — the app-wide Basic/Modern switch, plus the
+ * Gentle/Focused style overlay.
  *
- * One menu item, showing the style you are NOT on: "Classic View" while in Card
- * View, "Card View" while in classic. Picking it writes
+ * Each axis lists BOTH of its options with the active one checked, rather than
+ * offering only the one you are not on. Picking a Layout writes
  * `preferences.board_view_style` (see utils/view_style.js for why that key) and
- * the whole app follows, because every classic surface branches on the same
- * preference.
+ * the whole app follows, because every basic-view surface branches on the same
+ * preference. Selecting the option that is already active is a no-op beyond
+ * closing the menu — no write, no save, and on a board no transition.
  *
  * MOST pages need no navigation after the switch: classic and modern render at
  * the SAME route and the template picks the variant, so flipping the preference
@@ -130,18 +132,27 @@ export default Component.extend({
       this.toggleProperty('menu_open');
     },
 
-    // Flip Gentle <-> Focused. No navigation: unlike the Classic/Card switch below,
-    // both layouts render at the SAME route and the overlay is a body class, so
-    // flipping the preference is the whole operation.
+    // Select Gentle or Focused. No navigation: unlike the Layout switch below, both
+    // styles render at the SAME route and the overlay is a body class, so writing the
+    // preference is the whole operation.
+    //
+    // Takes the target explicitly now that the menu lists both options, instead of
+    // inverting the current one. Anything that is not 'focused' is treated as 'gentle',
+    // matching `isFocused` and the layout engine, so a stray argument cannot persist a
+    // value neither of them recognises.
     //
     // Writes `sessionUser` for the reason given on `isFocused` above -- the observer that
     // applies the body class watches that record, so writing `currentUser` would change
     // the stored value without re-theming the page.
-    switch_layout: function() {
+    select_layout: function(layout) {
       var user = this.appState.get('sessionUser');
       if(!user || !user.set) { return; }
       this.set('menu_open', false);
-      var next = this.get('isFocused') ? 'gentle' : 'focused';
+      var next = (layout === 'focused') ? 'focused' : 'gentle';
+      // Already on it: closing the menu is the whole interaction. Skipping the write
+      // avoids a pointless PUT, and keeps re-picking the current style from marking the
+      // record dirty.
+      if(next === (this.get('isFocused') ? 'focused' : 'gentle')) { return; }
       user.set('preferences.dashboard_layout', next);
       // Ember Data under-marks the raw `preferences` blob, so the dirty bit has to be
       // poked or the PUT can be skipped and the choice would not survive a reload.
@@ -152,12 +163,18 @@ export default Component.extend({
       if(user.save) { user.save().then(null, function() { }); }
     },
 
-    switch_view: function() {
+    select_view: function(style) {
       var user = this.appState.get('currentUser');
       if(!user) { return; }
       this.set('menu_open', false);
 
-      var next = other_view_style(user);
+      // Normalised the same way set_view_style normalises, so the comparison below and
+      // the value actually persisted cannot disagree.
+      var next = (style === 'classic') ? 'classic' : 'modern';
+      // Already on it: no write and, importantly, no transition. The board branch below
+      // would otherwise re-enter the route the user is already on, behind a full
+      // "Preparing your Board" overlay, for no change at all.
+      if(next === view_style(user)) { return; }
       set_view_style(user, next);
 
       // Non-board pages re-render in place — same route, different template.

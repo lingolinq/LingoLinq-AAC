@@ -333,7 +333,7 @@ export default AuthenticatedView.extend({
       if(!user) { return; }
       user.set('preferences.board_view_style', 'modern');
       user.save().then(null, function() { });
-      modal.success(i18n.t('switched_to_card_view', "Switched to Card View. You can go back to Classic any time from the View menu."));
+      modal.success(i18n.t('switched_to_card_view', "Switched to Modern View. You can go back to Basic any time from the View menu."));
     },
 
     // OVERRIDE. The parent's `toggle_extras` (authenticated-view.js:1669) only flips

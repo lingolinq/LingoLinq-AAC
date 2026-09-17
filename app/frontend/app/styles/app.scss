@@ -49155,7 +49155,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    `!important` is still required, to beat the shared `.md-hero { width: auto !important }`
    base rule (app.scss ~42006) which applies to this same element. `.md-hero--user` is worn by
    exactly one element in the app (templates/user/index.hbs), so this affects nothing else. */
-@media (min-width: 1025px) {
+/* 1025 -> 1200px (requested 2026-09-16). The 80px inset only reads as breathing room once
+   the column beside the 236px rail is genuinely wide; between 1025 and 1199 it ate most of
+   the remaining width and squeezed the hero's content. Raising the entry point leaves that
+   band on the unpadded layout. Nothing else keys off 1025 for this element -- this media
+   block holds exactly one rule. */
+@media (min-width: 1200px) {
   .md-hero--user {
     width: 100% !important;
     /* 88 -> 80px each side (requested 2026-09-14). */
@@ -49397,7 +49402,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      `align-items: stretch` levels it for free. */
   flex: 0 0 208px;
   /* 244 -> 208px (requested 2026-09-14: "thinner", meaning NARROWER). The floor is the
-     longest label: "My Subscription" sets about 118px at 15px/650, and the row spends
+     longest label: that was "My Subscription" at about 118px (15px/650) when this was
+     measured; the label lost its "My" on 2026-09-16, so the floor only moved DOWN and the
+     208px keeps more slack than the arithmetic below claims. The row spends
      32 (icon) + 10 (gap) + 20 (row padding) + 20 (panel padding) + 2 (borders) = 84px around
      it, so 208 leaves ~124px of label — the longest fits on one line with slack. Below about
      200 it would wrap and the rows would grow taller, which is the opposite of the ask. */
@@ -49559,8 +49566,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      they flow continuously across it. (This was first done with `display: contents` on two
      group wrappers; the wrappers were then removed outright, which is simpler and gives the
      same single grouping at EVERY width rather than only this one.)
-     190px, not 170: "My Subscription" needs about 182px at this row's size, and at 170 it
-     wrapped to two lines and made that one row taller than the rest. */
+     190px, not 170: "My Subscription" needed about 182px at this row's size, and at 170 it
+     wrapped to two lines and made that one row taller than the rest. That label is now just
+     "Subscription" (2026-09-16), so 190 has gained slack rather than lost it -- kept as is,
+     since the next-longest labels ("Recordings", "Subscription") still want most of it. */
   .md-acct-rail {
     width: 100%;
     margin: 0 0 20px;
@@ -53879,7 +53888,41 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    (0,3,0) — the tripled modifier — so this needs the grid class ON TOP of it, (0,4,0),
    to win. Scoped to the Boards page; the picker's own compact grid is untouched. */
 .ub-boards-page__board-grid.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact {
-  justify-content: center;
+  /* TRACKS THAT FILL, instead of fixed 280px cards centred in a wider box (requested
+     2026-09-16: the Compact/Detailed control must sit flush with the right edge of the
+     rightmost board). The control was never misplaced -- it is already flush with this
+     container. The cards were the inset ones: `.simple_board_holder` is `flex: 0 0 280px`
+     in a `justify-content: center` flex row, so the leftover width was split evenly either
+     side and every card stopped short of both edges. Centring was the previous answer to
+     that leftover; filling removes the leftover instead, so there is nothing left to
+     centre and the right edges line up on their own.
+
+     GRID, not flex-with-grow. `flex: 1 1 280px` would also fill a row, but a wrapped flex
+     row stretches its LAST row to full width -- with 7 boards at 2-up that lone seventh
+     card would have been twice the width of every other. `repeat(auto-fill, ...)` keeps the
+     empty tracks, so a short last row leaves a gap where the missing card would be and
+     every card stays one track wide.
+
+     `auto-fill` rather than a fixed column count because the count here is driven by the
+     space actually available: this component renders in the boards page's full width, in
+     the account page's narrower side-by-side column, and on the search page, and it was
+     observed going 2-up at 1440 but 1-up in the 498px account column. `minmax(280px, 1fr)`
+     keeps 280px as the FLOOR it always had and lets the track grow past it to consume the
+     remainder.
+
+     `display: grid` needs `!important` only because the base rule it replaces
+     (`&__board-grid`, ~72249) is itself `display: flex !important`. */
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  justify-content: stretch;
+
+  /* The holder's fixed width is what kept a card narrower than its track. `flex-basis` is
+     inert under grid, but `width` is not, so it has to be released here or the cards would
+     stay 280px inside a wider track and the dead space would simply move inside the track. */
+  .simple_board_holder {
+    width: auto;
+    max-width: none;
+  }
 }
 
 /* HOME BOARD badge sits 6px higher in COMPACT (2026-08-16, requested in three steps of
@@ -66793,28 +66836,29 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     }
   }
 
-  // Like button: heart icon replacing img
+  // Like button: unlike its neighbours here, the heart is REAL MARKUP -- an inline
+  // <svg> in application.hbs -- not a glyphicon, so this button needs no masked
+  // ::before icon. It used to: the markup was an <img>, which is what the old
+  // `img { display: none }` hid. The markup changed to an svg and the hide stopped
+  // matching anything, so the mask heart rendered ALONGSIDE the real one (white
+  // filled heart + red outline heart). Recolour the real heart instead.
+  //
+  // `stroke` and `fill` are presentation ATTRIBUTES on that svg, which any stylesheet
+  // declaration outranks, so these need no !important. The svg's inline `color`
+  // (#e74c6f) is deliberately left alone -- it is what the LIGHT header everywhere
+  // else in the app renders, where the button background is #fff and a white heart
+  // would be invisible (header #normal_mode .btn, app.scss:1657). currentColor simply
+  // stops being consulted here.
   #inner_header:has(#nav_header) #normal_mode .btn:has(.badge) {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
     padding: 8px 14px !important;
-    img { display: none !important; }
-    &::before {
-      content: '' !important;
-
-      display: block !important;
-
-      width: 16px !important;
-
-      height: 16px !important;
-
-      flex-shrink: 0 !important;
-
-      background-color: #fff;
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center/contain no-repeat;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center/contain no-repeat;
-    }
+    svg { stroke: #fff; }
+    // Liked state: the template swaps the fill attribute to currentColor
+    // (application.hbs:500). Match the stroke so a liked board reads as a solid
+    // white heart, and leave fill="none" -- the unliked state -- untouched.
+    svg[fill='currentColor'] { fill: #fff; }
   }
 
   // Edit Board button: pencil icon

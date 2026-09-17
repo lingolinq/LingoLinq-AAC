@@ -4013,13 +4013,6 @@ export default Service.extend({
       return res;
     }
   ),
-  sidebar_pinned: computed(
-    'speak_mode',
-    'effective_quick_sidebar',
-    function() {
-      return this.get('speak_mode') && this.get('effective_quick_sidebar');
-    }
-  ),
   /* The user record whose account the CURRENT PAGE belongs to — set by
      routes/user.js for every `/:user_id/...` page and cleared on the way out.
      Distinct from `currentUser` (the session account) and from `referenced_user`

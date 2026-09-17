@@ -20,13 +20,27 @@
   </button>
   {{!-- Two independent axes, deliberately in one menu.
 
-       PRIMARY (Classic vs Card) picks the shell and is a different ROUTE on a board.
-       SECONDARY (Gentle vs Focused) is an overlay -- a body class -- applied on top of
-       whichever primary style is active, so all four combinations are reachable.
+       PRIMARY (Layout: Basic vs Modern) picks the shell and is a different ROUTE on a
+       board. SECONDARY (Style: Gentle vs Focused) is an overlay -- a body class -- applied
+       on top of whichever layout is active, so all four combinations are reachable.
 
-       Each group offers the option you are NOT on, matching how this menu already
-       worked. Groups carry a heading rather than a bare divider so the two axes read as
-       separate choices instead of one list of four.
+       Each group lists BOTH of its options rather than only the one you are not on. The
+       old single-item form was a toggle wearing a menu's clothes: it never showed which
+       state you were in, only where clicking would take you, which reads as a label for
+       the CURRENT state to anyone who has not learned otherwise. Listing both with the
+       active one checked makes the current state and the alternative visible at once.
+
+       That is why these are `menuitemradio` with `aria-checked` and not plain
+       `menuitem`s: the two options in a group are mutually exclusive and exactly one is
+       always on, which is what radio semantics mean. The tick is drawn in CSS off
+       `.is-selected` and is decoration -- `aria-checked` is what carries the state to a
+       screen reader.
+
+       Each option carries a one-line description, because neither axis is self-evident
+       from its name alone. The wording is taken from the app's existing copy for the same
+       choices (board-actions' board_view_style explainer, and the Gentle/Focused cards in
+       components/display-style.js) so the menu cannot drift from the fuller explanations
+       those surfaces already give.
 
        The headings are `role="none"` with NO `aria-hidden`. `none` already strips the
        element's own semantics, so adding `aria-hidden` is both redundant and invalid
@@ -36,23 +50,41 @@
   <ul class="ll-viewswitch__menu" role="menu">
     <li role="none" class="ll-viewswitch__group">{{t "Layout" key="view_group_layout"}}</li>
     <li role="none">
-      <button type="button" role="menuitem" class="ll-viewswitch__item" {{on "click" (this.ctrlAction "switch_view")}}>
-        {{#if this.isClassic}}
-          {{t "Card View" key="card_view"}}
-        {{else}}
-          {{t "Classic View" key="classic_view"}}
-        {{/if}}
+      <button type="button" role="menuitemradio"
+              aria-checked={{if this.isClassic "true" "false"}}
+              class="ll-viewswitch__item {{if this.isClassic "is-selected"}}"
+              {{on "click" (this.ctrlAction "select_view" "classic")}}>
+        <span class="ll-viewswitch__item-label">{{t "Basic View" key="classic_view"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "A simple side menu, with every tool in one fixed list." key="view_desc_basic"}}</span>
+      </button>
+    </li>
+    <li role="none">
+      <button type="button" role="menuitemradio"
+              aria-checked={{if this.isClassic "false" "true"}}
+              class="ll-viewswitch__item {{unless this.isClassic "is-selected"}}"
+              {{on "click" (this.ctrlAction "select_view" "modern")}}>
+        <span class="ll-viewswitch__item-label">{{t "Modern View" key="card_view"}}<span class="ll-viewswitch__item-tag">{{t "Recommended" key="view_recommended"}}</span></span>
+        <span class="ll-viewswitch__item-desc">{{t "Customize your home page and your boards with live-preview tools." key="view_desc_modern"}}</span>
       </button>
     </li>
     <li role="separator" class="ll-viewswitch__sep"></li>
     <li role="none" class="ll-viewswitch__group">{{t "Style" key="view_group_style"}}</li>
     <li role="none">
-      <button type="button" role="menuitem" class="ll-viewswitch__item" {{on "click" (this.ctrlAction "switch_layout")}}>
-        {{#if this.isFocused}}
-          {{t "Gentle View" key="display_style_layout_gentle"}}
-        {{else}}
-          {{t "Focused View" key="display_style_layout_focused"}}
-        {{/if}}
+      <button type="button" role="menuitemradio"
+              aria-checked={{if this.isFocused "false" "true"}}
+              class="ll-viewswitch__item {{unless this.isFocused "is-selected"}}"
+              {{on "click" (this.ctrlAction "select_layout" "gentle")}}>
+        <span class="ll-viewswitch__item-label">{{t "Gentle Style" key="view_style_gentle"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "Softer colors and lighter emphasis." key="view_desc_gentle"}}</span>
+      </button>
+    </li>
+    <li role="none">
+      <button type="button" role="menuitemradio"
+              aria-checked={{if this.isFocused "true" "false"}}
+              class="ll-viewswitch__item {{if this.isFocused "is-selected"}}"
+              {{on "click" (this.ctrlAction "select_layout" "focused")}}>
+        <span class="ll-viewswitch__item-label">{{t "Focused Style" key="view_style_focused"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "Stronger contrast and bolder visual cues." key="view_desc_focused"}}</span>
       </button>
     </li>
   </ul>

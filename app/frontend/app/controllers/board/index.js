@@ -490,7 +490,6 @@ export default Controller.extend(prefClasses, {
     'appState.referenced_user.preferences.word_suggestions',
     'model.description',
     'model.focus_id',
-    'appState.sidebar_pinned',
     'appState.sidebar_visible',
     'long_description',
     'appState.currentUser.preferences.word_suggestion_images',
@@ -528,7 +527,13 @@ export default Controller.extend(prefClasses, {
       // the cap so the floor can never push the sidebar wider than we already ship.
       var sidebar_width = Math.min(Math.max(Math.round(column_width * 1.1), 44), sidebar_cap);
       document.documentElement.style.setProperty('--sidebar-width', sidebar_width + 'px');
-      if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
+      // Reserve the width whenever the sidebar is VISIBLE, not merely when it is pinned.
+      // #sidebar is position:absolute (app.scss:9929), so this subtraction is the only
+      // thing that makes room for it. Gating it on a narrower condition than the one that
+      // RENDERS the sidebar (services/app-state.js:3823) left every show-without-pinning
+      // path -- the sidebar tease, and the speak-menu "Show Sidebar" item at
+      // controllers/application.js:784 -- drawing the sidebar on top of the board.
+      if(this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width;
       }
       this.set('window_inner_width', inner_width);

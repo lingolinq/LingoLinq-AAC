@@ -46,6 +46,20 @@
        actions and reopens immediately for the rest, which is the same condition evaluated
        twice and renders identically. --}}
   <div class="md-acct-top">
+  {{!-- The eight ACCOUNT rows are in ALPHABETICAL order (requested 2026-09-16): Account,
+       Logs, My Goals, My Subscription, Profile, Recordings, Reports, Settings. Keep them
+       that way when adding a destination. "Home" is deliberately NOT in that sort and stays
+       pinned at the top: it leaves the account area altogether rather than being one of the
+       places within it.
+
+       THE `permissions.edit` GATE IS SPLIT into two blocks, around Profile and around
+       Settings, because alphabetical order separates them. Same condition evaluated twice,
+       rendering identically -- the same move, for the same Glimmer reason, as the
+       `view_detailed` split documented above.
+
+       The sort is on the ENGLISH labels and is baked into template order, so it does not
+       re-sort per locale; a translated rail will not be alphabetical in its own language.
+       Fixing that would mean building the list in JS and sorting with `localeCompare`. --}}
   <nav class="md-acct-rail" aria-label={{t "Account menu" key="account_menu"}}>
     <LinkTo @route="index" class="md-acct-rail__row">
     <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
@@ -55,35 +69,37 @@
     <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
     <span class="md-acct-rail__label">{{t "Account" key="account_lower"}}</span>
     </LinkTo>
+    <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="5" stroke="#46505F"/><circle cx="12" cy="12" r="1.5" fill="#2A9D8F" stroke="none"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Goals" key="goals"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.logs" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Logs" key="logs"}}</span>
+    </LinkTo>
     {{#if this.model.permissions.edit}}
     <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-acct-rail__row">
     <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" stroke="#2A9D8F"/></svg></span>
     <span class="md-acct-rail__label">{{t "Profile" key="profile_lower"}}</span>
     </LinkTo>
+    {{/if}}
+    <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#2A9D8F"/><path d="M5 10v2a7 7 0 0 0 14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="22" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Recordings" key="recordings"}}</span>
+    </LinkTo>
+    <LinkTo @route="user.stats" @model={{this.model.user_name}} class="md-acct-rail__row">
+    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
+    <span class="md-acct-rail__label">{{t "Reports" key="reports"}}</span>
+    </LinkTo>
+    {{#if this.model.permissions.edit}}
     <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-acct-rail__row">
     <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#46505F"/></svg></span>
     <span class="md-acct-rail__label">{{t "Settings" key="preferences_lower"}}</span>
     </LinkTo>
     {{/if}}
-    <LinkTo @route="user.logs" @model={{this.model.user_name}} class="md-acct-rail__row">
-    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/></svg></span>
-    <span class="md-acct-rail__label">{{t "Logs" key="logs"}}</span>
-    </LinkTo>
     <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-acct-rail__row">
     <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#46505F"/><line x1="2" y1="10" x2="22" y2="10" stroke="#2A9D8F"/></svg></span>
-    <span class="md-acct-rail__label">{{t "My Subscription" key="my_subscription"}}</span>
-    </LinkTo>
-    <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-acct-rail__row">
-    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#2A9D8F"/><path d="M5 10v2a7 7 0 0 0 14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="22" stroke="#46505F"/></svg></span>
-    <span class="md-acct-rail__label">{{t "Recordings" key="recordings"}}</span>
-    </LinkTo>
-    <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-acct-rail__row">
-    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="5" stroke="#46505F"/><circle cx="12" cy="12" r="1.5" fill="#2A9D8F" stroke="none"/></svg></span>
-    <span class="md-acct-rail__label">{{t "My Goals" key="goals"}}</span>
-    </LinkTo>
-    <LinkTo @route="user.stats" @model={{this.model.user_name}} class="md-acct-rail__row">
-    <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
-    <span class="md-acct-rail__label">{{t "Reports" key="reports"}}</span>
+    <span class="md-acct-rail__label">{{t "Subscription" key="my_subscription"}}</span>
     </LinkTo>
   </nav>
     <div class="md-acct-main">
@@ -235,7 +251,7 @@
         {{else if this.model.preferences.home_board.key}}
           <LinkTo @route="board" @model={{this.model.preferences.home_board.key}} class="md-acct-card md-acct-card--green" aria-label={{t "Home Board:" key="home_board_colon"}}>
             <span class="md-acct-card__icon" aria-hidden="true">
-              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/><rect x="8.4" y="13.7" width="7.2" height="6.1" rx="1" stroke-width="1.2"/><line x1="12" y1="13.7" x2="12" y2="19.8" stroke-width="1"/><line x1="8.4" y1="16.75" x2="15.6" y2="16.75" stroke-width="1"/></svg>
             </span>
             <span class="md-acct-card__body">
               <span class="md-acct-card__title">{{t "Home Board" key="home_board"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
@@ -246,7 +262,7 @@
           {{!-- TODO: if supervisor, maybe show external-device modal instead of home search --}}
           <LinkTo @route="board-picker" @query={{hash user_id=this.homeBoardPickerUserId}} class="md-acct-card md-acct-card--green" aria-label={{t "No Home Board Set" key="no_home_board_set_plain"}}>
             <span class="md-acct-card__icon" aria-hidden="true">
-              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/><rect x="8.4" y="13.7" width="7.2" height="6.1" rx="1" stroke-width="1.2"/><line x1="12" y1="13.7" x2="12" y2="19.8" stroke-width="1"/><line x1="8.4" y1="16.75" x2="15.6" y2="16.75" stroke-width="1"/></svg>
             </span>
             <span class="md-acct-card__body">
               <span class="md-acct-card__title">{{t "No Home Board Set" key="no_home_board_set_plain"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
