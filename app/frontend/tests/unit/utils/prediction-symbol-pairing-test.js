@@ -6,6 +6,7 @@ import { A } from '@ember/array';
 import word_suggestions from 'frontend/utils/word_suggestions';
 import LingoLinq from 'frontend/app';
 import BoardDetailController from 'frontend/controllers/user/board-detail';
+import editManager from 'frontend/utils/edit_manager';
 
 function svc() {
   return EmberObject.create({
@@ -281,6 +282,266 @@ module('Unit | Utility | prediction symbol pairing', function(hooks) {
           'the symbol-less button must not keep the depth claim, got: ' + word.depth);
         done();
       });
+  });
+
+  /* In-grid :suggestion slots are painted with the guessed word as their label.
+     Matching them in _find_local_image_for_label would skip the real vocabulary
+     button for the same word (or return nothing), so a word like "can" showed
+     its PCS on the rail and as a chip but as text-only in the slot. */
+  test('local image lookup skips in-grid prediction slots', function(assert) {
+    assert.expect(2);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c.set('ordered_buttons', [[
+      { id: 's1', label: 'can', suggestion_slot: true },
+      { id: 'c1', label: 'can', image_url: 'https://example.test/can.png' }
+    ]]);
+    assert.strictEqual(c._find_local_image_for_label('can'), 'https://example.test/can.png');
+    c.set('ordered_buttons', [[{ id: 's1', label: 'need', suggestion_slot: true }]]);
+    assert.strictEqual(c._find_local_image_for_label('need'), null);
+    c.destroy();
+  });
+
+  test('a rail-resolved symbol is copied onto the matching in-grid slot', function(assert) {
+    assert.expect(3);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c.set('ordered_buttons', [[
+      { id: 's1', label: 'can', suggestion_slot: true, text_symbol: true },
+      { id: 'c1', label: 'can', image_url: 'https://example.test/can.png' },
+      { id: 's2', label: 'need', suggestion_slot: true, text_symbol: true }
+    ]]);
+    assert.true(c._apply_suggestion_image_to_slots('can', 'https://example.test/can.png'));
+    var flat = [].concat.apply([], c.get('ordered_buttons'));
+    var can_slot = flat.find(function(b) { return b.id === 's1'; });
+    var need_slot = flat.find(function(b) { return b.id === 's2'; });
+    assert.strictEqual(can_slot.image_url, 'https://example.test/can.png');
+    assert.strictEqual(need_slot.image_url, undefined,
+      'only the slot offering the same word gets the picture');
+    c.destroy();
+  });
+
+  /* Same :suggestion cell, new word. The grid keys cards by button id, so
+     Glimmer keeps the <img>. If we only write a new image_url when one is
+     already resolved, the previous word's PCS stays on screen (the "we"
+     people on a slot that now reads "need"). */
+  test('a slot drops the previous picture when its word changes and the new one is not ready', function(assert) {
+    assert.expect(2);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    var we = {
+      id: 's1', label: 'we', suggestion_slot: true,
+      image_url: 'https://example.test/we.png',
+      suggestion_image_word: 'we', text_symbol: false
+    };
+    var next = c._paint_suggestion_slot(we, 'need', null);
+    assert.strictEqual(next.label, 'need');
+    assert.notStrictEqual(next.image_url, 'https://example.test/we.png',
+      'stale PCS must not stay on the new word, got: ' + next.image_url);
+    c.destroy();
+  });
+
+  test('a slot keeps its picture when the same word is painted again without a new url', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    var can = {
+      id: 's1', label: 'can', suggestion_slot: true,
+      image_url: 'https://example.test/can.png',
+      suggestion_image_word: 'can', text_symbol: false
+    };
+    var next = c._paint_suggestion_slot(can, 'can', null);
+    assert.strictEqual(next.image_url, 'https://example.test/can.png');
+    c.destroy();
+  });
+
+  test('a slot swaps to the new picture when the word and url both change', function(assert) {
+    assert.expect(3);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    var we = {
+      id: 's1', label: 'we', suggestion_slot: true,
+      image_url: 'https://example.test/we.png',
+      suggestion_image_word: 'we', text_symbol: false
+    };
+    var next = c._paint_suggestion_slot(we, 'need', 'https://example.test/need.png');
+    assert.strictEqual(next.label, 'need');
+    assert.strictEqual(next.image_url, 'https://example.test/need.png');
+    assert.strictEqual(next.suggestion_image_word, 'need');
+    c.destroy();
+  });
+
+  /* "you" is on the board and shows its PCS when tapped, but the in-grid
+     slot stayed blank. Two gaps: the rail item already had the url before
+     the slot's label became "you", and the display copy can lack image_url
+     while raw.image_urls still has the symbol the grid click uses. */
+  test('a slot picks up a rail-resolved picture after its label becomes that word', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c.set('ordered_buttons', [[{
+      id: 's1', label: 'you', suggestion_slot: true, text_symbol: true
+    }]]);
+    c.set('suggestions', { ready: true, list: [
+      { word: 'you', image: 'https://example.test/you.png' }
+    ]});
+    c._repaint_slots_from_suggestion_list();
+    var slot = c.get('ordered_buttons')[0][0];
+    assert.strictEqual(slot.image_url, 'https://example.test/you.png');
+    c.destroy();
+  });
+
+  test('local image lookup reads the board image_urls map when the display copy has no url', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c.set('ordered_buttons', [[
+      { id: 's1', label: 'you', suggestion_slot: true },
+      { id: 'y1', label: 'you' }
+    ]]);
+    c._last_raw = {
+      buttons: [{ id: 'y1', label: 'you', image_id: 'img-you' }],
+      image_urls: { 'img-you': 'https://example.test/you.png' }
+    };
+    assert.strictEqual(c._find_local_image_for_label('you'), 'https://example.test/you.png');
+    c.destroy();
+  });
+
+  test('suggestion image cache uses a speak-bar chip already shown for that word', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c._suggestion_lookup_board_ids = function() { return []; };
+    c._find_local_image_for_label = function() { return null; };
+    c.set('sentence_parts', [
+      { label: 'you', image_url: 'https://example.test/you.png' }
+    ]);
+    assert.strictEqual(c._cached_image_for_label('you'), 'https://example.test/you.png');
+    c.destroy();
+  });
+
+  test('decorate paints from the chip cache without walking button sets', function(assert) {
+    assert.expect(2);
+    var asked = 0;
+    word_suggestions.attach_image_for_label = function() {
+      asked += 1;
+      return RSVP.resolve(null);
+    };
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c._suggestion_lookup_board_ids = function() { return []; };
+    c._find_local_image_for_label = function() { return null; };
+    c._resolved_label_images = { 'l:you': 'https://example.test/you.png' };
+    var list = [{ word: 'you' }];
+    c._decorate_suggestion_images(list);
+    assert.strictEqual(list[0].image, 'https://example.test/you.png');
+    assert.strictEqual(asked, 0, 'must not start attach_image when the chip cache already has the PCS');
+    c.destroy();
+  });
+
+  /* A tapped board button is stored as b:<id>, not l:<word>
+     (_chip_image_key). The "to" prediction stayed on square.svg while the
+     speak-bar chip already showed the PCS, because cache lookup only read l:. */
+  test('suggestion image cache finds a tapped board-button chip by its word', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c._suggestion_lookup_board_ids = function() { return []; };
+    c._find_local_image_for_label = function() { return null; };
+    c._apply_sentence_chip_image(
+      { id: '846', label: 'to', raw_index: 0 },
+      'https://example.test/to.svg'
+    );
+    c.set('sentence_parts', []);
+    assert.strictEqual(c._cached_image_for_label('to'), 'https://example.test/to.svg');
+    c.destroy();
+  });
+
+  test('a late chip image replaces square.svg on the matching prediction', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: svc(), stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c._suggestion_lookup_board_ids = function() { return []; };
+    c._find_local_image_for_label = function() { return null; };
+    c.set('suggestions', { ready: true, list: [{ word: 'to', image: '/images/square.svg' }] });
+    c._apply_sentence_chip_image(
+      { id: '846', label: 'to', raw_index: 0 },
+      'https://example.test/to.svg'
+    );
+    assert.strictEqual(c.get('suggestions.list')[0].image, 'https://example.test/to.svg');
+    c.destroy();
+  });
+
+  /* lookup() stamps square.svg on every suggestion. update_suggestion_button
+     then hid .symbol imgs when resolve_word_image was null. Board-detail
+     cards use those classes, so a later refresh hid the PCS Ember had just
+     paired for on-board words (want, like, to) and left a white square. */
+  test('a board-detail slot keeps its picture when lookup only has the placeholder', function(assert) {
+    assert.expect(2);
+    var boardEl = document.createElement('div');
+    boardEl.className = 'board';
+    boardEl.setAttribute('data-id', '1_1');
+    var btnEl = document.createElement('div');
+    btnEl.className = 'button md-board-detail-symbol-card';
+    btnEl.setAttribute('data-id', 's1');
+    var img = document.createElement('img');
+    img.className = 'symbol';
+    img.src = 'https://example.test/to.svg';
+    btnEl.appendChild(img);
+    var lbl = document.createElement('span');
+    lbl.className = 'md-board-detail-symbol-card__label';
+    lbl.innerText = 'to';
+    btnEl.appendChild(lbl);
+    boardEl.appendChild(btnEl);
+    document.body.appendChild(boardEl);
+
+    var c = BoardDetailController.create({
+      app_state: EmberObject.create({ speak_mode: true }),
+      stashes: svc(), persistence: svc(), router: svc(),
+      appState: EmberObject.create({ speak_mode: true })
+    });
+    var prev = editManager.controller;
+    editManager.controller = c;
+    var board = LingoLinq.store.createRecord('board', { id: '1_1' });
+    board.set('appState', EmberObject.create({ speak_mode: true }));
+    board._sync_ordered_button_suggestion = function() {};
+    board.update_suggestion_button({ id: 's1' }, {
+      word: 'to',
+      image: '/images/square.svg'
+    });
+    assert.notStrictEqual(img.style.display, 'none',
+      'placeholder lookup must not hide the Ember-paired PCS');
+    assert.ok((img.getAttribute('src') || img.src || '').indexOf('to.svg') !== -1);
+    editManager.controller = prev;
+    document.body.removeChild(boardEl);
+    board.unloadRecord();
+    c.destroy();
+  });
+
+  test('suggestion image cache reads a spoken button_list image for that word', function(assert) {
+    assert.expect(1);
+    const c = BoardDetailController.create({
+      app_state: EmberObject.create({
+        button_list: [{ label: 'to', image: 'https://example.test/to.svg' }]
+      }),
+      stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+    c._suggestion_lookup_board_ids = function() { return []; };
+    c._find_local_image_for_label = function() { return null; };
+    c.set('sentence_parts', []);
+    assert.strictEqual(c._cached_image_for_label('to'), 'https://example.test/to.svg');
+    c.destroy();
   });
 });
 

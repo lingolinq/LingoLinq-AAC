@@ -97,6 +97,36 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
+  /* The wilted flower that stayed on "a break" after the tile's word had already
+     changed: attach_image_for_label is async, and its onload wrote the url onto
+     whatever object it closed over, even if that object's `word` was no longer
+     the one that was requested. Mutation: drop the item.word check in onload. */
+  test('a late symbol is not painted onto a tile whose word has changed', function(assert) {
+    assert.expect(1);
+    let capturedCallback = null;
+    patch(wordSuggestions, 'resolve_word_image', function() { return null; });
+    patch(wordSuggestions, 'attach_image_for_label', function(word, ids, cb) { capturedCallback = cb; });
+
+    const controller = buildController();
+    controller._find_local_image_for_label = function() { return null; };
+    controller._suggestion_lookup_board_ids = function() { return []; };
+    controller._republish_suggestion_list = function() {};
+    const imgs = stubImage();
+
+    try {
+      const item = { word: 'need' };
+      controller._decorate_suggestion_images([item]);
+      item.word = 'a break';
+      capturedCallback('https://example.test/need-flower.png');
+      imgs.decode();
+      assert.notStrictEqual(item.image, 'https://example.test/need-flower.png',
+        'the flower requested for "need" must not land on "a break"');
+    } finally {
+      imgs.restore();
+      controller.destroy();
+    }
+  });
+
   test('the symbol memo does not replay a symbol across a different board set', function(assert) {
     assert.expect(3);
     /* attach_image_for_label resolves through the button sets of `lookup_ids`, so the same word
@@ -1044,4 +1074,37 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
   });
 
 
+});
+
+module('Unit | Controller | user/board-detail chip image apply', function() {
+  test('a resolved image is not applied to a different label at the same raw_index', function(assert) {
+    assert.expect(1);
+    const controller = buildController();
+    controller.set('sentence_parts', [
+      { raw_index: 2, label: 'a break', image_url: null }
+    ]);
+    controller._apply_sentence_chip_image(
+      { raw_index: 2, label: 'need' },
+      'https://example.test/need-flower.png'
+    );
+    assert.strictEqual(controller.get('sentence_parts')[0].image_url, null,
+      'need\'s flower must not land on the chip that now reads "a break"');
+    controller.destroy();
+  });
+
+  test('a resolved image still applies when the label at that raw_index matches', function(assert) {
+    assert.expect(1);
+    const controller = buildController();
+    controller.set('sentence_parts', [
+      { raw_index: 2, label: 'need', image_url: null }
+    ]);
+    controller._apply_sentence_chip_image(
+      { raw_index: 2, label: 'need' },
+      'https://example.test/need-flower.png'
+    );
+    assert.strictEqual(controller.get('sentence_parts')[0].image_url,
+      'https://example.test/need-flower.png',
+      'the matching chip still receives its symbol');
+    controller.destroy();
+  });
 });

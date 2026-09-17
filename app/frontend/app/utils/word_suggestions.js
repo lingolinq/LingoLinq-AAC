@@ -1587,6 +1587,7 @@ var _exact_button_candidates_for_label = function(label, sets) {
     var buttons = bs.redepth(bs.get('global_id') || bs.get('id'));
     (buttons || []).forEach(function(button) {
       if(!button || !button.image_id) { return; }
+      if(/^[:+]/.test(String(button.vocalization || ''))) { return; }
       var bl = (button.label || '').toLowerCase();
       var bv = (button.vocalization || '').toLowerCase();
       if(bl === key || bv === key) { matches.push(button); }

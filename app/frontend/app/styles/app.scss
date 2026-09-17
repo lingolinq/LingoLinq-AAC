@@ -74314,6 +74314,10 @@ span.md-board-detail-modeling-btn--badge {
   color: $indigo;
   line-height: 1.2;
   text-align: center;
+  /* Same trap as prediction labels: the chip is a fixed-height column, the
+     symbol may flex-shrink, and overflow:hidden on a parent zeroes the flex
+     min-size. Do not shrink: the word must stay visible next to its picture. */
+  flex-shrink: 0;
 }
 .md-board-detail-sentence-bar__placeholder {
   opacity: 0.5;
@@ -74697,7 +74701,13 @@ span.md-board-detail-modeling-btn--badge {
      here would silently win and kill the loading cue. */
   width: 100%;
   flex: 1 1 0;
-  min-height: 0;
+  /* Floor, not 0. The label is flex-shrink:0 so the word cannot vanish; with
+     min-height:0 here a dense board (Vocal Flair 94, ~40px tiles) left the
+     symbol no leftover and painted text-only tiles. 16px is a pixel floor so it
+     still resolves when the tile height is indefinite (percentage min-height
+     would be 0 there). flex:1 still grows the glyph on taller tiles. */
+  min-height: 16px;
+  flex-shrink: 0;
   height: auto;
   max-width: 100%;
   /* No dashed frame on the RAIL. The frame is the in-bar placement's "this is a
@@ -74786,6 +74796,7 @@ span.md-board-detail-modeling-btn--badge {
   max-height: 3.45em;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
   min-width: 0;
   /* CONSTRAINING THE BOX is what makes the clip mean anything, and it is load-bearing.
      The tile is a COLUMN flex container with align-items:center, so the label's cross size
@@ -74877,7 +74888,8 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction-img {
   width: 100%;
   flex: 1 1 0;
-  min-height: 0;
+  min-height: 16px;
+  flex-shrink: 0;
   height: auto;
   max-width: 100%;
   /* No dashed frame, for the same reason the rail drops it: the panel's own glass surface is
@@ -74900,6 +74912,7 @@ span.md-board-detail-modeling-btn--badge {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
   font-size: var(--prediction-label-font, clamp(13px, 26cqw, var(--bd-button-text-size, 15px)));
 }
 /* EMPTY STATE — the rail's, rotated. The rail stacks glyph + copy above its ghosts; here they
@@ -75118,6 +75131,10 @@ span.md-board-detail-modeling-btn--badge {
      words track the user's BUTTON text-size preference on every screen size
      and in both prediction surfaces (in-bar tiles + the vertical rail),
      instead of the sentence-bar size class. */
+  /* overflow:hidden on the rail/below-bar copies zeroes the flex min-size, so a
+     flex:1 symbol can shrink this to nothing. Do not shrink: the word must stay
+     visible even when a symbol is present. */
+  flex-shrink: 0;
   font-size: clamp(9px, 1.5vw, var(--bd-button-text-size, 15px));
   font-weight: 500;
   /* Brighter prediction text (was 0.7) so word predictions read
@@ -83113,6 +83130,18 @@ span.md-board-detail-modeling-btn--badge {
    support or image-load timing. The class is only added when btn.hide_label is set. */
 .md-board-detail-symbol-card__label.hide-label {
   display: none;
+}
+/* In-grid word-prediction slots (`vocalization: ':suggestion'`) must always
+   show the current word, matching the rail/below-bar rule that a symbol-only
+   layout must not render blank prediction tiles. hide_label and text-pos-none
+   stay in force for ordinary vocabulary buttons. */
+.md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label,
+.md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label.hide-label {
+  display: -webkit-box;
+}
+.md-board-detail-grid--text-pos-none .md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label,
+.md-board-detail-grid--text-pos-none .md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label-input {
+  display: -webkit-box !important;
 }
 /* When "hide the label" is set the picture becomes the button: drop the 4px card
    padding so the symbol grows as large as it can in the space it no longer shares
