@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { confirm_view_style_change } from '../utils/view_style';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modalUtil from '../utils/modal';
@@ -89,8 +90,8 @@ export default Component.extend({
 
   // True when the persisted board view style is Modern (the default). Drives the
   // View Style toggle's active segment + thumb position.
-  is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
-    return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
+  is_modern: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return this.get('appState.effective_view_user.preferences.board_view_style') !== 'classic';
   }),
 
   actions: {
@@ -225,11 +226,27 @@ export default Component.extend({
     // "Preparing your Board" overlay — mirrors go_to_classic/go_to_modern. No-op
     // when already on the chosen style.
     set_view_style(style) {
-      var user = this.get('appState.currentUser');
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.get('appState.effective_view_user');
       var board = this.get('model.board');
       if (!user || !board) { return; }
-      var current = this.get('appState.currentUser.preferences.board_view_style') || 'modern';
+      var current = this.get('appState.effective_view_user.preferences.board_view_style') || 'modern';
       if (current === style) { return; }
+      /* Ask first when the view belongs to someone else (a communicator being modelled for, or
+         whose page this is). A cancel must leave the preference AND the navigation below
+         alone, so everything from the write onwards sits inside the guard. */
+      var _this = this;
+      confirm_view_style_change(this.get('appState'), style).then(function(ok) {
+        if(!ok) { return; }
+        _this.send('_apply_view_style', user, board, style);
+      });
+    },
+
+    _apply_view_style(user, board, style) {
       user.set('preferences.board_view_style', style);
       if (user.save) {
         user.set('preferences.device.updated', true);

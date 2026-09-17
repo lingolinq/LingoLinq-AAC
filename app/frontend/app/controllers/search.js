@@ -366,7 +366,7 @@ export default Controller.extend({
       if(!key) { return; }
       var parts = key.split('/');
       if(parts.length !== 2) { this.router.transitionTo('board', key); return; }
-      var pref = app_state.get('currentUser.preferences.board_view_style');
+      var pref = app_state.get('effective_view_user.preferences.board_view_style');
       var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
       this.router.transitionTo(route, parts[0], parts[1]);
     },

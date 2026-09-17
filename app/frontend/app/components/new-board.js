@@ -762,7 +762,7 @@ export default Component.extend({
             // Honor the user's view preference (utils/board_view.js) instead of
             // hardcoding the modern shell — a classic user who creates/imports a board
             // must land on their own board view, not be pushed into modern.
-            return _this.get('router').transitionTo(board_view_route(_this.appState.get('currentUser')), parts[0], parts.slice(1).join('/'));
+            return _this.get('router').transitionTo(board_view_route(_this.appState.get('effective_view_user')), parts[0], parts.slice(1).join('/'));
           } else {
             return _this.get('router').transitionTo('board', key);
           }

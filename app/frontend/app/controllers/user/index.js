@@ -1599,7 +1599,7 @@ export default Controller.extend({
       this.set('parent_object', obj);
     },
     /* Boards-page tile click — open the board the user actually clicked,
-       respecting `currentUser.preferences.board_view_style`:
+       respecting `effective_view_user.preferences.board_view_style`:
          - 'classic'  → user.board-alt.index  (the modern speak grid)
          - 'modern'   → user.board-detail.index  (the panelled view)
        Default is 'modern' (per board/index.js#board_view_style).
@@ -1616,7 +1616,7 @@ export default Controller.extend({
       if(!key) { return; }
       var parts = key.split('/');
       if(parts.length !== 2) { return; }
-      var pref = this.get('appState.currentUser.preferences.board_view_style');
+      var pref = this.get('appState.effective_view_user.preferences.board_view_style');
       var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
       /* Show full-viewport loading overlay so the click registers
          visually while the route resolves the board record + tree.

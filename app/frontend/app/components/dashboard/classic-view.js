@@ -329,7 +329,12 @@ export default AuthenticatedView.extend({
     // page, otherwise the classic user has no way back to modern from the home
     // page at all — they would have to open a board and use its actions menu.
     new_dashboard: function() {
-      var user = this.appState.get('currentUser');
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.appState.get('effective_view_user');
       if(!user) { return; }
       user.set('preferences.board_view_style', 'modern');
       user.save().then(null, function() { });

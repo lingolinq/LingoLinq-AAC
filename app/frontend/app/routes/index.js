@@ -327,7 +327,7 @@ export default Route.extend({
         // Honor the view preference — this action is reachable from the classic
         // home page, so hardcoding the modern shell would bounce a classic user
         // straight out of classic on their first board tap.
-        this.router.transitionTo(board_view_route(this.appState.get('currentUser')), parts[0], parts[1]);
+        this.router.transitionTo(board_view_route(this.appState.get('effective_view_user')), parts[0], parts[1]);
       } else {
         this.router.transitionTo('board', key);
       }

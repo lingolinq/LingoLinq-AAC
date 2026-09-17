@@ -30,10 +30,10 @@ export default Controller.extend({
   // modern dashboard stays the fall-through for everyone who hasn't opted in.
   // Pure computed, no observers — nothing here runs for a modern user beyond
   // this comparison.
-  classicHome: computed('appState.currentUser.preferences.board_view_style', function() {
+  classicHome: computed('appState.effective_view_user.preferences.board_view_style', function() {
     var appState = this.get('appState');
     if (!appState) { return false; }
-    return is_classic(appState.get('currentUser'));
+    return is_classic(appState.get('effective_view_user'));
   }),
 
   hasFullDomain: computed('appState.domain_settings.full_domain', 'appState.domain_settings', 'appState', function() {

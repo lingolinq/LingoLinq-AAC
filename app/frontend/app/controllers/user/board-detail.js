@@ -13,7 +13,7 @@ import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
 import paint_view_switch_overlay from '../../utils/view_switch_overlay';
-import { set_view_style } from '../../utils/view_style';
+import { set_view_style, confirm_view_style_change } from '../../utils/view_style';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
@@ -7659,6 +7659,15 @@ export default Controller.extend(prefClasses, {
        ever says "you will lose nothing" trains people to click through the one that
        matters), confirm on a dirty one, and nothing happens unless they choose discard. */
     go_to_classic: function() {
+      /* Guarded: on a communicator's board this writes THEIR stored default, so ask before
+         doing it and skip the navigation too on a cancel. */
+      var _gc = this;
+      confirm_view_style_change(this.get('app_state'), 'classic').then(function(ok) {
+        if(ok) { _gc.send('_go_to_classic_confirmed'); }
+      });
+    },
+
+    _go_to_classic_confirmed: function() {
       var _this = this;
       /* The navigation half, as a local so the guard below reads as a guard. Mirrors
          components/board-actions.js#set_view_style, the same switch reached from the
@@ -7666,7 +7675,12 @@ export default Controller.extend(prefClasses, {
       var doSwitch = function() {
         var user = _this.get('user');
         var boardname = _this.get('boardname');
-        var prefUser = _this.get('app_state.currentUser');
+        /* The record whose view is ON SCREEN, not the session account. While a supervisor
+           models for a communicator those differ, and writing `currentUser` there would
+           store the change against the supervisor while the page kept rendering the
+           communicator's shell -- the control would look dead. See
+           app-state#effective_view_user. */
+        var prefUser = _this.get('app_state.effective_view_user');
         /* Shared helper rather than an inline preference write: it guards the `preferences`
            and `preferences.device` containers before setting the nested dirty bit, which
            THROWS ("object in path could not be found") on a record that carries neither.

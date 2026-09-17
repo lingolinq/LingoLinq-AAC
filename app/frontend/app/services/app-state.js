@@ -32,6 +32,7 @@ import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import { clearStoredLayout } from '../utils/boards_layout_state';
 import { readStoredDashboardLayout, writeStoredDashboardLayout, clearStoredDashboardLayout } from '../utils/dashboard_layout_state';
+import { readStoredViewStyle, writeStoredViewStyle, clearStoredViewStyle } from '../utils/view_style_state';
 import { clearFoldersExpanded } from '../utils/folders_panel_state';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
@@ -2228,6 +2229,10 @@ export default Service.extend({
        cannot be keyed by user id, so on a shared device the next person to sign in would
        otherwise inherit this user's layout on their first frame. */
     clearStoredDashboardLayout();
+    /* The view-style mirror, cleared for exactly the same reason: it is not keyed by user
+       id, so on a shared clinic device the next person to sign in would otherwise get this
+       user's Basic/Modern shell on their first frame. */
+    clearStoredViewStyle();
     try {
       if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
     } catch(e) { /* sessionStorage unavailable */ }
@@ -5083,6 +5088,118 @@ export default Service.extend({
        absent preference leaves whatever is stored alone rather than overwriting it with a
        guess. See utils/dashboard_layout_state.js. */
     writeStoredDashboardLayout(layout);
+  }),
+
+  /* WHOSE view style the app should be wearing right now.
+   *
+   * Every reader of `board_view_style` used to ask `currentUser` directly, and that is wrong
+   * the moment a supervisor models for someone: `set_speak_mode_user(..., keep_as_self=true)`
+   * nulls `speakModeUser`, so `currentUser` REMAINS THE SUPERVISOR while `referenced_user` is
+   * the communicator. An SLP modelling for a Basic-view communicator was driving the
+   * communicator's session through the SLP's Modern shell.
+   *
+   * The order below is the rule, and each step earns its place:
+   *   1. While MODELLING, the communicator decides. Their session, their shell.
+   *   2. Otherwise, a COMMUNICATION page belonging to someone else follows that person --
+   *      their boards and home, where a supervisor is working on what the communicator will
+   *      actually use. `page_user` (set by routes/user.js for every `/:user_id/...` page)
+   *      says whose page it is; `communication_routes` above says which of those pages count.
+   *      Their administrative pages deliberately do NOT count: see that list's note.
+   *   3. Otherwise the session account's own pages use their own preference, which is the
+   *      "returning to the SLP's own pages" case.
+   *
+   * Read this rather than `currentUser.preferences.board_view_style`. */
+  /* The routes where a supervisor is working ON the communicator's communication experience,
+     as opposed to administering their account. Only these adopt the page owner's view.
+     Reports, Logs, Subscription, Settings, Device and the rest stay in the SUPERVISOR's own
+     shell: an SLP reading a report is acting as themselves, and flipping their whole UI for it
+     is disorienting rather than helpful.
+     `user.boards` is included deliberately -- picking the next board to show is part of a
+     demonstration, and excluding it would snap the shell back mid-demo.
+     Every name here is asserted to be a real route by
+     tests/unit/services/app-state-effective-view-test.js, so a route rename fails loudly
+     instead of silently reverting this to the supervisor's view. */
+  communication_routes: [
+    'user.board-alt.index',
+    'user.board-detail.index',
+    'user.board-detail.edit',
+    'user.home',
+    'user.boards'
+  ],
+
+  effective_view_user: computed(
+    'modeling_for_user', 'referenced_user', 'page_user', 'page_user.id',
+    'currentUser', 'currentUser.id', 'current_route',
+    function() {
+      var current = this.get('currentUser');
+      if(this.get('modeling_for_user')) {
+        var referenced = this.get('referenced_user');
+        if(referenced) { return referenced; }
+      }
+      /* emberGet, NOT `.get()`. These records are USUALLY Ember objects, but not always --
+         `currentUser` is assigned a plain object in several places, and `.get is not a
+         function` thrown from here takes down whatever triggered the set, because this sits
+         on the path of every view-style read in the app. Caught by the full suite: five
+         unrelated-looking tests died inside `sync_view_scope` for exactly this reason.
+         emberGet handles both shapes. */
+      var page = this.get('page_user');
+      if(page && current && emberGet(page, 'id') && emberGet(page, 'id') != emberGet(current, 'id') &&
+         (this.get('communication_routes') || []).indexOf(this.get('current_route')) !== -1) {
+        return page;
+      }
+      return current;
+    }
+  ),
+
+  /* The resolved style, 'classic' (Basic) or 'modern'. Never returns anything else, so a
+     caller can compare without re-normalising.
+
+     The per-device mirror is consulted ONLY when the preference is absent, which on a cold
+     load is exactly the window before the user record hydrates -- the same reasoning as
+     `effectiveLayout` above. That fallback is safe even though this can resolve to ANOTHER
+     user: `page_user` and `referenced_user` are both set after their records resolve, so at
+     first paint `effective_view_user` is always the session account, whose style is what the
+     mirror holds. */
+  effective_view_style: computed(
+    'effective_view_user', 'effective_view_user.preferences.board_view_style',
+    function() {
+      var style = this.get('effective_view_user.preferences.board_view_style');
+      if(!style) { style = readStoredViewStyle(); }
+      return (style === 'classic') ? 'classic' : 'modern';
+    }
+  ),
+
+  /* Stamp the resolved style on <body> so EVERY page has a hook for view-specific styling,
+     and keep the per-device mirror honest.
+     Most pages render identically in both views today -- this exists so that when they stop
+     being identical, the selector is already there on every page rather than being retrofitted
+     one surface at a time. */
+  sync_view_scope: observer(
+    /* The RAW inputs, deliberately, not `effective_view_style` itself. An observer on a
+       computed only fires once something consumes that computed, and nothing else reads this
+       one -- so watching it directly meant the class was never stamped at all (caught in the
+       browser: every page came back with no `ll-view-*` class). `sync_layout_scope` above
+       works precisely because it watches a raw preference path. These are the three records
+       `effective_view_user` can resolve to, plus the speak-mode flag that decides between
+       them. */
+    'currentUser', 'currentUser.preferences.board_view_style',
+    'page_user', 'page_user.preferences.board_view_style',
+    'referenced_speak_mode_user', 'referenced_speak_mode_user.preferences.board_view_style',
+    'speak_mode',
+    function() {
+    var style = this.get('effective_view_style');
+    if(window.LingoLinq && window.LingoLinq.set_view_scope) {
+      window.LingoLinq.set_view_scope(style);
+    }
+    /* Mirror ONLY the session account's own style. While modelling, the shell on screen
+       belongs to the COMMUNICATOR; writing that here would make the supervisor's next cold
+       load open in the communicator's view until hydration corrected it -- the exact flash
+       this mirror exists to prevent. */
+    var current = this.get('currentUser');
+    var showing = this.get('effective_view_user');
+    if(current && showing && emberGet(current, 'id') && emberGet(current, 'id') == emberGet(showing, 'id')) {
+      writeStoredViewStyle(style);
+    }
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
     if(change == 'sessionUser.preferences.cookies') {

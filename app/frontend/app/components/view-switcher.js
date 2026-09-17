@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { is_classic, view_style, set_view_style } from '../utils/view_style';
+import { is_classic, view_style, set_view_style, confirm_view_style_change } from '../utils/view_style';
 import { board_view_route } from '../utils/board_view';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
@@ -113,8 +113,8 @@ export default Component.extend({
            !this.appState.get('edit_mode');
   }),
 
-  isClassic: computed('appState.currentUser.preferences.board_view_style', function() {
-    return is_classic(this.appState.get('currentUser'));
+  isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.appState.get('effective_view_user'));
   }),
 
   // The SECONDARY axis: Gentle vs Focused, which overlays whichever primary style
@@ -164,7 +164,12 @@ export default Component.extend({
     },
 
     select_view: function(style) {
-      var user = this.appState.get('currentUser');
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.appState.get('effective_view_user');
       if(!user) { return; }
       this.set('menu_open', false);
 
@@ -175,6 +180,21 @@ export default Component.extend({
       // would otherwise re-enter the route the user is already on, behind a full
       // "Preparing your Board" overlay, for no change at all.
       if(next === view_style(user)) { return; }
+
+      /* Everything from the write onwards moves inside the guard. When the view being changed
+         belongs to SOMEONE ELSE -- a communicator being modelled for -- this asks first, and a
+         cancel must leave the preference, the overlay and the navigation all untouched, not
+         just skip the save. Changing your own view resolves immediately with no modal. */
+      var _this = this;
+      confirm_view_style_change(this.appState, next).then(function(ok) {
+        if(!ok) { return; }
+        /* send(), not a direct call: _apply_view lives in the actions hash, so it is not a
+           method on the component instance and _this._apply_view would be undefined. */
+        _this.send('_apply_view', user, next);
+      });
+    },
+
+    _apply_view: function(user, next) {
       set_view_style(user, next);
 
       // Non-board pages re-render in place — same route, different template.

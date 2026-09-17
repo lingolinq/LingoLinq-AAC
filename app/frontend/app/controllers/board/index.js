@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { confirm_view_style_change } from '../../utils/view_style';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
@@ -40,8 +41,8 @@ export default Controller.extend(prefClasses, {
   // panelled experience; 'classic' = this board-alt grid. Defaults to
   // 'modern'. Drives the edit-mode view toggle's active state + the
   // conditional "open the other view" jump link.
-  board_view_style: computed('appState.currentUser.preferences.board_view_style', function() {
-    return this.get('appState.currentUser.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
+  board_view_style: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return this.get('appState.effective_view_user.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
   }),
   /* Broken/unsynced board recovery (classic speak shell). Same roles as
      board-detail: Home/Back for everyone; Exit Speak for supervisors. */
@@ -1520,14 +1521,24 @@ export default Controller.extend(prefClasses, {
     // Ember Data ships the full raw preferences blob.
     set_board_view_style: function(style) {
       if(style !== 'modern' && style !== 'classic') { return; }
-      var user = this.get('appState.currentUser');
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.get('appState.effective_view_user');
       if(!user) { return; }
-      user.set('preferences.board_view_style', style);
-      this.notifyPropertyChange('board_view_style');
-      if(user.save) {
-        user.set('preferences.device.updated', true);
-        user.save();
-      }
+      /* Ask first when the view being changed belongs to someone else. */
+      var _this = this;
+      confirm_view_style_change(this.get('appState'), style).then(function(ok) {
+        if(!ok) { return; }
+        user.set('preferences.board_view_style', style);
+        _this.notifyPropertyChange('board_view_style');
+        if(user.save) {
+          user.set('preferences.device.updated', true);
+          user.save();
+        }
+      });
     },
 
     // "Take me to the Modern View (in edit mode)". board-detail HAS a
@@ -1551,7 +1562,21 @@ export default Controller.extend(prefClasses, {
     // to 'modern' (so future logins land in the modern view) AND then
     // take them straight to the modern (board-detail) view.
     go_to_modern: function() {
-      var user = this.get('appState.currentUser');
+      /* Guarded like every other view write: if this board's view belongs to a communicator,
+         ask before changing their stored default, and on a cancel do not navigate either. */
+      var _gm = this;
+      confirm_view_style_change(this.get('appState'), 'modern').then(function(ok) {
+        if(ok) { _gm.send('_go_to_modern_confirmed'); }
+      });
+    },
+
+    _go_to_modern_confirmed: function() {
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.get('appState.effective_view_user');
       if(user) {
         user.set('preferences.board_view_style', 'modern');
         this.notifyPropertyChange('board_view_style');

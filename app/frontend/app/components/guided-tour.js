@@ -300,8 +300,8 @@ export default Component.extend({
   // registry so that module stays a pure function of its arguments — see its comment.
   // Depends on the preference key itself, so flipping view style re-resolves the builder
   // without a reload.
-  isClassicView: computed('appState.currentUser.preferences.board_view_style', function() {
-    return is_classic(this.get('appState.currentUser'));
+  isClassicView: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
   }),
 
   tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {

@@ -1,3 +1,6 @@
+import RSVP from 'rsvp';
+import modal from './modal';
+import { get as emberGet } from '@ember/object';
 // The app-wide Classic/Modern view style.
 //
 // ONE preference governs the whole app — every page and the board — so a user
@@ -55,6 +58,40 @@ export function set_view_style(user, style) {
     user.save().then(null, function() { });
   }
   return true;
+}
+
+/* A view change writes a PREFERENCE ON A USER RECORD, and that user is not always the person
+ * clicking. `app_state.effective_view_user` resolves to the communicator while a supervisor
+ * models for them, or while the supervisor is on that communicator's pages, so the same
+ * control that changes your own view changes SOMEONE ELSE'S default when it is pointed at
+ * them: stored on their record, synced to every device they use, and persisting long after
+ * the modelling session ends.
+ *
+ * Every write path therefore goes through here first. It resolves TRUE when it is safe to
+ * proceed and FALSE when the person cancelled, so a caller's navigation, overlay and save all
+ * stay inside the `.then` and none of them run on a cancel.
+ *
+ * Changing your OWN view resolves immediately with no modal: the warning would be noise, and
+ * the whole point is to flag the case where the consequence lands on someone else.
+ */
+export function confirm_view_style_change(app_state, next) {
+  var target = app_state && app_state.get && app_state.get('effective_view_user');
+  var current = app_state && app_state.get && app_state.get('currentUser');
+  if(!target || !current) { return RSVP.resolve(true); }
+  var target_id = emberGet(target, 'id');
+  var current_id = emberGet(current, 'id');
+  /* Unknown ids resolve to "same person" rather than prompting. A spurious warning about
+     changing somebody else's settings is worse than none: it teaches people to click through
+     the dialog, which is exactly what stops the real one from working. */
+  if(!target_id || !current_id || target_id == current_id) { return RSVP.resolve(true); }
+  return modal.open('confirm-view-style-change', {
+    user_name: emberGet(target, 'user_name'),
+    style: next
+  }).then(function(result) {
+    return result === 'change_view';
+  }, function() {
+    return false;
+  });
 }
 
 export default is_classic;

@@ -13,10 +13,10 @@ export default Controller.extend({
   // controller (routes/bento.js sets no controllerName), so the computed cannot
   // be inherited and is duplicated deliberately — both delegate to
   // utils/view_style.js, which is the single reader of the preference key.
-  classicHome: computed('appState.currentUser.preferences.board_view_style', function() {
+  classicHome: computed('appState.effective_view_user.preferences.board_view_style', function() {
     var appState = this.get('appState');
     if (!appState) { return false; }
-    return is_classic(appState.get('currentUser'));
+    return is_classic(appState.get('effective_view_user'));
   }),
 
   hasCurrentUser: computed('appState.currentUser', 'appState', function() {

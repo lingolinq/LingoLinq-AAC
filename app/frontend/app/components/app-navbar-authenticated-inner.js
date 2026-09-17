@@ -21,8 +21,8 @@ export default Component.extend({
        - Display Style chooses Gentle vs Focused, which are arrangements of the
          CARD grid. Classic has no card grid, so the control has nothing to act on.
      Reads through utils/view_style so the preference key has one reader. */
-  isClassic: computed('appState.currentUser.preferences.board_view_style', function() {
-    return is_classic(this.get('appState.currentUser'));
+  isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
   }),
 
   /** When true, the mobile drawer (same structure as landing la-mobile-drawer) is open. */

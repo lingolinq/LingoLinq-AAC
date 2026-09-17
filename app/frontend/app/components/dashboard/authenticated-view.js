@@ -1270,7 +1270,7 @@ export default Component.extend({
         if(parts.length === 2) {
           // Open in the user's preferred view: board-detail (modern) by default,
           // board-alt (classic) only when board_view_style === 'classic'.
-          this.get('router').transitionTo(board_view_route(this.get('appState.currentUser')), parts[0], parts[1]);
+          this.get('router').transitionTo(board_view_route(this.get('appState.effective_view_user')), parts[0], parts[1]);
         } else {
           // Canonical /key route — routes/board.js already redirects by preference.
           this.get('router').transitionTo('board', boardKey);
