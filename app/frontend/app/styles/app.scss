@@ -13241,7 +13241,7 @@ video.button_image {
   overflow-y: auto;
 }
 
-/* "OR" separator between the three destination methods — mirrors the
+/* "OR" separator between the destination methods — mirrors the
    create-board-new chooser (.nb-create-chooser__or): centered uppercase OR
    with a short rule on each side. */
 #button_settings .md-bs-or {
@@ -13328,6 +13328,27 @@ video.button_image {
 }
 #button_settings .md-bs-choice__label {
   flex: 0 0 auto;
+}
+#button_settings .md-bs-link-by-key {
+  margin-top: 4px;
+}
+#button_settings .md-bs-link-by-key__row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+#button_settings .md-bs-link-by-key__input {
+  flex: 1 1 auto;
+  min-height: 50px;
+}
+#button_settings .md-bs-link-by-key__submit {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 8.5rem;
+  padding: 0 18px;
+}
+#button_settings .md-bs-link-by-key__results {
+  margin-top: 10px;
 }
 
 /* Footer */

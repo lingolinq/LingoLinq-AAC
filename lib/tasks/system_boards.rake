@@ -51,6 +51,28 @@ namespace :lingolinq do
     exit 1 if results.any? { |r| !r[:ok] }
   end
 
+  desc 'Relink Vocal Flair 84 w/ Keyboard folder tiles to the VF84 category boards. Default is dry-run; APPLY=1 writes.'
+  task repair_vf84_w_keyboard_folders: :environment do
+    apply = ENV['APPLY'].to_s =~ /^(1|true|yes)$/i
+    boards = Board.where("key ~ ?", '(^|/)vocal-flair-84-w-keyboard(_[0-9]+)?$')
+    if boards.none?
+      puts 'No vocal-flair-84-w-keyboard boards found.'
+      next
+    end
+    boards.find_each do |board|
+      if apply
+        result = VocalFlairKeyboardFolderRelinker.relink!(board)
+        status = result[:changed] ? "UPDATED #{result[:linked].join(',')}" : 'unchanged'
+        puts "#{status}: #{board.key}"
+      else
+        preview = VocalFlairKeyboardFolderRelinker.preview(board)
+        status = preview.empty? ? 'unchanged' : "WOULD LINK #{preview.join(',')}"
+        puts "#{status}: #{board.key}"
+      end
+    end
+    puts apply ? 'Done.' : 'Dry-run. Re-run with APPLY=1 to write.'
+  end
+
   desc 'Stamp LingoLinq descriptions onto existing Quick Core library roots (no OBZ re-import). Use after OpenAAC boards are already seeded.'
   task apply_quick_core_descriptions: :environment do
     owner = SystemBoardSources.owner

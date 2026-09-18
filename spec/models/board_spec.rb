@@ -5880,23 +5880,52 @@ describe Board, :type => :model do
       library.instance_variable_set('@skip_swapped', true)
       expect(Uploader).to_not receive(:default_images)
       b.swap_images(library, u, [], nil)
-      # This is the exact comparison User#copy_to_home_board makes (user.rb ~3088)
-      # and User#copy_board_to_library makes (user.rb ~3065).
+      # This is the exact comparison User#copy_to_home_board makes (user.rb:3631)
+      # and User#copy_board_to_library makes (user.rb:3607).
       b.reload
       expect((b.settings['swapped_library'] || 'original')).to eq(('opensymbols' || 'original'))
-      # And the recorded library makes a REPEAT swap a no-op: current_library now
-      # returns the aggregate, so the outer gate closes and no lookup happens at all.
+      # Repeat swap is a no-op because swapped_library already matches, so the
+      # outer gate closes and no lookup happens at all.
       expect(b.current_library).to eq('opensymbols')
       expect(Uploader).to_not receive(:default_images)
       expect(Uploader).to_not receive(:find_images)
       b.swap_images(library, u, [], nil)
     end
 
+    it "should record swapped_library when current_library already votes the target aggregate" do
+      # One arasaac + one twemoji: current_library(true) returns 'opensymbols'
+      # (board.rb:2827-2848). The outer gate used to key off that vote, skip
+      # the loop, and never write swapped_library. copy_to_home_board then
+      # treats nil as 'original' and mints a second set (user.rb:3631).
+      u = User.create
+      arasaac = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      twemoji = licensed_image(u, 'Twitter', 'https://twemoji.twitter.com/')
+      expect(arasaac.image_library).to eq('arasaac')
+      expect(twemoji.image_library).to eq('twemoji')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => arasaac.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => twemoji.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      expect(b.current_library(true)).to eq('opensymbols')
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to_not receive(:default_images)
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to eq([arasaac.global_id, twemoji.global_id])
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
     it "should record swapped_library and mark swap_incomplete when a word is in _missing" do
       # A board with one already-aggregated image AND one word in `_missing` must
       # still record swapped_library. That field is the copy-idempotency key;
       # User#copy_to_home_board treats a nil marker as a library mismatch and
-      # copy_for's a second board set (user.rb:3088). Completeness lives on
+      # copy_for's a second board set (user.rb:3631). Completeness lives on
       # swap_incomplete so a later copy re-runs swap_images on THIS board.
       #
       # `_missing` is not an authoritative "no such symbol" declaration.
