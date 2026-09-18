@@ -677,9 +677,15 @@ var Button = EmberObject.extend({
     };
     if(!sound) {
       var sound_urls = _this.get('board.sound_urls');
-      if(sound_urls && sound_urls[_this.sound_id] && preference != 'remote') {
+      // Board sound_urls keys are usually strings; sound_id may be numeric.
+      var mapped_sound_url = (_this.sound_url) || (sound_urls && (sound_urls[_this.sound_id] || sound_urls[String(_this.sound_id)]));
+      // Prefer the board URL map for playback. `remote` only means "allow
+      // findRecord when the map has no URL" (button-settings still gets a
+      // full record that way). Skipping the map on remote caused Capacitor
+      // speak-mode to TTS the label whenever findRecord failed.
+      if(mapped_sound_url && preference != 'remote') {
         var snd = LingoLinq.store.createRecord('sound', {
-          url: sound_urls[_this.sound_id]
+          url: mapped_sound_url
         })
         snd.set('id', _this.sound_id);
         snd.set('incomplete', true);
@@ -694,6 +700,18 @@ var Button = EmberObject.extend({
         return LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
+        }, function(err) {
+          if(mapped_sound_url) {
+            var fallback = LingoLinq.store.peekRecord('sound', _this.sound_id);
+            if(!fallback) {
+              fallback = LingoLinq.store.createRecord('sound', { url: mapped_sound_url });
+              fallback.set('id', _this.sound_id);
+              fallback.set('incomplete', true);
+            }
+            _this.set('sound', fallback);
+            return check_sound(fallback);
+          }
+          return RSVP.reject(err);
         });
       }
     } else {
@@ -773,7 +791,8 @@ var Button = EmberObject.extend({
       _this.image_url = (_this.get('board.image_urls') || {})[_this.image_id];
     }
     if(!_this.sound_url && _this.get('board') && _this.sound_id) {
-      _this.sound_url = (_this.get('board.sound_urls') || {})[_this.sound_id];
+      var board_sound_urls = _this.get('board.sound_urls') || {};
+      _this.sound_url = board_sound_urls[_this.sound_id] || board_sound_urls[String(_this.sound_id)];
     }
     return new RSVP.Promise(function(resolve, reject) {
       var promises = [];
