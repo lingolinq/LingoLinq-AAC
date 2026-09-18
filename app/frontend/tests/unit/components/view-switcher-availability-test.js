@@ -56,4 +56,3 @@ module('Unit | Component | view-switcher availability', function(hooks) {
     assert.false(switcher(this).get('available'), 'no unprompted exit from an edit session');
   });
 });
-
