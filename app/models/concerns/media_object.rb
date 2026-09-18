@@ -11,7 +11,9 @@ module MediaObject
   # -- both shapes share the same stem, since it's just <output_key>, the
   # same key stored as full_filename once transcoding completes) and use it
   # to look up what AWS actually created.
-  THUMBNAIL_KEY_STEM = /\A(.+)\.(?:0000|\d{5})\.(?:jpg|png)\z/
+  # 0000 = legacy hardcoded guess; 5 digits = Elastic Transcoder leftovers;
+  # 7 digits = MediaConvert Frame Capture.
+  THUMBNAIL_KEY_STEM = /\A(.+)\.(?:0000|\d{5}|\d{7})\.(?:jpg|png)\z/
 
   def thumbnail_stem(thumbnail_filename)
     return nil unless thumbnail_filename

@@ -1041,6 +1041,19 @@ describe("persistence", function() {
       setPersistenceOnline(true);
     });
 
+    describe("allowInvalidTokenLocalFallback", function() {
+      it("stale-token: should refuse an online user/self fallback and allow boards or offline self", function() {
+        var helper = persistence.allowInvalidTokenLocalFallback;
+        expect(typeof helper).toEqual('function');
+        var tokenErr = {invalid_token: true, result: {invalid_token: true, error: 'Token needs refresh'}};
+        expect(helper(tokenErr, {modelName: 'user'}, 'self', true)).toEqual(false);
+        expect(helper(tokenErr, {modelName: 'user'}, 'me', true)).toEqual(false);
+        expect(helper(tokenErr, {modelName: 'user'}, 'self', false)).toEqual(true);
+        expect(helper(tokenErr, {modelName: 'board'}, '9876', true)).toEqual(true);
+        expect(helper({status: 0}, {modelName: 'user'}, 'self', true)).toEqual(null);
+      });
+    });
+
     describe("findRecord", function() {
       it("should return a promise", function() {
         queryLog.real_lookup = false;

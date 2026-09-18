@@ -12,8 +12,10 @@ paths:
 - Read `docs/INFRASTRUCTURE.md` before changing anything here. Production, staging, dev
   and n8n all run on GCP Cloud Run; the Render platform was deleted on 2026-09-09 and
   must not be described as live or referenced by `*.onrender.com` hostname.
-- `.github/workflows/deploy-cloudrun.yml` is the deployed configuration. `render.yaml`,
-  `bin/render-build.sh` and `Procfile` are legacy files kept for history only.
+- `.github/workflows/deploy-cloudrun.yml` is the deployed configuration. `Procfile` is the
+  LOCAL development process definition read by `foreman start` (`README.md`), never the deployed
+  configuration. `render.yaml` and `bin/render-build.sh` no longer exist; they were deleted in
+  PR #962 after the 2026-09-09 decommission.
 - Staging and dev share one GCP project, one Cloud SQL database, one Redis, one Secret
   Manager secret set, and one worker pool that runs the staging image. A job-class or
   queue change on `develop` is not runnable until it reaches `staging`.

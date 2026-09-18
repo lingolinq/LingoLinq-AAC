@@ -2919,7 +2919,11 @@ class Board < ApplicationRecord
       updated_board_ids << swap_board_id
       already_in_library = false
       unresolved = false
-      if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library || swap_board.settings['swap_incomplete']
+      # Copy consumers read swapped_library, not current_library (user.rb:3607,
+      # 3631, 3639). A vote that already matches the target used to skip this
+      # loop, so neither marker writer ran and the next copy minted a second
+      # set. Enter until the marker is recorded; the inner skip still avoids HTTP.
+      if !library.instance_variable_get('@skip_swapped') || swap_board.settings['swapped_library'] != library || swap_board.settings['swap_incomplete']
         # puts " checking if important"
         # Important boards (i.e. boards that show up in the suggested list), should
         # definitely have their swap alternates cached indefinitely
@@ -2997,7 +3001,7 @@ class Board < ApplicationRecord
               # (uploader.rb find_images). Flag the board so copy consumers
               # re-run swap_images in place. Still record swapped_library:
               # withholding it is a library mismatch and mints a new board set
-              # (user.rb:3065, 3088, 3095).
+              # (user.rb:3607, 3631, 3639).
               unresolved = true
               library.instance_variable_set('@had_unresolved', true)
             end

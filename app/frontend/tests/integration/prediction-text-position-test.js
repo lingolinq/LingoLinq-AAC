@@ -68,4 +68,63 @@ QUnit.module('Integration | prediction text position', function(hooks) {
     assert.strictEqual(s.belowImg.display, 'none', `below-bar strip, got ${s.belowImg.display}`);
     assert.strictEqual(s.railImg.display, 'none', `side rail, got ${s.railImg.display}`);
   });
+
+  /* overflow:hidden on the rail/below-bar label zeroes the flex min-size, so a
+     flex:1 image can shrink the word to nothing. flex-shrink:0 is what keeps
+     "need" visible next to its symbol. Mutation: remove flex-shrink from the
+     prediction-label rules. */
+  QUnit.test('prediction labels do not shrink away when a symbol is present', async function(assert) {
+    assert.expect(3);
+    this.set('pos', 'md-board-detail-grid--text-pos-top');
+    await tiles();
+    const shrink = function(sel) {
+      return window.getComputedStyle(document.querySelector(sel)).flexShrink;
+    };
+    assert.strictEqual(shrink('.md-board-detail-sentence-bar__prediction-group .md-board-detail-sentence-bar__prediction-label'), '0',
+      'in-bar label');
+    assert.strictEqual(shrink('.md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction-label'), '0',
+      'below-bar label');
+    assert.strictEqual(shrink('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label'), '0',
+      'rail label');
+  });
+
+  QUnit.test('sentence-chip labels do not shrink away when a symbol is present', async function(assert) {
+    assert.expect(1);
+    await render(hbs`
+      <button type="button" class="md-board-detail-sentence-bar__chip">
+        <img class="md-board-detail-sentence-bar__chip-img" src="/images/square.svg" alt="">
+        <span class="md-board-detail-sentence-bar__chip-label">lot</span>
+      </button>
+    `);
+    const shrink = window.getComputedStyle(
+      document.querySelector('.md-board-detail-sentence-bar__chip-label')
+    ).flexShrink;
+    assert.strictEqual(shrink, '0', 'chip label');
+  });
+
+  /* Dense boards size each rail tile to one short card (~40px on Vocal Flair 94).
+     The label is flex-shrink:0; the img is flex:1 1 0. If the img also has
+     min-height:0, leftover is 0 and the symbol vanishes. Mutation: set the
+     rail/below-bar img min-height back to 0. */
+  QUnit.test('a short rail tile keeps both the symbol and the word', async function(assert) {
+    assert.expect(4);
+    this.set('pos', 'md-board-detail-grid--text-pos-top');
+    await render(hbs`
+      <div class="md-shell md-shell--board-detail md-shell--wordpred-side-rail">
+        <div class="md-board-detail-prediction-rail {{this.pos}}" style="height: 40px; width: 56px;">
+          <button type="button" class="md-board-detail-sentence-bar__prediction">
+            <img class="md-board-detail-sentence-bar__prediction-img" src="/images/logo.png" alt="">
+            <span class="md-board-detail-sentence-bar__prediction-label">need</span>
+          </button>
+        </div>
+      </div>
+    `);
+    const img = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img');
+    const lab = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label');
+    assert.strictEqual(window.getComputedStyle(img).minHeight, '16px',
+      `img min-height is ${window.getComputedStyle(img).minHeight}`);
+    assert.strictEqual(window.getComputedStyle(img).flexShrink, '0', 'symbol will not shrink away');
+    assert.ok(img.getBoundingClientRect().height > 0, `symbol height ${img.getBoundingClientRect().height}`);
+    assert.ok(lab.getBoundingClientRect().height > 0, `label height ${lab.getBoundingClientRect().height}`);
+  });
 });
