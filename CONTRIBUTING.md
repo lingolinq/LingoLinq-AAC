@@ -9,7 +9,7 @@
 | Branch | Deploys To | Purpose |
 |---|---|---|
 | `main` | lingolinq-prod | Production. Only receives merges from `staging`. |
-| `staging` | lingolinq-staging | Pre-production validation. Merges from `develop`. |
+| `staging` | lingolinq-staging | Pre-production validation. Merges from a freeze of `develop`. |
 | `develop` | lingolinq-dev | Integration branch. **All PRs target this branch.** |
 | `type/name-description` or `name/type/description` | PR Preview (auto) | Individual work. Branched from `develop`. |
 
@@ -36,8 +36,9 @@ Parts:
 
 - `type` -- one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`,
   `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
-  and `release` for a release PR (`release/staging-into-main-<YYYY-MM-DD>`, no name,
-  date suffix; the one branch type that does not carry a developer name)
+  and `release` for a promotion or release PR (`release/develop-into-staging-<YYYY-MM-DD>`,
+  `release/staging-into-main-<YYYY-MM-DD>`; no name, date suffix; the one branch type
+  that does not carry a developer name)
 - `name` -- your first name or GitHub username (lowercase)
 - `short-description` -- 2-4 words, kebab-case
 
@@ -49,6 +50,7 @@ Examples:
 - `feat/melissa-add-sso-login`
 - `melissa/feat/add-sso-login`
 - `dom/chore/update-ember-deps`
+- `release/develop-into-staging-2026-09-18` (promotion freeze; see section 5)
 
 The same spec is stated in `CLAUDE.md` (Branching), `AGENTS.md`,
 `.github/copilot-instructions.md` and `docs/pre-merge-audit-checklist.md` section 4.1;
@@ -105,11 +107,17 @@ reviewing and understanding all code in it, regardless of who or what wrote it.
 
 ### 5. Promote to Staging
 
-When a set of changes on `develop` is ready for pre-production validation:
+When a set of changes on `develop` is ready for pre-production validation, freeze that SHA so a later merge into `develop` cannot join the promotion or re-run its CI:
 
-- A team member opens a PR from `develop` to `staging`.
+```bash
+git fetch origin
+git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-DD
+```
+
+- Open a PR from that `release/develop-into-staging-*` branch to `staging`. Do **not** open the PR from live `develop`.
 - **Scot must approve** the PR to staging.
 - Use a **merge commit** (not squash) so the history stays in sync.
+- Delete the freeze branch after merge.
 - `staging` auto-deploys to lingolinq-staging.
 
 ### 6. Promote to Production

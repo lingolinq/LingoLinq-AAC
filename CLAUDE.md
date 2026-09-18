@@ -72,12 +72,12 @@ everything else in this file.
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
   regular work: `git checkout develop && git pull && git checkout -b <new-branch>`.
   Prefer an isolated worktree when other sessions share the checkout.
-- **Name:** every branch carries a developer handle and a `<type>` (`fix`, `feat`,
-  `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, `security`). Scot's branches
-  are always `<type>/scot-<kebab-slug>`, the form his launcher generates with an 8-hex
-  token that is part of the name (`docs/scot-branch-naming-convention-f3117a76`).
-  Teammates use that form (`fix/melissa-sidebar-actions`) or `<dev>/<type>/<slug>`; both
-  are accepted. Never rename an existing branch to fit either shape.
+- **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
+  `refactor`, `test`, `compliance`, `security`). Scot's branches are always
+  `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
+  (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form
+  (`fix/melissa-sidebar-actions`) or `<dev>/<type>/<slug>`; both are accepted. Never
+  rename an existing branch to fit either shape.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` with
   type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
   approves), and is merged back to `develop` immediately afterwards. Hotfix and release
@@ -85,8 +85,9 @@ everything else in this file.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
-- **Flow:** PRs target `develop`; `develop` promotes to `staging`; a release PR goes from
-  `staging` to `main`, which deploys to production after approval.
+- **Flow:** PRs target `develop`; `develop` promotes to `staging` from a freeze branch
+  (`release/develop-into-staging-YYYY-MM-DD`), not from live `develop`; a release PR goes
+  from `staging` to `main`, which deploys to production after approval.
 - Date suffixes are only for time-bound recovery or release branches.
 
 ## Project overview

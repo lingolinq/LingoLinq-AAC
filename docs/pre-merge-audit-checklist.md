@@ -678,7 +678,7 @@ If any of these questions makes you say "I don't know" or "I haven't thought abo
 **🔴 BLOCK** — Per CLAUDE.md "Branching":
 - Type prefix required: `fix/`, `feat/`, `chore/`, `docs/`, `perf/`, `refactor/`, `test/`, `compliance/`, `security/`; plus `hotfix/` for the production hotfix flow and `release/` for a release PR
 - Developer handle: `melissa`, `scot`, `traci`, `dominic`, etc.
-- Form: Scot's branches are always `<type>/scot-<kebab-description>`, optionally followed by the launcher's `-<8-hex-token>`. Teammates use `<type>/<dev>-<kebab-description>` or `<dev>/<type>/<kebab-description>`; both pass. Release branches carry no handle (`release/staging-into-main-<YYYY-MM-DD>`)
+- Form: Scot's branches are always `<type>/scot-<kebab-description>`, optionally followed by the launcher's `-<8-hex-token>`. Teammates use `<type>/<dev>-<kebab-description>` or `<dev>/<type>/<kebab-description>`; both pass. Release branches carry no handle (`release/develop-into-staging-<YYYY-MM-DD>`, `release/staging-into-main-<YYYY-MM-DD>`)
 - Never rename an existing branch to fit either shape
 
 ```bash
@@ -690,7 +690,7 @@ git branch --show-current
 
 ### 4.2 Target branch
 
-**🔴 BLOCK** — PRs target `develop`, NOT `main` or `staging`. (Promotion PRs from `develop` to `staging`, and release PRs from `staging` to `main`, are separate operations.)
+**🔴 BLOCK** — PRs target `develop`, NOT `main` or `staging`. (Promotion PRs from a `release/develop-into-staging-*` freeze of `develop` to `staging`, and release PRs from `staging` to `main`, are separate operations.)
 
 ### 4.3 PR description matches the actual diff (claims audit)
 
