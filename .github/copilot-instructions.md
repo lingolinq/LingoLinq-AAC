@@ -16,7 +16,7 @@ Key characteristics:
 
 ## Working rules (short form of `CLAUDE.md` Rule #0 and Conventions)
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root cause with evidence, and never break working behaviour. Label facts CONFIRMED (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
-- **Branch first.** Never commit on `develop`, `staging` or `main`. Branch from `develop` as `<dev>/<type>/<kebab-slug>` (types: fix, feat, chore, docs, perf, refactor, test, compliance, security; `hotfix` from `main` only for urgent production fixes). PRs target `develop`.
+- **Branch first.** Never commit on `develop`, `staging` or `main`. Branch from `develop` as `<dev>/<type>/<kebab-slug>` (types: fix, feat, chore, docs, perf, refactor, test, compliance, security; `hotfix` from `main` only for urgent production fixes). PRs target `develop`. Promote `develop` to `staging` from a freeze branch (`release/develop-into-staging-YYYY-MM-DD`), not from live `develop`.
 - **Ruby 3.4.4** (`.ruby-version`) and **Node 22** (`.nvmrc`). No TypeScript conversion.
 - **Styling:** edit the governing SCSS selector in place; never add a higher-specificity override, an override block, or `!important`. Preserve class names.
 - **Refactors** never remove or change functionality.

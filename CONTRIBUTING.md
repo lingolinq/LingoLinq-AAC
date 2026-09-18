@@ -9,7 +9,7 @@
 | Branch | Deploys To | Purpose |
 |---|---|---|
 | `main` | lingolinq-prod | Production. Only receives merges from `staging`. |
-| `staging` | lingolinq-staging | Pre-production validation. Merges from `develop`. |
+| `staging` | lingolinq-staging | Pre-production validation. Merges from a freeze of `develop`. |
 | `develop` | lingolinq-dev | Integration branch. **All PRs target this branch.** |
 | `name/type/description` | PR Preview (auto) | Individual work. Branched from `develop`. |
 
@@ -37,6 +37,7 @@ Examples:
 - `melissa/feat/add-sso-login`
 - `scot/fix/memory-leak-puma`
 - `dom/chore/update-ember-deps`
+- `release/develop-into-staging-2026-09-18` (promotion freeze; see section 5)
 
 The same spec is stated in `CLAUDE.md` (Branching) and `AGENTS.md`; change all three
 together. Older branches in the `type/name-description` form may finish through merge,
@@ -92,11 +93,17 @@ reviewing and understanding all code in it, regardless of who or what wrote it.
 
 ### 5. Promote to Staging
 
-When a set of changes on `develop` is ready for pre-production validation:
+When a set of changes on `develop` is ready for pre-production validation, freeze that SHA so a later merge into `develop` cannot join the promotion or re-run its CI:
 
-- A team member opens a PR from `develop` to `staging`.
+```bash
+git fetch origin
+git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-DD
+```
+
+- Open a PR from that `release/develop-into-staging-*` branch to `staging`. Do **not** open the PR from live `develop`.
 - **Scot must approve** the PR to staging.
 - Use a **merge commit** (not squash) so the history stays in sync.
+- Delete the freeze branch after merge.
 - `staging` auto-deploys to lingolinq-staging.
 
 ### 6. Promote to Production
