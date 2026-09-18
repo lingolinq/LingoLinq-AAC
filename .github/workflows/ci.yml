@@ -286,6 +286,9 @@ jobs:
       - name: Verify Notion compliance page matches register
         run: ruby scripts/compliance-notion-publish.rb --check
 
+      - name: Verify Notion page publisher converts the page (network-free)
+        run: scripts/tests/compliance-notion-page-publish-test.sh
+
       - name: Verify document register render + git content hashes + bundle completeness
         run: ruby scripts/document-register-render.rb --check
 

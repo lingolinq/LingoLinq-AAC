@@ -196,9 +196,10 @@ Regenerate the one-way Notion page body from the register:
 `ruby scripts/compliance-notion-publish.rb` (then `--check`). It renders a PII-free summary
 (headline + open-findings table, file:line anchors only) to
 `audit-reports/notion/compliance-audit-page.md`, stamped with the audited SHA + run date and
-marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit" page in
-the Master Inbox is a **human-initiated one-way step** (no audit/compliance surface auto-sends
-externally) - see `audit-reports/notion/README.md`. The unattested Compliance Posture Report is
+marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit Posture"
+page under Compliance Home is a **human-initiated one-way step** (no audit/compliance surface
+auto-sends externally): a person runs `ruby scripts/compliance-notion-page-publish.rb` with
+`NOTION_TOKEN` set (`--dry-run` first) - see `audit-reports/notion/README.md`. The unattested Compliance Posture Report is
 never published here; it stays DRAFT until Scot signs.
 
 ## Related: promoting PR-time findings

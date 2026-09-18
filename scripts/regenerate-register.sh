@@ -128,6 +128,8 @@ verify_all() {
     ruby scripts/compliance-calendar-render.rb --check || rc=1
   step "verify: Notion compliance page matches register" \
     ruby scripts/compliance-notion-publish.rb --check || rc=1
+  step "verify: Notion page publisher converts the page (network-free)" \
+    bash scripts/tests/compliance-notion-page-publish-test.sh || rc=1
   step "verify: document register render + git hashes + bundle completeness" \
     ruby scripts/document-register-render.rb --check || rc=1
   # Ordered to match ci.yml's audit-artifacts-integrity. This harness edits an attested

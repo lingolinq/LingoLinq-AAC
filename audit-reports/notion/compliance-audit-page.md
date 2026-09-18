@@ -2,24 +2,26 @@
 
 > 🤖 **GENERATED - DO NOT EDIT.** This page is a one-way mirror of the git findings
 > register (`audit-reports/FINDINGS.json`), regenerated after each `/audit-run`. Edits here
-> are overwritten on the next publish and are not the source of truth. Do not auto-file this
-> page out of the Master Inbox and do not delete it; regenerate in place.
+> are overwritten on the next publish and are not the source of truth. Do not move this
+> page out of Compliance Home and do not delete it; regenerate in place.
 >
 > Regenerate: `ruby scripts/compliance-notion-publish.rb`, then push this body to the single
-> Notion "Compliance & Audit" page (see `audit-reports/notion/README.md`).
+> Notion page with `ruby scripts/compliance-notion-page-publish.rb`
+> (see `audit-reports/notion/README.md`).
 
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-17T17:57:03Z
+**Page generated:** 2026-09-18T00:12:06Z
 
-## Headline - open findings
+## Headline - live findings (open + awaiting verification)
 
-| Critical | High | Medium | Low |
-|---|---|---|---|
-| **2** | **38** | 94 | 52 |
+| Count | Critical | High | Medium | Low |
+|---|---|---|---|---|
+| **Live** (`open` + `remediated-unverified`) | **2** | **38** | 94 | 52 |
+| `open` only | 2 | 32 | 91 | 51 |
 
-_Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
+_The headline is the LIVE count: `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` step 6 convention; the difference is findings whose fix has landed but which Scot has not yet verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._
 
 ## Open findings (open + awaiting verification)
 
