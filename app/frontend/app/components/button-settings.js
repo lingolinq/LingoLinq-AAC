@@ -85,6 +85,12 @@ export default Component.extend({
       if (event && event.preventDefault) { event.preventDefault(); }
       self.send('nothing');
     });
+    this.set('onLinkedBoardKeydown', function(event) {
+      if(event && (event.key === 'Enter' || event.keyCode === 13)) {
+        if(event.preventDefault) { event.preventDefault(); }
+        self.send('find_board');
+      }
+    });
     this.set('ctrlActionEventValue', function(actionName, targetProp) {
       return function(event) {
         var value = event && event.target ? event.target[targetProp] : undefined;
@@ -1333,6 +1339,9 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.toggle_webcam(!takePic);
     },
     find_board: function() {
+      var name = (this.get('linkedBoardName') || '').trim();
+      if(!name) { return; }
+      this.set('linkedBoardName', name);
       contentGrabbers.boardGrabber.find_board();
     },
     build_board: function() {

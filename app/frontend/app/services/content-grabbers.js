@@ -15,6 +15,7 @@ import capabilities from '../utils/capabilities';
 import Utils from '../utils/misc';
 import progress_tracker from '../utils/progress_tracker';
 import { board_view_route } from '../utils/board_view';
+import boardKeyFromInput from '../utils/board-key-from-input';
 
 let appStateService;
 let stashesService;
@@ -2812,7 +2813,9 @@ var boardGrabber = EmberObject.extend({
     this.controller.set('foundBoards', {term: this.controller.get('linkedBoardName'), ready: false});
     this.controller.set('confirm_found_board', null);
     var find_args =  {};
-    var q = this.controller.get('linkedBoardName');
+    var raw = this.controller.get('linkedBoardName');
+    var key = boardKeyFromInput(raw);
+    var q = key || raw;
     if(search_type == 'personal') {
       find_args = {user_id: 'self', include_shared: true};
     } else if(search_type == 'personal_public') {
@@ -2830,9 +2833,6 @@ var boardGrabber = EmberObject.extend({
     }
     find_args.allow_job = true;
     find_args.preferred_locale = this.controller.get('board.locale');
-    var url_prefix = new RegExp("^" + location.protocol + "//" + location.host + "/");
-    var url_prefix2 = new RegExp("^" + (capabilities.api_host || '_n0h0st_') + "/");
-    var key = (this.controller.get('linkedBoardName') || "").replace(url_prefix, "").replace(url_prefix2, "");
     var keyed_find = RSVP.resolve([]);
     if(key.match(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+|\d+_\d+$/) || key) {
       // right now this is always doing a double-lookup, first for an exact

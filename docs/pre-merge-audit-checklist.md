@@ -688,7 +688,7 @@ git branch --show-current
 
 ### 4.2 Target branch
 
-**🔴 BLOCK** — PRs target `develop`, NOT `main` or `staging`. (Promotion PRs from `develop` to `staging`, and release PRs from `staging` to `main`, are separate operations.)
+**🔴 BLOCK** — PRs target `develop`, NOT `main` or `staging`. (Promotion PRs from a `release/develop-into-staging-*` freeze of `develop` to `staging`, and release PRs from `staging` to `main`, are separate operations.)
 
 ### 4.3 PR description matches the actual diff (claims audit)
 
