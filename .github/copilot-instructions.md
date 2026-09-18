@@ -22,7 +22,7 @@ Key characteristics:
 - **Refactors** never remove or change functionality.
 - **Never commit secrets.** Reference them by name; values live in 1Password and GCP Secret Manager.
 - **No em dashes** in user-facing prose.
-- **Path-scoped rules** live in `.claude/rules/`: `compliance-docs.md` for `docs/legal/` and `audit-reports/` (registers are the source of truth; attested bytes are frozen), `data-bearing-paths.md` for fixtures, factories, seeds, cassettes, migrations and `lib/tasks/` (the Tier 1 data boundary), `deploy.md` for the deploy workflow, `Dockerfile`, `config/environments/production.rb`, `config/initializers/resque.rb` and `scripts/gcp/`. Read the one whose paths a change touches.
+- **Path-scoped rules** live in `.claude/rules/`: `compliance-docs.md` for `docs/legal/` and `audit-reports/` (registers are the source of truth; attested bytes are frozen), `data-bearing-paths.md` for fixtures, factories, seeds, cassettes, migrations and `lib/tasks/` (the Tier 1 data boundary), `deploy.md` for the deploy workflow, `Dockerfile`, `config/environments/production.rb`, `config/initializers/resque.rb` and `scripts/gcp/`, and `github-pr.md` for opening or updating a pull request (no `gh` CLI and no working MCP GitHub credentials here; the route is the git credential helper's OAuth token, never echoed or committed). Read the one whose paths a change touches.
 
 ## Development considerations
 - **i18n**: All user-facing strings MUST use i18n helpers. No raw text strings in templates or JS.

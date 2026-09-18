@@ -103,25 +103,28 @@
     </LinkTo>
   </nav>
     <div class="md-acct-main">
-  {{!-- PROFILE HEADER — three zones: avatar, identity stack, profile status/actions.
-       Rebuilt 2026-09-17. The previous version put the username on the SAME flex row as the
+  {{!-- PROFILE HEADER: three columns on large screens, avatar | identity | rail.
+       Rebuilt 2026-09-17 over two passes; both are recorded here because each fixed a
+       different cause of the same symptom, a card taller than its own content.
+
+       PASS 1, THE IDENTITY STACK. The username used to sit on the SAME flex row as the
        name, and because the <h1> shrank while the username did not, a name as short as
-       "Marcus Williams" wrapped to two lines at 1200px and below. Everything in the identity
-       group is now one vertical stack, so the name wraps only when the name itself is too
-       long for the column.
-       NOTE ON THE ROLE/ORG LINES: the user model has ONE free-text field for this
-       (`description`) plus a separate `location`; there is no organization field. So the role
-       line renders `description` verbatim rather than being split, which would mean guessing
-       at where a role ends and an employer begins. --}}
-  {{!-- PROFILE HEADER — three columns on large screens: avatar | identity | rail.
-       Rebuilt 2026-09-17 (second pass). The previous version put the status controls on the
-       name's row and the AAC block at the BOTTOM of the identity column, which pushed the
-       card taller than its content and left the right side empty below the controls.
-       Current AAC and the profile controls are now one right-hand rail, so all three columns
-       start at the top and the card's height is simply its tallest column.
+       "Marcus Williams" wrapped to two lines at 1200px and below. The identity group is
+       one vertical stack now, so the name wraps only when the name itself is too long for
+       its column.
+
+       PASS 2, THE RIGHT RAIL. The status controls sat on the name's row and the Current
+       AAC block at the BOTTOM of the identity column, which pushed the card taller than
+       its content and left the right side empty below the controls. Current AAC and the
+       profile controls are one right-hand rail now, so all three columns start at the top
+       and the card's height is simply its tallest column.
+
        ROLE/ORG: the model has ONE free-text field for this (`description`) plus a separate
-       `location` -- there is no organization field -- so the role line renders `description`
-       verbatim. Splitting it would mean guessing where a role ends and an employer begins. --}}
+       `location`; there is no organization field. The role line therefore renders
+       `description` verbatim rather than being split, which would mean guessing where a
+       role ends and an employer begins. Note that `description` is labelled "Short Bio" on
+       the edit form, so what renders in the role slot is whatever the user wrote about
+       themselves, not necessarily a job title. --}}
   <header class="md-hero md-hero--user">
     <div class="md-hero--user__avatar-wrap">
       <img src={{this.model.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} {{image-fallback-to-rel}} alt="" class="md-hero--user__avatar">

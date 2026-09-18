@@ -55,7 +55,11 @@ under `docs/legal/` or `audit-reports/` read `.claude/rules/compliance-docs.md`
 fixtures, factories, cassettes, seeds, migrations or `lib/tasks/` read
 `.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
 deploy workflow, `Dockerfile`, `config/environments/production.rb`,
-`config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`.
+`config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`;
+before opening or updating a pull request read `.claude/rules/github-pr.md` (the `gh`
+CLI is not installed and the MCP GitHub server's credentials are rejected, so the route
+is the git credential helper's OAuth token, which must never be echoed or written to a
+tracked file).
 For a bug fix or behaviour change in application code, the fact-sheet and red-test
 discipline is `.claude/skills/fix-proposal/SKILL.md`; only a change that cannot alter
 runtime behaviour (docs, agent instructions, comments) skips it.
