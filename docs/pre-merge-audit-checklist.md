@@ -676,14 +676,16 @@ If any of these questions makes you say "I don't know" or "I haven't thought abo
 ### 4.1 Branch name
 
 **🔴 BLOCK** — Per CLAUDE.md "Branching":
-- Type prefix required: `fix/`, `feat/`, `chore/`, `docs/`, `perf/`, `refactor/`, `test/`, `compliance/`, `security/`
+- Type prefix required: `fix/`, `feat/`, `chore/`, `docs/`, `perf/`, `refactor/`, `test/`, `compliance/`, `security/`; plus `hotfix/` for the production hotfix flow and `release/` for a release PR
 - Developer handle: `melissa`, `scot`, `traci`, `dominic`, etc.
-- Form: `<type>/<dev>-<kebab-description>` OR `<dev>/<type>/<kebab-description>`
+- Form: Scot's branches are always `<type>/scot-<kebab-description>`, optionally followed by the launcher's `-<8-hex-token>`. Teammates use `<type>/<dev>-<kebab-description>` or `<dev>/<type>/<kebab-description>`; both pass. Release branches carry no handle (`release/develop-into-staging-<YYYY-MM-DD>`, `release/staging-into-main-<YYYY-MM-DD>`)
+- Never rename an existing branch to fit either shape
 
 ```bash
 git branch --show-current
-# If output doesn't match the pattern, rename before opening PR:
+# Only a NEW branch that has not been pushed or opened as a PR may be renamed:
 # git branch -m <new-name>
+# Never rename a launcher-created branch, a legacy-form branch, or one with an open PR.
 ```
 
 ### 4.2 Target branch
