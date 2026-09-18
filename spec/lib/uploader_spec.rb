@@ -626,59 +626,73 @@ describe Uploader do
       res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/#{key}")
       expect(res).to eq(true)
     end
+
+    it "should remove a MediaConvert 7-digit frame-capture thumbnail key via the same exception" do
+      key = 'videos/1/2/3/1_5-abcdefv1723500000.mp4.0000001.jpg'
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: key).and_return(true)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/#{key}")
+      expect(res).to eq(true)
+    end
   end
 
   # Standalone regex-level coverage for the narrow thumbnail exception, kept
   # separate from the full remote_remove integration test above so every
   # boundary case (right/wrong digit count, format, prefix, trailing junk) is
   # cheap to assert without stubbing S3 for each one.
-  describe "elastic_transcoder_thumbnail_key?" do
+  describe "transcoded_thumbnail_key?" do
     it "should accept the verified real Elastic Transcoder thumbnail shape" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png')).to eq(true)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png')).to eq(true)
     end
 
     it "should accept a jpg-format thumbnail" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.jpg')).to eq(true)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.jpg')).to eq(true)
     end
 
     it "should accept a later sequence number (00002) if a preset ever produces more than one thumbnail" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00002.png')).to eq(true)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00002.png')).to eq(true)
+    end
+
+    it "should accept a MediaConvert 7-digit frame-capture counter" do
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.0000001.jpg')).to eq(true)
     end
 
     it "should reject a four-digit counter" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.0001.png')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.0001.png')).to eq(false)
     end
 
     it "should reject a six-digit counter" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.000012.png')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.000012.png')).to eq(false)
     end
 
     it "should reject a key missing the video container extension" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.00001.png')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.00001.png')).to eq(false)
     end
 
-    it "should reject a thumbnail format Elastic Transcoder can't produce" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.gif')).to eq(false)
+    it "should reject a thumbnail format the transcoder path does not produce" do
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.gif')).to eq(false)
     end
 
     it "should reject an arbitrary double-extension file that isn't a thumbnail" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('sounds/1/2/3/1_5-abcdef.tar.gz')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('sounds/1/2/3/1_5-abcdef.tar.gz')).to eq(false)
     end
 
     it "should reject a suffix trailing the thumbnail extension" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png.bak')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png.bak')).to eq(false)
     end
 
     it "should reject a key outside the 'videos/' prefix UserVideo actually uses" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('sounds/1/2/3/1_5-abcdefv1723500000.mp4.00001.png')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('sounds/1/2/3/1_5-abcdefv1723500000.mp4.00001.png')).to eq(false)
     end
 
     it "should reject a real (non-thumbnail) primary media key" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4')).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4')).to eq(false)
     end
 
     it "should reject nil" do
-      expect(Uploader.elastic_transcoder_thumbnail_key?(nil)).to eq(false)
+      expect(Uploader.transcoded_thumbnail_key?(nil)).to eq(false)
     end
   end
 
@@ -830,6 +844,20 @@ describe Uploader do
       Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5')
     end
 
+    it "should delete a MediaConvert 7-digit frame-capture key found under the stem" do
+      stem = 'videos/1/2/3/1_5-mcfamilyv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [
+          Aws::S3::Types::Object.new(key: "#{stem}.0000001.jpg")
+        ])
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.0000001.jpg").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.0000001.jpg").and_return(true)
+      Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5')
+    end
+
     it "should reject a returned key that doesn't strictly match this stem's grammar" do
       stem = 'videos/1/2/3/1_5-strictv1723500000.mp4'
       s3_client = instance_double(Aws::S3::Client)
@@ -867,6 +895,7 @@ describe Uploader do
       end
       allow(Rails.logger).to receive(:error)
       allow(Rails.logger).to receive(:info)
+      allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
 
       exists = ["#{stem}.00001.png", "#{stem}.00002.png"]
       exists.each do |key|
@@ -905,6 +934,7 @@ describe Uploader do
       end
       allow(Rails.logger).to receive(:error)
       allow(Rails.logger).to receive(:info)
+      allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
 
       errored = ["#{stem}.00001.png", "#{stem}.00001.jpg"]
       errored.each do |key|

@@ -287,6 +287,7 @@ module CuratedVocabularySources
     end
 
     SystemBoardSources.sync_load_board_keys!(boards)
+    VocalFlairKeyboardFolderRelinker.relink!(root)
 
     root.instance_variable_set(:@buttons_changed, 'import')
     root.instance_variable_set(:@brand_new, true)

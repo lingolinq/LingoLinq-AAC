@@ -46,8 +46,7 @@ Cloud Run service lingolinq-web
       +--> Memorystore Redis (lingolinq-prod-redis, TLS / rediss://)
       +--> AWS S3 + CloudFront (uploads and media)
 
-Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow; see the
-                                         `whenever` note under Background jobs)
+Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow, whenever)
 Cloud Run job lingolinq-migrate         (db:migrate before each web rollout)
 Cloud Run job lingolinq-scheduler       (scheduled rake tasks; see below)
 ```
@@ -110,26 +109,37 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
   changes.
 - Prefixes: `images/*`, `sounds/*`, `downloads/*`, `extras*/*`, `imports/*`.
 - CloudFront (`UPLOADS_S3_CDN`) fronts production uploads.
-- Other AWS integrations: SES (email), SNS (notifications), Elastic Transcoder (media),
+- Other AWS integrations: SES (email), SNS (notifications), MediaConvert (media; Elastic Transcoder was discontinued 2025-11-13),
   Bedrock (runtime AI; credentials provisioned separately from developer tooling).
+- MediaConvert (issues #966, #981): `lib/transcoder.rb` submits jobs only when
+  `MEDIACONVERT_ROLE_ARN` and `UPLOADS_S3_BUCKET` are set. `MEDIACONVERT_QUEUE_ARN` is
+  optional in nonprod (omit = account Default queue) and required in production so jobs
+  cannot land on the shared nonprod queue. `MEDIACONVERT_ENDPOINT` is optional. Completion
+  is EventBridge -> SNS -> `POST /api/v1/callback`. Subscription confirmation needs
+  `SNS_ARNS` (one topic ARN per environment; the deploy shape check rejects commas) and
+  `SNS_REGION` on the web service. Those GitHub vars are `APP_SNS_ARNS` and
+  `APP_SNS_REGION` in `deploy-cloudrun.yml`. Applied IAM documents live in
+  `scripts/gcp/iam/`. Staging uses `lingolinq-dev-uploads`; subscribe only the staging
+  host on the nonprod topic (staging and dev share one database). Convert_* still logs
+  and returns false when the Role is unset.
 
 ## Background jobs (Resque)
 
 Queues: `priority` (board downloads/exports, Progress actions, translations), `default`,
-`slow` (transcoding, large imports, button-set updates). Worker start command:
+`slow` (transcoding, large imports, button-set updates), `whenever` (overflow:
+`User#track_boards` under `any_queue_pressure?`, `LogSession#update_board_connections`
+under `queue_pressure?`, LessonPix batch image cache, daily `BoardContent.link_clones`).
+Worker start command:
 
 ```
-env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
+env QUEUES=priority,default,slow,whenever INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
 ```
 
-A fourth queue, `whenever`, exists in code: `app/models/user.rb` (`track_boards`) and
-`app/models/log_session.rb` (`update_board_connections`) enqueue onto it instead of `slow`
-when `RedisInit.queue_pressure?` is true, and `lib/uploader.rb` enqueues onto it for every
-batch upload (`batch ? :whenever : :slow`, no pressure check). The Procfile's `resque_slow`
-process drains it, but the Cloud Run entrypoint (`bin/docker-worker-entrypoint`) defaults
-`QUEUES` to the three above and the deploy workflow does not override it, so on Cloud Run
-nothing is known to drain `whenever`. Unverified live (check the Redis queue length and the
-worker service's `QUEUES` env); if confirmed, that is an operational defect, not a doc one.
+Keep `whenever` last so Resque prefers the other three. The Cloud Run entrypoint
+(`bin/docker-worker-entrypoint`) defaults `QUEUES` to this list; the deploy workflow
+does not override it. Do not set `QUEUES` by hand on the live worker pool: the next
+deploy uses `--set-env-vars`, which replaces the whole set. Local `Procfile`
+`resque_slow` uses the same four queues.
 
 Cloud Run sends SIGTERM with a short grace period; the BoyBand wrapper requeues
 in-flight jobs, so non-idempotent jobs can run twice.

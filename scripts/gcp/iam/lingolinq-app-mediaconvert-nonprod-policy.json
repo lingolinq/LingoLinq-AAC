@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateJobsOnOwnQueueOnly",
+      "Effect": "Allow",
+      "Action": "mediaconvert:CreateJob",
+      "Resource": "arn:aws:mediaconvert:us-west-2:239044785114:queues/Default"
+    },
+    {
+      "Sid": "ReadJobsAndEndpoints",
+      "Effect": "Allow",
+      "Action": [
+        "mediaconvert:GetJob",
+        "mediaconvert:DescribeEndpoints"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassOnlyOwnMediaConvertRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::239044785114:role/lingolinq-mediaconvert-nonprod",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "mediaconvert.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ConfirmCallbackSubscription",
+      "Effect": "Allow",
+      "Action": "sns:ConfirmSubscription",
+      "Resource": "arn:aws:sns:us-west-2:239044785114:lingolinq-mediaconvert-nonprod"
+    }
+  ]
+}

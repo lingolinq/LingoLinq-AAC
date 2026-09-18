@@ -19,10 +19,15 @@ unchanged from the main runbook and run only after this rehearsal is green.
 > scoped to the pre-DNS window it was written in, and do not run step 3a against
 > `lingolinq-prod-pg` again without a deliberate decision.
 >
+> **Render was deleted 2026-09-09, so this runsheet can no longer be executed as written.**
+> Every step that reads, compares, freezes, or checks a Render resource, and the Render API key
+> listed in the prerequisites below, refers to infrastructure that no longer exists. The Render
+> half of this document is history; the GCP half still describes live resources.
+>
 > **Status: DRAFT. Nothing here runs before Scot's explicit go.** The seed/secret reads and the
 > Cloud SQL / Cloud Run spin-up are real, cost money, and are HIPAA-relevant infra actions. Every
-> step has a dry/verify mode that touches nothing; run those first. Re-verify live state (Render
-> cron, secrets, GCP provisioning) the day of, per the twice-burned rule on this project.
+> step has a dry/verify mode that touches nothing; run those first. Re-verify live state (secrets,
+> GCP provisioning) the day of, per the twice-burned rule on this project.
 
 Legend: **GATE** = needs Scot go-ahead (money / live infra / data-destructive). **DRY** = no
 state change, safe to run anytime.
@@ -41,8 +46,9 @@ state change, safe to run anytime.
 
 ## Operator identity (HIPAA)
 
-Same as the main runbook: run as Scot or a designated engineer holding all three of prod GCP
-access (`lingolinq-prod`), the 1Password "LingoLinq Prod" vault, and a Render API key. Single
+Same as the main runbook: run as Scot or a designated engineer holding prod GCP
+access (`lingolinq-prod`) and the 1Password "LingoLinq Prod" vault. The third original
+prerequisite, a Render API key, no longer exists and no longer applies. Single
 operator host, never `bash -x` (tracing leaks secrets). Record start/end times for the compliance
 register.
 

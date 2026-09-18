@@ -6,7 +6,9 @@ set -e
 # schema, and even there it is gated behind RUN_DB_PREPARE. In Cloud Run, migrations run
 # as a dedicated Job before any service deploys, so workers always boot against a ready DB.
 
-: "${QUEUES:=priority,default,slow}"
+# whenever last: overflow lane (track_boards under pressure, daily
+# link_clones, LessonPix batch cache). Resque drains queues in list order.
+: "${QUEUES:=priority,default,slow,whenever}"
 : "${INTERVAL:=0.1}"
 : "${TERM_CHILD:=1}"
 

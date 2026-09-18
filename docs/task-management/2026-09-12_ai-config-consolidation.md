@@ -1,7 +1,7 @@
 # AI-agent configuration consolidation
 
 **Started:** 2026-09-12
-**Status:** in review (branch `scot/chore/ai-config-consolidation`, PR #961 to `develop`)
+**Status:** merged to `develop` 2026-09-13 as `7183d488f` (PR #961, squash)
 **Scope:** apply the accepted items of the 2026-09-12 read-only audit of the repo's AI-agent
 configuration (CLAUDE.md, AGENTS.md, Copilot/Gemini/Cursor files, `.claude/`, `.mcp.json`,
 GitHub Actions, agent-facing docs, LEARNINGS.md).

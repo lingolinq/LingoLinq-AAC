@@ -65,8 +65,11 @@ checklist, and the canonical finding schema). Follow it item by item.
 - Infra security: HTTPS enforced, DB SSL, secrets via env/Secret Manager (not hardcoded),
   no secrets in git history, GCP/AWS least-privilege. Production, staging and dev run on GCP
   Cloud Run (deployed by `.github/workflows/deploy-cloudrun.yml`; see `docs/INFRASTRUCTURE.md`).
-  `render.yaml`, `bin/render-build.sh` and `Procfile` are legacy files from the retired Render
-  platform: treat them as historical, never as the deployed configuration.
+  `Procfile` is the LOCAL development process definition read by `foreman start` (`README.md`):
+  never treat it as the deployed configuration, and do not flag it as Render residue.
+  `render.yaml` and `bin/render-build.sh` no longer exist, deleted in PR #962 after the
+  2026-09-09 decommission. Existing register findings that cite them stay valid: evidence is anchored
+  to a recorded `file@sha`, not to HEAD. Do not raise a NEW finding against either path.
 - Change management (CC8): CI in `.github/workflows/`, tests-before-deploy, branch protection.
 - Availability (A1): health checks, DB backups, error handling, rate limiting.
 - **Audit-system self-audit (CC-meta):** the audit system itself is in scope for the SOC 2
