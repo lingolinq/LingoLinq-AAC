@@ -49,11 +49,15 @@ shared place to see current posture - without a drift-prone bidirectional mirror
    NOTION_TOKEN=$(op read 'op://LingoLinq Prod/NOTION_COMPLIANCE_API/credential') \
      ruby scripts/compliance-notion-page-publish.rb
    ```
-   The publisher refuses a body that has drifted from the register, backs up the existing blocks
-   to a JSON file (path printed; default the system temp dir), appends the new blocks, removes
-   exactly the old ones, retitles the page with today's date and the audited SHA, and re-reads
-   the page to verify the block count. If it aborts between append and delete, the page holds
-   two copies; rerun and it converges.
+   The publisher refuses a body that has drifted from the register (any input other than the
+   committed page needs `--allow-unchecked-input`), refuses a page that is not the posture page
+   (title or Compliance Home parent; `--force` overrides), backs up the existing blocks to a
+   JSON file (path printed; default the system temp dir), appends the new blocks, reads the page
+   and every split table back and checks the counts BEFORE deleting the old blocks, removes
+   exactly those, retitles the page with today's date and the audited SHA, and re-reads the page
+   once more. Appends are never retried. If it aborts after the append, the page holds two
+   copies with the old one intact; rerun and it converges. `NOTION_API_BASE` overrides the API
+   base (the test harness points it at a closed port).
 4. Commit the regenerated `compliance-audit-page.md` with the register change it reflects.
 
 ## Hard rules (non-negotiable)

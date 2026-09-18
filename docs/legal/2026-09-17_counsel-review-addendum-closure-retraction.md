@@ -4,9 +4,10 @@
 >
 > This addendum belongs to
 > `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md`
-> (`DOC-58b3944cad`, status draft, unattested). That memorandum is **not** edited. It was
-> prepared as a record for counsel and its bytes are left as prepared, so this addendum carries
-> the correction instead.
+> (`DOC-58b3944cad`, status draft, unattested). That memorandum is **not** edited. Its bytes
+> are not frozen, so an in-place edit would be permitted; it is left as prepared because it is a
+> review record for counsel and the register's `LL-c0b3d59f58` row directs successor-or-addendum
+> handling. The memorandum has not been sent to counsel; this addendum accompanies it when it is.
 
 **Date:** 2026-09-17
 **Owner:** Privacy Office (privacy@lingolinq.com)

@@ -11,8 +11,9 @@
 #
 # Notion limits honoured here (https://developers.notion.com/reference/request-limits):
 #   * 2000 characters per rich_text object -> long runs are chunked, never sliced.
-#   * 100 rich_text objects per array.
-#   * table_row cells must all have table_width entries -> ragged rows are padded.
+#   * 100 rich_text objects per array -> exceeding it RAISES; nothing is truncated silently.
+#   * table_row cells must all have table_width entries -> short rows are padded (lossless);
+#     a row WIDER than its header RAISES, because dropping a cell would drop a finding title.
 # The 100-children-per-append limit is the publisher's job, not the converter's.
 #
 # Pure stdlib. No network. Used by scripts/compliance-notion-page-publish.rb and
@@ -21,6 +22,8 @@ module NotionMarkdownBlocks
   MAX_CONTENT = 2000
   MAX_SEGMENTS = 100
   INLINE = /(\*\*[^*]+\*\*|`[^`]+`|[^*`]+|\*|`)/
+
+  class LimitError < StandardError; end
 
   module_function
 
@@ -40,7 +43,21 @@ module NotionMarkdownBlocks
       end
     end
     out = [{ 'type' => 'text', 'text' => { 'content' => '' } }] if out.empty?
-    out.first(MAX_SEGMENTS)
+    if out.length > MAX_SEGMENTS
+      raise LimitError, "rich_text run has #{out.length} segments; Notion caps an array at #{MAX_SEGMENTS}. " \
+                        'Refusing to publish a truncated page.'
+    end
+    out
+  end
+
+  # A whole run wrapped in single underscores (the generator's italic notes) -> italic.
+  def rich_line(text)
+    t = text.to_s
+    if t.length > 2 && t.start_with?('_') && t.end_with?('_') && !t.include?("\n")
+      rich(t[1..-2]).each { |r| (r['annotations'] ||= {})['italic'] = true }
+    else
+      rich(t)
+    end
   end
 
   def push_chunked(out, content, annotations)
@@ -55,10 +72,27 @@ module NotionMarkdownBlocks
     end
   end
 
+  # Split a pipe-table line into cells. A backslash escapes the next character, so the
+  # generator's "\\|" (a pipe inside a title) and "\\\\" (a literal backslash, including one at
+  # the end of a title) both survive as text instead of shifting the row.
   def cells(line)
     inner = line.strip.sub(/\A\|/, '').sub(/\|\z/, '')
-    # Split on unescaped pipes only: the generator writes "\\|" inside titles.
-    inner.split(/(?<!\\)\|/, -1).map { |c| rich(c.strip.gsub('\\|', '|')) }
+    out = []
+    cur = +''
+    chars = inner.chars
+    i = 0
+    while i < chars.length
+      ch = chars[i]
+      if ch == '\\' && i + 1 < chars.length
+        cur << chars[i + 1]; i += 2
+      elsif ch == '|'
+        out << cur; cur = +''; i += 1
+      else
+        cur << ch; i += 1
+      end
+    end
+    out << cur
+    out.map { |c| rich(c.strip) }
   end
 
   def table_separator?(line)
@@ -75,17 +109,21 @@ module NotionMarkdownBlocks
       if l.strip.empty?
         i += 1
       elsif l.start_with?('|')
-        rows = []
+        raw = []
         while i < lines.length && lines[i].start_with?('|')
-          rows << lines[i] unless table_separator?(lines[i])
-          i += 1
+          raw << lines[i]; i += 1
         end
+        # Only the line right after the header is a separator; a data row of dashes is data.
+        rows = raw.each_with_index.reject { |l2, n| n == 1 && table_separator?(l2) }.map(&:first)
         next if rows.empty?
 
         width = cells(rows.first).length
-        padded = rows.map do |r|
+        padded = rows.each_with_index.map do |r, n|
           c = cells(r)
-          c = c.first(width)
+          if c.length > width
+            raise LimitError, "table row #{n + 1} has #{c.length} cells but the header has #{width}: #{r[0, 80].inspect}. " \
+                              'Refusing to drop a cell.'
+          end
           c += Array.new(width - c.length) { rich('') } if c.length < width
           c
         end
@@ -127,7 +165,7 @@ module NotionMarkdownBlocks
         end
         # Markdown hard breaks ("  " at end of line) become real line breaks on the page.
         blocks << { 'object' => 'block', 'type' => 'paragraph',
-                    'paragraph' => { 'rich_text' => rich(buf.map { |b| b.sub(/\s+\z/, '') }.join("\n")) } }
+                    'paragraph' => { 'rich_text' => rich_line(buf.map { |b| b.sub(/\s+\z/, '') }.join("\n")) } }
       end
     end
     blocks

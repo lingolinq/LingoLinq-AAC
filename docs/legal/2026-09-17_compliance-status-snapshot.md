@@ -30,8 +30,11 @@ the Q3 audit merge (PR #996, develop `853662aa5`) and re-verified against develo
 (`auditedDate` 2026-09-16), carrying an explicit **PARTIAL COVERAGE** qualifier described in
 section 2 below.
 **Related:** `audit-reports/FINDINGS.json` (source of truth),
-`docs/legal/2026-09-14_compliance-posture-report.md`,
-`docs/legal/2026-09-14_compliance-program.md`,
+`docs/legal/2026-09-14_compliance-posture-report.md` (ATTESTED 2026-09-16, frozen; its Headline
+table's "Live Critical findings: 0" row carries no date and is the superseded gate value, see
+correction 6 below),
+`docs/legal/2026-09-14_compliance-program.md` (ATTESTED 2026-09-16, frozen; states the 0-Critical
+gate explicitly "as of the 2026-08-20 attestation", so it is dated and stands as written),
 `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` (draft;
 carries the same retracted closure and receives a dated addendum rather than an edit:
 `docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md`),
@@ -50,6 +53,8 @@ carries the same retracted closure and receives a dated addendum rather than an 
 | 3 | "0 open Critical findings (the gating metric)" (:67) | **No longer true. Two Critical findings are open.** One is a command-injection finding in the sentence-preview worker (`LL-676f91f26b`, first seen 2026-09-05); the other is an organization account-claim authorization weakness (`LL-1baffd92d5`, first seen 2026-09-02). Neither is closed and neither has an accepted risk. A code fix for `LL-676f91f26b` merged in PR #944 (2026-09-06, on `develop` and `main`), but its register row is still `open` and awaits the CEO's verification and closure. |
 | 4 | The live-High table and the framework table (:146-194) | Rebuilt from the register at this date. The predecessor's table is a 2026-08-20 snapshot annotated through 2026-08-31 and no longer reflects the live set. |
 | 5 | Decisions-pending item 3, "Next *full* audit is `rev-audit-run-quarterly-full` on 2026-09-14" (:228) | The quarterly full run was executed 2026-09-16 at `a43867de5`. The calendar row now reads lastDone 2026-09-16, nextDue 2026-12-16. A dated make-up pass (`rev-audit-run-q3-makeup`, due 2026-10-09) was added because the run had partial coverage; see section 2. |
+
+| 6 | Sibling record: `docs/legal/2026-09-14_compliance-posture-report.md` Headline table, row "Live Critical findings: **0**" (`DOC-110d632550`, ATTESTED 2026-09-16, listed in the grant, school-dpa-package and security-review bundles) | **Not current.** Every other row of that Headline table carries a date qualifier; the Critical row carries none and now reads as a present-tense claim. Both open Criticals (first seen 2026-09-02 and 2026-09-05) predate that attestation. The record is frozen and is not edited; this successor is the correcting statement until the CEO decides whether the posture report gets its own Path A successor (section 4, item 9). Note that per the CEO's 2026-09-17 statement, no compliance record has ever been sent to any recipient, so no correction notice is owed; the repository is public, so the claim is readable. |
 
 Nothing else in the predecessor is corrected. In particular the Render decommission closure, the
 Article 50 production-flag verification, and the Article 50(1) enablement history are carried
@@ -195,12 +200,27 @@ customer-facing document.
 6. **Disclosure decision on two Q3 rows left in the clear.** `LL-dbc950d96d` (High) and
    `LL-232129d521` (Medium) still carry their full technical trace in the public register. Both
    are non-exploit classes whose underlying facts are readable in this public repository, so they
-   were not minimized. Confirm that this is the intended treatment or direct minimization.
+   were not minimized. Confirm that this is the intended treatment or direct minimization. Note
+   also that two attested, frozen records describe the nature of `LL-c0b3d59f58` in one clause
+   each, in pre-policy wording (`2026-09-14_compliance-posture-report.md`, "a human principal
+   holding project-wide secretmanager/cloudsql admin"; `2026-09-14_compliance-program.md`,
+   "project-wide admin on a human principal"). The minimization applies to register rows and to
+   records created after 2026-09-17; those two clauses remain readable at HEAD, not only in
+   history.
 7. **Successor records for this retraction.** This document supersedes the 2026-09-14 snapshot.
-   The 2026-08-30 counsel review memorandum receives a dated addendum rather than an edit, since
-   it is a draft and unattested. Both need review; only the CEO attests.
+   The 2026-08-30 counsel review memorandum receives a dated addendum rather than an edit. Its
+   bytes are not frozen (it is a draft and unattested, so an in-place edit would be permitted);
+   it is left as prepared because it is a review record for counsel and the register's
+   `LL-c0b3d59f58` row directs successor-or-addendum handling. The memorandum has not been sent
+   to counsel, so the addendum travels with it. Decision: insert a one-line pointer to the
+   addendum under the memorandum's header now (a permitted edit of an unattested draft), or
+   hold until the memorandum next changes. Both records need review; only the CEO attests.
 8. **Run the make-up pass** (`rev-audit-run-q3-makeup`, due 2026-10-09) to close the partial
    coverage recorded on the audit pointer, and render the Q3 domain reports.
+9. **Posture report successor.** The attested 2026-09-14 posture report's undated "Live Critical
+   findings: 0" row is not current (correction 6). It is the most widely bundled of the three
+   sibling records. Decide whether it gets a Path A successor now, or at its next natural
+   revision, with this snapshot as the interim correcting statement.
 
 ---
 

@@ -3969,7 +3969,7 @@
       "dispositionEligibleAfter": null,
       "notes": "Created 2026-09-17 as an addendum, not a successor: it supersedes nothing and DOC-58b3944cad stays the live draft memorandum with its bytes unchanged. Exists because the register's LL-c0b3d59f58 row directs that the two records naming it verified-closed be handled by successor or addendum, never by in-place edit. Rides the memorandum's review cycle (nextReviewDue aligned to DOC-58b3944cad). Remediation-state statements are minimized under the security disclosure policy and were confirmed by a read-only IAM policy read on 2026-09-17. Unattested draft; only the CEO attests.",
       "id": "DOC-c9c70f5702",
-      "contentHash": "50ab1938ef57c217be46e9064510af6021adf922ea42a290c091b2ed9aa5593d"
+      "contentHash": "aab0c333a8201700643441773c6e6fa9d5960762c4cae4125b8d5bb92f62bf33"
     },
     {
       "title": "Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)",
@@ -4357,7 +4357,7 @@
     },
     {
       "title": "Compliance Status Snapshot (2026-09-17 successor)",
-      "description": "Path A successor correcting a retracted closure. The attested 2026-09-14 snapshot records LL-c0b3d59f58 as verified-closed 2026-08-29; the Q3 2026 quarterly full /audit-run re-surfaced the regression, an adversary pass confirmed it, and the CEO reopened it at High on 2026-09-17. Restates the headline at the Q3 audit state (2 open Critical, 38 live High, 186 live) and records that the predecessor's 0-open-Critical gating metric is no longer met. The predecessor is left frozen and byte-identical.",
+      "description": "Path A successor correcting a retracted closure. The attested 2026-09-14 snapshot records LL-c0b3d59f58 as verified-closed 2026-08-29; the Q3 2026 quarterly full /audit-run re-surfaced the regression, an adversary pass confirmed it, and the CEO reopened it at High on 2026-09-17. Restates the headline at the Q3 audit state (2 open Critical, 38 live High, 186 live) and records that the predecessor's 0-open-Critical gating metric is no longer met. Also names the attested 2026-09-14 posture report's undated 'Live Critical findings: 0' Headline row (DOC-110d632550, three bundles) as not current, with a Path A successor for that record left to the CEO. The predecessor is left frozen and byte-identical.",
       "type": "audit-artifact",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -4380,7 +4380,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-39e71c72ee",
-      "contentHash": "8a585053b5debede458f26e14fea94868e0a22cde39d279ead0410a2e21ec612"
+      "contentHash": "5aebe281c9480a82a024dafdd9aa3717e058ae41a488bf95697ff082a4f48b7f"
     }
   ]
 }

@@ -101,7 +101,8 @@ else
     ev = f['evidence'] || {}
     anchor = ev['file'] ? "`#{ev['file']}`#{ev['line'] ? ":#{ev['line']}" : ''}" : '(attestation)'
     fw = (f['frameworks'] || []).join(', ')
-    title = f['title'].to_s.gsub('|', '\\|')
+    # Escape the backslash first, then the pipe, so the page converter can undo both in order.
+    title = f['title'].to_s.gsub('\\', '\\\\').gsub('|', '\\|')
     out << "| #{f['id']} | #{f['legacyId']} | #{f['severity']} | #{fw} | #{title} | #{anchor} |\n"
   end
   out << "\n"

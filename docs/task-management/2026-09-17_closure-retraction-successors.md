@@ -27,10 +27,11 @@ README and generator text stale and the "open findings" headline label misleadin
   `main`; touches `lib/sentence_pic.rb`), but its register row is still `open` with no
   disposition. The draft said "no remediation branch recorded": corrected. The register row was
   NOT changed here (status moves are Scot's).
-- CONFIRMED (read-only `gcloud projects get-iam-policy lingolinq-prod`): no non-owner human
-  principal holds `roles/editor`; the per-service set is in place. So "applied 2026-09-17" is
-  true. The draft's permission-count and principal detail was minimized under the disclosure
-  policy (finding title says "details withheld until remediation is verified").
+- CONFIRMED (read-only IAM policy read of the production project): the least-privilege change
+  described in the private record is in place, so "applied 2026-09-17" is true. The draft's
+  permission-count and principal detail was minimized under the disclosure policy (finding
+  title says "details withheld until remediation is verified"); role names and the project id
+  are likewise kept out of this log.
 - CONFIRMED: the memorandum's row 19 lives in section 14 ("What the proposed policy would
   require us to build"), `Register` column, not a "Findings put to counsel" section as the
   draft said: corrected.
@@ -52,11 +53,12 @@ README and generator text stale and the "open findings" headline label misleadin
    reciprocal pointer; its attestation block and bytes untouched and still `verified`.
    `DOC-58b3944cad` notes gained a dated pointer to the addendum; its bytes unchanged.
 2. `scripts/compliance-notion-page-publish.rb` + `scripts/notion_markdown_blocks.rb`: the push,
-   ported from the 2026-09-17 scratch converter. Dry-run mode, drift guard, block backup,
-   append-then-delete, retitle, read-back verification. Test harness
-   `scripts/tests/compliance-notion-page-publish-test.sh` (network-free; wired into CI and the
-   regenerate wrapper). The harness caught two converter defects before the first push: escaped
-   pipes in titles were split on, and wrapped bullet continuation lines became paragraphs.
+   ported from the 2026-09-17 scratch converter. Dry-run mode, drift guard, page-identity
+   assertion, block backup, append, verify-before-delete, delete, retitle, final read-back.
+   Test harness `scripts/tests/compliance-notion-page-publish-test.sh` (network-free via
+   `NOTION_API_BASE` on a closed port; wired into CI and the regenerate wrapper). The harness
+   caught two converter defects before the first push: escaped pipes in titles were split on,
+   and wrapped bullet continuation lines became paragraphs.
 3. `scripts/compliance-notion-publish.rb`: headline relabelled "live findings" with an explicit
    `open`-only row; Master Inbox references replaced by Compliance Home.
 4. `audit-reports/notion/README.md` and `.claude/skills/audit-run/SKILL.md` step 8: new home,
@@ -64,9 +66,43 @@ README and generator text stale and the "open findings" headline label misleadin
 5. Page published twice with the new publisher (second time after the bullet fix): 12 top-level
    blocks, headline table 5x3, findings table 6x187, verified by an independent API read-back.
 
+## Dual review (PR #1006 at `c486c5cc7`)
+
+Senior-dev pass: approve with comments (0 Critical, 0 High, 4 Medium). Adversary: request
+changes on one High, 6 Medium, 3 Low. Every count in the successor was re-derived by both and
+matched. Addressed in the follow-up commit:
+
+- High: the attested 2026-09-14 posture report's Headline "Live Critical findings: 0" row is
+  undated and ships in three bundles; the successor now carries correction 6 naming it, a
+  qualified Related line, and decision item 9 (Path A successor is Scot's call).
+- Publisher: PATCH is never retried (a committed-then-timed-out append would duplicate); the
+  page identity (title or Compliance Home parent) is asserted before any delete unless
+  `--force`; the page id is format-checked; the drift guard compares expanded paths and any
+  other input needs `--allow-unchecked-input`; the page and every split table are read back
+  and counted BEFORE the old blocks are deleted; the outer rescue prints the backup path.
+- Converter: a rich_text run over 100 segments and a table row wider than its header now RAISE
+  instead of truncating; a data row of dashes is kept; backslashes are escaped by the generator
+  and parsed by the converter; underscore notes render italic.
+- Harness: assertions accumulate; case 1 asserts shape, not exact counts; `sed -i` gone; new
+  cases for the two refusals, the unchecked-input flag, the page-id check, and the path-
+  normalized drift guard. Finding along the way: `Net::HTTP.start(host, port, opts)` ignores
+  `https_proxy`, so the original proxy canary proved nothing; `NOTION_API_BASE` on a closed
+  port is the real canary and case 8 proves it fires.
+- CI job comment now names the harness steps it runs.
+- Disclosure: role name and project id removed from this log and the PR body.
+- Recorded, not changed: the register's `LL-c0b3d59f58` note still says "remediation in
+  progress" while the two records say both controls were applied on 2026-09-17. Compatible
+  (applied is not verified-closed), and only Scot moves that row.
+- Not done: a stub-server test of the append/delete path. The harness header now says what it
+  covers and what it does not.
+
 ## Left for Scot
 
 - Attest (or not) the two drafts; only he attests.
 - `LL-676f91f26b`: merged fix, row still `open`/untriaged. Needs verification and closure, or a
   `remediated-unverified` entry with the PR reference.
 - Brain drafts in `~/ai-company-brain/outputs/drafts/` are now behind the committed files.
+- Whether to insert a one-line addendum pointer under the counsel memorandum's header (an
+  unattested draft, so permitted) or hold until it next changes.
+- Whether the 2026-09-14 posture report gets its own Path A successor for its undated
+  "0 Critical" headline row.

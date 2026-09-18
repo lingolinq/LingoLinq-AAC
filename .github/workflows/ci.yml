@@ -259,9 +259,11 @@ jobs:
         run: npx ember test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
-  # are deterministic, stdlib-only render checks (no gems, no network) that fail ONLY
-  # if a generated markdown drifts from its JSON source of truth - so making them
-  # blocking is low-friction and keeps the register's human-readable mirrors honest.
+  # are deterministic, stdlib-only checks (no gems, no network): render checks that
+  # fail ONLY if a generated markdown drifts from its JSON source of truth, plus the
+  # shell harnesses that prove the register's guards and converters still fire
+  # (attestation-hash, legal-naming, register-lint, notion-page-publish) - so making
+  # them blocking is low-friction and keeps the register's human-readable mirrors honest.
   # (citation-check.rb is intentionally NOT gated here: a repo-wide blocking citation
   # check is a broader policy decision.)
   #
