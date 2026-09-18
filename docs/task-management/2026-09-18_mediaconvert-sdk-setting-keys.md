@@ -5,8 +5,8 @@ Date: 2026-09-18. Parent issue: #981 (MediaConvert go-live). Branch:
 
 ## Symptom
 
-First staging smoke test after the go-live wiring (#997, #1000). Between 22:03 and 22:37 UTC the
-staging worker logged `performing Transcoder . convert_audio ()` five times with no matching
+First staging smoke test after the go-live wiring (#997, #1000). Between 22:03 and 22:37 UTC on
+2026-09-18 the staging worker logged `performing Transcoder . convert_audio ()` five times with no matching
 `done performing` line. `aws mediaconvert list-jobs` returned no jobs, and CloudTrail
 (`EventSource=mediaconvert.amazonaws.com`, us-west-2) showed no `CreateJob` event from the app
 principal, not even a denied one. The browser kept polling four sound records that never left

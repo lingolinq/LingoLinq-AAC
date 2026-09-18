@@ -31,6 +31,10 @@ describe Transcoder do
   end
 
   describe "handle_event" do
+    # These get_job responses are OpenStructs, so they accept members the SDK does
+    # not have (output_file_paths is not on a real OutputDetail). Green here does
+    # not mean the read path works; see
+    # docs/task-management/2026-09-18_mediaconvert-sdk-setting-keys.md.
     def eventbridge_message(job_id, status, extra={})
       {
         'detail-type' => 'MediaConvert Job State Change',
@@ -327,7 +331,7 @@ describe Transcoder do
 
     env_wrap({
       'MEDIACONVERT_ROLE_ARN' => 'arn:aws:iam::123:role/MediaConvert',
-      'MEDIACONVERT_QUEUE_ARN' => '',
+      'MEDIACONVERT_QUEUE_ARN' => 'arn:aws:mediaconvert:us-west-2:123:queues/Default',
       'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'
     }) do
       it "should build an audio job the MediaConvert client accepts" do
