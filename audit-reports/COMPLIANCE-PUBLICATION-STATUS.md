@@ -179,7 +179,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 10 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 57 | draft |
+| `policy-version` | supersession + 7 years | archive | 58 | draft |
 | `audit-evidence` | 7 years | archive | 21 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -188,7 +188,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 4 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 107 rows carry a retention block.
+All 108 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -226,7 +226,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-37 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+38 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -261,6 +261,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Compliance Status Snapshot (2026-08-09) | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | Compliance Status Snapshot (2026-08-22) | (none) |
 | Compliance Status Snapshot (2026-08-22) | `docs/legal/2026-08-22_compliance-status-snapshot.md` | Compliance Status Snapshot (2026-09-14 successor) | (none) |
 | Compliance Status Snapshot (2026-09-14 successor) | `docs/legal/2026-09-14_compliance-status-snapshot.md` | Compliance Status Snapshot (2026-09-17 successor) | (none) |
+| Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-17) | `docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md` | Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-18 successor) | (none) |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
 | Data Retention Schedule (2026-08-09 draft) | `docs/legal/2026-08-09_data-retention_draft.md` | Data Retention Schedule (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, dsar |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | `docs/legal/GCP_BAA_ACCEPTED.md` | GCP BAA Acceptance Record (2026-09-14 successor) | baa |
@@ -322,4 +323,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_107 documents tracked. 71 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 32 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_108 documents tracked. 71 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 33 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
