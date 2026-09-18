@@ -13,6 +13,7 @@ import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { readFoldersExpanded } from '../../utils/folders_panel_state';
+import { display_name_for } from '../../utils/display_name';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import {
@@ -55,6 +56,24 @@ function allTaggedGlobalIds(map) {
 }
 
 export default Controller.extend({
+
+  /* The username as the profile header DISPLAYS it, with a leading "@".
+     Display-only: `model.user_name` is never modified, because it is the account's real
+     identifier (it appears in board keys, urls and the API). A value that already carries an
+     "@" is passed through rather than doubled, and a missing username yields nothing at all
+     rather than a bare "@" floating under the name. */
+  at_username: computed('model.user_name', 'model.name', function() {
+    var handle = this.get('model.user_name');
+    if(!handle) { return null; }
+    /* SUPPRESSED when the heading is already the handle. Signup collects no name, so `name`
+       is absent on most accounts (see utils/display_name.js), and `display-name` then falls
+       back to `user_name` -- which rendered the handle twice, once as the title and again as
+       "@handle" directly beneath it. Asking the shared rule rather than re-testing `name`
+       here also covers the "No name" server sentinel it strips. */
+    if(display_name_for(this.get('model')) === handle) { return null; }
+    handle = String(handle);
+    return (handle.charAt(0) === '@') ? handle : ('@' + handle);
+  }),
   /* Folder drill-in lives in the URL as `?folder=<tag>`.
      WHY A QUERY PARAM rather than a popstate listener: drilling into a folder is a
      view change the user reads as navigation, so the browser Back button has to undo

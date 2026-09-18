@@ -103,6 +103,25 @@
     </LinkTo>
   </nav>
     <div class="md-acct-main">
+  {{!-- PROFILE HEADER — three zones: avatar, identity stack, profile status/actions.
+       Rebuilt 2026-09-17. The previous version put the username on the SAME flex row as the
+       name, and because the <h1> shrank while the username did not, a name as short as
+       "Marcus Williams" wrapped to two lines at 1200px and below. Everything in the identity
+       group is now one vertical stack, so the name wraps only when the name itself is too
+       long for the column.
+       NOTE ON THE ROLE/ORG LINES: the user model has ONE free-text field for this
+       (`description`) plus a separate `location`; there is no organization field. So the role
+       line renders `description` verbatim rather than being split, which would mean guessing
+       at where a role ends and an employer begins. --}}
+  {{!-- PROFILE HEADER — three columns on large screens: avatar | identity | rail.
+       Rebuilt 2026-09-17 (second pass). The previous version put the status controls on the
+       name's row and the AAC block at the BOTTOM of the identity column, which pushed the
+       card taller than its content and left the right side empty below the controls.
+       Current AAC and the profile controls are now one right-hand rail, so all three columns
+       start at the top and the card's height is simply its tallest column.
+       ROLE/ORG: the model has ONE free-text field for this (`description`) plus a separate
+       `location` -- there is no organization field -- so the role line renders `description`
+       verbatim. Splitting it would mean guessing where a role ends and an employer begins. --}}
   <header class="md-hero md-hero--user">
     <div class="md-hero--user__avatar-wrap">
       <img src={{this.model.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} {{image-fallback-to-rel}} alt="" class="md-hero--user__avatar">
@@ -110,70 +129,68 @@
         <div title={{t "currently online" key="currently_online"}} class="online_marker"></div>
       {{/if}}
     </div>
+
+
     <div class="md-hero--user__body">
-      <div class="md-hero--user__name-row">
-        <h1 class="md-hero--user__name">{{display-name this.model}}</h1>
-        <span class="md-hero--user__detail-sep" aria-hidden="true"></span>
-        <span class="md-hero--user__username">{{this.model.user_name}}</span>
-      </div>
-      <div class="md-hero--user__name-divider" aria-hidden="true"></div>
-      <div class="md-hero--user__details">
-        {{#if this.model.description}}
-          <span class="md-hero--user__meta">{{this.model.description}}</span>
-        {{/if}}
-      </div>
+      <h1 class="md-hero--user__name">{{display-name this.model}}</h1>
+      {{#if this.at_username}}
+        <p class="md-hero--user__username">{{this.at_username}}</p>
+      {{/if}}
+      {{#if this.model.description}}
+        <p class="md-hero--user__role">{{this.model.description}}</p>
+      {{/if}}
       {{#if this.model.location}}
-        <div class="md-hero--user__location-row">
-          <span class="md-hero--user__meta">{{this.model.location}}</span>
-        </div>
+        <p class="md-hero--user__org">{{this.model.location}}</p>
       {{/if}}
-      {{#if this.model.public}}
-        <span class="md-hero--user__status md-hero--user__status--public">{{t "public" key="public_lower"}}</span>
-      {{else}}
-        <span class="md-hero--user__status md-hero--user__status--private">{{t "private" key="private_lower"}}</span>
-      {{/if}}
-      {{!-- Bottom divider + "Launch the Getting Started Wizard Again"
-           button DISABLED: the onboarding flow is being evaluated for
-           later add-back (see also showGettingStarted in
-           dashboard/authenticated-view.js). With the only thing under
-           the divider gone, the divider itself is orphan styling, so
-           the whole __divider + __below-divider block is commented out
-           rather than left as an empty rule. Restore by un-commenting. --}}
-      {{!--
-      <hr class="md-hero--user__divider" aria-hidden="true">
-      <div class="md-hero--user__below-divider">
-        {{#if this.model.permissions.edit}}
-          <a href="#" {{on "click" (this.ctrlAction "setup")}} class="md-hero--user__wizard-btn">{{t "Launch the Getting Started Wizard Again" key="launch_setup"}}</a>
-        {{/if}}
-      </div>
-      --}}
       {{#if this.model.details_url}}
         <p class="md-hero--user__url"><a href={{this.model.details_url}} target="_blank" rel="noopener">{{this.model.details_url}}</a></p>
       {{/if}}
     </div>
-    {{!-- Current AAC solution — an action chip pinned to the hero's bottom-right.
-         Shows the AAC app the user currently uses (their external device/vocab,
-         or the default app when none is set) and opens the Current AAC Solution
-         modal. Replaces the old "External AAC" big button below. --}}
-    <button type="button" class="md-hero--user__aac" {{on "click" (this.ctrlAction "external_device")}} aria-label={{t "Current AAC Solution" key="current_aac_solution"}}>
-      <span class="md-hero--user__aac-icon" aria-hidden="true">
-        {{#if this.model.device_image.vocab_url}}
-          <img src={{this.model.device_image.vocab_url}} onerror="button_broken_image(this);" alt="">
-        {{else}}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><line x1="9" y1="4.5" x2="15" y2="4.5"/></svg>
-        {{/if}}
-      </span>
-      <span class="md-hero--user__aac-text">
-        <span class="md-hero--user__aac-label">{{t "Current AAC" key="current_aac"}}</span>
-        <span class="md-hero--user__aac-name">
-          {{#if this.model.external_device}}
-            {{#if this.model.external_device.device_name}}{{this.model.external_device.device_name}}{{else}}{{t "External AAC" key="external_aac"}}{{/if}}{{#if this.model.external_device.vocab_name}} &middot; {{this.model.external_device.vocab_name}}{{/if}}
+
+    {{!-- RIGHT RAIL — Current AAC above the profile controls, one aligned group.
+         Current AAC is a real action (opens the Current AAC Solution modal) so it keeps
+         button semantics and a chevron. The visibility status is NOT interactive here, so it
+         is deliberately not styled as a control; Edit Profile is the clearer action. --}}
+    <div class="md-hero--user__rail">
+      <div class="md-hero--user__aac-block">
+        <span class="md-hero--user__aac-label" id="md-hero-aac-label">{{t "Current AAC" key="current_aac"}}</span>
+        <button type="button" class="md-hero--user__aac" {{on "click" (this.ctrlAction "external_device")}} aria-describedby="md-hero-aac-label" aria-label={{t "Current AAC Solution" key="current_aac_solution"}}>
+          <span class="md-hero--user__aac-icon" aria-hidden="true">
+            {{#if this.model.device_image.vocab_url}}
+              <img src={{this.model.device_image.vocab_url}} onerror="button_broken_image(this);" alt="">
+            {{else}}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><line x1="9" y1="4.5" x2="15" y2="4.5"/></svg>
+            {{/if}}
+          </span>
+          <span class="md-hero--user__aac-name">
+            {{#if this.model.external_device}}
+              {{#if this.model.external_device.device_name}}{{this.model.external_device.device_name}}{{else}}{{t "External AAC" key="external_aac"}}{{/if}}{{#if this.model.external_device.vocab_name}} &middot; {{this.model.external_device.vocab_name}}{{/if}}
+            {{else}}
+              {{t "%app_name%" key="app_name"}}
+            {{/if}}
+          </span>
+          <svg class="md-hero--user__aac-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="md-hero--user__controls">
+          {{#if this.model.public}}
+            <span class="md-hero--user__status md-hero--user__status--public">
+              <svg class="md-hero--user__status-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>
+              {{t "Public profile" key="public_profile_status"}}
+            </span>
           {{else}}
-            {{t "%app_name%" key="app_name"}}
+            <span class="md-hero--user__status md-hero--user__status--private">
+              <svg class="md-hero--user__status-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              {{t "Private profile" key="private_profile_status"}}
+            </span>
           {{/if}}
-        </span>
-      </span>
-    </button>
+          {{#if this.model.permissions.edit}}
+            <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-hero--user__edit">
+              {{t "Edit Profile" key="edit_profile_action"}}
+            </LinkTo>
+          {{/if}}
+      </div>
+    </div>
   </header>
   <hr class="md-user-summary__page-divider" aria-hidden="true">
   {{!-- The four quick pills that sat here moved into `.md-acct-rail` above (2026-09-14) —

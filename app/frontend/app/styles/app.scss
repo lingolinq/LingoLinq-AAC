@@ -49123,240 +49123,353 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ---------- User page (My Account) hero and summary ---------- */
+/* PROFILE HEADER (rebuilt 2026-09-17).
+   Three zones on a grid -- avatar | identity | status -- replacing the old
+   avatar + flex-body + absolutely-positioned chip arrangement. The grid is what
+   removes the two structural faults of the old card: the name no longer shares a
+   row with the username (so it stops wrapping while space is free), and the AAC
+   block and status no longer float against the card's bottom edge.
+   The AAC chip used to be `position: absolute`, which kept it out of the flow and
+   therefore out of the card's measured height -- the reason it could collide with a
+   taller body. It is a normal grid-column child now. */
 .md-hero--user {
-  /* !important to beat the shared `.md-hero { position: static !important }`
-     (app.scss ~42670) — this card MUST be the positioning context so the absolute
-     AAC chip (.md-hero--user__aac) anchors to the card's bottom-right, not the page. */
+  /* !important beats the shared `.md-hero { position: static !important }` (~42670).
+     No longer needed as a positioning context for the AAC chip, but `.online_marker`
+     inside the avatar is still absolutely positioned against this card. */
   position: relative !important;
-  padding: 36px 24px 32px !important;
+  display: grid;
+  /* Avatar and status sized to CONTENT, identity takes the rest. `minmax(0, 1fr)` rather
+     than `1fr` so a long unbroken word in the identity column cannot push the grid wider
+     than its container.
+     THREE columns: avatar | identity | rail. All three start at the top, so the card's
+     height is simply its tallest column plus padding -- there is no row that distributes
+     content down an oversized canvas, and nothing is anchored to a bottom edge.
+     COLUMN BUDGET. This card is capped at ~804px by `.md-workspace`
+     (max-width: min(1200px, 100% - 24px)) minus the 208px account rail, on EVERY screen from
+     1200px up -- it does not grow with the viewport. Three columns therefore have ~732px of
+     content box to share, and the brief's 240-290px rail plus a 170px avatar left the identity
+     column ~264px, which wrapped the role onto three lines. Avatar 144 + rail 208 + 64 of gaps
+     leaves it ~316px, enough for two. The numbers are below the brief's ranges deliberately:
+     they were written for a card that can reach 1200px, and this one cannot. */
+  grid-template-columns: minmax(132px, 144px) minmax(0, 1fr) minmax(188px, 208px);
+  align-items: start;      /* every column starts at the top; the avatar never floats mid-card */
+  column-gap: 32px;
+  row-gap: 24px;
+  padding: 36px !important;
+  /* Guard for ultrawide, should the page's own 1200px cap ever lift: the columns stop
+     drifting apart rather than stretching across the screen. Does not bind today. */
+  max-width: 1280px;
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  /* !important so this actually paints — the shared `.md-hero { background:
-     transparent !important }` (app.scss ~42675) was overriding it, leaving the
-     card fully transparent (it only looked light because the page behind is).
-     Alpha bumped up so the card reads as a solid, ~15%-less-transparent surface. */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.90)) !important;
-  border: 1px solid var(--md-line);
-  border-bottom: 2px solid rgba($la-navy, 0.08);
-  border-radius: var(--md-r-lg, 22px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  /* Cleaner glass: a mostly-white surface with a restrained cool tint, in place of the
+     broad grey-blue wash that made the card look foggy. `!important` beats the shared
+     `.md-hero { background: transparent !important }` (~42675). */
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.97) 0%, rgba(247, 250, 253, 0.93) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 10px 28px rgba($brand-blue-black, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  border-radius: var(--md-r-lg, 28px);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
-/* FULL WIDTH OF ITS COLUMN on larger screens (2026-09-14). This was `width: 85%`, which with
-   the base rule's `margin-left/right: auto` centred the card and left ~48px of dead space on
-   each side — the "breathing room" the old comment describes.
-   That inset made sense when the hero had the whole page: it kept a very wide card from
-   running edge to edge. The account rail now takes 236px off this column and the content
-   reads at a comfortable measure without it, so the 85% is a second, redundant inset — and a
-   visible one, since the card no longer lines up with the action cards below it.
-   `!important` is still required, to beat the shared `.md-hero { width: auto !important }`
-   base rule (app.scss ~42006) which applies to this same element. `.md-hero--user` is worn by
-   exactly one element in the app (templates/user/index.hbs), so this affects nothing else. */
-/* 1025 -> 1200px (requested 2026-09-16). The 80px inset only reads as breathing room once
-   the column beside the 236px rail is genuinely wide; between 1025 and 1199 it ate most of
-   the remaining width and squeezed the hero's content. Raising the entry point leaves that
-   band on the unpadded layout. Nothing else keys off 1025 for this element -- this media
-   block holds exactly one rule. */
-@media (min-width: 1200px) {
-  .md-hero--user {
-    width: 100% !important;
-    /* 88 -> 80px each side (requested 2026-09-14). */
-    padding-left: 80px !important;
-    padding-right: 80px !important;
-  }
-}
+
+/* ONE frame around the avatar, not several concentric rings. The ring that remains is
+   a single hairline; the online marker inside is a real status indicator and stays. */
 .md-hero--user__avatar-wrap {
   position: relative;
+  grid-column: 1;
   flex-shrink: 0;
-  /* Flex-row places the STATUS card immediately to the right of the
-     avatar (was stacked underneath when this was flex-direction: column).
-     The online_marker inside is `position: absolute` so it stays pinned
-     to the avatar regardless of axis. align-items: center keeps the
-     pill vertically centered against the 96px avatar. */
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 16px;
+  line-height: 0;
 }
 .md-hero--user__avatar {
-  width: 132px; /* 120px * 1.1 */
-  height: 132px; /* 120px * 1.1 */
-  border-radius: 33px; /* 30px * 1.1 — keep the rounded-square proportion at the larger size */
+  /* Fills its grid column (140-156px) rather than being a fixed size that leaves a sliver of
+     dead space beside it. aspect-ratio keeps it square at whatever width the column resolves. */
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 30px;
   object-fit: cover;
-  padding: 8px;
-  border: 2px solid rgba($brand-verdigris, 0.15);
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.08);
-}
-.md-hero--user__body {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-/* Current AAC solution — an action chip pinned to the hero card's bottom-right.
-   Shows the app/device the user currently uses; opens the Current AAC Solution
-   modal. Absolute so it doesn't disturb the avatar+body flex row. */
-.md-hero--user__aac {
-  position: absolute;
-  right: 24px;
-  bottom: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 280px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba($la-navy, 0.12);
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 2px 6px rgba($la-navy, 0.08);
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
-}
-.md-hero--user__aac:hover {
+  border: 1px solid rgba($brand-blue-black, 0.10);
   background: #fff;
-  box-shadow: 0 4px 12px rgba($la-navy, 0.14);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba($brand-blue-black, 0.10);
 }
-.md-hero--user__aac-icon {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9px;
-  background: linear-gradient(135deg, rgba($brand-slate-blue, 0.16), rgba($brand-charcoal-blue, 0.10));
-  color: $brand-charcoal-blue;
-}
-.md-hero--user__aac-icon img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; }
-.md-hero--user__aac-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
-.md-hero--user__aac-label {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba($la-navy, 0.5);
-}
-.md-hero--user__aac-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: $la-navy;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-@media (min-width: 1025px) {
-  /* Match the hero's wider side padding at this width. */
-  .md-hero--user__aac { right: 88px; }
-}
-@media (max-width: 768px) {
-  /* Column layout — flow the chip below the content instead of overlapping. */
-  .md-hero--user__aac { position: static; margin: 14px auto 0; }
-}
-/* 1024px and smaller (but still in the row layout, above the 768px mobile-column
-   breakpoint): center the avatar + text group horizontally within the card. The body
-   stops growing to fill the row (flex: 0 1 auto) so the group has a natural width to
-   center; text inside the body keeps its default LEFT alignment beside the avatar.
-   Placed AFTER the base `.md-hero--user__body` rule above so it wins on source order
-   (equal specificity) within the media range. */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .md-hero--user {
-    justify-content: center;
-  }
-  .md-hero--user__body {
-    flex: 0 1 auto;
-  }
-}
-.md-hero--user__name-row {
+
+/* THE IDENTITY STACK. One column, so every line shares a left edge with the name. */
+.md-hero--user__body {
+  grid-column: 2;
+  min-width: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  /* Groups are separated by their own margins below; this is the base rhythm. */
   gap: 0;
-  margin: 0 0 10px;
 }
 .md-hero--user__name {
   margin: 0;
   height: auto;
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: -0.3px;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.18;
   color: var(--md-ink);
-  line-height: 1.3;
-}
-.md-hero--user__details {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 0;
-  /* Larger top gap separating the org info from the username row / divider above. */
-  margin: 16px 0 2px;
-}
-.md-hero--user__location-row {
-  /* Pulled up so the location sits closer to the "User in <org>" line above. */
-  margin: -6px 0 4px;
-}
-.md-hero--user__detail-sep {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--md-muted);
-  opacity: 0.65;
-  margin: 0 12px;
-  vertical-align: middle;
-}
-/* Username-row divider — the focused badge-action card's title underline gradient
-   (denim → verdigris, fading off to the right via the mask), shown under the
-   name/username row on the account page. */
-.md-hero--user__name-divider {
-  display: block;
-  width: 260px;
-  max-width: 100%;
-  height: 3px;
-  margin-top: 8px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, $brand-dusty-denim, $brand-verdigris);
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%);
+  /* Wrap only when the NAME itself is too long -- never truncate a person's name. */
+  overflow-wrap: break-word;
 }
 .md-hero--user__username {
-  font-size: 18px;
-  color: var(--md-muted);
-  font-weight: 600;
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  /* 0.78 on the pale surface keeps this above the 4.5:1 text floor; the old muted token
+     at full strength was the low-contrast grey-on-grey called out in review. */
+  color: rgba($la-navy, 0.78);
+  overflow-wrap: break-word;
 }
-/* ≤460px — drop the username onto its own row beneath the name and remove the dot
-   separator (which only makes sense between two inline items on one line). Stacking the
-   name-row as a centered column keeps it aligned with the centered mobile hero. */
-@media (max-width: 460px) {
-  .md-hero--user__name-row {
+.md-hero--user__role {
+  margin: 24px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--md-ink);
+}
+/* Organisation/location line. Only `location` reaches it today -- the model has no
+   organisation field -- so there is no separator to leave orphaned when one is missing;
+   the whole line is `{{#if}}`-gated in the template. */
+.md-hero--user__org {
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba($la-navy, 0.78);
+}
+
+/* CURRENT AAC, in the identity column rather than pinned to a corner. */
+/* THE RAIL — Current AAC above the profile controls, one aligned group in column 3. */
+.md-hero--user__rail {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 26px;
+  min-width: 0;
+}
+.md-hero--user__aac-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+}
+/* Status and Edit side by side when the rail is wide enough, wrapping to a stack when not --
+   no separate breakpoint needed, and they stay aligned to the same left edge either way. */
+.md-hero--user__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+}
+/* Small uppercase label. Uppercased in CSS so the translated string stays a normal
+   sentence for translators and screen readers; letter-spacing kept modest, since wide
+   tracking on small uppercase text is harder to read, not easier. 0.8 alpha clears the
+   4.5:1 floor on this surface. */
+.md-hero--user__aac-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.8);
+}
+/* A real button (it opens the Current AAC Solution modal), so it reads as one: inset
+   surface, chevron affordance, and a 44px minimum height for touch. */
+.md-hero--user__aac {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 7px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba($brand-blue-black, 0.10);
+  background: rgba($brand-dusty-denim, 0.06);
+  cursor: pointer;
+  text-align: left;
+  color: var(--md-ink);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.md-hero--user__aac:hover {
+  background: rgba($brand-dusty-denim, 0.11);
+  border-color: rgba($brand-blue-black, 0.16);
+}
+.md-hero--user__aac:focus-visible {
+  outline: 2px solid $brand-dusty-denim;
+  outline-offset: 2px;
+}
+/* Compact icon container rather than a large nested pill. */
+.md-hero--user__aac-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #fff;
+  border: 1px solid rgba($brand-blue-black, 0.08);
+  color: $brand-dusty-denim;
+}
+.md-hero--user__aac-icon img { width: 22px; height: 22px; object-fit: contain; border-radius: 5px; }
+.md-hero--user__aac-name {
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.md-hero--user__aac-chevron { flex-shrink: 0; color: rgba($la-navy, 0.55); }
+
+/* ZONE 3 — profile status and owner actions, aligned top-right. */
+
+/* Informational, NOT a control: the visibility status is a span here and changing it lives
+   on the profile edit page, so it deliberately gets no button affordance. Both states use
+   this same block with their own icon, and each NAMES its state in text rather than relying
+   on the icon or colour to carry it. */
+.md-hero--user__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba($brand-dusty-denim, 0.10);
+  border: 1px solid rgba($brand-blue-black, 0.10);
+  color: $la-navy;
+}
+.md-hero--user__status-icon { flex-shrink: 0; opacity: 0.85; }
+
+/* The one owner action, and it is an EXISTING destination (user.edit, the same Profile
+   page the account rail links to) -- no new behaviour was invented for this header. */
+.md-hero--user__edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px, the touch-target floor this app holds itself to (WCAG 2.5.5 / AAC minimum) --
+     the same reason the AAC button above carries it. */
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: $la-navy;
+  background: #fff;
+  border: 1px solid rgba($brand-blue-black, 0.14);
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.05);
+  text-decoration: none;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.md-hero--user__edit:hover { background: #f8fafc; border-color: rgba($brand-blue-black, 0.22); text-decoration: none; }
+.md-hero--user__edit:focus-visible { outline: 2px solid $brand-dusty-denim; outline-offset: 2px; }
+
+.md-hero--user__url {
+  margin: 14px 0 0;
+  font-size: 14px;
+  word-break: break-word;
+}
+.md-hero--user__url a { color: $brand-dusty-denim; }
+
+/* RESPONSIVE. Content-driven breakpoints: the first one is where the three-column grid
+   stops leaving the identity column a comfortable measure, not a device width. */
+/* MEDIUM (<=1099px) — two columns. The rail's content moves BENEATH the identity stack in
+   the same column, so the reading order is name, role, AAC, controls, and the avatar keeps
+   its own column rather than the whole card stacking early. */
+@media (max-width: 1099px) {
+  .md-hero--user {
+    grid-template-columns: minmax(120px, 140px) minmax(0, 1fr);
+    column-gap: 28px;
+    row-gap: 22px;
+  }
+  .md-hero--user__rail {
+    grid-column: 2;          /* second row of the identity column, not a column of its own */
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    /* SPREAD across the bottom rather than packed left (requested 2026-09-17). Once the rail
+       stops being a column it spans the full width of the identity column, and left-packing
+       left a wide dead strip to the right of Edit Profile. `space-between` puts Current AAC
+       at one end and the profile controls at the other, so the bottom band carries the width
+       instead of leaving it empty.
+       This is the opposite of the large-screen rule on purpose: up there the rail IS a
+       column and spreading would scatter related items down an oversized canvas; here the
+       rail is a single horizontal band and spreading is what fills it. */
+    justify-content: space-between;
+    gap: 22px 32px;
+    width: 100%;
+  }
+  /* Both groups GROW to fill the band. `space-between` alone was not enough: when the two
+     groups together exceeded the rail width they wrapped onto separate rows, and each row was
+     then left-packed with the same dead strip the spread was meant to remove (measured at
+     1050, 760 and 620px). Growing from a 200px basis means they share the row evenly when
+     both fit, and each fills the row on its own when they do not -- there is no width left
+     over either way. */
+  .md-hero--user__aac-block { width: auto; flex: 1 1 200px; }
+  .md-hero--user__controls { width: auto; flex: 1 1 200px; justify-content: flex-end; }
+}
+/* NARROW (<=640px) — one column, everything stacked (requested 2026-09-17). Below this the
+   avatar no longer earns a column of its own: the identity stack and the rail both need the
+   full width, and squeezing a 3-column-derived layout into ~380px was what produced the
+   cramped, part-centred card.
+   CENTRED throughout (requested 2026-09-17). Centring is applied at every level that owns an
+   axis -- the grid centres its items, each flex column centres its children, and the control
+   row centres itself -- because setting `text-align` alone would centre the COPY while
+   leaving the avatar, the AAC button and the pills aligned left, which is the half-centred
+   look this replaced. */
+@media (max-width: 640px) {
+  .md-hero--user {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 18px;
+    padding: 24px !important;
+    border-radius: 20px;
+    text-align: center;
+    justify-items: center;      /* centres each grid item in its column */
+  }
+  .md-hero--user__avatar-wrap,
+  .md-hero--user__body,
+  .md-hero--user__rail { grid-column: 1; }
+  .md-hero--user__avatar { width: 96px; height: 96px; aspect-ratio: auto; border-radius: 22px; }
+  .md-hero--user__name { font-size: 26px; }
+  .md-hero--user__username { font-size: 15px; }
+  .md-hero--user__role { font-size: 17px; margin-top: 18px; }
+  /* Stacked, so `flex` must be reset: the medium tier's `flex: 1 1 200px` is a basis on the
+     MAIN axis, and in a column that is a HEIGHT -- it inflated this rail to 418px on a 480px
+     screen before this reset existed. */
+  .md-hero--user__rail {
     flex-direction: column;
     align-items: center;
+    justify-content: flex-start;
+    gap: 18px;
   }
-  .md-hero--user__detail-sep {
-    display: none;
-  }
+  /* Each flex column centres its OWN children -- the grid's `justify-items` only places the
+     boxes, it does not reach inside them. */
+  .md-hero--user__body { align-items: center; }
+  .md-hero--user__aac-block { width: 100%; flex: 0 0 auto; align-items: center; }
+  .md-hero--user__controls { width: 100%; flex: 0 0 auto; justify-content: center; }
+  /* Natural width so the button is a centred control rather than a full-width band with its
+     label pushed to the left edge, which reads as un-centred in a centred stack. */
+  .md-hero--user__aac { width: auto; max-width: 100%; }
+  /* Natural widths, NOT stretched. Letting these grow turned a compact status pill into a
+     full-width band that read like a button -- the visibility status is informational, and
+     the brief calls out not stretching it. They wrap if they cannot share a row. */
+  .md-hero--user__controls > * { flex: 0 0 auto; }
 }
-.md-hero--user__meta {
-  font-size: 17px;
-  color: var(--md-muted);
-  line-height: 1.6;
+/* Honour a reduced-motion preference for the only transitions this card has. */
+@media (prefers-reduced-motion: reduce) {
+  .md-hero--user__aac,
+  .md-hero--user__edit { transition: none; }
 }
-.md-hero--user__url {
-  margin: 8px 0 0;
-  font-size: 15px;
-  line-height: 1.5;
-}
-.md-hero--user__url a {
-  color: var(--md-teal);
-  font-weight: 600;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-.md-hero--user__url a:hover {
-  color: #1a7a70;
-}
+
 .md-hero--user .online_marker {
   position: absolute;
   top: 4px;
@@ -51956,68 +52069,13 @@ a.md-goal-nav-action:hover,
   gap: 8px;
   margin-top: 6px;
 }
-.md-hero--user__status-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: rgba($brand-blue-black, 0.03);
-  border: 1px solid rgba($brand-blue-black, 0.08);
-  border-radius: 10px;
-  font-size: 14px;
-}
-.md-hero--user__avatar-divider {
-  width: 60%;
-  border: none;
-  border-top: 1px solid rgba($brand-blue-black, 0.12);
-  margin: 4px 0;
-}
-.md-hero--user__profile-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 22px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
-  color: #fff;
-  border: 1px solid rgba($brand-charcoal-blue, 0.3);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
-}
-.md-hero--user__profile-pill:hover {
-  background: linear-gradient(135deg, #8aa3c7, #566878);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  text-decoration: none;
-  color: #fff;
-}
-.md-hero--user__status-label {
-  font-size: 14px; /* 0.95rem * 1.2 */
-  font-weight: 600;
-  color: var(--md-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-/* Status pill — moved beneath the org info; shows only the status value (public/
-   private) as a globe/lock + capitalized label in a soft pill. */
-.md-hero--user__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: rgba($brand-blue-black, 0.04);
-  border: 1px solid rgba($brand-blue-black, 0.08);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--md-muted);
-  text-transform: capitalize;
-}
-.md-hero--user__status--public::before { content: "🌐"; }
-.md-hero--user__status--private::before { content: "🔒"; }
+/* REMOVED 2026-09-17 with the profile-header rebuild:
+     __status-card, __avatar-divider, __profile-pill, __profile-pill:hover, __status-label
+       -- orphaned before this change; none of the four appeared in any template.
+     __status and its ::before emoji globe/lock
+       -- superseded by the status block in the header rules above, which uses inline SVG
+          from the app icon system instead of emoji (emoji render differently per platform
+          and are announced inconsistently by screen readers) and names each state in text. */
 /* ~6% larger than base (25% up then 15% down) for user summary stat cards */
 .md-user-summary__stats-row .ub-boards-page__stat-label {
   font-size: 14px;
@@ -52459,40 +52517,23 @@ a.md-goal-nav-action:hover,
     padding-left: 1rem;
     padding-right: 1rem;
   }
-  .md-hero--user {
-    padding: 20px 18px !important;
-
-    gap: 16px !important;
-
-    border-radius: 16px !important;
-
-    flex-direction: column !important;
-
-    align-items: center !important;
-
-    text-align: center !important;
-
-  }
+  /* The flex-era overrides here are GONE (2026-09-17). This card is a grid now, so
+     `flex-direction: column` was inert while `align-items: center` and `text-align: center`
+     actively fought it: the former centred each grid item in its row and the latter centred
+     the copy, which is why a left-hand avatar sat beside centred text. Padding and radius for
+     narrow screens live with the other responsive rules in the header block above, so there
+     is one place that owns this card's layout rather than two that disagree. */
   .md-hero--user__avatar {
-    width: 72px !important;
-
-    height: 72px !important;
-
-    border-radius: 18px !important;
-
+    /* Smallest step of the avatar ladder (136 -> 104 -> 88). Was 72px, which read as an
+       afterthought next to a 26px name. */
+    width: 88px !important;
+    height: 88px !important;
+    border-radius: 22px !important;
   }
-  .md-hero--user__details {
-    justify-content: center !important;
-
-  }
-  .md-hero--user__name,
-  .md-hero--user__username {
-    font-size: 18px !important;
-
-  }
-  .md-hero--user__meta {
-    font-size: 15.6px; /* 13px * 1.2 */
-  }
+  /* `__details` and `__meta` were deleted with the 2026-09-17 header rebuild, and the
+     18px name override is gone with them: the name is sized by the ≤720px rule in the
+     header block instead, which keeps it readable rather than shrinking it below the
+     role line. */
   .md-hero--user__url {
     font-size: 14px !important;
 
