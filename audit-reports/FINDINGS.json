@@ -7241,7 +7241,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "code",
         "file": "lib/sentence_pic.rb",
@@ -7258,10 +7258,13 @@
       },
       "closureEvidence": {
         "sha": "",
-        "verifierNote": "",
+        "verifierNote": "Remediation deployed, not yet CEO-verified. PR #944 (merged to develop 2026-09-06, merge commit df037539f) replaced the backticked shell string with ImageMagickRunner.run argv execution and escape_label for ImageMagick's -label sigils (lib/sentence_pic.rb:43,46 at main 57872695e). Deployment confirmed 2026-09-18 by read-only Cloud Run reads on lingolinq-prod: the web service (revision lingolinq-web-00034-riw, created 2026-09-16) and the Resque worker pool (revision lingolinq-worker-00022-l6t), which executes the preview job, both run image web:57872695e43a20e2e6910acde804fa14c2c454b4, and that commit's lib/sentence_pic.rb contains no backticked montage/convert call. Not exploited-against: the fix was not re-tested by execution in production. Closure (verified-closed) remains the CEO's act.",
         "attestation": ""
       },
-      "notes": "Surfaced by manual finder on 2026-09-05. Proven by execution, not by reading: a button label of '$(touch pwned)' creates the file through the real SentencePic.generate. lib/sentence_pic.rb:33 escapes only the double quote, so $(...) and backticks survive inside the double-quoted shell word at :37/:40. The truncation cap is NOT a mitigation: :33 leaves a TRAILING backslash unescaped, so a label ending in '\\\\' escapes its own closing quote and the next label lands unquoted, chaining payloads across buttons at any count. Reachable in two HTTP calls from an anonymous origin: POST /api/v1/users is exempt from require_api_token (users_controller.rb:5) and returns a bearer token; POST /api/v1/utterances then needs only that token, and with no user_id the allowed?(user,'model') branch is skipped (utterances_controller.rb:20-26). process_params stores button_list verbatim (utterance.rb:331) with no validation, and after_save :generate_preview_later (utterance.rb:14) schedules the job. Second sink: a share log event reaches the same Utterance.process_new at log_session.rb:1159. Executes in the Resque worker. NOTE: the claim that the worker env holds SECURE_ENCRYPTION_KEY/SECURE_NONCE_KEY is sourced from render.yaml, which describes NO deployed service (live worker name, startCommand and buildCommand all differ) -- treat as UNVERIFIED against the live service; DATABASE_URL is confirmed by behaviour. Brakeman already flagged this file (3 Command Injection warnings, lines 40/43/45) in audit-reports/brakeman_report.json, scan dated 2026-02-20."
+      "notes": "Surfaced by manual finder on 2026-09-05. Proven by execution, not by reading: a button label of '$(touch pwned)' creates the file through the real SentencePic.generate. lib/sentence_pic.rb:33 escapes only the double quote, so $(...) and backticks survive inside the double-quoted shell word at :37/:40. The truncation cap is NOT a mitigation: :33 leaves a TRAILING backslash unescaped, so a label ending in '\\\\' escapes its own closing quote and the next label lands unquoted, chaining payloads across buttons at any count. Reachable in two HTTP calls from an anonymous origin: POST /api/v1/users is exempt from require_api_token (users_controller.rb:5) and returns a bearer token; POST /api/v1/utterances then needs only that token, and with no user_id the allowed?(user,'model') branch is skipped (utterances_controller.rb:20-26). process_params stores button_list verbatim (utterance.rb:331) with no validation, and after_save :generate_preview_later (utterance.rb:14) schedules the job. Second sink: a share log event reaches the same Utterance.process_new at log_session.rb:1159. Executes in the Resque worker. NOTE: the claim that the worker env holds SECURE_ENCRYPTION_KEY/SECURE_NONCE_KEY is sourced from render.yaml, which describes NO deployed service (live worker name, startCommand and buildCommand all differ) -- treat as UNVERIFIED against the live service; DATABASE_URL is confirmed by behaviour. Brakeman already flagged this file (3 Command Injection warnings, lines 40/43/45) in audit-reports/brakeman_report.json, scan dated 2026-02-20. UPDATE 2026-09-18: moved open -> remediated-unverified with prs ['#944'] after confirming the fix is deployed on both production surfaces (see closureEvidence.verifierNote). The 'NOT merged at time of filing' clause in remediation.options is historical (2026-09-05) and is left as written. Recorded on Scot's instruction to handle the open item; this is a registrar status move, not a closure.",
+      "prs": [
+        "#944"
+      ]
     },
     {
       "id": "LL-a6be800a86",

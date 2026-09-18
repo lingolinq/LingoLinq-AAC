@@ -106,3 +106,24 @@ matched. Addressed in the follow-up commit:
   unattested draft, so permitted) or hold until it next changes.
 - Whether the 2026-09-14 posture report gets its own Path A successor for its undated
   "0 Critical" headline row.
+
+## Follow-ups handled 2026-09-18 (second PR, after #1006 merged as `3c6df3c92`)
+
+Scot attested both records in #1006 on 2026-09-18 and then directed the two remaining open
+items. Recommendation given and accepted: no separate Path A successor for the 2026-09-14
+posture report now; fold its "0 Critical" correction into the successor it needs after the Q3
+make-up pass (due 2026-10-09), unless a bundle is about to go to a recipient first.
+
+- **Memo pointer.** A five-line "Addendum (pointer added 2026-09-18)" entry inserted under the
+  header block of `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md`
+  (DOC-58b3944cad, draft, unattested, so an in-place edit is permitted; the attested
+  DOC-f6365ba893 lists this as decision item 7). No other line changed; contentHash re-rendered.
+- **LL-676f91f26b** moved `open` -> `remediated-unverified`, `prs: ["#944"]`. Evidence before
+  moving: PR #944 merged to develop 2026-09-06 (`df037539f`) and is on `main`; read-only Cloud Run
+  reads on lingolinq-prod show the web service (revision 00034, created 2026-09-16) and the
+  Resque worker pool (revision 00022), which runs the preview job, both on image
+  `web:57872695e...`; `lib/sentence_pic.rb` at that commit has no backticked shell call. Not
+  re-tested by execution in production. Closure stays the CEO's act.
+- Cross-doc sweep for LL-676f91f26b: only the attested 2026-09-17 snapshot names it as open, a
+  dated point-in-time record that already anticipates this move. No live doc is now false.
+- Open-only headline moves 2C -> 1C; live headline stays 2C / 38H / 94M / 52L.

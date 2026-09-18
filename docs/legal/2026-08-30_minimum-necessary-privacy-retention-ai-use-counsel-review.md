@@ -15,6 +15,11 @@
 **Repository state verified at:** `origin/staging` commit `8afabd1d2cc37fd88013eb738143758096f52c50`
 **Register status:** unattested `draft` row in `audit-reports/DOCUMENT-REGISTER.json`
 **Review cycle:** on receipt of counsel's response
+**Addendum (pointer added 2026-09-18):** gap row 19 of section 14 records `LL-c0b3d59f58` as
+verified closed; that closure was retracted on 2026-09-17. The correction is carried by
+`docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md` (`DOC-c9c70f5702`, attested
+2026-09-18), which accompanies this memorandum. No other line of this memorandum has changed
+since 2026-08-30.
 
 ---
 
