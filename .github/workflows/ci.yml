@@ -401,6 +401,11 @@ jobs:
       - name: Run codex-review chunk-runner unit tests
         run: python3 scripts/codex-review-run-chunks.test.py
 
+      # Guards the CODEX_REVIEW_CHUNKED_SCOPE=scot branch-name match in
+      # codex-review.yml (inline because that step runs before checkout).
+      - name: Run codex-review chunked-scope match tests
+        run: python3 scripts/codex-review-chunked-scope.test.py
+
   security-scan:
     runs-on: ubuntu-latest
 
