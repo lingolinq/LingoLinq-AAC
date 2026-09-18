@@ -95,11 +95,34 @@ should move them to `stub_responses(:get_job, ...)`.
   `validate_params: false` to the real client. Low; follow-up.
 - The four staging sound records from the failed test stay `transcoding_in_progress`.
   `ButtonSound.schedule_missing_transcodings` skips an in-progress record whose `updated_at` is
-  under 48 hours old, so the 06:00 UTC sweep will not retry them before 2026-09-21. Test data
-  only; re-record after the follow-up lands.
-- Production: `APP_MEDIACONVERT_ROLE_ARN` is unset there, so this code path is inert in
-  production today. It must stay unset until the follow-up is deployed and the staging smoke
-  test passes end to end.
+  under 48 hours old, so the first sweep that can touch them is 2026-09-21 06:00 UTC. That is a
+  deadline, not a reprieve: if this PR is on staging by then and the follow-up is not, the sweep
+  submits real jobs unattended and spends one of each record's two extra attempts.
+- Production: `APP_MEDIACONVERT_ROLE_ARN` is unset there, so `convert_audio` / `convert_video`
+  return early and nothing is submitted. That gate covers the SUBMIT path only:
+  `Transcoder.handle_event` calls `config.get_job` with no `configured?` check. Production is
+  quiet on the read path only because no production job exists to emit an event. Keep the role
+  unset until the follow-up is deployed and the staging smoke test passes end to end.
+
+## State this PR creates on staging until the follow-up lands (dual review, 2026-09-18)
+
+- **A completion event is lost, not retried.** The callback answers `400 event not handled`.
+  AWS: "Amazon SNS considers all 5XX errors and 429 ... as retryable ... All other errors are
+  considered as permanent failures and retries will not be attempted"
+  (docs.aws.amazon.com/sns/latest/dg/sns-message-delivery-retries.html, read 2026-09-18). The
+  nonprod subscription has no dead-letter queue. The controller logs the body before calling
+  `handle_event`, so the payload is still captured for the follow-up.
+- **Outputs of an unhandled job are unreachable by the app.** `MediaObject#schedule_transcoding`
+  computes the output prefix and never persists it; only `update_media_object` records output
+  keys, and it is not reached. `remove_derivative_remote_data` therefore cannot find those S3
+  objects. Smoke-test only with a throwaway synthetic record, write down its `global_id` and
+  prefix, and delete the outputs by hand afterwards.
+- **The follow-up is not mechanical.** Once the read side works, `secondary_output` is set and
+  `ButtonSound#schedule_transcription` sends the WAV to Google Speech-to-Text (register row 18).
+  That flow has been dead since Elastic Transcoder ended; re-opening it is a compliance decision
+  to make before the follow-up ships.
+- A tripwire spec ("should find no output files on an SDK-shaped GetJob response") pins the
+  current read-side behaviour against a real SDK struct. The follow-up must invert it.
 
 ## Mutation that must turn the test red
 

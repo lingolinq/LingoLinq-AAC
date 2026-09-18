@@ -342,6 +342,22 @@ describe Transcoder do
         expect(res).to eq({job_id: 'stub-job'})
       end
 
+      # Tripwire for the known read-side defect (see the task log). A real
+      # OutputDetail has no output_file_paths, so output_files finds nothing and
+      # handle_event cannot complete a record. The fix must invert this example.
+      it "should find no output files on an SDK-shaped GetJob response" do
+        client = stubbed_client
+        client.stub_responses(:get_job, {job: {
+          id: 'stub-job',
+          role: 'arn:aws:iam::123:role/MediaConvert',
+          settings: {},
+          output_group_details: [{output_details: [{duration_in_ms: 12000}]}]
+        }})
+        job = client.get_job({id: 'stub-job'}).job
+        expect(job.output_group_details[0].output_details[0].respond_to?(:output_file_paths)).to eq(false)
+        expect(Transcoder.output_files(job)).to eq([])
+      end
+
       it "should build a video job the MediaConvert client accepts" do
         u = User.create
         v = UserVideo.create(:user => u, :settings => {'full_filename' => 'a/b/c.mov'})
