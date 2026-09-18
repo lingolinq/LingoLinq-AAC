@@ -604,14 +604,21 @@ var utterance = EmberObject.extend({
       }, function() {
         // no image lookups (e.g. no_lookups or local-only and not in cache) - leave button image unset
       });
-      original_button.load_sound('local').then(function(sound) {
+      var applyLoadedSound = function(sound) {
         sound = sound || original_button.get('sound');
         if(sound) {
           emberSet(b, 'sound', sound.get('best_url'));
           emberSet(b, 'sound_license', sound.get('license'));
         }
-      }, function() {
-        // no sound lookups (e.g. no_lookups or local-only and not in cache) - leave button sound unset
+      };
+      // Prefer board.sound_urls ('local'); if missing and online, fetch the Sound record.
+      original_button.load_sound('local').then(applyLoadedSound, function() {
+        var persistenceService = (typeof window !== 'undefined' && window.persistence) || null;
+        var online = !!(persistenceService && persistenceService.get && persistenceService.get('online'));
+        if(!online) { return; }
+        original_button.load_sound('remote').then(applyLoadedSound, function() {
+          // leave button sound unset — speak path will TTS the label
+        });
       });
     }
     if(original_button && original_button.condense_items) {

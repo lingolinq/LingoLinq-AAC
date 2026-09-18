@@ -5,7 +5,10 @@ if Rails.env.development? || Rails.env.test?
     allow do
       origins(
         %r{\Ahttps?://localhost(:\d+)?\z},
-        %r{\Ahttps?://127\.0\.0\.1(:\d+)?\z}
+        %r{\Ahttps?://127\.0\.0\.1(:\d+)?\z},
+        # Capacitor WebView (androidScheme https / iOS capacitor scheme)
+        %r{\Acapacitor://localhost\z},
+        %r{\Aionic://localhost\z}
       )
       resource '/api/v1/*',
         headers: :any,

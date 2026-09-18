@@ -2170,8 +2170,9 @@ var editManager = EmberObject.extend({
                 more_args.image_url = image_urls['ns_' + buttons[kdx]['image_id'] + '-' + preferred_symbols] || image_urls['ns_' + buttons[kdx]['image_id']];
                 more_args.unpref_image_url = image_urls['ns_' + buttons[kdx]['image_id']];
               }
-              if(sound_urls) {
-                more_args.sound_url = sound_urls[buttons[kdx]['sound_id']];
+              if(sound_urls && buttons[kdx]['sound_id'] != null) {
+                var sid = buttons[kdx]['sound_id'];
+                more_args.sound_url = sound_urls[sid] || sound_urls[String(sid)];
               }
               button = editManager.Button.create(buttons[kdx], more_args);
             }

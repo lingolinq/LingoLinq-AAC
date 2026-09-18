@@ -4413,25 +4413,52 @@ export default Service.extend({
               utterance.speak_button(to_speak);
               vibrate();
             };
+            // Normalize non-string sound (Ember Sound record) to a playable URL.
+            if (button_to_speak && button_to_speak.sound && typeof button_to_speak.sound !== 'string') {
+              var attached = button_to_speak.sound;
+              button_to_speak.sound = (attached.get && attached.get('best_url')) || attached.best_url || attached.url || null;
+            }
             if (button_to_speak && !button_to_speak.sound) {
-              var soundUrl = (button.get && (button.get('local_sound_url') || (button.get('sound') && button.get('sound.best_url')))) || (button.local_sound_url || (button.sound && button.sound.get && button.sound.get('best_url')));
+              var boardSoundUrls = (button.get && button.get('board.sound_urls')) || (button.board && (button.board.get ? button.board.get('sound_urls') : button.board.sound_urls)) || {};
+              var soundId = (button.get && button.get('sound_id')) || button.sound_id;
+              // Prefer URLs already on the button / board map — do not require findRecord.
+              var soundUrl = (button.get && (button.get('local_sound_url') || button.get('sound_url') || (button.get('sound') && button.get('sound.best_url'))))
+                || button.local_sound_url
+                || button.sound_url
+                || (soundId && (boardSoundUrls[soundId] || boardSoundUrls[String(soundId)]))
+                || (button.sound && button.sound.get && button.sound.get('best_url'));
               if (soundUrl) {
                 button_to_speak.sound = soundUrl;
                 doSpeak();
                 return;
               }
-              var hasSoundId = (button.get && button.get('sound_id')) || button.sound_id;
-              if (hasSoundId && button.load_sound) {
-                var loadSound = button.load_sound('local');
-                if (loadSound && typeof loadSound.then === 'function') {
-                  loadSound.then(function(sound) {
-                    sound = sound || (button.get && button.get('sound'));
-                    if (sound && button_to_speak) {
-                      button_to_speak.sound = sound.get ? sound.get('best_url') : (sound.best_url || sound.url);
+              if (soundId && button.load_sound) {
+                // Use the board URL map via 'local' first. Only fall back to
+                // 'remote' findRecord when online and the map has no URL —
+                // calling remote first skips board.sound_urls and TTS-falls-back
+                // when the Sound API lookup fails (common on fresh Capacitor sessions).
+                var persistenceService = this.persistence || window.persistence;
+                var online = !!(persistenceService && persistenceService.get && persistenceService.get('online'));
+                var afterSound = function(sound) {
+                  sound = sound || (button.get && button.get('sound'));
+                  if (sound && button_to_speak) {
+                    button_to_speak.sound = sound.get ? sound.get('best_url') : (sound.best_url || sound.url);
+                  }
+                  doSpeak();
+                };
+                var loadLocal = button.load_sound('local');
+                if (loadLocal && typeof loadLocal.then === 'function') {
+                  loadLocal.then(afterSound, function() {
+                    if (!online) {
+                      doSpeak();
+                      return;
                     }
-                    doSpeak();
-                  }, function() {
-                    doSpeak();
+                    var loadRemote = button.load_sound('remote');
+                    if (loadRemote && typeof loadRemote.then === 'function') {
+                      loadRemote.then(afterSound, function() { doSpeak(); });
+                    } else {
+                      doSpeak();
+                    }
                   });
                   return;
                 }
