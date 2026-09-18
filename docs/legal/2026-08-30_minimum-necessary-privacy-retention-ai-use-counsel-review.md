@@ -17,12 +17,14 @@
 **Review cycle:** on receipt of counsel's response
 **Addendum (pointer added 2026-09-18):** gap row 19 of section 14 records `LL-c0b3d59f58` as
 verified closed; that closure was retracted on 2026-09-17. The correction is carried by
-`docs/legal/2026-09-18_counsel-review-addendum-closure-retraction.md` (`DOC-c6f1b9fac6`), which
-accompanies this memorandum and supersedes the 2026-09-17 addendum (`DOC-c9c70f5702`, attested
-2026-09-18, frozen). That earlier addendum states that this memorandum is not edited; that was
-accurate when it was attested, and this pointer is the one later edit, made under decision item
-7 of the attested 2026-09-17 status snapshot (`DOC-f6365ba893`). This memorandum was last substantively revised on 2026-09-15 (PR #969, the
-cadence corrections in section 4); no line other than this entry changed in the 2026-09-18 edit.
+`docs/legal/2026-09-18_counsel-review-addendum-closure-retraction.md` (`DOC-c6f1b9fac6`),
+which accompanies this memorandum and supersedes the 2026-09-17 addendum (`DOC-c9c70f5702`,
+attested 2026-09-18, frozen). That earlier addendum states that this memorandum is not
+edited; that was accurate when it was attested, and this pointer block is the only later
+change, first inserted by PR #1013 and retargeted by PR #1015 on the same day, under decision
+item 7 of the attested 2026-09-17 status snapshot (`DOC-f6365ba893`). This memorandum was
+last substantively revised on 2026-09-15 (PR #969, the cadence corrections in section 4); no
+line other than this entry changed in the 2026-09-18 edits.
 
 ---
 

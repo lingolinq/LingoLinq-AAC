@@ -175,3 +175,24 @@ addendum and close the finding.
 - Scot-owned fields (finding status/disposition/attestation, register attestation blocks) were
   written with the file-editing tools; the shell path is blocked by the auto-mode classifier for
   attestation writes.
+
+### Dual review of PR #1015 at `e55a62943`
+
+Senior-dev: approve with one Medium. Adversary: ship with conditions (3 Medium, 2 Low). Both
+independently re-verified the deployment on both production surfaces and the Path A mechanics.
+Fixed in the follow-up commit, all confirmed against the files:
+
+- The successor said "the one edit" where git shows two same-day commits touched the memo
+  (#1013 inserted the pointer, #1015 retargeted it). Wording corrected and the PR sequence
+  (#1006 / #1013 / #1015) added so a reader without the repo can order the three same-day
+  events. The successor had never merged as an attested revision, so it was re-pinned in place
+  with the reason in `attestation.note` (the skill's same-day-amendment allowance) rather than
+  minting a third successor.
+- The successor's register notes said "one day after" and "Unattested until the CEO pins it";
+  both false in the same commit. Corrected.
+- `LL-c0b3d59f58` notes still described a five-line pointer to the superseded addendum;
+  appended the current state.
+- The memo pointer reworded to match and rewrapped to the file's line width.
+- Accepted, not changed: the pre-existing em dash at memo line 272 (touching it would falsify
+  the "only the pointer changed" statement; fix at the memo's next revision); the Notion mirror
+  lags until the publisher runs, which happens right after merge.

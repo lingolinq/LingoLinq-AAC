@@ -7,15 +7,19 @@
 > (`DOC-58b3944cad`, status draft, unattested). The memorandum's substantive content is **not**
 > edited: its bytes are not frozen, so an in-place edit would be permitted, but it is a review
 > record for counsel and the register's `LL-c0b3d59f58` row directs successor-or-addendum
-> handling. The one edit made to it is a header pointer to this addendum, inserted on 2026-09-18
-> under decision item 7 of the attested 2026-09-17 status snapshot (`DOC-f6365ba893`); before that
-> its last revision was PR #969 on 2026-09-15. The memorandum has not been sent to counsel; this
-> addendum accompanies it when it is.
+> handling. The only change to it is a header pointer block, first inserted on 2026-09-18 by
+> PR #1013 naming the 2026-09-17 addendum and retargeted to this addendum the same day by
+> PR #1015, under decision item 7 of the attested 2026-09-17 status snapshot (`DOC-f6365ba893`);
+> before that its last revision was PR #969 on 2026-09-15. The memorandum has not been sent to
+> counsel; this addendum accompanies it when it is.
 >
 > **Supersedes** `docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md`
 > (`DOC-c9c70f5702`, attested 2026-09-18, frozen). That record states that the memorandum is not
 > edited, which was accurate when it was attested and became inaccurate the same day when the
-> pointer landed. This successor carries the accurate statement; nothing else in it changes.
+> pointer landed. This successor carries the accurate statement; nothing in its correction
+> changes. Sequence of the three same-day events, for a reader without the repository: PR #1006
+> attested the predecessor, PR #1013 inserted the memorandum's pointer, PR #1015 carries this
+> successor.
 
 **Date:** 2026-09-18 (successor); original addendum 2026-09-17
 **Owner:** Privacy Office (privacy@lingolinq.com)
