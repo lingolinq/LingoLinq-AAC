@@ -106,3 +106,49 @@ matched. Addressed in the follow-up commit:
   unattested draft, so permitted) or hold until it next changes.
 - Whether the 2026-09-14 posture report gets its own Path A successor for its undated
   "0 Critical" headline row.
+
+## Follow-ups handled 2026-09-18 (second PR, after #1006 merged as `3c6df3c92`)
+
+Scot attested both records in #1006 on 2026-09-18 and then directed the two remaining open
+items. Recommendation given and accepted: no separate Path A successor for the 2026-09-14
+posture report now; fold its "0 Critical" correction into the successor it needs after the Q3
+make-up pass (due 2026-10-09), unless a bundle is about to go to a recipient first.
+
+- **Memo pointer.** A five-line "Addendum (pointer added 2026-09-18)" entry inserted under the
+  header block of `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md`
+  (DOC-58b3944cad, draft, unattested, so an in-place edit is permitted; the attested
+  DOC-f6365ba893 lists this as decision item 7). No other line changed; contentHash re-rendered.
+- **LL-676f91f26b** moved `open` -> `remediated-unverified`, `closureEvidence.sha` = the #944
+  merge commit `df037539f` (an undeclared `prs` key was tried first and dropped on review: no
+  consumer reads it; the Notion sync scrapes PR numbers from prose). Evidence before
+  moving: PR #944 merged to develop 2026-09-06 (`df037539f`) and is on `main`; read-only Cloud Run
+  reads on lingolinq-prod show the web service (revision 00034, created 2026-09-16) and the
+  Resque worker pool (revision 00022), which runs the preview job, both on image
+  `web:57872695e...`; `lib/sentence_pic.rb` at that commit has no backticked shell call. Not
+  re-tested by execution in production. Closure stays the CEO's act.
+- Cross-doc sweep for LL-676f91f26b: only the attested 2026-09-17 snapshot names it as open, a
+  dated point-in-time record that already anticipates this move. No live doc is now false.
+- Open-only headline moves 2C -> 1C; live headline stays 2C / 38H / 94M / 52L.
+
+### Dual review of PR #1013 at `c73999ba0`
+
+Senior-dev: request changes (1 High, 3 Medium, 2 Low). Adversary: ship with conditions (2 High,
+3 Medium, 1 Low). Both independently re-ran the Cloud Run reads and confirmed the deploy
+evidence, the ancestry, the escape coverage in `lib/image_magick_runner.rb`, and that both sinks
+converge on the fixed path. Fixed in the follow-up commit:
+
+- High (both): the pointer's "no other line of this memorandum has changed since 2026-08-30" was
+  false; PR #969 revised section 4 on 2026-09-15. Sentence now names that revision and scopes
+  the claim to this edit.
+- High (adversary): the attested addendum says the memo "is not edited"; true at attestation,
+  false after the pointer. Recorded in the pointer text itself, in `DOC-c9c70f5702` notes, and
+  in `LL-c0b3d59f58` notes. The attested bytes and attestation note are untouched; whether to
+  re-attest the addendum is Scot's call.
+- Medium (both): `lastReviewed` on the memo row restored to 2026-08-30. A pointer is not a
+  review; the stale-review entry is meant to stand until the memo is re-read before it ships.
+- Medium (both): `prs` key removed; `closureEvidence.sha` set to `df037539f`.
+- Medium (senior): `remediation.options` now marks its "NOT merged" clause historical, since the
+  Notion sync renders that field verbatim.
+- Medium (adversary), NOT fixed here, filed as an issue: `scripts/audit-merge.rb` treats only
+  `verified-closed`, `accepted-risk` and `superseded` as regression triggers, so a re-seen
+  `remediated-unverified` row is silently re-anchored instead of flagged.
