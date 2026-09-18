@@ -16,7 +16,7 @@ Key characteristics:
 
 ## Working rules (short form of `CLAUDE.md` Rule #0 and Conventions)
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root cause with evidence, and never break working behaviour. Label facts CONFIRMED (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
-- **Branch first.** Never commit on `develop`, `staging` or `main`. Branch from `develop` as `<type>/<dev>-<kebab-slug>` (types: fix, feat, chore, docs, perf, refactor, test, compliance, security; the launcher's 8-hex token suffix is part of the name; `hotfix/<dev>-<slug>` from `main` only for urgent production fixes; branches opened before 2026-09-16 as `<dev>/<type>/<slug>` keep their names, do not start new ones in that form). PRs target `develop`.
+- **Branch first.** Never commit on `develop`, `staging` or `main`. Branch from `develop` with a developer handle and a type (fix, feat, chore, docs, perf, refactor, test, compliance, security). Scot's branches are always `<type>/scot-<kebab-slug>`, the launcher form, 8-hex token suffix included; teammates use that form or `<dev>/<type>/<slug>`, both accepted. Never rename an existing branch. Type `hotfix` from `main` only for urgent production fixes. PRs target `develop`.
 - **Ruby 3.4.4** (`.ruby-version`) and **Node 22** (`.nvmrc`). No TypeScript conversion.
 - **Styling:** edit the governing SCSS selector in place; never add a higher-specificity override, an override block, or `!important`. Preserve class names.
 - **Refactors** never remove or change functionality.

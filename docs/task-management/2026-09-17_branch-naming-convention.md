@@ -10,8 +10,8 @@ in this log, `scripts/codex-review-chunked-scope.test.py`).
 `CLAUDE.md` (Branching), `AGENTS.md` (Hard rules), `.github/copilot-instructions.md`,
 `CONTRIBUTING.md` (branch table, Branch Naming, Workflow snippets, section 7) and
 `docs/pre-merge-audit-checklist.md` 4.1 now state one form for new branches:
-`<type>/<dev>-<kebab-slug>`, hotfixes `hotfix/<dev>-<slug>`. Branches opened before
-2026-09-16 in the `<dev>/<type>/<slug>` form keep their names through merge.
+Scot's branches are `<type>/scot-<kebab-slug>` (hotfix type `hotfix`); teammates use
+that shape or `<dev>/<type>/<slug>`, both accepted. Existing branches are never renamed.
 
 ## Why
 
@@ -139,8 +139,13 @@ This follow-up is the missing paper trail and red test, not a second glob change
 cases then miss `docs/scot-branch-naming-convention-f3117a76`;
 `test_old_glob_misses_new_scot_form` records that miss as the bug.
 
-## Assumption stated in the PR body
+## Assumption stated in the PR body, and Scot's answer
 
-The team form generalises Scot's decision to every developer handle. The brain plan
+The first revision generalised Scot's decision to every developer handle. The brain plan
 (`outputs/plans/2026-09-16-aac-handoff-brain-items-plan.md`, section 2) named this as
-the assumption to confirm in this PR rather than in the brain.
+the assumption to confirm in this PR. Scot answered on 2026-09-17: the form applies to
+his branches only; teammates are not blocked from naming differently. The five files
+were rewritten so `<type>/scot-<kebab-slug>` is mandatory for Scot, both
+`<type>/<dev>-<slug>` and `<dev>/<type>/<slug>` are accepted for teammates, and no
+"do not start new ones" clause remains. The codex-review glob fix stands: it matches
+both Scot forms and nothing else.

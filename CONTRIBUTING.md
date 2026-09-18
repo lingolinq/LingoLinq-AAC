@@ -11,7 +11,7 @@
 | `main` | lingolinq-prod | Production. Only receives merges from `staging`. |
 | `staging` | lingolinq-staging | Pre-production validation. Merges from `develop`. |
 | `develop` | lingolinq-dev | Integration branch. **All PRs target this branch.** |
-| `type/name-description` | PR Preview (auto) | Individual work. Branched from `develop`. |
+| `type/name-description` or `name/type/description` | PR Preview (auto) | Individual work. Branched from `develop`. |
 
 ## Contributor Access
 
@@ -25,30 +25,37 @@ to `develop`. A core team member will review your PR and may request changes.
 
 ## Branch Naming
 
-Format: `type/name-short-description`
+Every branch carries a developer name and a type. Two shapes are accepted:
+
+- `type/name-short-description` (Scot's branches always use this one; it is the form
+  his isolated launcher generates, with an 8-hex token appended, as in
+  `docs/scot-branch-naming-convention-f3117a76`; the token is part of the name)
+- `name/type/short-description`
+
+Parts:
 
 - `type` -- one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`,
   `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
-  and `release` for a release PR (`release/staging-into-main-<YYYY-MM-DD>`, no handle,
+  and `release` for a release PR (`release/staging-into-main-<YYYY-MM-DD>`, no name,
   date suffix; the one branch type that does not carry a developer name)
 - `name` -- your first name or GitHub username (lowercase)
-- `short-description` -- 2-4 words, kebab-case. Scot's isolated launcher appends an
-  8-hex token (`docs/scot-branch-naming-convention-f3117a76`); it is part of the name.
-  The launcher only offers the nine types above; `hotfix` and `release` branches are
-  created by hand.
+- `short-description` -- 2-4 words, kebab-case
+
+The launcher only offers the nine types above; `hotfix` and `release` branches are
+created by hand. Never rename an existing branch to fit either shape.
 
 Examples:
-- `feat/melissa-add-sso-login`
 - `fix/scot-memory-leak-puma`
-- `chore/dom-update-ember-deps`
+- `feat/melissa-add-sso-login`
+- `melissa/feat/add-sso-login`
+- `dom/chore/update-ember-deps`
 
 The same spec is stated in `CLAUDE.md` (Branching), `AGENTS.md`,
 `.github/copilot-instructions.md` and `docs/pre-merge-audit-checklist.md` section 4.1;
-change all five together. This form was settled on
-2026-09-16. Branches opened before then in the `name/type/description` form keep their
-names through merge, but do not start new ones that way.
+change all five together.
 
-For hotfixes that go directly to prod: `hotfix/name-description`
+For hotfixes that go directly to prod: `hotfix/name-description` or
+`name/hotfix/description`
 
 ## Workflow
 
@@ -118,7 +125,7 @@ After staging has been validated:
 
 For urgent production issues:
 
-1. Branch from `main`: `hotfix/yourname-description`
+1. Branch from `main`: `hotfix/yourname-description` or `yourname/hotfix/description`
 2. Open a PR directly against `main`. **Scot must approve.**
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.

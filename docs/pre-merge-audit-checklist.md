@@ -678,8 +678,8 @@ If any of these questions makes you say "I don't know" or "I haven't thought abo
 **🔴 BLOCK** — Per CLAUDE.md "Branching":
 - Type prefix required: `fix/`, `feat/`, `chore/`, `docs/`, `perf/`, `refactor/`, `test/`, `compliance/`, `security/`; plus `hotfix/` for the production hotfix flow and `release/` for a release PR
 - Developer handle: `melissa`, `scot`, `traci`, `dominic`, etc.
-- Form: `<type>/<dev>-<kebab-description>`, optionally followed by the launcher's `-<8-hex-token>`; release branches carry no handle (`release/staging-into-main-<YYYY-MM-DD>`)
-- Branches opened before 2026-09-16 as `<dev>/<type>/<kebab-description>` keep their names; do not rename them and do not start new ones in that form
+- Form: Scot's branches are always `<type>/scot-<kebab-description>`, optionally followed by the launcher's `-<8-hex-token>`. Teammates use `<type>/<dev>-<kebab-description>` or `<dev>/<type>/<kebab-description>`; both pass. Release branches carry no handle (`release/staging-into-main-<YYYY-MM-DD>`)
+- Never rename an existing branch to fit either shape
 
 ```bash
 git branch --show-current
