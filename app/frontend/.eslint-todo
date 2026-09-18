@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-18T01:27:37.544Z
+# Generated: 2026-09-18T19:37:50.928Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -874,20 +874,20 @@ app/utils/board_detail_cache.js|ember/no-runloop|936|5|2|5addc2170315
 app/utils/button.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|48|7|1|ee0d86881397
 app/utils/button.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|60|5|1|ee0d86881397
 app/utils/button.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|62|5|1|ee0d86881397
-app/utils/button.js|ember/no-runloop|1361|9|2|5addc2170315
-app/utils/button.js|ember/no-runloop|1375|11|2|5addc2170315
-app/utils/button.js|ember/no-runloop|1426|11|2|5addc2170315
-app/utils/button.js|ember/no-runloop|1444|11|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2140|13|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2150|13|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2223|15|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2228|15|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2232|9|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1363|9|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1377|11|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1428|11|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1446|11|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2142|13|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2152|13|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2225|15|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2230|15|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2234|9|2|5addc2170315
 app/utils/button.js|ember/require-computed-property-dependencies|140|17|1|a3cf97859aa8
 app/utils/button.js|ember/require-computed-property-dependencies|143|17|1|195b4a1c47a1
 app/utils/button.js|ember/require-computed-property-dependencies|146|15|1|d70890a766a0
 app/utils/button.js|ember/require-computed-property-dependencies|376|14|1|13cb79c14252
-app/utils/button.js|no-prototype-builtins|872|17|1|796a0e9769cd
+app/utils/button.js|no-prototype-builtins|874|17|1|796a0e9769cd
 app/utils/copy_hierarchy_loader.js|ember/no-runloop|23|9|2|513c0395fe72
 app/utils/copy_hierarchy_loader.js|ember/no-runloop|83|20|2|b7a9757b024f
 app/utils/edit_manager.js|ember/no-runloop|1186|13|2|5addc2170315

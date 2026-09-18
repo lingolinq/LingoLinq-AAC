@@ -543,7 +543,7 @@ var Button = EmberObject.extend({
     }
     if(this.sound_id && this.sound_url && persistence.url_cache && persistence.url_cache[this.sound_url] && (!persistence.url_uncache || !persistence.url_uncache[this.sound_url])) {
     } else if(this.sound_id && !this.get('sound')) {
-      var rec = LingoLinq.store.peekRecord('sound', this.sound_id);
+      var rec = LingoLinq.store.peekRecord('sound', String(this.sound_id));
       if(!rec || !rec.get('isLoaded')) { /* console.log("missing sound for", this.get('label')); */ return false; }
     }
     return true;
@@ -665,7 +665,9 @@ var Button = EmberObject.extend({
   load_sound: function(preference) {
     var _this = this;
     if(!_this.sound_id) { return RSVP.resolve(); }
-    var sound = LingoLinq.store.peekRecord('sound', _this.sound_id);
+    // Ember Data 5 requires string ids; Capacitor/JSON sound_id may be numeric.
+    var soundId = String(_this.sound_id);
+    var sound = LingoLinq.store.peekRecord('sound', soundId);
     if(sound && (!sound.get('isLoaded') || !sound.get('best_url'))) { sound = null; }
     _this.set('sound', sound);
     var check_sound = function(sound) {
@@ -687,7 +689,7 @@ var Button = EmberObject.extend({
         var snd = LingoLinq.store.createRecord('sound', {
           url: mapped_sound_url
         })
-        snd.set('id', _this.sound_id);
+        snd.set('id', soundId);
         snd.set('incomplete', true);
         _this.set('sound', snd);
         return check_sound(snd);
@@ -697,15 +699,15 @@ var Button = EmberObject.extend({
       } else if(preference == 'local') {
         return RSVP.reject('no sound lookups');
       } else {
-        return LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        return LingoLinq.store.findRecord('sound', soundId).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
         }, function(err) {
           if(mapped_sound_url) {
-            var fallback = LingoLinq.store.peekRecord('sound', _this.sound_id);
+            var fallback = LingoLinq.store.peekRecord('sound', soundId);
             if(!fallback) {
               fallback = LingoLinq.store.createRecord('sound', { url: mapped_sound_url });
-              fallback.set('id', _this.sound_id);
+              fallback.set('id', soundId);
               fallback.set('incomplete', true);
             }
             _this.set('sound', fallback);
