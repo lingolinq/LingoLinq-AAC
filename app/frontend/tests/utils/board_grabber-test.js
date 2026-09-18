@@ -96,6 +96,28 @@ describe('boardGrabber', function() {
         expect(controller.get('linkedBoardName')).toEqual(null);
       });
     });
+    it('should use the exact board if found by a URL on a different host', function() {
+      var called = null;
+      stub(editManager, 'change_button', function(id, args) {
+        called = !!(id == 1234 && args.load_board.key == 'hippo' && args.load_board.id == '123');
+        expect(called).toEqual(true);
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        query: {public: true, key: "lingolinq/vocal-flair-84-questions"},
+        response: RSVP.resolve({board: [{id: '123', key: 'hippo'}]})
+      });
+      controller.set('linkedBoardName', 'https://app.lingolinq.com/lingolinq/vocal-flair-84-questions');
+      boardGrabber.setup(null, controller);
+      boardGrabber.find_board();
+
+      waitsFor(function() { return called != null; }, 'too slow', 1000);
+      runs(function() {
+        expect(called).toEqual(true);
+        expect(controller.get('foundBoards.results')).toEqual(null);
+      });
+    });
     it('should show search results if no exact board found', function() {
       queryLog.defineFixture({
         method: 'GET',
