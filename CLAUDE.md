@@ -75,9 +75,8 @@ everything else in this file.
 - **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
   `refactor`, `test`, `compliance`, `security`). Scot's branches are always
   `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
-  (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form
-  (`fix/melissa-sidebar-actions`) or `<dev>/<type>/<slug>`; both are accepted. Never
-  rename an existing branch to fit either shape.
+  (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
+  `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` with
   type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
   approves), and is merged back to `develop` immediately afterwards. Hotfix and release
