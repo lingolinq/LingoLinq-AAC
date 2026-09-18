@@ -4,11 +4,11 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-09-15 | Documents: 105 (git 72 / drive 29 / notion 4)
+> Generated: 2026-09-15 | Documents: 107 (git 74 / drive 29 / notion 4)
 
 ## Headline
 
-- **Status:** draft 16, approved 15, published 41, superseded 33
+- **Status:** draft 16, approved 16, published 41, superseded 34
 - **Overdue for review** (as of 2026-09-15): Incident Log (2026-08-27); EU AI Act Article 50 Transparency: Implementation Milestone Plan (2026-08-02)
 - **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); COPPA Final Rule Code Verification (2026-09-17 successor); COPPA Final-Rule Verification (branded, 2026-07-23 regeneration); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-25 successor); AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Article 50(1) Disclosure - Production Feature-Flag Verification; AI Governance Memo (2026-08-24 successor); Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft); Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)
 
@@ -40,7 +40,7 @@
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
 
-### legal (26)
+### legal (27)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -65,6 +65,7 @@
 | Compliance Posture Report (branded, 2026-07-16 re-attest) | Drive | [open](https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit) | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | school-dpa-package, security-review |
 | Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-22 | 2026-08-04 | `72070eb8e84a` | compliance-records-set-2026-06 |
 | Compliance Program (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program_draft.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-08-09 | no | `7bf31eae81de` |  |
+| Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-17) | git | `docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md` | approved | SOC2, HIPAA, FERPA | Scot Wahlquist | 2026-09-18 | 2026-11-30 | 2026-09-18 | `821589249f54` |  |
 | LingoLinq Security, Privacy & Compliance Overview | git | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-22 | 2026-08-04 | `63205ea1780c` |  |
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-30 | 2027-07-22 | no | `6fa69283b9fa` | security-review |
 | Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft) | git | `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` | draft | HIPAA, FERPA, COPPA, GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-30 | 2026-11-30 | no | `3ce82beec52f` |  |
@@ -92,7 +93,7 @@
 | Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` | draft | GDPR, FERPA, HIPAA, COPPA, SOC2 | Scot Wahlquist |  |  | no | `86ab2195d0a4` |  |
 | Security Risk Assessment 2026 Q2 | Drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 
-### audit-artifact (20)
+### audit-artifact (21)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -107,7 +108,8 @@
 | Compliance Status Snapshot (2026-06-18) | git | `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` | superseded |  | Scot Wahlquist | 2026-06-18 |  | no | `155c8a1a6102` |  |
 | Compliance Status Snapshot (2026-08-09) | git | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | superseded |  | Scot Wahlquist | 2026-08-20 |  | 2026-08-20 | `7703f09ffae7` |  |
 | Compliance Status Snapshot (2026-08-22) | git | `docs/legal/2026-08-22_compliance-status-snapshot.md` | superseded |  | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `6c80055d174c` |  |
-| Compliance Status Snapshot (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-status-snapshot.md` | approved |  | Scot Wahlquist | 2026-09-14 | 2026-11-22 | 2026-09-16 | `ae2494e951f1` |  |
+| Compliance Status Snapshot (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-status-snapshot.md` | superseded |  | Scot Wahlquist | 2026-09-14 | 2026-11-22 | 2026-09-16 | `ae2494e951f1` |  |
+| Compliance Status Snapshot (2026-09-17 successor) | git | `docs/legal/2026-09-17_compliance-status-snapshot.md` | approved |  | Scot Wahlquist | 2026-09-18 | 2026-11-26 | 2026-09-18 | `572053649fc5` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `cadf80612118` |  |
@@ -246,13 +248,13 @@ What a federal or foundation grant application needs from the compliance library
 | `executed-agreement` | term + 7 years | contract-end | archive | 10 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
-| `policy-version` | supersession + 7 years | superseded | archive | 56 |
+| `policy-version` | supersession + 7 years | superseded | archive | 57 |
 | `audit-evidence` | 7 years | finding-closed | archive | 21 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
 | `questionnaire-response` | 3 years | sent | delete | 0 |
 | `superseded-draft` | 1 year | superseded | delete | 0 |
-| `working-note` | 90 days | created | delete | 3 |
+| `working-note` | 90 days | created | delete | 4 |
 | `operational-config` | retain while in use; supersession + 1 year | superseded | archive | 15 |
 
 **Inferred classes needing counsel review (23):** these were derived from type and
@@ -314,7 +316,9 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | Compliance Program | 2026-08-04 | `72070eb8e84a` | verified |
 | Compliance Status Snapshot (2026-08-09) | 2026-08-20 | `7703f09ffae7` | verified |
 | Compliance Status Snapshot (2026-09-14 successor) | 2026-09-16 | `ae2494e951f1` | verified |
+| Compliance Status Snapshot (2026-09-17 successor) | 2026-09-18 | `572053649fc5` | verified |
 | COPPA Final-Rule Verification | 2026-07-23 | `35a6298e2df5` | verified |
+| Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-17) | 2026-09-18 | `821589249f54` | verified |
 | Data Retention Schedule | 2026-07-23 | `0c748cadd744` | verified |
 | Data Retention Schedule (2026-09-14 successor) | 2026-09-16 | `4410639ac678` | verified |
 | GCP BAA Acceptance Record (2026-09-14 successor) | 2026-09-15 | `16cd22bd731f` | verified |
@@ -359,6 +363,7 @@ frozen point-in-time binder. Only the pointer is added.
 | Compliance Program (2026-08-09 draft) (`DOC-73a80fc88d`) | Compliance & Security Program (`DOC-5a4b795792`) | (none) |
 | Compliance Status Snapshot (2026-08-09) (`DOC-3468caf949`) | Compliance Status Snapshot (2026-08-22) (`DOC-af01c65b10`) | (none) |
 | Compliance Status Snapshot (2026-08-22) (`DOC-af01c65b10`) | Compliance Status Snapshot (2026-09-14 successor) (`DOC-39e71c72ee`) | (none) |
+| Compliance Status Snapshot (2026-09-14 successor) (`DOC-39e71c72ee`) | Compliance Status Snapshot (2026-09-17 successor) (`DOC-f6365ba893`) | (none) |
 | COPPA Final-Rule Verification (`DOC-407d2c2bf4`) | COPPA Final Rule Code Verification (2026-09-17 successor) (`DOC-c658279924`) | school-dpa-package |
 | COPPA Final-Rule Verification (branded) (`DOC-509843e543`) | COPPA Final-Rule Verification (branded, 2026-07-23 regeneration) (`DOC-7a7c5282d8`) | compliance-records-set-2026-06, school-dpa-package |
 | Data Retention Schedule (`DOC-bff9acf51f`) | Data Retention Schedule (2026-08-09 draft) (`DOC-e62caf7fb9`) | (none) |
@@ -373,4 +378,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_105 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_107 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
