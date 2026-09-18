@@ -17,11 +17,13 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   cause with evidence, and never break working behaviour. Label facts CONFIRMED
   (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
 - **Branch first.** Never edit on `develop`, `staging` or `main`. Branch from `develop`
-  as `<dev>/<type>/<kebab-slug>` (types: fix, feat, chore, docs, perf, refactor, test,
-  compliance, security; `hotfix` from `main` only for urgent production fixes, merged
-  back to `develop`). PRs target `develop`; `develop` promotes to `staging` from a
-  freeze branch (`release/develop-into-staging-YYYY-MM-DD`), then a release PR goes
-  `staging` to `main`.
+  with a developer handle and a type (fix, feat, chore, docs, perf, refactor, test,
+  compliance, security). Scot's branches are always `<type>/scot-<kebab-slug>`, the
+  launcher form; its 8-hex token suffix is part of the name. Teammates use that form or
+  `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch. Type
+  `hotfix` from `main` only for urgent production fixes, merged back to `develop`. PRs
+  target `develop`; `develop` promotes to `staging` from a freeze branch
+  (`release/develop-into-staging-YYYY-MM-DD`), then a release PR goes `staging` to `main`.
 - **i18n and quotes.** No raw user-facing text. Templates use
   `{{t "text" key='key'}}`, JS uses `i18n.t('key', "text")`. User-facing strings take
   double quotes; every other string takes single quotes (the generator depends on it).

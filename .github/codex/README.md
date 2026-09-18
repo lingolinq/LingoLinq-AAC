@@ -74,7 +74,8 @@ author's PRs.
 
 - `all` enables chunked evidence for every Codex-routed PR.
 - `scot` enables chunked evidence only when the PR author is `swahlquist` or the
-  head branch starts with `scot/`.
+  head branch is Scot-owned: `<type>/scot-<slug>` (the form since 2026-09-16) or the
+  older `scot/<type>/<slug>`.
 - `none`, `off`, or `bounded` force the bounded path.
 - any unknown value fails safe to the bounded path.
 

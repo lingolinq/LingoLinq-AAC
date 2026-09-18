@@ -70,15 +70,17 @@ everything else in this file.
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work: `git checkout develop && git pull && git checkout -b <dev>/<type>/<slug>`.
+  regular work: `git checkout develop && git pull && git checkout -b <new-branch>`.
   Prefer an isolated worktree when other sessions share the checkout.
-- **Name:** `<developer>/<type>/<kebab-slug>`, for example `melissa/fix/sidebar-actions`,
-  `scot/chore/staging-slow-queue-capacity`. `<type>` is one of `fix`, `feat`, `chore`,
-  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The older
-  `<type>/<dev>-<slug>` form may finish through merge; do not start new branches in it.
-- **Hotfixes are the one exception:** an urgent production fix branches from `main` as
-  `<dev>/hotfix/<slug>`, opens a PR directly against `main` (Scot approves), and is merged
-  back to `develop` immediately afterwards. See `CONTRIBUTING.md`.
+- **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
+  `refactor`, `test`, `compliance`, `security`). Scot's branches are always
+  `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
+  (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
+  `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
+- **Hotfixes are the one exception:** an urgent production fix branches from `main` with
+  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
+  approves), and is merged back to `develop` immediately afterwards. Hotfix and release
+  branches are made by hand, not by the launcher. See `CONTRIBUTING.md`.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
