@@ -82,8 +82,9 @@ everything else in this file.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
-- **Flow:** PRs target `develop`; `develop` promotes to `staging`; a release PR goes from
-  `staging` to `main`, which deploys to production after approval.
+- **Flow:** PRs target `develop`; `develop` promotes to `staging` from a freeze branch
+  (`release/develop-into-staging-YYYY-MM-DD`), not from live `develop`; a release PR goes
+  from `staging` to `main`, which deploys to production after approval.
 - Date suffixes are only for time-bound recovery or release branches.
 
 ## Project overview
