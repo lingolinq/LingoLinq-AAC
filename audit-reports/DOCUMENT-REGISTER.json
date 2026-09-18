@@ -3948,15 +3948,20 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "SOC2",
         "HIPAA",
         "FERPA"
       ],
-      "lastReviewed": "2026-09-17",
+      "lastReviewed": "2026-09-18",
       "nextReviewDue": "2026-11-30",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-18",
+        "attestedContentHash": "821589249f542d2b9fc8fca399751fc59b9142ea0ad158487485c66946f047a5",
+        "note": "First attestation. Addendum to DOC-58b3944cad (draft, unattested, bytes unchanged); supersedes nothing. Scope of this pin: gap row 19 of the memorandum's section 14 records LL-b7ccc522b9 and LL-c0b3d59f58 as both verified closed on the 2026-08-29 read; LL-b7ccc522b9 remains verified-closed and LL-c0b3d59f58's closure was retracted 2026-09-17 (open at High, regression). Verified before attesting: both finding rows read from audit-reports/FINDINGS.json at develop 5fad91373 on 2026-09-18, byte-identical to d76081fe9; the memorandum row quoted from line 795. Changes no question put to counsel. Not legal advice. Review date aligned to the memorandum's."
+      },
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3967,9 +3972,9 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "notes": "Created 2026-09-17 as an addendum, not a successor: it supersedes nothing and DOC-58b3944cad stays the live draft memorandum with its bytes unchanged. Exists because the register's LL-c0b3d59f58 row directs that the two records naming it verified-closed be handled by successor or addendum, never by in-place edit. Rides the memorandum's review cycle (nextReviewDue aligned to DOC-58b3944cad). Remediation-state statements are minimized under the security disclosure policy and were confirmed by a read-only IAM policy read on 2026-09-17. Unattested draft; only the CEO attests.",
+      "notes": "Created 2026-09-17 as an addendum, not a successor: it supersedes nothing and DOC-58b3944cad stays the live draft memorandum with its bytes unchanged. Exists because the register's LL-c0b3d59f58 row directs that the two records naming it verified-closed be handled by successor or addendum, never by in-place edit. Rides the memorandum's review cycle (nextReviewDue aligned to DOC-58b3944cad). Remediation-state statements are minimized under the security disclosure policy and were confirmed by a read-only IAM policy read on 2026-09-17. ATTESTED 2026-09-18 by the CEO on PR #1006 after the dual review; the pin covers the attested banner and attestation table in the file.",
       "id": "DOC-c9c70f5702",
-      "contentHash": "aab0c333a8201700643441773c6e6fa9d5960762c4cae4125b8d5bb92f62bf33"
+      "contentHash": "821589249f542d2b9fc8fca399751fc59b9142ea0ad158487485c66946f047a5"
     },
     {
       "title": "Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)",
@@ -4362,14 +4367,19 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-17_compliance-status-snapshot.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [],
-      "lastReviewed": "2026-09-17",
-      "nextReviewDue": "2026-11-25",
-      "attestation": {},
+      "lastReviewed": "2026-09-18",
+      "nextReviewDue": "2026-11-26",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-18",
+        "attestedContentHash": "572053649fc5436f3d1435a6ad6fb237d922294af28647586d7ffe1a70adc8f4",
+        "note": "Path A successor to DOC-39e71c72ee (2026-09-14_compliance-status-snapshot.md), frozen. First attestation of this successor. Scope of this pin: the retraction of the LL-c0b3d59f58 closure (reopened at High 2026-09-17, regression), the headline restated at the Q3 2026 audit state with both counting conventions, the statement that the 0-open-Critical gating metric is not met (LL-1baffd92d5, LL-676f91f26b), the rebuilt live Critical/High and framework tables, and correction 6 naming the attested 2026-09-14 posture report's undated 'Live Critical findings: 0' row as not current. Verified before attesting: every count re-derived from audit-reports/FINDINGS.json at develop d76081fe9 and confirmed byte-identical at develop 5fad91373 on 2026-09-18; citation-check PASS 234 / FAIL 0 / SKIP 17; PR #944 merge state checked; LL-c0b3d59f58 remediation state confirmed by a read-only IAM policy read on 2026-09-17. Dual-reviewed on PR #1006, where both passes re-derived the counts and matched. Review interval rebased from the predecessor (69 days from 2026-09-18). This attestation closes, downgrades or supersedes no finding."
+      },
       "bundles": [],
       "mirrors": [],
-      "notes": "Created 2026-09-17 to correct the retracted closure of LL-c0b3d59f58 without editing the attested predecessor DOC-39e71c72ee (frozen). Every count and finding id was re-derived programmatically from audit-reports/FINDINGS.json at develop d76081fe9; citation-check PASS 234 / FAIL 0 / SKIP 17 on that commit. Corrections beyond the retraction: the 0-open-Critical gating metric is not met (LL-1baffd92d5, LL-676f91f26b), the live-High table and framework table are rebuilt at this date, and the quarterly full run is recorded as executed 2026-09-16 with a PARTIAL COVERAGE qualifier and a make-up pass due 2026-10-09. Remediation-state statements for LL-c0b3d59f58 were confirmed by a read-only IAM policy read on 2026-09-17 and are minimized under the security disclosure policy. Review interval rebased from the predecessor (69 days). Unattested draft: only the CEO attests, and this successor closes, downgrades or supersedes no finding.",
+      "notes": "Created 2026-09-17 to correct the retracted closure of LL-c0b3d59f58 without editing the attested predecessor DOC-39e71c72ee (frozen). Every count and finding id was re-derived programmatically from audit-reports/FINDINGS.json at develop d76081fe9; citation-check PASS 234 / FAIL 0 / SKIP 17 on that commit. Corrections beyond the retraction: the 0-open-Critical gating metric is not met (LL-1baffd92d5, LL-676f91f26b), the live-High table and framework table are rebuilt at this date, and the quarterly full run is recorded as executed 2026-09-16 with a PARTIAL COVERAGE qualifier and a make-up pass due 2026-10-09. Remediation-state statements for LL-c0b3d59f58 were confirmed by a read-only IAM policy read on 2026-09-17 and are minimized under the security disclosure policy. Review interval rebased from the predecessor (69 days). ATTESTED 2026-09-18 by the CEO on PR #1006 after the dual review; the pin covers the attested banner and attestation table in the file. This successor closes, downgrades or supersedes no finding.",
       "id": "DOC-f6365ba893",
       "retention": {
         "class": "working-note",
@@ -4380,7 +4390,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-39e71c72ee",
-      "contentHash": "5aebe281c9480a82a024dafdd9aa3717e058ae41a488bf95697ff082a4f48b7f"
+      "contentHash": "572053649fc5436f3d1435a6ad6fb237d922294af28647586d7ffe1a70adc8f4"
     }
   ]
 }

@@ -1,8 +1,9 @@
 # LingoLinq Compliance Status Snapshot
 
-> # DRAFT - NOT YET ATTESTED
+> # ATTESTED 2026-09-18 BY SCOT WAHLQUIST, CEO
 >
-> **This successor carries NO attestation of its own.** It supersedes
+> **Attested as true at develop `5fad91373` on 2026-09-18** (register byte-identical to
+> `d76081fe9`, where every count below was derived). It supersedes
 > `docs/legal/2026-09-14_compliance-status-snapshot.md` (`DOC-39e71c72ee`, ATTESTED 2026-09-16 by
 > Scot Wahlquist, CEO), which remains frozen and byte-identical and was accurate for its date.
 >
@@ -22,7 +23,7 @@ decommission successor 2026-09-14 (attested 2026-09-16).
 (audited SHA `a43867de5`, audit date 2026-09-16, recorded in `audit-reports/run-log/runs.jsonl`)
 added 35 findings and flagged one regression, `LL-c0b3d59f58`, which the predecessor and one other
 record state as closed.
-**Status:** DRAFT - awaiting attestation. Successor via Path A supersession to
+**Status:** ATTESTED 2026-09-18 by Scot Wahlquist, CEO. Successor via Path A supersession to
 `docs/legal/2026-09-14_compliance-status-snapshot.md` (`DOC-39e71c72ee`), frozen.
 **Derivation:** headline counts are re-derived from `audit-reports/FINDINGS.json` as committed at
 the Q3 audit merge (PR #996, develop `853662aa5`) and re-verified against develop `d76081fe9` on
@@ -246,8 +247,8 @@ customer-facing document.
 |---|---|
 | Prepared by | Drafted by Claude Code (Opus 5) on 2026-09-17 on the CEO's instruction to correct the retracted closure without editing attested records; corrected and re-derived against develop `d76081fe9` by Claude Code (Fable 5.1) the same day |
 | Reviewed by | Counts and every finding id in this document derived programmatically from `audit-reports/FINDINGS.json` at develop `d76081fe9` (2026-09-17); `citation-check.rb` green at PASS 234 / FAIL 0 / SKIP 17 on that commit; the `LL-c0b3d59f58` remediation state confirmed by a read-only IAM policy read on 2026-09-17 |
-| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
-| Attestation date | pending |
+| Attested by | Scot Wahlquist, CEO |
+| Attestation date | 2026-09-18 |
 
 _Internal status snapshot. Headline counts are read from the register; every other audit-report
 file is a point-in-time snapshot and is not authoritative for status. Only Scot closes findings

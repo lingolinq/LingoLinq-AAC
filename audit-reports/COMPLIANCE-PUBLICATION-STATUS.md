@@ -226,7 +226,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-35 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+37 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 

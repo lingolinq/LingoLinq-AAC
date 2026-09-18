@@ -1,6 +1,6 @@
 # Addendum: Counsel Review Memorandum, retracted finding closure
 
-> # DRAFT - NOT ATTESTED. NOT LEGAL ADVICE.
+> # ATTESTED 2026-09-18 BY SCOT WAHLQUIST, CEO. NOT LEGAL ADVICE.
 >
 > This addendum belongs to
 > `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md`
@@ -12,7 +12,7 @@
 **Date:** 2026-09-17
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Applies to:** `DOC-58b3944cad`, section 14 ("What the proposed policy would require us to build"), gap row 19, `Register` column
-**Status:** draft, unattested. Only the CEO attests.
+**Status:** attested 2026-09-18 by Scot Wahlquist, CEO. The memorandum it belongs to remains a draft.
 
 ---
 
@@ -85,5 +85,5 @@ withdrawn, added, or renumbered by this addendum.
 | Field | Value |
 |---|---|
 | Prepared by | Drafted by Claude Code (Opus 5), 2026-09-17; verified against the register at develop `d76081fe9` and a read-only IAM policy read by Claude Code (Fable 5.1) the same day |
-| Attested by | NOT ATTESTED - awaiting Scot Wahlquist, CEO |
-| Attestation date | pending |
+| Attested by | Scot Wahlquist, CEO |
+| Attestation date | 2026-09-18 |
