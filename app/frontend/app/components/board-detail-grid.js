@@ -197,18 +197,45 @@ export default Component.extend({
     return false;
   }),
 
-  categoryOrder: computed('app_state.referenced_user.preferences.board_category_grouping.order', function() {
-    return normalize_order(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
-  }),
+  /* The order THIS board is drawn in. PASSED IN as `@categoryOrder`: the controller
+     resolves it (`board_category_settings` -- the board's own entry when it has one, the
+     account default otherwise) and the Categorize panel and the move arrows read that same
+     resolution, so all three agree about which board they are describing. Exactly the
+     reasoning given for `categoryEnabled` above; this computed used to resolve the order
+     itself from the ACCOUNT-WIDE preference, which meant a per-board order never reached
+     the rendered board at all.
+
+     Category order is PER BOARD (requested 2026-09-18) so each board can be arranged
+     independently. The account-wide value is only a fallback now.
+
+     DELIBERATELY NOT NAMED `categoryOrder`. This is a classic component, so `@categoryOrder`
+     is SET on the instance at create time, and setting a getter-only computed of the same
+     name throws "Cannot override the computed property" -- which is what adding the argument
+     to the template alone would have done. The argument keeps the plain name and the
+     resolution lives here, matching how `categoryEnabled` and `forceGrouping` are handled.
+
+     An absent or EMPTY argument falls back rather than rendering no categories:
+     demo/speak.hbs mounts this component without one, and a board entry written before
+     ordering existed carries no `order` key. Pinned by
+     tests/unit/components/board-detail-grid-category-order-test.js. */
+  resolvedCategoryOrder: computed(
+    'categoryOrder',
+    'app_state.referenced_user.preferences.board_category_grouping.order',
+    function() {
+      var passed = this.get('categoryOrder');
+      if(passed && passed.length) { return normalize_order(passed); }
+      return normalize_order(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
+    }
+  ),
 
   /*
    * Panels, in the user's order, built from the SAME `orderedButtons` the
    * ungrouped grid renders -- grouping is a re-presentation of the existing
    * array, never a second source of buttons. Empty categories are omitted.
    */
-  categoryGroups: computed('orderedButtons', 'categoryOrder', 'groupingEnabled', function() {
+  categoryGroups: computed('orderedButtons', 'resolvedCategoryOrder', 'groupingEnabled', function() {
     if(!this.get('groupingEnabled')) { return []; }
-    var groups = group_buttons(this.get('orderedButtons') || [], this.get('categoryOrder')) || [];
+    var groups = group_buttons(this.get('orderedButtons') || [], this.get('resolvedCategoryOrder')) || [];
     /* `each_key` is the {{#each}} key for the group loop — see the note on renderGroups.
        Category keys are already unique within a board (they come from normalize_order),
        so prefixing is only to keep them in one namespace with the ungrouped rows. */

@@ -11,11 +11,19 @@
          that each one suits a different amount of room, which is a question about the
          viewport and not about the user.
 
-         ONLY THE RENDER SITE IS REMOVED. components/boards-layout-toggle.js, its
-         `boards_layout` preference, utils/boards_layout_state.js and the
-         `boards_side_by_side_layout` flag are all left in place — nothing mounts the
-         component, so nothing writes the attribute and no rule reads it. Retiring that
-         plumbing touches a server-side preference constraint and is a separate change. --}}
+         THE FLAG IS NOW RETIRED TOO (2026-09-18). `boards_side_by_side_layout` is gone from
+         both lists in lib/feature_flags.rb: the arrangement is an inherent part of the page,
+         not a feature to gate, so registering it would advertise a control that no longer
+         exists. See spec/lib/feature_flags_spec.rb "boards_side_by_side_layout (retired)".
+
+         THE PLUMBING IS STILL IN PLACE, deliberately: components/boards-layout-toggle.js
+         (mounted by nothing, so nothing writes `data-boards-layout` and no rule reads it),
+         the `boards_layout` preference and sanitize_boards_layout_preference! in
+         app/models/user.rb, and utils/boards_layout_state.js. A stored preference is inert.
+         Retiring that plumbing touches a server-side preference constraint and is a separate
+         change. Note when you do: boards_layout_state is NOT dead. Its clearStoredLayout is
+         called from services/app-state.js on session teardown so a shared school or clinic
+         device does not leak one user's arrangement to the next person who signs in. --}}
     <UserPillNav @active="boards" @userName={{this.model.user_name}} />
 
 <div class="ub-boards-page ub-boards-page--split ub-boards-page--below-dashboard-pills">

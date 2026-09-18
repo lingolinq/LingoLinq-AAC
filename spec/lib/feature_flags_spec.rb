@@ -247,7 +247,6 @@ describe FeatureFlags do
     # This is an INVENTORY, not an endorsement. Shrinking it is the goal.
     TEMPORARY_FORCED_ON = [
       'board_category_grouping',
-      'boards_side_by_side_layout',
       'customize_menu',
       'dashboard_drag_layout',
       'edit_sidebar',
@@ -255,7 +254,8 @@ describe FeatureFlags do
       'sentence_bar_editing',
       'session_resume',
       'supervising_context_banner',
-      'supervisor_consent_flow'
+      'supervisor_consent_flow',
+      'updates_pill'
     ].freeze
 
     # Parsed from the source rather than hand-listed a second time: a hand-copied mirror is
@@ -300,8 +300,8 @@ describe FeatureFlags do
   end
 
   describe "home_tour" do
-    # INVERTED TRIPWIRE. boards_side_by_side_layout and board_category_grouping below are
-    # pinned so that REMOVING them from ENABLED fails and reminds you to gate the rollout.
+    # INVERTED TRIPWIRE. board_category_grouping below is pinned so that REMOVING it from
+    # ENABLED fails and reminds you to gate the rollout.
     # This one is the opposite: the guided tour is the ONBOARDING PATH now, so removing it
     # from ENABLED is the breaking change.
     #
@@ -337,27 +337,41 @@ describe FeatureFlags do
     end
   end
 
-  describe "boards_side_by_side_layout" do
-    # TRIPWIRE, not a preference. This flag is TEMPORARILY forced on for everyone
-    # (2026-08-16) so the Boards-page layout selector is visible for design comparison
-    # without a per-user opt-in. Turning it off before production go-live means REMOVING
-    # it from ENABLED_FRONTEND_FEATURES — at which point the second expectation below
-    # fails and this spec must be updated to the "available but OFF by default" shape
-    # used by compliance_workflow_kernel above. The failure is the reminder.
-    it "is registered as available" do
-      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
+  describe "boards_side_by_side_layout (retired)" do
+    # The Boards page is side-by-side wherever there is room for two columns and stacked
+    # where there is not. That is decided by one media query in app/frontend/app/styles/app.scss
+    # (`@media (max-width: 900px)` on the split rule), not by a flag and not by the user.
+    # The layout selector's render site came out on 2026-09-14 and the arrangement became an
+    # inherent part of the page on 2026-09-18, so this flag gates nothing.
+    #
+    # This REPLACES a tripwire that pinned the flag into BOTH lists. That tripwire allowed for
+    # exactly one future: "remove from ENABLED, then rewrite this spec to the available-but-OFF
+    # shape". The actual outcome was a third one, that the flag should not exist at all.
+    # Registering it again would advertise a control the page no longer has, so both lists are
+    # asserted negative rather than the spec being reshaped.
+    #
+    # The plumbing is deliberately LEFT IN PLACE and is not what this spec guards:
+    # components/boards-layout-toggle.js (mounted by nothing), the `boards_layout` preference
+    # and sanitize_boards_layout_preference! in app/models/user.rb, and
+    # utils/boards_layout_state.js. Note that boards_layout_state is NOT dead: its
+    # clearStoredLayout is called from services/app-state.js on session teardown so a shared
+    # school or clinic device does not leak one user's arrangement to the next person who
+    # signs in. Retiring that plumbing is a separate, consented change.
+    it "is not registered as available" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).not_to include('boards_side_by_side_layout')
     end
 
-    it "is currently forced ON for everyone — remove from ENABLED before go-live" do
-      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
+    it "is not forced ON for everyone" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('boards_side_by_side_layout')
     end
   end
 
   describe "board_category_grouping" do
-    # Same TRIPWIRE shape as boards_side_by_side_layout above, and this is the flag that
-    # actually needs it: turning grouping on MOVES vocabulary out of the cells a user has
-    # built positional motor memory on. It previously had no spec at all, which is how a
-    # default of `enabled => true` reached the branch unnoticed.
+    # TRIPWIRE, and this is the flag that actually needs one: turning grouping on MOVES
+    # vocabulary out of the cells a user has built positional motor memory on. It previously
+    # had no spec at all, which is how a default of `enabled => true` reached the branch
+    # unnoticed. (boards_side_by_side_layout used to carry the same shape; it was retired
+    # on 2026-09-18 rather than gated, so its block above asserts absence instead.)
     it "is registered as available" do
       expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('board_category_grouping')
     end

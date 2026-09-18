@@ -2147,6 +2147,11 @@
         {{!-- Both are already ANDed with grouping_active in the controller, so they are
              inert on an ungrouped board. --}}
         @categoryEnabled={{this.categorize_enabled}}
+        {{!-- PER-BOARD category order. Resolved once in the controller
+             (`board_category_settings`) and passed in, so the grid, the Categorize panel and
+             the move arrows all describe the same board. The grid used to read the
+             account-wide order itself, which no per-board order could ever reach. --}}
+        @categoryOrder={{this.board_category_settings.order}}
         @showCategoryNames={{this.show_category_names}}
         @categoryScrollEnabled={{this.category_scroll_enabled}}
         @softBorders={{this.soft_borders}}
@@ -4018,6 +4023,9 @@
             {{!-- The preview must show what SHIPS, including whether category names
                  render — that is the whole point of a live preview. --}}
             @categoryEnabled={{this.categorize_enabled}}
+            {{!-- Same per-board order as the real grid above: the preview exists to show
+                 what ships, so it must not resolve the order differently. --}}
+            @categoryOrder={{this.board_category_settings.order}}
             @showCategoryNames={{this.show_category_names}}
             @categoryScrollEnabled={{this.category_scroll_enabled}}
             @softBorders={{this.soft_borders}}

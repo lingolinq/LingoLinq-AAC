@@ -30,18 +30,17 @@ module FeatureFlags
               'english_first_board_generation', 'signup_spanish_library_boards',
               'eval_single_library',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
-              # Boards page: offers a selector for SIDE-BY-SIDE (Folders 1/4 left,
-              # Boards 3/4 right) versus TOP-DOWN (the original stacked order), so the
-              # two arrangements can be compared on the real page. CURRENTLY ALSO IN
-              # ENABLED_FRONTEND_FEATURES (forced ON for everyone) so the selector is
-              # visible without a per-user opt-in — see the TEMPORARY note there, and
-              # REMOVE IT FROM THAT LIST BEFORE PRODUCTION GO-LIVE, which returns this
-              # to the canonical AVAILABLE-only / beta-opt-in state. Off, the selector
-              # does not render and the page keeps the TOP-DOWN layout, which is the
-              # pre-existing behaviour. Read by
-              # app/frontend/app/templates/user/boards.hbs and applied by
-              # app/frontend/app/components/boards-layout-toggle.js.
-              'boards_side_by_side_layout',
+              # RETIRED 2026-09-18: 'boards_side_by_side_layout' was registered here. The
+              # Boards page offered a selector between SIDE-BY-SIDE and TOP-DOWN so the two
+              # arrangements could be compared on the real page. The answer is that each one
+              # suits a different amount of room, so the arrangement is now decided by width
+              # (app/frontend/app/styles/app.scss, `@media (max-width: 900px)` on the split
+              # rule) and is an inherent part of the page rather than a feature. Do not
+              # re-register it: membership here is the hard ceiling that would advertise a
+              # control the page no longer has. The remaining plumbing
+              # (components/boards-layout-toggle.js, the `boards_layout` preference,
+              # utils/boards_layout_state.js) is unreferenced by this flag; see
+              # spec/lib/feature_flags_spec.rb "boards_side_by_side_layout (retired)".
               'sentence_bar_editing',
               'text_symbol_fallback',
               # Board-detail Fitzgerald category grouping: renders a board's buttons
@@ -138,7 +137,6 @@ module FeatureFlags
               'board_category_grouping', # TEMPORARY (2026-08-17): forced ON for everyone so Traci can evaluate the Fitzgerald category-panel board layout in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES. NOTE: grouping MOVES vocabulary out of the cells a user has positional motor memory for, so the opt-in default matters more here than for a cosmetic flag. Flip together with the PRE-PRODUCTION markers in app/models/user.rb (preference_defaults) and components/board-detail-grid.js#groupingEnabled.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'boards_side_by_side_layout', # INERT as of 2026-09-14: the layout selector's only render site was removed from templates/user/boards.hbs (see the comment there) and the Boards arrangement is now decided by media query, so nothing reads this flag on the frontend. It stays listed only because components/boards-layout-toggle.js, utils/boards_layout_state.js and the `boards_layout` user preference are still in place; retiring that plumbing touches a server-side preference constraint and is a separate change. Adding or removing it from this list has NO user-visible effect today.
               'updates_pill'] # TEMPORARY (2026-09-14): forced ON for everyone so the Card-view Updates pill (primary nav -> the user's notes log, with the unread counter classic already shows on its Updates tab) is visible without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the pill stops rendering in both navs and the nav returns to its current item set, which is the pre-existing behaviour. Read by components/dashboard/authenticated-view.hbs and components/user-pill-nav.hbs.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {

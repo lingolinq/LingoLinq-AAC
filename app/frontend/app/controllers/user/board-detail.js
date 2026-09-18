@@ -210,24 +210,36 @@ export default Controller.extend(prefClasses, {
      `true` and the template still reads as one arrangement. The stored order itself is
      untouched and still drives the panel layout when scrolling is on.
 
-     BEFORE FLIPPING THIS TO `true`, FIX THE ORDER PATH. It is not merely waiting — three
-     places disagree about where a board's category order comes from, and the disagreement
-     is unreachable today only because this flag is off:
+     THE ORDER PATH IS NOW CONSISTENT (2026-09-18). Category order is PER BOARD, so each
+     board can be arranged independently, and all three readers resolve it the same way:
 
-       * the RENDERED board reads the ACCOUNT-WIDE order directly
-         (`components/board-detail-grid.js:200-201`), and no template has ever passed
-         `@categoryOrder` — so a per-board order never reaches the grid at all;
-       * the PANEL reads the PER-BOARD resolution, via `board_category_settings`
-         (`category_order_list`, :6362);
-       * `move_category` (:6630) READS the account-wide order and WRITES the per-board slot,
-         so reordering on a board with its own entry permutes the wrong list.
+       * the PANEL reads `board_category_settings` (via `category_order_list`);
+       * `move_category` reads the same resolution and writes the board's own slot. It used
+         to READ the account-wide order while WRITING per-board, so the arrows permuted a
+         list nobody was looking at -- and because no UI path ever changes the account-wide
+         order, every move recomputed from the same frozen list and discarded the one
+         before it;
+       * the RENDERED grid takes `@categoryOrder` from the controller's resolution, the way
+         it already takes `@categoryEnabled`. It used to resolve the order itself from the
+         account-wide preference, so a per-board order never reached the drawn board at all.
+         Note the argument could not simply be added to the template: the component is
+         classic, and the receiving property was a getter-only computed of the same name, so
+         passing it threw "Cannot override the computed property".
+
+     Pinned by tests/unit/controllers/user-board-detail-category-order-test.js and
+     tests/unit/components/board-detail-grid-category-order-test.js.
 
      How it happened: the grid's account-wide read dates from the original grouping feature
      (e9370fd4a, 2026-08-17), when order was account-wide and that was correct. Per-board
      resolution was retrofitted onto `board_category_settings` two days after this flag was
      parked (3895e6a0a, 2026-08-26), and every consumer of that computed inherited it
-     silently — except the grid, which has its own reader. This flag has never been `true`,
-     so no reachable control could ever expose the split. */
+     silently, except the grid, which had its own reader. This flag has never been `true`,
+     so no reachable control ever exposed the split.
+
+     THIS FLAG STAYS OFF for its ORIGINAL reason, which was never the order path: the
+     ordering UI needs its own design pass before it earns the space, and in compact mode
+     the packing decides placement anyway. Flipping it is a UI decision, not a correctness
+     one, and it no longer carries a known defect with it. */
   category_ordering_available: false,
 
   show_board_back_nav: computed('board_detail_history.[]', function() {
@@ -7148,7 +7160,17 @@ export default Controller.extend(prefClasses, {
        chosen. So up/down is the whole model — there is no honest meaning for
        left/right, and it would behave differently at each breakpoint. */
     move_category: function(key, direction) {
-      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
+      /* The PER-BOARD resolution, the same one the panel renders from
+         (`category_order_list`) and the same slot `_save_category_grouping` writes to.
+         This read used to be account-wide while the write was per-board, so on a board
+         carrying its own entry the arrows permuted a list nobody was looking at. Worse,
+         no UI path ever changes the account-wide order (`_save_category_grouping` always
+         rewrites it as `normalizeCategoryOrder(all.order)`), so every move recomputed from
+         the same unchanging list and silently discarded the move before it.
+         `board_category_settings` falls back to the account-wide hash when this board has
+         no entry of its own, so that case is unchanged. Pinned by
+         tests/unit/controllers/user-board-detail-category-order-test.js. */
+      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
       var idx = order.indexOf(key);
       if(idx === -1) { return; }
       var target = direction === 'up' ? idx - 1 : idx + 1;

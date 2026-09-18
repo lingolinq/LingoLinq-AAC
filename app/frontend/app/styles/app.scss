@@ -53299,8 +53299,12 @@ a.md-goal-nav-action:hover,
 /* ==========================================================================
    Boards page — LAYOUT SELECTOR (side-by-side vs top-down)
    ==========================================================================
-   Renders only behind the `boards_side_by_side_layout` feature flag
-   (templates/user/boards.hbs).
+   DORMANT as of 2026-09-18. These rules style <BoardsLayoutToggle />, which
+   templates/user/boards.hbs stopped rendering on 2026-09-14; the `boards_side_by_side_layout`
+   flag that used to gate it was retired from lib/feature_flags.rb on 2026-09-18, because the
+   arrangement is now decided by width (see the split rule's `@media (max-width: 900px)`).
+   Nothing mounts the component, so nothing here applies. The block is kept with the rest of
+   the toggle plumbing; removing it belongs with that separate, consented change.
 
    ABSOLUTE, NOT FIXED — it scrolls away with the page rather than following the
    viewport. Absolute (rather than in-flow) because the template renders it AFTER
@@ -54075,10 +54079,12 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .ub-boards-page--split .ub-boards-page__boards-body:has(> .ub-boards-page__folders-section):has(> .ub-boards-page__boards-summary-section) {
   display: grid;
   /* 1/3 folders : 2/3 boards at EVERY width this layout exists at (2026-08-20,
-     requested). One value, no breakpoint: side-by-side runs from 769px up (below that
-     the `max-width: 768px` fallback at the foot of this block switches to `display:
+     requested). One value, no breakpoint: side-by-side runs from 901px up (below that
+     the `max-width: 900px` fallback at the foot of this block switches to `display:
      block` and these column values go inert), so this single declaration covers the
-     whole range.
+     whole range. Corrected 2026-09-18: this said 769px and named a `max-width: 768px`
+     fallback; the fallback at the foot of this block is `max-width: 900px`, which is also
+     the breakpoint templates/user/boards.hbs documents.
 
      This replaces a 1fr 3fr base with a `min-width: 1025px` override to 1fr 2fr. The
      quarter column was kept below 1025px on the reasoning that a third of a ~570-770px
