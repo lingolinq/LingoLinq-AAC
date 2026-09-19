@@ -1193,7 +1193,7 @@
       "attestation": {},
       "notes": "Path A successor to DOC-407d2c2bf4 (COPPA_VERIFICATION_2026-04-26.md, attested 2026-07-23 by Scot Wahlquist, CEO; first attested 2026-06-21), created 2026-09-17. The predecessor remains frozen and its bytes still match its recorded attestedContentHash, so this is a CONTENT correction, not tampering. ONLY THE BANNER IS REWRITTEN; the body is reproduced byte-for-byte and is not re-verified. Corrects two banner defects. (1) The banner asserted that AiApiLog.redact_old_ip_addresses! 'was wired into lib/tasks/scheduler.rake by PR #222 and runs daily today'. That sentence was introduced 2026-07-23 and attested the same day, but rake scheduler:dispatch had NO production trigger from 2026-07-21 to 2026-09-02 (finding LL-3e36a18199, high, open), so the claim was not true when written, two days into that window. It did not go stale. The wiring itself is real (lib/tasks/scheduler.rake:187, gated on hour == 6 at :140; method at app/models/ai_api_log.rb:225, 90-day default) and the job has been observed running daily since 2026-09-03, reporting 0 rows redacted on each of the twelve dates through 2026-09-14; evidence and its limits are in docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md. (2) The banner cited 'section 10' for that finding; this document has no numbered sections, and the finding is under Phase 2B 'Item 3 - Retention Policy Enforcement'. ATTESTER MUST CONFIRM: this record is in the school-dpa-package bundle. It has NO Drive mirror of its own and its mirrors array is deliberately empty, because it is an unattested draft and attestation and external release are separate gates, neither of which has occurred. Rather than publish this draft to districts, the predecessor's customer-ready Drive copy (DOC-7a7c5282d8) was ANNOTATED IN PLACE on 2026-09-17 with a correction retracting the 'runs daily today' claim. SCOPE OF THAT CORRECTION, stated precisely: it reaches the Drive copy only. The canonical git file docs/legal/COPPA_VERIFICATION_2026-04-26.md still contains 'runs daily today' at line 8, carries no banner and no pointer to this successor, and by the attested-bytes freeze can never carry one. That path is what school-dpa-package binds and this repository is public, so a reader of the corpus still meets the uncorrected claim with no signal. Closing that gap requires promoting this successor, not another mirror edit. This successor closes, downgrades or supersedes no finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
       "mirrors": [],
-      "contentHash": "90a0d1a4f90a4720340a86c02a29d30f4d40add2932dc21a751ca1bb1ec604fe",
+      "contentHash": "7791efab119bc4957727875905860ff287bf8703400f4d05137e925caf7ab060",
       "retention": {
         "class": "audit-evidence",
         "rule": "7 years",
@@ -1727,7 +1727,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "4b660f6a5ee9ae59e24503ddf6e518d14ef41be318c90213dc521478f5b085ef",
+      "contentHash": "c70d8744a4bbd194be1693f82a349bfa952f57eb88ccf9d0b3d672ee4232f19c",
       "bundles": [],
       "mirrors": [
         {
@@ -1765,7 +1765,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "4f1e3955ffc3159144ba53a81140da60d26e966f1807135890bd8c9da2140388",
+      "contentHash": "f278c664860babab871c2e7946ec0f8333856af71ae2e9339a984aa885eb07be",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -4015,7 +4015,7 @@
     },
     {
       "title": "Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)",
-      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, open) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
+      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, verified-closed 2026-09-18 on its liveness element; the interruption impact assessment is carried by LL-cbc8bc4211) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
       "type": "evidence",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -4041,7 +4041,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-b7f15a728c",
-      "contentHash": "86ab2195d0a4a4ea2ac060f202499bace020150e2ecdeb25a4b214bb19ac7579"
+      "contentHash": "1e0ec877ff802a27a92adf2a7badba70ae85d450cef8d5565c8a822fa5f94f33"
     },
     {
       "title": "Data Retention Schedule (2026-09-14 successor)",

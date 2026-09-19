@@ -23,7 +23,8 @@
 > 2026-07-23 and CEO-attested the same day.
 >
 > **`rake scheduler:dispatch` had no production trigger from 2026-07-21 until 2026-09-02**
-> (finding `LL-3e36a18199`, high, open). The Render cron that had invoked it hourly was suspended
+> (finding `LL-3e36a18199`, high; open when this was written, verified-closed 2026-09-18 on its
+> liveness element). The Render cron that had invoked it hourly was suspended
 > 2026-07-21, the day before the GCP cutover, and no replacement was provisioned until
 > 2026-09-02T17:05:54Z. The claim was therefore **not true when it was written**, two days into
 > that window. It did not go stale; it was inaccurate on the day it was attested. This matters
@@ -44,7 +45,8 @@
 >   `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`.
 > - No missed-run or absence detection exists for this job. The production alert policy counts
 >   FAILED executions, and a job that never runs produces none, which is why the six-week gap was
->   not surfaced by alerting.
+>   not surfaced by alerting. **Update 2026-09-18:** true when written; a missed-run
+>   (metric-absence) policy now exists. See `docs/INFRASTRUCTURE.md`, "Scheduler liveness".
 >
 > **Second correction: a cross-reference that never resolved.** The predecessor's banner cited
 > "section 10" for the `redact_old_ip_addresses!` finding. This document has no numbered sections.
