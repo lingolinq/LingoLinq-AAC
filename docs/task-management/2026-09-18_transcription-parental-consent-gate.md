@@ -162,3 +162,41 @@ rely on.
   deleting the `user_pref_allows_ai?` line fails both preference specs; restored byte-identical
   (`cmp`); whole file 46 examples, 0 failures, 1 pending.
 - **Not reviewed by the adversary pass.** That pass covered the first change only.
+
+## Dual review, second commit (2026-09-19)
+
+Codex (`gpt-5.6-terra`) plus a fresh adversary pass on the second commit; verdict on both:
+**approve with conditions, no code change required.** Codex: one Medium (P2), already-documented
+side effect. Adversary: no Critical/High; 5 Medium, 4 Low, all corrected in the PR body, one test
+line, or filed as follow-up #1024. Two of the highest-stakes claims were independently re-verified
+by me against the live code before applying anything (Rule #0: a subagent's report is evidence,
+not a verified finding):
+
+- **CONFIRMED:** `User#apply_eu_ai_offboarding_reset!` (`app/models/user.rb`) sets
+  `preferences['ai_features_enabled'] = false` for every key in `EU_AI_PREF_KEYS`, and the
+  surrounding jurisdiction logic sets `eu_under_16 = false` unconditionally for a US-jurisdiction
+  org regardless of the attested age. So a 13-to-15-year-old offboarded under a US org gets the
+  master preference forced off with no EU flag, no COPPA blob, and no org attachment gating
+  anything, contradicting the PR body's original "nobody who has not opted out is newly blocked."
+  PR body corrected.
+- **CONFIRMED:** `lib/feature_flags.rb`'s `ai_enabled_for?` fallback `user.respond_to?(:organization)
+  ? user.organization : nil` is dead code: `grep` and `db/schema.rb` confirm `User` has
+  `managing_organization_id`/`managing_organization` and no `organization` method or column.
+  Combined with `managing_organization` only matching `type == 'user'` attachments
+  (`app/models/concerns/supervising.rb`), the new org switch is a no-op for staff (manager/
+  supervisor) accounts, exactly the population most likely to record a child's voice on the
+  child's behalf. PR body corrected; tracked in #1024.
+
+Applied without further re-verification (internally consistent with the above, reviewer showed
+file:line + command output for each): asymmetric audit logging between the two org gates (#1024);
+the operative breach runbook (3 dated copies, one attested, not edited here) also understates
+`disable_ai_features`'s reach post-merge (PR body corrected, filed for the next Path A successor);
+the blocked-account side effects (2-hour client poll, WAV export, and WAV RETENTION ON OPT-OUT,
+which inverts the intent of opting out) now cover a wider population than COPPA/EU alone (PR body
+corrected; #1024). Added one test assertion (`expect(Organization).not_to
+receive(:log_external_ai_processing_skip)`) to the org spec so it proves the NEW gate fired rather
+than merely being consistent with gate 1 also having fired; verified this doesn't change pass/fail
+today (46 examples, 0 failures, 1 pending), it only strengthens what the spec proves. Not applied
+(Low, filed in #1024 instead of the PR body): no env-var emergency killswitch for the two new
+gates, unlike COPPA/EU; `'voice_transcription'` is an unregistered literal with no coupling test
+against `USER_PREF_AI_FEATURES`.

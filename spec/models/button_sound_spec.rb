@@ -609,6 +609,11 @@ describe ButtonSound, :type => :model do
       expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
       expect(Typhoeus).not_to receive(:get)
       expect(Typhoeus).not_to receive(:post)
+      # Discriminates the new ai_enabled_for? gate from the org's own
+      # external_ai_processing gate one line above: that gate only blocks (and
+      # logs) when external_ai_processing is explicitly false, which this org
+      # never sets, so a pass here proves THIS gate fired, not gate 1's.
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
       bs.schedule_transcription(true)
       expect(bs.settings['transcription_errors']).to eq(nil)
     end
