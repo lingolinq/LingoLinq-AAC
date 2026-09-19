@@ -56,6 +56,30 @@ RSpec.describe WordData, :type => :model do
     end
   end
 
+  describe "translate_locale_batch" do
+    # A pinned privacy key must never be sent for machine translation: its
+    # non-English value is deliberately the `*** ` English fallback until a
+    # human-reviewed translation exists, and `*** ` is exactly the shape this
+    # method picks up. See spec/lib/privacy_locale_english_pins_spec.rb.
+    it "should never send a pinned privacy key for machine translation" do
+      fn = Rails.root.join('public', 'locales', 'zz.json').to_s
+      source = {
+        'privacy_security_retention_children' => '*** Children\'s data stays in English.',
+        'ordinary_ui_key' => '*** Hello there'
+      }
+      written = StringIO.new
+      allow(File).to receive(:read).and_call_original
+      allow(File).to receive(:read).with(fn).and_return(JSON.generate(source))
+      allow(File).to receive(:open).and_call_original
+      allow(File).to receive(:open).with(fn, 'w').and_return(written)
+      sent = nil
+      expect(WordData).to receive(:query_translations) { |ref, *_| sent = ref.map { |r| r[:key] }; [] }
+      WordData.translate_locale_batch('zz')
+      expect(sent).to eq(['ordinary_ui_key'])
+      expect(JSON.parse(written.string)['privacy_security_retention_children']).to eq(source['privacy_security_retention_children'])
+    end
+  end
+
   describe "translate" do
     it "should translate individual words" do
       expect(WordData).to receive(:query_translations).with([{:text => 'hat', :type => nil}], 'en', 'es').and_return([{:text => 'hat', :type => nil, :translation => 'cap'}])
