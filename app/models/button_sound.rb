@@ -55,6 +55,12 @@ class ButtonSound < ApplicationRecord
       # Also "not permitted," not a failure. Both return false for a nil user.
       return if FeatureFlags.coppa_blocks_ai_for?(self.user)
       return if FeatureFlags.eu_under16_blocks_ai_for?(self.user)
+      # The two AI opt-outs people can already see: the org-wide disable_ai_features
+      # switch and the user's master "Allow AI features" preference. Transcription is
+      # not in USER_PREF_AI_FEATURES, so it follows the master only; an absent master
+      # stays allowed, as it does for every other AI feature.
+      return unless FeatureFlags.ai_enabled_for?(self.user)
+      return unless FeatureFlags.user_pref_allows_ai?('voice_transcription', self.user)
       if frd
         # https://cloud.google.com/speech/reference/rest/
         ref = self.settings['secondary_output']

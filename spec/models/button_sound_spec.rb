@@ -599,6 +599,47 @@ describe ButtonSound, :type => :model do
       expect(bs.settings['transcription_errors']).to eq(nil)
     end
 
+    it "should skip Google when the user's organization has disabled AI features" do
+      o = Organization.create(settings: {'total_licenses' => 1, 'disable_ai_features' => true})
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(FeatureFlags.ai_enabled_for?(u)).to eq(false)
+      bs = ButtonSound.new(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
+      expect(Typhoeus).not_to receive(:get)
+      expect(Typhoeus).not_to receive(:post)
+      bs.schedule_transcription(true)
+      expect(bs.settings['transcription_errors']).to eq(nil)
+    end
+
+    it "should not schedule transcription when the user has turned off the master AI preference" do
+      u = User.create(:settings => {'preferences' => {'ai_features_enabled' => false}})
+      expect(FeatureFlags.user_pref_allows_ai?('voice_transcription', u)).to eq(false)
+      bs = ButtonSound.create(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      bs.schedule_transcription
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(false)
+    end
+
+    it "should skip Google when the user has turned off the master AI preference" do
+      u = User.create(:settings => {'preferences' => {'ai_features_enabled' => false}})
+      bs = ButtonSound.new(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
+      expect(Typhoeus).not_to receive(:get)
+      expect(Typhoeus).not_to receive(:post)
+      bs.schedule_transcription(true)
+    end
+
+    it "should schedule transcription when the master AI preference is on" do
+      u = User.create(:settings => {'preferences' => {'ai_features_enabled' => true}})
+      expect(FeatureFlags.user_pref_allows_ai?('voice_transcription', u)).to eq(true)
+      bs = ButtonSound.create(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      bs.schedule_transcription
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(true)
+    end
+
     it "should schedule transcription for an EU under-16 user with active parental AI consent" do
       u = User.create(:settings => {
         'registration' => {'eu_under_16' => true},

@@ -95,16 +95,13 @@ everyone.
   "consented" on the strength of this PR.**
   `docs/legal/2026-09-14_compliance-program-overview.md` ("not gated by individual consent
   today") is left unchanged for that reason.
-- **This PR does not close LL-1eb9a2435b.** That finding's own note names gating transcription
-  behind the org `disable_ai_features` opt-out as the thing to revisit. Transcription still reads
-  only `external_ai_processing`, so an org that sets `disable_ai_features` stops every Bedrock
-  feature while voice transcription keeps running.
-- **The user-facing "Allow AI features" opt-out still does not reach transcription.**
-  `FeatureFlags.user_pref_allows_ai?` is enforced only through `ai_feature_enabled_for?`, which
-  this method does not call. A family that unchecks it still has recordings transcribed. This is
-  the control a family would actually rely on; it is a follow-up decision, not an aside.
+- **LL-1eb9a2435b is addressed in code but only Scot closes it.** The finding's note names two
+  remedies: a COPPA-consent gate and the org `disable_ai_features` opt-out. Both are now wired
+  (see "Second change" below). Closing or re-rating the finding is Scot's call, and the owner
+  attribution limit above still applies to both.
 - Counsel-review gap #9 lists four missing controls on this flow (COPPA, EU, Article 50
-  disclosure, user preference) plus no `AiApiLog` record. This PR closes the first two only.
+  disclosure, user preference) plus no `AiApiLog` record. COPPA, EU and user preference are now
+  wired. Article 50 disclosure and an `AiApiLog` record are not.
 - **New side effects for a blocked account.** (1) `app/frontend/app/models/sound.js`
   `check_transcription` polls the sound until it has a transcription or is 2 hours old; a blocked
   sound never gets one, so the client polls the whole ladder (on the order of a hundred requests
@@ -133,3 +130,35 @@ green, 42 examples, 0 failures, 1 pending.
 
 Process note: the two-line edit was applied before the proposal review rather than after it.
 Nothing was committed until the review finished.
+
+## Second change (same PR, separate commit): the two existing AI opt-outs now reach transcription
+
+Approved by Scot 2026-09-18 after the review above flagged both as the controls people actually
+rely on.
+
+- **Fact (a), read site.** Same single method and the same guard block ahead of `if frd`, so both
+  the enqueue and the worker run are covered.
+- **Fact (b), shapes.** `FeatureFlags.ai_enabled_for?(user)`: false only when the user's
+  `managing_organization` (else `organization`) has `settings['disable_ai_features']`; true for a
+  nil user or no org. `FeatureFlags.user_pref_allows_ai?('voice_transcription', user)`: true for a
+  nil user, non-Hash preferences, or an ABSENT master (`ai_features_enabled` nil, the documented
+  "grandfather allow"); false for any master that is not recognisably true. `voice_transcription`
+  is not in `USER_PREF_AI_FEATURES`, so it follows the master only and needs no per-feature
+  opt-in. Net effect: nobody who has not already opted out is newly blocked.
+- **Fact (c), cross-file.** CONFIRMED in `lib/feature_flags.rb` (`ai_enabled_for?`,
+  `user_pref_allows_ai?`, `USER_PREF_AI_FEATURES`); the frontend mirror
+  `app/frontend/app/utils/ai_feature_gate.js` documents the same absent-master rule. The master
+  checkbox is "Allow AI features" in `app/frontend/app/templates/user/preferences.hbs`.
+- **Known limit.** `ai_enabled_for?` reads ONE org (managing, else primary), while
+  `external_ai_processing_allowed_for_user?` reads every attached org and fails closed across
+  them. A user attached to two orgs where only the non-managing one sets `disable_ai_features` is
+  not blocked by this switch. Pre-existing behaviour of `ai_enabled_for?`, shared by every other
+  AI feature; not changed here.
+- **Red tests first.** Four examples: org switch set (precondition asserted with
+  `ai_enabled_for?`), master off for both the enqueue and the run legs (precondition asserted with
+  `user_pref_allows_ai?`), and a master-on control. The three blocking cases failed before the fix
+  with `Typhoeus.get` received / job enqueued; the control passed throughout.
+- **Falsified** from a saved copy: deleting the `ai_enabled_for?` line fails the org spec;
+  deleting the `user_pref_allows_ai?` line fails both preference specs; restored byte-identical
+  (`cmp`); whole file 46 examples, 0 failures, 1 pending.
+- **Not reviewed by the adversary pass.** That pass covered the first change only.
