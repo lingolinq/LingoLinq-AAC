@@ -81,6 +81,36 @@ describe 'privacy locale English pins' do
     expect(other_locale_paths).not_to be_empty
   end
 
+  # The root cause, for every string on the privacy page, not only the pinned
+  # ones: the English was corrected and a translation of the OLD English stayed
+  # live. A translation records the English it came from after " [[ " (i18n.js
+  # renders only the part before it). A `*** ` value always renders the
+  # template's current English, so it is safe as it stands.
+  it 'has no privacy.hbs translation made from English that has since changed' do
+    template = File.read(privacy_template_path)
+    keys = template.scan(/\{\{t\s+"(?:[^"\\]|\\.)*"\s+key=['"]([a-z0-9_]+)['"]/).flatten.uniq
+    expect(keys.length).to be > 50, "found only #{keys.length} {{t}} calls in privacy.hbs; the pattern is stale"
+    stale = other_locale_paths.flat_map do |path|
+      values = JSON.parse(File.read(path))
+      keys.filter_map do |key|
+        value = values[key]
+        next if value.is_a?(String) && value.start_with?('*** ')
+
+        source = value.to_s.split(' [[ ', 2)[1]
+        next if source && source == english[key]
+
+        reason = if value.nil? then 'missing'
+                 elsif source.nil? then 'translation with no recorded English source'
+                 else 'translated from different English than en.json now has'
+                 end
+        "#{File.basename(path)} #{key}: #{reason}"
+      end
+    end
+    expect(stale).to be_empty,
+                     "re-translate these from the current English, or set them to \"*** \" + en.json:\n  " \
+                     "#{stale.join("\n  ")}"
+  end
+
   it 'has a content pin for every key pinned to the English fallback' do
     expect(WordData::ENGLISH_PINNED_LOCALE_KEYS - PRIVACY_LOCALE_CONTENT_PINS.keys).to be_empty
   end

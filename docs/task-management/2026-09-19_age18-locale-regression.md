@@ -100,7 +100,10 @@ and an absent key is harder to guard than a pinned value.
 every non-English `public/locales/*.json` the value must equal `*** ` + the `en.json` value. It also
 pins that the `en.json` value equals the `privacy.hbs` inline default, since that default is what
 non-English visitors actually see. CI runs the full RSpec suite (`.github/workflows/ci.yml`, the
-`rspec` job), so a merge like #963 would fail the PR.
+`rspec` job). CORRECTED after review: this fails any PR whose CI runs after the spec lands. It does
+not stop a long-lived PR whose last green run predates it, because neither `develop` nor `main`
+requires branches to be up to date (`required_status_checks.strict` is false on both; `main` has
+`enforce_admins` on, `develop` does not). That is the #963 shape.
 
 **Test and mutation.** Red: the spec fails on the current tree, naming all 12 locales. After the
 fix: green. Mutation that must fail: restore one locale (for example `pl.json`) to its translation;
@@ -199,3 +202,17 @@ Not applied: an evidence note on finding LL-933e61efd7. Open PR #1026 is editing
   pins are a separate list that must cover every pinned key; the fallback example is defined only for
   pinned keys. Falsified: unpinning the age-18 key and restoring the retracted English everywhere
   still fails the content check (13 examples, 1 failure).
+
+## Adversary review of the PR (batch 1, head b1f0977c9)
+
+- **Medium, already fixed in 32e1b98b3.** The translator loop hang (same finding as the senior-dev
+  High). Cosmetic, not changed: the rake's final "leftover *** (Google echo/fail)" count now includes
+  the three pinned keys.
+- **Medium, applied.** The guard covered 3 keys; the root cause (English corrected, translation left
+  stale) is open for every privacy string. Added a page-wide check: every `{{t}}` key in
+  `privacy.hbs`, in every non-English locale, must be a `*** ` value or a translation whose recorded
+  `[[ ` source equals the current `en.json` value. Measured first: 102 keys x 12 locales = 50 `*** `,
+  1,174 current translations, 0 stale, 0 unsourced, 0 missing. Falsified: the pre-fix locale files
+  make it list all 35 stale entries (12 + 11 + 12); correcting the English of the unrelated `legal`
+  key without re-translating makes it fail naming 11 locales, with the pinned checks still green.
+- **Medium, applied.** Overclaim about the gate; see the corrected paragraph under Proposal.
