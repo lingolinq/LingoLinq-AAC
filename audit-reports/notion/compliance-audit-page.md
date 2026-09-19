@@ -12,7 +12,7 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-19T05:49:13Z
+**Page generated:** 2026-09-19T07:37:39Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -60,7 +60,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-c11cc12f66 |  | high | COPPA, FERPA | COPPA parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:28 |
 | LL-c7bbfa452a |  | high | COPPA, FERPA | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
 | LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap) | `lib/flusher.rb`:442 |
-| LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, SOC2 | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
+| LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, COPPA, SOC2 | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
 | LL-dbc950d96d |  | high | GDPR, COPPA, FERPA | supervisor_relationships rows are never erased when either party's account is deleted, and each keeps a plaintext copy of the consent-recipient email in consent_email_sent_to | `app/models/supervisor_relationship.rb`:7 |
 | LL-e8614c103f |  | high | GDPR, FERPA, COPPA | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely | `app/models/prediction_entry.rb`:4 |
 | LL-e981aad7a6 |  | high | COPPA, FERPA | Supervisor-access consent routing for under-13 communicators (details withheld until remediation is verified) | `app/services/supervisor_consent_service.rb`:81 |

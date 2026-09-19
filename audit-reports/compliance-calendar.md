@@ -93,7 +93,7 @@ context, required work, and the source basis remain visible with the schedule.
 - **Drafts:** verify enforced deletion of children's data per written retention policy; verify separate verifiable parental consent for any disclosure not integral to the service (incl. AI training)
 - **Watch:** amended COPPA Rule compliance deadline 2026-04-22 PASSED and is enforceable (~$51.7k/incident/day). Watch FTC enforcement actions.
 - **Basis:** plan 1.3, 2.4; docs/legal/COPPA_VERIFICATION_2026-04-26.md; docs/legal/DATA_RETENTION.md
-- **Linked findings:** LL-3e36a18199, LL-933e61efd7
+- **Linked findings:** LL-3e36a18199, LL-cbc8bc4211, LL-933e61efd7
 
 **Acceptance criteria (9).** A review is not complete until every one is met.
 
@@ -104,7 +104,7 @@ context, required work, and the source basis remain visible with the schedule.
 5. Export/deletion progression exercised on CONTROLLED NON-ZERO test evidence (staging or a seeded fixture) driven through export, schedule_deletion_at, and flush. A production report-mode zero must never be presented as deletion proof. If no controlled run is available, record the criterion as unmet.
 6. Failures: any task failure in the window, from dispatch abort output and job-execution status, with dates.
 7. Audit coverage: all-time parental_consent_offboarding_started counts and distinct user keys, with the query and window stated. A zero is reported as zero IN THE QUERIED DATASET, never as proof no such event ever occurred.
-8. Interruption impact on COPPA controls specifically, cross-referenced to LL-3e36a18199 and to docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md.
+8. Interruption impact on COPPA controls specifically, cross-referenced to LL-cbc8bc4211 (the interruption impact assessment, split out 2026-09-18 when LL-3e36a18199 was closed on its liveness element) and to docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md.
 9. Evidence is aggregate counts and dates. global_id values are PSEUDONYMOUS IDENTIFIERS, not non-personal data: pairing one with reason=declined is a COPPA-adjacent inference, which is why the worker caps per-account report lines. Include per-account identifiers only where a criterion cannot otherwise be met, and do not reproduce them in the review record.
 
 > Acceptance criteria added 2026-09-14. lastDone and nextDue are DELIBERATELY UNCHANGED: the review has not been performed. Only Scot records a review as completed.
