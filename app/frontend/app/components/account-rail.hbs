@@ -1,0 +1,112 @@
+<nav class="md-acct-rail" aria-label={{t "Account menu" key="account_menu"}} {{on-insert this.railMounted}}>
+  {{!-- SCROLL PAGER, only when the panel actually overflows. On a short viewport the eleven
+       rows do not fit, and a wheel or a Tab key is not available to everyone: an eye-gaze or
+       switch user can only activate what is on screen, so without these the rows below the
+       fold are unreachable.
+       STICKY, not static: the pager lives inside the scrolling panel, so without this it
+       would scroll away with the rows it exists to scroll. It holds the top while they move
+       underneath.
+       Disabled at the ends rather than removed, and the pair renders or vanishes together --
+       see the note in controllers/user/index.js#update_rail_scroll for why a button that
+       disappears mid-scroll is a problem for someone dwelling on it. --}}
+  {{#if this.rail_scrollable}}
+    <div class="md-acct-rail__pager">
+      <button type="button" class="md-acct-rail__pager-btn" id="acct_rail_scroll_up_button"
+              disabled={{this.rail_at_top}} {{on "click" (fn this.scrollRail "up")}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+        {{t "Up" key="up"}}
+      </button>
+      <button type="button" class="md-acct-rail__pager-btn" id="acct_rail_scroll_down_button"
+              disabled={{this.rail_at_bottom}} {{on "click" (fn this.scrollRail "down")}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        {{t "Down" key="down"}}
+      </button>
+    </div>
+  {{/if}}
+  {{!-- `--home` is a LEVEL UP, not a sibling: every other row in this nav is a `user.*`
+       sub-page of the account section, and this one leaves it for the app home. It is
+       styled as a quieter, separated link so the eight section pages read as one group. --}}
+  <LinkTo @route="index" class="md-acct-rail__row md-acct-rail__row--home">
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Home Page" key="home_page"}}</span>
+  </LinkTo>
+  {{!-- WHICH ROW IS LIT is <LinkTo>'s own job, via `@activeClass` -- it already knows which
+     route is current and recomputes on every transition. This row used to carry a literal
+     `is-active` and a hardcoded `aria-current="page"`, which was harmless while the rail
+     rendered only on the account page and wrong on the other nine once it moved to
+     templates/user.hbs: Account stayed lit on Goals, Logs, Reports and the rest.
+     `@current-when` is needed on THIS row alone, because the account page answers to two
+     route names (`user.index` and `user.account`) and `@route` can only name one. The list
+     comes from the component so it is stated once -- see ACCOUNT_ROUTES there.
+     `aria-current` is separate because <LinkTo> does not set it, and a highlight a sighted
+     user can see has to reach a screen-reader user too. `{{if}}` with no else yields
+     undefined, and Glimmer omits an attribute bound to undefined, so the inactive rows
+     carry no `aria-current` at all rather than a falsy one. --}}
+  <LinkTo @route="user.account" @model={{this.user.user_name}} @current-when={{this.accountCurrentWhen}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "account") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Account" key="account_lower"}}</span>
+  </LinkTo>
+  <LinkTo @route="user.goals" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "goals") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="5" stroke="#46505F"/><circle cx="12" cy="12" r="1.5" fill="#2A9D8F" stroke="none"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Goals" key="goals"}}</span>
+  </LinkTo>
+  <LinkTo @route="user.logs" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "logs") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Logs" key="logs"}}</span>
+  </LinkTo>
+  {{#if this.user.permissions.edit}}
+  <LinkTo @route="user.edit" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "edit") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Profile" key="profile_lower"}}</span>
+  </LinkTo>
+  {{/if}}
+  <LinkTo @route="user.recordings" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "recordings") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#2A9D8F"/><path d="M5 10v2a7 7 0 0 0 14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="22" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Recordings" key="recordings"}}</span>
+  </LinkTo>
+  <LinkTo @route="user.stats" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "stats") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Reports" key="reports"}}</span>
+  </LinkTo>
+  {{#if this.user.permissions.edit}}
+  <LinkTo @route="user.preferences" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "preferences") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Settings" key="preferences_lower"}}</span>
+  </LinkTo>
+  {{/if}}
+  <LinkTo @route="user.subscription" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "subscription") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#46505F"/><line x1="2" y1="10" x2="22" y2="10" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Subscription" key="my_subscription"}}</span>
+  </LinkTo>
+  {{!-- SUPERVISION. A <button>, not a <LinkTo>: supervision has no route of its own -- the
+       account card opens it through the `supervision_settings` controller action (a modal),
+       and this row reuses that exact action rather than inventing a second entry point.
+       `.md-acct-rail__row` styles it identically; the rail is a flex column with the default
+       `align-items: stretch`, so a button fills the row width just as an anchor does.
+       LABEL follows the card's own if/else: a supporter manages who THEY supervise
+       ("Supervision"), a communicator sees who supervises THEM ("Supervisors").
+       ICON is the card's glyph redrawn to this nav's convention -- 18px, stroke-width 1.75,
+       two-tone: the near figure in charcoal structure, the second figure in the teal accent.
+       On the card it is a single flat #2A9D8F at 1.5, which would read as a foreign object
+       beside eight two-tone icons. --}}
+  <LinkTo @route="user.supervision" @model={{this.user.user_name}} @activeClass="is-active" class="md-acct-rail__row" aria-current={{if (is_equal this.activeRow "supervision") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#46505F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#2A9D8F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{if this.user.supporter_role (t "Supervision" key="supervision") (t "Supervisors" key="supervisors")}}</span>
+  </LinkTo>
+  {{!-- HOME BOARD, the counterpart to Home Page at the other end of the list: Home Page
+       leaves the account section upward, this leaves it into the user's actual board. Both
+       carry the emphasised treatment and a divider facing the eight section rows between
+       them, so the nav reads as "way out / the section / way in".
+       Gated on the preference, exactly as the account card is -- with no home board set
+       there is nothing to link to, and the card renders a "pick one" prompt instead.
+       The board NAME rides along on a second line, so the row says which board it goes to
+       rather than just that one exists. `board-key-name` strips the `username/` half of the
+       key; the human-readable board name is not in `preferences.home_board` (it stores only
+       id, key, locale and level), so the slug is what is available without a fetch. --}}
+  {{#if this.user.preferences.home_board.key}}
+  <LinkTo @route="board" @model={{this.user.preferences.home_board.key}} class="md-acct-rail__row md-acct-rail__row--board">
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#46505F"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/><rect x="8.4" y="13.7" width="7.2" height="6.1" rx="1" stroke-width="1.2" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Home Board" key="home_board"}}<span class="md-acct-rail__sublabel">{{board-key-name this.user.preferences.home_board.key}}</span></span>
+  </LinkTo>
+  {{/if}}
+</nav>

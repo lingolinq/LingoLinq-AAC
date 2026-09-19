@@ -1650,7 +1650,12 @@ export default Component.extend({
     var focusedSelect = i18n.t('display_style_select_focused', "Select Focused View");
     return '' +
       '<div class="md-ds-options' + (withPreview ? ' md-ds-options--with-previews' : '') + '">' +
-        // Gentle View is listed FIRST (it's the site default), Focused View second.
+        // Gentle View is listed FIRST here. NOT because it is the default — new accounts
+        // are created on Focused (User#generate_defaults, app/models/user.rb), and the
+        // navbar View menu leads with Focused and badges it "Default" accordingly. This
+        // is a two-up comparison with an OR between the panels, not a ranked menu, and
+        // its left/right order is wired into the preview-clone and drag plumbing below;
+        // reordering it is a separate change, not a comment fix.
         // The KEY is 'gentle' — the value persisted in preferences.dashboard_layout
         // (and allow-listed below). The user-facing LABEL is "Gentle View".
         option('gentle', i18n.t('display_style_layout_gentle', "Gentle View"), gentleDesc, gentleCaption, gentleSelect) +

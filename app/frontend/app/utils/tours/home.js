@@ -273,6 +273,10 @@ function pushNavSteps(steps) {
   // placed 'bottom' (pills sit at the top of the page at every width). Keys are
   // static literals so i18n_generator.rb can extract them. (Focused View has no
   // Account pill, so that step is simply absent — DOM-driven.)
+  // The Reports lookup below now finds nothing on every layout: the Reports pill was
+  // removed from the nav on 2026-09-18. Its branch is KEPT rather than deleted because
+  // this whole builder is written to discover what is on screen — an absent pill costs one
+  // null query and produces no step, exactly as the absent Account pill already does.
   var visiblePills = function(sel) {
     return Array.prototype.slice.call(document.querySelectorAll(sel))
       .filter(function(el) { return el.offsetParent !== null; });

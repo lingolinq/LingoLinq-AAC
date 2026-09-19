@@ -16,10 +16,13 @@
 // PALETTE CLASSIFICATION — this file is CLASSIC VIEW / GENTLE.
 //
 // "Gentle" and "Focused" are the two dashboard styles the app already models, via
-// `preferences.dashboard_layout` ('gentle' is the default, app/models/user.rb:1936).
-// Gentle is the BASELINE, not an overlay: `LingoLinq.set_layout_scope` (app/app.js:504)
-// adds `body.ll-layout-focused` ONLY on a strict `layout === 'focused'`, so an absent or
-// default preference gets no class and no overlay at all.
+// `preferences.dashboard_layout`. NEW accounts are created on 'focused' (seeded under
+// `new_record?` in User#generate_defaults, app/models/user.rb); existing accounts and
+// anyone who picked Gentle fall to the 'gentle' backfill default in
+// `preference_defaults['any_user']`.
+// Gentle is still the BASELINE, not an overlay: `LingoLinq.set_layout_scope` (app/app.js)
+// adds `body.ll-layout-focused` ONLY on a strict `layout === 'focused'`, so an absent
+// preference gets no class and no overlay at all.
 //
 // Every colour below is therefore the classic home page's GENTLE scheme, and its local
 // tokens are named `$ch-gentle-*` to say so. Naming only — nothing here reads

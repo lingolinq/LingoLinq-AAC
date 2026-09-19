@@ -124,12 +124,9 @@ export default Component.extend({
     });
   }),
 
-  // "Reports" appears in the primary pill-nav (and its responsive dropdown) for
-  // EVERYONE — supporters and communicators alike, on every layout including Focused
-  // View. Communicators ALSO keep a Reports card in Extras (see extrasItems), so for
-  // them it's reachable from both places. Constant for now; left as a named hook so
-  // the template guards stay in place if visibility ever needs gating again.
-  showReportsPill: true,
+  // (`showReportsPill` is gone with the pill it gated — Reports left the primary nav on
+  // 2026-09-18. Removed rather than left as an always-true hook: a flag no template reads
+  // is a trap for the next person, who cannot tell from here that nothing consults it.)
 
   // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
@@ -1184,9 +1181,12 @@ export default Component.extend({
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
     var supporterRole = user && user.get('supporter_role');
-    // Communicators keep a Reports card in Extras IN ADDITION to the pill-nav (which
-    // now shows Reports for everyone — see showReportsPill), so they can reach it from
-    // either place. Supporters get Reports in the pill only, not duplicated in Extras.
+    // Communicators reach Reports from THIS card. It used to be "in addition to the
+    // pill-nav"; the nav entry went on 2026-09-18, so for a communicator this card is now
+    // the home page's only route to Reports.
+    // SUPPORTERS still do not get the card (`!supporterRole`), which is deliberate and
+    // unchanged: their Reports lives per-communicator on the caseload, and account-wide on
+    // the account rail's Reports row. Both survive the nav removal.
     var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');

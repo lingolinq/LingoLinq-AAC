@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-18T18:27:33.861Z
+# Generated: 2026-09-19T03:55:52.123Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -144,10 +144,10 @@ app/components/dashboard-user-boards.js|lingolinq/no-orphaned-action|131|5|1|1cd
 app/components/dashboard/authenticated-view.js|ember/no-runloop|1299|7|2|5addc2170315
 app/components/dashboard/authenticated-view.js|ember/no-runloop|1537|11|2|5addc2170315
 app/components/dashboard/authenticated-view.js|ember/no-runloop|1614|11|2|5addc2170315
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|208|20|1|7bc964be3126
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|369|15|1|51a7a47cf59c
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|475|21|1|51a7a47cf59c
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|953|18|1|366050fc9f63
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|205|20|1|7bc964be3126
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|366|15|1|51a7a47cf59c
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|472|21|1|51a7a47cf59c
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|950|18|1|366050fc9f63
 app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1283|5|1|ad62f3bf1f5c
 app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1287|5|1|6c080a4a9406
 app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1290|5|1|8486faa2b452

@@ -182,13 +182,23 @@
     {{/if}}
   </div>
 {{else}}
-  <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  {{!-- STANDALONE = THE PAGE (2026-09-18). `user.supervision` renders this same component with
+       `@standalone={{true}}`; ModalDialog already supports that mode and drops the overlay and
+       dialog chrome, yielding the content into a plain container. The BODY below is therefore
+       shared verbatim between the modal and the page -- no second copy of ~200 lines that
+       could drift, and "preserve all functionality" holds by construction rather than by
+       careful porting.
+       The header's close button and title are modal furniture, so they are skipped on the
+       page: there is nothing to close, and the route already has its own heading. --}}
+  <ModalDialog @standalone={{this.standalone}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  {{#unless this.standalone}}
   <div class="modal-header md-modal-header md-modal-header--supervision">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <h3 class="md-modal-title">{{t "Supervision Settings for" key="supervision_settings_for"}} {{this.model.user_name}}</h3>
   </div>
+  {{/unless}}
   <div class="modal-body md-modal-body" style="text-align: left;">
     <div class="md-modal-icon-row">
       <div class="md-modal-icon-circle">
@@ -390,8 +400,13 @@
       {{/if}}
     {{/if}}
   </div>
+  {{!-- The footer is a single Close button, which is modal furniture: on the page there is
+       nothing to close and the nav is how you leave. Skipped in standalone for the same
+       reason the header is. --}}
+  {{#unless this.standalone}}
   <div class="modal-footer md-modal-footer">
     <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
   </div>
+  {{/unless}}
   </ModalDialog>
 {{/if}}

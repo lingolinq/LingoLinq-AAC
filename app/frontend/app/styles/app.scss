@@ -49212,6 +49212,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   aspect-ratio: 1;
   border-radius: 30px;
   object-fit: cover;
+  /* INTERNAL INSET (requested 2026-09-18): the picture reads ~15% smaller while the card it
+     sits in keeps the grid column's full width. Everything here is border-box, so this takes
+     11px off each side of a 132-144px box -- about 15% off the image -- without moving the
+     column, the identity text, or anything else in the header.
+     It shows as white because of the `background` below: the padding band is the element's
+     own background, so the avatar becomes a picture mounted in a card rather than a picture
+     with a border drawn round it. */
+  padding: 11px;
   border: 1px solid rgba($brand-blue-black, 0.10);
   background: #fff;
   box-shadow: 0 4px 14px rgba($brand-blue-black, 0.10);
@@ -49406,14 +49414,39 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* MEDIUM (<=1099px) — two columns. The rail's content moves BENEATH the identity stack in
    the same column, so the reading order is name, role, AAC, controls, and the avatar keeps
    its own column rather than the whole card stacking early. */
-@media (max-width: 1099px) {
+/* MID (<=1200px) -- the rail stops being a column and becomes a horizontal band
+   (requested 2026-09-18; this breakpoint was 1099px). */
+@media (max-width: 1200px) {
   .md-hero--user {
     grid-template-columns: minmax(120px, 140px) minmax(0, 1fr);
     column-gap: 28px;
     row-gap: 22px;
+    /* 36px -> 28px TOP AND BOTTOM (requested 2026-09-18). At this width the rail has become a
+       full-width band at the foot of the card, so the last thing above the bottom padding is a
+       row of controls rather than the end of a text column, and the card as a whole is
+       shorter and denser than the three-column version -- 36px of vertical inset reads as
+       generous there and loose here.
+       `!important` because the base `padding: 36px` is itself `!important`; equal specificity,
+       so these win on source order, being the later rule. Only the vertical sides are named,
+       so left and right keep 36px. */
+    padding-top: 28px !important;
+    padding-bottom: 28px !important;
   }
   .md-hero--user__rail {
-    grid-column: 2;          /* second row of the identity column, not a column of its own */
+    /* FULL CARD WIDTH, not just the identity column (requested 2026-09-18). Measured at
+       1030px: the AAC chip is ~172px and the two controls ~222px, which with the 32px gap
+       needs ~426px -- but `grid-column: 2` gives only the identity column's ~386px, so the
+       pair wrapped and Current AAC sat on its own row above the buttons. Spanning both
+       columns gives ~535px and the row fits with room to spare.
+       This is why forcing `flex-wrap: nowrap` inside the narrow column failed: there was no
+       space to take, so the chip collapsed and `__aac-name`'s `overflow-wrap: break-word`
+       broke "External AAC" one letter per line. The width has to come from the grid, not
+       from squeezing a child. */
+    grid-column: 1 / -1;
+    /* Containing block for the divider below. The rail is a flex container, so the rule has
+       to be an ABSOLUTE pseudo-element -- a static one would become a third flex item beside
+       the AAC block and the controls and stretch the band. */
+    position: relative;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-end;
@@ -49435,8 +49468,36 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      1050, 760 and 620px). Growing from a 200px basis means they share the row evenly when
      both fit, and each fills the row on its own when they do not -- there is no width left
      over either way. */
-  .md-hero--user__aac-block { width: auto; flex: 1 1 200px; }
-  .md-hero--user__controls { width: auto; flex: 1 1 200px; justify-content: flex-end; }
+  /* Natural widths, not grown. `flex: 1 1 200px` on both stretched each group to fill half
+     the band; with the row now wide enough, they sit at their own size instead -- Current
+     AAC hard left, the controls hard right, via the `space-between` above. `flex-wrap` is
+     deliberately left at `wrap`: if a long AAC solution name ever does exceed the row, the
+     groups drop onto two lines, which is the graceful failure. They never shrink below their
+     content, so the chip cannot collapse. */
+  .md-hero--user__aac-block { width: auto; flex: 0 1 auto; }
+  .md-hero--user__controls { width: auto; flex: 0 0 auto; justify-content: flex-end; }
+  /* THE SAME GROOVE THE NAV PANEL USES (requested 2026-09-18), above the Current AAC /
+     Public profile / Edit Profile band. Only at this width: above 1200px the rail is the
+     card's third COLUMN, and a horizontal rule above a column would cut across the card
+     rather than separate two stacked things. Here the rail is a full-width band under the
+     identity stack, which is exactly the shape a divider is for.
+
+     Identical recipe to the panel's dividers -- a solid dark wall with a 1px lit wall
+     beneath, so the two surfaces read as the same material: see `.md-acct-rail__pager::after`
+     and the Home Page / Home Board rules.
+
+     Centred in the card's 22px `row-gap` at -11px, so it sits between the identity stack and
+     the band rather than hugging either. If that gap changes, this moves with it. */
+  .md-hero--user__rail::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -11px;
+    border-top: 1px solid rgba($la-navy, 0.38);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+  }
 }
 /* NARROW (<=640px) — one column, everything stacked (requested 2026-09-17). Below this the
    avatar no longer earns a column of its own: the identity stack and the rail both need the
@@ -49529,12 +49590,45 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    the template and whatever its display type. The boards block then reclaims the gutter with a
    negative margin — the standard break-out — which is the one place that wants full width. */
 .md-acct-rail {
-  /* IN FLOW, as the first column of `.md-acct-top`. It was absolutely positioned into a
-     reserved gutter, which could not satisfy "the panel's bottom should match the action
-     cards' bottom": an out-of-flow element has no relationship to its siblings' heights, and
-     there was no container ending at the actions to anchor it to. As a flex item
-     `align-items: stretch` levels it for free. */
-  flex: 0 0 208px;
+  /* FIXED FULL-HEIGHT PANEL (requested 2026-09-18). It runs from just under the topbar to the
+     bottom of the viewport and stays put while the page scrolls, so the account menu is
+     reachable from anywhere on the page instead of scrolling away with the card.
+
+     OUT OF FLOW + PAGE PADDING, which is what this file used before: the rail was made an
+     in-flow flex item only to satisfy "the panel's bottom should match the action cards'
+     bottom", and that requirement was dropped on 2026-09-18 ("the menu height shouldn't
+     stretch to match the content next to it"). With the anchor gone, nothing needs the rail
+     to be a sibling of the content, and being out of flow is what lets it outlive
+     `.md-acct-top` -- which wraps only the top section, so `position: sticky` would unstick
+     at the action cards rather than holding for the page.
+
+     FLUSH to the viewport's left edge (`left: 0`), not inset to the content column: this is a
+     page-level panel, so it meets the window edge and squares off its corners rather than
+     floating as a card. `--topbar-height` rather than a literal: it is 68/70/16/0
+     depending on the shell, and the panel must sit under whichever is live.
+
+     `overflow-y: auto` so a menu taller than the viewport scrolls inside the panel rather
+     than being clipped -- nine rows fit today, but a tenth must not fall off the bottom. */
+  position: fixed;
+  /* NOT `var(--topbar-height)` alone. On an authenticated page that variable is 16px
+     (app.scss, "When user is logged in, use a shorter top navbar") -- a tuck-under offset for
+     `#content` padding, not the bar's real height. The app-navbar is 70px, as the
+     `--topbar-height: 70px` rule's own comment states. Anchoring to the variable put the panel
+     16px from the top and hid its first row behind the navbar.
+     `max()` takes whichever is larger, so this still follows the variable on any shell where
+     the chrome is genuinely taller, and never sits above 70px of app-navbar. */
+  /* FALLBACK IN THE var(), not just the max(). `--topbar-height` is set by `:has()` rules on
+     `#within_ember`; if none of them match in a given shell the property is undefined, and a
+     bare `var(--topbar-height)` makes the whole `max()` invalid at computed-value time. An
+     invalid `top` on a fixed element is not 0 -- it is `auto`, which drops the panel at its
+     STATIC position, part-way down the page inside `.md-acct-top`. The fallback keeps the
+     expression valid whatever the shell does. */
+  top: max(var(--topbar-height, 70px), 70px);
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: 5;
   /* 244 -> 208px (requested 2026-09-14: "thinner", meaning NARROWER). The floor is the
      longest label: that was "My Subscription" at about 118px (15px/650) when this was
      measured; the label lost its "My" on 2026-09-16, so the floor only moved DOWN and the
@@ -49547,8 +49641,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column;
   /* One list, one gap. This was 14px to separate two `__group` wrappers; those are gone
      (2026-09-14 — all nine rows are direct children of the nav now), so this is the gap
-     BETWEEN ROWS and takes the value the groups used internally. */
-  gap: 4px;
+     BETWEEN ROWS and takes the value the groups used internally.
+
+     4px -> 12px (requested 2026-09-18). At 4px the nine rows read as one ridged block rather
+     than nine separate targets, which matters more here than elsewhere: this is the page's
+     primary navigation and a user driving it with a switch or a head pointer needs the
+     boundaries legible, not just the 44px hit areas.
+     HEADROOM: the panel runs from 70px to the viewport bottom, so on the shortest viewport
+     this page has been checked at (729px) it has ~659px. Nine 48.125px rows plus 34px of
+     panel padding is ~467px, which leaves ~192px for eight gaps -- a ~24px ceiling. 12px
+     spends half of that, so the panel still does not need to scroll. */
+  gap: 12px;
   box-sizing: border-box;
   /* THE PANEL (requested 2026-09-14). The nav element IS the panel — no wrapper div was
      added, because a background, a border and padding are all it takes and the element was
@@ -49556,10 +49659,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      as sitting ON it rather than merging into it.
      Nothing places text directly on this surface — every label is inside a row with its own
      background — so the panel carries no contrast requirement of its own. */
+  /* 24px -> 10px (2026-09-18). The extra top inset was added to clear the navbar's shadow and
+     the Beta feedback pill, but `top: max(var(--topbar-height), 70px)` above already puts the
+     panel below the bar -- this was breathing room on top of clearance, and it was the last
+     14px keeping an eleven-row menu from fitting a 768px-tall viewport without scrolling.
+     Uniform 10px now, matching the other three sides. */
   padding: 10px;
-  border-radius: 20px;
+  /* SQUARE (2026-09-18). The 20px radius was right while this was a floating card inset in
+     the page; flush against the window edge a rounded corner reads as a rendering fault, and
+     the left border is on an edge nobody can see. Kept on the right, which is the only edge
+     that now separates the panel from the content. */
+  border-radius: 0;
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.55) 0%, rgba($la-navy, 0.05) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:
     0 8px 22px rgba($brand-blue-black, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
@@ -49584,9 +49697,39 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
+/* Reserves the fixed panel's width. The rail is out of flow (see `.md-acct-rail`), so without
+   this the page would run underneath it.
+
+   ON THE SHELL, not on `.md-user-summary`. The summary is not the outermost box and the
+   boards block deliberately BREAKS OUT of it with a negative margin (see the note above
+   `.md-acct-rail`), so padding there is escaped by exactly the block that is widest --
+   content still slid under the panel. `.md-shell--user-rail` wraps `.md-workspace`
+   (templates/user.hbs), so padding here moves everything, break-outs included, and the
+   centred workspace re-centres inside what is left.
+
+   Scoped to >900px: below that the rail is an in-flow grid across the top, and it is also
+   where the shell class stops being the right hook -- there is nothing to clear. */
+@media (min-width: 901px) {
+  .md-shell--user-rail {
+    /* EXACTLY the panel's width, so the content edge meets the panel's right edge. The panel
+       is `box-sizing: border-box`, so its 208px already contains its 10px padding and its 1px
+       right border -- reserving 236px (208 + a 28px gutter borrowed from `.md-acct-top`'s
+       flex gap) left a 28px strip of shell padding beyond the panel that lined up with
+       nothing. Breathing room between panel and content comes from `.md-workspace`'s own
+       margins, not from padding out here. */
+    padding-left: 208px;
+  }
+}
+
 .md-acct-top {
   display: flex;
-  align-items: stretch;
+  /* `flex-start`, NOT `stretch` (requested 2026-09-18). Stretch made the rail as tall as
+     `.md-acct-main` beside it, and since the rows divide the rail's height between them
+     (see `.md-acct-rail__row`) the nav grew with whatever happened to sit in the main
+     column -- nine ~76px slabs at 1030px, where the profile card and the action cards are
+     tall. The nav's height is a property of the nav, not of the page beside it, so the rail
+     now ends after its last row. */
+  align-items: flex-start;
   gap: 28px;
 }
 .md-acct-main {
@@ -49622,13 +49765,27 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      `min-height` below is still the floor, for a viewport where the content beside the rail
      is shorter than nine 44px rows.
      Inert in the narrow layout: there the rail is a GRID, and `flex` does nothing to a grid
-     item — the rows size from the track instead. */
-  flex: 1 1 auto;
+     item — the rows size from the track instead.
+
+     SUPERSEDED 2026-09-18: `.md-acct-top` is `align-items: flex-start` now, so the rail is
+     only as tall as its rows and there is no leftover height to divide. `flex: 0 0 auto`
+     states that directly instead of leaving a grow factor that depends on a stretch which
+     no longer happens. */
+  flex: 0 0 auto;
   /* 44px, which is WCAG 2.5.5 Target Size (Enhanced, AAA) and what this rail owes: these are
      the page's primary navigation and an AAC user may be driving them with a switch or a head
      pointer. It was briefly cut to 38px when "thinner" was read as shorter; the ask was
      narrower, and the width above is where that is paid instead. Do not trade this back. */
   min-height: 44px;
+  /* CEILING for the growth above (requested 2026-09-18). `flex: 1 1 auto` divides the rail's
+     leftover height between the nine rows, which is right when there is a little to divide
+     and wrong when there is a lot: at 1030px the card and the action cards beside the rail
+     are tall enough that each row grew to ~76px, so the nav read as nine oversized slabs
+     rather than a list. Capped at the height a row settles at on a wide viewport, so the
+     rows look the same at every width and the rail simply ends above the action cards'
+     bottom instead of stretching to meet it.
+     Sits ABOVE the 44px floor, so the WCAG 2.5.5 target size is untouched. */
+  max-height: 48.125px;
   padding: 6px 10px;
   border-radius: 12px;
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.66) 100%);
@@ -49640,6 +49797,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: 15px;
   font-weight: 650;
   line-height: 1.25;
+  /* ELEMENT-AGNOSTIC (2026-09-18). Eight of these rows are <LinkTo> anchors; Supervision is a
+     <button>, because it opens a modal through `supervision_settings` rather than visiting a
+     route. A button does NOT inherit font-family from the page -- it takes the UA's default --
+     and there is no global button reset in this stylesheet, so without this the one button row
+     would render in a different typeface to the eight beside it. `text-align` and `cursor` are
+     the same story: buttons centre their text and show the default arrow, anchors do not. */
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
   text-decoration: none;
 }
 
@@ -49661,13 +49828,230 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: #fff;
 }
 
+/* HOME CARRIES MORE WEIGHT (requested 2026-09-18). The other eight rows are `user.*` pages
+   WITHIN the account section; Home leaves it for the app home. It stays a BUTTON like the
+   rest -- same shape, same 44px floor, same 15px type -- but sits forward of them, and a
+   dashed rule separates the level-up from the eight section pages.
+
+   Emphasis is spent on OPACITY AND DEPTH, not colour: the base rows are a translucent white
+   gradient over the page, so a solid surface with a deeper shadow reads as nearer without
+   introducing a second accent that would compete with `.is-active`'s teal-to-blue gradient.
+   That distinction has to stay legible -- active means "you are here", emphasis here means
+   "this is the way out" -- so they must not resemble each other.
+
+   Size is deliberately NOT the lever. Scaling a target to express hierarchy would trade
+   accessibility for a visual cue, and this is primary navigation an AAC user may be driving
+   with a switch or a head pointer. The 44px floor and the label size are untouched. */
+.md-acct-rail__row--home:not(.is-active),
+.md-acct-rail__row--board:not(.is-active) {
+  position: relative;   /* containing block for the divider pseudo-element */
+  /* LIT, not coloured in. The eight section rows are a translucent white gradient over the
+     page; Home is opaque white falling to a wash of $brand-dusty-denim, which is the same
+     hue its own icon is stroked in (#4C86D8) -- so the emphasis comes from the row's existing
+     identity rather than a new accent.
+
+     The glow is a spread-only ring in that hue plus a soft outer bloom. Deliberately kept
+     LIGHT: `.is-active` is a saturated teal-to-blue fill with white text meaning "you are
+     here", and this must stay clearly a lit white button rather than a second filled state,
+     or the two compete for the same signal. */
+  background: linear-gradient(155deg, #fff 0%, rgba($brand-dusty-denim, 0.12) 100%);
+  border-color: rgba($brand-dusty-denim, 0.38);
+  box-shadow:
+    0 0 0 3px rgba($brand-dusty-denim, 0.10),
+    0 4px 16px rgba($brand-dusty-denim, 0.22),
+    0 2px 6px rgba($brand-blue-black, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  font-weight: 700;
+  /* Separates the level-up from the eight section rows. ADDED to the nav's own `gap`, so the
+     clear space between Home Page and Account is 12 + 12 = 24px. Was 20px; trimmed as part of
+     fitting eleven rows into a 729px-tall viewport. Change this and the divider offset must
+     follow. */
+  margin-bottom: 12px;
+}
+/* THE DIVIDER, as a line in the gap -- not the row's own `border-bottom`. That was the first
+   attempt and it is invisible by construction: the row is a 12px rounded card, so a bottom
+   border is read as the button's own edge rather than a rule between two groups. A pseudo
+   element sits in the margin below the button, where a separator belongs.
+
+   `position: absolute` matters: `.md-acct-rail__row` is `display: flex`, so a static
+   `::after` would become a THIRD flex item beside the icon and label and stretch the row.
+   Taking it out of flow leaves the row's own layout untouched.
+
+   Full-bleed to the panel's padding edges (`left/right: -10px` against the panel's 10px
+   padding) so it reads as a division of the whole list, not an underline of one button. */
+.md-acct-rail__row--home:not(.is-active)::after {
+  content: '';
+  position: absolute;
+  /* FULL BLEED across the panel. -10px cancels the panel's own 10px side padding, so the
+     groove runs wall to wall rather than stopping short of the edges -- a channel cut across
+     the whole surface, which is what sells the depth. Indenting it to the rows' text column
+     was the earlier attempt and it read as an underline belonging to one button. */
+  left: -10px;
+  right: -10px;
+  /* NOT quite centred, on purpose. The clear space below the button is this row's 20px
+     `margin-bottom` plus the nav's `gap` = 32px at the default gap, and the rule sat at half
+     of that. Moving it 4px further down tightens the space between the rule and Account
+     (requested 2026-09-18) while keeping the rule clear of Home Page's glow, which bleeds a
+     few pixels past the button's own edge and was crowding a centred line from above.
+     Result at the default 12px gap: 20px above the rule, 12px below.
+     NOTE the offset is fixed but the gap is not -- above 1200px the nav's gap is 18px, so the
+     same -20px reads as 20 above / 18 below there, closer to centred. That is acceptable
+     because the wide layout has the room; if it ever needs to track exactly, this value has to
+     move per breakpoint alongside the gap. */
+  bottom: -14px;
+  /* 0.22 -> 0.38. At 0.22 the dash was barely separable from the panel's own gradient; this
+     is still well short of the row borders, so the rule divides without competing with the
+     buttons it sits between. */
+  /* SOLID, not dashed. A dashed groove is broken by construction: the highlight below shows
+     through every gap, so the channel reads as a row of ticks rather than one cut. Solid is
+     what makes the two walls continuous. */
+  border-top: 1px solid rgba($la-navy, 0.38);
+  /* CARVED, not drawn on. A single dark rule sits ON the surface; a groove needs two lines --
+     the dark one is the shadowed top wall, and a 1px highlight directly beneath it is the lit
+     bottom wall catching the light from above. That pairing is what the eye reads as depth, and
+     it is why the highlight has to be lighter than the panel rather than merely different: the
+     panel's own gradient is white falling to a navy wash, so near-white reads as lit against
+     it at every point down the list.
+     `box-shadow` rather than a second element: the pseudo-element is already the rule, and a
+     0-height box's shadow lands exactly 1px under its border with no extra markup. */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+/* HOME BOARD mirrors Home Page at the far end: its divider faces UP, into the section rows,
+   so the eight of them sit between two dividers as one group. Same 32px of clear space (20px
+   margin + the nav's 12px gap), rule centred at 16px. */
+.md-acct-rail__row--board:not(.is-active) {
+  margin-top: 12px;
+  /* TWO LINES here, unlike every other row, so the height cap that keeps the section rows
+     uniform has to come off -- it exists to stop them stretching, not to clip content. The
+     44px floor still applies. */
+  max-height: none;
+}
+.md-acct-rail__row--board:not(.is-active)::before {
+  content: '';
+  position: absolute;
+  /* Full bleed and solid, matching the rule under Home Page. */
+  left: -10px;
+  right: -10px;
+  top: -12px;
+  border-top: 1px solid rgba($la-navy, 0.38);
+  /* Same groove as the rule under Home Page. */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+/* THE SCROLL PAGER. Sticky to the panel's top so it stays put while the rows move under it;
+   `-10px` insets cancel the panel's own padding so it spans wall to wall, and the negative top
+   pulls it flush with the panel's top edge. The background is opaque because rows scroll
+   BEHIND it -- a translucent pager would show them sliding through the buttons. */
+.md-acct-rail__pager {
+  position: sticky;
+  top: -10px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  margin: -10px -10px 10px;
+  padding: 10px;
+  /* SILVER, not transparent (requested 2026-09-18). `ch-chip` is the app's own silver
+     material -- a white sheen laid over an #EAEFF6 -> #D2DAE5 ramp, with a specular top edge
+     and inset lower shading -- and it is what every classic rail icon and board card is made
+     of. Using it rather than a local gradient means the pager is the same substance as the
+     rest of the app's raised objects, and it tracks `$ch-chip-hi/lo` if those are ever retuned.
+     No `$imp`: that argument exists for `board-card-modern`, which is already `!important`,
+     and the module's own note says never to pass it to win an ordinary cascade.
+     Opaque again also restores what the transparent version gave up -- the rows scroll behind
+     this bar, and a see-through strip let them slide visibly through the gaps between the two
+     buttons. */
+  @include ch-chip;
+  /* The glassiness on top of the silver: the ramp is opaque, so this reads on the sliver of
+     backdrop showing at the bar's edges and keeps it in the same family as the buttons, which
+     carry `glass-bar-surface`. */
+  -webkit-backdrop-filter: blur(20px) saturate(185%);
+  backdrop-filter: blur(20px) saturate(185%);
+}
+/* The groove under the pager, as a pseudo-element rather than a `border-bottom` plus a
+   `box-shadow` on the bar itself. It HAD to move: `ch-chip` above sets `box-shadow` for the
+   silver's gloss line and inset shading, and a second `box-shadow` on the same rule replaces
+   that list wholesale rather than adding to it -- the highlight was silently flattening the
+   very material it sits on. A pseudo-element carries its own shadow and cannot collide.
+   Same carved groove as the two rules bracketing the section rows, so the panel has ONE
+   divider treatment rather than three different lines. `position: sticky` on the bar is a
+   positioned value, so it is already the containing block for this. */
+.md-acct-rail__pager::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-top: 1px solid rgba($la-navy, 0.38);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+/* The app's shared glass treatment, not a local imitation: `glass-bar-surface` is the same
+   mixin the speak-mode compose bar and the edit-mode session bar use, so these buttons read as
+   part of that family rather than a one-off. It brings the gloss line, the upper sheen, the
+   faint lower depth and the backdrop blur -- which is also what lets the container above be
+   transparent without the scrolling rows smearing through the buttons. */
+.md-acct-rail__pager-btn {
+  @include glass-bar-surface;
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  /* Same 44px floor as the nav rows: these are switch and gaze targets too, and the whole
+     point of the pager is to be reachable by someone who cannot use a wheel. */
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  appearance: none;
+}
+.md-acct-rail__pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The board's own name under the row label. Quieter than the label so the row still reads
+   "Home Board" first and "which one" second. */
+.md-acct-rail__sublabel {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: rgba($la-navy, 0.62);
+  overflow-wrap: anywhere;
+}
+/* Hover lifts the same glow rather than introducing a new colour, so the button brightens
+   instead of changing character. */
+.md-acct-rail__row--home:not(.is-active):hover,
+.md-acct-rail__row--home:not(.is-active):focus-visible,
+.md-acct-rail__row--board:not(.is-active):hover,
+.md-acct-rail__row--board:not(.is-active):focus-visible {
+  border-color: rgba($brand-dusty-denim, 0.55);
+  box-shadow:
+    0 0 0 4px rgba($brand-dusty-denim, 0.14),
+    0 6px 20px rgba($brand-dusty-denim, 0.30),
+    0 2px 6px rgba($brand-blue-black, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
 .md-acct-rail__icon {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  /* 32px -> 30px (2026-09-18). Everything here is border-box, so a row's height is
+     `max(min-height, icon + 12px padding + 2px border)`. At 32px that came to 46px and the
+     44px floor never governed -- eleven rows were quietly 22px taller than the floor implies.
+     At 30px the arithmetic lands exactly on 44px, which is what `min-height` was written to
+     guarantee (WCAG 2.5.5 Target Size), so the row height stops being an accident of the glyph
+     size. The TARGET is unchanged at 44px; only the chip inside it is 2px smaller. */
+  width: 30px;
+  height: 30px;
   border-radius: 10px;
   /* The shared chip — the same surface the classic rail icons and every board card carry. */
   @include ch-chip;
@@ -49690,6 +50074,144 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    The boards section is also a SIBLING of that row rather than a child, so it is already the
    page's full width and needs no negative-margin break-out either. Nothing to declare. */
 
+/* WIDE (>1200px) -- the panel breathes (requested 2026-09-18). Above this width the viewport
+   is tall as well as wide in practice, so the menu can afford a deeper top inset and looser
+   rows; at and below 1200px the same values would crowd the panel against its own scroll.
+
+   ALSO GATED ON HEIGHT (requested 2026-09-18: no scrolling at 768px tall and above). Width
+   alone was the wrong condition -- a wide screen is not necessarily a tall one, and these two
+   values are what tipped the panel into overflow at 768px.
+
+   BUDGET, eleven rows (Home Page, eight section rows, Supervision, Home Board):
+     ten rows at 46px                                460px
+     Home Board's two-line row                        49px
+     Home Page + Home Board bookend margins           40px
+     ten gaps                             10 x 12 =  120px   10 x 18 =  180px
+     padding (top + bottom)                           20px            50px
+                                          base ---->  689px   wide -> 779px
+   ROWS ARE 46px, NOT 44px. `min-height: 44px` is a FLOOR and everything here is border-box
+   (the global `*, *:before, *:after` rule), so the 32px icon plus 12px padding plus 2px
+   border overflows it by 2px. An earlier version of this budget assumed 44 and was 22px
+   short across eleven rows -- which is why the pager was still appearing on screens that
+   should have fitted.
+   The panel is `100vh - 70px`, so base needs 759px of viewport height and wide needs 849px.
+   860px rather than 849px so the threshold is not sitting on the arithmetic. Between 759 and
+   859px tall the panel uses base spacing and does not scroll. */
+@media (min-width: 1201px) and (min-height: 860px) {
+  .md-acct-rail {
+    padding-top: 40px;
+    gap: 18px;
+  }
+}
+
+/* ACCOUNT PAGE ONLY: drop the folders tagline below 768px (requested 2026-09-18).
+   `.ub-boards-page__folders-subtitle` is "Organize your boards", the inline hint beside the
+   folder-count chip. At this width the account page's folder header has less room than the
+   boards page's -- the fixed nav panel takes 208px of it above 900px, and below that the nav
+   grid sits above the same content -- so the tagline wraps under the chip and pushes the
+   header onto a second line. The chip and the toggle already say what the strip is.
+
+   SCOPED to `.md-user-summary`, the account page's own wrapper, because <BoardsBrowser> is
+   shared with the boards page (templates/user/boards.hbs) where the hint still has room and
+   is still wanted. A bare rule here would have taken it off both.
+
+   NOT a duplicate of the existing hide: that one lives in
+   `@mixin boards-folders-narrow-header`, applied by a `@container boards-folders
+   (max-width: 420px)` query for the side-by-side layout's narrow COLUMN and by a
+   `@media (max-width: 640px)` block. Neither covers a 768px viewport in the stacked layout,
+   which is the case this handles. */
+@media (max-width: 768px) {
+  .md-user-summary .ub-boards-page__folders-subtitle {
+    display: none;
+  }
+}
+
+/* ACCOUNT PAGE, <=1200px: 12px off each side gutter (requested 2026-09-18). The base
+   `.md-workspace` is `padding: 40px` all round; this takes the sides to 16px (40 -> 28 -> 16,
+   trimmed twice the same day) and leaves the top and bottom alone. 16px is also what the
+   Focused Boards and Reports pages use for their side gutters, so the account page lines up
+   with them rather than sitting 24px wider.
+
+   WHY THIS PAGE AND THIS WIDTH. 1200px is where the account page's boards insert stops being
+   side-by-side and stacks (see the `.md-user-summary &` block on the split rule), and it is
+   also where the fixed 208px nav panel is still taking width off the content column. Below
+   that point the page is paying for a gutter it can no longer afford, while a page with no
+   nav panel has the same 40px and plenty of room for it.
+
+   SCOPED to `.md-shell--user`, deliberately NOT the bare `.md-workspace`: 21 templates use
+   that class and 86 rules already touch it, so a global change here would reshape the gutters
+   on every page in the app -- boards, reports, settings, logs, the dashboard -- for a problem
+   that only this page has.
+
+   `(0,2,0)` plus `!important`, which is what it takes to beat the base padding: that rule is
+   `(0,1,0)` and already `!important`. Only the sides are named, so the top keeps whatever the
+   view scheme set (40px in Gentle, 20px in Focused -- see _focused-view.scss) and the bottom
+   keeps its `calc(40px - 9rem)`. */
+@media (max-width: 1200px) {
+  .md-shell--user > .md-workspace {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+/* The 208px gutter for bare-layout pages that carry the rail (currently only Reports,
+   user.stats). `.md-shell--user-rail` cannot do this job here: bare routes never render that
+   shell. Scoped to its own wrapper rather than to `.md-shell--reports-view`, which Boards
+   also uses -- Boards has no rail, so padding that shell would give it a 208px gutter
+   against nothing.
+   Above 900px only, matching the main gutter rule: below that the rail is an in-flow grid
+   across the top and there is nothing to clear. */
+@media (min-width: 901px) {
+  .md-bare-rail-gutter {
+    padding-left: 208px;
+  }
+}
+
+/* Supervision page heading. The component it sits above is the modal's body, which carries
+   its own `md-modal-*` surfaces, so this only has to name the page -- matching the weight and
+   colour the other section pages use for their titles rather than introducing a third scale. */
+.md-supervision-page__title {
+  margin: 0 0 18px;
+  font-size: 26px;
+  font-weight: 700;
+  color: $la-navy;
+}
+
+/* THE PAGER IS NOT FOR REAL SCREENS (requested 2026-09-18): at 1024px wide and 768px tall or
+   better, the menu must fit and the Up/Down pair must not appear.
+
+   A GUARANTEE, not a hope. The content does fit at that size -- measured 667px of rows into a
+   698px panel, once the icon dropped to 30px (rows became 44px rather than 46px, so the WCAG
+   floor governs) and the bookend margins came down to 12px. But `rail_scrollable` is computed
+   from a live `scrollHeight` measurement, so a future row, a longer board name wrapping, or a
+   translation that wraps a label could tip it back on. This rule states the intent in CSS so
+   the pager cannot reappear on a screen that is supposed to be big enough.
+
+   It hides the CONTROL only, never the content: the panel keeps `overflow-y: auto`, so if
+   something ever does overflow at this size the rows stay reachable by wheel, trackpad and
+   keyboard. What would be lost is the switch/gaze route -- which is exactly the tradeoff
+   worth knowing about if a row is ever added. Below either threshold the pager returns. */
+@media (min-width: 1024px) and (min-height: 768px) {
+  .md-acct-rail__pager {
+    display: none;
+  }
+}
+
+/* NARROWER (<=1024px) -- less headroom above the list (requested 2026-09-18). The 24px base
+   inset was chosen to clear the navbar's shadow and the Beta feedback pill on a roomy screen;
+   at this width the viewport is usually shorter too, and eleven rows plus two 32px bookend
+   gaps are competing for the same vertical space. Spending 12px there instead buys a row's
+   worth of it back before the panel has to scroll.
+
+   Completes the scale: 40px above 1200, 24px between, 12px at or below 1024. Only the top
+   changes -- the 10px on the other three sides is the panel's own inset and is not what is
+   under pressure. */
+@media (max-width: 1024px) {
+  .md-acct-rail {
+    padding-top: 12px;
+  }
+}
+
 /* NARROW: the rail stops floating and becomes a full-width block above the content. Below
    this width there is not enough room for a 244px column plus a readable account card, and a
    floated rail would squeeze the content beside it rather than wrapping. */
@@ -49705,11 +50227,44 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      "Subscription" (2026-09-16), so 190 has gained slack rather than lost it -- kept as is,
      since the next-longest labels ("Recordings", "Subscription") still want most of it. */
   .md-acct-rail {
+    /* BACK IN FLOW. Undoes the fixed panel above -- below this width the rail is a grid
+       across the top of the page, not a side column, so every one of its positioning
+       properties has to be returned to its initial value or the grid would be pinned to the
+       viewport. */
+    position: static;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    overflow-y: visible;
+    z-index: auto;
     width: 100%;
-    margin: 0 0 20px;
+    /* 22px of TOP margin (requested 2026-09-18): back in flow, the grid starts hard against
+       whatever sits above it, and the fixed panel's own breathing room came from `top`, which
+       is reset to `auto` just above. The bottom 20px was already here and is unchanged --
+       this sets the leading edge to match. */
+    margin: 22px 0 20px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 8px;
+  }
+  /* THE BOOKENDS BECOME ORDINARY CELLS HERE. Home Page and Home Board are set apart in the
+     side panel by a dashed rule and 20px of extra margin, because there the nav is a vertical
+     list and "above the group / below the group" is a direction a reader can follow. In this
+     grid the rows flow left-to-right and wrap, so neither one is reliably at an end of
+     anything -- a divider would cut across the middle of a row, and the extra margin would
+     knock a single cell out of alignment with its neighbours.
+
+     `content: none` rather than `display: none`: it stops the pseudo-element being generated
+     at all instead of generating one and hiding it. The margins go back to 0 so the grid's own
+     8px `gap` is the only spacing, which is what makes every cell match. */
+  .md-acct-rail__row--home:not(.is-active),
+  .md-acct-rail__row--board:not(.is-active) {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .md-acct-rail__row--home:not(.is-active)::after,
+  .md-acct-rail__row--board:not(.is-active)::before {
+    content: none;
   }
   /* (No `display: contents` on a group wrapper any more — there is no wrapper to flatten,
      so the rows are already direct grid items here.) */
@@ -54162,6 +54717,19 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   @media (max-width: 900px) {
     display: block;
   }
+  /* THE ACCOUNT PAGE STACKS EARLIER, at 1200px (requested 2026-09-18). Same component, less
+     room: `.md-user-summary` is the account page's wrapper, and that page gives 208px of its
+     width to the fixed nav panel above 900px, so its folders column hits the cramped
+     ~185-220px range while the boards page still has slack at the same viewport. Folders on
+     top of boards is what 900px already does for both -- this only moves the account page's
+     copy of that switch upward.
+     Scoped rather than global so templates/user/boards.hbs keeps the side-by-side comparison
+     down to 900px, which is the width its own comment above reasons about. */
+  .md-user-summary & {
+    @media (max-width: 1200px) {
+      display: block;
+    }
+  }
 }
 
 /* Boards-page empty state — shown by available-boards-section
@@ -54701,10 +55269,20 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-card--speak-focused__icon,
 .md-card--caseload-focused__icon { color: $focus-on-dark; line-height: 0; }
-/* Caseload badge — same 126px display box as the Speak badge above, so the two
-   heroes carry identical visual weight. object-fit keeps the source's 247x252
-   aspect inside the box. */
-.md-card--caseload-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
+/* Caseload badge — 126px wide, matching the Speak badge below so the two heroes carry
+   identical visual weight.
+   HEIGHT IS A DELIBERATE 15% STRETCH (requested 2026-09-18), which is why this is
+   `object-fit: fill` and not the `contain` the Speak badge uses. The caseload-folder
+   artwork is 252x214 (landscape); contained at 126px wide it paints 107px tall and left a
+   19px band of dead space against the text beside it. 107 x 1.15 = 123, so the box is
+   126x123 and `fill` stretches the source to exactly that -- the 15%.
+   The 3px height difference against the Speak badge is not visible anywhere: the two never
+   render together. `focusedHeroKey` (utils/dashboard_sections.js) returns exactly ONE key
+   and stamps a single `md-grid--hero-*` on the grid, so a supporter sees the caseload hero
+   and a communicator sees the Speak one.
+   Changing the artwork means recomputing this: it is tied to the 252x214 source, not to a
+   ratio the browser works out. */
+.md-card--caseload-focused__img { width: 126px; height: 123px; display: block; object-fit: fill; }
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
    becomes the hero's unmistakable focal point. */
 .md-card--speak-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
@@ -54745,9 +55323,10 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    stays visible ABOVE the bar (the nav the user navigates with). */
 .md-shell--home:has(.md-grid--layout-focused) .md-hero--dashboard { display: none !important; }
 
-/* (Reports now shows in the pill-nav for everyone via `showReportsPill` (always
-   true), on every layout. Communicators ALSO keep a Reports card in Extras, so the
-   old CSS pill-hide stays retired.) */
+/* (Reports left the pill-nav entirely on 2026-09-18, and `showReportsPill` went with it.
+   Nothing needs hiding here any more -- the pill is not rendered at all, on any layout.
+   Communicators reach Reports from the Extras card; everyone reaches it from the account
+   rail's Reports row.) */
 
 /* Focused — the Boards card actions: "View All Boards" takes the SAME navy
    `$indigo` OKLAB gradient as the "Hey <name>" bar (white text — its default navy

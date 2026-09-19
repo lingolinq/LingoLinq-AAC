@@ -42,6 +42,14 @@
        components/display-style.js) so the menu cannot drift from the fuller explanations
        those surfaces already give.
 
+       ORDER: each group leads with the option we are steering people to -- Modern, which
+       carries the Recommended tag and is where new features land, and Focused, which is
+       what a new account is created on (seeded under `new_record?` in
+       User#generate_defaults, app/models/user.rb). Putting the badged option first means
+       the badge is the first thing read in its group rather than something found after
+       the alternative. The order is presentation only: `aria-checked` still reports which
+       option is ACTIVE, so leading with the default never implies it is selected.
+
        The headings are `role="none"` with NO `aria-hidden`. `none` already strips the
        element's own semantics, so adding `aria-hidden` is both redundant and invalid
        (ember-template-lint: no-unsupported-role-attributes) -- and the heading TEXT is
@@ -51,15 +59,6 @@
     <li role="none" class="ll-viewswitch__group">{{t "Layout" key="view_group_layout"}}</li>
     <li role="none">
       <button type="button" role="menuitemradio"
-              aria-checked={{if this.isClassic "true" "false"}}
-              class="ll-viewswitch__item {{if this.isClassic "is-selected"}}"
-              {{on "click" (this.ctrlAction "select_view" "classic")}}>
-        <span class="ll-viewswitch__item-label">{{t "Basic View" key="classic_view"}}</span>
-        <span class="ll-viewswitch__item-desc">{{t "A simple side menu, with every tool in one fixed list." key="view_desc_basic"}}</span>
-      </button>
-    </li>
-    <li role="none">
-      <button type="button" role="menuitemradio"
               aria-checked={{if this.isClassic "false" "true"}}
               class="ll-viewswitch__item {{unless this.isClassic "is-selected"}}"
               {{on "click" (this.ctrlAction "select_view" "modern")}}>
@@ -67,8 +66,31 @@
         <span class="ll-viewswitch__item-desc">{{t "Customize your home page and your boards with live-preview tools." key="view_desc_modern"}}</span>
       </button>
     </li>
+    <li role="none">
+      <button type="button" role="menuitemradio"
+              aria-checked={{if this.isClassic "true" "false"}}
+              class="ll-viewswitch__item {{if this.isClassic "is-selected"}}"
+              {{on "click" (this.ctrlAction "select_view" "classic")}}>
+        <span class="ll-viewswitch__item-label">{{t "Basic View" key="classic_view"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "A simple side menu, with every tool in one fixed list." key="view_desc_basic"}}</span>
+      </button>
+    </li>
     <li role="separator" class="ll-viewswitch__sep"></li>
     <li role="none" class="ll-viewswitch__group">{{t "Style" key="view_group_style"}}</li>
+    {{!-- "Default" is a statement about NEW accounts, not about this user: Focused is what
+         User#generate_defaults seeds under `new_record?`. It reuses the same
+         `ll-viewswitch__item-tag` pill as Modern's "Recommended" so the two badges read as
+         one system, and stays its own element rather than being baked into the label
+         string so it can move or go without touching a translated sentence. --}}
+    <li role="none">
+      <button type="button" role="menuitemradio"
+              aria-checked={{if this.isFocused "true" "false"}}
+              class="ll-viewswitch__item {{if this.isFocused "is-selected"}}"
+              {{on "click" (this.ctrlAction "select_layout" "focused")}}>
+        <span class="ll-viewswitch__item-label">{{t "Focused Style" key="view_style_focused"}}<span class="ll-viewswitch__item-tag">{{t "Default" key="view_default"}}</span></span>
+        <span class="ll-viewswitch__item-desc">{{t "Stronger contrast and bolder visual cues." key="view_desc_focused"}}</span>
+      </button>
+    </li>
     <li role="none">
       <button type="button" role="menuitemradio"
               aria-checked={{if this.isFocused "false" "true"}}
@@ -76,15 +98,6 @@
               {{on "click" (this.ctrlAction "select_layout" "gentle")}}>
         <span class="ll-viewswitch__item-label">{{t "Gentle Style" key="view_style_gentle"}}</span>
         <span class="ll-viewswitch__item-desc">{{t "Softer colors and lighter emphasis." key="view_desc_gentle"}}</span>
-      </button>
-    </li>
-    <li role="none">
-      <button type="button" role="menuitemradio"
-              aria-checked={{if this.isFocused "true" "false"}}
-              class="ll-viewswitch__item {{if this.isFocused "is-selected"}}"
-              {{on "click" (this.ctrlAction "select_layout" "focused")}}>
-        <span class="ll-viewswitch__item-label">{{t "Focused Style" key="view_style_focused"}}</span>
-        <span class="ll-viewswitch__item-desc">{{t "Stronger contrast and bolder visual cues." key="view_desc_focused"}}</span>
       </button>
     </li>
   </ul>

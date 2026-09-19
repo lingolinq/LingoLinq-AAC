@@ -1,0 +1,14 @@
+<div class="md-shell md-shell--user md-shell--user-rail">
+  <div class="md-workspace">
+    {{!-- THE SAME COMPONENT THE MODAL USES, in `standalone` mode. ModalDialog drops its
+         overlay and dialog chrome in that mode and yields the body into a plain container, so
+         every list, control and action on this page is literally the modal's markup rather
+         than a port of it. That is what keeps the two from drifting: one body, not two.
+
+         The heading lives here, not in the component: the component's own title is modal
+         furniture ("Supervision Settings for <user>"), and a page in this section should read
+         like its siblings. --}}
+    <h2 class="md-supervision-page__title">{{t "Supervision" key="supervision"}}</h2>
+    <SupervisionSettings @model={{this.model}} @standalone={{true}} />
+  </div>
+</div>

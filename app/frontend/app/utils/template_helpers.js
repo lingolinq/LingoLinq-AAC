@@ -82,6 +82,25 @@ templateHelpers.duration = function(duration) {
   }
 };
 
+/* The board NAME out of a board key. Board keys are `username/board-slug`, and the
+   username half is noise wherever the board is already shown in that user's own context --
+   the account page's Home Board card read `marcus_williams_slp/vocal-flair-84` when the
+   card sits on Marcus's own account (requested 2026-09-18).
+
+   Returns the segment after the LAST slash, so a key that somehow carries extra path
+   depth still yields its final component, and a key with no slash at all is returned
+   unchanged. Null/undefined/non-string in gives '' out rather than throwing, matching
+   round() above: a template helper must never break a render.
+
+   NOTE this is the key's slug, not the board's display name. `preferences.home_board`
+   stores only `id`, `key`, `locale` and `level` (app/models/user.rb#process_home_board),
+   so the human-readable name is not available without fetching the board. */
+templateHelpers.board_key_name = function(key) {
+  if(typeof key !== 'string') { return ''; }
+  var parts = key.split('/').filter(function(p) { return p.length > 0; });
+  return parts.length ? parts[parts.length - 1] : '';
+};
+
 templateHelpers.round = function(number) {
   var val = parseFloat(number);
   if (number === undefined || number === null || Number.isNaN(val)) {

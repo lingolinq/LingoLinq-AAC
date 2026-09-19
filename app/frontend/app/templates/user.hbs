@@ -1,8 +1,30 @@
 {{#if this.bareUserOutletLayout}}
-  {{outlet}}
+  {{!-- BARE ROUTES bring their own shell, so they skip the `.md-shell--user` wrapper below --
+       Reports (user.stats) renders `.md-shell--reports-view` instead. Reports is still an
+       account-section page and still wants the nav, so the rail renders here too, and the
+       gutter it needs is carried by a wrapper of its own rather than by `.md-shell--user-rail`
+       (which this branch never gets).
+       Gated on the SAME `accountRailContext` as the other branch, so the two can never
+       disagree about which pages have a rail. Boards and the board routes are also bare but
+       are not in that list, so they fall through to the plain outlet unchanged. --}}
+  {{#if this.accountRailContext}}
+    <AccountRail @user={{this.model}} />
+    <div class="md-bare-rail-gutter">{{outlet}}</div>
+  {{else}}
+    {{outlet}}
+  {{/if}}
 {{else}}
 <div class="md-user-layout hide_print">
   <div class="md-shell md-shell--user {{if this.accountRailContext "md-shell--user-rail"}}">
+    {{!-- THE ACCOUNT SECTION NAV (2026-09-18). One instance here serves every page in the
+         section: it used to live inside templates/user/index.hbs, so only the account page
+         had it. `accountRailContext` (controllers/user.js) decides WHICH routes get it, and
+         `md-shell--user-rail` above reserves the 208px the fixed panel occupies -- the two
+         are driven by the same flag, so a page can never get the panel without the gutter or
+         the gutter without the panel. --}}
+    {{#if this.accountRailContext}}
+      <AccountRail @user={{this.model}} />
+    {{/if}}
     <div class="md-workspace">
       {{!-- WHICH NAV, DECIDED BY WHERE THE USER CAME FROM (requested 2026-09-14).
            `homeNavContext` (controllers/user.js) is true only on the logs page and only when
@@ -14,11 +36,16 @@
            the account nav below, which is the right menu for working through that section.
            Only ONE of the two renders, so there is never a second bar on the page. --}}
       {{#if this.accountRailContext}}
-        {{!-- NOTHING HERE. The account page carries its own left rail (`.md-acct-rail` in
-             templates/user/index.hbs) with these same destinations in it, so rendering the
-             pill row too would put two menus on one page — and the top one read as the home
-             dashboard's nav, which is what disoriented people. See `accountRailContext`. --}}
+        {{!-- NOTHING HERE. These pages carry the left rail (<AccountRail />, rendered above)
+             with the same destinations in it, so a pill row as well would put two menus on
+             one page — and the top one read as the home dashboard's nav, which is what
+             disoriented people. See `accountRailContext`. --}}
       {{else if this.homeNavContext}}
+        {{!-- ARRIVED FROM THE HOME PILL-NAV'S "Updates" (`?nav=home`). The rail is suppressed
+             for this case in `accountRailContext`, so exactly one nav renders: the home
+             pill-nav, with Updates still marked current. Clicking Logs in the account rail
+             instead carries no `nav` param, takes the branch above, and gets the rail with
+             its Logs row current. One page, two origins, one nav each. --}}
         <UserPillNav @active="updates" @userName={{this.model.user_name}} />
       {{else}}
         <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>

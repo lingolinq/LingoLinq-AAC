@@ -77,6 +77,14 @@ Admission rule for an entry in this file:
 - **`BoardCloner` copies only allowlisted settings keys.** A new `settings` key is silently dropped from
   every copy until it is added to the allowlist. Cite `app/cloners/board_cloner.rb`.
 
+- **"Default for new accounts" is not the `preference_defaults` bucket.** `generate_defaults` is a
+  `before_save` with no `new_record?` guard around the bucket loops, so every bucket entry is
+  backfilled onto EVERY existing user on their next routine save — flipping one silently changes
+  accounts that never chose it, and persists the new value as an explicit choice. Seed the
+  new-account value inside the `if self.new_record?` block, which runs BEFORE the loops, so the
+  bucket's `== nil` test skips it and existing users still fall to the old value. Pin both halves.
+  Symbol: `generate_defaults` in `app/models/user.rb`.
+
 ## Ember reactivity and data
 
 - **Ember Data 5.3 relationship and query arrays are native Proxies.** `firstObject` is silently
@@ -127,6 +135,13 @@ Admission rule for an entry in this file:
   heuristics reclassify boards and `LIKE '%/name'` misses copies. Classify a copy by
   `parent_board_key`. Cite `app/frontend/app/utils/board-brands.js`.
 
+- **A nav-precedence computed can make a whole template branch unreachable.** `templates/user.hbs`
+  tested `accountRailContext` first and `homeNavContext` second; once the first grew to include
+  `user.logs`, the second branch could never run, so the entire "arrived from the home pill-nav"
+  case was dead while its computed still looked correct in isolation. When two computeds gate
+  sibling branches, assert the PAIR on the one route both can claim, never each one alone.
+  Cite `app/frontend/tests/unit/controllers/user-nav-context-test.js`.
+
 ## Templates, i18n and modals
 
 - **`i18n_generator.rb` is a static, single-line parser.** Dynamic `{{t bound key=bound}}` keys are
@@ -148,6 +163,14 @@ Admission rule for an entry in this file:
 - **`raw_events` synthesizes clicks inside modals, so a modern `{{on "click"}}` handler fires twice.**
   Idempotent actions hide it; creates double-post. Symbol: `dispatchPassThroughClick` in
   `app/frontend/app/utils/raw_events.js`.
+
+- **Widening where a nav renders turns its literal `is-active` into a lie.** A row hardcoded
+  `class="… is-active" aria-current="page"` is right while the nav renders on one page and wrong on
+  every other the moment it moves to a shared template; nothing catches it, since both states render
+  and lint clean. Let `<LinkTo @activeClass="is-active">` compute it — supported in 5.12, and it
+  leaves the existing SCSS selector alone. Two things it will not do: it never sets `aria-current`,
+  and `@route` names one route, so a page reachable under two names needs `@current-when`.
+  Cite `app/frontend/app/components/account-rail.hbs`.
 
 ## Board rendering and scanning (AAC input paths)
 
@@ -214,6 +237,13 @@ Admission rule for an entry in this file:
   go transparent on deploy only; keep gradients out of embedded SVGs. Symbol: `Sprockets` comment in
   `app/frontend/app/styles/app.scss`.
 
+- **"Hide the page header in this view" is only safe if the header is decoration.** Four selectors
+  were hidden as one group on the stated reasoning that each "holds only the icon + title, no action
+  controls". True for three of them; the logs `<h2>` also holds every filter link the page has, so
+  hiding it removed the only route to them. Read the markup behind each selector before adding it to
+  a shared hide group, and re-read the group's justification comment — it was written about the
+  members that existed then. Cite `app/frontend/app/styles/_focused-view.scss`.
+
 ## Tests and CI
 
 - **Two frontend test idioms coexist, and the QUnit harness has its own rules.** Jasmine-wrapped
@@ -250,6 +280,18 @@ Admission rule for an entry in this file:
   scroll containers; Playwright e2e specs write the signed-in user's real device prefs and poison later
   runs; a fixed sleep tests the old bundle, so poll the built asset for a marker. Cite
   `app/frontend/e2e/helpers.js`.
+
+- **Menu ORDER is invisible to every check except a test.** Reordering two near-identical `<li>`
+  blocks lints clean, builds clean and passes every existing test in both orders — and it is the
+  edit most likely to leave a stale `{{if}}`/`{{unless}}` pairing that ticks the option the user is
+  NOT on. Assert the label SEQUENCE, each badge's containment within its own row (a document-wide
+  query for a shared pill class passes with the badge on the wrong row), and `aria-checked` per row.
+  Cite `app/frontend/tests/integration/view-switcher-menu-order-test.js`.
+- **Tell an `.eslint-todo` line shift from a real finding before touching the baseline.** Editing a
+  legacy file moves its grandfathered entries and the gate reports them as new. It is a SHIFT when
+  rule, column and message hash all match and every moved entry shares one constant offset — then
+  re-anchor those specific lines. Regenerating the whole file instead rewrites the timestamp and
+  folds in any other session's uncommitted state. Cite `scripts/eslint-todo-gate.js`.
 
 ## Compliance registers and legal docs
 
@@ -292,3 +334,10 @@ Admission rule for an entry in this file:
   be `100755`: `git update-index --chmod=+x <path>`. Cite `scripts/tests`.
 - **`npm ci --dry-run` deletes `node_modules` first.** There is no check-only mode; the `patch-package`
   postinstall then fails on an empty tree. Cite `app/frontend/package.json`.
+- **A default change orphans the comments that justified the old default.** Comments asserting which
+  side is the default are risk documentation, not prose: one file opened "NOT THE DEFAULT … every
+  rule here reaches only users who deliberately chose it", written to tell the next editor how safe
+  a rule in it was. Flipping the default inverted that sentence without touching the file. Grep the
+  preference KEY and its old value across `.scss`, `.js` and `.rb` before finishing; three comments
+  were wrong here and only one was in a file the change otherwise touched.
+  Cite `app/frontend/app/styles/_focused-view.scss`.

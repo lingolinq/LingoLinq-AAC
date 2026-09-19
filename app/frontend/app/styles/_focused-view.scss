@@ -5,13 +5,21 @@
 // SINGLE HOME for every style that should apply ONLY when the user has selected
 // the "Focused View" dashboard style (`preferences.dashboard_layout === 'focused'`).
 //
-// NOT THE DEFAULT — this comment used to claim it was, and that claim shaped how risky
-// every rule in this file looks. `User.preference_defaults['any_user']['dashboard_layout']`
-// is `'gentle'` (app/models/user.rb), and `LingoLinq.set_layout_scope` (app/app.js) adds
-// the body class only on a strict `layout === 'focused'`. So an absent or default
-// preference gets NOTHING from this file, and every rule here reaches only users who
-// deliberately chose Focused View. Gentle View is the untouched baseline, exactly as the
-// scoping contract below says.
+// THIS IS THE DEFAULT FOR NEW ACCOUNTS — and that governs how risky every rule in this
+// file is. `User#generate_defaults` seeds `dashboard_layout = 'focused'` under
+// `new_record?` (app/models/user.rb), so a rule added here reaches everyone who has
+// signed up since, not only people who went looking for the setting. Treat each one as
+// default-on: it must work on a brand-new, empty account.
+//
+// Two things are still NOT true, and both matter:
+//   - It is not retroactive. `preference_defaults['any_user']['dashboard_layout']` stays
+//     `'gentle'`, because that bucket is backfilled onto every EXISTING user on their
+//     next save. An account created before this change, and anyone who picked Gentle,
+//     gets nothing from this file.
+//   - The overlay is still strictly opt-in at runtime: `LingoLinq.set_layout_scope`
+//     (app/app.js) adds the body class only on an exact `layout === 'focused'`, so an
+//     ABSENT preference gets no class. Gentle View remains the untouched baseline and
+//     the scoping contract below is unchanged.
 //
 // The overlay is gated at runtime by the `ll-layout-focused`
 // class that `sync_layout_scope` (services/app-state.js) mirrors onto <body> on
@@ -1664,6 +1672,26 @@ body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.is-active {
 }
 
 // -----------------------------------------------------------------------------
+// Account page — 12px less headroom in Focused View (requested 2026-09-18)
+// -----------------------------------------------------------------------------
+// Focused hides this page's hero (`.md-hero--dashboard-user`, just below) and its boards
+// stats row, so the content that the base 40px was spacing away from the topbar is no longer
+// there and the page opened with a visibly bigger gap than Gentle's. 40px -> 28px -> 20px
+// (second 8px trim requested the same day).
+//
+// SCOPED TO `.md-shell--user`, not to `.md-workspace` generally: the standalone Boards and
+// Reports pages get their own Focused workspace padding a few hundred lines above, measured
+// against the dashboard with scripts/focused-layout-qa.mjs. Touching the shared rule would
+// have moved those too and invalidated that measurement.
+//
+// (0,3,1) + `!important` to beat the base `.md-workspace` padding, which is (0,1,0) and
+// already `!important` — the same weight the reports-view rule above needs, for the same
+// reason. Only the top is changed; sides and bottom keep the base values, including the
+// `calc(40px - 9rem)` bottom.
+body.ll-layout-focused .md-shell--user > .md-workspace {
+  padding-top: 20px !important;
+}
+
 // User account section pages — hide the page header/subheader in Focused View
 // -----------------------------------------------------------------------------
 // Each wrapper holds only the icon + title (+ subtitle on Account); no action
@@ -1671,9 +1699,23 @@ body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.is-active {
 body.ll-layout-focused {
   .md-hero--dashboard-user,   // Account  (user/index)
   .md-edit-profile__header,   // Profile  (user/edit)
-  .md-preferences__header,    // Settings (user/preferences)
-  .md-logs__header {          // Logs     (user/logs)
+  .md-preferences__header {   // Settings (user/preferences)
     display: none !important;
+  }
+
+  // LOGS KEEPS ITS HEADER (requested 2026-09-18). Unlike the three above, `.md-logs__header`
+  // is not decoration: the h2 carries the page's filter controls -- "Show Only Messages",
+  // "Show Highlighted", "Show Journal", "clear filter", "Show Full Log" -- and hiding it took
+  // the only route to them with it. It is shown WITHOUT THE MOVEMENT: the base rule gives it
+  // `animation: md-slide-in-from-left 0.75s` (app.scss `.md-logs__header`), which is the one
+  // thing Focused did not want back.
+  // Scoped here rather than edited at the base because Gentle View keeps the slide-in;
+  // `body.ll-layout-focused .md-logs__header` is (0,2,1) against the base rule's (0,1,0), and
+  // the base carries no `!important` (verified in the compiled output), so this wins on
+  // specificity alone. That matters here: @use puts this partial ~60k lines ABOVE the base
+  // rule in the build, so source order would lose it.
+  .md-logs__header {
+    animation: none;
   }
 
   // Account page — hide the Current Home Board / Current Board Set / Liked Boards
@@ -1791,18 +1833,36 @@ body.ll-layout-focused .md-logs {
     backdrop-filter: blur(14px) saturate(1.3) !important;
     -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
   }
-  // Buttons take the Account-page quick-pill surface — solid $brand-blue-grey + white
-  // text/icons (mirrors `.md-user-summary__quick-pill`, app.scss:43157). hover/focus
-  // reuse the same fill so they don't flash back to the light base.
+  // THE TWO PRIMARY ACTIONS — "Manual Log Session" and "New Note" — take the brand slate
+  // blue (requested 2026-09-18). They used to share the secondary buttons' fill below,
+  // which left the page's two real actions indistinguishable from Export, Download and
+  // More. $brand-slate-blue separates them by weight within the same family, rather than
+  // by hue.
+  // WHY NOT $brand-charcoal-dark: that was the first attempt the same day and read as
+  // near-black beside the frosted card — too heavy for a page whose other buttons are
+  // mid-tone. $brand-slate-blue (#5A6A85) sits between it and the secondary
+  // $brand-blue-grey (#7693B9), which is exactly the step the hierarchy needs.
+  // CONTRAST STILL IMPROVES: white on #5A6A85 measures ~5.5:1, against ~3.6:1 for white
+  // on $brand-blue-grey — the pills clear AA for normal text, which at this size they did
+  // not before. Do not lighten past this without re-measuring; the AA floor is 4.5:1.
+  // hover/focus reuse the same fill so they don't flash back to the light base.
+  .md-logs__action-pill,
+  .md-logs__action-pill:hover,
+  .md-logs__action-pill:focus-visible {
+    color: $focus-on-dark !important;
+    border-color: rgba($brand-charcoal-blue, 0.3) !important;
+    background: $brand-slate-blue !important;
+  }
+  // SECONDARY buttons (Export Logs, Download Log File, More, the dropdown toggle, and the
+  // bottom New Note / Quick Assessment pair) keep the Account-page quick-pill surface —
+  // solid $brand-blue-grey + white text/icons (mirrors `.md-user-summary__quick-pill`,
+  // app.scss:43157). hover/focus reuse the same fill for the same reason as above.
   // NOTE (security review — LOW, non-issue: "hardcoded colors / WCAG"): the white-on-
   // $brand-blue-grey text combo here REUSES the already-shipped quick-pill pairing (and
   // the active-pill charcoal gradient already in production), so no NEW contrast
   // combination is introduced; nothing regresses the existing AA baseline.
   // `:not(.md-logs__danger-btn)` keeps the destructive "Clear All Logs" button OUT of the
   // primary-pill styling so it doesn't read as a benign action — it keeps its neutral base.
-  .md-logs__action-pill,
-  .md-logs__action-pill:hover,
-  .md-logs__action-pill:focus-visible,
   .btn.btn-default:not(.md-logs__danger-btn),
   .btn.btn-default:not(.md-logs__danger-btn):hover,
   .btn.btn-default:not(.md-logs__danger-btn):focus-visible {

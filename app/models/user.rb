@@ -1930,14 +1930,25 @@ class User < ApplicationRecord
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
         'board_view_style' => 'modern',
-        # Home-page dashboard arrangement: 'gentle' (default) or 'focused'.
-        # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
-        # modifier on the dashboard grid.
+        # Home-page dashboard arrangement: 'gentle' or 'focused'. Chosen during the
+        # Dashboard Design flow or from the navbar View menu; drives the
+        # md-grid--layout-* modifier on the dashboard grid and the app-wide
+        # body.ll-layout-focused overlay.
+        #
+        # THIS BUCKET VALUE IS THE BACKFILL DEFAULT, NOT THE NEW-ACCOUNT DEFAULT, and the
+        # two deliberately differ. NEW accounts get 'focused' — seeded under `new_record?`
+        # in generate_defaults. This entry stays 'gentle' because the bucket loop has no
+        # new_record? guard and runs on every save, so changing it would restyle every
+        # existing account that has never been saved since this key was introduced.
+        # Both halves are pinned in spec/models/user_spec.rb.
+        #
         # NOTE (adversarial-review false positive — "client/server default mismatch"):
-        # this server default is 'gentle', matching the frontend default
-        # (dashboard/authenticated-view.js#effectiveLayout). They are aligned; new users
-        # get 'gentle' from both sides. (sanitize_dashboard_preferences! below also coerces
-        # any out-of-range stored value back to a known variant.)
+        # the frontend `|| 'gentle'` fallbacks (dashboard/authenticated-view.js and
+        # app-state.js #effectiveLayout) match THIS value, and both describe the same
+        # case — a stored preference that is absent. A new account never reaches either,
+        # because registration persists an explicit 'focused'.
+        # (sanitize_dashboard_preferences! below also coerces any out-of-range stored
+        # value back to a known variant.)
         'dashboard_layout' => 'gentle',
         # Per-section visibility for the home dashboard cards, e.g.
         # {'boards' => true, 'extras' => false}. Chosen during the Getting
@@ -2027,6 +2038,20 @@ class User < ApplicationRecord
     if self.new_record?
       self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
       self.settings['preferences']['word_suggestion_position'] = 'side_rail' if self.settings['preferences']['word_suggestion_position'] == nil
+      # Focused is the home style NEW accounts land on — the stronger-contrast, bolder-cue
+      # arrangement, which is what the View menu now presents first and badges "Default".
+      #
+      # Seeded HERE, under new_record?, and NOT by changing the 'gentle' entry in the
+      # preference_defaults['any_user'] bucket below. That bucket loop runs on every save with
+      # no new_record? guard, so flipping its value would restyle every EXISTING account that
+      # has not been saved since the key was introduced — the silent-behaviour-change trap the
+      # note on `board_category_grouping` in preference_defaults spells out. This block runs
+      # BEFORE the bucket loop, so a record seeded here is already non-nil and the bucket
+      # skips it; an existing user still falls to the bucket's 'gentle'.
+      #
+      # `== nil`, so an explicit choice made before the first save (a registration flow, or
+      # the Dashboard Design step) always wins.
+      self.settings['preferences']['dashboard_layout'] = 'focused' if self.settings['preferences']['dashboard_layout'] == nil
     end
     if !FeatureFlags.user_created_after?(self, 'battery_sounds')
       self.settings['preferences']['battery_sounds'] = true if self.settings['preferences']['battery_sounds'] == nil

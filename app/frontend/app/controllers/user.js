@@ -41,9 +41,35 @@ export default Controller.extend({
   accountRailContext: computed(
     'router.currentRouteName',
     'app_state.current_route',
+    'homeNavContext',
     function() {
+      /* ORIGIN WINS OVER ROUTE. Someone who clicked Updates in the HOME pill-nav is still
+         navigating the home page's menu; they land on the logs page, but the account rail is
+         not the nav they were using and swapping it in under them is the disorientation this
+         whole pair of computeds exists to prevent. `homeNavContext` below is that origin,
+         read from `?nav=home` in the URL.
+         Exactly one page can be reached both ways -- user.logs, as Updates from a pill-nav
+         and as Logs from the rail -- so this is the only route the check can affect. It must
+         come FIRST: without it `user.logs` matches the list below, the rail renders, and
+         templates/user.hbs never reaches its `{{else if this.homeNavContext}}` branch, which
+         is what left the pill-nav unreachable.
+         The reverse case needs nothing: arriving from the rail's Logs row carries no `nav`
+         param, so this is false, the rail renders, and its Logs row lights up through
+         `activeRow` (components/account-rail.js). */
+      if(this.get('homeNavContext')) { return false; }
       var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
-      return route === 'user.index' || route === 'user.account';
+      /* EVERY PAGE THE RAIL LINKS TO (2026-09-18), so the nav is present wherever it can take
+         you rather than only on the page it was built for. Deliberately a list, not a
+         `startsWith('user.')`: the board routes are `user.board-detail` / `user.board-alt`
+         and a 208px panel across a communication board is not acceptable -- a prefix test
+         would have included them silently. Any route not named here simply has no rail.
+         `user.index` and `user.account` both render templates/user/index.hbs (routes/user/
+         account.js sets `templateName`), so both are listed. */
+      return [
+        'user.index', 'user.account', 'user.goals', 'user.logs', 'user.edit',
+        'user.recordings', 'user.stats', 'user.preferences', 'user.subscription',
+        'user.supervision'
+      ].indexOf(route) !== -1;
     }
   ),
 
