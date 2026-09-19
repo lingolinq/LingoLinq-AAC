@@ -4,6 +4,15 @@ class WordData < ApplicationRecord
   include GlobalId
   include Processable
   INFLECTIONS_VERSION = 2
+  # Privacy-policy keys whose non-English values must stay the `*** ` English
+  # fallback until a human-reviewed translation replaces them. The fallback shape
+  # is exactly what translate_locale_batch picks up, so it skips these keys.
+  # spec/lib/privacy_locale_english_pins_spec.rb pins every locale to this list.
+  ENGLISH_PINNED_LOCALE_KEYS = %w[
+    privacy_security_retention_children
+    privacy_security_retention_ai_logs
+    privacy_special_coppa_v2
+  ].freeze
 
   # https://www.enchantedlearning.com/wordlist/opposites.shtml
   # https://www.talkenglish.com/vocabulary/top-50-prepositions.aspx
@@ -716,7 +725,7 @@ class WordData < ApplicationRecord
     subs = {}
     temps = {}
     json.each do |key, str|
-      if str.match(/^\*\*\*\s/) && subs.keys.length < 100 && !nopes.include?(key)
+      if str.match(/^\*\*\*\s/) && subs.keys.length < 100 && !nopes.include?(key) && !ENGLISH_PINNED_LOCALE_KEYS.include?(key)
         temp_str = str.sub(/^\*\*\*\s/, '').sub(/\%app_name\%/, '_TR1A_').sub(/\%app_name_upper\%/, '_TR2A_')
         temp_str = temp_str.sub(/\s\|\|\s/, ' _._ ')
         while temp_str.match(/\%\{\w+\}/)
