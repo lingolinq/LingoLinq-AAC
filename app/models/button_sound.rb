@@ -49,6 +49,12 @@ class ButtonSound < ApplicationRecord
         Organization.log_external_ai_processing_skip(self.user, 'transcription')
         return
       end
+      # Parental-consent hard gates, the same pair every other AI call site checks
+      # (lib/ai_word_predictor.rb): no voice audio leaves for an under-13 account
+      # awaiting COPPA consent or an EU under-16 account without AI consent.
+      # Also "not permitted," not a failure. Both return false for a nil user.
+      return if FeatureFlags.coppa_blocks_ai_for?(self.user)
+      return if FeatureFlags.eu_under16_blocks_ai_for?(self.user)
       if frd
         # https://cloud.google.com/speech/reference/rest/
         ref = self.settings['secondary_output']

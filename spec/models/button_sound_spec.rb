@@ -562,6 +562,53 @@ describe ButtonSound, :type => :model do
       bs.schedule_transcription
       expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(false)
     end
+
+    it "should skip Google and not increment transcription_errors while COPPA parental consent is pending" do
+      u = User.create(:settings => {'coppa' => {'pending_parent_consent' => true}})
+      bs = ButtonSound.new(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
+      expect(Typhoeus).not_to receive(:get)
+      expect(Typhoeus).not_to receive(:post)
+      bs.schedule_transcription(true)
+      expect(bs.settings['transcription_errors']).to eq(nil)
+    end
+
+    it "should not schedule transcription while COPPA parental consent is pending" do
+      u = User.create(:settings => {'coppa' => {'pending_parent_consent' => true}})
+      bs = ButtonSound.create(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      bs.schedule_transcription
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(false)
+    end
+
+    it "should schedule transcription once COPPA parental consent is granted" do
+      u = User.create(:settings => {'coppa' => {'pending_parent_consent' => true, 'parent_consent_granted_at' => Time.now.iso8601}})
+      bs = ButtonSound.create(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      bs.schedule_transcription
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(true)
+    end
+
+    it "should skip Google for an EU under-16 user without parental AI consent" do
+      u = User.create(:settings => {'registration' => {'eu_under_16' => true}})
+      bs = ButtonSound.new(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
+      expect(Typhoeus).not_to receive(:get)
+      expect(Typhoeus).not_to receive(:post)
+      bs.schedule_transcription(true)
+      expect(bs.settings['transcription_errors']).to eq(nil)
+    end
+
+    it "should schedule transcription for an EU under-16 user with active parental AI consent" do
+      u = User.create(:settings => {
+        'registration' => {'eu_under_16' => true},
+        'eu_ai_parental_consent' => {'parent_consent_granted_at' => Time.now.iso8601}
+      })
+      bs = ButtonSound.create(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      bs.schedule_transcription
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(true)
+    end
   end
   
   describe "schedule_missing_transcodings" do
