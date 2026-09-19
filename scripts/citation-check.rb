@@ -222,7 +222,8 @@ def render_markdown(register)
       # shapes; SCOT_OWNED_CLOSED can also flag a Scot-owned STATUS with no Scot-owned
       # disposition at all), and the marker existing only inside the "disp != untriaged" bolding
       # would make it invisible in this rendered register for exactly the rows it protects.
-      disp = disp == 'untriaged' ? "#{disp}#{f['regression'] ? ' ⚠regression' : ''}" : "**#{disp}**#{f['regression'] ? ' ⚠regression' : ''}"
+      disp = disp == 'untriaged' ? disp : "**#{disp}**"
+      disp = "#{disp}#{f['regression'] ? ' ⚠regression' : ''}"
       out << "| #{f['id']} | #{f['legacyId']} | #{f['severity']} | #{fw} | #{disp} | #{finding_source(f)} | #{title} | #{anchor} |\n"
     end
     out << "\n"

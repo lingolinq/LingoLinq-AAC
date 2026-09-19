@@ -15,12 +15,14 @@
 #   * NEVER writes status "verified-closed", "accepted-risk", or "superseded".
 #   * NEVER downgrades an existing finding's severity (a finder cannot lower it).
 #   * Adds genuinely new findings as status "open".
-#   * For a known id still status "open"/"remediated-unverified": refreshes lastSeen and
-#     re-anchors evidence to the verification SHA (so citation-check stays green), keeps the
-#     Scot-owned fields (status, severity, owner, firstSeen, closureEvidence).
-#   * For a known id that was previously closed/accepted/superseded but a finder re-surfaced:
-#     leaves the Scot-owned status UNTOUCHED, sets regression:true with a loud note, and lists
-#     it in the summary so the adversary verifies and Scot decides whether to reopen.
+#   * For a known id still status "open": refreshes lastSeen and re-anchors evidence to the
+#     verification SHA (so citation-check stays green), keeps the Scot-owned fields (status,
+#     severity, owner, firstSeen, closureEvidence).
+#   * For a known id whose status is verified-closed/accepted-risk/superseded/remediated-unverified
+#     (SCOT_OWNED_CLOSED), or whose disposition is Scot-set (SCOT_OWNED_DISPOSITIONS), but a
+#     finder re-surfaced it: leaves the Scot-owned status UNTOUCHED, sets regression:true with a
+#     loud note, and lists it in the summary so the adversary verifies and Scot decides whether
+#     to reopen (issue #1014: remediated-unverified used to be silently re-anchored here instead).
 #   * Leaves register findings NOT seen this run completely unchanged (different scan scope).
 #
 # Pure git-free stdlib (json, digest, date). No network, no app boot. Safe in CI.
@@ -280,10 +282,17 @@ opts[:ins].each do |path|
         # Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted / fixed /
         # dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the status,
         # do NOT touch the disposition or the (still-valid) evidence; flag it loudly.
+        already_flagged = existing['regression'] == true
         existing['regression'] = true
         reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
-        note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (#{reason}). Needs adversary verification + Scot decision."
-        existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        # A remediated-unverified row whose fix was out-of-repo (a deploy, a config change) keeps
+        # re-finding on every run until Scot closes it, so this branch can fire repeatedly for the
+        # same row; only the first re-find appends a note, or `notes` grows without bound (adversary
+        # review, issue #1014 fix review -- measured 188 to 924 bytes over 5 runs on a scratch fixture).
+        unless already_flagged
+          note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (#{reason}). Needs adversary verification + Scot decision."
+          existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        end
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
                                     'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'domain' => domain, 'file' => anchor }

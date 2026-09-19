@@ -79,6 +79,7 @@ cd "$ROOT"
 
 AUDIT_MERGE="${AUDIT_MERGE:-$ROOT/scripts/audit-merge.rb}"
 PROMOTE_FINDING="${PROMOTE_FINDING:-$ROOT/scripts/promote-finding.rb}"
+CITATION_CHECK="${CITATION_CHECK:-$ROOT/scripts/citation-check.rb}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -141,12 +142,16 @@ echo "-- audit-merge.rb: SCOT_OWNED_CLOSED / SCOT_OWNED_DISPOSITIONS regression 
 
 RK_OPEN='fx-am-open'
 RK_VC='fx-am-verified-closed'
+RK_AR='fx-am-accepted-risk'
+RK_SU='fx-am-superseded'
 RK_RU_NULL='fx-am-remediated-null-disp'
 RK_RU_UNTRIAGED='fx-am-remediated-untriaged-disp'
 RK_RU_FIXED='fx-am-remediated-fixed-disp'
 
 ID_OPEN="$(id_of "$RK_OPEN" "$RK_OPEN")"
 ID_VC="$(id_of "$RK_VC" "$RK_VC")"
+ID_AR="$(id_of "$RK_AR" "$RK_AR")"
+ID_SU="$(id_of "$RK_SU" "$RK_SU")"
 ID_RU_NULL="$(id_of "$RK_RU_NULL" "$RK_RU_NULL")"
 ID_RU_UNTRIAGED="$(id_of "$RK_RU_UNTRIAGED" "$RK_RU_UNTRIAGED")"
 ID_RU_FIXED="$(id_of "$RK_RU_FIXED" "$RK_RU_FIXED")"
@@ -154,29 +159,33 @@ ID_RU_FIXED="$(id_of "$RK_RU_FIXED" "$RK_RU_FIXED")"
 ruby -rjson -e '
   ev = {"type"=>"runtime","source"=>"original-evidence"}
   rows = [
-    {"id"=>ARGV[0],"ruleKey"=>ARGV[10],"title"=>"fx open","severity"=>"low","status"=>"open",
+    {"id"=>ARGV[0],"ruleKey"=>ARGV[12],"title"=>"fx open","severity"=>"low","status"=>"open",
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[1],"ruleKey"=>ARGV[11],"title"=>"fx verified-closed","severity"=>"low","status"=>"verified-closed",
+    {"id"=>ARGV[1],"ruleKey"=>ARGV[13],"title"=>"fx verified-closed","severity"=>"low","status"=>"verified-closed",
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[2],"ruleKey"=>ARGV[12],"title"=>"fx remediated null disp","severity"=>"low","status"=>"remediated-unverified",
+    {"id"=>ARGV[2],"ruleKey"=>ARGV[14],"title"=>"fx accepted-risk","severity"=>"low","status"=>"accepted-risk",
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[3],"ruleKey"=>ARGV[13],"title"=>"fx remediated untriaged disp","severity"=>"low","status"=>"remediated-unverified",
+    {"id"=>ARGV[3],"ruleKey"=>ARGV[15],"title"=>"fx superseded","severity"=>"low","status"=>"superseded",
+     "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+    {"id"=>ARGV[4],"ruleKey"=>ARGV[16],"title"=>"fx remediated null disp","severity"=>"low","status"=>"remediated-unverified",
+     "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+    {"id"=>ARGV[5],"ruleKey"=>ARGV[17],"title"=>"fx remediated untriaged disp","severity"=>"low","status"=>"remediated-unverified",
      "disposition"=>{"state"=>"untriaged"},
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[4],"ruleKey"=>ARGV[14],"title"=>"fx remediated fixed disp","severity"=>"low","status"=>"remediated-unverified",
+    {"id"=>ARGV[6],"ruleKey"=>ARGV[18],"title"=>"fx remediated fixed disp","severity"=>"low","status"=>"remediated-unverified",
      "disposition"=>{"state"=>"fixed"},
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
   ]
-  File.write(ARGV[5], JSON.pretty_generate({"meta"=>{"schemaVersion"=>"1.1"},"findings"=>rows}))
-' "$ID_OPEN" "$ID_VC" "$ID_RU_NULL" "$ID_RU_UNTRIAGED" "$ID_RU_FIXED" "$TMP/am-register.json" \
-  "$RK_OPEN" "$RK_VC" "$RK_RU_NULL" "$RK_RU_UNTRIAGED" "$RK_RU_FIXED"
+  File.write(ARGV[7], JSON.pretty_generate({"meta"=>{"schemaVersion"=>"1.1"},"findings"=>rows}))
+' "$ID_OPEN" "$ID_VC" "$ID_AR" "$ID_SU" "$ID_RU_NULL" "$ID_RU_UNTRIAGED" "$ID_RU_FIXED" "$TMP/am-register.json" \
+  "$RK_OPEN" "$RK_VC" "$RK_AR" "$RK_SU" "$RK_RU_NULL" "$RK_RU_UNTRIAGED" "$RK_RU_FIXED"
 
 OUTFILE="$TMP/am-finder.json" ruby -rjson -e '
   keys = ARGV
   findings = keys.map { |k| {"ruleKey"=>k,"title"=>"refind","severity"=>"low",
     "evidence"=>{"type"=>"runtime","source"=>"refinder-evidence","snippet"=>"refound"}} }
   File.write(ENV["OUTFILE"], JSON.pretty_generate({"domain"=>"ci-smoke","findings"=>findings}))
-' "$RK_OPEN" "$RK_VC" "$RK_RU_NULL" "$RK_RU_UNTRIAGED" "$RK_RU_FIXED"
+' "$RK_OPEN" "$RK_VC" "$RK_AR" "$RK_SU" "$RK_RU_NULL" "$RK_RU_UNTRIAGED" "$RK_RU_FIXED"
 
 if ! ruby "$AUDIT_MERGE" --register "$TMP/am-register.json" --sha "0000000000000000000000000000000000000000" \
     --no-restamp --in "$TMP/am-finder.json" --out "$TMP/am-out.json" --summary "$TMP/am-summary.json" > "$TMP/am-log.txt" 2>&1; then
@@ -185,15 +194,21 @@ if ! ruby "$AUDIT_MERGE" --register "$TMP/am-register.json" --sha "0000000000000
 else
   assert_regression "open, no disposition: never regresses"            "$TMP/am-out.json" "$ID_OPEN"          false
   assert_regression "verified-closed: regresses (status axis)"         "$TMP/am-out.json" "$ID_VC"             true
+  assert_regression "accepted-risk: regresses (status axis)"           "$TMP/am-out.json" "$ID_AR"             true
+  assert_regression "superseded: regresses (status axis)"              "$TMP/am-out.json" "$ID_SU"             true
   assert_regression "remediated-unverified + null disposition"         "$TMP/am-out.json" "$ID_RU_NULL"        true
   assert_regression "remediated-unverified + untriaged disposition"    "$TMP/am-out.json" "$ID_RU_UNTRIAGED"   true
   assert_regression "remediated-unverified + fixed disposition (already covered)" "$TMP/am-out.json" "$ID_RU_FIXED" true
 
   assert_note_and_summary "verified-closed note+summary"      "$TMP/am-out.json" "$TMP/am-summary.json" "$ID_VC"
+  assert_note_and_summary "accepted-risk note+summary"        "$TMP/am-out.json" "$TMP/am-summary.json" "$ID_AR"
+  assert_note_and_summary "superseded note+summary"           "$TMP/am-out.json" "$TMP/am-summary.json" "$ID_SU"
   assert_note_and_summary "remediated+null note+summary"      "$TMP/am-out.json" "$TMP/am-summary.json" "$ID_RU_NULL"
   assert_note_and_summary "remediated+untriaged note+summary" "$TMP/am-out.json" "$TMP/am-summary.json" "$ID_RU_UNTRIAGED"
 
   assert_evidence_unchanged "verified-closed evidence not re-anchored"      "$TMP/am-out.json" "$ID_VC"
+  assert_evidence_unchanged "accepted-risk evidence not re-anchored"       "$TMP/am-out.json" "$ID_AR"
+  assert_evidence_unchanged "superseded evidence not re-anchored"          "$TMP/am-out.json" "$ID_SU"
   assert_evidence_unchanged "remediated+null evidence not re-anchored"      "$TMP/am-out.json" "$ID_RU_NULL"
   assert_evidence_unchanged "remediated+untriaged evidence not re-anchored" "$TMP/am-out.json" "$ID_RU_UNTRIAGED"
 
@@ -202,6 +217,23 @@ else
     ok "open row DOES re-anchor on a normal reseen (fixture sanity: distinguishes re-anchor from no-op)"
   else
     bad "fixture sanity failed: expected the OPEN row's evidence to re-anchor to 'refinder-evidence', got ${got_open_source:-missing}"
+  fi
+
+  # A row already flagged regression:true gets re-found again on a later run (the ordinary case
+  # for a remediated-unverified row whose out-of-repo remediation the finder can't see, so it
+  # re-finds on every /audit-run): the note must not grow without bound (adversary review).
+  if ! ruby "$AUDIT_MERGE" --register "$TMP/am-out.json" --sha "0000000000000000000000000000000000000000" \
+      --no-restamp --in "$TMP/am-finder.json" --out "$TMP/am-out2.json" --summary "$TMP/am-summary2.json" > "$TMP/am-log2.txt" 2>&1; then
+    bad "audit-merge.rb exited non-zero on the repeat-regression (dedupe) fixture:"
+    sed 's/^/      /' "$TMP/am-log2.txt" >&2
+  else
+    note_count="$(field "$TMP/am-out2.json" "$ID_RU_NULL" 'f["notes"].to_s.scan("REGRESSION:").size')"
+    if [ "$note_count" = "1" ]; then
+      ok "remediated+null: repeated regression re-find does not duplicate the REGRESSION note (count=1)"
+    else
+      bad "remediated+null: REGRESSION note duplicated across repeated re-finds (count=${note_count:-missing}, expected 1)"
+    fi
+    assert_regression "remediated+null: still flagged after the second re-find" "$TMP/am-out2.json" "$ID_RU_NULL" true
   fi
 fi
 
@@ -216,37 +248,45 @@ else
 
 RK2_OPEN='fx-pf-open'
 RK2_VC='fx-pf-verified-closed'
+RK2_AR='fx-pf-accepted-risk'
+RK2_SU='fx-pf-superseded'
 RK2_RU_NULL='fx-pf-remediated-null-disp'
 RK2_RU_UNTRIAGED='fx-pf-remediated-untriaged-disp'
 RK2_RU_FIXED='fx-pf-remediated-fixed-disp'
 
 ID2_OPEN="$(id_of "$RK2_OPEN" "$FIXTURE_FILE")"
 ID2_VC="$(id_of "$RK2_VC" "$FIXTURE_FILE")"
+ID2_AR="$(id_of "$RK2_AR" "$FIXTURE_FILE")"
+ID2_SU="$(id_of "$RK2_SU" "$FIXTURE_FILE")"
 ID2_RU_NULL="$(id_of "$RK2_RU_NULL" "$FIXTURE_FILE")"
 ID2_RU_UNTRIAGED="$(id_of "$RK2_RU_UNTRIAGED" "$FIXTURE_FILE")"
 ID2_RU_FIXED="$(id_of "$RK2_RU_FIXED" "$FIXTURE_FILE")"
 
 ruby -rjson -e '
-  file, snippet, sha = ARGV[5], ARGV[6], ARGV[7]
+  file, snippet, sha = ARGV[7], ARGV[8], ARGV[9]
   ev = {"type"=>"code","file"=>file,"line"=>1,"snippet"=>snippet,"sha"=>sha}
   rows = [
-    {"id"=>ARGV[0],"ruleKey"=>ARGV[8],"title"=>"fx open","severity"=>"high","status"=>"open",
+    {"id"=>ARGV[0],"ruleKey"=>ARGV[10],"title"=>"fx open","severity"=>"high","status"=>"open",
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[1],"ruleKey"=>ARGV[9],"title"=>"fx verified-closed","severity"=>"high","status"=>"verified-closed",
+    {"id"=>ARGV[1],"ruleKey"=>ARGV[11],"title"=>"fx verified-closed","severity"=>"high","status"=>"verified-closed",
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[2],"ruleKey"=>ARGV[10],"title"=>"fx remediated null disp","severity"=>"high","status"=>"remediated-unverified",
+    {"id"=>ARGV[2],"ruleKey"=>ARGV[12],"title"=>"fx accepted-risk","severity"=>"high","status"=>"accepted-risk",
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[3],"ruleKey"=>ARGV[11],"title"=>"fx remediated untriaged disp","severity"=>"high","status"=>"remediated-unverified",
+    {"id"=>ARGV[3],"ruleKey"=>ARGV[13],"title"=>"fx superseded","severity"=>"high","status"=>"superseded",
+     "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+    {"id"=>ARGV[4],"ruleKey"=>ARGV[14],"title"=>"fx remediated null disp","severity"=>"high","status"=>"remediated-unverified",
+     "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+    {"id"=>ARGV[5],"ruleKey"=>ARGV[15],"title"=>"fx remediated untriaged disp","severity"=>"high","status"=>"remediated-unverified",
      "disposition"=>{"state"=>"untriaged"},
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
-    {"id"=>ARGV[4],"ruleKey"=>ARGV[12],"title"=>"fx remediated fixed disp","severity"=>"high","status"=>"remediated-unverified",
+    {"id"=>ARGV[6],"ruleKey"=>ARGV[16],"title"=>"fx remediated fixed disp","severity"=>"high","status"=>"remediated-unverified",
      "disposition"=>{"state"=>"fixed"},
      "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
   ]
-  File.write(ARGV[13], JSON.pretty_generate({"meta"=>{"schemaVersion"=>"1.1"},"findings"=>rows}))
-' "$ID2_OPEN" "$ID2_VC" "$ID2_RU_NULL" "$ID2_RU_UNTRIAGED" "$ID2_RU_FIXED" \
+  File.write(ARGV[17], JSON.pretty_generate({"meta"=>{"schemaVersion"=>"1.1"},"findings"=>rows}))
+' "$ID2_OPEN" "$ID2_VC" "$ID2_AR" "$ID2_SU" "$ID2_RU_NULL" "$ID2_RU_UNTRIAGED" "$ID2_RU_FIXED" \
   "$FIXTURE_FILE" "$FIXTURE_SNIPPET" "$FIXTURE_SHA" \
-  "$RK2_OPEN" "$RK2_VC" "$RK2_RU_NULL" "$RK2_RU_UNTRIAGED" "$RK2_RU_FIXED" \
+  "$RK2_OPEN" "$RK2_VC" "$RK2_AR" "$RK2_SU" "$RK2_RU_NULL" "$RK2_RU_UNTRIAGED" "$RK2_RU_FIXED" \
   "$TMP/pf-register.json"
 
 OUTFILE="$TMP/pf-finder.json" ruby -rjson -e '
@@ -256,7 +296,7 @@ OUTFILE="$TMP/pf-finder.json" ruby -rjson -e '
     "evidence"=>{"type"=>"code","file"=>file,"line"=>1,"snippet"=>snippet,"sha"=>sha}} }
   File.write(ENV["OUTFILE"], JSON.pretty_generate({"source"=>"manual","pr"=>nil,"reviewer"=>"ci-smoke","findings"=>findings}))
 ' "$FIXTURE_FILE" "$FIXTURE_SNIPPET" "$FIXTURE_SHA" \
-  "$RK2_OPEN" "$RK2_VC" "$RK2_RU_NULL" "$RK2_RU_UNTRIAGED" "$RK2_RU_FIXED"
+  "$RK2_OPEN" "$RK2_VC" "$RK2_AR" "$RK2_SU" "$RK2_RU_NULL" "$RK2_RU_UNTRIAGED" "$RK2_RU_FIXED"
 
 if ! ruby "$PROMOTE_FINDING" --register "$TMP/pf-register.json" \
     --in "$TMP/pf-finder.json" --out "$TMP/pf-out.json" --summary "$TMP/pf-summary.json" > "$TMP/pf-log.txt" 2>&1; then
@@ -265,13 +305,33 @@ if ! ruby "$PROMOTE_FINDING" --register "$TMP/pf-register.json" \
 else
   assert_regression "open, no disposition: never regresses"            "$TMP/pf-out.json" "$ID2_OPEN"        false
   assert_regression "verified-closed: regresses (status axis)"         "$TMP/pf-out.json" "$ID2_VC"           true
+  assert_regression "accepted-risk: regresses (status axis)"           "$TMP/pf-out.json" "$ID2_AR"           true
+  assert_regression "superseded: regresses (status axis)"              "$TMP/pf-out.json" "$ID2_SU"           true
   assert_regression "remediated-unverified + null disposition"         "$TMP/pf-out.json" "$ID2_RU_NULL"      true
   assert_regression "remediated-unverified + untriaged disposition"    "$TMP/pf-out.json" "$ID2_RU_UNTRIAGED" true
   assert_regression "remediated-unverified + fixed disposition (already covered)" "$TMP/pf-out.json" "$ID2_RU_FIXED" true
 
   assert_note_and_summary "verified-closed note+summary"      "$TMP/pf-out.json" "$TMP/pf-summary.json" "$ID2_VC"
+  assert_note_and_summary "accepted-risk note+summary"        "$TMP/pf-out.json" "$TMP/pf-summary.json" "$ID2_AR"
+  assert_note_and_summary "superseded note+summary"           "$TMP/pf-out.json" "$TMP/pf-summary.json" "$ID2_SU"
   assert_note_and_summary "remediated+null note+summary"      "$TMP/pf-out.json" "$TMP/pf-summary.json" "$ID2_RU_NULL"
   assert_note_and_summary "remediated+untriaged note+summary" "$TMP/pf-out.json" "$TMP/pf-summary.json" "$ID2_RU_UNTRIAGED"
+
+  # Same dedupe requirement as audit-merge.rb: a row already regression:true, re-found again by a
+  # later PR review, must not grow an unbounded REGRESSION note (adversary review).
+  if ! ruby "$PROMOTE_FINDING" --register "$TMP/pf-out.json" \
+      --in "$TMP/pf-finder.json" --out "$TMP/pf-out2.json" --summary "$TMP/pf-summary2.json" > "$TMP/pf-log2.txt" 2>&1; then
+    bad "promote-finding.rb exited non-zero on the repeat-regression (dedupe) fixture:"
+    sed 's/^/      /' "$TMP/pf-log2.txt" >&2
+  else
+    note_count="$(field "$TMP/pf-out2.json" "$ID2_RU_NULL" 'f["notes"].to_s.scan("REGRESSION:").size')"
+    if [ "$note_count" = "1" ]; then
+      ok "remediated+null: repeated regression re-find does not duplicate the REGRESSION note (count=1)"
+    else
+      bad "remediated+null: REGRESSION note duplicated across repeated re-finds (count=${note_count:-missing}, expected 1)"
+    fi
+    assert_regression "remediated+null: still flagged after the second re-find" "$TMP/pf-out2.json" "$ID2_RU_NULL" true
+  fi
 fi
 
 echo "-- promote-finding.rb: same-day invariant must not false-positive-abort (issue #1014 fix review) --"
@@ -313,7 +373,72 @@ else
   fi
 fi
 
+echo "-- promote-finding.rb: invariant must actually fire for a genuine same-run violation --"
+
+# The scoping fix (case 3 above) proves the invariant no longer false-positives. It does not
+# prove the invariant still does its job: adversary review mutated a scratch copy by deleting
+# the whole `findings.each` invariant block and found this harness stayed green throughout. This
+# case proves the invariant is load-bearing by forcing a genuinely NEW record (one this very
+# invocation creates, so it lands in created_ids) to a Scot-owned status, the exact violation the
+# invariant exists to catch, and asserting the run dies rather than silently succeeding.
+BROKEN_PF="$TMP/promote-finding-forces-verified-closed.rb"
+sed "s/^ASSIGNABLE_STATUS = 'open'\$/ASSIGNABLE_STATUS = 'verified-closed'/" "$PROMOTE_FINDING" > "$BROKEN_PF"
+if ! grep -q "^ASSIGNABLE_STATUS = 'verified-closed'" "$BROKEN_PF"; then
+  bad "mutation setup failed: could not force ASSIGNABLE_STATUS to 'verified-closed' in the scratch copy (source line format changed?)"
+else
+  RK4='fx-pf-invariant-must-fire'
+  ruby -rjson -e '
+    File.write(ARGV[4], JSON.pretty_generate({"source"=>"manual","pr"=>789,"reviewer"=>"ci-smoke","findings"=>[
+      {"ruleKey"=>ARGV[0],"title"=>"invariant-must-fire repro","severity"=>"high",
+       "evidence"=>{"type"=>"code","file"=>ARGV[1],"line"=>1,"snippet"=>ARGV[2],"sha"=>ARGV[3]}}
+    ]}))
+  ' "$RK4" "$FIXTURE_FILE" "$FIXTURE_SNIPPET" "$FIXTURE_SHA" "$TMP/pf-invariant-in.json"
+
+  if ruby "$BROKEN_PF" --register "$TMP/pf-empty-register.json" \
+      --in "$TMP/pf-invariant-in.json" --out "$TMP/pf-invariant-out.json" --date "$(date -u +%F)" > "$TMP/pf-invariant-log.txt" 2>&1; then
+    bad "invariant did not fire: a mutated script that forces every new record to verified-closed exited 0 (the guard is not load-bearing)"
+  else
+    if grep -q "invariant violation: assigned a Scot-owned status" "$TMP/pf-invariant-log.txt"; then
+      ok "invariant correctly dies when a genuinely new record would get a Scot-owned status (proves the guard is load-bearing, not just non-false-positive)"
+    else
+      bad "script exited non-zero but not via the expected invariant message:"
+      sed 's/^/      /' "$TMP/pf-invariant-log.txt" >&2
+    fi
+  fi
+fi
+
 fi  # FIXTURE_SHA guard
+
+echo "-- citation-check.rb --render: the regression marker survives an untriaged/null disposition --"
+
+# The render fix at citation-check.rb moved the ⚠regression marker outside the "disp != untriaged"
+# bolding conditional so it stays visible for exactly the shapes this fix newly protects. Nothing
+# in the live register exercises this today (its one regression:true row carries disposition
+# "accepted"), so without this case a future revert of the render fix would ship silently: the
+# CI render-match step compares the committed FINDINGS.md against a fresh render of the SAME
+# (unchanged) live register, and a reverted render function produces a byte-identical file for a
+# register that never exercises the reverted branch (adversary review).
+ruby -rjson -e '
+  File.write(ARGV[0], JSON.pretty_generate({
+    "meta" => {"schemaVersion" => "1.1", "auditedRef" => "test", "auditedSha" => "0" * 40, "auditedDate" => "2026-01-01", "seedSource" => "test"},
+    "findings" => [
+      {"id" => "LL-cite0check01", "ruleKey" => "fx-cite-render", "title" => "fx render regression marker",
+       "severity" => "high", "status" => "remediated-unverified", "regression" => true,
+       "evidence" => {"type" => "runtime", "source" => "test"}, "firstSeen" => "2026-01-01", "lastSeen" => "2026-01-01"}
+    ]
+  }))
+' "$TMP/cc-register.json"
+
+if ! ruby "$CITATION_CHECK" --render "$TMP/cc-register.json" > "$TMP/cc-log.txt" 2>&1; then
+  bad "citation-check.rb --render exited non-zero on the fixture:"
+  sed 's/^/      /' "$TMP/cc-log.txt" >&2
+else
+  if grep -q '⚠regression' "$TMP/FINDINGS.md" 2>/dev/null; then
+    ok "regression marker renders for an untriaged-disposition remediated-unverified row"
+  else
+    bad "regression marker is missing from the rendered FINDINGS.md for an untriaged-disposition row"
+  fi
+fi
 
 if [ "$fails" -eq 0 ]; then
   echo

@@ -27,10 +27,13 @@
 #     PII or secret shape in any text field -- such a finding is REFUSED outright (skipped, never
 #     redacted-in), because the register is code/path evidence only (PII-free, Tier 2 content).
 #   * Adds genuinely new findings as status "open", disposition "untriaged", with PR provenance.
-#   * For a known id still "open"/"remediated-unverified": refreshes lastSeen, records the PR
-#     provenance in notes, re-anchors evidence to the finding's sha only if it still verifies.
-#   * For a known id previously closed/accepted/superseded that a reviewer re-surfaced: leaves the
-#     Scot-owned status UNTOUCHED, sets regression:true with a loud note, lists it in the summary.
+#   * For a known id still "open": refreshes lastSeen, records the PR provenance in notes,
+#     re-anchors evidence to the finding's sha only if it still verifies.
+#   * For a known id whose status is verified-closed/accepted-risk/superseded/remediated-unverified
+#     (SCOT_OWNED_CLOSED), or whose disposition is Scot-set (SCOT_OWNED_DISPOSITIONS), but a
+#     reviewer re-surfaced it: leaves the Scot-owned status UNTOUCHED, sets regression:true with
+#     a loud note, lists it in the summary (issue #1014: remediated-unverified used to be
+#     silently re-anchored here instead).
 #
 # WHY a manual command and not a hook / an n8n auto-promote step (the trigger decision):
 #   1. The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA). FINDINGS.json is the compliance
@@ -335,10 +338,16 @@ opts[:ins].each do |path|
         # axis -- a Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted /
         # fixed / dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the
         # status and do NOT touch the disposition; flag it loudly for adversary verification + Scot.
+        already_flagged = existing['regression'] == true
         existing['regression'] = true
         reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
-        note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} (#{reason}). Needs adversary verification + Scot decision."
-        existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        # Same dedupe as scripts/audit-merge.rb: a row can re-surface across multiple PR reviews
+        # while still Scot-owned; only the first re-find appends a note (adversary review, issue
+        # #1014 fix review).
+        unless already_flagged
+          note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} (#{reason}). Needs adversary verification + Scot decision."
+          existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        end
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
                                     'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'reviewer' => reviewer, 'pr' => pr }
