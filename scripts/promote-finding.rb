@@ -79,7 +79,9 @@ SEVERITY_ENUM = %w[critical high medium low].freeze
 PROMOTABLE_SEVERITIES = %w[critical high].freeze
 FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
 # Statuses a reviewer may NOT change. A re-find of one of these is a regression, not a status flip.
-SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
+# Includes remediated-unverified for the same reason as scripts/audit-merge.rb (issue #1014,
+# kept in lockstep by hand): Scot has already accepted a fix as deployed pending verification.
+SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded remediated-unverified].freeze
 # The only status this script is ever allowed to assign.
 ASSIGNABLE_STATUS = 'open'
 # The only disposition this script is ever allowed to assign (Scot owns every other value).
@@ -224,6 +226,8 @@ end
 
 summary = { 'promotedDate' => run_date, 'new' => [], 'reseen' => [],
             'regressions' => [], 'skipped' => [] }
+# ids this invocation actually created (see the end-of-run invariant below).
+created_ids = []
 
 opts[:ins].each do |path|
   die("input not found: #{path}") unless File.file?(path)
@@ -364,16 +368,23 @@ opts[:ins].each do |path|
     }
     findings << record
     by_id[id] = record
+    created_ids << id
     summary['new'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => sev, 'reviewer' => reviewer, 'pr' => pr, 'file' => file }
   end
 end
 
 # Invariant: this script must never have produced a Scot-owned status or a non-untriaged
-# disposition on a finding it just created this run. Scope by source.promotedDate == run_date so
-# the check covers everything THIS script created this run (source-value-agnostic) and never
-# touches a pre-existing finding that happens to share today's firstSeen.
+# disposition on a finding it just created THIS RUN. Checked against `created_ids`, the ids this
+# very invocation added to `findings` above -- NOT a `source.promotedDate == run_date` date-string
+# match, which also matches a row an EARLIER invocation created today and that Scot (or a direct
+# register edit) has since moved to a Scot-owned status: that row's re-find in THIS run only takes
+# the reseen/regression branch above, which never writes status or disposition, so it cannot be
+# what this invariant is checking for, and a date-proxy match on it is a false positive that would
+# abort the whole batch under a diagnostic ("assigned a Scot-owned status") this run did not do
+# (issue #1014 fix review; reproduced: promote a finding, flip its status to remediated-unverified
+# out of band, re-find it later the same day -- the date-proxy form dies, this form does not).
 findings.each do |f|
-  next unless f.dig('source', 'promotedDate') == run_date
+  next unless created_ids.include?(f['id'])
   if SCOT_OWNED_CLOSED.include?(f['status'])
     die("invariant violation: assigned a Scot-owned status to #{f['id']}")
   end
