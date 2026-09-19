@@ -147,7 +147,7 @@ jobs:
                 effective="chunked"
                 ;;
               scot)
-                if [ "$PR_AUTHOR" = "swahlquist" ] || [[ "$PR_HEAD_REF" == scot/* ]]; then
+                if [ "$PR_AUTHOR" = "swahlquist" ] || [[ "$PR_HEAD_REF" == scot/* || "$PR_HEAD_REF" == */scot-* ]]; then
                   effective="chunked"
                 fi
                 ;;

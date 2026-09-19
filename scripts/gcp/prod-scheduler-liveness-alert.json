@@ -1,0 +1,41 @@
+{
+  "displayName": "PROD scheduler dispatch MISSED RUN (no execution in 90m)",
+  "documentation": {
+    "content": "The hourly Cloud Run job `lingolinq-scheduler` has not COMPLETED an execution for 90 minutes.\n\nThis is the ABSENCE case, which the other alerting does not cover: `PROD Cloud Run job execution FAILED` counts executions whose result is `failed`, and a run that never happens produces no execution to count. From 2026-07-21 (the day before the GCP cutover, when the Render cron was suspended) to 2026-09-02, `scheduler:dispatch` was not run by the scheduler and nothing alerted; the retention, purge, flush and expiry tasks it dispatches, including `Flusher.flush_deleted_users`, were not run by it either.\n\nWhat to check, in order:\n\n1. `gcloud scheduler jobs describe lingolinq-scheduler-hourly --location=us-central1 --project=lingolinq-prod` (state should be ENABLED, schedule `0 * * * *`)\n2. `gcloud run jobs executions list --job=lingolinq-scheduler --region=us-central1 --project=lingolinq-prod --limit=5` (a slow execution, up to the 3000s task timeout, can also trip this alert)\n3. Cloud Run job logs for `=== Scheduler Dispatch Complete ===`\n\n**If the missed slot includes 06:00 UTC, check step 2 before doing anything.** If an execution is still running (it has no completion time), a slow run tripped the alert: wait for it, and do not start another, or the daily retention, deletion and notification work would overlap. Only if the 06:00 execution never started, or ended without succeeding, did the daily block not run that day. There is no catch-up (the job has no retries, and the daily block runs only when the hour is 6), so in that case run dispatch manually within hour 6 UTC, or run the daily tasks directly.\n\nReminders repeat every 24 hours while the incident is open.\n\nFinding: LL-3e36a18199 (closed on this control). Owner: Scot Wahlquist.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "No completed lingolinq-scheduler execution for 90m",
+      "conditionAbsent": {
+        "filter": "resource.type = \"cloud_run_job\" AND resource.label.job_name = \"lingolinq-scheduler\" AND resource.label.location = \"us-central1\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\"",
+        "duration": "5400s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "notificationChannels": [
+    "projects/lingolinq-prod/notificationChannels/2035727736516782378"
+  ],
+  "alertStrategy": {
+    "notificationChannelStrategy": [
+      {
+        "notificationChannelNames": [
+          "projects/lingolinq-prod/notificationChannels/2035727736516782378"
+        ],
+        "renotifyInterval": "86400s"
+      }
+    ]
+  },
+  "enabled": true
+}

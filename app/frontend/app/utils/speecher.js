@@ -1201,22 +1201,57 @@ var speecher = EmberObject.extend({
     speecher.sounds = speecher.sounds || {};
     var now = (new Date()).getTime();
     var load_url = url;
+    if(typeof load_url !== 'string' || !load_url) {
+      return null;
+    }
     if(capabilities && capabilities.installed_app && capabilities.storage && load_url.match(/localhost/)) {
       load_url = capabilities.storage.fix_url(load_url);
     }
     if(!speecher.sounds[url]) {
       var audio = new Audio();
-      audio.src = load_url;
-      audio.load();
-      speecher.sounds[url] = {
+      var ref = {
         audio: audio,
-        updated: now
+        updated: now,
+        ready: RSVP.resolve(true)
       };
+      // Capacitor Android WebView often fails HTMLMediaElement loads for remote
+      // HTTPS sounds. Prefetch via fetch (CapacitorHttp) into a blob: URL.
+      if(capabilities && capabilities.capacitor && load_url.match(/^https?:\/\//i) && typeof fetch === 'function') {
+        ref.ready = fetch(load_url).then(function(res) {
+          if(!res || !res.ok) { throw new Error('audio fetch failed ' + (res && res.status)); }
+          return res.blob();
+        }).then(function(blob) {
+          if(ref.objectUrl) {
+            try { URL.revokeObjectURL(ref.objectUrl); } catch(e) { }
+          }
+          ref.objectUrl = URL.createObjectURL(blob);
+          audio.src = ref.objectUrl;
+          audio.load();
+          return true;
+        }, function(err) {
+          console.warn('LINGOLINQ: Capacitor audio prefetch failed, falling back to direct src', err);
+          audio.src = load_url;
+          audio.load();
+          return true;
+        });
+      } else {
+        audio.src = load_url;
+        audio.load();
+      }
+      speecher.sounds[url] = ref;
     } else {
       // Resetting the src or calling load() is apparently required for re-play to work on iOS (sad trombone)
-      speecher.sounds[url].audio.src = null;
-      speecher.sounds[url].audio.src = load_url;
-      speecher.sounds[url].audio.load();
+      var existing = speecher.sounds[url];
+      if(existing.objectUrl) {
+        existing.audio.src = null;
+        existing.audio.src = existing.objectUrl;
+        existing.audio.load();
+      } else {
+        existing.audio.src = null;
+        existing.audio.src = load_url;
+        existing.audio.load();
+      }
+      existing.updated = now;
     }
     var ref = speecher.sounds[url];
     if(skippable) {
@@ -1297,7 +1332,14 @@ var speecher = EmberObject.extend({
         _this.audio[type] = playing_audio;
       }
 
-      _this.set_output_target(opts, playAudio);
+      var startPlayback = function() {
+        _this.set_output_target(opts, playAudio);
+      };
+      if(audio.ready && typeof audio.ready.then === 'function') {
+        audio.ready.then(startPlayback, startPlayback);
+      } else {
+        startPlayback();
+      }
     } else {
       _this.speak_id++;
       _this.speak_end_handler(_this.speak_id);

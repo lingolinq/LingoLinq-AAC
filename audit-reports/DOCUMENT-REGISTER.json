@@ -1193,7 +1193,7 @@
       "attestation": {},
       "notes": "Path A successor to DOC-407d2c2bf4 (COPPA_VERIFICATION_2026-04-26.md, attested 2026-07-23 by Scot Wahlquist, CEO; first attested 2026-06-21), created 2026-09-17. The predecessor remains frozen and its bytes still match its recorded attestedContentHash, so this is a CONTENT correction, not tampering. ONLY THE BANNER IS REWRITTEN; the body is reproduced byte-for-byte and is not re-verified. Corrects two banner defects. (1) The banner asserted that AiApiLog.redact_old_ip_addresses! 'was wired into lib/tasks/scheduler.rake by PR #222 and runs daily today'. That sentence was introduced 2026-07-23 and attested the same day, but rake scheduler:dispatch had NO production trigger from 2026-07-21 to 2026-09-02 (finding LL-3e36a18199, high, open), so the claim was not true when written, two days into that window. It did not go stale. The wiring itself is real (lib/tasks/scheduler.rake:187, gated on hour == 6 at :140; method at app/models/ai_api_log.rb:225, 90-day default) and the job has been observed running daily since 2026-09-03, reporting 0 rows redacted on each of the twelve dates through 2026-09-14; evidence and its limits are in docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md. (2) The banner cited 'section 10' for that finding; this document has no numbered sections, and the finding is under Phase 2B 'Item 3 - Retention Policy Enforcement'. ATTESTER MUST CONFIRM: this record is in the school-dpa-package bundle. It has NO Drive mirror of its own and its mirrors array is deliberately empty, because it is an unattested draft and attestation and external release are separate gates, neither of which has occurred. Rather than publish this draft to districts, the predecessor's customer-ready Drive copy (DOC-7a7c5282d8) was ANNOTATED IN PLACE on 2026-09-17 with a correction retracting the 'runs daily today' claim. SCOPE OF THAT CORRECTION, stated precisely: it reaches the Drive copy only. The canonical git file docs/legal/COPPA_VERIFICATION_2026-04-26.md still contains 'runs daily today' at line 8, carries no banner and no pointer to this successor, and by the attested-bytes freeze can never carry one. That path is what school-dpa-package binds and this repository is public, so a reader of the corpus still meets the uncorrected claim with no signal. Closing that gap requires promoting this successor, not another mirror edit. This successor closes, downgrades or supersedes no finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
       "mirrors": [],
-      "contentHash": "90a0d1a4f90a4720340a86c02a29d30f4d40add2932dc21a751ca1bb1ec604fe",
+      "contentHash": "7791efab119bc4957727875905860ff287bf8703400f4d05137e925caf7ab060",
       "retention": {
         "class": "audit-evidence",
         "rule": "7 years",
@@ -1727,7 +1727,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "cadf80612118edb2c90d11e4d3ac9abce25cf3569957a20d4894e68e1de3985a",
+      "contentHash": "c70d8744a4bbd194be1693f82a349bfa952f57eb88ccf9d0b3d672ee4232f19c",
       "bundles": [],
       "mirrors": [
         {
@@ -1765,7 +1765,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "4f1e3955ffc3159144ba53a81140da60d26e966f1807135890bd8c9da2140388",
+      "contentHash": "f278c664860babab871c2e7946ec0f8333856af71ae2e9339a984aa885eb07be",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -1799,7 +1799,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-12-16",
       "attestation": {},
-      "contentHash": "0c1fe9c850ef1069885005550ddbae0ebdfddb59b3218ad169cc78768b1dde36",
+      "contentHash": "e9139b7e9eb4d3fa5367e09f20f2b9dd6775ffcd027c12b67533e208c8a92314",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-b35f7a3444",
@@ -3937,13 +3937,85 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "notes": "Created 2026-08-30 as a NEW review record, not a successor: it supersedes no row and leaves every attested record frozen and byte-identical. Verified against origin/staging 8afabd1d2. Records three classes of finding for counsel. (1) LEGAL PREMISE: the five-year EU AiApiLog tier is attributed to 'EU AI Act Article 50 record-keeping', but Article 50 imposes no record-keeping duty; the AI Act's only log-retention duty is Article 19, a six-month floor binding providers of HIGH-RISK systems. The six-year 'HIPAA floor' over ai_api_logs cites 45 CFR 164.316(b)(2)(i), which applies six years to DOCUMENTATION required by the Security Rule, not to PHI or application logs. Both are proposed for withdrawal/narrowing and are put to counsel at questions 6, 7 and 13; neither is applied to any record here. This matters operationally because lib/tasks/scheduler.rake:174-181 names the six-year floor as the reason the ratified 24-month and 12-month AiApiLog tiers were never built. (2) DOC-VS-CODE: DATA_RETENTION.md states a 3-year LogSession default (no default exists in code), a 6-year PaperTrail cold-storage archival job (does not exist; User.flush_old_versions DELETES those versions at 1 week / 1 month / 6 months), a ClusterLocation 90-day nightly trim, a children's age-18 sweeper, a LogSnapshot cascade, 'raw events 2 years', and 2-year inactivity (code is 12 months). TelemetryEvent.flush and ApiCall.flush exist with no caller. Each NOT-FOUND was verified by grep at the audited commit. (3) URGENT, CUSTOMER-FACING: app/frontend/app/templates/privacy.hbs:67 tells users 'Today none of these features send any user content to an AI vendor, because the Bedrock path is inactive'; no inactive switch exists in code and this register records 63 production Bedrock calls. Raised as question 21. Also records four non-Bedrock egress paths our AI documents do not cover (Google Speech-to-Text carrying raw child voice audio gated only by the coarse external_ai_processing switch, Google TTS, Google Translate, OpenSymbols), none gated by COPPA/EU/Art50 and none written to AiApiLog. Unattested and remains so: only Scot attests, and this record is explicitly marked DRAFT FOR COUNSEL REVIEW, NOT LEGAL ADVICE. SECOND RESEARCH PASS (same day) added four items, each verified before inclusion. (a) EU AI ACT TIMELINE: the Digital Omnibus, Regulation (EU) 2026/1744, in force 2026-07-27, deferred stand-alone Annex III high-risk obligations to 2027-12-02 and Annex I to 2028-08-02, but did NOT amend Article 50, which has applied since 2026-08-02. Generative systems already on the market before that date appear to have until 2026-12-02 to retrofit Article 50(2) machine-readable marking. That is the only dated obligation in the memo and it bears directly on boards_controller.rb:635-641, whose own comment records that the marker is not persisted onto saved/exported/shared boards. PROVENANCE CORRECTED on the review pass: an earlier version of this note said the omnibus was sourced from law-firm analyses rather than EUR-Lex. That was true when written and became false in the same change set, because CELEX:32026R1744 was then retrieved from EUR-Lex directly and the memo was updated to say so; this note was not. The memo's section 16 is authoritative: the omnibus WAS pulled from EUR-Lex, Article 1(38) inserting the four-month Article 50(2) marking transition into Article 111 and Article 1(40) amending Article 113, with one residual caution recorded there that the retrieved wording reads as recital language. (b) COPPA SCHOOL PATHWAY: the FTC expressly DECLINED to codify the ed-tech/school-authorization pathway in the 2025 amendments, so it rests on 1999 staff guidance rather than Rule text; privacy.hbs:74 relies on it. (c) ORPHANED CONSENT: the versioned verifiable-AI-consent mechanism (ai_consent_granted?/grant_ai_consent!/revoke_ai_consent!, versioned disclosures, AuditEvents) has NO runtime caller outside user.rb, verified by grep; what actually gates AI is the account-activation COPPA consent, while privacy.hbs:74 promises consent 'under 16 CFR Part 312' for AI use specifically. (d) INERT COLUMN: no AI call site passes ip_address or organization_global_id to AiApiLog.log_ai_call, so the scheduled 90-day IP redaction has nothing to redact. Also records that eval narration writes the FULL untruncated clinical narrative into response_summary (eval_narrator.rb:219). A first-pass US state student-privacy survey (CA SOPIPA/AB 1584, NY Ed Law 2-d, IL SOPPA) was added as questions rather than positions, explicitly flagged as sourced from secondary summaries rather than statute text. REVIEW PASS (Codex on PR #889) produced five accepted findings, all fixed rather than argued: gap 20 still claimed EU routing would END the Chapter V transfer after section 5.2 had been corrected to say it removes one onward leg; this register note contradicted the memo on omnibus provenance; six question cross-references pointed at the wrong question and three gaps (public-read upload ACL, Sentry telemetry, the OpenSymbols instrument) had no question at all; Sentry was absent from the external-egress remediation list while section 5.3 documented it as a live user-data egress; and proposed rule 6 described a no-instrument-no-content rule as 'current practice' when no OpenSymbols DPA or BAA is recorded anywhere. Questions renumbered to 31 across eight subsections and every reference re-verified programmatically.",
+      "notes": "Created 2026-08-30 as a NEW review record, not a successor: it supersedes no row and leaves every attested record frozen and byte-identical. Verified against origin/staging 8afabd1d2. Records three classes of finding for counsel. (1) LEGAL PREMISE: the five-year EU AiApiLog tier is attributed to 'EU AI Act Article 50 record-keeping', but Article 50 imposes no record-keeping duty; the AI Act's only log-retention duty is Article 19, a six-month floor binding providers of HIGH-RISK systems. The six-year 'HIPAA floor' over ai_api_logs cites 45 CFR 164.316(b)(2)(i), which applies six years to DOCUMENTATION required by the Security Rule, not to PHI or application logs. Both are proposed for withdrawal/narrowing and are put to counsel at questions 6, 7 and 13; neither is applied to any record here. This matters operationally because lib/tasks/scheduler.rake:174-181 names the six-year floor as the reason the ratified 24-month and 12-month AiApiLog tiers were never built. (2) DOC-VS-CODE: DATA_RETENTION.md states a 3-year LogSession default (no default exists in code), a 6-year PaperTrail cold-storage archival job (does not exist; User.flush_old_versions DELETES those versions at 1 week / 1 month / 6 months), a ClusterLocation 90-day nightly trim, a children's age-18 sweeper, a LogSnapshot cascade, 'raw events 2 years', and 2-year inactivity (code is 12 months). TelemetryEvent.flush and ApiCall.flush exist with no caller. Each NOT-FOUND was verified by grep at the audited commit. (3) URGENT, CUSTOMER-FACING: app/frontend/app/templates/privacy.hbs:67 tells users 'Today none of these features send any user content to an AI vendor, because the Bedrock path is inactive'; no inactive switch exists in code and this register records 63 production Bedrock calls. Raised as question 21. Also records four non-Bedrock egress paths our AI documents do not cover (Google Speech-to-Text carrying raw child voice audio gated only by the coarse external_ai_processing switch, Google TTS, Google Translate, OpenSymbols), none gated by COPPA/EU/Art50 and none written to AiApiLog. Unattested and remains so: only Scot attests, and this record is explicitly marked DRAFT FOR COUNSEL REVIEW, NOT LEGAL ADVICE. SECOND RESEARCH PASS (same day) added four items, each verified before inclusion. (a) EU AI ACT TIMELINE: the Digital Omnibus, Regulation (EU) 2026/1744, in force 2026-07-27, deferred stand-alone Annex III high-risk obligations to 2027-12-02 and Annex I to 2028-08-02, but did NOT amend Article 50, which has applied since 2026-08-02. Generative systems already on the market before that date appear to have until 2026-12-02 to retrofit Article 50(2) machine-readable marking. That is the only dated obligation in the memo and it bears directly on boards_controller.rb:635-641, whose own comment records that the marker is not persisted onto saved/exported/shared boards. PROVENANCE CORRECTED on the review pass: an earlier version of this note said the omnibus was sourced from law-firm analyses rather than EUR-Lex. That was true when written and became false in the same change set, because CELEX:32026R1744 was then retrieved from EUR-Lex directly and the memo was updated to say so; this note was not. The memo's section 16 is authoritative: the omnibus WAS pulled from EUR-Lex, Article 1(38) inserting the four-month Article 50(2) marking transition into Article 111 and Article 1(40) amending Article 113, with one residual caution recorded there that the retrieved wording reads as recital language. (b) COPPA SCHOOL PATHWAY: the FTC expressly DECLINED to codify the ed-tech/school-authorization pathway in the 2025 amendments, so it rests on 1999 staff guidance rather than Rule text; privacy.hbs:74 relies on it. (c) ORPHANED CONSENT: the versioned verifiable-AI-consent mechanism (ai_consent_granted?/grant_ai_consent!/revoke_ai_consent!, versioned disclosures, AuditEvents) has NO runtime caller outside user.rb, verified by grep; what actually gates AI is the account-activation COPPA consent, while privacy.hbs:74 promises consent 'under 16 CFR Part 312' for AI use specifically. (d) INERT COLUMN: no AI call site passes ip_address or organization_global_id to AiApiLog.log_ai_call, so the scheduled 90-day IP redaction has nothing to redact. Also records that eval narration writes the FULL untruncated clinical narrative into response_summary (eval_narrator.rb:219). A first-pass US state student-privacy survey (CA SOPIPA/AB 1584, NY Ed Law 2-d, IL SOPPA) was added as questions rather than positions, explicitly flagged as sourced from secondary summaries rather than statute text. REVIEW PASS (Codex on PR #889) produced five accepted findings, all fixed rather than argued: gap 20 still claimed EU routing would END the Chapter V transfer after section 5.2 had been corrected to say it removes one onward leg; this register note contradicted the memo on omnibus provenance; six question cross-references pointed at the wrong question and three gaps (public-read upload ACL, Sentry telemetry, the OpenSymbols instrument) had no question at all; Sentry was absent from the external-egress remediation list while section 5.3 documented it as a live user-data egress; and proposed rule 6 described a no-instrument-no-content rule as 'current practice' when no OpenSymbols DPA or BAA is recorded anywhere. Questions renumbered to 31 across eight subsections and every reference re-verified programmatically. ADDENDUM 2026-09-17: gap row 19 of section 14 records LL-c0b3d59f58 as verified closed; that closure was retracted on 2026-09-17 (reopened at High, regression). The correction is carried by the dated addendum DOC-c9c70f5702 (docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md); this memorandum's bytes are unchanged and no question is affected. POINTER 2026-09-18: a five-line 'Addendum (pointer added 2026-09-18)' entry was inserted under the header block pointing at DOC-c9c70f5702, per decision item 7 of the attested DOC-f6365ba893. No other line changed; the row stays draft and unattested; contentHash re-rendered. lastReviewed is DELIBERATELY left at 2026-08-30: inserting a pointer is not a review, the stale-review entry stands until the memorandum is re-read before it goes to counsel, and nextReviewDue (2026-11-30) still anchors to the last real review. The memorandum's last substantive revision was 2026-09-15 (PR #969). 2026-09-18 (later): the header pointer now names the successor addendum DOC-c6f1b9fac6; DOC-c9c70f5702 is superseded. Still no review; lastReviewed unchanged.",
       "id": "DOC-58b3944cad",
-      "contentHash": "3ce82beec52f159ad368b6a85ef4b32cd83a5623f704f57f77721ea0c6c473ea"
+      "contentHash": "5de2f3aabb810a8a9653b7ebff5d3d546d36296d59cc619208943fef6d6e73b4"
+    },
+    {
+      "title": "Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-17)",
+      "description": "Dated addendum to the 2026-08-30 counsel review memorandum (DOC-58b3944cad, draft). Corrects gap row 19 of the memorandum's section 14 table, which records LL-b7ccc522b9 and LL-c0b3d59f58 as both verified closed on the 2026-08-29 live read: LL-b7ccc522b9 remains verified-closed, LL-c0b3d59f58 had its closure retracted on 2026-09-17 and is open at High as a regression. Changes no question put to counsel. The memorandum's bytes are unchanged.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md",
+      "status": "superseded",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-09-18",
+      "nextReviewDue": "2026-11-30",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-18",
+        "attestedContentHash": "821589249f542d2b9fc8fca399751fc59b9142ea0ad158487485c66946f047a5",
+        "note": "First attestation. Addendum to DOC-58b3944cad (draft, unattested, bytes unchanged); supersedes nothing. Scope of this pin: gap row 19 of the memorandum's section 14 records LL-b7ccc522b9 and LL-c0b3d59f58 as both verified closed on the 2026-08-29 read; LL-b7ccc522b9 remains verified-closed and LL-c0b3d59f58's closure was retracted 2026-09-17 (open at High, regression). Verified before attesting: both finding rows read from audit-reports/FINDINGS.json at develop 5fad91373 on 2026-09-18, byte-identical to d76081fe9; the memorandum row quoted from line 795. Changes no question put to counsel. Not legal advice. Review date aligned to the memorandum's."
+      },
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "notes": "Created 2026-09-17 as an addendum, not a successor: it supersedes nothing and DOC-58b3944cad stays the live draft memorandum with its bytes unchanged. Exists because the register's LL-c0b3d59f58 row directs that the two records naming it verified-closed be handled by successor or addendum, never by in-place edit. Rides the memorandum's review cycle (nextReviewDue aligned to DOC-58b3944cad). Remediation-state statements are minimized under the security disclosure policy and were confirmed by a read-only IAM policy read on 2026-09-17. ATTESTED 2026-09-18 by the CEO on PR #1006 after the dual review; the pin covers the attested banner and attestation table in the file. DIVERGENCE RECORDED 2026-09-18: the attested text (line 7) and attestation.note say the memorandum's bytes are unchanged. That was true at attestation. Later the same day a header pointer to this addendum was inserted into the memorandum under decision item 7 of the attested DOC-f6365ba893; the memorandum's substantive content is unchanged. This attested file and its pin are not edited; the divergence is recorded here and in the memorandum's own pointer text. Whether to re-attest this addendum to absorb the statement is Scot's call. SUPERSEDED 2026-09-18 by DOC-c6f1b9fac6 (docs/legal/2026-09-18_counsel-review-addendum-closure-retraction.md), which carries the accurate statement about the memorandum's pointer edit. This row, its attestation block and its bytes are unchanged.",
+      "id": "DOC-c9c70f5702",
+      "contentHash": "821589249f542d2b9fc8fca399751fc59b9142ea0ad158487485c66946f047a5",
+      "supersededBy": "DOC-c6f1b9fac6"
+    },
+    {
+      "title": "Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-18 successor)",
+      "description": "Path A successor to DOC-c9c70f5702. Identical correction of gap row 19 of the 2026-08-30 counsel review memorandum (DOC-58b3944cad, draft), now stating accurately that the memorandum received a header pointer to this addendum on 2026-09-18 (its substantive content unchanged; last revision before that PR #969, 2026-09-15). The predecessor's statement that the memorandum was not edited was accurate when attested and is superseded, not erased. Changes no question put to counsel.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-18_counsel-review-addendum-closure-retraction.md",
+      "status": "approved",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-09-18",
+      "nextReviewDue": "2026-11-30",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-18",
+        "attestedContentHash": "742f6487f03664d42679cc81832f25aab88ba29c40133b712d1cd8f38ef6dece",
+        "note": "Amended once before merge, same day, and re-pinned: the PR #1015 dual review found the body said 'the one edit' where git shows the memorandum's pointer was inserted by PR #1013 and retargeted by PR #1015, and asked for the PR sequence so a reader without the repository can order the three same-day events; the earlier pin (89910ba364ab) was never merged as a distinct revision, so priorAttestations is unchanged and this note records it instead. Path A successor to DOC-c9c70f5702 (2026-09-17_counsel-review-addendum-closure-retraction.md, attested 2026-09-18, frozen). Scope of this pin: the same correction of gap row 19 of the memorandum, now with the accurate statement that the memorandum received a header pointer to this addendum on 2026-09-18 (substantive content unchanged; last prior revision PR #969, 2026-09-15). The predecessor's 'not edited' statement was accurate when attested and is superseded, not erased. Verified before attesting: the memorandum's pointer text names this record; both finding rows read from audit-reports/FINDINGS.json on 2026-09-18 (LL-b7ccc522b9 verified-closed; LL-c0b3d59f58 open, regression). Not legal advice. Review date aligned to the memorandum's."
+      },
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "notes": "Created 2026-09-18 as a Path A successor to DOC-c9c70f5702 later the same day that record was attested: the predecessor says the memorandum is not edited, which was true at attestation and went false the same day when a header pointer to the addendum was inserted into the memorandum (decision item 7 of DOC-f6365ba893). Scot chose re-attestation over leaving a known-false attested sentence in a public repository. Same scope as the predecessor otherwise. Rides the memorandum's review cycle. ATTESTED 2026-09-18 by the CEO on PR #1015; the body was amended once before merge on the same day (edit-count wording and the PR sequence, from the PR #1015 dual review) and re-pinned, recorded in attestation.note.",
+      "id": "DOC-c6f1b9fac6",
+      "supersedes": "DOC-c9c70f5702",
+      "contentHash": "742f6487f03664d42679cc81832f25aab88ba29c40133b712d1cd8f38ef6dece"
     },
     {
       "title": "Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)",
-      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, open) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
+      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, verified-closed 2026-09-18 on its liveness element; the interruption impact assessment is carried by LL-cbc8bc4211) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
       "type": "evidence",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3969,7 +4041,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-b7f15a728c",
-      "contentHash": "86ab2195d0a4a4ea2ac060f202499bace020150e2ecdeb25a4b214bb19ac7579"
+      "contentHash": "1e0ec877ff802a27a92adf2a7badba70ae85d450cef8d5565c8a822fa5f94f33"
     },
     {
       "title": "Data Retention Schedule (2026-09-14 successor)",
@@ -4299,7 +4371,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_compliance-status-snapshot.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [],
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-11-22",
@@ -4311,7 +4383,7 @@
       },
       "bundles": [],
       "mirrors": [],
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. SUPERSEDED 2026-09-17 by DOC-f6365ba893 (docs/legal/2026-09-17_compliance-status-snapshot.md): the LL-c0b3d59f58 closure this record states was retracted on 2026-09-17 (reopened at High, regression). This row, its attestation block and its bytes are unchanged; only the pointer and status were added.",
       "id": "DOC-39e71c72ee",
       "retention": {
         "class": "working-note",
@@ -4322,7 +4394,40 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-af01c65b10",
-      "contentHash": "ae2494e951f1e7bac2702b322be60a419938d1685cbfbf5d7ad29611fcf8e869"
+      "contentHash": "ae2494e951f1e7bac2702b322be60a419938d1685cbfbf5d7ad29611fcf8e869",
+      "supersededBy": "DOC-f6365ba893"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-09-17 successor)",
+      "description": "Path A successor correcting a retracted closure. The attested 2026-09-14 snapshot records LL-c0b3d59f58 as verified-closed 2026-08-29; the Q3 2026 quarterly full /audit-run re-surfaced the regression, an adversary pass confirmed it, and the CEO reopened it at High on 2026-09-17. Restates the headline at the Q3 audit state (2 open Critical, 38 live High, 186 live) and records that the predecessor's 0-open-Critical gating metric is no longer met. Also names the attested 2026-09-14 posture report's undated 'Live Critical findings: 0' Headline row (DOC-110d632550, three bundles) as not current, with a Path A successor for that record left to the CEO. The predecessor is left frozen and byte-identical.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-17_compliance-status-snapshot.md",
+      "status": "approved",
+      "frameworks": [],
+      "lastReviewed": "2026-09-18",
+      "nextReviewDue": "2026-11-26",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-09-18",
+        "attestedContentHash": "572053649fc5436f3d1435a6ad6fb237d922294af28647586d7ffe1a70adc8f4",
+        "note": "Path A successor to DOC-39e71c72ee (2026-09-14_compliance-status-snapshot.md), frozen. First attestation of this successor. Scope of this pin: the retraction of the LL-c0b3d59f58 closure (reopened at High 2026-09-17, regression), the headline restated at the Q3 2026 audit state with both counting conventions, the statement that the 0-open-Critical gating metric is not met (LL-1baffd92d5, LL-676f91f26b), the rebuilt live Critical/High and framework tables, and correction 6 naming the attested 2026-09-14 posture report's undated 'Live Critical findings: 0' row as not current. Verified before attesting: every count re-derived from audit-reports/FINDINGS.json at develop d76081fe9 and confirmed byte-identical at develop 5fad91373 on 2026-09-18; citation-check PASS 234 / FAIL 0 / SKIP 17; PR #944 merge state checked; LL-c0b3d59f58 remediation state confirmed by a read-only IAM policy read on 2026-09-17. Dual-reviewed on PR #1006, where both passes re-derived the counts and matched. Review interval rebased from the predecessor (69 days from 2026-09-18). This attestation closes, downgrades or supersedes no finding."
+      },
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Created 2026-09-17 to correct the retracted closure of LL-c0b3d59f58 without editing the attested predecessor DOC-39e71c72ee (frozen). Every count and finding id was re-derived programmatically from audit-reports/FINDINGS.json at develop d76081fe9; citation-check PASS 234 / FAIL 0 / SKIP 17 on that commit. Corrections beyond the retraction: the 0-open-Critical gating metric is not met (LL-1baffd92d5, LL-676f91f26b), the live-High table and framework table are rebuilt at this date, and the quarterly full run is recorded as executed 2026-09-16 with a PARTIAL COVERAGE qualifier and a make-up pass due 2026-10-09. Remediation-state statements for LL-c0b3d59f58 were confirmed by a read-only IAM policy read on 2026-09-17 and are minimized under the security disclosure policy. Review interval rebased from the predecessor (69 days). ATTESTED 2026-09-18 by the CEO on PR #1006 after the dual review; the pin covers the attested banner and attestation table in the file. This successor closes, downgrades or supersedes no finding.",
+      "id": "DOC-f6365ba893",
+      "retention": {
+        "class": "working-note",
+        "rule": "90 days",
+        "disposition": "delete",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-39e71c72ee",
+      "contentHash": "572053649fc5436f3d1435a6ad6fb237d922294af28647586d7ffe1a70adc8f4"
     }
   ]
 }

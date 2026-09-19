@@ -259,9 +259,11 @@ jobs:
         run: npx ember test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
-  # are deterministic, stdlib-only render checks (no gems, no network) that fail ONLY
-  # if a generated markdown drifts from its JSON source of truth - so making them
-  # blocking is low-friction and keeps the register's human-readable mirrors honest.
+  # are deterministic, stdlib-only checks (no gems, no network): render checks that
+  # fail ONLY if a generated markdown drifts from its JSON source of truth, plus the
+  # shell harnesses that prove the register's guards and converters still fire
+  # (attestation-hash, legal-naming, register-lint, notion-page-publish) - so making
+  # them blocking is low-friction and keeps the register's human-readable mirrors honest.
   # (citation-check.rb is intentionally NOT gated here: a repo-wide blocking citation
   # check is a broader policy decision.)
   #
@@ -285,6 +287,9 @@ jobs:
 
       - name: Verify Notion compliance page matches register
         run: ruby scripts/compliance-notion-publish.rb --check
+
+      - name: Verify Notion page publisher converts the page (network-free)
+        run: scripts/tests/compliance-notion-page-publish-test.sh
 
       - name: Verify document register render + git content hashes + bundle completeness
         run: ruby scripts/document-register-render.rb --check
@@ -370,6 +375,13 @@ jobs:
       - name: Verify registers are consumable by promote-finding / audit-merge (no-op run)
         run: scripts/tests/register-consumer-smoke-test.sh
 
+      # A NON-empty-input companion to the smoke test above: proves the SCOT_OWNED_CLOSED
+      # regression trigger actually fires in both consumers for every status a re-find must
+      # never silently re-anchor over (issue #1014), and that promote-finding.rb's own
+      # same-day invariant does not false-positive-abort a legitimate re-find.
+      - name: Verify the Scot-owned-status regression trigger fires (both consumers)
+        run: scripts/tests/scot-owned-regression-test.sh
+
   codex-review-tests:
     runs-on: ubuntu-latest
 
@@ -395,6 +407,11 @@ jobs:
       # decisive path fed to synthesis, and non-fatal heartbeat/retry handling.
       - name: Run codex-review chunk-runner unit tests
         run: python3 scripts/codex-review-run-chunks.test.py
+
+      # Guards the CODEX_REVIEW_CHUNKED_SCOPE=scot branch-name match in
+      # codex-review.yml (inline because that step runs before checkout).
+      - name: Run codex-review chunked-scope match tests
+        run: python3 scripts/codex-review-chunked-scope.test.py
 
   security-scan:
     runs-on: ubuntu-latest
