@@ -262,6 +262,7 @@ module Transcoder
   def self.mp3_output(name_modifier)
     {
       name_modifier: name_modifier,
+      extension: 'mp3',
       container_settings: {
         container: 'RAW'
       },
@@ -283,6 +284,7 @@ module Transcoder
   def self.wav_output(name_modifier)
     {
       name_modifier: name_modifier,
+      extension: 'wav',
       container_settings: {
         container: 'RAW'
       },
