@@ -113,7 +113,7 @@
 | Compliance Status Snapshot (2026-09-17 successor) | git | `docs/legal/2026-09-17_compliance-status-snapshot.md` | approved |  | Scot Wahlquist | 2026-09-18 | 2026-11-26 | 2026-09-18 | `572053649fc5` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `2323647ffc48` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `6ae241be22cd` |  |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `2fa16153772c` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |

@@ -12,7 +12,7 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-19T16:55:10Z
+**Page generated:** 2026-09-19T18:32:00Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -49,7 +49,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-85b32935c2 |  | high | SOC2, FERPA, HIPAA | Device session token strength (details withheld until remediation is verified) | `app/models/device.rb`:156 |
 | LL-89b97af30f |  | high | SOC2 | Lesson usages permission grant lets a viewer self-grant edit: assign is gated on 'view', and assigning the lesson to one's own org adds a usages entry that the permission block then reads as an edit grant | `app/models/lesson.rb`:61 |
 | LL-90045bb29c |  | high | FERPA | User#user_token is a permanent, non-expiring credential serialized on login and embedded in navigable lesson/board share URLs | `lib/json_api/user.rb`:41 |
-| LL-933e61efd7 |  | high | GDPR, FERPA, COPPA | Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them were not run in production from 2026-07-21 to 2026-09-02 | `app/frontend/app/templates/privacy.hbs`:97 |
+| LL-933e61efd7 |  | high | GDPR, FERPA, COPPA | Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them were not run by the production scheduler from 2026-07-21 to 2026-09-02 | `app/frontend/app/templates/privacy.hbs`:97 |
 | LL-9e145637b9 |  | high | GDPR | EU under-16 AI parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/eu_ai_parental_consents_controller.rb`:16 |
 | LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | Organization membership authorization weakness in supervisor-key processing (details withheld until remediation is verified) | `app/models/organization.rb`:1470 |
 | LL-a6be800a86 |  | high | COPPA, FERPA, GDPR | Full user export archive, including non-anonymized log data, is stored under an S3 key derived only from the username and a minute-granularity timestamp | `lib/exporter.rb`:94 |
