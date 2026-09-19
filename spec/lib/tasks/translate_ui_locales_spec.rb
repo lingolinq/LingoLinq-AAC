@@ -35,4 +35,37 @@ describe 'extras:translate_ui_locales rake task' do
       Rake::Task['extras:translate_ui_locales'].invoke
     }.to raise_error(/op:\/\//)
   end
+
+  # The loop stops only when no eligible `*** ` value is left. Pinned privacy
+  # keys stay `*** ` on purpose (WordData::ENGLISH_PINNED_LOCALE_KEYS), so the
+  # batch must report them back as nopes or the task never terminates.
+  it "should terminate when a locale holds a pinned privacy key, leaving it untranslated" do
+    ENV['GOOGLE_TRANSLATE_TOKEN'] = 'fake-token'
+    ENV['LOCALE'] = 'zz'
+    zz = satisfy { |path| path.to_s.end_with?('/public/locales/zz.json') }
+    pinned = '*** Children\'s data stays in English.'
+    store = { 'data' => JSON.generate({ 'privacy_security_retention_children' => pinned, 'ordinary_ui_key' => '*** Hello' }) }
+    allow(File).to receive(:file?).and_call_original
+    allow(File).to receive(:file?).with(zz).and_return(true)
+    allow(File).to receive(:read).and_call_original
+    allow(File).to receive(:read).with(zz) { store['data'] }
+    allow(File).to receive(:open).and_call_original
+    allow(File).to receive(:open).with(zz, 'w') do
+      io = StringIO.new
+      io.define_singleton_method(:close) { store['data'] = string }
+      io
+    end
+    allow(WordData).to receive(:query_translations) { |ref, *_| ref.map { |r| r.merge(translation: 'Hola') } }
+    calls = 0
+    allow(WordData).to receive(:translate_locale_batch).and_wrap_original do |original, *args|
+      calls += 1
+      raise "translate_ui_locales did not terminate: #{calls} batches, nopes=#{args[1].inspect}" if calls > 5
+      original.call(*args)
+    end
+    expect { Rake::Task['extras:translate_ui_locales'].invoke }.to output(/done\./).to_stdout
+    result = JSON.parse(store['data'])
+    expect(result['privacy_security_retention_children']).to eq(pinned)
+    expect(result['ordinary_ui_key']).to start_with('Hola')
+    expect(calls).to be <= 2
+  end
 end

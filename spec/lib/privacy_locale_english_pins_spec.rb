@@ -44,17 +44,19 @@ require 'json'
 # spec still fails it, so a new locale file is added with the pinned values.
 #
 # To ship a human-reviewed translation of a pinned key, remove the key from
-# WordData::ENGLISH_PINNED_LOCALE_KEYS in the same PR and name the reviewer.
+# WordData::ENGLISH_PINNED_LOCALE_KEYS in the same PR and name the reviewer. Keep
+# its PRIVACY_LOCALE_CONTENT_PINS entry: what the English says is checked whether
+# or not the key is translated.
 describe 'privacy locale English pins' do
   repo_root = File.expand_path('../..', __dir__)
   locale_dir = File.join(repo_root, 'public/locales')
   privacy_template_path = File.join(repo_root, 'app/frontend/app/templates/privacy.hbs')
 
-  # What each pinned English sentence must still say, and the retracted wording it
-  # must not say again. Propagation alone is not enough: restoring the retracted
-  # sentence in the template, en.json and every fallback together would otherwise
-  # pass.
-  CONTENT_PINS = {
+  # What each English sentence must still say, and the retracted wording it must
+  # not say again, whether or not the key is still pinned to the fallback.
+  # Propagation alone is not enough: restoring the retracted sentence in the
+  # template, en.json and every fallback together would otherwise pass.
+  PRIVACY_LOCALE_CONTENT_PINS = {
     'privacy_security_retention_children' => {
       must: /not automatically deleted solely because a user turns 18/,
       must_not: /purge[ds]? at (?:age )?18|after (?:2|two) years of inactivity/i,
@@ -79,11 +81,13 @@ describe 'privacy locale English pins' do
     expect(other_locale_paths).not_to be_empty
   end
 
-  it 'has a content pin for every pinned key, and no content pin for an unpinned key' do
-    expect(CONTENT_PINS.keys.sort).to eq(WordData::ENGLISH_PINNED_LOCALE_KEYS.sort)
+  it 'has a content pin for every key pinned to the English fallback' do
+    expect(WordData::ENGLISH_PINNED_LOCALE_KEYS - PRIVACY_LOCALE_CONTENT_PINS.keys).to be_empty
   end
 
-  WordData::ENGLISH_PINNED_LOCALE_KEYS.each do |key|
+  keys_to_check = (PRIVACY_LOCALE_CONTENT_PINS.keys | WordData::ENGLISH_PINNED_LOCALE_KEYS).freeze
+
+  keys_to_check.each do |key|
     describe key do
       let(:english_value) { english.fetch(key) }
       let(:template_default) do
@@ -102,12 +106,14 @@ describe 'privacy locale English pins' do
       end
 
       it 'still says what the corrected policy says, in English and in the template' do
-        pin = CONTENT_PINS.fetch(key)
+        pin = PRIVACY_LOCALE_CONTENT_PINS.fetch(key)
         [['en.json', english_value], ['privacy.hbs', template_default.to_s]].each do |where, text|
           expect(text).to match(pin[:must]), "#{where} #{key} lost the corrected wording #{pin[:must].inspect}"
           expect(text).not_to match(pin[:must_not]), "#{where} #{key} re-asserts #{pin[:must_not].inspect}"
         end
       end
+
+      next unless WordData::ENGLISH_PINNED_LOCALE_KEYS.include?(key)
 
       it 'stays the `*** ` English fallback in every non-English locale' do
         expected = "*** #{english_value}"

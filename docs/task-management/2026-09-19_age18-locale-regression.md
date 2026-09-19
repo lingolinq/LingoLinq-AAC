@@ -154,7 +154,8 @@ Not applied: an evidence note on finding LL-933e61efd7. Open PR #1026 is editing
 - Red first: guard failed naming all 12 locales for the age-18 key (a26856743), then all three
   fallback checks once extended; rake test failed with the pinned key in the translation request.
 - Green: `privacy_locale_english_pins_spec`, `word_data_spec`, `ai_disclosure_surfaces_spec`:
-  103 examples, 0 failures, 1 pre-existing pending (`word_data_spec.rb:950`, a body-less `it`).
+  103 examples, 0 failures, 1 pre-existing pending (a body-less `it` in `word_data_spec.rb`, line 974
+  at this branch's head).
 - Falsified on the committed tree, restored from a saved copy after each:
 
 | Mutation | Result |
@@ -180,3 +181,21 @@ Not applied: an evidence note on finding LL-933e61efd7. Open PR #1026 is editing
   Evidence for it is this PR; closing it is Scot's call.
 - **Reviewed translations.** The three keys show English to non-English visitors until someone
   reviews a translation; then remove the key from `WordData::ENGLISH_PINNED_LOCALE_KEYS` in that PR.
+
+## PR review round 1 (senior-dev, head b1f0977c9)
+
+- **High, fixed.** My translator skip made `extras:translate_ui_locales` loop forever. The loop in
+  `lib/tasks/extras.rake` (the `extras:translate_ui_locales` task) stops only when no eligible `*** `
+  value is left, and eligibility excludes only keys in `nopes`. The batch skipped pinned keys before
+  building its request, so they never reached `nopes`, and every locale holds three of them. My test
+  exercised one batch call, never the loop. Red first: a rake-level spec in
+  `spec/lib/tasks/translate_ui_locales_spec.rb` failed with "did not terminate: 6 batches,
+  nopes=[]". Fix: `translate_locale_batch` seeds `nopes` with the pinned keys, so they are skipped and
+  returned; the separate condition was removed, leaving one mechanism. Falsified: with the seeding
+  removed, both the rake test and the batch test fail.
+- **Low, fixed.** Stale pending locator (the line moved when this branch added tests).
+- **Low, fixed.** `CONTENT_PINS` renamed `PRIVACY_LOCALE_CONTENT_PINS` (it is a top-level constant).
+- **Low, fixed.** Shipping a reviewed translation no longer drops the English content check: content
+  pins are a separate list that must cover every pinned key; the fallback example is defined only for
+  pinned keys. Falsified: unpinning the age-18 key and restoring the retracted English everywhere
+  still fails the content check (13 examples, 1 failure).
