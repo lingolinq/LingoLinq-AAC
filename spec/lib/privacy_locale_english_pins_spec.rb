@@ -52,23 +52,20 @@ describe 'privacy locale English pins' do
   locale_dir = File.join(repo_root, 'public/locales')
   privacy_template_path = File.join(repo_root, 'app/frontend/app/templates/privacy.hbs')
 
-  # What each English sentence must still say, and the retracted wording it must
-  # not say again, whether or not the key is still pinned to the fallback.
-  # Propagation alone is not enough: restoring the retracted sentence in the
-  # template, en.json and every fallback together would otherwise pass.
+  # The exact English each sentence must read, whether or not the key is still
+  # pinned to the fallback. Exact, not a pattern: review of the first version
+  # showed that a sentence can keep a required phrase while adding a clause that
+  # restates the retracted claim. Changing one of these sentences therefore means
+  # changing it here too, in a reviewed PR. Propagation alone is not enough:
+  # restoring the retracted sentence in the template, en.json and every fallback
+  # together would otherwise pass.
   PRIVACY_LOCALE_CONTENT_PINS = {
-    'privacy_security_retention_children' => {
-      must: /not automatically deleted solely because a user turns 18/,
-      must_not: /purge[ds]? at (?:age )?18|after (?:2|two) years of inactivity/i,
-    },
-    'privacy_security_retention_ai_logs' => {
-      must: /deleted when that account is deleted/,
-      must_not: /retained for (?:2|two) years/i,
-    },
-    'privacy_special_coppa_v2' => {
-      must: /AI-assisted board suggestions are handled separately/,
-      must_not: /including AI-assisted board generation/i,
-    },
+    'privacy_security_retention_children' =>
+      'Children\'s data (users under 13): parent-controllable at any time; accounts and content are not automatically deleted solely because a user turns 18. Verified parental deletion requests are processed within 30 days.',
+    'privacy_security_retention_ai_logs' =>
+      'AI request logs: the audit record (AiApiLog) tied to a user account is deleted when that account is deleted; IP addresses on those records are redacted at 90 days.',
+    'privacy_special_coppa_v2' =>
+      'Children under 13 may only use LingoLinq with verifiable parental consent. We accept a FERPA school-official authorization in place of direct parental consent only for the limited, school-curriculum use of LingoLinq with no AI features, no profiling, and no advertising. Any use of LingoLinq\'s AI word prediction or AI-drafted evaluation summaries by a child under 13 requires verifiable parental consent under 16 CFR Part 312, regardless of school enrollment; AI-assisted board suggestions are handled separately (see below). If we learn we have collected personal information from a child under 13 without the required consent, we will delete it promptly.',
   }.freeze
 
   english = JSON.parse(File.read(File.join(locale_dir, 'en.json')))
@@ -135,12 +132,10 @@ describe 'privacy locale English pins' do
         expect(template_default).to eq(english_value)
       end
 
-      it 'still says what the corrected policy says, in English and in the template' do
-        pin = PRIVACY_LOCALE_CONTENT_PINS.fetch(key)
-        [['en.json', english_value], ['privacy.hbs', template_default.to_s]].each do |where, text|
-          expect(text).to match(pin[:must]), "#{where} #{key} lost the corrected wording #{pin[:must].inspect}"
-          expect(text).not_to match(pin[:must_not]), "#{where} #{key} re-asserts #{pin[:must_not].inspect}"
-        end
+      it 'reads exactly the reviewed English, in en.json and in the template' do
+        pinned = PRIVACY_LOCALE_CONTENT_PINS.fetch(key)
+        expect(english_value).to eq(pinned), "en.json #{key} differs from the reviewed English pinned in this spec"
+        expect(template_default).to eq(pinned), "privacy.hbs #{key} differs from the reviewed English pinned in this spec"
       end
 
       next unless WordData::ENGLISH_PINNED_LOCALE_KEYS.include?(key)
