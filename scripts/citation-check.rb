@@ -217,7 +217,12 @@ def render_markdown(register)
       fw = (f['frameworks'] || []).join(', ')
       title = f['title'].to_s.gsub('|', '\\|')
       disp = disposition_state(f)
-      disp = "**#{disp}**#{f['regression'] ? ' ⚠regression' : ''}" unless disp == 'untriaged'
+      # The regression marker must render regardless of disposition: a re-surfaced
+      # remediated-unverified row can carry disposition null/untriaged (issue #1014's exposed
+      # shapes; SCOT_OWNED_CLOSED can also flag a Scot-owned STATUS with no Scot-owned
+      # disposition at all), and the marker existing only inside the "disp != untriaged" bolding
+      # would make it invisible in this rendered register for exactly the rows it protects.
+      disp = disp == 'untriaged' ? "#{disp}#{f['regression'] ? ' ⚠regression' : ''}" : "**#{disp}**#{f['regression'] ? ' ⚠regression' : ''}"
       out << "| #{f['id']} | #{f['legacyId']} | #{f['severity']} | #{fw} | #{disp} | #{finding_source(f)} | #{title} | #{anchor} |\n"
     end
     out << "\n"

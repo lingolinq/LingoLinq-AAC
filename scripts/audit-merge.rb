@@ -63,8 +63,11 @@ require 'open3'
 SEVERITY_ENUM = %w[critical high medium low].freeze
 FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
 # Statuses a finder may NOT change. If a known id carries one of these, the finder's re-find
-# is a regression candidate, not a status flip.
-SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
+# is a regression candidate, not a status flip. Includes remediated-unverified: it means Scot
+# has already accepted a fix as deployed pending verification, so a finder re-finding the
+# underlying snippet is re-raising something Scot already acted on, not something still open.
+# (issue #1014; the same constant in scripts/promote-finding.rb is kept in lockstep by hand.)
+SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded remediated-unverified].freeze
 # Dispositions only Scot sets (schema 1.1, every value except untriaged). Disposition is a SEPARATE
 # Scot-owned axis from status: a finding can be status "open" yet disposition "dismissed-false-positive"
 # or "wontfix". A finder re-finding such a finding is re-raising something Scot already decided, so it
