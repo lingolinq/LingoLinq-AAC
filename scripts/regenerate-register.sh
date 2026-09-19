@@ -155,6 +155,8 @@ verify_all() {
     scripts/tests/register-lint-shape-test.sh || rc=1
   step "verify: registers consumable by promote-finding / audit-merge (no-op run)" \
     scripts/tests/register-consumer-smoke-test.sh || rc=1
+  step "verify: the Scot-owned-status regression trigger fires (both consumers)" \
+    scripts/tests/scot-owned-regression-test.sh || rc=1
   return $rc
 }
 

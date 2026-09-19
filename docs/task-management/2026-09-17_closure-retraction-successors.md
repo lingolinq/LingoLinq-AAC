@@ -152,3 +152,47 @@ converge on the fixed path. Fixed in the follow-up commit:
 - Medium (adversary), NOT fixed here, filed as an issue: `scripts/audit-merge.rb` treats only
   `verified-closed`, `accepted-risk` and `superseded` as regression triggers, so a re-seen
   `remediated-unverified` row is silently re-anchored instead of flagged.
+
+## Third PR (2026-09-18): addendum re-attested, LL-676f91f26b closed
+
+Scot asked for a recommendation on the two items left after #1013 and took it: re-attest the
+addendum and close the finding.
+
+- **Addendum re-attested via Path A.** `docs/legal/2026-09-18_counsel-review-addendum-closure-retraction.md`
+  (DOC-c6f1b9fac6, attested 2026-09-18) supersedes DOC-c9c70f5702 (attested 2026-09-18 earlier
+  the same day, frozen, pin verified). The only substantive change is the header paragraph: the
+  memorandum's substantive content is unedited, but it received a header pointer on 2026-09-18
+  under decision item 7 of DOC-f6365ba893, and its last prior revision was PR #969 (2026-09-15).
+  The memo's pointer now names the successor. Rationale: the addendum exists to correct a
+  misstatement in the record set and was carrying one of its own in an attested sentence.
+- **LL-676f91f26b verified-closed**, disposition fixed, attestation string dated 2026-09-18, on the
+  read-and-deploy evidence already on the row plus the two independent #1013 review passes (live
+  traffic reads, ancestry, escape_label coverage of all three sigils, `system(*args)` argv, both
+  sinks converge, byte-sweep spec). An exploit re-run against production was deliberately not
+  performed; the attestation string says so. Live headline moves 2C -> 1C; open-only 1C.
+- Sweep for LL-676f91f26b outside the register: only the attested, dated 2026-09-17 snapshot,
+  which lists it as open at that date and is frozen.
+- Scot-owned fields (finding status/disposition/attestation, register attestation blocks) were
+  written with the file-editing tools; the shell path is blocked by the auto-mode classifier for
+  attestation writes.
+
+### Dual review of PR #1015 at `e55a62943`
+
+Senior-dev: approve with one Medium. Adversary: ship with conditions (3 Medium, 2 Low). Both
+independently re-verified the deployment on both production surfaces and the Path A mechanics.
+Fixed in the follow-up commit, all confirmed against the files:
+
+- The successor said "the one edit" where git shows two same-day commits touched the memo
+  (#1013 inserted the pointer, #1015 retargeted it). Wording corrected and the PR sequence
+  (#1006 / #1013 / #1015) added so a reader without the repo can order the three same-day
+  events. The successor had never merged as an attested revision, so it was re-pinned in place
+  with the reason in `attestation.note` (the skill's same-day-amendment allowance) rather than
+  minting a third successor.
+- The successor's register notes said "one day after" and "Unattested until the CEO pins it";
+  both false in the same commit. Corrected.
+- `LL-c0b3d59f58` notes still described a five-line pointer to the superseded addendum;
+  appended the current state.
+- The memo pointer reworded to match and rewrapped to the file's line width.
+- Accepted, not changed: the pre-existing em dash at memo line 272 (touching it would falsify
+  the "only the pointer changed" statement; fix at the memo's next revision); the Notion mirror
+  lags until the publisher runs, which happens right after merge.

@@ -12,13 +12,13 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-18T21:36:38Z
+**Page generated:** 2026-09-18T23:33:09Z
 
 ## Headline - live findings (open + awaiting verification)
 
 | Count | Critical | High | Medium | Low |
 |---|---|---|---|---|
-| **Live** (`open` + `remediated-unverified`) | **2** | **38** | 94 | 52 |
+| **Live** (`open` + `remediated-unverified`) | **1** | **38** | 94 | 52 |
 | `open` only | 1 | 32 | 91 | 51 |
 
 _The headline is the LIVE count: `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` step 6 convention; the difference is findings whose fix has landed but which Scot has not yet verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._
@@ -28,7 +28,6 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | ID | Legacy | Severity | Frameworks | Title | Evidence |
 |---|---|---|---|---|---|
 | LL-1baffd92d5 |  | critical | FERPA, COPPA, GDPR, SOC2 | Organization account-claim authorization weakness (details withheld until remediation is verified) | `app/controllers/api/organizations_controller.rb`:245 |
-| LL-676f91f26b |  | critical | FERPA, HIPAA | Command injection via utterance button label in the sentence-preview worker | `lib/sentence_pic.rb`:40 |
 | LL-06d36ffeeb |  | high | GDPR, FERPA, COPPA, HIPAA | Board translation writes raw user-authored label text into the global word_data dictionary, which has no user_id or organization_id: translated personal labels are served cross-account as cache hits and survive account erasure (GDPR Art. 5(1)(f)/17, FERPA, district data isolation) | `app/models/word_data.rb`:858 |
 | LL-0b5443f43b |  | high | SOC2, HIPAA | Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy | `scripts/gcp/phase5-frontend-lb.sh`:490 |
 | LL-10409152d2 |  | high | GDPR, FERPA, COPPA, HIPAA, SOC2 | The 2026-08-08 quarterly subprocessor review claims every external host in lib/, app/models/, app/controllers/ and config/ was enumerated and found only two omissions, but at least five further live third-party egress paths are absent from the register (Google Maps Places, OpenSymbols, workshop.openaac.org, YouTube, Zendesk) | `docs/legal/2026-08-16_subprocessor-register.md`:120 |

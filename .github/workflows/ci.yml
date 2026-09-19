@@ -375,6 +375,13 @@ jobs:
       - name: Verify registers are consumable by promote-finding / audit-merge (no-op run)
         run: scripts/tests/register-consumer-smoke-test.sh
 
+      # A NON-empty-input companion to the smoke test above: proves the SCOT_OWNED_CLOSED
+      # regression trigger actually fires in both consumers for every status a re-find must
+      # never silently re-anchor over (issue #1014), and that promote-finding.rb's own
+      # same-day invariant does not false-positive-abort a legitimate re-find.
+      - name: Verify the Scot-owned-status regression trigger fires (both consumers)
+        run: scripts/tests/scot-owned-regression-test.sh
+
   codex-review-tests:
     runs-on: ubuntu-latest
 
