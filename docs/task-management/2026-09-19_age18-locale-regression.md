@@ -2,7 +2,8 @@
 
 **Date:** 2026-09-19. **Branch:** `compliance/scot-age18-locale-regression-de4f7378` from
 `origin/develop` at 7c3549a01.
-**Status:** fact sheet and proposal written; red test next; proposal under adversary review.
+**Status:** fixed on this branch; guard falsified; awaiting PR review. Scope widened from one key to
+three (see "Adversary review of the proposal").
 
 ## Problem
 
@@ -15,17 +16,20 @@ non-English values to the `*** ` English fallback. The fix is gone on `develop`,
 
 ## Diagnosis
 
-The fix was reverted by PR #963's merge commit `4104b657b` (Traci Day, 2026-09-13), a merge of a
-long-lived feature branch. Tracing `privacy_security_retention_children` in `es.json` through every
-commit that touched it on develop:
+The fix was undone inside a long-lived feature branch, then carried to develop. At `1c2bb2333`
+(2026-09-04, "Merge origin/staging into traci/fix/restore-speak-options") the first parent had the
+machine translation, the second parent (staging) had #922's `*** ` fix, and the conflict resolution
+kept the translation. PR #963 squash-merged that branch into develop as `4104b657b` on 2026-09-13
+(one parent: a squash, not a merge), and the value reached staging and then `main` via release #978
+on 2026-09-15. Tracing `privacy_security_retention_children` in `es.json` on develop:
 
 | Commit | Value after |
 |---|---|
 | `9aa0007c0` (#625, 2026-07-17) | `*** ` + old English claim |
 | `eec90591a` (#927, 2026-09-03) | `*** ` + corrected English (#922's content) |
-| `4104b657b` (#963, 2026-09-13) | Spanish machine translation of the retracted claim |
+| `4104b657b` (#963 squash, 2026-09-13) | Spanish machine translation of the retracted claim |
 
-Blast radius of that merge across the 12 locales, per locale: 58 keys added, 0 removed, 3 board-UI
+Blast radius of that squash across the 12 locales, per locale: 58 keys added, 0 removed, 3 board-UI
 strings reworded, and exactly **one** key went from a `*** ` fallback back to a translation:
 `privacy_security_retention_children`. No other corrected key was reverted.
 
@@ -58,19 +62,23 @@ The generator never overwrites an existing value (`json[key] || "*** ..."`), so 
 persist through every regenerate. CONFIRMED (`i18n_generator.rb:337,349`).
 
 **(c) Cross-file claims.**
-- "#963's merge reverted #922": CONFIRMED by the value trace above.
-- "No other corrected key was reverted": CONFIRMED by classifying every key #963's merge changed in
+- "#963 carried the revert of #922 to develop": CONFIRMED by the value trace above; the revert itself
+  is the conflict resolution at `1c2bb2333` (parents `4201a31fb`, `cf5004909`).
+- "No other corrected key was reverted": CONFIRMED by classifying every key #963's squash changed in
   all 12 locale files.
 - "Other surfaces already carry the corrected text": CONFIRMED for `en.json`, `privacy.hbs:105`,
   `_privacy.html.erb:87` and `config/locales/*.yml` (the `retention_children` keys there describe AI
-  log retention, a different topic). `docs/legal/DATA_RETENTION.md:50` still states the old claim;
-  it is the frozen predecessor #922 deliberately left, so it is out of scope. The counsel review
+  log retention, a different topic). `docs/legal/DATA_RETENTION.md:50` still states the old claim.
+  CORRECTED after review: it is not only a frozen predecessor. It is the git mirror and "living
+  source" of DOC-52c8c33583, "Data Retention Schedule (branded)", status `published` in the
+  `school-dpa-package`, `soc2-evidence` and `compliance-records-set-2026-06` bundles
+  (`audit-reports/DOCUMENT-REGISTER.json`). Attested; Scot-only; not changed here. The counsel review
   (`docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md:237`) quotes
   the old claim in order to analyse it.
 - "No open PR touches this key": CONFIRMED for #1026, #1011 and #909 (the three open PRs touching
   locales or privacy files).
 
-## Proposal
+## Proposal (as written before the adversary review; see the review section below for changes)
 
 **Candidate A (proposed): restore #922's shape.** Set all 12 non-English values to `*** ` + the
 current `en.json` value. Visitors in those locales see the corrected English sentence. This is the
@@ -104,7 +112,71 @@ the spec must go red naming only that locale.
 - A future legitimate edit to the English sentence now fails CI until the 12 fallbacks are updated
   too. Intended: that propagation is exactly what failed here.
 
-**Unresolved.**
-- Production (`main`) shows the false claim now. This PR follows the normal flow (develop, then
-  staging, then a release PR). Whether to also hotfix `main` is Scot's call.
-- `docs/legal/DATA_RETENTION.md` still states the old claim as the frozen predecessor; unchanged.
+**Unresolved (pre-review; superseded by "Unresolved (for Scot)" at the end).**
+- Production (`main`) shows the false claim now.
+- `docs/legal/DATA_RETENTION.md` still states the old claim.
+
+## Adversary review of the proposal (2026-09-19)
+
+Verdict: proceed with Candidate A, with changes. 7 findings; each checked here.
+
+1. **High, applied.** Two more keys on the same page were stale the same way (English corrected on
+   2026-07-17 by #625; the machine-translation pass translated the old English, which the generator
+   never refreshes). Verified by comparing each translation's recorded `[[ ` source with `en.json`:
+   - `privacy_security_retention_ai_logs`, 11 locales (all but `es`): "audit record retained for 2
+     years"; English says it is deleted with the account.
+   - `privacy_special_coppa_v2`, all 12: "any use of AI features, including AI-assisted board
+     generation, requires verifiable parental consent"; English limits that to AI word prediction and
+     AI-drafted evaluation summaries and says board suggestions are handled separately, which the
+     adjacent `privacy_special_ai_board_suggestions_note` then states. `es` for `ai_logs` had a current
+     source, but it came from the #927 alignment commit, not a reviewed translation, so it is pinned too.
+   Three `pp_third_party_*` keys also have stale sources, with cosmetic wording changes only; not
+   changed.
+2. **High, flagged for Scot.** DOC-52c8c33583 (published retention schedule sent to districts) is
+   sourced from `DATA_RETENTION.md`, which still says "automatic purge at age 18".
+3. **High, flagged for Scot.** Production serves the false claim (`main` since release #978,
+   2026-09-15), and release PR #1011 carries it.
+4. **Medium, applied.** The guard pinned propagation, not content. Added `CONTENT_PINS`: what each
+   English sentence must and must not say.
+5. **Medium, applied.** `WordData.translate_locale_batch` machine-translates every `*** ` value, the
+   exact pinned shape. Added `WordData::ENGLISH_PINNED_LOCALE_KEYS` and a skip, with a red test.
+   Kept on the model rather than in `lib/`, because Zeitwerk does not autoload `lib/` in Resque workers
+   (`config/application.rb`, the `RESQUE_WORKER` guard) and workers load `WordData`.
+6. **Low, applied.** "Merge commit" was wrong: `4104b657b` is a squash; see Diagnosis.
+7. **Low, applied as a stated choice.** The guard is stricter than the runtime for a locale file
+   missing the key; the spec header says so on purpose.
+
+Not applied: an evidence note on finding LL-933e61efd7. Open PR #1026 is editing that same finding
+(retitle), and the register is high-contention; the evidence goes in this PR's body instead.
+
+## Verification
+
+- Red first: guard failed naming all 12 locales for the age-18 key (a26856743), then all three
+  fallback checks once extended; rake test failed with the pinned key in the translation request.
+- Green: `privacy_locale_english_pins_spec`, `word_data_spec`, `ai_disclosure_surfaces_spec`:
+  103 examples, 0 failures, 1 pre-existing pending (`word_data_spec.rb:950`, a body-less `it`).
+- Falsified on the committed tree, restored from a saved copy after each:
+
+| Mutation | Result |
+|---|---|
+| `pl.json` age-18 value back to its translation | 1 failure naming only `pl.json` |
+| `de.json` COPPA value back to its translation | 1 failure naming only `de.json` |
+| retracted English in `privacy.hbs`, `en.json` and all 12 fallbacks together | 1 failure, content pin |
+| translator skip removed | rake test red, pinned key sent |
+
+- Locale diff: 36 lines in 12 files, 3 per file; `en.json` unchanged. The age-18 lines are
+  byte-identical to #922's.
+
+## Unresolved (for Scot)
+
+- **Production.** `main` has served the false claims since 2026-09-15. Recommendation: once this
+  merges to develop, cherry-pick it onto release PR #1011's branch before #1011 merges, so the next
+  release carries it; or use the CONTRIBUTING hotfix path off `main` if the release is not imminent.
+  Not done here: #1011 is another session's release branch.
+- **DOC-52c8c33583 / `DATA_RETENTION.md`.** Published district-facing schedule still states the
+  age-18 purge. Needs a successor or withdrawal from the bundles, and the attested compliance program
+  (`docs/legal/2026-09-14_compliance-program.md`) still points to `DATA_RETENTION.md` as the schedule.
+- **LL-933e61efd7.** Already names the age-18 transition and says it must cover the 12 locale files.
+  Evidence for it is this PR; closing it is Scot's call.
+- **Reviewed translations.** The three keys show English to non-English visitors until someone
+  reviews a translation; then remove the key from `WordData::ENGLISH_PINNED_LOCALE_KEYS` in that PR.
