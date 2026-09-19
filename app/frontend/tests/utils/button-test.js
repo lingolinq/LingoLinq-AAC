@@ -613,6 +613,25 @@ context('Button', function() {
         expect(b.get('local_sound_url')).toEqual('http://www.example.com/pic.png');
       });
     });
+
+    it('should use board.sound_urls when sound_id is numeric and keys are strings', function() {
+      var b = Button.create({
+        sound_id: 123,
+        board: EmberObject.create({
+          sound_urls: {
+            '123': 'http://www.example.com/beep.mp3'
+          }
+        })
+      });
+      var loaded = false;
+      b.load_sound('local').then(function() {
+        loaded = true;
+      });
+      waitsFor(function() { return loaded; });
+      runs(function() {
+        expect(b.get('local_sound_url')).toEqual('http://www.example.com/beep.mp3');
+      });
+    });
   });
 
   context("findContentLocally", function() {

@@ -15,12 +15,14 @@
 #   * NEVER writes status "verified-closed", "accepted-risk", or "superseded".
 #   * NEVER downgrades an existing finding's severity (a finder cannot lower it).
 #   * Adds genuinely new findings as status "open".
-#   * For a known id still status "open"/"remediated-unverified": refreshes lastSeen and
-#     re-anchors evidence to the verification SHA (so citation-check stays green), keeps the
-#     Scot-owned fields (status, severity, owner, firstSeen, closureEvidence).
-#   * For a known id that was previously closed/accepted/superseded but a finder re-surfaced:
-#     leaves the Scot-owned status UNTOUCHED, sets regression:true with a loud note, and lists
-#     it in the summary so the adversary verifies and Scot decides whether to reopen.
+#   * For a known id still status "open": refreshes lastSeen and re-anchors evidence to the
+#     verification SHA (so citation-check stays green), keeps the Scot-owned fields (status,
+#     severity, owner, firstSeen, closureEvidence).
+#   * For a known id whose status is verified-closed/accepted-risk/superseded/remediated-unverified
+#     (SCOT_OWNED_CLOSED), or whose disposition is Scot-set (SCOT_OWNED_DISPOSITIONS), but a
+#     finder re-surfaced it: leaves the Scot-owned status UNTOUCHED, sets regression:true with a
+#     loud note, and lists it in the summary so the adversary verifies and Scot decides whether
+#     to reopen (issue #1014: remediated-unverified used to be silently re-anchored here instead).
 #   * Leaves register findings NOT seen this run completely unchanged (different scan scope).
 #
 # Pure git-free stdlib (json, digest, date). No network, no app boot. Safe in CI.
@@ -63,8 +65,11 @@ require 'open3'
 SEVERITY_ENUM = %w[critical high medium low].freeze
 FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
 # Statuses a finder may NOT change. If a known id carries one of these, the finder's re-find
-# is a regression candidate, not a status flip.
-SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
+# is a regression candidate, not a status flip. Includes remediated-unverified: it means Scot
+# has already accepted a fix as deployed pending verification, so a finder re-finding the
+# underlying snippet is re-raising something Scot already acted on, not something still open.
+# (issue #1014; the same constant in scripts/promote-finding.rb is kept in lockstep by hand.)
+SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded remediated-unverified].freeze
 # Dispositions only Scot sets (schema 1.1, every value except untriaged). Disposition is a SEPARATE
 # Scot-owned axis from status: a finding can be status "open" yet disposition "dismissed-false-positive"
 # or "wontfix". A finder re-finding such a finding is re-raising something Scot already decided, so it
@@ -279,8 +284,20 @@ opts[:ins].each do |path|
         # do NOT touch the disposition or the (still-valid) evidence; flag it loudly.
         existing['regression'] = true
         reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
-        note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (#{reason}). Needs adversary verification + Scot decision."
-        existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        # A remediated-unverified row whose fix was out-of-repo (a deploy, a config change) keeps
+        # re-finding on every run until Scot closes it, so this branch can fire repeatedly for the
+        # same row; appending a fresh note every run would grow `notes` without bound (adversary
+        # review, issue #1014 fix review -- measured 188 to 924 bytes over 5 runs on a scratch
+        # fixture). Dedupe on the REASON, not a boolean `regression` flag: a boolean would also
+        # suppress the note the one time it matters again -- the row regresses a SECOND time for a
+        # DIFFERENT reason (Scot re-decided it to another Scot-owned status/disposition without
+        # clearing `regression`, then it regressed again) -- silently dropping the register's only
+        # durable record of the new cause (adversary review, round 2).
+        reason_tag = "(#{reason})"
+        unless existing['notes'].to_s.include?(reason_tag)
+          note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} #{reason_tag}. Needs adversary verification + Scot decision."
+          existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        end
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
                                     'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'domain' => domain, 'file' => anchor }

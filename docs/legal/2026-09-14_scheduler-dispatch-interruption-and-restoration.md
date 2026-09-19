@@ -8,7 +8,8 @@ an attestation are separate events, and neither has occurred for this document.
 ## 1. Why this record exists
 
 `rake scheduler:dispatch` (`lib/tasks/scheduler.rake`) is the single entrypoint for every
-recurring job in this application. Finding `LL-3e36a18199` (high, open) records that nothing
+recurring job in this application. Finding `LL-3e36a18199` (high; open when this record was prepared, verified-closed 2026-09-18
+on its liveness element, see section 7) records that nothing
 triggered it in production from 2026-07-21 until 2026-09-02. Five compliance drafts described
 retention, redaction, purge, flush and expiry work in language that did not distinguish
 configured cadence from observed execution. This record is the single dated place those drafts
@@ -129,6 +130,12 @@ TRIGGER". The failure policy counts failed executions; the 2026-07-21 to 2026-09
 non-execution, which produces no failed execution to count. No missed-run or absence detection was
 found, and no evidence was gathered that any notification has been delivered to a recipient.
 
+**Update 2026-09-18.** A missed-run (metric-absence) policy, "PROD scheduler dispatch MISSED RUN
+(no execution in 90m)", now exists in `lingolinq-prod`, defined in
+`scripts/gcp/prod-scheduler-liveness-alert.json`. Delivery through the shared email channel was
+confirmed by receipt that day. The observations above describe 2026-09-14 and are left as
+recorded.
+
 The comment at `lib/tasks/scheduler.rake:78-80` is a dated statement about 2026-09-03 and is not
 contradicted by this capture; it no longer describes the configuration captured on 2026-09-14, and
 this record takes no position on what was configured on 2026-09-03.
@@ -163,7 +170,9 @@ evidence about either.
 For the window 2026-07-21 to 2026-09-02, the configured controls above were not run by the
 scheduler. Whether any ran by another route has not been established. This record does not quantify
 what accumulated during that window, does not identify affected data subjects, and does not assess
-residual work. That assessment is outstanding and is a closure condition on `LL-3e36a18199`.
+residual work. That assessment is outstanding. It was a closure condition on `LL-3e36a18199`;
+when that finding was closed on 2026-09-18 on its liveness element, the assessment moved to its
+own finding, `LL-cbc8bc4211` (high, open), which now carries it.
 
 ## 6. Limitations
 
@@ -200,7 +209,10 @@ disclosure already made.
 
 ## 7. Related records
 
-- `LL-3e36a18199` (high, open): scheduler dispatch HAD no trigger from the GCP cutover until
+- **Update 2026-09-18:** `LL-3e36a18199` is verified-closed on its liveness element (missed-run
+  alert applied and delivery confirmed), and the impact assessment in section 5 is carried by
+  `LL-cbc8bc4211` (high, open). The rest of this bullet is as recorded on 2026-09-14.
+- `LL-3e36a18199` (high, open at the time): scheduler dispatch HAD no trigger from the GCP cutover until
   2026-09-02. Sections 3.1 and 3.2 of this record establish an enabled trigger and 278 executions
   covering every expected hourly slot from `2026-09-02T18:00Z` through `2026-09-14T07:00Z`. The
   finding remains OPEN because its closure conditions are unmet, not because a trigger is still
