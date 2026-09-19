@@ -112,7 +112,8 @@ healthy state (a completed execution in the last hour). Scot confirmed the email
 temporary policy was deleted. The Cloud Monitoring API has no "send test notification" method,
 which is why a firing policy was used. All four production policies notify that same channel
 (`notificationChannels/2035727736516782378`), so this proves delivery for each of them at the
-channel level. Re-prove delivery the same way whenever the channel changes.
+channel level. `--check` fails if the channel has been changed since that proof
+(`DELIVERY_PROVEN_AT` in the script); re-prove delivery the same way, then update it.
 
 **Firing, proven 2026-09-19, without an outage.** A temporary copy of the policy with the same
 filter and aggregation, a 30-minute window and no notification channel was created at

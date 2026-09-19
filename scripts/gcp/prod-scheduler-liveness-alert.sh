@@ -43,7 +43,7 @@
 #   scripts/gcp/prod-scheduler-liveness-alert.sh --apply   # create or update the policy
 #
 #   --check exit codes: 0 OK; 1 FAIL (missing, duplicated, drifted from the committed JSON,
-#   disabled, channel disabled, or a gcloud error); 3 NOT YET ARMED (no completed execution
+#   disabled, channel disabled or changed since delivery was proven, or a gcloud error); 3 NOT YET ARMED (no completed execution
 #   within the condition's duration before the last change, nor since, so it cannot fire).
 #
 #   --apply WRITES TO PRODUCTION monitoring config. It is idempotent: it updates the one
@@ -55,8 +55,8 @@
 #   not prove delivery or firing. Both were proven separately:
 #   - Delivery, 2026-09-18: a temporary policy on the same channel was made to fire on the
 #     healthy state, the email arrived, and the temporary policy was deleted. The Cloud
-#     Monitoring API has no "send test notification" method; re-prove the same way whenever
-#     the channel changes.
+#     Monitoring API has no "send test notification" method. --check fails if the channel
+#     has been changed since DELIVERY_PROVEN_AT; re-prove the same way, then update it.
 #   - Firing of the absence condition: see docs/INFRASTRUCTURE.md, "Scheduler liveness". No
 #     outage is needed to test it. A temporary copy with the same filter and aggregation and
 #     a 30-minute window fires between healthy hourly runs.
@@ -68,6 +68,11 @@ JOB="lingolinq-scheduler"
 POLICY_NAME="PROD scheduler dispatch MISSED RUN (no execution in 90m)"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POLICY_FILE="$HERE/prod-scheduler-liveness-alert.json"
+# When delivery through the channel was last proven by a received notification (the
+# 2026-09-18 test incident). A channel edited in place after this keeps its resource name,
+# so the policy diff cannot see it; --check compares the channel's own mutation time.
+# After re-proving delivery, update this to the new proof time.
+DELIVERY_PROVEN_AT="2026-09-18T23:26:45"
 
 # The fields that define the control. Server-added fields (name, creationRecord,
 # condition names) are ignored; everything that decides when and whom it alerts is compared.
@@ -92,7 +97,7 @@ matching_policies() {
 }
 
 check() {
-  local names count name live diff_out channel enabled mutated since execs latest
+  local names count name live diff_out channel chan changed mutated since execs latest
   names="$(matching_policies)" || return 1
   count="$(grep -c . <<<"$names" || true)"
   if [ "$count" -eq 0 ]; then
@@ -118,10 +123,17 @@ check() {
   fi
 
   for channel in $(jq -r '.notificationChannels[]' <<<"$live"); do
-    enabled="$(gcloud alpha monitoring channels describe "$channel" --project="$PROJECT" --format='value(enabled)')" || {
+    chan="$(gcloud alpha monitoring channels describe "$channel" --project="$PROJECT" --format=json)" || {
       echo "FAIL: could not read channel $channel (see gcloud error above)."; return 1; }
-    if [ "$enabled" != "True" ]; then
+    if [ "$(jq -r '.enabled' <<<"$chan")" != "true" ]; then
       echo "FAIL: notification channel $channel is disabled, so nothing is delivered."
+      return 1
+    fi
+    changed="$(jq -r '[(.mutationRecords // [])[].mutateTime, .creationRecord.mutateTime] | map(select(. != null) | .[0:19]) | max // ""' <<<"$chan")"
+    if [ -z "$changed" ] || [[ "$changed" > "$DELIVERY_PROVEN_AT" ]]; then
+      echo "FAIL: notification channel $channel was changed at ${changed:-an unknown time}Z, after delivery"
+      echo "      was last proven (${DELIVERY_PROVEN_AT}Z). Re-prove delivery (see docs/INFRASTRUCTURE.md,"
+      echo "      \"Scheduler liveness\"), then update DELIVERY_PROVEN_AT in this script."
       return 1
     fi
   done
