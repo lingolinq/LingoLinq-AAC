@@ -338,14 +338,15 @@ opts[:ins].each do |path|
         # axis -- a Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted /
         # fixed / dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the
         # status and do NOT touch the disposition; flag it loudly for adversary verification + Scot.
-        already_flagged = existing['regression'] == true
         existing['regression'] = true
         reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
-        # Same dedupe as scripts/audit-merge.rb: a row can re-surface across multiple PR reviews
-        # while still Scot-owned; only the first re-find appends a note (adversary review, issue
-        # #1014 fix review).
-        unless already_flagged
-          note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} (#{reason}). Needs adversary verification + Scot decision."
+        # Same dedupe as scripts/audit-merge.rb, keyed on the REASON rather than a boolean
+        # `regression` flag: a boolean would also suppress the note the one time it matters
+        # again -- a second regression for a DIFFERENT reason after Scot re-decided the row
+        # without clearing `regression` (adversary review, round 2; issue #1014 fix review).
+        reason_tag = "(#{reason})"
+        unless existing['notes'].to_s.include?(reason_tag)
+          note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} #{reason_tag}. Needs adversary verification + Scot decision."
           existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
         end
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],

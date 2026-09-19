@@ -126,3 +126,21 @@ the 2 accepted-risk/superseded statuses x 2 scripts x 2 assertion types). All 38
 final commit; `scripts/regenerate-register.sh --check` passes (after re-rendering
 `DOCUMENT-REGISTER.json`'s contentHash for `audit-reports/README.md`, whose text changed in this
 round -- unattested row, safe hash update, verified single-field diff).
+
+## Dual review round 3 (`adversary-1019` re-verification of the round-2 commit)
+
+Re-reviewed `14a31d75f` by mutation testing rather than trusting the round-2 report: all six of
+its own mutations now caught (up from four of six pre-round-2), 38 assertions green, note growth
+confirmed flat across five repeated runs, render still byte-identical, verdict moved from "ship
+with conditions" to "ship". One self-disclosed residual, not blocking:
+
+- **Low**: the dedupe (`unless already_flagged`, keyed on the boolean `regression` field) also
+  suppresses the note the one time it matters again -- Scot re-decides a row to a DIFFERENT
+  Scot-owned status/disposition without clearing `regression`, and it regresses again later for
+  that new reason; no second note is recorded, only that run's (non-persisted) summary entry.
+  Reviewer's own suggested counter-measure ("key the dedupe on the run date and reason rather than
+  the boolean") applied: both scripts now dedupe on whether `existing['notes']` already contains
+  the literal `(#{reason})` substring, not on the boolean flag. A same-reason repeat still dedupes;
+  a different-reason regression now gets its own note. Confirmed red against a scratch mutant that
+  restores the boolean-flag dedupe (3 new failures, exactly the new cases, nothing else); confirmed
+  green on the real fix. 38 -> 41 assertions.

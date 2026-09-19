@@ -234,6 +234,42 @@ else
       bad "remediated+null: REGRESSION note duplicated across repeated re-finds (count=${note_count:-missing}, expected 1)"
     fi
     assert_regression "remediated+null: still flagged after the second re-find" "$TMP/am-out2.json" "$ID_RU_NULL" true
+
+    # The dedupe must key on the REASON, not the boolean `regression` flag: a row Scot re-decided
+    # to a DIFFERENT Scot-owned status without clearing `regression` must still get a note when it
+    # regresses again for that new reason (adversary review, round 2 residual).
+    ruby -rjson -e '
+      j = JSON.parse(File.read(ARGV[0]))
+      f = j["findings"].find { |x| x["id"] == ARGV[1] }
+      abort "fixture setup failed: row not found" unless f
+      f["status"] = "accepted-risk"
+      File.write(ARGV[0], JSON.pretty_generate(j))
+    ' "$TMP/am-out2.json" "$ID_RU_NULL"
+    if ! ruby "$AUDIT_MERGE" --register "$TMP/am-out2.json" --sha "0000000000000000000000000000000000000000" \
+        --no-restamp --in "$TMP/am-finder.json" --out "$TMP/am-out3.json" --summary "$TMP/am-summary3.json" > "$TMP/am-log3.txt" 2>&1; then
+      bad "audit-merge.rb exited non-zero on the changed-reason (dedupe) fixture:"
+      sed 's/^/      /' "$TMP/am-log3.txt" >&2
+    else
+      note_count3="$(field "$TMP/am-out3.json" "$ID_RU_NULL" 'f["notes"].to_s.scan("REGRESSION:").size')"
+      if [ "$note_count3" = "2" ]; then
+        ok "remediated+null: a regression for a DIFFERENT reason (status changed) gets a second note (count=2)"
+      else
+        bad "remediated+null: changed-reason regression did not get a new note (count=${note_count3:-missing}, expected 2)"
+      fi
+      # And that new reason dedupes on its own repeat, same as the first.
+      if ! ruby "$AUDIT_MERGE" --register "$TMP/am-out3.json" --sha "0000000000000000000000000000000000000000" \
+          --no-restamp --in "$TMP/am-finder.json" --out "$TMP/am-out4.json" --summary "$TMP/am-summary4.json" > "$TMP/am-log4.txt" 2>&1; then
+        bad "audit-merge.rb exited non-zero on the changed-reason repeat (dedupe) fixture:"
+        sed 's/^/      /' "$TMP/am-log4.txt" >&2
+      else
+        note_count4="$(field "$TMP/am-out4.json" "$ID_RU_NULL" 'f["notes"].to_s.scan("REGRESSION:").size')"
+        if [ "$note_count4" = "2" ]; then
+          ok "remediated+null: repeating the new reason again still does not duplicate (count=2)"
+        else
+          bad "remediated+null: repeat of the new reason duplicated (count=${note_count4:-missing}, expected 2)"
+        fi
+      fi
+    fi
   fi
 fi
 
@@ -331,6 +367,27 @@ else
       bad "remediated+null: REGRESSION note duplicated across repeated re-finds (count=${note_count:-missing}, expected 1)"
     fi
     assert_regression "remediated+null: still flagged after the second re-find" "$TMP/pf-out2.json" "$ID2_RU_NULL" true
+
+    # Same reason-keyed dedupe requirement as audit-merge.rb (adversary review, round 2 residual).
+    ruby -rjson -e '
+      j = JSON.parse(File.read(ARGV[0]))
+      f = j["findings"].find { |x| x["id"] == ARGV[1] }
+      abort "fixture setup failed: row not found" unless f
+      f["status"] = "accepted-risk"
+      File.write(ARGV[0], JSON.pretty_generate(j))
+    ' "$TMP/pf-out2.json" "$ID2_RU_NULL"
+    if ! ruby "$PROMOTE_FINDING" --register "$TMP/pf-out2.json" \
+        --in "$TMP/pf-finder.json" --out "$TMP/pf-out3.json" --summary "$TMP/pf-summary3.json" > "$TMP/pf-log3.txt" 2>&1; then
+      bad "promote-finding.rb exited non-zero on the changed-reason (dedupe) fixture:"
+      sed 's/^/      /' "$TMP/pf-log3.txt" >&2
+    else
+      note_count3="$(field "$TMP/pf-out3.json" "$ID2_RU_NULL" 'f["notes"].to_s.scan("REGRESSION:").size')"
+      if [ "$note_count3" = "2" ]; then
+        ok "remediated+null: a regression for a DIFFERENT reason (status changed) gets a second note (count=2)"
+      else
+        bad "remediated+null: changed-reason regression did not get a new note (count=${note_count3:-missing}, expected 2)"
+      fi
+    fi
   fi
 fi
 

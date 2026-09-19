@@ -282,15 +282,20 @@ opts[:ins].each do |path|
         # Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted / fixed /
         # dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the status,
         # do NOT touch the disposition or the (still-valid) evidence; flag it loudly.
-        already_flagged = existing['regression'] == true
         existing['regression'] = true
         reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
         # A remediated-unverified row whose fix was out-of-repo (a deploy, a config change) keeps
         # re-finding on every run until Scot closes it, so this branch can fire repeatedly for the
-        # same row; only the first re-find appends a note, or `notes` grows without bound (adversary
-        # review, issue #1014 fix review -- measured 188 to 924 bytes over 5 runs on a scratch fixture).
-        unless already_flagged
-          note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (#{reason}). Needs adversary verification + Scot decision."
+        # same row; appending a fresh note every run would grow `notes` without bound (adversary
+        # review, issue #1014 fix review -- measured 188 to 924 bytes over 5 runs on a scratch
+        # fixture). Dedupe on the REASON, not a boolean `regression` flag: a boolean would also
+        # suppress the note the one time it matters again -- the row regresses a SECOND time for a
+        # DIFFERENT reason (Scot re-decided it to another Scot-owned status/disposition without
+        # clearing `regression`, then it regressed again) -- silently dropping the register's only
+        # durable record of the new cause (adversary review, round 2).
+        reason_tag = "(#{reason})"
+        unless existing['notes'].to_s.include?(reason_tag)
+          note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} #{reason_tag}. Needs adversary verification + Scot decision."
           existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
         end
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
