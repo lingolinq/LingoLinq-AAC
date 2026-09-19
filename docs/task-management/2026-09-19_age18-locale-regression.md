@@ -216,3 +216,27 @@ Not applied: an evidence note on finding LL-933e61efd7. Open PR #1026 is editing
   make it list all 35 stale entries (12 + 11 + 12); correcting the English of the unrelated `legal`
   key without re-translating makes it fail naming 11 locales, with the pinned checks still green.
 - **Medium, applied.** Overclaim about the gate; see the corrected paragraph under Proposal.
+
+## Adversary review of the PR (batch 2, head b1f0977c9)
+
+Verdict: request changes, one blocker (the loop, fixed in 32e1b98b3) plus softened gate wording (done).
+
+- **Medium (legal judgment), for Scot and counsel.** The English fallback is better than a false
+  translation but is not a translation: EDPB WP260 rev.01 expects translations where the site targets
+  speakers of a language, and the de/fr/pl/ga UI suggests it does. For non-English readers the
+  retention statement also moves from "deleted at 18" to "not deleted at 18" (less protective), while
+  `privacy.hbs` keeps "Last Updated: August 30, 2026" and promises notice of material changes. The
+  page has no "English version governs" clause. Needs: an owner and date for reviewed translations
+  of the three keys, and counsel on whether this needs a Last Updated bump, a notice, or a
+  governing-language clause.
+- **Low, applied.** Pattern pins passed English paraphrases that restate the retracted claims. Now
+  the exact reviewed English is pinned. Falsified in a scratch export of be5f6c31c: the reviewer's
+  paraphrases, applied consistently to the template, `en.json` and all 12 fallbacks, fail 2 examples.
+- **Low, applied to the PR body.** Production steps: a scratch cherry-pick of the code commits applied
+  cleanly onto #1011's head and onto `main`; the task-log and learnings files conflict, so drop those
+  hunks; the loop fix must travel too; pushing to #1011 resets its required review and re-runs CI.
+  Also, already-shipped Cordova and Electron builds carry a copy of `public/locales` (copied by
+  `extras:mobile` and `extras:desktop`) and keep the false JSON until rebuilt.
+
+Dismissed by the reviewer after checking: `coppa_parent_email_required` translations hard-code 13,
+which is correct.
