@@ -4,6 +4,17 @@ class WordData < ApplicationRecord
   include GlobalId
   include Processable
   INFLECTIONS_VERSION = 2
+  # Privacy-policy keys whose non-English values must stay the `*** ` English
+  # fallback until a human-reviewed translation replaces them. The fallback shape
+  # is exactly what translate_locale_batch picks up, so it treats these keys as
+  # nopes: skipped, and returned so the caller's loop in lib/tasks/extras.rake
+  # (extras:translate_ui_locales) stops counting them as still to translate.
+  # spec/lib/privacy_locale_english_pins_spec.rb pins every locale to this list.
+  ENGLISH_PINNED_LOCALE_KEYS = %w[
+    privacy_security_retention_children
+    privacy_security_retention_ai_logs
+    privacy_special_coppa_v2
+  ].freeze
 
   # https://www.enchantedlearning.com/wordlist/opposites.shtml
   # https://www.talkenglish.com/vocabulary/top-50-prepositions.aspx
@@ -710,7 +721,7 @@ class WordData < ApplicationRecord
   end
 
   def self.translate_locale_batch(locale, nopes=nil)
-    nopes ||= []
+    nopes = (nopes || []) | ENGLISH_PINNED_LOCALE_KEYS
     fn = File.expand_path("../../../public/locales/#{locale}.json", __FILE__)
     json = JSON.parse(File.read(fn))
     subs = {}
