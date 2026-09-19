@@ -78,7 +78,7 @@ any ran by another route is not established; see
 `LL-3e36a18199` (closed on this control) and `LL-cbc8bc4211` (the impact assessment).
 
 The detector is a Cloud Monitoring **metric-absence** policy on
-`run.googleapis.com/job/completed_execution_count` for the `lingolinq-scheduler` job,
+`run.googleapis.com/job/completed_execution_count` for the `lingolinq-scheduler` job in `us-central1`,
 firing after 90 minutes with no completed execution, with a reminder every 24 hours while
 the incident stays open. Across 398 completed executions from 2026-09-02 to 2026-09-19 the
 longest gap between completions was 69.7 minutes, so 90 minutes leaves about 20 minutes of
@@ -122,7 +122,9 @@ filter and aggregation, a 30-minute window and no notification channel was creat
 closed it at 06:24 past the next hour (07:06:24Z), after the 07:01:22Z execution completed. The
 temporary policy was then deleted. This shows the absence condition both fires and clears on this
 metric. It also showed that a data point written shortly before a policy change arms it, which is
-the rule `--check` uses.
+the rule `--check` uses. The filter was later scoped to `us-central1`. A read-only
+time-series query showed it selects the same single series with the same points, so the result
+carries over.
 
 Secrets are read from GCP Secret Manager by name (`--set-secrets` in the deploy
 workflow). The list each project must hold is in the workflow header. Authentication
