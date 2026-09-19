@@ -306,7 +306,7 @@
                   </span>
                   <LinkTo @route="user" @model={{log.user.user_name}} class="md-org-session-row__user">{{log.user.user_name}}</LinkTo>
                 </span>
-                <LinkTo @route="user.log" @models={{array log.user.user_name log.id}} class="md-org-session-row__view">{{t "View" key="view"}} <span class="md-org-session-row__view-arrow" aria-hidden="true">&rarr;</span></LinkTo>
+                <LinkTo @route="user.log" @models={{array log.user.user_name log.id}} class="md-org-session-row__view">{{t "View" key="view_log"}} <span class="md-org-session-row__view-arrow" aria-hidden="true">&rarr;</span></LinkTo>
               </div>
               <div class="md-org-session-row__meta">
                 <span class="md-org-session-row__time" title={{date log.started_at}}>{{date_ago log.started_at}}</span>
