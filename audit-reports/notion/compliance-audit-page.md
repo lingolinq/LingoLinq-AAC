@@ -12,7 +12,7 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-18T23:33:09Z
+**Page generated:** 2026-09-19T05:49:13Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -35,7 +35,6 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-135ee6ca59 |  | high | COPPA, GDPR, FERPA | User#ai_consent_granted? has no runtime caller, so the separate AI data-sharing consent promised to parents on the privacy page is never enforced by the AI feature gate | `lib/feature_flags.rb`:242 |
 | LL-1f83f4e778 |  | high | FERPA, SOC2 | Lesson access-control defect, fixed in code; residual-access verification pending (details withheld) | `app/models/lesson.rb`:25 |
 | LL-3bfc56ef4b |  | high | HIPAA, SOC2 | ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential | `lib/ai_client.rb`:83 |
-| LL-3e36a18199 |  | high | GDPR, FERPA, HIPAA, SOC2 | Production scheduler dispatch has no missed-run (liveness) detection: hourly executions run and failed executions alert, but nothing alerts when a run does not happen | `lib/tasks/scheduler.rake`:67 |
 | LL-400adcead5 |  | high | GDPR, COPPA | PR #901 machine-translated the AI data-sharing, Article 50, COPPA and retention disclosures into twelve locale files, and the guard that checks those claims covers only English and Spanish, by its own admission | `spec/support/ai_disclosure_claims.rb`:79 |
 | LL-4f1eb5fd0a |  | high | SOC2 | Lesson#check_url fetches a user-supplied URL with raw Typhoeus and unbounded redirect following, bypassing the repository's own SafeHttp DNS/IP and redirect validation | `app/models/lesson.rb`:146 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
@@ -61,6 +60,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-c11cc12f66 |  | high | COPPA, FERPA | COPPA parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:28 |
 | LL-c7bbfa452a |  | high | COPPA, FERPA | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
 | LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap) | `lib/flusher.rb`:442 |
+| LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, SOC2 | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
 | LL-dbc950d96d |  | high | GDPR, COPPA, FERPA | supervisor_relationships rows are never erased when either party's account is deleted, and each keeps a plaintext copy of the consent-recipient email in consent_email_sent_to | `app/models/supervisor_relationship.rb`:7 |
 | LL-e8614c103f |  | high | GDPR, FERPA, COPPA | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely | `app/models/prediction_entry.rb`:4 |
 | LL-e981aad7a6 |  | high | COPPA, FERPA | Supervisor-access consent routing for under-13 communicators (details withheld until remediation is verified) | `app/services/supervisor_consent_service.rb`:81 |

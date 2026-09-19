@@ -1727,7 +1727,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "4b660f6a5ee9ae59e24503ddf6e518d14ef41be318c90213dc521478f5b085ef",
+      "contentHash": "740f059670f62a70ce5e7da2a2980d29c5bb09c9e05229727001a714ebea0378",
       "bundles": [],
       "mirrors": [
         {
@@ -4015,7 +4015,7 @@
     },
     {
       "title": "Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft)",
-      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, open) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
+      "description": "Draft audit-evidence record for the 2026-07-21 to 2026-09-02 scheduler-dispatch interruption (LL-3e36a18199, verified-closed 2026-09-18 on its liveness element; the interruption impact assessment is carried by LL-cbc8bc4211) and the read-only production captures taken 2026-09-14. States configured cadence, observed dispatch and zero-count task results separately, and enumerates what the evidence does not establish. Supersedes nothing; resolves no counsel question; closes no finding.",
       "type": "evidence",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -4041,7 +4041,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-b7f15a728c",
-      "contentHash": "86ab2195d0a4a4ea2ac060f202499bace020150e2ecdeb25a4b214bb19ac7579"
+      "contentHash": "1e0ec877ff802a27a92adf2a7badba70ae85d450cef8d5565c8a822fa5f94f33"
     },
     {
       "title": "Data Retention Schedule (2026-09-14 successor)",

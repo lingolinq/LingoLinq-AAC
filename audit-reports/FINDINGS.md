@@ -27,7 +27,6 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-c7bbfa452a |  | high | COPPA, FERPA | untriaged | pr-review | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
 | LL-933e61efd7 |  | high | GDPR, FERPA, COPPA | untriaged | pr-review | Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them have not run in production since the 2026-07-21 cutover | `app/frontend/app/templates/privacy.hbs`:97 |
 | LL-400adcead5 |  | high | GDPR, COPPA | untriaged | pr-review | PR #901 machine-translated the AI data-sharing, Article 50, COPPA and retention disclosures into twelve locale files, and the guard that checks those claims covers only English and Spanish, by its own admission | `spec/support/ai_disclosure_claims.rb`:79 |
-| LL-3e36a18199 |  | high | GDPR, FERPA, HIPAA, SOC2 | untriaged | pr-review | Production scheduler dispatch has no missed-run (liveness) detection: hourly executions run and failed executions alert, but nothing alerts when a run does not happen | `lib/tasks/scheduler.rake`:67 |
 | LL-06d36ffeeb |  | high | GDPR, FERPA, COPPA, HIPAA | untriaged | pr-review | Board translation writes raw user-authored label text into the global word_data dictionary, which has no user_id or organization_id: translated personal labels are served cross-account as cache hits and survive account erasure (GDPR Art. 5(1)(f)/17, FERPA, district data isolation) | `app/models/word_data.rb`:858 |
 | LL-10409152d2 |  | high | GDPR, FERPA, COPPA, HIPAA, SOC2 | untriaged | pr-review | The 2026-08-08 quarterly subprocessor review claims every external host in lib/, app/models/, app/controllers/ and config/ was enumerated and found only two omissions, but at least five further live third-party egress paths are absent from the register (Google Maps Places, OpenSymbols, workshop.openaac.org, YouTube, Zendesk) | `docs/legal/2026-08-16_subprocessor-register.md`:120 |
 | LL-a6be800a86 |  | high | COPPA, FERPA, GDPR | untriaged | manual | Full user export archive, including non-anonymized log data, is stored under an S3 key derived only from the username and a minute-granularity timestamp | `lib/exporter.rb`:94 |
@@ -46,6 +45,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-7bf58a4c53 |  | high | WCAG | untriaged | audit-run | Classic (opt-in) speak-view chrome has several icon-only controls with no accessible name (sidebar collapse, edit pencil, speak-mode notification, level +/-), two of them silent to auditory scanning | `app/frontend/app/templates/application.hbs`:1559 |
 | LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | untriaged | manual | Organization membership authorization weakness in supervisor-key processing (details withheld until remediation is verified) | `app/models/organization.rb`:1470 |
 | LL-1f83f4e778 |  | high | FERPA, SOC2 | untriaged | manual | Lesson access-control defect, fixed in code; residual-access verification pending (details withheld) | `app/models/lesson.rb`:25 |
+| LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, SOC2 | untriaged | manual | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -204,7 +204,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-6723438462 |  | medium | GDPR | untriaged | audit-run | Article 50 disclosure server-side backstop is present on only 2 of 5 AI ingresses | `app/controllers/api/word_suggestions_controller.rb`:19 |
 | LL-51da4fca1d |  | low | FERPA, HIPAA, GDPR, SOC2 | untriaged | pr-review | EvalNarrator took its model from an unconstrained EVAL_NARRATOR_MODEL env var with no allowlist for ~2 months (2026-05-12 to 2026-07-19) | `lib/eval_narrator.rb`:54 |
 
-## Verified closed (58)
+## Verified closed (59)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -235,6 +235,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-522c1a6d13 |  | high | FERPA, HIPAA | **fixed** | pr-review | Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record | `app/controllers/application_controller.rb`:181 |
 | LL-8908c7ac6f |  | high | COPPA, FERPA, HIPAA, GDPR | **fixed** | audit-run | Client-supplied context.topic reaches Bedrock unscrubbed and is absent from the AiApiLog egress record | `lib/ai_word_predictor.rb`:340 |
 | LL-b7ccc522b9 |  | high | SOC2, HIPAA, FERPA | **fixed** | audit-run | GCP production project has no Data Access audit log configuration, so Secret Manager value reads and Cloud SQL data access produce no audit record | `scripts/gcp/phase1-setup.sh`:496 |
+| LL-3e36a18199 |  | high | GDPR, FERPA, HIPAA, SOC2 | **fixed** | pr-review | Production scheduler dispatch has no missed-run (liveness) detection: hourly executions run and failed executions alert, but nothing alerts when a run does not happen | `lib/tasks/scheduler.rake`:67 |
 | LL-efef111d59 | Dep-nokogiri-1194 | high | SOC2 | untriaged | audit-run | nokogiri 1.19.3 vulnerable to six published advisories (fixed in 1.19.4) | `Gemfile.lock`:281 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | **fixed** | audit-run | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
@@ -287,4 +288,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_251 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_252 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
