@@ -69,26 +69,41 @@ see one that never happened, and those are different events: `PROD Cloud Run job
 FAILED` filters on `metric.label.result="failed"`, and a run that does not happen produces
 no execution to count.
 
-That gap was not theoretical. When the Render cron was suspended at the GCP cutover and
-nothing replaced it, `scheduler:dispatch` did not run for 43 days (2026-07-21 to
-2026-09-02). Nothing alerted, and every retention, purge, flush and expiry task silently
-stopped with it, including `Flusher.flush_deleted_users` (a GDPR Art. 17 exposure).
-Finding `LL-3e36a18199`.
+That gap was not theoretical. From 2026-07-21 (the day before the GCP cutover, when the
+Render cron was suspended) to 2026-09-02, `scheduler:dispatch` was not run by the scheduler,
+and nothing alerted. The retention, purge, flush and expiry tasks it dispatches, including
+`Flusher.flush_deleted_users` (a GDPR Art. 17 concern), were not run by it either. Whether
+any ran by another route is not established; see
+`docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`. Findings
+`LL-3e36a18199` (closed on this control) and `LL-cbc8bc4211` (the impact assessment).
 
 The detector is a Cloud Monitoring **metric-absence** policy on
 `run.googleapis.com/job/completed_execution_count` for the `lingolinq-scheduler` job,
-firing after 90 minutes with no completed execution. The job runs hourly, so 90 minutes
-cannot be produced by normal jitter, and the window is deliberately far shorter than a day
-because the 06:00 UTC daily block is what carries the retention work.
+firing after 90 minutes with no completed execution, with a reminder every 24 hours while
+the incident stays open. Across 398 completed executions from 2026-09-02 to 2026-09-19 the
+longest gap between completions was 69.7 minutes, so 90 minutes leaves about 20 minutes of
+headroom. It is not immune to false alarms: the task timeout is 3000s, so one execution
+finishing more than about 30 minutes later than usual can trip it. The window is deliberately
+far shorter than a day, because the 06:00 UTC daily block carries the retention work and has
+no catch-up.
 
 ```bash
-scripts/gcp/prod-scheduler-liveness-alert.sh --check   # read-only: is the detector in place?
+scripts/gcp/prod-scheduler-liveness-alert.sh --check   # read-only; exit 0 OK, 1 FAIL, 3 NOT YET ARMED
 scripts/gcp/prod-scheduler-liveness-alert.sh --apply   # create or update it (WRITES to prod)
 ```
 
-The policy definition lives beside the script in
-`scripts/gcp/prod-scheduler-liveness-alert.json`, so the alert is reviewable in a diff
-rather than existing only as console state.
+`--check` compares the live policy with the committed definition in
+`scripts/gcp/prod-scheduler-liveness-alert.json`: condition, channel, runbook text and
+reminders. It requires exactly one policy with that exact name and an enabled channel.
+
+**Limits of metric absence (Google's documented behaviour).**
+
+- **It cannot fire until it has seen a data point after it was installed or last modified.**
+  Re-applying while the scheduler is already stopped leaves it silent. `--check` reports that
+  state as NOT YET ARMED.
+- **Metrics of deleted resources are not considered.** If the `lingolinq-scheduler` job itself
+  is deleted, this alert stays silent, and so does the FAILED policy. A job-independent second
+  control, for example on Cloud Scheduler attempt errors, is an open follow-up.
 
 **Delivery, proven 2026-09-18.** The policy was applied that day
 (`alertPolicies/16889750021495574173`). To prove the email channel it notifies actually
@@ -97,11 +112,16 @@ healthy state (a completed execution in the last hour). Scot confirmed the email
 temporary policy was deleted. The Cloud Monitoring API has no "send test notification" method,
 which is why a firing policy was used. All four production policies notify that same channel
 (`notificationChannels/2035727736516782378`), so this proves delivery for each of them at the
-channel level.
+channel level. Re-prove delivery the same way whenever the channel changes.
 
-What it does not prove is that the absence condition itself fires, because inducing a real
-90-minute production outage to test it is not acceptable. Re-prove delivery the same way
-whenever the notification channel changes.
+**Firing, proven 2026-09-19, without an outage.** A temporary copy of the policy with the same
+filter and aggregation, a 30-minute window and no notification channel was created at
+06:17:57Z. The last completed execution before it was at 06:02:56Z. The copy opened incident
+`0.oct1kkuk1c7n` at 06:42:53Z, while production was healthy and simply between hourly runs, and
+closed it at 06:24 past the next hour (07:06:24Z), after the 07:01:22Z execution completed. The
+temporary policy was then deleted. This shows the absence condition both fires and clears on this
+metric. It also showed that a data point written shortly before a policy change arms it, which is
+the rule `--check` uses.
 
 Secrets are read from GCP Secret Manager by name (`--set-secrets` in the deploy
 workflow). The list each project must hold is in the workflow header. Authentication
