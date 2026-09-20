@@ -70,9 +70,12 @@ everything else in this file.
     the finding; report it, do not absorb it. Without explicit human approval, never
     delete, rename or weaken an existing test, add `skip`/`xit`/`pending`/`this.skip()`,
     loosen an assertion, narrow a `describe`/`context` so the failing case stops running,
-    drop a file from a path filter, matrix or `--filter`, or regenerate a lint baseline
-    (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`). These
-    are one act under different names. Stop, name the test and the verified reason it
+    drop a file from a path filter, matrix or `--filter`, regenerate a lint baseline
+    (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`,
+    `app/frontend/.eslint-todo`), or change a lint or test CONFIG so the rule stops
+    applying (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
+    `spec/spec_helper.rb`, or a `.gitignore` entry that drops the file from the run).
+    These are one act under different names. Stop, name the test and the verified reason it
     fails, and wait. Rewriting a test is legitimate only when the specification it
     encodes actually changed and the approval you were given says so.
 

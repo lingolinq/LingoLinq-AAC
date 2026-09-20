@@ -40,11 +40,16 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **Console access** in any deployed environment goes through `bin/audit_console`.
 - No em dashes in user-facing prose.
 - **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
-  the finding; report it. Without explicit human approval, never delete, rename or
-  weaken an existing test, add `skip`/`xit`/`pending`, loosen an assertion, narrow a
-  `describe` so the failing case stops running, drop a file from a path filter, or
-  regenerate a lint baseline (`npm run lint:hbs:todo`, `npm run lint:js:todo`,
-  `app/frontend/.lint-todo`). Stop, name the test and why it fails, and wait.
+  the finding; report it. Without explicit human approval, never delete, rename or weaken
+  an existing test, add `skip`/`xit`/`pending`/`this.skip()`, loosen an assertion, narrow
+  a `describe`/`context` so the failing case stops running, drop a file from a path
+  filter, matrix or `--filter`, regenerate a lint baseline (`npm run lint:hbs:todo`,
+  `npm run lint:js:todo`, `app/frontend/.lint-todo`, `app/frontend/.eslint-todo`), or
+  change a lint or test config so the rule stops applying
+  (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
+  `spec/spec_helper.rb`, a `.gitignore` entry). Stop, name the test and the verified
+  reason it fails, and wait. Rewriting a test is legitimate only when the specification
+  it encodes actually changed and the approval you were given says so.
 
 ## Before a PR
 
@@ -59,8 +64,9 @@ advisory. Those two passes run as slash commands that exist only inside Claude C
 you cannot invoke them here. The Codex-side equivalent of the senior-dev pass is the
 `Codex Review` workflow (`.github/workflows/codex-review.yml`), dispatched by the n8n W1
 orchestrator and reporting the `codex-review/deep-pass` commit status; per that
-workflow's own header it is currently dormant (not in the required set on `develop`,
-`staging` or `main`, no run dispatched since 2026-08-04). There is no Codex or Gemini
+workflow's own header, status-stamped 2026-09-12, it is dormant (not in the required set
+on `develop`, `staging` or `main`, no run dispatched since 2026-08-04). Nothing
+re-verifies that stamp, so confirm it against branch protection before relying on it. There is no Codex or Gemini
 equivalent of the adversarial pass. Working as Codex or Gemini you therefore cannot
 satisfy this gate yourself: state in the PR that both passes are still owed and who must
 run them. A green CI run is not the dual review.
