@@ -66,6 +66,15 @@ everything else in this file.
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,
     and stop.
+14. **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
+    the finding; report it, do not absorb it. Without explicit human approval, never
+    delete, rename or weaken an existing test, add `skip`/`xit`/`pending`/`this.skip()`,
+    loosen an assertion, narrow a `describe`/`context` so the failing case stops running,
+    drop a file from a path filter, matrix or `--filter`, or regenerate a lint baseline
+    (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`). These
+    are one act under different names. Stop, name the test and the verified reason it
+    fails, and wait. Rewriting a test is legitimate only when the specification it
+    encodes actually changed and the approval you were given says so.
 
 ## Branching (mandatory before any code change)
 

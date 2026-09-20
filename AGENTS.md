@@ -39,6 +39,12 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   Secret Manager.
 - **Console access** in any deployed environment goes through `bin/audit_console`.
 - No em dashes in user-facing prose.
+- **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
+  the finding; report it. Without explicit human approval, never delete, rename or
+  weaken an existing test, add `skip`/`xit`/`pending`, loosen an assertion, narrow a
+  `describe` so the failing case stops running, drop a file from a path filter, or
+  regenerate a lint baseline (`npm run lint:hbs:todo`, `npm run lint:js:todo`,
+  `app/frontend/.lint-todo`). Stop, name the test and why it fails, and wait.
 
 ## Before a PR
 
@@ -46,6 +52,18 @@ Work through the checklist in `.claude/skills/pr-preflight/SKILL.md` (claim
 verification against HEAD, entry-point enumeration for access changes,
 `scripts/regenerate-register.sh --check` for compliance paths, the status block the PR
 template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`.
+
+Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
+pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
+advisory. Those two passes run as slash commands that exist only inside Claude Code, so
+you cannot invoke them here. The Codex-side equivalent of the senior-dev pass is the
+`Codex Review` workflow (`.github/workflows/codex-review.yml`), dispatched by the n8n W1
+orchestrator and reporting the `codex-review/deep-pass` commit status; per that
+workflow's own header it is currently dormant (not in the required set on `develop`,
+`staging` or `main`, no run dispatched since 2026-08-04). There is no Codex or Gemini
+equivalent of the adversarial pass. Working as Codex or Gemini you therefore cannot
+satisfy this gate yourself: state in the PR that both passes are still owed and who must
+run them. A green CI run is not the dual review.
 
 ## Where things are
 

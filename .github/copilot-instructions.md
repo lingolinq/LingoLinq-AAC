@@ -22,6 +22,7 @@ Key characteristics:
 - **Refactors** never remove or change functionality.
 - **Never commit secrets.** Reference them by name; values live in 1Password and GCP Secret Manager.
 - **No em dashes** in user-facing prose.
+- **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is the finding; report it. Without explicit human approval, never delete, rename or weaken an existing test, add `skip`/`xit`/`pending`, loosen an assertion, narrow a `describe` so the failing case stops running, drop a file from a path filter, or regenerate a lint baseline (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`). Stop, name the test and why it fails, and wait.
 - **Path-scoped rules** live in `.claude/rules/`: `compliance-docs.md` for `docs/legal/` and `audit-reports/` (registers are the source of truth; attested bytes are frozen), `data-bearing-paths.md` for fixtures, factories, seeds, cassettes, migrations and `lib/tasks/` (the Tier 1 data boundary), `deploy.md` for the deploy workflow, `Dockerfile`, `config/environments/production.rb`, `config/initializers/resque.rb` and `scripts/gcp/`. Read the one whose paths a change touches.
 
 ## Development considerations
