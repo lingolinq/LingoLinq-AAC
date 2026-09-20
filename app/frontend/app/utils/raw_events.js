@@ -539,6 +539,20 @@ $(document).on('mousedown touchstart', function(event) {
     focusedMenuBtn.click();
     return;
   }
+  // Classic speak bar: the board-intro button is <div role="button" tabindex="0"
+  // class="extra-btn"> (templates/application.hbs) with only an {{on "click"}}
+  // handler. A div does not get a native click from Space/Enter, and it matches
+  // none of the delegated keyup targets above (`.button` and `.integration_target`),
+  // so keyboard users could focus it and never activate it. Same synth mechanism
+  // as the speak-menu and symbol-card cases above. Scoped to `.extra-btn` with an
+  // explicit role check so it cannot catch anything else.
+  var focusedExtraBtn = (event.target && event.target.closest) ?
+    event.target.closest('[role="button"].extra-btn') : null;
+  if(focusedExtraBtn && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.preventDefault();
+    focusedExtraBtn.click();
+    return;
+  }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open() && !typing_into_a_field(event.target)) {
     // add letter to the sentence box
     var key = "+" + event.key;

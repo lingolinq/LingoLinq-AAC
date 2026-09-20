@@ -174,9 +174,15 @@
             The guard restates the conditions this branch used to sit under. Testing
             button_list.length rather than button_list is deliberate: the local `not`
             helper is plain-JS falsy, where an empty array is TRUTHY, unlike the
-            unless helper it replaces. Layout is unchanged -- .extra-btn is
-            position:absolute against header.new_index and nothing between is
-            positioned. }}
+            unless helper it replaces.
+
+            POSITIONING: moving this out of #button_list DOES change its containing
+            block, and app.scss:2510 carries the `position: relative` that keeps it
+            anchored to the bar. #button_list is position:relative via `.button_list`
+            (app.scss:4251), so it used to anchor this control itself. Without the
+            rule on the wrap the next positioned ancestor is the FIXED header, which
+            measured +776px left / +17.5px top on dev -- beside the account avatar,
+            outside the sentence bar entirely. Do not remove that rule. }}
         {{#if (and (not this.app_state.button_list.length) (not this.app_state.embedded) this.app_state.currentUser.preferences.blank_status this.show_board_intro)}}
           <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc; background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
             <img src={{path "images/learn.png"}} alt="" style='height: 100%; max-height: 50px;'>

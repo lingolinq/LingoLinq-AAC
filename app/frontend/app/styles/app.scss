@@ -2526,6 +2526,18 @@ header:has(#normal_mode) #inner_header {
   min-height: var(--bav-wrap-h, 88px);
   box-sizing: border-box;
   gap: 0;
+
+  /* Containing block for the absolutely-positioned board-intro button
+     (.extra-btn, templates/application.hbs). That control used to be a CHILD of
+     #button_list, which is position:relative via `.button_list` (app.scss:4251),
+     so the bar itself anchored it. It had to move out of #button_list to stop
+     nesting a role="button" inside an <a href> (no-nested-interactive), and
+     without this the next positioned ancestor is the FIXED header: measured
+     +776px left, +17.5px top, landing it beside the account avatar.
+     The eval header already carries exactly this rule at app.scss:98001
+     (added 2026-05-04, 0e42a9471, for the quick-assessment layout), which is
+     why eval mode never showed the bug. This makes normal mode match it. */
+  position: relative;
 }
 
 /* Per-size CSS-var sets — applied to the speaking header so they

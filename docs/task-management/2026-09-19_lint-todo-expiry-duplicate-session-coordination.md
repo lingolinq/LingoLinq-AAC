@@ -155,6 +155,47 @@ Two facts in this file did not survive the later session's verification and shou
   happened at UTC midnight while local time was still 2026-09-19 evening. `develop` was not red on
   this entry for most of 09-19.
 
+## Dual review, 2026-09-20: two High findings, one of them a false claim in the fix itself
+
+`/dual-review` (codex senior-dev pass + claude adversary pass) on `a8c8a7d68` returned
+request-changes. Both passes independently reached the same blocking finding.
+
+- **H1, layout is NOT neutral.** `eb2483407`'s commit message asserts "Layout is unchanged ...
+  its containing block is the same before and after." That is **false**, and the message is left
+  as written because history is a record; this section supersedes it. `.button_list` carries
+  `position: relative` (`app/frontend/app/styles/app.scss:4251`) and the anchor carries that class
+  via `button_list_class` (`app/frontend/app/controllers/application.js:2107`), so `a#button_list`
+  **was** the containing block. Measured on dev in Classic view: moving the control to a sibling
+  shifted it **+776px left and +17.5px top**, out of the sentence bar and next to the account
+  avatar, with `offsetParent` changing from `A#button_list` to `HEADER`. Fixed by adding
+  `position: relative` to the wrap's existing rule at `app.scss:2510`.
+- **H2, no keyboard activation.** The control is a `div[role="button"][tabindex="0"]` whose only
+  handler is `{{on "click"}}`; Space/Enter do not synthesize a click on a div, and it matches none
+  of the delegated keyup targets (`.button` at `raw_events.js:492`, `.integration_target` at
+  `:500`). Pre-existing, not introduced here. Fixed alongside H1 using the same synth mechanism as
+  the speak-menu case at `raw_events.js:535-541`.
+
+**Why four green checks missed H1.** `lint:hbs`, `lint:js:ci`, `ember build` and the
+`board-detail global header` acceptance test all passed on the broken version. None of them can
+observe a CSS containing-block change. Green gates were treated as coverage they never provided.
+
+**The eval header already had the fix.** `app.scss:98001` sets `position: relative` on
+`#speak.md-eval-header .speak-bar__button-list-wrap`, added 2026-05-04 in `0e42a9471`
+("Refactor quick assessment modal layout and functionality"). That commit was eval-scoped and
+never addressed normal mode, so the same containing-block need sat unfixed in Classic speak mode.
+The H1 fix makes normal mode match what eval mode has done since May.
+
+**A second wrong fact, also corrected here:** `raw_events.js:88` was cited in review as evidence
+the call path survived. It never routed this control at all -- `:90` gates on `!btn.id` and
+`.extra-btn` has no `id`. The claim in `eb2483407`'s message about `closest()` and the
+`data-bd-action` walk is separately true and is NOT affected.
+
+**Routed to the dev team, not fixed here:** the board-intro control is unreachable by switch
+scanning entirely (`app/frontend/app/utils/scanner.js:252` sweeps
+`#speak button:visible, #button_list, a.btn`), and hard-loading a Classic board URL returns 404
+because `config/routes.rb` has SPA fallbacks for `board-detail` (`:109-110`) and none for
+`board/:boardname`.
+
 A third hazard was found while fixing it, and belongs with whoever maintains the suppression
 guidance: `--clean-todo` defaults to TRUE outside CI and purges **expired** entries whether or not
 the underlying violation was fixed. It does not hide the defect -- the violation is reported as a
