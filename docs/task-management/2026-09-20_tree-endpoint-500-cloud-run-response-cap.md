@@ -3,8 +3,10 @@
 **Started:** 2026-09-20
 **Status:** done (diagnosis only). Handed to the dev team for the fix. No code change in this PR.
 **Scope:** `GET /api/v1/boards/:board_id/tree` 500s on every board-detail entry for a
-large board set. Two distinct failure modes, one shared root cause. Present on
-`develop`, `staging` AND `main`.
+large board set. Two server-side failure modes from one shared root cause, present on
+`develop`, `staging` AND `main`, **plus two independent client-side defects that survive
+fixing the server**. See "Three separable defects" below; please do not file this as one
+ticket.
 
 **Handoff:** Melissa or Traci (either, per the 2026-09-14 ownership boundary). Assign
 one name. Scot retains the compliance finding in "Side finding" below and the Cloud Run
@@ -55,6 +57,117 @@ polls the same full `/tree` up to 15 times. Its `MAX_ATTEMPTS = 15` is documente
 "~15s at 1s intervals" but the interval is measured from each *settled* response, so with
 10-15s responses it ran for 93 seconds (`21:23:38` through `21:25:11`). That is what
 saturated the single dev instance.
+
+### Which 500 is which. Three different things get called "the 500"; pin this before triaging.
+
+| What the user sees | Request | Failure | Response body |
+|---|---|---|---|
+| `/tree` fails in DevTools, board still renders | `GET .../tree` on an **idle** instance | 32 MiB cap. **No Ruby exception.** | empty |
+| `/tree` fails in DevTools, board still renders | `GET .../tree` on a **saturated** instance | `Rack::Timeout` at 15s service | Rails 500 page, `responseSize 4233` |
+| full-page "Something Broke" | `GET /claudetest1`, **the SPA shell, not `/tree`** | `Rack::Timeout`, `service=129194ms` | `public/500.html`, `responseSize 4234` |
+
+**The "tour-skip 500" is the third row, and it is NOT the `/tree` cap.** It is a different
+request to a different endpoint with a different exception. The cap never touched it. The
+causal chain is: the image N+1 makes `/tree` take 10-35s; concurrent slow `/tree` calls
+starve the single instance; every other request then `Rack::Timeout`s, including the shell.
+
+So the cap and the timeout are **siblings from one root cause** (the N+1), not the same
+failure. The cap decides the status of a `/tree` call that finishes serializing; the
+timeout catches the ones that do not. Request `6d422c21` timed out at `service=103306ms`
+and produced **no** `Response size was too large` warning, which is how they are told
+apart.
+
+Anything that says "the dev 500s" without naming the row is ambiguous. This document tries
+not to.
+
+---
+
+## THREE SEPARABLE DEFECTS. Please do not treat this as one ticket.
+
+Fixing the server defect does **not** fix the other two. They are independent and the
+client-side pair will still misbehave on the next backend failure of any kind.
+
+| # | Defect | Side | Survives a `#tree` fix? |
+|---|---|---|---|
+| 1 | `#tree` payload exceeds the Cloud Run 32 MiB cap (and is slow enough to `Rack::Timeout` under load) | server | no, this IS the fix |
+| 2 | The pick-for-home success toast promises offline availability without consulting whether the offline warm succeeded | client | **yes** |
+| 3 | A failing `/tree` is retried without a circuit breaker, 22 times in 7 minutes, until the server rate-limits the client | client | **yes** |
+
+Defect 2 is the highest-severity user-facing item here: the app tells an AAC user their
+board is saved for offline use when it demonstrably is not, and an AAC user discovers that
+when they are offline and cannot communicate.
+
+---
+
+## User-visible symptoms (captured in-browser, 2026-09-20)
+
+Two flows were captured live with the network panel open. Server-side request logs are
+quoted alongside, and **they correct the browser reading on two points**, noted inline.
+
+### Flow 1: "Set as Home Board", existing account (`claudetest1`)
+
+- `GET /api/v1/boards/claudetest1/vocal-flair-84/tree` returns 500.
+- Console: `ember ajax error: 500: (GET .../tree)`. **The failure IS caught**, not silent.
+- The success toast "This is now your home board, and it's saved for offline use" fires
+  anyway. No modal, no retry, no rollback, no signal to the user.
+- The home board **was** genuinely set. `PUT /api/v1/users/1_7` returned 200 at
+  `23:25:42`, referer `/board-picker`.
+
+**Traced.** `board-preview-overlay.js:500` is the whole mechanism:
+
+```js
+preload_board_images(homeBoard).then(finish, finish_without_images);
+```
+
+Both branches call `modal.success(...)` (`:493` and `:497`). There is no failure branch,
+and **neither branch consults the `/tree` outcome at all**.
+
+That is a narrower and more precise defect than "shows success unconditionally". The home
+board save itself IS confirmed against the server (`utils/home_board.js:25` `saveHomeBoard`;
+a failure there routes to `_handlePickError` at `:506`). The image preload already has a
+deliberate softer message for partial failure (`board_now_your_home_board_no_offline`,
+`en.json:2077`). What is missing is that **`/tree` is the call that warms the offline
+descendant cache**, so when it 500s nothing below the root is cached and the sentence
+"it's saved for offline use" is false. The codebase already owns the honest wording for
+exactly this case and does not reach for it.
+
+### Flow 2: onboarding "pick a board for me", fresh account (`claudetest2`)
+
+Browser observations:
+- `GET /api/v1/boards/claudetest2/vocal-flair-84/tree` failing repeatedly.
+- `GET /api/v1/boards/lingolinq/quick-core-60/tree?root_only=1` also timed out.
+- Console: `ember ajax error: 0: timeout` (status 0 = client-side abort, no server reply).
+- No independent "set home board" save call observed.
+- UI landed on Home reading "Speak Mode: Ready to communicate".
+- Boards page immediately after: "You haven't selected a home board yet".
+
+**Server record, which is worse than the browser could see.** `/tree` for
+`claudetest2/vocal-flair-84` fired **22 times across 7 minutes** (`23:28:53` to `23:35:33`):
+
+| count | status | responseSize | meaning |
+|---|---|---|---|
+| 15 | 500 | 4233 | the Rails 500 page, i.e. `Rack::Timeout` (17s to 35s latency) |
+| 7 | **429** | 14 | **rate-limited.** The retry storm tripped `Rack::Attack`'s general throttle (`config/initializers/throttling.rb:74`). |
+
+**Two corrections to the browser reading.** (a) It was 22 calls, not three; the panel only
+saw the start. (b) **No 503s appear in the server record for this flow**; the repeated
+failures are 500 and 429. Treat the server log as authoritative here.
+
+Note the `responseSize 4233`: that is the Rails 500 error page, which means **Flow 2's
+`/tree` failures are the `Rack::Timeout` mode, not the 32 MiB cap** (the cap returns an
+empty body). The retry storm saturated the instance, and saturation is self-sustaining
+once started.
+
+And **no `PUT /api/v1/users/...` was issued for `claudetest2` at any point** during or
+after the storm, which corroborates the browser observation and the Boards page: the home
+board was never set. The user was nonetheless shown "Ready to communicate".
+
+**Not traced.** Which client path produced "Ready to communicate" with no home board set is
+the one thing here I could not pin from logs, and it is the crux of defect 3. It needs a
+debugger, not more log reading. `guided-tour.js:816-898` `_startSpeakingHandoff` is the
+obvious suspect (it polls `/tree`, retries on rejection, and falls back to `board-picker`
+after `MAX_ATTEMPTS`), but I did not confirm it is the code that painted that screen. Do
+not take the suspect as the diagnosis.
 
 ---
 
@@ -319,6 +432,23 @@ and fixes both modes at once.
 4. **Measure the payload** before and after. Prove it is under 32 MiB rather than assume.
 5. **`app/frontend/app/components/guided-tour.js:816-898`.** Bound `_startSpeakingHandoff`
    on elapsed time, not attempt count. Separate, small, independent of the above.
+
+**Defect 2, client, own ticket.** `board-preview-overlay.js:500`. The success toast must
+consult whether the offline warm actually succeeded before promising offline availability.
+`board_now_your_home_board_no_offline` (`en.json:2077`) already exists as the honest
+wording for a partial save. The narrow question to answer first, per Rule #0 item 13(a): the
+`/tree` warm is fired from `routes/user/board-detail.js:197-200` via
+`board_detail_cache.js:496-498`, which swallows its own rejection and resolves
+`{ warmed: false }`, so **that result has to be threaded to this decision point or the
+toast has nothing to read.** Do not just add a `.catch` here; there is no rejection to catch.
+
+**Defect 3, client, own ticket.** A `/tree` that fails is retried 22 times in 7 minutes with
+no circuit breaker, until the server returns 429. Two things to establish before fixing
+(and note that a naive retry cap does not address the second): (a) where the retry loop
+actually lives, since `board_detail_cache.js` dedupes in-flight requests via `_inflight` but
+does not back off, and `guided-tour.js:837` caps attempts but not elapsed time; (b) why the
+UI reported "Speak Mode: Ready to communicate" when no home board had been saved. (b) is the
+user-facing half and is not fixed by adding backoff.
 
 Infra, Scot's lane, tracked separately: raise `maxScale` off 1 on
 `lingolinq-web-dev` / `lingolinq-web-staging`, or drop `containerConcurrency` well below
