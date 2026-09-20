@@ -79,7 +79,11 @@ everything else in this file.
     as the frontend-scope step in `.github/workflows/ci.yml`, a job dependency,
     `continue-on-error`, a retry or allowed-failure setting, an environment input, the
     command an npm script or rake task invokes, or required-check wiring).
-    These are one act under different names. Stop, name the test and the verified reason it
+    These are one act under different names, and the list above is examples, not a
+    boundary: anything else whose effect is that a failing check now passes without the
+    defect it detected being fixed is the same act. That includes changing the CODE UNDER
+    TEST to satisfy the assertion rather than fixing the defect, re-running until a flake
+    goes green, and merging with `--admin`. Stop, name the test and the verified reason it
     fails, and wait. Rewriting a test is legitimate only when the specification it
     encodes actually changed and the approval you were given says so.
 

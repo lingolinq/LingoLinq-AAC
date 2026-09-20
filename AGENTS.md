@@ -47,12 +47,18 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   `npm run lint:js:todo`, `app/frontend/.lint-todo`, `app/frontend/.eslint-todo`), or
   change a lint or test config so the rule stops applying
   (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
-  `spec/spec_helper.rb`, a `.gitignore` entry), or change how CI decides to run the check
+  `spec/spec_helper.rb`, a `.gitignore` entry that drops the file from the run), or
+  change how CI decides to run the check
   (a workflow condition or classifier output such as the frontend-scope step in
   `.github/workflows/ci.yml`, a job dependency, `continue-on-error`, a retry or
   allowed-failure setting, an environment input, the command an npm script or rake task
-  invokes, or required-check wiring). Stop, name the test and the verified
-  reason it fails, and wait. Rewriting a test is legitimate only when the specification
+  invokes, or required-check wiring).
+  These are one act under different names, and the list above is examples, not a
+  boundary: anything else whose effect is that a failing check now passes without the
+  defect it detected being fixed is the same act, including changing the code under test
+  to satisfy the assertion, re-running until a flake goes green, and merging with
+  `--admin`.
+  Stop, name the test and the verified reason it fails, and wait. Rewriting a test is legitimate only when the specification
   it encodes actually changed and the approval you were given says so.
 
 ## Before a PR
@@ -64,12 +70,19 @@ template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test
 
 Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
 pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
-advisory. **You can run the senior-dev pass yourself**, and the Codex CLI is its
-strongest documented caller: `/review-pr <number>`, or `/review-pr` for the current
-branch. When you complete it, record the reviewer, the head SHA you actually reviewed,
-and the verdict. There is no Codex or Gemini equivalent of the **adversarial** pass, so
-that is the one you cannot discharge: name the reviewer who still owes it rather than
-reporting that both passes are outstanding. A second, CI-side route for the senior-dev
+advisory. **If you are Codex, you can run the senior-dev pass yourself** and are its
+strongest documented caller. The live surface is the `review-pr` SKILL, invoked as
+`$review-pr` or found via `/skills`; the older `/review-pr <number>` prompt surface is
+deprecated and non-functional, so do not look for it. Before that pass fetches any diff,
+run the mandatory PII pre-flight yourself:
+`bash ~/ai-company-brain/scripts/codex-review-guard.sh <base-ref>`. The pass ships the
+diff to an external model on a consumer account with NO BAA, exit 2 means stop and report
+the flagged paths rather than sending anything, and the deployed skill does not run this
+guard for you. When you finish, record the reviewer, the head SHA you actually reviewed,
+and the verdict. **If you are Gemini, you have no senior-dev pass surface at all**, so
+you owe that pass too: name who will run it instead of running something improvised.
+Neither of you has an equivalent of the **adversarial** pass, so that one always belongs
+to someone else: name the reviewer who owes it. A second, CI-side route for the senior-dev
 pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
 dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
 status; per that workflow's own header, status-stamped 2026-09-12, it is dormant (not in

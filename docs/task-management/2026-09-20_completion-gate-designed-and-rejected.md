@@ -49,6 +49,11 @@ failure shape in our own defect log:
 - The configured 10s hook timeout against a measured 4.9s `git status --porcelain
   --untracked-files=all` on the `/mnt/c` checkout, where the per-file digest costs ~40ms
   on drvfs. Roughly 125 dirty files exhausted the budget and the hook failed open silently.
+  Those three numbers were measured once, on 2026-09-20, against the main `/mnt/c`
+  checkout, and are NOT reproducible from this repo because the code they describe was
+  never committed. Treat them as an illustration, not a specification: the linked
+  worktrees under `~/.local/share/agent-wt/` sit on ext4 and were roughly thirty times
+  faster, so any future design must re-measure on the filesystem it will actually run on.
 - Backend scope mapped every non-frontend, non-`.md` path to a full `bundle exec rspec`,
   which is unsatisfiable locally without a scratch-DB override. Because the kill switch is
   read from the hook process environment, there was no in-session escape, which made
@@ -59,6 +64,15 @@ failure shape in our own defect log:
 Code mechanism; Codex CLI does not execute them. Repo-scoped, user-scoped and brain-repo
 placements were all compared, and all three leave Codex uncovered. The only enforcement
 surface shared by every agent and every human contributor is the server.
+
+## The shape these six share
+
+They are not six unrelated bugs. Each one is the same defect: the gate inferred
+"verified" from a cheap observable PROXY (is the tree dirty, does the path end in `.md`,
+does this filename resolve) instead of from the result of the check itself. Any future
+design that reasons about a proxy for verification rather than about the verification
+will reproduce this list with different names. That invariant, not the six instances, is
+what this record exists to preserve.
 
 ## What should happen instead
 
