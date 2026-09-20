@@ -87,11 +87,15 @@ not to.
 Fixing the server defect does **not** fix the other two. They are independent and the
 client-side pair will still misbehave on the next backend failure of any kind.
 
-| # | Defect | Side | Survives a `#tree` fix? |
-|---|---|---|---|
-| 1 | `#tree` payload exceeds the Cloud Run 32 MiB cap (and is slow enough to `Rack::Timeout` under load) | server | no, this IS the fix |
-| 2 | The pick-for-home success toast promises offline availability without consulting whether the offline warm succeeded | client | **yes** |
-| 3 | A failing `/tree` is retried without a circuit breaker, 22 times in 7 minutes, until the server rate-limits the client | client | **yes** |
+| # | Defect | Side | Survives a `#tree` fix? | Tracked in |
+|---|---|---|---|---|
+| 1 | `#tree` payload exceeds the Cloud Run 32 MiB cap (and is slow enough to `Rack::Timeout` under load) | server | no, this IS the fix | issue #286 |
+| 2 | The pick-for-home success toast promises offline availability without consulting whether the offline warm succeeded | client | **yes** | issue #1034 |
+| 3 | A failing `/tree` is retried without a circuit breaker, 22 times in 7 minutes, until the server rate-limits the client | client | **yes** | issue #1034 |
+
+Two further items found alongside, neither of them this bug: issue #1032 (two flows share
+the CTA text "Set as Home Board", only one asks before copying) and issue #1033 (bearer
+tokens written to Cloud Logging in request URLs, Scot's lane).
 
 Defect 2 is the highest-severity user-facing item here: the app tells an AAC user their
 board is saved for offline use when it demonstrably is not, and an AAC user discovers that
