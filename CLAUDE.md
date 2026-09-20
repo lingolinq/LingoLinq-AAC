@@ -74,7 +74,11 @@ everything else in this file.
     (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`,
     `app/frontend/.eslint-todo`), or change a lint or test CONFIG so the rule stops
     applying (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
-    `spec/spec_helper.rb`, or a `.gitignore` entry that drops the file from the run).
+    `spec/spec_helper.rb`, or a `.gitignore` entry that drops the file from the run), or
+    change how CI DECIDES to run the check (a workflow condition or classifier output such
+    as the frontend-scope step in `.github/workflows/ci.yml`, a job dependency,
+    `continue-on-error`, a retry or allowed-failure setting, an environment input, the
+    command an npm script or rake task invokes, or required-check wiring).
     These are one act under different names. Stop, name the test and the verified reason it
     fails, and wait. Rewriting a test is legitimate only when the specification it
     encodes actually changed and the approval you were given says so.

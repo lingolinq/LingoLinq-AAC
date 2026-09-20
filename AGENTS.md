@@ -47,7 +47,11 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   `npm run lint:js:todo`, `app/frontend/.lint-todo`, `app/frontend/.eslint-todo`), or
   change a lint or test config so the rule stops applying
   (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
-  `spec/spec_helper.rb`, a `.gitignore` entry). Stop, name the test and the verified
+  `spec/spec_helper.rb`, a `.gitignore` entry), or change how CI decides to run the check
+  (a workflow condition or classifier output such as the frontend-scope step in
+  `.github/workflows/ci.yml`, a job dependency, `continue-on-error`, a retry or
+  allowed-failure setting, an environment input, the command an npm script or rake task
+  invokes, or required-check wiring). Stop, name the test and the verified
   reason it fails, and wait. Rewriting a test is legitimate only when the specification
   it encodes actually changed and the approval you were given says so.
 
@@ -60,16 +64,18 @@ template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test
 
 Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
 pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
-advisory. Those two passes run as slash commands that exist only inside Claude Code, so
-you cannot invoke them here. The Codex-side equivalent of the senior-dev pass is the
-`Codex Review` workflow (`.github/workflows/codex-review.yml`), dispatched by the n8n W1
-orchestrator and reporting the `codex-review/deep-pass` commit status; per that
-workflow's own header, status-stamped 2026-09-12, it is dormant (not in the required set
-on `develop`, `staging` or `main`, no run dispatched since 2026-08-04). Nothing
-re-verifies that stamp, so confirm it against branch protection before relying on it. There is no Codex or Gemini
-equivalent of the adversarial pass. Working as Codex or Gemini you therefore cannot
-satisfy this gate yourself: state in the PR that both passes are still owed and who must
-run them. A green CI run is not the dual review.
+advisory. **You can run the senior-dev pass yourself**, and the Codex CLI is its
+strongest documented caller: `/review-pr <number>`, or `/review-pr` for the current
+branch. When you complete it, record the reviewer, the head SHA you actually reviewed,
+and the verdict. There is no Codex or Gemini equivalent of the **adversarial** pass, so
+that is the one you cannot discharge: name the reviewer who still owes it rather than
+reporting that both passes are outstanding. A second, CI-side route for the senior-dev
+pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
+dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
+status; per that workflow's own header, status-stamped 2026-09-12, it is dormant (not in
+the required set on `develop`, `staging` or `main`, no run dispatched since 2026-08-04).
+Nothing re-verifies that stamp, so confirm it against branch protection before relying on
+it. A green CI run is not the dual review.
 
 ## Where things are
 
