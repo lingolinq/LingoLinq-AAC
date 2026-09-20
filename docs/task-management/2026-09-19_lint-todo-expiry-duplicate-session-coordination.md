@@ -84,6 +84,7 @@ Flagged the conflict to Scot instead of proceeding on the original decision. His
    Claude session push a structural change to a control every AAC user depends on into a
    lint-housekeeping PR. This matches this repo's own Rule #0 discipline (diagnose fully, propose
    multiple candidate fixes, adversarial review) for a change of that blast radius.
+   **Item 2 was superseded on 2026-09-20 -- see "Superseded" at the end of this file.**
 
 Coordinated directly with the other session (cross-session message) to confirm stand-down and avoid
 a duplicate PR; they confirmed and reported #1020 already merged.
@@ -108,11 +109,54 @@ a duplicate PR; they confirmed and reported #1020 already merged.
 - Filed the accessibility bug as a task in the Active Tasks Notion tracker (High priority, Area:
   Frontend) for Melissa/Traci, noting the 2026-09-20T00:00:00Z deadline before `no-nested-interactive`
   also starts hard-failing CI: https://app.notion.com/p/3e05fe8215c2814f994bdaf1863089ba
+  **Repointed 2026-09-20 at review rather than implementation** (see "Superseded" below).
+  Recorded here from Scot's instruction; this session neither read nor wrote Notion, so the
+  tracker's live state is unverified from here.
 - No frontend/backend code changed by this session; this file is the only change.
 
-## Not done here, on purpose
+## Not done here, on purpose -- SUPERSEDED 2026-09-20
 
 - The `no-nested-interactive` fix itself (deciding what the corrected markup for the speak-bar
   toggle / board-intro button should be). Intentionally routed to Melissa/Traci given the blast
   radius (a control every AAC user touches) and the diagnose-then-propose-fixes-then-review
   discipline this repo's CLAUDE.md requires for a change like that.
+  **This no longer describes the state of the work. See below.**
+
+## Superseded 2026-09-20: the fix was implemented after all
+
+The routing decision above was reversed the next day. A later Claude Code session was briefed to
+fix the defect directly and did so on branch
+`fix/scot-nested-interactive-board-intro-0a736cbc`, commit `eb2483407`.
+
+Neither Scot nor that session knew this document had already routed the work to Melissa/Traci; the
+session found this file during its own pre-work check and surfaced the conflict before editing any
+code. The duplicate-routing catch is the same class this document exists to record, except that
+this time the duplicate writer was the brief itself rather than a parallel agent session.
+
+What changed, so the record is not read as still-pending:
+
+- **Implemented, not routed.** The board-intro control is now rendered as a sibling of
+  `#button_list` instead of inside it, guarded by the conditions it previously sat under.
+  `npm run lint:hbs` exits 0 and the `.lint-todo` entry is closed by the tool's own
+  `--clean-todo` route (190 add / 190 remove / 0 active).
+- **The Notion task is repointed at review rather than implementation.** Melissa reviewing a
+  finished branch is cheaper than Melissa writing it. Per Scot's call, 2026-09-20.
+- **Still open at the time of writing:** the repo's dual review (`/review-pr` plus
+  `/adversary-review`), and one human check the implementing session could not do -- booting the
+  app with `blank_status` on and an unviewed board intro to confirm the button still renders where
+  it did. Scot took both.
+
+Two facts in this file did not survive the later session's verification and should not be cited:
+
+- The violation is at `application.hbs:152`, not the `~line 135-136` recorded above. The `135` in
+  the `.lint-todo` row is stale: entries match by content hash, not line number.
+- The `no-nested-interactive` entry became a hard error at **2026-09-20T00:00:00Z**, not during
+  2026-09-19. `@lint-todo/utils` `getDatePart()` builds "today" from `Date.UTC(...)`, so the flip
+  happened at UTC midnight while local time was still 2026-09-19 evening. `develop` was not red on
+  this entry for most of 09-19.
+
+A third hazard was found while fixing it, and belongs with whoever maintains the suppression
+guidance: `--clean-todo` defaults to TRUE outside CI and purges **expired** entries whether or not
+the underlying violation was fixed. It does not hide the defect -- the violation is reported as a
+hard error in the same run, exit 1 -- but it erases the record that the item was ever a dated
+suppression, which is what makes "was this fixed, or did it just age out" unanswerable later.
