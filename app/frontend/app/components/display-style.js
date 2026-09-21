@@ -2058,6 +2058,14 @@ export default Component.extend({
          Leaving any of them would have opened a page that no longer exists in the flow. */
       {
         id: 'display_style_layout',
+        // i18n registration: this key is passed to _decoratedTitle (:1630), which is what
+        // actually calls i18n.t() on it. i18n_generator.rb's scanner only matches a LITERAL
+        // `i18n.t(` (i18n_generator.rb:110), so a key handed to a wrapper is invisible to it
+        // and `--generate` prunes it as dead — it would have deleted this one from all 13
+        // locale files. Registering it here as a literal keeps it. The default below MUST
+        // stay byte-identical to en.json:2235 or the next --generate silently rewrites the
+        // English everywhere:
+        //   i18n.t('display_style_layout_title', "Customize your dashboard")
         title: this._decoratedTitle('display_style_layout_title', "Customize your dashboard"),
         text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml('-layout'),
         when: {
