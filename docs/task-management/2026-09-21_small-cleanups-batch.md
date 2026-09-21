@@ -665,3 +665,34 @@ impossible. Red on 115 before, green after. `lint:js:ci` 1604/1604 grandfathered
 - **`LL_USER_SUB` omits `supervision`** (`app/frontend/app/index.html:525`) while
   `supervision` IS a real route (`router.js:136`), so the pre-boot skeleton classifies
   `/:user/supervision` as board context. Cosmetic, skeleton-only.
+
+---
+
+# Translation rake — DEFERRED by Traci (2026-09-21). Do not run it to "finish" this work.
+
+The 128 `*** ` entries added today are **complete as they stand**. They render correct
+English via the `*** ` fallback (`utils/i18n.js:448`), and Traci's decision was to leave
+them that way for now. This is a finished state, not a loose end.
+
+**Why it is not a quick follow-up.** `extras:translate_ui_locales` translates EVERY
+`*** ` value in a locale file; it cannot be scoped to the keys added today. Measured:
+
+| | keys |
+|---|---|
+| `*** ` entries from this batch | ~128 |
+| pre-existing backlog | ~5,336 |
+| **total the rake would translate** | **5,464** across 12 locales |
+
+Spanish alone is 460 `*** ` entries, only 114 of them from this batch. So running it
+machine-translates several thousand strings into 12 files in one unreviewed diff and
+spends the Google Translate budget accordingly. That is a deliberate product decision,
+not housekeeping.
+
+**Blocked on auth anyway.** `op` has the account configured (`lingolinqllc`) but was not
+signed in, and `GOOGLE_TRANSLATE_TOKEN` exists only as an `op://` reference in
+`.env.op.local` (commented out in `.env`). `op signin` is interactive. Note a plain
+session token will NOT carry into an agent's Bash calls, which do not inherit shell
+state — the desktop-app integration or `OP_SERVICE_ACCOUNT_TOKEN` is needed for that.
+
+The three pinned privacy keys are safe from the rake regardless:
+`WordData::ENGLISH_PINNED_LOCALE_KEYS` folds into `nopes` (`app/models/word_data.rb:724`).
