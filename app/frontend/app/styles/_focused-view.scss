@@ -694,12 +694,10 @@ body.ll-layout-focused .md-user-summary {
 // -----------------------------------------------------------------------------
 // `.md-hero--reports-dashboard` and `.md-user-meta` only exist on the Reports page,
 // so `.md-shell--reports-view` (shared with Boards) scopes safely to Reports here.
-// The Reports focused-view header/subheader belong to Focused View only — hidden by
-// default (gentle view uses its own hero + .md-stats-hero-card).
-.md-stats-main__focus-head,
-.md-stats-main__focus-divider {
-  display: none;
-}
+// The Reports focused-view header is gated in templates/user/stats.hbs on `effectiveLayout`
+// (2026-09-21), not hidden here: that is flash-free, and it removed the `:has()` suppression
+// below that had been keeping the header off every account that renders the Progress and
+// Usage summary. Its styling is the shared account-section header rule in app.scss.
 body.ll-layout-focused .md-shell--reports-view {
   // Hide the "Reports for <user>" header + subheader.
   .md-hero--reports-dashboard {
@@ -834,22 +832,6 @@ body.ll-layout-focused .md-shell--reports-view {
   // (login / premium-required / logging-off). When that summary is present it
   // carries the page title and its own selected-range subheader, so showing this
   // head too would double up the heading.
-  // FLEX, not block: the head is now an icon beside a stacked title+subtitle, matching the
-  // icon + title arrangement the other account-section headers use (gap 14px, centred).
-  // The icon is `flex: none` so the long "(Usage & Progress)" accent cannot squeeze it.
-  .md-stats-main:not(:has(.communication-report)) .md-stats-main__focus-head {
-    display: flex !important;
-    align-items: center;
-    gap: 14px;
-  }
-  .md-stats-main__focus-icon {
-    flex: none;
-    width: 28px;
-    height: 28px;
-  }
-  .md-stats-main:not(:has(.communication-report)) .md-stats-main__focus-divider {
-    display: block !important;
-  }
 }
 
 // -----------------------------------------------------------------------------

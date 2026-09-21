@@ -22,6 +22,43 @@
         <button type="button" class="md-btn md-btn--ghost md-reports-hero__action" {{on "click" (this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
       {{/if}}
     </header>
+    {{!-- THE PAGE HEADER FOR FOCUSED VIEW (2026-09-21). Same icon + title + divider the rest
+         of the account section carries, and the same rule: `.md-stats-main__focus-head` is
+         listed with `.md-billing__header` in app.scss, so the divider is that family's
+         border-bottom and there is no separate divider element.
+         IT IS A PAGE HEADER, NOT A PANEL HEADING, and that is why it now renders even when
+         the Progress and Usage summary does. The old `:not(:has(.communication-report))`
+         gate suppressed it to avoid "doubling up the heading", but the two are different
+         levels: this names the PAGE, and the summary's <h1> names the panel inside it --
+         exactly as Supervision shows "Supervision" above a "My Supervisors" card. Without
+         this the page was the only one in the section with no header at all in Focused.
+         FIRST THING IN `.md-workspace`, above the "Select Communicator" picker below
+         (requested 2026-09-21): it is the page title, so it precedes the page's first
+         control rather than following it.
+         OUTSIDE `.md-stats-page`, deliberately: every other section header
+         sits on the page background, while `.md-stats-page` / `.md-stats-main` carry their own
+         surface in Focused View. Nested inside those the header sat ON that surface instead of
+         above it, which read as a panel heading rather than a page title.
+         (The `md-stats-main__` prefix is now a slight misnomer -- kept so the shared rule in
+         app.scss and this element do not have to be renamed in lockstep.)
+         GATED ON `effectiveLayout`, not on `body.ll-layout-focused`: that class is applied
+         from an observer that runs after first paint, so a CSS-hidden header flashes on a
+         hard reload -- the reason templates/user/index.hbs gates its hero the same way.
+         ICON is the rail's Reports glyph, two-tone on the repo's split: the tall middle bar
+         in the teal accent (#2A9D8F), the short bars in charcoal (#46505F). `aria-hidden`,
+         since the <h2> beside it names the page.
+         The accent span and subtitle this head used to carry are gone -- no sibling header
+         has either, and matching them was the point. --}}
+    {{#if (is-equal this.app_state.effectiveLayout "focused")}}
+      <div class="md-stats-main__focus-head">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/>
+          <line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/>
+          <line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
+        </svg>
+        <h2 class="md-stats-main__focus-title">{{t "Reports" key="reports"}}</h2>
+      </div>
+    {{/if}}
     {{!-- Supporter path: a dropdown-style trigger sitting where the stats content
          would start, pushing .md-stats-page down. A supporter's reports are always
          ABOUT a communicator (they have no activity of their own to report), so
@@ -44,28 +81,6 @@
          summary (login / premium-required / logging-off). When the summary is on
          screen it carries the page title itself, so _focused-view.scss suppresses
          this head via :has(.communication-report). --}}
-    {{!-- ICON ADDED 2026-09-21 (requested), so this head carries the same icon + title +
-         divider trio as the rest of the account section. It is the RAIL's Reports glyph
-         (components/account-rail.hbs) at this head's scale: two-tone on the repo's usual
-         split, with the tall middle bar in the teal accent (#2A9D8F) and the two shorter
-         bars in charcoal structure (#46505F), so the page and its nav row read as one
-         thing -- the same reasoning as the Supervision page header.
-         `aria-hidden` because the <h3> beside it already names the page.
-         The title and sub keep the boards-card treatment they share with the Extras page's
-         focus head rather than switching to the `.md-billing__header` scale: this head has
-         a subtitle and an accent span, which that scale has no slot for. --}}
-    <div class="md-stats-main__focus-head">
-      <svg class="md-stats-main__focus-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/>
-        <line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/>
-        <line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
-      </svg>
-      <div class="md-stats-main__focus-text">
-        <h3 class="md-card__title">{{t "Reports" key="reports"}} <span class="md-card__title-accent--verdigris">{{t "(Usage & Progress)" key="reports_focus_accent"}}</span></h3>
-        <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
-      </div>
-    </div>
-    <div class="md-stats-main__focus-divider md-card--boards__divider" aria-hidden="true"></div>
 {{#if this.app_state.currentUser.modeling_only}}
   <ModelingOnlyNotice />
 {{else if this.model.currently_premium}}
@@ -123,28 +138,7 @@
             panels used; the five secondary values are demoted, not dropped.
             Everything from "Communication Usage" down is unchanged. --}}
       <section class="report-panel communication-report" aria-labelledby="communication-report-title">
-        {{!-- FOCUSED VIEW ICON (requested 2026-09-21). On an account that renders this
-             Progress and Usage summary, THIS header is the top of the Reports page in
-             Focused View: the gentle hero is hidden and `.md-stats-main__focus-head` is
-             deliberately suppressed by `:not(:has(.communication-report))` further up,
-             because showing it too would stack "Reports (Usage & Progress)" directly above
-             this <h1> "Progress and Usage". So the icon and divider the rest of the account
-             section carries belong here rather than on a second heading.
-             GATED ON `effectiveLayout`, not on `body.ll-layout-focused`: that class is
-             applied from an observer that runs after first paint (services/app-state.js),
-             so a CSS-hidden icon would flash in Gentle on a hard reload -- the same reason
-             templates/user/index.hbs gates its hero this way.
-             Two-tone on the repo's usual split, the tall middle bar in the teal accent
-             (#2A9D8F) and the short bars in charcoal (#46505F) -- the rail's Reports glyph.
-             `aria-hidden`: the <h1> beside it already names the section. --}}
         <header class="communication-report__header">
-          {{#if (is-equal this.app_state.effectiveLayout "focused")}}
-            <svg class="communication-report__focus-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/>
-              <line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/>
-              <line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
-            </svg>
-          {{/if}}
           <div class="communication-report__heading">
             <h1 id="communication-report-title">{{t "Progress and Usage" key="progress_and_usage"}}</h1>
             {{#if this.formattedDateRange}}
@@ -158,9 +152,6 @@
             </div>
           {{/if}}
         </header>
-        {{#if (is-equal this.app_state.effectiveLayout "focused")}}
-          <div class="communication-report__focus-divider md-card--boards__divider" aria-hidden="true"></div>
-        {{/if}}
 
         {{!-- Reuses the page's existing load-status component for the in-flight and
               failed states; "no data" is handled by the empty state below, and the

@@ -51293,7 +51293,8 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
    that class in its markup and the values are identical, so nothing changes for it. */
 .md-billing__header,
 .md-supervision-page__header,
-.md-user-summary__focus-head {
+.md-user-summary__focus-head,
+.md-stats-main__focus-head {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51303,7 +51304,8 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
 }
 .md-billing__header > svg,
 .md-supervision-page__header > svg,
-.md-user-summary__focus-head > svg {
+.md-user-summary__focus-head > svg,
+.md-stats-main__focus-head > svg {
   width: 28px;
   height: 28px;
   flex: none;
@@ -51316,7 +51318,8 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
    which replaced the separate `md-card--boards__divider` element it used to render. */
 .md-billing__title,
 .md-supervision-page__title,
-.md-user-summary__focus-title {
+.md-user-summary__focus-title,
+.md-stats-main__focus-title {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 900;
