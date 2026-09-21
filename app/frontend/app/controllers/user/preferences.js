@@ -912,7 +912,7 @@ export default Controller.extend({
         });
         result.unshift({
           id: 'default',
-          name: i18n.t('select_a_voice', '[ Select A Voice ]')
+          name: i18n.t('select_a_voice', "[ Select A Voice ]")
         });
       }
       // this is a weird hack because the the voice uri needs to be set *after* the

@@ -167,11 +167,11 @@ export default Component.extend({
 
   locales: computed(function() {
     const list = i18n.get('translatable_locales');
-    const res = [{ name: i18n.t('choose_locale', '[Choose a Language]'), id: '' }];
+    const res = [{ name: i18n.t('choose_locale', "[Choose a Language]"), id: '' }];
     for (const key in list) {
       res.push({ name: list[key], id: key });
     }
-    res.push({ name: i18n.t('unspecified', 'Unspecified'), id: '' });
+    res.push({ name: i18n.t('unspecified', "Unspecified"), id: '' });
     return res;
   }),
 
@@ -184,16 +184,16 @@ export default Component.extend({
     const u = this.get('current_user');
     const list = [];
     list.push({ name: i18n.t('original_symbols', "Default symbols"), id: 'original' });
-    list.push({ name: i18n.t('use_opensymbols', 'Opensymbols.org'), id: 'opensymbols' });
+    list.push({ name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols' });
     if (u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
-      list.push({ name: i18n.t('use_lessonpix', 'LessonPix symbol library'), id: 'lessonpix' });
-      list.push({ name: i18n.t('use_symbolstix', 'SymbolStix Symbols'), id: 'symbolstix' });
-      list.push({ name: i18n.t('use_pcs', 'PCS Symbols by Tobii Dynavox'), id: 'pcs' });
+      list.push({ name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix' });
+      list.push({ name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix' });
+      list.push({ name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs' });
     }
-    list.push({ name: i18n.t('use_twemoji', 'Emoji icons (authored by Twitter)'), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', 'Noun Project black outlines'), id: 'noun-project' });
-    list.push({ name: i18n.t('use_arasaac', 'ARASAAC free symbols'), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', 'Tawasol'), id: 'tawasol' });
+    list.push({ name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji' });
+    list.push({ name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project' });
+    list.push({ name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac' });
+    list.push({ name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol' });
     return list;
   }),
 

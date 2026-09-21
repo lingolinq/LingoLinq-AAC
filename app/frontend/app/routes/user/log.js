@@ -8,7 +8,7 @@ export default Route.extend({
   model: function(params) {
     var user = this.modelFor('user');
     if(user) {
-      user.set('subroute_name', i18n.t('messages', 'messages'));
+      user.set('subroute_name', i18n.t('messages', "messages"));
     }
     if(params.log_id == 'last-eval') {
       var log = this.store.createRecord('log', {});

@@ -20,7 +20,7 @@ export default Route.extend({
 
   model: function() {
     var model = this.modelFor('user');
-    model.set('subroute_name', i18n.t('boards', 'boards'));
+    model.set('subroute_name', i18n.t('boards', "boards"));
     return model;
   },
   setupController: function(controller, model) {

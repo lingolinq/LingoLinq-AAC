@@ -93,16 +93,16 @@ export default Component.extend({
     const u = this.get('selected_user');
     const list = [];
     list.push({ name: i18n.t('original_symbols', "Default symbols"), id: 'original' });
-    list.push({ name: i18n.t('use_opensymbols', 'Opensymbols.org'), id: 'opensymbols' });
+    list.push({ name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols' });
     if (u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
-      list.push({ name: i18n.t('use_lessonpix', 'LessonPix symbol library'), id: 'lessonpix' });
-      list.push({ name: i18n.t('use_symbolstix', 'SymbolStix Symbols'), id: 'symbolstix' });
-      list.push({ name: i18n.t('use_pcs', 'PCS Symbols by Tobii Dynavox'), id: 'pcs' });
+      list.push({ name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix' });
+      list.push({ name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix' });
+      list.push({ name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs' });
     }
-    list.push({ name: i18n.t('use_twemoji', 'Emoji icons (authored by Twitter)'), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', 'Noun Project black outlines'), id: 'noun-project' });
-    list.push({ name: i18n.t('use_arasaac', 'ARASAAC free symbols'), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', 'Tawasol'), id: 'tawasol' });
+    list.push({ name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji' });
+    list.push({ name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project' });
+    list.push({ name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac' });
+    list.push({ name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol' });
     return list;
   }),
 
@@ -129,17 +129,17 @@ export default Component.extend({
 
   board_levels: computed(function() {
     return [
-      { name: i18n.t('unspecified_2', '[ Use the Default ]'), id: '' },
-      { name: i18n.t('level_1_2', 'Level 1 (most simple)'), id: '1' },
-      { name: i18n.t('level_2_2', 'Level 2'), id: '2' },
-      { name: i18n.t('level_3_2', 'Level 3'), id: '3' },
-      { name: i18n.t('level_4_2', 'Level 4'), id: '4' },
-      { name: i18n.t('level_5_2', 'Level 5'), id: '5' },
-      { name: i18n.t('level_6_2', 'Level 6'), id: '6' },
-      { name: i18n.t('level_7_2', 'Level 7'), id: '7' },
-      { name: i18n.t('level_8_2', 'Level 8'), id: '8' },
-      { name: i18n.t('level_9_2', 'Level 9'), id: '9' },
-      { name: i18n.t('level_10_2', 'Level 10 (all buttons and links)'), id: '10' }
+      { name: i18n.t('unspecified_2', "[ Use the Default ]"), id: '' },
+      { name: i18n.t('level_1_2', "Level 1 (most simple)"), id: '1' },
+      { name: i18n.t('level_2_2', "Level 2"), id: '2' },
+      { name: i18n.t('level_3_2', "Level 3"), id: '3' },
+      { name: i18n.t('level_4_2', "Level 4"), id: '4' },
+      { name: i18n.t('level_5_2', "Level 5"), id: '5' },
+      { name: i18n.t('level_6_2', "Level 6"), id: '6' },
+      { name: i18n.t('level_7_2', "Level 7"), id: '7' },
+      { name: i18n.t('level_8_2', "Level 8"), id: '8' },
+      { name: i18n.t('level_9_2', "Level 9"), id: '9' },
+      { name: i18n.t('level_10_2', "Level 10 (all buttons and links)"), id: '10' }
     ];
   }),
 

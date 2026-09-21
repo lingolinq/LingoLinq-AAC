@@ -206,7 +206,7 @@ export default Component.extend({
           });
         });
         next = next.then(null, function() {
-          return RSVP.reject(i18n.t('sharing_failed', 'Sharing with one or more users failed'));
+          return RSVP.reject(i18n.t('sharing_failed', "Sharing with one or more users failed"));
         });
       }
       next = next.then(function() {
@@ -228,7 +228,7 @@ export default Component.extend({
                   return RSVP.resolve({ translated: true });
                 });
               }
-              return RSVP.reject(i18n.t('translation_canceled', 'Translation was canceled'));
+              return RSVP.reject(i18n.t('translation_canceled', "Translation was canceled"));
             });
           });
         }
@@ -318,7 +318,7 @@ export default Component.extend({
           if (model.copy_finished) {
             model.copy_finished(copiedBoard);
           } else {
-            modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
+            modal.notice(i18n.t('copy_created', "Copy created! You can find the new board in your profile."));
           }
         }
       }, function(err) {

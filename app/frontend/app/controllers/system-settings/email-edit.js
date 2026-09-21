@@ -77,9 +77,9 @@ export default Controller.extend({
   brandingEditLabel: computed('template.org_id', function() {
     var orgId = this.get('template.org_id') || this.getOrgId();
     if (!orgId || orgId === 'default') {
-      return i18n.t('system_settings_edit_app_defaults', 'Edit app defaults');
+      return i18n.t('system_settings_edit_app_defaults', "Edit app defaults");
     }
-    return i18n.t('system_settings_edit_org_defaults', 'Edit organization defaults');
+    return i18n.t('system_settings_edit_org_defaults', "Edit organization defaults");
   }),
 
   getOrgId: function() {
@@ -199,11 +199,11 @@ export default Controller.extend({
         }
       }).then(function() {
         _this.set('saving', false);
-        modal.success(i18n.t('system_settings_email_saved', 'Email template saved.'));
+        modal.success(i18n.t('system_settings_email_saved', "Email template saved."));
         _this.loadTemplate();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', "Could not save settings."));
       });
     },
 
@@ -211,14 +211,14 @@ export default Controller.extend({
       var _this = this;
       var slug = this.get('template_slug');
       var orgId = this.getOrgId();
-      if (!window.confirm(i18n.t('system_settings_email_reset_confirm', 'Reset this email to the default template?'))) {
+      if (!window.confirm(i18n.t('system_settings_email_reset_confirm', "Reset this email to the default template?"))) {
         return;
       }
       this.persistence.ajax('/api/v1/system_email_templates/' + encodeURIComponent(slug) + '?org_id=' + encodeURIComponent(orgId), {type: 'DELETE'}).then(function() {
-        modal.success(i18n.t('system_settings_email_reset_done', 'Email template reset.'));
+        modal.success(i18n.t('system_settings_email_reset_done', "Email template reset."));
         _this.loadTemplate();
       }, function(err) {
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', "Could not save settings."));
       });
     },
 
@@ -252,7 +252,7 @@ export default Controller.extend({
         _this.set('previewText', res.text_body);
       }, function(err) {
         _this.set('previewing', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_preview_error', 'Could not generate preview.'));
+        modal.error(err.error || err.errors || i18n.t('system_settings_preview_error', "Could not generate preview."));
       });
     }
   }

@@ -21,7 +21,7 @@ export default Controller.extend({
       var org = this.get('model');
       org.save().then(null, function(err) {
         console.log(err);
-        modal.error(i18n.t('org_update_failed', 'Organization update failed unexpectedly'));
+        modal.error(i18n.t('org_update_failed', "Organization update failed unexpectedly"));
       });
     },
     jobs: function() {

@@ -116,24 +116,24 @@ export default Component.extend({
 
   locales: computed(function() {
     var list = i18n.get('locales');
-    var res = [{ name: i18n.t('choose_locale', '[Choose a Language]'), id: '' }];
+    var res = [{ name: i18n.t('choose_locale', "[Choose a Language]"), id: '' }];
     for (var key in list) {
       res.push({ name: list[key], id: key });
     }
-    res.push({ name: i18n.t('unspecified', 'Unspecified'), id: '' });
+    res.push({ name: i18n.t('unspecified', "Unspecified"), id: '' });
     return res;
   }),
 
   labels_order_list: [
-    { name: i18n.t('columns_first', 'Populate buttons in columns, left to right'), id: 'columns' },
-    { name: i18n.t('rows_first', 'Populate buttons in rows, top to bottom'), id: 'rows' }
+    { name: i18n.t('columns_first', "Populate buttons in columns, left to right"), id: 'columns' },
+    { name: i18n.t('rows_first', "Populate buttons in rows, top to bottom"), id: 'rows' }
   ],
 
-  prompt_placeholder: i18n.t('generate_board_prompt_placeholder', 'e.g. AAC board for a 4-year-old at breakfast with core vocabulary'),
+  prompt_placeholder: i18n.t('generate_board_prompt_placeholder', "e.g. AAC board for a 4-year-old at breakfast with core vocabulary"),
 
-  labels_placeholder: i18n.t('generate_board_labels_placeholder', 'Enter labels separated by commas, or click "Generate with AI" to fill from description'),
+  labels_placeholder: i18n.t('generate_board_labels_placeholder', "Enter labels separated by commas, or click \"Generate with AI\" to fill from description"),
 
-  description_placeholder: i18n.t('generate_board_description_placeholder', 'Brief description of the board (optional)'),
+  description_placeholder: i18n.t('generate_board_description_placeholder', "Brief description of the board (optional)"),
 
   core_words_tooltip: computed('include_core_words', function() {
     return this.get('include_core_words')
@@ -187,12 +187,12 @@ export default Component.extend({
       var _this = this;
       var persistenceService = this.get('persistence') || window.persistence;
       if (persistenceService && !persistenceService.get('online')) {
-        this.set('status', { error: i18n.t('generate_requires_online', 'AI board generation requires an Internet connection.') });
+        this.set('status', { error: i18n.t('generate_requires_online', "AI board generation requires an Internet connection.") });
         return;
       }
       var prompt = (this.get('prompt') || '').trim();
       if (!prompt) {
-        this.set('status', { error: i18n.t('prompt_required', 'Please describe the board you want to create.') });
+        this.set('status', { error: i18n.t('prompt_required', "Please describe the board you want to create.") });
         return;
       }
       // EU AI Act Article 50(1) NOTE: the first-AI-use gate for this surface fires in
@@ -216,7 +216,7 @@ export default Component.extend({
       };
 
       if (!persistenceService || !persistenceService.ajax) {
-        this.set('status', { error: i18n.t('app_not_ready', 'App is not ready. Please try again.') });
+        this.set('status', { error: i18n.t('app_not_ready', "App is not ready. Please try again.") });
         return;
       }
 
@@ -237,7 +237,7 @@ export default Component.extend({
         if (res && res.ai_generated) { _this.set('ai_generated', res.ai_generated); }
       }, function(err) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
-        var msg = i18n.t('generate_failed', 'Generation failed');
+        var msg = i18n.t('generate_failed', "Generation failed");
         var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
           try { return JSON.parse(err.responseText); } catch (e) { return null; }
         })() : null);
@@ -253,13 +253,13 @@ export default Component.extend({
       var _this = this;
       var labels = (this.get('labels') || '').trim();
       if (!labels) {
-        this.set('status', { error: i18n.t('labels_required', 'Please add labels before creating the board. Use "Generate with AI" or enter them manually.') });
+        this.set('status', { error: i18n.t('labels_required', "Please add labels before creating the board. Use \"Generate with AI\" or enter them manually.") });
         return;
       }
 
       var persistenceService = this.get('persistence') || window.persistence;
       if (persistenceService && !persistenceService.get('online')) {
-        this.set('status', { error: i18n.t('create_requires_online', 'Board creation requires an Internet connection.') });
+        this.set('status', { error: i18n.t('create_requires_online', "Board creation requires an Internet connection.") });
         return;
       }
 
@@ -288,7 +288,7 @@ export default Component.extend({
       }
 
       if (!persistenceService || !persistenceService.ajax) {
-        this.set('status', { error: i18n.t('app_not_ready', 'App is not ready. Please try again.') });
+        this.set('status', { error: i18n.t('app_not_ready', "App is not ready. Please try again.") });
         return;
       }
 
@@ -314,11 +314,11 @@ export default Component.extend({
           }
         } else {
           _this.set('status', {
-            error: (res && res.error) || i18n.t('create_failed', 'Board creation failed')
+            error: (res && res.error) || i18n.t('create_failed', "Board creation failed")
           });
         }
       }, function(xhr) {
-        var msg = i18n.t('create_failed', 'Board creation failed');
+        var msg = i18n.t('create_failed', "Board creation failed");
         if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
           msg = xhr.responseJSON.error;
         } else if (xhr && xhr.responseText) {

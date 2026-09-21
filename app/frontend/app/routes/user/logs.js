@@ -8,7 +8,7 @@ export default Route.extend({
 
   model: function() {
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('messages', 'messages'));
+    user.set('subroute_name', i18n.t('messages', "messages"));
     return user;
   },
   resetController: function(controller, isExiting) {

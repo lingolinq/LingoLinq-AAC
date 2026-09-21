@@ -22,7 +22,7 @@ export default Controller.extend({
   }),
   locales: computed(function() {
     var list = i18n.get('translatable_locales');
-    var res = [{name: i18n.t('choose_locale', '[Choose a Language]'), id: ''}];
+    var res = [{name: i18n.t('choose_locale', "[Choose a Language]"), id: ''}];
     for(var key in list) {
       res.push({name: list[key], id: key});
     }

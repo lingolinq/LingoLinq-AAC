@@ -43,7 +43,7 @@ export default Controller.extend({
 
   categoryOptions: computed('categories.[]', function() {
     var cats = this.get('categories') || [];
-    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', 'All categories')}];
+    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', "All categories")}];
     cats.forEach(function(c) {
       options.push({id: c, label: c});
     });

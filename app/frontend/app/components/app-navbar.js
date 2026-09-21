@@ -30,7 +30,7 @@ export default Component.extend({
   }),
 
   ariaLabel: computed(function() {
-    return i18n.t('main_navigation', 'Main navigation');
+    return i18n.t('main_navigation', "Main navigation");
   }),
 
   isAuthenticated: computed('application.isSessionAuthenticated', function() {

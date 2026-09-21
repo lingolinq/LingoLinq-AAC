@@ -153,7 +153,7 @@ export function registerTemplateHelpers(i18n) {
         pieces[0] = parseInt(pieces[0], 10) + (dec / 1000);
         pieces[0] = Math.round(pieces[0] * 100) / 100;
       }
-      return i18n.t('n_million', '%{num}M', {num: pieces.join(',')});
+      return i18n.t('n_million', "%{num}M", {num: pieces.join(',')});
     } else {
       return pieces.join(',');
     }
@@ -169,7 +169,7 @@ export function registerTemplateHelpers(i18n) {
     if(!res) {
       res = i18n.get('locales')[pieces[0]];
     }
-    res = res || i18n.t('unknown_locale', 'Unknown');
+    res = res || i18n.t('unknown_locale', "Unknown");
     return res;
   };
 
@@ -186,17 +186,17 @@ export function registerTemplateHelpers(i18n) {
       post.hours(0).minutes(0).seconds(0);
       post.add(2, 'day');
       if(moment >= pre && moment <= post) {
-        return i18n.t('tomorrow', 'tomorrow');
+        return i18n.t('tomorrow', "tomorrow");
       }
       pre.subtract(1, 'day');
       post.subtract(1, 'day');
       if(moment >= pre && moment <= post) {
-        return i18n.t('today', 'today');
+        return i18n.t('today', "today");
       }
       pre.subtract(1, 'day');
       post.subtract(1, 'day');
       if(moment >= pre && moment <= post) {
-        return i18n.t('yesterday', 'yesterday');
+        return i18n.t('yesterday', "yesterday");
       }
     }
     return moment.fromNow();
@@ -208,16 +208,16 @@ export function registerTemplateHelpers(i18n) {
       return '';
     } else if(seconds < 60) {
       if(distance == 'brief') {
-        return i18n.t('brief_seconds_ago', '%{n}s', {hash: {n: seconds}});
+        return i18n.t('brief_seconds_ago', "%{n}s", {hash: {n: seconds}});
       } else {
-        return i18n.t('seconds_ago', 'second', {hash: {count: seconds}});
+        return i18n.t('seconds_ago', "second", {hash: {count: seconds}});
       }
     } else if(seconds < 3600) {
       var minutes = Math.round(seconds / 60 * 10) / 10;
       if(distance == 'brief') {
-        return i18n.t('brief_minutes_ago', '%{n}m', {hash: {n: minutes}});
+        return i18n.t('brief_minutes_ago', "%{n}m", {hash: {n: minutes}});
       } else {
-        return i18n.t('minutes_ago', 'minute', {hash: {count: minutes}});
+        return i18n.t('minutes_ago', "minute", {hash: {count: minutes}});
       }
     } else {
       var hours = Math.round(seconds / 3600 * 10) / 10;
@@ -228,21 +228,21 @@ export function registerTemplateHelpers(i18n) {
           hours = templateHelpers.delimit(hours, 'full');
         }
         if(distance == 'brief') {
-          return i18n.t('brief_hours_ago', '%{n}hr', {hash: {n: hours, number: true}});
+          return i18n.t('brief_hours_ago', "%{n}hr", {hash: {n: hours, number: true}});
         } else {
-          return i18n.t('hours_ago', 'hour', {hash: {count: hours, number: true}});
+          return i18n.t('hours_ago', "hour", {hash: {count: hours, number: true}});
         }
       } else {
         var days = Math.round(hours / 24);
         if(days < 7) {
-          return i18n.t('days_ago', 'day', {hash: {count: days}});
+          return i18n.t('days_ago', "day", {hash: {count: days}});
         } else {
           var weeks = Math.round(days / 7 * 10) / 10;
           if(weeks < 12) {
-            return i18n.t('weeks_ago', 'week', {hash: {count: weeks}});
+            return i18n.t('weeks_ago', "week", {hash: {count: weeks}});
           } else {
             var months = Math.round(days / 30 * 10) / 10;
-            return i18n.t('months_ago', 'month', {hash: {count: months}});
+            return i18n.t('months_ago', "month", {hash: {count: months}});
           }
         }
       }

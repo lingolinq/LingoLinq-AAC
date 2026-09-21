@@ -67,7 +67,7 @@ export default Component.extend({
             link.href = '#';
             link.className = 'ember_link';
             link.dataset.location_id = String(location.id);
-            link.textContent = i18n.t('filter_by_location', 'filter by this location');
+            link.textContent = i18n.t('filter_by_location', "filter by this location");
             container.appendChild(link);
 
             var info = new window.google.maps.InfoWindow({

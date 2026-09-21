@@ -176,7 +176,7 @@ export default Component.extend({
 
   locales: computed(function() {
     var list = i18n.get('locales');
-    var res = [{name: i18n.t('choose_locale', '[Choose a Language]'), id: ''}];
+    var res = [{name: i18n.t('choose_locale', "[Choose a Language]"), id: ''}];
     for(var key in list) {
       res.push({name: list[key], id: key});
     }
@@ -336,7 +336,7 @@ export default Component.extend({
   }),
 
   key_placeholder: computed(function() {
-    return i18n.t('board_key_placeholder', 'board-key');
+    return i18n.t('board_key_placeholder', "board-key");
   }),
 
   updatePreview: observer('model.grid.rows', 'model.grid.columns', function() {

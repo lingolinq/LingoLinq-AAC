@@ -68,11 +68,11 @@ export default Controller.extend({
         }
       }).then(function() {
         _this.set('saving', false);
-        modal.success(i18n.t('system_settings_app_defaults_saved', 'App defaults saved.'));
+        modal.success(i18n.t('system_settings_app_defaults_saved', "App defaults saved."));
         _this.loadDefaults();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', "Could not save settings."));
       });
     }
   }
