@@ -1,5 +1,8 @@
 <OpeningObserver @done_opening={{this.ctrlAction "draw_charts"}}>
-<div class="md-shell md-shell--reports-view">
+{{!-- `md-shell--stats` is a Reports-only hook. `--reports-view` is SHARED with the
+     standalone Boards page (templates/user/boards.hbs), so a rule that must move Reports
+     without moving Boards needs a selector only this page carries. --}}
+<div class="md-shell md-shell--reports-view md-shell--stats">
   <div class="md-workspace">
     {{!-- NO PILL-NAV (removed 2026-09-18). This page is reached from the account rail, from
          Extras and from the caseload, each of which keeps its own way back; the pill row was

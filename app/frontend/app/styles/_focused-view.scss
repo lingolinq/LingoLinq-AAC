@@ -318,6 +318,30 @@ body.ll-layout-focused {
       padding: 44px 16px 0px !important;
     }
   }
+  // REPORTS ONLY — NOT BOARDS. Reduce the workspace top padding by 16px at each
+  // breakpoint (requested 2026-09-21). The two pages share `--reports-view`, so this
+  // cannot be done by editing the rule above without moving Boards with it; hence a
+  // selector only Reports carries rather than a higher-specificity override of a rule
+  // that is correct for its other consumer.
+  // WHY REPORTS DIVERGES NOW: that padding was tuned when this page had nothing above the
+  // stats content in Focused -- the hero is hidden and the focus head was suppressed. The
+  // page has a real header again, which brings its own 18px padding and 28px margin, so the
+  // workspace no longer needs to supply that space itself. At 1440 this takes the gap below
+  // the topbar from 42px to 26px, which is what `.md-shell--user` pages already measure.
+  // The 16px step is applied at all three breakpoints so the relative tuning the rule above
+  // documents is preserved rather than flattened.
+  // The comment above says to re-run scripts/focused-layout-qa.mjs after touching these.
+  // That script measures the PILL-NAV offset, and neither of these pages renders one any
+  // more, so it reports nothing for them; the gaps below were measured directly instead.
+  .md-shell--stats > .md-workspace {
+    padding-top: 0 !important;
+    @media (max-width: 1024px) {
+      padding-top: 44px !important;
+    }
+    @media (max-width: 950px) {
+      padding-top: 28px !important;
+    }
+  }
   // Held at 0 at EVERY width. The global
   // `@media (max-width: 640px) { .md-workspace > .md-pillnav { margin-top: 48px } }`
   // (app.scss ~62001) targets a bare `.md-workspace` child, so it caught these two
