@@ -52,7 +52,8 @@ failure shape in our own defect log:
   All of these were measured once, on 2026-09-20, against the main `/mnt/c` checkout
   (drvfs), and the ext4 comparison below on a linked worktree under
   `~/.local/share/agent-wt/` the same day: 0.26s for 50 files, 0.97s for 200, 4.38s for
-  800, against roughly 40ms per file on drvfs, so ext4 was about thirty times faster.
+  800 (about 5.2, 4.9 and 5.5 ms per file), against roughly 40ms per file on drvfs, so
+  ext4 was about seven to eight times faster.
   The `git status` and per-file digest costs are properties of stock git and the
   filesystem, so they ARE reproducible, just not from an ext4 worktree; only the
   whole-gate figures depend on code that was never committed. Treat all of them as an
@@ -74,14 +75,16 @@ surface shared by every agent and every human contributor is the server.
 They are not six unrelated bugs, but they are not all one mechanism either. What is true
 of all six is the DEFAULT: in every case the failure mode was to ALLOW. A proxy that did
 not fire allowed, an unparsed path allowed, an exhausted timeout allowed, an
-unsatisfiable check allowed by way of a forged marker. Not one of them failed towards
-blocking.
+and an exhausted timeout allowed. Item 6 is the one exception and it failed the other
+way: the check was unsatisfiable locally, so it blocked hard, and forging the marker was
+the OPERATOR's way through rather than the gate's own default. Five of six defaulted to
+allow; the sixth defaulted to a block so absolute it manufactured the forgery.
 
 Three distinct mechanisms produced that default, and a design that avoids one can still
 reproduce another:
 
-1. **A proxy stood in for the verification** (items 1 to 3): tree dirtiness, the `.md`
-   suffix, a resolvable filename. None of these is the result of the check.
+1. **A proxy stood in for the verification** (items 1 to 3): tree dirtiness for items 1
+   and 2, the `.md` suffix for item 3. Neither is the result of the check.
 2. **An error path returned a benign sentinel** (item 4): a path git C-quoted failed a
    `[ -f ]` test and was digested as the literal string `ABSENT` instead of raising.
 3. **An incomplete run counted as a pass** (items 5 and 6): a hook cancelled at its

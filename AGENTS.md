@@ -83,20 +83,22 @@ ships the diff to an external model on a consumer account with NO BAA. Match the
 your argument: for a PR number,
 `gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`;
 for a branch or the working tree, `bash ~/ai-company-brain/scripts/codex-review-guard.sh
-<base-ref>`. Use `set -o pipefail` on the pipe. Exit 2 means STOP and report the flagged
-paths; send nothing. Running the `<base-ref>` form while reviewing a PR number guards a
+<base-ref>`. Use `set -o pipefail` on the pipe. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report the flagged paths;
+send nothing. Running the `<base-ref>` form while reviewing a PR number guards a
 local diff that is not the PR and records a pass it did not earn, which is worse than
 skipping it. That guard lives in a private LingoLinq repo: if you cannot reach
 `~/ai-company-brain/`, you are not set up to run this pass, so stop and hand it to
 someone who is rather than proceeding without it. When you finish, record the reviewer,
 the head SHA you actually reviewed, and the verdict.
 
-**Gemini / Antigravity: the `review-pr` skill IS installed for you**
+**Antigravity: the `review-pr` skill IS installed for you**
 (`~/.gemini/antigravity-cli/skills/review-pr/`), so this is not a missing capability. You
 are retired from the review rotation on QUOTA grounds: per
 `ai-company-brain/instructions/ANTIGRAVITY.md` the weekly remote-agent quota was cut to
 roughly one usable thread and the senior-dev pass moved to Codex. Do not run it as a
-matter of course; route it to Codex and name who ran it.
+matter of course; route it to Codex and name who ran it. (The separate consumer Gemini
+CLI was retired 2026-06-12 and has no skill surface at all; if that is what you are, you
+run neither pass.)
 
 **Neither of you can discharge the adversarial pass.** Codex has no such skill at all,
 and while an `adversary-review` file is installed for Antigravity it only instructs
