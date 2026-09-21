@@ -441,14 +441,18 @@ body.ll-layout-focused #within_ember #content.index.with_user.extras-page {
     border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
   }
   // Icon tiles take the dark slate badge-action icon tile (overrides the per-action
-  // tint variants — those are !important, beaten here by specificity). Mirrors
-  // `.md-grid--layout-focused .md-card--badge-action … .md-card__icon` (app.scss:47768).
+  // tint variants — those are !important, beaten here by specificity).
+  // It said "Mirrors …" and did not: this painted the ORIGINAL OPAQUE ramp
+  // (#262d3a/#333c4a/#515d70) with its own lighter border and flatter shadow, having
+  // missed both the 2026-09-20 glass pass and the 2026-09-21 darkening applied to the
+  // badge-action tile. Requested 2026-09-21 that the two match, so the recipe is now a
+  // shared token and the claim is enforced by construction rather than by comment.
   .md-extras-card__icon-wrap {
-    background: radial-gradient(circle at 50% 46%, #262d3a 0%, #333c4a 48%, #515d70 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.10),
-      0 2px 5px rgba(0, 0, 0, 0.16) !important;
+    background: $focus-icon-tile-bg !important;
+    backdrop-filter: $focus-icon-tile-blur !important;
+    -webkit-backdrop-filter: $focus-icon-tile-blur !important;
+    border: $focus-icon-tile-border !important;
+    box-shadow: $focus-icon-tile-shadow !important;
   }
   // Glyphs get a VARIED bright colour per card (no hue more than twice) so the icons
   // read as the extras palette, not a flat white. CSS `stroke` overrides the SVG

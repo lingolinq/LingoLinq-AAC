@@ -56190,8 +56190,11 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      what was asked. The sheen is white, so the darkening reads weakest under it and strongest
      away from it; if the card should come down evenly, that alpha is the second lever. */
   background:
-    /* Top-left white sheen. */
-    radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 48%),
+    /* Top-left white sheen. 0.65 -> 0.40: at 0.65 this washed the denim tint out across
+       most of the card, so raising the denim percentage kept measuring bluer while barely
+       LOOKING bluer. The rule's own note above calls this alpha the second lever, and it
+       is the right one here — the tint was present, the sheen was hiding it. */
+    radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0) 48%),
     /* Verdigris tucked tight into the FAR bottom-right corner (a small radial
        glow), fading into the denim tint everywhere else. */
     radial-gradient(28% 40% at 100% 100%,
@@ -56200,8 +56203,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     /* LIGHT denim-tinted base — keeps the brand hue but stays bright enough for a
        dark navy header to clear WCAG AA. */
     linear-gradient(140deg,
-      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 13%, white) 90%, black) 0%,
-      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 22%, white) 90%, black) 100%) !important;
+      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 23%, white) 90%, black) 0%,
+      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 35%, white) 90%, black) 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba($la-navy, 0.06),
@@ -56219,16 +56222,34 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     0 0 26px rgba($brand-verdigris, 0.16) !important;
   transform: translateY(-1px) !important;
 }
-/* Sub text → muted navy (beats #3A506E base AND badge-action #5C6470 by source order). */
+/* Sub text. This rule used to lighten the description to #7B8798 to make it recede, and
+   in doing so it OVERRODE two deliberately accessible colours: the `.md-card__sub` base
+   #3A506E and the badge-action #5C6470, whose own comment above records that it was
+   chosen to pass WCAG AA. Measured against the darkest stop of this card's gradient
+   (#D8E4F6, the 22% dusty-denim end), #7B8798 is 2.84:1 — well under the 4.5:1 AA needs
+   for body text, and this app's users are the least able to compensate.
+   Now #2B3E5D. The value was first set to the #3A506E base, but the card surface was then
+   made bluer (denim 13/22% -> 17/27%) and that pushed the base back under the floor.
+   MEASURED FROM RENDERED PIXELS, not computed from the SCSS: the earlier SCSS-derived
+   figure missed the `color-mix(... 90%, black)` step these stops also carry, so it read
+   high. Decoding a screenshot of the card and scanning its background-only region gives a
+   true darkest point of #9EB5D0 (the bottom-right corner, where the verdigris glow meets
+   the deepest denim). Against that, #7B8798 is 2.65:1 and even #3A506E is only 3.91:1.
+   The card was then taken bluer again (denim 17/27% -> 23/35%) and the text darker with
+   it, so this is now #1B365D — `$la-navy`, the app's own navy rather than a one-off. Each
+   step here was re-measured from rendered pixels, because darkening the surface
+   invalidates the previous figure every time. It is still clearly lighter than the
+   #0F2540 title, so the description recedes by SIZE and WEIGHT (14px/500 against
+   18px/900) rather than by being hard to read — the right lever for this app's users. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__sub {
-  /* Nudged a touch lighter than #64748B so the description recedes further
-     beneath the now-stronger title (still ~3:1 on the light card). */
-  color: #7B8798 !important;
+  color: #1B365D !important;
 }
-/* Quiet slate status dot (off the brighter teal) — no glow, so the descriptive
-   line recedes instead of grabbing attention. */
+/* Status dot, matched to the text it belongs to. #64748B measured 3.70:1 on this card —
+   enough for a non-text graphic but visibly weaker than the line it sits on, so the two
+   read as different elements. Using the text colour makes the dot and its label one unit
+   and lifts the dot to match it. Still no glow: the recession is deliberate. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__sub::before {
-  background: #64748B !important;
+  background: #1B365D !important;
   box-shadow: none !important;
 }
 /* Title underline divider → denim→verdigris reading on the light bg, as GLASS and THINNER
@@ -56659,22 +56680,14 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      Dashboard::ClassicView with `.ch-*` markup), so this is focused + modern without any extra
      gate. It reaches the SMALL 41px badge-action tiles sized by the rule further down — not
      the full-width hero showcases, which are images rather than tiles. */
-  background:
-    linear-gradient(158deg,
-      rgba(255, 255, 255, 0.12) 0%,
-      rgba(255, 255, 255, 0.04) 44%,
-      rgba(255, 255, 255, 0) 72%),
-    radial-gradient(circle at 50% 46%,
-      rgba(38, 45, 58, 0.93) 0%,
-      rgba(51, 60, 74, 0.90) 48%,
-      rgba(81, 93, 112, 0.84) 100%) !important;
-  backdrop-filter: blur(14px) saturate(1.3) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
-  border: 1px solid rgba(255, 255, 255, 0.24) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.30),
-    inset 0 -2px 6px rgba(15, 23, 42, 0.24),
-    0 6px 16px rgba(15, 23, 42, 0.18) !important;
+  /* The whole recipe now lives in `$focus-icon-tile-*` (_variables.scss) so the Extras
+     page's setup-card tiles render the identical surface instead of a hand-copy that
+     drifted. Darkened ~20% on 2026-09-21 by deepening the ramp rather than the alphas. */
+  background: $focus-icon-tile-bg !important;
+  backdrop-filter: $focus-icon-tile-blur !important;
+  -webkit-backdrop-filter: $focus-icon-tile-blur !important;
+  border: $focus-icon-tile-border !important;
+  box-shadow: $focus-icon-tile-shadow !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
   filter: brightness(1.4) saturate(1.05);
@@ -56703,12 +56716,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   padding: 13px 15px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__head {
-  gap: 11px !important;
+  /* 11 → 14px: the tile grew 41 → 54px and the old gap left the title crowded against it. */
+  gap: 14px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__title {
-  /* +1px (16→17) so the title holds its own against the icon block — base weight
-     is already 900, so size is the lever. */
-  font-size: 17px !important;
+  /* 16 → 17 → 20px. The 17px step was to hold the title against the icon block; 20px is
+     the size the Caseload and Speak cards on this same page already use, so these action
+     cards now sit in that tier instead of below it. Base weight is already 900, so size
+     is the lever. Settled at 18px (requested): 20px matched Caseload/Speak exactly and
+     read a touch heavy on a card half their height, 18px keeps the lift without it. */
+  font-size: 18px !important;
   /* Full-strength deep navy (was the inherited mid $la-navy ≈85%) so the title
      clearly out-weights the muted subtitle — Title ↓ Description, not Title =
      Description. No shadow needed on the light card. */
@@ -56731,18 +56748,22 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   margin-left: 0 !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon {
-  width: 41px !important;
-  height: 41px !important;
-  border-radius: 13px !important;
+  /* 41 → 54px, and radius 13 → 16px to match the Caseload/Speak icon tiles on this page.
+     The small dark tile was the main reason these two cards read as secondary next to
+     them; the glyph grows with it below. */
+  width: 54px !important;
+  height: 54px !important;
+  border-radius: 16px !important;
   /* The head is a flex row; without this the icon shrinks by different amounts
      per card (longer descriptive text squeezes it more), so the four tiles ended
      up different widths. Pin to a fixed size so all four match. */
-  flex: 0 0 41px !important;
+  flex: 0 0 54px !important;
   min-width: 41px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
-  width: 20px !important;
-  height: 20px !important;
+  /* 20 → 26px, keeping the glyph at roughly half the 54px tile as before. */
+  width: 26px !important;
+  height: 26px !important;
 }
 
 /* ≤1024px — the dashboard "card as button" view: widen the icon→text gap (the icon

@@ -720,3 +720,32 @@ $caseload-badge-sel-border:    #83A8DF;
 $caseload-badge-model-ink:     #26407F;
 $caseload-badge-model-bg:      #D2DBF3;
 $caseload-badge-model-border:  #95ABE2;
+
+// — Focused View dark icon tile (glass) —
+// ONE recipe, shared by the dashboard's badge-action cards (Create a Board / Edit
+// Dashboard / Account / Reports) and the Extras page's setup cards.
+// WHY A TOKEN: these were hand-copied and DRIFTED. `_focused-view.scss`'s
+// `.md-extras-card__icon-wrap` carried a comment saying it mirrored the badge-action
+// tile while actually still painting the original OPAQUE ramp — it missed the
+// 2026-09-20 glass pass and the 2026-09-21 darkening entirely, so the two surfaces had
+// visibly diverged. Both now read from here.
+// TRANSLUCENCY IS LOAD-BEARING: take the alphas to 1 and the backdrop blur below becomes
+// a no-op and the tile stops being glass at all. The three stops are the app's dark
+// icon-tile ramp expressed as rgba, deepened ~20% on 2026-09-21, not replaced.
+$focus-icon-tile-bg:
+  linear-gradient(158deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 44%,
+    rgba(255, 255, 255, 0) 72%),
+  radial-gradient(circle at 50% 46%,
+    rgba(29, 35, 48, 0.94) 0%,
+    rgba(40, 48, 60, 0.92) 48%,
+    rgba(65, 75, 92, 0.87) 100%);
+// `-webkit-` twin is required at every call site: without it the effect is silently
+// dropped on older iOS/iPadOS, a very common AAC device population.
+$focus-icon-tile-blur: blur(14px) saturate(1.3);
+$focus-icon-tile-border: 1px solid rgba(255, 255, 255, 0.24);
+$focus-icon-tile-shadow:
+  inset 0 1px 0 rgba(255, 255, 255, 0.30),
+  inset 0 -2px 6px rgba(15, 23, 42, 0.24),
+  0 6px 16px rgba(15, 23, 42, 0.18);
