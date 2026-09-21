@@ -120,6 +120,23 @@
   margin-bottom: 16px;
 }
 
+/* FOCUSED-VIEW ICON beside the "Progress and Usage" heading (2026-09-21). Only ever exists
+   in Focused View -- templates/user/stats.hbs gates the element on `effectiveLayout` -- so
+   this is NOT scoped to `body.ll-layout-focused`: that class lands after first paint, and
+   scoping layout to it is what flashes.
+   `flex: none` so the flexible heading beside it cannot squeeze the glyph, and a small top
+   offset because the header aligns its children to `flex-start` rather than centre, which
+   would otherwise leave the icon sitting above the cap height of the <h1>. */
+.communication-report__focus-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-top: 4px;
+}
+.communication-report__focus-divider {
+  margin-bottom: 20px;
+}
+
 // Takes the space the controls don't, so the title only wraps when it truly
 // has to (the controls are a fixed-size cluster, the heading is the flexible one).
 .communication-report__heading {

@@ -834,8 +834,18 @@ body.ll-layout-focused .md-shell--reports-view {
   // (login / premium-required / logging-off). When that summary is present it
   // carries the page title and its own selected-range subheader, so showing this
   // head too would double up the heading.
+  // FLEX, not block: the head is now an icon beside a stacked title+subtitle, matching the
+  // icon + title arrangement the other account-section headers use (gap 14px, centred).
+  // The icon is `flex: none` so the long "(Usage & Progress)" accent cannot squeeze it.
   .md-stats-main:not(:has(.communication-report)) .md-stats-main__focus-head {
-    display: block !important;
+    display: flex !important;
+    align-items: center;
+    gap: 14px;
+  }
+  .md-stats-main__focus-icon {
+    flex: none;
+    width: 28px;
+    height: 28px;
   }
   .md-stats-main:not(:has(.communication-report)) .md-stats-main__focus-divider {
     display: block !important;
@@ -1825,10 +1835,15 @@ body.ll-layout-focused .md-shell--user > .md-workspace {
 // -----------------------------------------------------------------------------
 // Each wrapper holds only the icon + title (+ subtitle on Account); no action
 // controls, so hiding the whole header is safe. All are page-specific classes.
+// ONE OF THE ORIGINAL THREE IS LEFT. Settings (`.md-preferences__header`) and then Profile
+// (`.md-edit-profile__header`) were removed from this list on 2026-09-21 (requested) and now
+// render in Focused View like Logs does -- see the `animation: none` rule below for why each
+// needs one extra line to get there.
+// ACCOUNT STAYS HIDDEN, and is not the same case: `.md-hero--dashboard-user` is a hero, not
+// an icon+title+rule header. It carries no icon and no divider, so there is nothing of the
+// kind the other pages show to bring back.
 body.ll-layout-focused {
-  .md-hero--dashboard-user,   // Account  (user/index)
-  .md-edit-profile__header,   // Profile  (user/edit)
-  .md-preferences__header {   // Settings (user/preferences)
+  .md-hero--dashboard-user {  // Account  (user/index)
     display: none !important;
   }
 
@@ -1843,7 +1858,19 @@ body.ll-layout-focused {
   // the base carries no `!important` (verified in the compiled output), so this wins on
   // specificity alone. That matters here: @use puts this partial ~60k lines ABOVE the base
   // rule in the build, so source order would lose it.
-  .md-logs__header {
+  //
+  // SETTINGS JOINS IT ON THE SAME TERMS (requested 2026-09-21): the General Preferences
+  // header and its two-tone cog are shown in Focused View, without the slide-in. Same base
+  // rule (`.md-preferences__header`, app.scss, `animation: md-slide-in-from-left 0.75s`),
+  // same specificity argument -- (0,2,1) here against (0,1,0) there, no `!important` at the
+  // base -- and the same reason for scoping rather than editing the base: Gentle View keeps
+  // the movement.
+  // NOT done by touching the `md-slide-in-from-left` keyframes, which four other rules use.
+  // Listed with Logs rather than given a rule of its own so the "shown, but still" set is
+  // one place; a third page joining adds a selector here.
+  .md-logs__header,
+  .md-preferences__header,
+  .md-edit-profile__header {
     animation: none;
   }
 

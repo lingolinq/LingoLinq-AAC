@@ -44,9 +44,26 @@
          summary (login / premium-required / logging-off). When the summary is on
          screen it carries the page title itself, so _focused-view.scss suppresses
          this head via :has(.communication-report). --}}
+    {{!-- ICON ADDED 2026-09-21 (requested), so this head carries the same icon + title +
+         divider trio as the rest of the account section. It is the RAIL's Reports glyph
+         (components/account-rail.hbs) at this head's scale: two-tone on the repo's usual
+         split, with the tall middle bar in the teal accent (#2A9D8F) and the two shorter
+         bars in charcoal structure (#46505F), so the page and its nav row read as one
+         thing -- the same reasoning as the Supervision page header.
+         `aria-hidden` because the <h3> beside it already names the page.
+         The title and sub keep the boards-card treatment they share with the Extras page's
+         focus head rather than switching to the `.md-billing__header` scale: this head has
+         a subtitle and an accent span, which that scale has no slot for. --}}
     <div class="md-stats-main__focus-head">
-      <h3 class="md-card__title">{{t "Reports" key="reports"}} <span class="md-card__title-accent--verdigris">{{t "(Usage & Progress)" key="reports_focus_accent"}}</span></h3>
-      <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
+      <svg class="md-stats-main__focus-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/>
+        <line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/>
+        <line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
+      </svg>
+      <div class="md-stats-main__focus-text">
+        <h3 class="md-card__title">{{t "Reports" key="reports"}} <span class="md-card__title-accent--verdigris">{{t "(Usage & Progress)" key="reports_focus_accent"}}</span></h3>
+        <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
+      </div>
     </div>
     <div class="md-stats-main__focus-divider md-card--boards__divider" aria-hidden="true"></div>
 {{#if this.app_state.currentUser.modeling_only}}
@@ -106,7 +123,28 @@
             panels used; the five secondary values are demoted, not dropped.
             Everything from "Communication Usage" down is unchanged. --}}
       <section class="report-panel communication-report" aria-labelledby="communication-report-title">
+        {{!-- FOCUSED VIEW ICON (requested 2026-09-21). On an account that renders this
+             Progress and Usage summary, THIS header is the top of the Reports page in
+             Focused View: the gentle hero is hidden and `.md-stats-main__focus-head` is
+             deliberately suppressed by `:not(:has(.communication-report))` further up,
+             because showing it too would stack "Reports (Usage & Progress)" directly above
+             this <h1> "Progress and Usage". So the icon and divider the rest of the account
+             section carries belong here rather than on a second heading.
+             GATED ON `effectiveLayout`, not on `body.ll-layout-focused`: that class is
+             applied from an observer that runs after first paint (services/app-state.js),
+             so a CSS-hidden icon would flash in Gentle on a hard reload -- the same reason
+             templates/user/index.hbs gates its hero this way.
+             Two-tone on the repo's usual split, the tall middle bar in the teal accent
+             (#2A9D8F) and the short bars in charcoal (#46505F) -- the rail's Reports glyph.
+             `aria-hidden`: the <h1> beside it already names the section. --}}
         <header class="communication-report__header">
+          {{#if (is-equal this.app_state.effectiveLayout "focused")}}
+            <svg class="communication-report__focus-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/>
+              <line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/>
+              <line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
+            </svg>
+          {{/if}}
           <div class="communication-report__heading">
             <h1 id="communication-report-title">{{t "Progress and Usage" key="progress_and_usage"}}</h1>
             {{#if this.formattedDateRange}}
@@ -120,6 +158,9 @@
             </div>
           {{/if}}
         </header>
+        {{#if (is-equal this.app_state.effectiveLayout "focused")}}
+          <div class="communication-report__focus-divider md-card--boards__divider" aria-hidden="true"></div>
+        {{/if}}
 
         {{!-- Reuses the page's existing load-status component for the in-flight and
               failed states; "no data" is handled by the empty state below, and the

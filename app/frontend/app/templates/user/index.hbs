@@ -13,6 +13,27 @@
     <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Account" key="my_account"}}</span></h1>
     <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "View your account" key="account_sub_pre"}} <em class="md-hero__gradient-text">{{t "details" key="account_sub_em"}}</em></span></p>
   </header>
+{{else}}
+  {{!-- FOCUSED VIEW GETS ITS OWN HEAD (requested 2026-09-21): a two-tone icon, a title and a
+       divider, so this page carries the same trio as the rest of the account section.
+       ON THE `{{else}}` OF THE EXISTING GUARD, not a CSS-hidden element. The comment above
+       explains why the hero is gated on `effectiveLayout` rather than hidden by
+       `body.ll-layout-focused`: that class is applied from an observer that runs AFTER first
+       paint, so anything keyed on it flashes the wrong state on a hard reload. A focused-only
+       head hidden by the body class would have exactly the same flaw in reverse. Asking the
+       layout directly means each branch is the only one ever built.
+       ICON is the rail's Account glyph (components/account-rail.hbs) at this head's scale --
+       two-tone with the body in charcoal structure (#46505F) and the head in the blue accent
+       (#23779B), the same pairing that row uses. `aria-hidden`, since the <h3> names the page.
+       TEXT reuses the hero's own i18n keys rather than introducing new ones, so the two
+       branches cannot drift and no locale file needs regenerating. --}}
+  <div class="md-user-summary__focus-head">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/>
+      <circle cx="12" cy="7" r="4" stroke="#23779B"/>
+    </svg>
+    <h2 class="md-user-summary__focus-title">{{t "My Account" key="my_account"}}</h2>
+  </div>
 {{/unless}}
 <div class="md-user-summary">
   {{!-- ACCOUNT RAIL (requested 2026-09-14) — replaces the pill row that used to sit at the

@@ -46964,6 +46964,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* User page: same shell/workspace as dashboard; main content area */
 .md-shell--user > .md-workspace > .md-main--user {
+  /* TOP MATCHES BOTTOM (requested 2026-09-21). The base `.md-main` gives every main
+     `padding: 18px 16px 24px`, and the line below has long overridden the BOTTOM for the
+     account section, so these pages sat 18px from the top and 35px from the bottom -- a
+     visible asymmetry once the section's pages gained headers.
+     Written as the SAME expression rather than a literal 35px so the two keep tracking each
+     other if `--bottombar-height` ever changes. Sides are untouched.
+     This is the shared `.md-main--user`, so it applies to EVERY account-section page
+     (account, goals, logs, recordings, settings, subscription, supervision, ...), which is
+     the point: they are one section and should have one vertical rhythm. */
+  padding-top: calc(var(--bottombar-height, 59px) - 24px) !important;
   padding-bottom: calc(var(--bottombar-height, 59px) - 24px) !important;
 
 }
@@ -51282,7 +51292,8 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
    `.md-extras-card__svg-icon` from the extras grid to get 28px. Subscription still carries
    that class in its markup and the values are identical, so nothing changes for it. */
 .md-billing__header,
-.md-supervision-page__header {
+.md-supervision-page__header,
+.md-user-summary__focus-head {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51291,13 +51302,21 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   border-bottom: 1.5px solid rgba($brand-blue-black, 0.12);
 }
 .md-billing__header > svg,
-.md-supervision-page__header > svg {
+.md-supervision-page__header > svg,
+.md-user-summary__focus-head > svg {
   width: 28px;
   height: 28px;
   flex: none;
 }
+/* `.md-user-summary__focus-head` is the ACCOUNT page's Focused-View-only header
+   (templates/user/index.hbs gates it on `effectiveLayout`, so it is never built in Gentle,
+   where the hero serves instead). It joined this family on 2026-09-21: it had been using
+   `.md-card__title` at 18px, the only page in the section not at 25px/900, and carried a
+   subtitle none of its siblings has. Joining here also gives it the family's border-bottom,
+   which replaced the separate `md-card--boards__divider` element it used to render. */
 .md-billing__title,
-.md-supervision-page__title {
+.md-supervision-page__title,
+.md-user-summary__focus-title {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 900;
@@ -51921,15 +51940,15 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   margin-top: 18px;
   clear: both;
 }
-.md-preferences__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 18px;
-  clear: both;
-}
+/* A `.md-preferences__header` rule sat here until 2026-09-21: a byte-identical copy of
+   `.md-goal-actions` directly above, in the GOAL-LIST section, which has nothing to do with
+   the Settings page header. A copy-paste that renamed the selector and kept the
+   declarations. Its `justify-content: center` was the only thing centring that header, which
+   is why Settings read differently from the Subscription and Supervision headers it now
+   shares a definition with. Deleted rather than overridden -- the real rule is
+   `.md-preferences__header` further down, beside `.md-billing__header`.
+   `flex-wrap`, `margin-top: 18px` and `clear: both` went with it; the header has two
+   children and sits at the top of the page, so none of them was doing anything either. */
 /* Pass-through wrapper — keeps the existing template grouping for the
    active-goal pair (New Note + Quick Assessment) but flows children
    directly into the parent flex layout so all tiles share one even
