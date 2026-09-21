@@ -588,9 +588,9 @@ app/controllers/user/index.js|ember/require-computed-property-dependencies|682|1
 app/controllers/user/index.js|ember/require-return-from-computed|1171|5|1|8c8d53fa71e0
 app/controllers/user/index.js|lingolinq/no-orphaned-action|1670|5|1|29fe301d2539
 app/controllers/user/log.js|ember/no-runloop|304|9|2|5addc2170315
-app/controllers/user/logs.js|ember/no-runloop|191|13|2|5addc2170315
-app/controllers/user/logs.js|ember/require-computed-property-dependencies|75|17|1|fbb602ec71be
-app/controllers/user/logs.js|ember/require-return-from-computed|75|46|1|8c8d53fa71e0
+app/controllers/user/logs.js|ember/no-runloop|207|13|2|5addc2170315
+app/controllers/user/logs.js|ember/require-computed-property-dependencies|91|17|1|fbb602ec71be
+app/controllers/user/logs.js|ember/require-return-from-computed|91|46|1|8c8d53fa71e0
 app/controllers/user/preferences.js|ember/no-runloop|235|7|2|5addc2170315
 app/controllers/user/preferences.js|ember/no-runloop|250|7|2|5addc2170315
 app/controllers/user/preferences.js|ember/no-runloop|928|5|2|5addc2170315
