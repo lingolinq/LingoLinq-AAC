@@ -50307,15 +50307,10 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   }
 }
 
-/* Supervision page heading. The component it sits above is the modal's body, which carries
-   its own `md-modal-*` surfaces, so this only has to name the page -- matching the weight and
-   colour the other section pages use for their titles rather than introducing a third scale. */
-.md-supervision-page__title {
-  margin: 0 0 18px;
-  font-size: 26px;
-  font-weight: 700;
-  color: $la-navy;
-}
+/* Supervision page heading: see `.md-billing__header` further down, which this now shares a
+   definition with (2026-09-21, requested). It used to be a standalone 26px/700/$la-navy rule
+   here; that was a THIRD heading scale for one page, and the definition was moved rather than
+   duplicated so the two account-section page headers cannot drift apart. */
 
 /* THE PAGER IS NOT FOR REAL SCREENS (requested 2026-09-18): at 1024px wide and 768px tall or
    better, the menu must fit and the Up/Down pair must not appear.
@@ -51279,7 +51274,15 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   margin: 0 auto;
   color: var(--md-ink);
 }
-.md-billing__header {
+/* ACCOUNT-SECTION PAGE HEADER: icon + title on one rule, shared by the Subscription and
+   Supervision pages (supervision joined 2026-09-21, requested — "match the subscription
+   header"). Listed together rather than copied so the two cannot drift; a third page wanting
+   this header adds its selector here rather than a fourth scale of its own.
+   The `> svg` sizing lives here so a consumer does not have to borrow
+   `.md-extras-card__svg-icon` from the extras grid to get 28px. Subscription still carries
+   that class in its markup and the values are identical, so nothing changes for it. */
+.md-billing__header,
+.md-supervision-page__header {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51287,7 +51290,14 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   padding-bottom: 18px;
   border-bottom: 1.5px solid rgba($brand-blue-black, 0.12);
 }
-.md-billing__title {
+.md-billing__header > svg,
+.md-supervision-page__header > svg {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.md-billing__title,
+.md-supervision-page__title {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 900;
