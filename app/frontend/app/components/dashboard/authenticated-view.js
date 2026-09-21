@@ -1142,7 +1142,26 @@ export default Component.extend({
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
     var _this = this;
-    _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
+    // `per_page: 50` — the server's MAX_PAGE for boards (lib/json_api/board.rb:10; anything
+    // larger is clamped there, so 50 is the ceiling rather than a guess). Without it these
+    // follow-up pages take DEFAULT_PAGE = 25, so walking a large library costs twice the
+    // round-trips it needs to.
+    //
+    // THIS IS A COST REDUCTION, NOT A FIX for the real problem: `_previewBoardsLoaded` is
+    // instance state and this component is rebuilt on every home/extras/index arrival, so the
+    // whole walk re-runs per navigation. The fix for THAT is a cache outliving the component,
+    // which was deliberately NOT done — nothing invalidates a board list on create/copy/delete
+    // (searched for a signal; `boardsPageListCache` only clears on sign-out), so a cache would
+    // show a stale count and stale preview tiles until reload. Halving the requests is the
+    // largest change available here that cannot alter what the user sees.
+    //
+    // Safe at 50, checked rather than assumed: the per-board N+1 this endpoint used to have is
+    // eager-loaded away (`includes(:board_content, :parent_board)`,
+    // app/controllers/api/boards_controller.rb:51, with a regression spec), so a bigger page
+    // does the same total work in fewer requests; and the endpoint's Redis cache only engages
+    // for public search (`['locale','q','sort']`), never for this `user_id`+`offset` shape, so
+    // there is no cache key to mismatch.
+    _this.get('store').query('board', { user_id: userId, offset: offset, per_page: 50 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var combined = accumulated.concat(boards.map(function(b) { return b; }));
       var meta = _this.get('persistence').meta('board', boards);

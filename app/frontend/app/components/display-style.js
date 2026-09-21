@@ -1871,22 +1871,46 @@ export default Component.extend({
     // `.md-ds-preview__legend` (`display: flex; gap: 12px 14px`), so it would leave a stray 14px
     // gap after the tag. The dot goes with it for the same reason.
     //
-    // KNOWN CONSEQUENCE, flagged to the user: `_wirePreviewDrag`'s `setBlocked` writes the
-    // "Action buttons can only be reordered within their own row…" REFUSAL message into this
-    // same element (it is passed as `hintEl`). With the element absent, that message has nowhere
-    // to go on Focused View — and Focused is the layout where `reorderForFocused` actually
-    // refuses drags, so it is the layout where the message mattered most. `setBlocked` is
-    // null-guarded (`if (hintEl)`), so nothing breaks; the feedback is simply silent. If it
-    // should be kept, the fix is to render the hint with a modifier that hides it until
-    // `--blocked` is set, rather than dropping the element.
+    // THE REFUSAL MESSAGE NEEDS THIS ELEMENT, so Focused View renders it EMPTY rather than not
+    // at all (fixed 2026-09-20). `_wirePreviewDrag`'s `setBlocked` writes the "Action buttons
+    // can only be reordered within their own row…" message into whatever it is handed as
+    // `hintEl` (~:98). Omitting the element made that a no-op via its `if (hintEl)` guard — and
+    // Focused is precisely the layout where `reorderForFocused` refuses drops, so it was the
+    // layout where the feedback mattered most and the only one that had none.
+    //
+    // The instruction text stays OFF on Focused, as requested: the element is emitted empty and
+    // carries `--quiet`, which collapses it (app.scss) until `--blocked` is set. So the legend
+    // still reads as just the preview tag, and the refusal appears only when a drag is actually
+    // refused, then disappears again.
+    //
+    // EMITTED EMPTY, NOT PRE-FILLED-AND-HIDDEN, and that detail is load-bearing:
+    // `defaultHint` is captured as the element's own initial textContent (~:97), and
+    // `setBlocked(card, false)` restores THAT on drop. An element seeded with the instruction
+    // text would therefore flash the instruction back in after every refused drag. Empty in,
+    // empty restored.
+    //
+    // The dot is still tied to the visible hint — it is a separator, and there is nothing to
+    // separate when the hint is collapsed.
+    //
+    // ANNOUNCED, not just shown: both variants are `role="status" aria-live="polite"
+    // aria-atomic="true"`, so the refusal reaches a screen-reader user instead of being a
+    // purely visual cue. `--quiet` hides the Focused one with `aac-sr-only` (position:absolute)
+    // rather than `display: none` — a display:none element is out of the accessibility tree, so
+    // the live region would not be observed and the later text change would not be announced.
+    // Absolute positioning also keeps it out of the legend's flex flow, so it still adds no gap.
+    // `aria-atomic` makes the whole sentence read as one message rather than a diff.
+    //
+    // No announcement noise on Gentle: `acceptsDrop` returns true unconditionally when the
+    // layout is not Focused (:123), so `blocked` is never set there and this text never changes.
+    // The live region is only ever exercised by the layout that can actually refuse a drop.
     var showDragHint = dragOn && savedLayout !== 'focused';
     var legend = '' +
       '<div class="md-ds-preview__legend">' +
         '<span class="md-ds-preview__legend-tag">' + this._previewLabel(savedLayout) + '</span>' +
         (showDragHint ?
           '<span class="md-ds-preview__legend-dot" aria-hidden="true"></span>' +
-          '<span class="md-ds-preview__legend-hint">' + i18n.t('display_style_drag_hint', "Drag rows to change row position or drag the smaller buttons on the same row to reorder them on the row") + '</span>'
-          : '') +
+          '<span class="md-ds-preview__legend-hint" role="status" aria-live="polite" aria-atomic="true">' + i18n.t('display_style_drag_hint', "Drag rows to change row position or drag the smaller buttons on the same row to reorder them on the row") + '</span>'
+          : (dragOn ? '<span class="md-ds-preview__legend-hint md-ds-preview__legend-hint--quiet" role="status" aria-live="polite" aria-atomic="true"></span>' : '')) +
       '</div>';
     // Two modern checklist items below the step header (customize step only),
     // joined by an "and/or" divider — a quick "here's what you can do" summary of

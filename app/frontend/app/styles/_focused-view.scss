@@ -2310,9 +2310,12 @@ body.ll-layout-focused .md-card--rooms .md-room-card__icon::before {
 // glass its edges. Same reasoning, and the same one-line fix, as the org tile further up this
 // file.
 //
-// ASSETS: 244x244 — the 122px box at 2x — from a 1254x1254 1.07MB source. 9.6KB WebP primary,
-// 47.8KB PNG fallback. 512 colours, for the fourth time on the same evidence: at 256 (19.4KB)
-// the pale blue gradients speckle visibly. Both were rendered and compared before choosing.
+// ASSETS: 244x244 — the 122px box at 2x — from a 1254x1254 1.48MB source (room-glassy-2).
+// 11.2KB WebP primary, 51.3KB PNG fallback, 512 colours: at 256 the pale blue gradients
+// speckle visibly, which is why this tile has stayed at 512 through every revision.
+// Alpha verified genuine before publishing — corners read srgba(0,0,0,0) and compositing onto
+// a solid fill leaves it unchanged, i.e. no baked-in checkerboard (the defect that disqualified
+// an earlier candidate for this same card).
 //
 // PLAIN url() FIRST for the same reason as every other image-set in this file: `type()` inside
 // image-set() needs Safari 17+ / Chrome 113+ and legacy -webkit-image-set() never supported it,
@@ -2360,39 +2363,49 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms {
   filter: none !important;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms::before {
-  @include focus-glass-card-art('room-glassy');
-  // BRIGHTER (requested 2026-09-20). Brightness only — no saturation change, which is what was
-  // asked for and keeps the artwork's own hues intact.
+  // ROOM-GLASSY-2 (2026-09-20). New artwork supplied under this name; the previous
+  // `room-glassy.png`/`.webp` pair was REMOVED from both image roots in the same change, so
+  // this name is the only one that resolves — reverting means restoring those two files from
+  // be9edf209 as well as changing this line.
+  @include focus-glass-card-art('room-glassy-2');
+  // BRIGHTNESS 1.05 — a 5% lift (requested 2026-09-20), applied to room-glassy-2.
   //
-  // THE HISTORY MATTERS FOR THE NEXT EDIT: this pseudo went
-  // `saturate(0.85) brightness(0.94)` -> no filter (reverted on request) -> `brightness(1.1)`
-  // -> `brightness(1.265)` -> `brightness(1.2)`. Every value is measured against the artwork's
-  // TRUE colour, not against the state before it.
+  // CLIPPING RE-MEASURED AGAINST THIS ARTWORK, and the result is very different from the file
+  // it replaced. All 40,207 non-transparent pixels sampled at the published 244x244:
+  //     already >= 250 before any lift : 6.20%   <- the floor; unavoidable at any lift
+  //     at 1.05 (SHIPPED)              :  8.22%
+  //     at 1.10                        : 12.58%
+  //     at 1.15                        : 21.04%
+  //     at 1.20                        : 32.34%
+  //     at 1.30                        : 52.01%
+  // The previous artwork clipped 0.0% at 1.2, which is why that value was safe there and is NOT
+  // equivalent here. This image's brightest channel is already 255, so no multiplier above 1.0
+  // clips nothing — there is no headroom to protect, only a trade to choose. Dialled down in
+  // steps after seeing these figures: 1.2 -> 1.1 -> 1.05, taking the clipped share from 32.34%
+  // to 8.22%, i.e. about two points above the 6.20% floor that no filter can avoid.
   //
-  // THE ARITHMETIC: 1.1 x 1.15 = 1.265 ("another 15%"), then x 0.95 = 1.20175 ("reduce by 5%"),
-  // shipped as the round 1.2 — a 0.15% difference from the exact figure and not perceptible.
-  // `filter: brightness()` is a straight MULTIPLIER, so successive lifts and cuts just multiply
-  // — unlike `color.scale()` elsewhere in this file, which moves a fraction of the REMAINING
-  // distance and therefore compounds differently (see the panel mixin, where +20% then +25%
-  // collapses to a single 40%, not 1.2 x 1.25). Do not carry the mental model between them.
+  // DO NOT copy a brightness value between artworks. Re-run the pixel sample; the safe ceiling
+  // is a property of the image, not of this rule.
   //
-  // CLIPPING CHECKED, not assumed: brightening glass artwork risks blowing its highlights to
-  // flat white. Sampled all 37,548 non-transparent pixels of the source — at 1.2 NOTHING clips:
-  // 0.0% of pixels blow a channel, against 0.5% at the 1.265 this replaced. The highlights hold
-  // full detail. Past roughly 1.4 that stops being true; re-measure rather than
-  // extrapolate.
+  // This pseudo previously carried `brightness(1.2) saturate(0.85)`, tuned by eye over several
+  // rounds against the PREVIOUS artwork (room-glassy, removed in this same change). Those
+  // values were removed with it rather than carried over: they were fitted to an image that no
+  // longer exists, and the clipping measurement that justified the 1.2 lift — all 37,548
+  // non-transparent pixels of that source sampled, 0.0% blowing a channel — described that file
+  // only. Re-applying them to new artwork would have been an unverified claim.
   //
-  // ON THE PSEUDO, not the mixin and not the element: `focus-glass-card-art` is shared with the
-  // attention tile and would brighten that artwork too, and the element carries the slate card,
-  // which would brighten with it. The pseudo is the only place that touches the image alone.
+  // If a lift is wanted again, put it HERE on the pseudo, not on the mixin (shared with the
+  // attention tile) and not on the element (which carries the slate card and would brighten
+  // with it) — and re-measure clipping against the new source rather than reusing the old
+  // figure. `filter: brightness()` is a straight MULTIPLIER, so successive lifts and cuts
+  // simply multiply; do not carry over the `color.scale()` mental model used elsewhere in this
+  // file, which moves a fraction of the REMAINING distance instead.
   //
-  // The element's `filter: none !important` still stands and does NOT fight this — it clears
-  // the BASE rule's `brightness(1.05)` so this value is the only lift applied, rather than the
-  // two compounding to 1.155. Keeping both explicit is what makes that predictable.
-  // Desaturated 15% as well (requested 2026-09-20): `saturate(0.85)`. Saturation and brightness
-  // are INDEPENDENT filter functions applied in sequence, so this does not disturb the 1.2 lift
-  // above it — the artwork stays as bright, with less colour intensity.
-  filter: brightness(1.2) saturate(0.85);
+  // The element's `filter: none !important` is UNAFFECTED and still needed: it clears the base
+  // rule's `brightness(1.05)`, so this 1.05 is the ONLY lift applied rather than the two
+  // compounding to 1.1025. (The two values being equal here is a coincidence, not a link —
+  // the base rule's 1.05 belongs to the old flat classroom art and is cleared, not reused.)
+  filter: brightness(1.05);
 }
 
 // LONG STATUS BADGES STAY IN THEIR OWN COLUMN (requested 2026-09-20). A badge like "Waiting for

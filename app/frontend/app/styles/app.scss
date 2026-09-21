@@ -34098,6 +34098,19 @@ $ds-choice-width: 380px;
 .md-ds-preview__clone .md-ds-draggable.md-ds-dragging.md-ds-drag-blocked .md-ds-drag-overlay {
   cursor: not-allowed !important;
 }
+/* QUIET — Focused View renders the hint element empty so the drag-REFUSAL message has an
+   element to be written into (display-style.js#setBlocked), without showing the drag
+   instruction that view deliberately omits. Collapsed until `--blocked` arrives.
+   `aac-sr-only`, NOT `display: none`: this element is an `aria-live` region, and a display:none
+   element is removed from the accessibility tree — the region would not be observed, so the
+   later text change would never be announced. The mixin's `position: absolute` also takes it
+   out of `.md-ds-preview__legend`'s flex flow (an absolutely-positioned child is not a flex
+   item), so it still contributes no gap to the `gap: 12px 14px` row — which was the original
+   reason the element was dropped rather than hidden.
+   (0,2,0) via the `:not()`, so it beats the base hint rule and yields cleanly once blocked. */
+.md-ds-preview__legend-hint--quiet:not(.md-ds-preview__legend-hint--blocked) {
+  @include aac-sr-only;
+}
 .md-ds-preview__legend-hint--blocked {
   color: $brand-danger;
   font-weight: 600;
