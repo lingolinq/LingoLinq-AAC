@@ -50,8 +50,19 @@ export default Component.extend({
     }
   ),
 
-  activeLabel: computed('active', function() {
-    switch (this.get('active')) {
+  /* The caller's `active` normalised to a PILL name. The dashboard drives this from its
+     own `activeTab`, which carries a 'supervisors' state (set in
+     dashboard/authenticated-view.js when the Supervisors view is opened) that has no pill
+     of its own and belongs to Extras -- the dashboard's bespoke nav used to spell that
+     out as an `(or ...)` in three places. Mapping it once here keeps every consumer,
+     including the collapsed dropdown and the label, agreeing without repeating the rule. */
+  activeKey: computed('active', function() {
+    var active = this.get('active');
+    return active === 'supervisors' ? 'extras' : active;
+  }),
+
+  activeLabel: computed('activeKey', function() {
+    switch (this.get('activeKey')) {
       case 'home':
         return i18n.t('home_nav', "Home");
       case 'caseload': return i18n.t('caseload_pill', "Caseload");

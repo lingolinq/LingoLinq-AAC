@@ -24,92 +24,22 @@
        buttons for EVERY dashboard layout. That navbar is global, so the
        display-style component stays mounted across a mid-modal layout flip
        (no fixed-corner copy needed). --}}
-  {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
-  <nav class="md-pillnav {{if this.appState.currentUser.has_management_responsibility "md-pillnav--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-    {{!-- Home leads the nav for EVERY role, and reads "Home" for every role
-         (2026-09-02). Caseload follows it below. Keep this order in sync with the
-         .md-pillnav-dropdown mirror further down and with
-         components/user-pill-nav.hbs — the two navs render on different pages and
-         must agree. --}}
-    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onGoTab "home")}}>
-      {{t "Home" key="home_nav"}}
-    </button>
-    {{!-- Caseload — for every supporter, always AFTER Home. --}}
-    {{#if this.sectionAvailable.caseload}}
-    <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
-    {{/if}}
-    {{!-- Org managers/supervisors get a My Organizations pill (→ the org list),
-         just right of Home. Gated on the same availability as the home Org card. --}}
-    {{#if this.sectionAvailable.org}}
-    <LinkTo @route="organizations" class="md-pillnav__pill">{{t "Organizations" key="organizations"}}</LinkTo>
-    {{/if}}
-    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "boards") "is-active"}}" {{on "click" (fn this.onGoTab "boards")}}>
-      {{t "Boards" key="boards"}}
-    </button>
-    {{!-- NO REPORTS PILL (removed 2026-09-18). The home nav is the five places you go from
-         the dashboard, and Reports is not one of them any more. Communicators still reach it
-         from the Reports card in Extras (extrasItems, authenticated-view.js) and everyone
-         reaches it from the account rail's Reports row (components/account-rail.hbs).
-         The `activeTab === "reports"` branch below is NOT dead: `onGoTab`/`onSelectTab` are
-         still called with 'reports' by that Extras card, so the tab and its
-         `md-shell--reports-view` shell still render -- only the nav entry is gone. --}}
-    <button type="button" class="md-pillnav__pill {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{on "click" (fn this.onGoTab "extras")}}>
-      {{t "Extras" key="extras"}}
-    </button>
-    {{!-- UPDATES (added 2026-09-14). Goes to the user's logs page filtered to notes, which is
-         where the messages the counter is mostly made of already live — the same destination
-         classic's own "You have N unread messages" link uses, so the two views agree.
-         THE BADGE IS `aria-hidden` WITH AN sr-only TWIN. A bare "3" beside "Updates" is
-         announced as "Updates 3", which reads as an ordinal, not a quantity; the visually
-         hidden phrase says what the number means. The count itself is not repeated in it on
-         purpose — it changes on its own schedule and a screen-reader user is about to land
-         on the list that states it.
-         Behind `updates_pill` (lib/feature_flags.rb): a new item in the primary nav is
-         exactly the kind of unexpected UI change the flag convention exists for. --}}
-    {{#if this.appState.feature_flags.updates_pill}}
-    <LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav__pill md-pillnav__pill--updates">{{t "Updates" key="updates"}}{{#if this.pending_updates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pending_updates.count}}{{this.pending_updates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo>
-    {{/if}}
-    {{!-- Communicators get a far-right "Account" pill → My Account (Reports having
-         moved to an Extras card for them) — but not on Focused (minimal nav). --}}
-    {{#if this.showAccountPill}}
-    <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
-    {{/if}}
-  </nav>
-  <div class="md-pillnav-dropdown {{if this.appState.currentUser.has_management_responsibility "md-pillnav-dropdown--org-menu"}} {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
-    <button type="button" class="md-pillnav-dropdown__trigger" {{on "click" this.onTogglePillnavDropdown}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <span class="md-pillnav-dropdown__label">
-        {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
-        {{#if (is-equal this.activeTab "boards")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
-        {{#if (is-equal this.activeTab "reports")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
-        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
-        {{this.activeTabLabel}}
-      </span>
-      <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
-    </button>
-    <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "home") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home_nav"}}</button></li>
-      {{!-- Caseload — after Home, mirroring the desktop nav. --}}
-      {{#if this.sectionAvailable.caseload}}
-      <li role="presentation"><LinkTo @route="caseload" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
-      {{/if}}
-      {{#if this.sectionAvailable.org}}
-      <li role="presentation"><LinkTo @route="organizations" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>{{t "Organizations" key="organizations"}}</LinkTo></li>
-      {{/if}}
-      <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "boards") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{on "click" (fn this.onSelectTab "boards")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
-      {{!-- Reports is gone from the pill row above, so it is gone here too: this list is that
-           row's narrow-width mirror and an entry here that is not a pill would be a second,
-           different nav. --}}
-      <li role="presentation"><button type="button" role="option" aria-selected={{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "true" "false"}} class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{on "click" (fn this.onSelectTab "extras")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
-      {{!-- Mirrors the Updates pill above; the two navs must agree (see the note at the top
-           of this nav). --}}
-      {{#if this.appState.feature_flags.updates_pill}}
-      <li role="presentation"><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>{{t "Updates" key="updates"}}{{#if this.pending_updates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pending_updates.count}}{{this.pending_updates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo></li>
-      {{/if}}
-      {{#if this.showAccountPill}}
-      <li role="presentation"><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{{t "Account" key="account"}}</LinkTo></li>
-      {{/if}}
-    </ul>
-  </div>
+  {{!-- PRIMARY NAV -- the shared component, not a private copy.
+       Until 2026-09-21 this page carried its own hand-written pill row AND its own
+       collapsed dropdown, duplicating components/user-pill-nav.hbs. The comment that
+       used to sit here instructed the next editor to keep the two in sync BY HAND, which
+       is exactly how they drifted: different element types (buttons vs links, so no
+       href, no middle-click, no open-in-new-tab), no `aria-current` on this copy, and
+       two independent spellings of the same visibility rules.
+       The dashboard's buttons called `goTab`, but goTab TRANSITIONS for every nav
+       destination (authenticated-view.js, the boards/extras/home branches) -- it was
+       never an in-page tab switch -- so links reach the same places. Its two extra
+       effects are both gone: the scroll reset is now done unconditionally for every
+       transition in routes/application.js, and `showNewBoardForm` has no readers left.
+       `goTab` itself stays; the home grid's Reports card still calls it.
+       `activeTab` can be 'supervisors', which has no pill of its own; UserPillNav's
+       `activeKey` maps it onto Extras so that view still lights the right pill. --}}
+  <UserPillNav @active={{this.activeTab}} @userName={{this.appState.currentUser.user_name}} />
 
   {{#if (is-equal this.activeTab "boards")}}
   <main class="md-main md-main--dashboard-boards-embed" aria-label={{t "Boards" key="boards"}}>

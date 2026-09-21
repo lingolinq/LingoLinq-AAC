@@ -131,10 +131,6 @@ export default Component.extend({
   // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
   // identity dropdown).
-  showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'focused';
-  }),
-
   // Visibility map for the home dashboard cards, keyed by section key
   // (boards/speak/extras/caseload/org). A key is present+true only when the
   // section is BOTH available to this user type AND not hidden by their saved
@@ -275,7 +271,6 @@ export default Component.extend({
   initialActiveTab: null,
   isSearchOpen: false,
   showNewBoardForm: false,
-  pillnavDropdownOpen: false,
 
   init() {
     this._super(...arguments);
@@ -302,7 +297,6 @@ export default Component.extend({
       self.send.apply(self, [action].concat(args));
     };
     this.onGoTab = function(tab) { send('goTab', tab); };
-    this.onSelectTab = function(tab) { send('selectTab', tab); };
     this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
     this.onGo = function(dest) { send('go', dest); };
     this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
@@ -313,7 +307,6 @@ export default Component.extend({
     };
     this.onRecordNoteFor = function(supervisee) { send('recordNoteFor', supervisee); };
     this.onQuickAssessmentFor = function(supervisee) { send('quickAssessmentFor', supervisee); };
-    this.onTogglePillnavDropdown = function() { send('togglePillnavDropdown'); };
     this.onGettingStarted = function() { send('getting_started'); };
     this.onGoOrganizations = function() { send('goOrganizations'); };
     this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
@@ -893,21 +886,6 @@ export default Component.extend({
   // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
   sectionBorderMode: 'off',
 
-  // Feeds the responsive .md-pillnav-dropdown trigger, so the label it shows for
-  // the home tab has to match the pill itself — supporters read "Dashboard" —
-  // hence one shared label rather than a second copy of that rule.
-  // (Defaults are double-quoted per the i18n convention: a single-quoted default
-  // is silently DELETED by the next i18n_generator.rb run.)
-  // `has_management_responsibility` is READ below and must be a dependent key, or the
-  // dropdown trigger keeps a stale label when org-manager status resolves after first
-  // render (late org payload, or a role change in-session) — the pill row beside it
-  // would say "Home" while this said something else — the disagreement the shared label
-  // exists to prevent.
-  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
-    var tab = this.get('activeTab');
-    var labels = { home: i18n.t('home_nav', "Home"), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
-    return labels[tab] || labels.home;
-  }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
   boardsEmbedUser: computed('model', 'appState.currentUser', function() {
     return this.get('model') || this.get('appState.currentUser');
@@ -1324,12 +1302,11 @@ export default Component.extend({
       this.set('isSearchOpen', false);
     },
     onSearchKeydown: function(event) {
+      // Escape used to close the pill-nav dropdown FIRST and the search only if the
+      // dropdown was shut. That dropdown now belongs to UserPillNav, which is a native
+      // <details> and closes itself on Escape, so this only has the search to handle.
       if (event && event.key === 'Escape') {
-        if (this.get('pillnavDropdownOpen')) {
-          this.set('pillnavDropdownOpen', false);
-        } else {
-          this.set('isSearchOpen', false);
-        }
+        this.set('isSearchOpen', false);
       }
     },
     goTab: function(tab) {
@@ -1373,15 +1350,8 @@ export default Component.extend({
       }
       this.set('activeTab', tab);
     },
-    togglePillnavDropdown: function() {
-      this.set('pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
-    },
     toggleOrgDropdown: function() {
       this.toggleProperty('orgDropdownOpen');
-    },
-    selectTab: function(tab) {
-      this.send('goTab', tab);
-      this.set('pillnavDropdownOpen', false);
     },
     go: function(dest) {
       if (dest === 'speak') {

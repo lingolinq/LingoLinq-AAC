@@ -1,7 +1,7 @@
 <nav class="md-pillnav md-pillnav--dashboard {{if this.appState.currentUser.has_management_responsibility "md-pillnav--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
   {{! Home leads the nav for every role and reads "Home" for every role
       (2026-09-02). Caseload follows it below for supporters. }}
-  {{#if (is-equal @active "home")}}
+  {{#if (is-equal this.activeKey "home")}}
     <span class="md-pillnav__pill is-active" aria-current="page">{{t "Home" key="home_nav"}}</span>
   {{else}}
     <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{t "Home" key="home_nav"}}</LinkTo>
@@ -9,7 +9,7 @@
 
   {{! Caseload — for every supporter, always AFTER Home. }}
   {{#if this.appState.currentUser.supporter_role}}
-    {{#if (is-equal @active "caseload")}}
+    {{#if (is-equal this.activeKey "caseload")}}
       <span class="md-pillnav__pill is-active" aria-current="page">{{t "Caseload" key="caseload_pill"}}</span>
     {{else}}
       <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
@@ -17,14 +17,14 @@
   {{/if}}
 
   {{#if this.appState.currentUser.has_management_responsibility}}
-    {{#if (is-equal @active "organizations")}}
+    {{#if (is-equal this.activeKey "organizations")}}
       <span class="md-pillnav__pill is-active" aria-current="page">{{t "Organizations" key="organizations"}}</span>
     {{else}}
       <LinkTo @route="organizations" class="md-pillnav__pill">{{t "Organizations" key="organizations"}}</LinkTo>
     {{/if}}
   {{/if}}
 
-  {{#if (is-equal @active "boards")}}
+  {{#if (is-equal this.activeKey "boards")}}
     <span class="md-pillnav__pill is-active" aria-current="page">{{t "Boards" key="boards"}}</span>
   {{else}}
     <LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav__pill">{{t "Boards" key="boards"}}</LinkTo>
@@ -40,7 +40,7 @@
        LinkTo back here AND in the collapsed dropdown below — that mirror is load-bearing, see
        its own note. --}}
 
-  {{#if (is-equal @active "extras")}}
+  {{#if (is-equal this.activeKey "extras")}}
     <span class="md-pillnav__pill is-active" aria-current="page">{{t "Extras" key="extras"}}</span>
   {{else}}
     <LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
@@ -51,7 +51,7 @@
        logs page filtered to notes; see the fuller note in
        components/dashboard/authenticated-view.hbs. --}}
   {{#if this.appState.feature_flags.updates_pill}}
-    {{#if (is-equal @active "updates")}}
+    {{#if (is-equal this.activeKey "updates")}}
       {{!-- A non-link span with `aria-current="page"`, the same shape every other pill uses
            for its own page. The logs page passes `@active="updates"`, so arriving there from
            this pill leaves the nav in place with Updates marked current rather than dropping
@@ -62,9 +62,11 @@
     {{/if}}
   {{/if}}
 
-  {{#unless this.appState.currentUser.supporter_role}}
-    <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
-  {{/unless}}
+  {{!-- NO ACCOUNT PILL. Removed 2026-09-21 with the modern dashboard's copy: Account is
+       carried by the account rail where that renders, and everywhere by the navbar
+       identity dropdown (app-navbar-authenticated-inner.hbs:142) and its mobile-drawer
+       twin (:217). Dropping it here is what makes this nav's item set identical on every
+       page it serves, which is the point of the unification. --}}
 </nav>
 
 {{!-- COLLAPSED VARIANT (2026-08-16). This nav previously had NONE: below the swap
@@ -84,20 +86,18 @@
     <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
   </summary>
   <ul class="md-pillnav-dropdown__list">
-    <li><LinkTo @route="user.home" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "home") "is-active"}}">{{t "Home" key="home_nav"}}</LinkTo></li>
+    <li><LinkTo @route="user.home" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "home") "is-active"}}">{{t "Home" key="home_nav"}}</LinkTo></li>
     {{#if this.appState.currentUser.supporter_role}}
-      <li><LinkTo @route="caseload" class="md-pillnav-dropdown__option {{if (is-equal @active "caseload") "is-active"}}">{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
+      <li><LinkTo @route="caseload" class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "caseload") "is-active"}}">{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
     {{/if}}
     {{#if this.appState.currentUser.has_management_responsibility}}
-      <li><LinkTo @route="organizations" class="md-pillnav-dropdown__option {{if (is-equal @active "organizations") "is-active"}}">{{t "Organizations" key="organizations"}}</LinkTo></li>
+      <li><LinkTo @route="organizations" class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "organizations") "is-active"}}">{{t "Organizations" key="organizations"}}</LinkTo></li>
     {{/if}}
-    <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
-    <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>
+    <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
+    <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>
     {{#if this.appState.feature_flags.updates_pill}}
-      <li><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav-dropdown__option {{if (is-equal @active "updates") "is-active"}}">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo></li>
+      <li><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "updates") "is-active"}}">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo></li>
     {{/if}}
-    {{#unless this.appState.currentUser.supporter_role}}
-      <li><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav-dropdown__option">{{t "Account" key="account"}}</LinkTo></li>
-    {{/unless}}
+    {{!-- No Account option here either -- see the note on the pill row above. --}}
   </ul>
 </details>
