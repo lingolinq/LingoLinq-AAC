@@ -80,26 +80,62 @@
 // mixin once with a plain number — no nested scales, no second mixin.
 //   20%  Communicators Need Attention (the 2026-09-20 lightening), the default
 //   40%  Rooms (a further 25% on top of that, requested 2026-09-20)
-@mixin focus-glass-slate-card($lightness: 20%) {
+// `$centre-shift` and `$edge-shift` move the two ENDS of the ramp independently. Both are
+// SIGNED and both mean the same thing: POSITIVE = lighter, NEGATIVE = darker. One knob per
+// end rather than one shared `$lightness`, because `$lightness` scales every stop together
+// and so cannot change the ramp's DIRECTION at all — it only makes the same dome brighter
+// or dimmer. `$centre-shift` is applied at full strength to the 0% stop and half to the 48%
+// so the falloff stays smooth instead of banding at the midpoint.
+// Sign is what picks the direction:
+//   centre negative + edge positive -> dark middle, light rim (a raised dome)
+//   centre positive + edge negative -> light middle, dark rim (a dished well / vignette)
+// 0% / true (the defaults) leaves all three existing callers byte-identical.
+// `$shape` is the radial's SIZE+POSITION. The default `circle at 50% 46%` is correct for the
+// small square icon TILES this mixin was written for, but it is wrong on a wide CARD: `circle`
+// with no size keyword is sized to the farthest CORNER, so on a 1088x535 card the radius is
+// ~600px and the element only ever shows the INNER part of the ramp. The top edge sits 46% of
+// the height from the centre — a small fraction of that radius — so it never reaches the outer
+// stop and the vignette looks like it is not applying at all.
+// `ellipse farthest-side at 50% 50%` sizes the ending shape to the BOX instead, so the 100%
+// stop lands on the edges in both axes and the corners run slightly past it.
+// `$gloss` is the peak alpha of the specular highlight. It is anchored at `28% 12%` — the
+// TOP-LEFT — which is right for a small square tile but lands squarely on a wide card's
+// HEADER. At the tile default of 0.30 it lifted the attention card's header band to a
+// mid-tone (~#5C687C-#727C8D) that is the worst case for legibility: too dark for dark ink
+// (2.8:1) and too light for light ink (3.9:1). Cards dial it down so the header can be
+// genuinely dark and take light ink.
+@mixin focus-glass-slate-card($lightness: 20%, $centre-shift: 0%, $edge-shift: 0%, $raised: true, $shape: circle at 50% 46%, $gloss: 0.30) {
   background:
     /* Specular highlight — the gloss. Off-centre to the top-left so the card reads as lit from
        one side rather than uniformly washed. */
     radial-gradient(120% 90% at 28% 12%,
-      rgba(255, 255, 255, 0.30) 0%,
-      rgba(255, 255, 255, 0.09) 38%,
+      rgba(255, 255, 255, $gloss) 0%,
+      rgba(255, 255, 255, $gloss * 0.3) 38%,
       transparent 62%),
-    radial-gradient(circle at 50% 46%,
-      color.scale(#262d3a, $lightness: $lightness) 0%,
-      color.scale(#333c4a, $lightness: $lightness) 48%,
-      color.scale(#515d70, $lightness: $lightness) 100%) !important;
-  /* Both callers sit on a base rule that sets `border: none` and `box-shadow: none`
-     `!important` ("the image IS the icon"), so both have to be restated or the card has no
+    radial-gradient(#{$shape},
+      color.scale(color.scale(#262d3a, $lightness: $lightness), $lightness: $centre-shift) 0%,
+      color.scale(color.scale(#333c4a, $lightness: $lightness), $lightness: 0.5 * $centre-shift) 48%,
+      color.scale(color.scale(#515d70, $lightness: $lightness), $lightness: $edge-shift) 100%) !important;
+  /* Callers sit on a base rule that sets `border: none` and `box-shadow: none` `!important`
+     ("the image IS the icon"), so anything wanted here has to be restated or the tile has no
      edge at all. */
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),      /* bright top rim */
-    inset 0 -3px 6px rgba(0, 0, 0, 0.30),         /* dark inner lip -> domed, not flat */
-    0 4px 12px rgba($focus-shadow-ink, 0.28) !important;
+  @if $raised {
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),      /* bright top rim */
+      inset 0 -3px 6px rgba(0, 0, 0, 0.30),         /* dark inner lip -> domed, not flat */
+      0 4px 12px rgba($focus-shadow-ink, 0.28) !important;
+  } @else {
+    /* NOT RAISED. Dropping the outer drop shadow alone was not enough — the tile still read
+       as a pressable chip, because a lit top rim plus a dark bottom lip plus a light border
+       IS the bevel recipe, and a bevel says "object sitting on the surface" regardless of
+       whether anything is cast beneath it. All three go, leaving just the radial dome, which
+       is a lighting cue on the artwork rather than an edge treatment on a control.
+       No contrast concern: the tile is a dark ramp on a light card, so it stays plainly
+       distinct without an outline. */
+    border: none !important;
+    box-shadow: none !important;
+  }
   /* The ::before is positioned against this. `.md-card__icon` is `display: grid`, so without
      taking the pseudo out of flow it would be a zero-size grid item. */
   position: relative;
@@ -2270,10 +2306,25 @@ body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon-
 // (0,4,1) against the base rule's (0,3,0), both `!important`, so this wins on specificity —
 // which it must: @use puts this partial ~61k lines ABOVE that rule in the build, so source
 // order would lose.
+// EXPERIMENT 2026-09-21 (Traci: "i just want to see what this would look like"). The WHOLE
+// card takes the dark slate dome the communicators image tile was carrying, and that tile
+// goes transparent so the artwork floats straight on it. Ink is flipped to light below.
+// TO REVERT, restore exactly:
+//   @include focus-card-panel-darkened(20%, $ch-chip-hi, $top-darkness: 4%);
+// (silver top stop, not the neutral white default; the bottom stop is already cool, which is
+// what made the ramp read silver rather than warming toward the middle.)
 body.ll-layout-focused .md-grid .md-card.md-card--attention {
-  // Silver top stop, not the neutral white default — see the mixin. The bottom stop is already
-  // cool, so this is what makes the ramp read silver rather than warming toward the middle.
-  @include focus-card-panel-darkened(20%, $ch-chip-hi, $top-darkness: 4%);
+  // INVERTED 2026-09-21 (requested: "darker on the outside and lighter towards the center").
+  // Signs flipped rather than values retuned: +55 lifts the middle, -20 sinks the rim, so the
+  // card reads as a dished vignette instead of the raised dome it was a moment ago.
+  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08,
+    // Centre pushed DOWN and the vertical radius tightened (requested: "don't start the
+    // lighter gradient until you get past the top section"). `at 50% 70%` with a 40% vertical
+    // radius means the ramp's outer stop is reached at 30% of the card height — the header
+    // block (icon + title + sub, down to the divider) sits entirely above that and stays dark,
+    // and the lighter middle falls where the rows are. `farthest-side` could not do this: it
+    // is forced to centre the light area on the box.
+    $shape: ellipse 60% 40% at 50% 70%);
 }
 
 // INDIVIDUAL ROOM CARDS -> the glassy door on its own light slate tile (requested 2026-09-20).
@@ -2365,8 +2416,33 @@ body.ll-layout-focused .md-card--rooms .md-room-card__icon::before {
 // down toward neutral and reinstate the problem. The bottom stop keeps the full 10%, so the
 // panel's depth is unchanged; only the highlight moves. Same two-knob shape as the attention
 // panel above, which took `$ch-chip-hi` with `$top-darkness: 4%` for the same reason.
+// EXPERIMENT 2026-09-21, same shape as the attention card above: the CARD takes the ramp its
+// own image tile was carrying, and the tile goes transparent.
+// TO REVERT, restore exactly:
+//   @include focus-card-panel-darkened(10%, color.mix($focus-surface-top, rgb(255, 255, 255), 40%), $top-darkness: 0%);
+// ROOMS: ORIGINAL COLOURS, VIGNETTE EFFECT. Traci 2026-09-21: "reverted to what it was before
+// you made it so much darker — it was the gradient EFFECT i was looking to copy, not the
+// colors." I had taken the whole slate ramp across, which replaced this card's palette as well
+// as its shading. So the two stops below are exactly what `focus-card-panel-darkened(10%,
+// color.mix($focus-surface-top, white, 40%), $top-darkness: 0%)` produced — this card's own
+// light panel, restored — and only the VIGNETTE is new.
+// Written out rather than `@include`d because the mixin sets `background` with `!important`
+// and a second declaration would replace it outright; the vignette has to be a LAYER above
+// the panel, not a rule after it.
+// Geometry matches the attention card's intent but with this card's own numbers: centre 86%,
+// 26% radius, so the darkening is complete by 60% of the height and the header sits in it.
 body.ll-layout-focused .md-grid .md-card.md-card--rooms {
-  @include focus-card-panel-darkened(10%, color.mix($focus-surface-top, rgb(255, 255, 255), 40%), $top-darkness: 0%);
+  $rooms-top: color.mix($focus-surface-top, rgb(255, 255, 255), 40%);
+  $rooms-bottom: color.scale(rgb(235, 238, 243), $lightness: -10%);
+  background:
+    // Darkened (requested: "too light ... make it a bit darker"). Only the ALPHAS move —
+    // 0.07/0.16 -> 0.15/0.30. The geometry is untouched, so the light centre still does not
+    // begin until below the header, which was the other half of the instruction.
+    radial-gradient(ellipse 60% 26% at 50% 86%,
+      rgba($la-navy, 0) 0%,
+      rgba($la-navy, 0.15) 55%,
+      rgba($la-navy, 0.30) 100%),
+    linear-gradient(180deg, rgba($rooms-top, 0.98), rgba($rooms-bottom, 0.95)) !important;
 }
 
 body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms {
@@ -2379,7 +2455,13 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms {
   // THE WAY to 100%, so a request phrased relatively ("N% lighter") is NOT the current number
   // plus N. It has to be converted first — see the rooms panel above for the derivation and
   // how it was verified against the compiler.
-  @include focus-glass-slate-card(50%);
+  // EXPERIMENT 2026-09-21: TRANSPARENT — the CARD now carries this ramp.
+  // TO REVERT, restore exactly:
+  //   @include focus-glass-slate-card(50%, $centre-shift: -35%, $edge-shift: 15%, $raised: false);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  position: relative;
   // `filter: none` IS LOAD-BEARING. The base rule ends with `filter: brightness(1.05)`, added
   // to lift the older flat classroom art off the card. A filter on this element applies to the
   // slate card AND the artwork on the pseudo above it, and on pale glass it blows the
@@ -2608,13 +2690,26 @@ body.ll-layout-focused .md-acct-rail {
 // the 40px box rather than growing the row — the ring reads as an inset edge, which is what a
 // badge ring should do.
 //
-// A second inset hairline gives it the two-tone look the silver chips have: the brighter
-// `$ch-chip-hi` just inside the `$ch-chip-lo` edge, so the ring has a lit top rather than
-// reading as a flat grey circle. `inset` keeps it off the glow's territory entirely.
+// SILVER -> SLATE, 2026-09-21. The silver ring was asked for again and turned out to already
+// be here — it just could not be SEEN. Measured off the render: `$ch-chip-lo` (#D2DAE5)
+// against the row surface beside the avatar (#DCE5E8) is 1.10:1. That is not a faint ring,
+// it is no ring. Silver was chosen when these rows were a darker surface; lightening them
+// this session erased it, which is the same trap as the contrast figures earlier — a change
+// to the BACKGROUND silently invalidated a foreground decision made against the old one.
+// `$brand-slate-blue` measures 4.28:1 on the same surface, comfortably past the 3:1 WCAG
+// asks of a non-text UI boundary, and it is an existing brand token rather than a new grey.
+// Traci's own steer ("or slate, if it's more visible") is what the measurement confirms.
+//
+// The bright `$ch-chip-hi` hairline STAYS: inside a slate edge it now reads as a lit inner
+// rim, which is the two-tone look the silver chips have and is more visible against slate
+// than it ever was against silver.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__avatar {
-  border: 2px solid $ch-chip-lo;
+  // 2px -> 1px (requested: too thick). The ring is 4.28:1 on the row surface, so thinning it
+  // costs visibility but not legibility — a 1px boundary at that contrast still reads. The
+  // inner hairline follows to -2px or it would sit on top of the border instead of inside it.
+  border: 1px solid $brand-slate-blue;
   outline: 1px solid rgba($ch-chip-hi, 0.75);
-  outline-offset: -3px;
+  outline-offset: -2px;
 }
 
 // DARK SLATE GLASSY-GLOSSY CARD + ART ON TOP (requested 2026-09-20), split across the element
@@ -2638,7 +2733,14 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__
 // was. Not done here — repointing three live tiles is its own change, not a side effect of
 // this one.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--attention {
-  @include focus-glass-slate-card;
+  // EXPERIMENT 2026-09-21: TRANSPARENT, because the CARD now carries the slate dome this
+  // tile used to own. The artwork sits directly on the card with no panel behind it.
+  // TO REVERT, restore exactly:
+  //   @include focus-glass-slate-card($centre-shift: -55%, $edge-shift: 20%, $raised: false);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  position: relative;   // the ::before artwork is positioned against this
 }
 // The artwork, above the card. No `!important` anywhere: nothing else in the app targets this
 // pseudo-element, so there is no cascade to win.
@@ -4269,3 +4371,178 @@ body.ll-layout-focused .ch-rail__toggle {
     transform: translateY(-1px);
   }
 }
+
+// ===== EXPERIMENT 2026-09-21 — light ink for the dark attention card. DELETE WHOLE BLOCK ON REVERT.
+// The card flipped from a near-white silver panel to the dark slate dome, so every ink on it
+// had to flip too or it would be dark-on-dark. Sub keeps a step of separation from the title
+// so the hierarchy survives the inversion instead of both going flat white.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__title {
+  color: #F2F6FC !important;
+  text-shadow: none !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__sub {
+  color: #C3D0E2 !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__sub::before {
+  background: #C3D0E2 !important;
+  box-shadow: none !important;
+}
+// ===== END EXPERIMENT
+
+// ===== EXPERIMENT 2026-09-21 — glassy-glossy attention rows. DELETE WHOLE BLOCK ON REVERT.
+// Requested once the card behind them went dark. The base rows (app.scss ~48735) are a
+// near-OPAQUE white stack (alphas .94/.90/.88) with a blur behind it — which means the blur
+// is doing almost nothing, because there is no transparency for it to work through. Glass
+// needs all three: something to see through, a blur, and a specular highlight on top.
+//
+// Alphas .86/.80/.75 (lifted from .74/.66/.60, requested 2026-09-21: "a bit lighter in
+// focused view"). Direction of travel matters here: the row text is $la-navy on a dark card,
+// so every point of TRANSPARENCY drags the text's background down and costs contrast, while
+// every point of OPACITY buys it back. Lightening is therefore free on the accessibility
+// side — it was the earlier darkening that had a floor, not this. Still well short of the
+// base rule's near-opaque .94/.90/.88, so there is real transparency for the blur to work
+// through and the card still reads behind them.
+//
+// The gloss is the second radial plus the brighter top rim: a highlight off the top-left so
+// the row reads as lit from one side, the way the slate tiles do, instead of uniformly
+// frosted. Blur raised 12px -> 16px now that there is genuinely something behind it.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
+  // THE RAIL'S HOME BOARD BUTTON GRADIENT (requested 2026-09-21), copied from
+  // `.md-acct-rail__row--board:not(.is-active)` (app.scss ~49984) rather than re-derived:
+  //   linear-gradient(155deg, #fff 0%, rgba($brand-dusty-denim, 0.12) 100%)
+  // Its matching border colour and lit inner rim come with it below, because that button's
+  // look is the gradient PLUS that edge — taking the fill alone reads as a different control.
+  // The specular sweep is kept on top so these still read glassy, which is what they were
+  // asked to be a step earlier; it sits ABOVE the gradient so it lifts the top-left without
+  // altering the denim fall.
+  background:
+    radial-gradient(120% 140% at 14% 0%,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.12) 34%,
+      transparent 60%),
+    // THE DARK FALL, RESTORED — and made OPAQUE so it no longer depends on the card behind.
+    //
+    // History, because this stop has now been wrong in two opposite directions:
+    // Copying `rgba($brand-dusty-denim, 0.12)` verbatim from the rail button did not
+    // transplant its look. The rail sits on a LIGHT page where that reads as a pale wash;
+    // here the card is DARK, so the same value is ~90% transparent and the row faded into
+    // the card. That accident is what produced the strong light-to-dark fall Traci liked.
+    // Replacing it with the rail's true composite (#EEF4FB) fixed the invisible arrows but
+    // flattened the row to almost nothing — measured #FEFEFF -> #F0F5FC across its width,
+    // against the #F0F1F3 -> #4F5D72 it had before.
+    // So the fall is now stated DELIBERATELY as two solid stops reproducing the measured
+    // values, rather than being a side effect of transparency over whatever is underneath.
+    // End stop lifted #4F5D72 -> #66738A (requested: "a bit less transparent"). It is already
+    // opaque, so what reads as transparency is simply how DARK it is against the light start;
+    // lifting it is the same move.
+    // THERE IS A LIMIT HERE, worth knowing before tuning it again. The arrow sits on this
+    // stop, and measured against it: a light arrow clears 3:1 up to about #717E94, while a
+    // slate arrow only clears it below about #A0ACC0. Between roughly #7C89A0 and #A0ACC0
+    // NEITHER colour reaches 3:1 — a dead zone. #66738A sits safely on the dark side of it
+    // (light arrow 3.66:1); going much lighter means switching the arrow back to slate and
+    // jumping the gap, not easing through it.
+    linear-gradient(155deg, #F2F3F5 0%, #66738A 100%) !important;
+  backdrop-filter: blur(16px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(125%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),      /* bright top rim — the gloss edge */
+    inset 0 -1px 0 rgba($la-navy, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.16),
+    0 10px 24px rgba(0, 0, 0, 0.18) !important;
+  border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
+}
+
+// Arrows. Slate was asked for and slate is what these were — but the arrow is pinned to the
+// far RIGHT of the row (`margin-left: auto`, app.scss:48583), which is exactly where the
+// restored fall is darkest (#4F5D72). Slate on slate measured 1.00:1. So the arrow takes the
+// LIGHT end of the same family instead: same hue, inverted lightness, ~6:1 on that stop.
+// If the fall is ever lightened again, this should go back to `$brand-slate-blue`.
+// The two cards now need OPPOSITE arrows, because their right-hand stops ended up on opposite
+// sides of the dead zone. Attention falls to #66738A (dark) so its arrow must be light;
+// rooms falls to #D2D9E4 (light) so its arrow can be the slate that was asked for.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-room-card__arrow {
+  color: #D8E2F0 !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card__arrow {
+  color: $brand-slate-blue !important;
+}
+// ===== END EXPERIMENT
+
+// Rooms ink. The light-on-dark override that lived here is gone — the card is light again and
+// #F2F6FC on a near-white panel would be unreadable. But the TITLE alone can fall back to the
+// base: darkening the vignette a step later took the header band to #AEB9C9, where the base
+// sub colour ($brand-slate-blue) measures 2.76:1. The title is near-black and clears at
+// 8.74:1, so only the sub needs help.
+// #3A4557 is the same slate pulled down until it clears (4.88:1). Third time today that
+// moving a surface has invalidated the ink chosen against it — attention card, badges, now
+// this — which is the argument for measuring after every surface change rather than only
+// after a colour one.
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub {
+  color: #3A4557 !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub::before {
+  background: #3A4557 !important;
+}
+
+// ===== EXPERIMENT 2026-09-21 — room cards + status badges. DELETE WHOLE BLOCK ON REVERT.
+// Each ROOM CARD inside the Rooms div takes the same rail Home Board button gradient the
+// attention rows just took, so the two cards' inner controls read as one family.
+// `.md-room-card` is SHARED with the org-management card (see the scoped rule earlier in
+// this file), so this is pinned to `.md-card--rooms` and cannot leak there.
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card {
+  // LIGHTER FALL THAN THE ATTENTION ROWS, and deliberately not shared with them any more.
+  // These sit on the RESTORED LIGHT rooms panel, not on a dark card, so the #66738A end the
+  // rows use read as a heavy slab here — and measured, the room card's own dark label was
+  // only 2.53:1 against it.
+  // #D2D9E4 clears BOTH: label 8.54:1, and it is past the dead zone described on the rows,
+  // so the arrow goes back to slate (3.86:1) — which is what was asked for originally and
+  // only ever failed because that end was too dark to take it.
+  background:
+    radial-gradient(120% 140% at 14% 0%,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.16) 34%,
+      transparent 60%),
+    linear-gradient(155deg, #FDFDFE 0%, #D2D9E4 100%) !important;
+  border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
+}
+
+// STATUS BADGES 25% BRIGHTER (requested). Done as an INSET WHITE VEIL rather than by editing
+// the fills: there are twelve `[data-status]` variants, each with its own hue and alpha
+// (app.scss ~48868-48911), and a `background` override here would flatten all twelve into one
+// colour. `box-shadow: inset 0 0 0 999px` floods the pill with 25% white ON TOP of whatever
+// tint it already has, so every variant keeps its identity and every one gets the same lift.
+// It also paints BELOW the ::before icon and the label, so neither is washed out.
+// Contrast is not at risk: the labels are dark ink on these pills, so a brighter fill raises
+// their ratio rather than lowering it.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
+  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.25);
+}
+// ===== END EXPERIMENT
+
+// ===== EXPERIMENT 2026-09-21 — badge text contrast. DELETE WHOLE BLOCK ON REVERT.
+// All six badges were failing: measured off the render, text-on-pill came out at 3.63-4.17:1
+// against the 4.5:1 AA floor. Cause is the same coupling as everywhere else today — those
+// text colours are AA-tuned against a NEAR-WHITE row, but the pill background is a
+// translucent tint, so on the mid-tone row it composites down and takes the ratio with it.
+//
+// FIXED BY DARKENING THE INK, NOT BY WHITENING THE PILL. Solving it with the white veil
+// needed ~0.80 alpha to drag bronze over the line, which would have bleached every pill to
+// near-white and undone the "25% brighter" that was asked for a few steps earlier. Darkening
+// the text needs only 7-15% and leaves each pill's hue and brightness intact.
+// Derived from the tokens rather than pasted as hex so they still track a brand change.
+// Measured after: 4.6-4.7:1 on every family.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
+  color: color.scale($brand-slate-blue, $lightness: -13%) !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="hourglass"],
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="equalizer"] {
+  color: color.scale(color.adjust($brand-honey-bronze, $lightness: -32%), $lightness: -14%) !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="phone"],
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="piggy-bank"] {
+  color: color.scale($brand-dusty-denim-aa, $lightness: -7%) !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="exclamation-sign"] {
+  color: color.scale($brand-verdigris-aa, $lightness: -15%) !important;
+}
+// ===== END EXPERIMENT
