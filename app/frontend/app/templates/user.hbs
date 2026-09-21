@@ -25,7 +25,11 @@
     {{#if this.accountRailContext}}
       <AccountRail @user={{this.model}} />
     {{/if}}
-    <div class="md-workspace">
+    {{!-- `md-workspace--homenav` marks the ONE case the extra headroom applies to: the logs
+         page reached from the home pill-nav's Updates. Same `homeNavContext` flag the nav
+         choice below uses, so the padding and the nav can never disagree about which arrival
+         this is. See the rule in app.scss. --}}
+    <div class="md-workspace {{if this.homeNavContext "md-workspace--homenav"}}">
       {{!-- WHICH NAV, DECIDED BY WHERE THE USER CAME FROM (requested 2026-09-14).
            `homeNavContext` (controllers/user.js) is true only on the logs page and only when
            it was reached from the home page's Updates pill, which says so with `nav=home` in
@@ -45,7 +49,9 @@
              for this case in `accountRailContext`, so exactly one nav renders: the home
              pill-nav, with Updates still marked current. Clicking Logs in the account rail
              instead carries no `nav` param, takes the branch above, and gets the rail with
-             its Logs row current. One page, two origins, one nav each. --}}
+             its Logs row current. One page, two origins, one nav each.
+             Reports is no longer in this nav (2026-09-20) — it moved to the account rail,
+             which the branch above renders. --}}
         <UserPillNav @active="updates" @userName={{this.model.user_name}} />
       {{else}}
         <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>

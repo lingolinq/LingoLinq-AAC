@@ -11,6 +11,15 @@ import { inject as service } from '@ember/service';
    cannot drift apart. */
 const ACCOUNT_ROUTES = 'user.account user.index';
 
+/* THE ROUTES THAT ARE THE HOME PAGE. Like the account page it answers to two names: top-level
+   `index` (path `/`) and `user.home` (path `/:user_id/home`), which routes/user/home.js renders
+   through the SAME `index` template and controller. The rail's "Home Page" row had no active
+   state at all until 2026-09-20, because until then the rail never rendered on the home page
+   and the row could only ever be a way OUT of the section. Now the modern home page carries the
+   rail too (components/dashboard/authenticated-view.hbs), so that row has to be able to light
+   up like any other. Stated once, consumed twice — `@current-when` and ROW_FOR_ROUTE below. */
+const HOME_ROUTES = 'index user.home';
+
 /* Route name -> the rail row that route belongs to. Used ONLY for `aria-current`: <LinkTo>
    computes the visual highlight itself (see `@activeClass` in the template) but does not set
    `aria-current`, and a nav whose highlight a sighted user can see must say the same thing to
@@ -30,6 +39,7 @@ const ROW_FOR_ROUTE = {
   'user.supervision': 'supervision'
 };
 ACCOUNT_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'account'; });
+HOME_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'home'; });
 
 /**
  * THE ACCOUNT SECTION'S LEFT NAV, as a fixed full-height panel.
@@ -54,8 +64,10 @@ export default Component.extend({
   router: service('router'),
   app_state: service('app-state'),
 
-  /* Bound into the Account row's `@current-when` so the alias list lives in one place. */
+  /* Bound into the Account and Home Page rows' `@current-when` so each alias list lives in
+     one place. */
   accountCurrentWhen: ACCOUNT_ROUTES,
+  homeCurrentWhen: HOME_ROUTES,
 
   /* WHICH ROW THE CURRENT PAGE IS. Null on a route with no row of its own.
      THE BUG THIS FIXES: every row carried a literal class, and the Account row's was

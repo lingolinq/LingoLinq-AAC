@@ -32795,13 +32795,19 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   box-sizing: border-box !important;
   flex: 1 0 auto;
 }
-/* Style-chooser step ONLY: make the text region a flex column so the two preview rows
-   can divide its height between them. `height: 100%` cannot do this — the region's own
-   height comes from flex-growing inside .shepherd-content, so a percentage child has no
-   definite height to resolve against. Scoped with :has() to the previews variant so the
-   "Customize your dashboard" step, which shares this element's other rules, keeps its
-   existing block layout. */
-.shepherd-element.md-ds-modal--display .shepherd-text:has(.md-ds-options--with-previews) {
+/* Make the text region a flex column so its preview content can divide the region's height.
+   `height: 100%` cannot do this — the region's own height comes from flex-growing inside
+   .shepherd-content (`flex: 1 0 auto` above), so a percentage child has no definite height to
+   resolve against; only a flex child of this column does.
+
+   REPOINTED 2026-09-20, from `:has(.md-ds-options--with-previews)`. That marker belonged to the
+   "Choose your display style" step, removed the same day, so the selector had stopped matching
+   anything and the region had silently reverted to a plain block — which is why the customize
+   page's preview and toggles stopped at their content height with an empty band beneath them.
+   `.md-ds-preview--with-toggles` is the customize page's own marker, so the rule now applies
+   where the height is actually needed. Kept as a `:has()` rather than dropped onto the bare
+   element so a future step without a preview is not forced into this column layout. */
+.shepherd-element.md-ds-modal--display .shepherd-text:has(.md-ds-preview--with-toggles) {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -33505,14 +33511,24 @@ $ds-choice-width: 380px;
 /* Two "what you can do" checklist items below the Customize step header, joined
    by an "— and/or —" divider. Pills mirror the section-toggle chips; the check
    sits in a brand gradient disc. */
+/* "and/or" SITS ON THE MODAL'S CENTRE LINE (requested 2026-09-20), with one item to its left
+   and one to its right.
+   A CENTRED FLEX ROW CANNOT DO THIS. `justify-content: center` centres the GROUP, so the
+   separator lands wherever the two labels' differing widths happen to put it — "Drag cards to
+   move them around" and "Choose what appears on your dashboard" are nowhere near equal, so it
+   sat noticeably left of centre.
+   `1fr auto 1fr` pins the middle column to the true centre whatever the labels weigh: the two
+   `1fr` tracks are always equal, so the `auto` track between them is centred by construction.
+   The items then hug it via `justify-self`, keeping the gap symmetrical. */
 .md-ds-howto {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
   gap: 10px 14px;
   margin: 4px auto 16px;
 }
+.md-ds-howto > .md-ds-howto__item:first-child { justify-self: end; }
+.md-ds-howto > .md-ds-howto__item:last-child { justify-self: start; }
 .md-ds-howto__item {
   display: inline-flex;
   align-items: center;
@@ -33564,8 +33580,13 @@ $ds-choice-width: 380px;
    to ~md; below that they wrap. (The container already centers via
    `align-items:center`, so just flipping to column is enough.) */
 @media (max-width: $aac-breakpoint-md) {
+  /* Single column below 768px. This USED to be `flex-direction: column`, which the grid above
+     made inert — a flex property on a grid container does nothing, so without this change the
+     three-column row would have survived down to phone widths and squashed both labels.
+     `justify-items: center` replaces the flex centring for the same reason. */
   .md-ds-howto {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    justify-items: center;
   }
 }
 /* Page 2 (Customize your dashboard): two-up layout — the live preview on the LEFT,
@@ -33573,7 +33594,20 @@ $ds-choice-width: 380px;
    column with the toggles stacked on top). Grid areas put the legend above the
    live preview in the left column; the toggles panel spans both rows on the right. */
 .md-ds-preview--with-toggles {
-  margin-top: 6px;
+  /* WAS `margin-top: 6px`, now 0 (2026-09-20). It never actually contributed 6px: as a block it
+     collapsed into `.md-ds-howto`'s 16px bottom margin above it, so the gap was always 16px.
+     A flex item does NOT margin-collapse, so once the parent became a flex column the 6px
+     started adding on top — measured as a 6px scroll on a 760x640 viewport that had none
+     before. Zero keeps the rendered gap exactly what it has always been. (`.md-ds-howto` is
+     always rendered directly above this element: both are gated on the same `withToggles`
+     flag in _gentlePreviewHtml.) */
+  margin-top: 0;
+  /* Grow into the flex column above (the `:has()` rule on .shepherd-text). Without this the
+     grid is an auto-height block and its `minmax(0, 1fr)` row has no spare height to hand out,
+     so `align-items: stretch` below would have nothing to stretch INTO. `min-height: 0` lets it
+     shrink past its content on a short viewport instead of overflowing the modal. */
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   /* The toggles panel hugs its content (widest pill + padding); the preview takes
      the rest. The long heading is wrapped (not allowed to stretch the panel) by
@@ -33587,19 +33621,28 @@ $ds-choice-width: 380px;
   grid-template-areas:
     "legend   legend"
     "live     sections";
-  align-items: start;
+  /* STRETCH, not `start` (2026-09-20). Row 2 is already `minmax(0, 1fr)`, so it takes whatever
+     height the modal has left — but `align-items: start` made both panels sit at the top of
+     that row at their content height, leaving the empty band below them that was reported.
+     The row was never the problem; the items simply were not growing into it. `stretch` is the
+     grid default, so this line is now only here to document that the previous value was
+     deliberate-looking and wrong. */
+  align-items: stretch;
   column-gap: 24px;
 }
 .md-ds-preview--with-toggles .md-ds-preview__legend { grid-area: legend; }
 .md-ds-preview--with-toggles .md-ds-preview__live { grid-area: live; }
 /* Toggles become the right-hand panel: drop the centered-top-block max-width +
-   auto margins (the inset card treatment is kept and now reads as a side panel),
-   sit it at the top of its area, and stack the pills vertically in the column. */
+   auto margins (the inset card treatment is kept and now reads as a side panel)
+   filling the full height of its row, and stack the pills vertically in the column. */
 .md-ds-preview--with-toggles .md-ds-sections {
   grid-area: sections;
   max-width: none;
   margin: 0;
-  align-self: start;
+  /* `align-self: start` REMOVED (2026-09-20): it re-applied the shrink per-item, so relaxing
+     the container's `align-items` alone would have fixed the preview column and left this one
+     short — the two had to change together. The pills inside still stack from the top; that is
+     `.md-ds-sections`' own flex direction, not this. */
 }
 .md-ds-preview--with-toggles .md-ds-sections__title {
   text-align: left;
@@ -33616,6 +33659,75 @@ $ds-choice-width: 380px;
   align-items: flex-start;
   justify-content: flex-start;
 }
+/* SAVE CHANGES — sits at the foot of the checklist panel (requested 2026-09-20). It is an
+   alias for the modal footer's primary button, so it is gated with it.
+   Gentle View reuses `.md-btn.md-btn--primary` wholesale (the class the Gentle dashboard's own
+   action buttons carry), so only the layout/spacing is set here. */
+.md-ds-save {
+  /* Full panel width so it reads as the panel's own footer action rather than a stray chip,
+     sitting directly under the last checkbox.
+     NOT `margin-top: auto` to pin it to the panel's bottom edge: `.md-ds-sections` is a plain
+     BLOCK (see its rule above), so auto margins do not distribute free space there, and making
+     it a flex column to enable that would change how the panel's `max-content` grid track is
+     measured — the `.md-ds-sections__title` width:min-content/min-width:100% pair depends on
+     that measurement. A fixed gap gets "at the bottom of the list" without touching it. */
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: nowrap;
+}
+.md-ds-save--disabled,
+.md-ds-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+/* FOCUSED VIEW — the glossy dark-slate treatment of the My Caseload hero
+   (.md-card--caseload-focused, ~55229 below) at button scale. That rule is scoped to
+   `.md-grid--layout-focused.md-grid--hero-caseload` and is `!important` throughout (it has to
+   beat the .md-card base), so it cannot be reused directly; this restates the recipe from the
+   SAME shared tokens so the two cannot drift apart in colour. */
+.md-ds-save--focused {
+  padding: 14px 22px;
+  border: 1px solid rgba($focus-on-dark, 0.14);
+  border-radius: 12px;
+  color: $focus-on-dark;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  /* Same raised bevel as the hero — lit top edge, darker inner bottom lip, contact shadow and
+     drop shadow — scaled down for a control this size rather than a 220px showcase card. */
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.36),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.36),
+    0 2px 4px rgba($focus-shadow-ink, 0.26),
+    0 10px 20px rgba($focus-shadow-ink, 0.38),
+    0 0 18px rgba($focus-hero-glow, 0.10);
+}
+.md-ds-save--focused:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.40),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.34),
+    0 4px 9px rgba($focus-shadow-ink, 0.28),
+    0 16px 30px rgba($focus-shadow-ink, 0.46),
+    0 0 30px rgba($focus-hero-glow-hover, 0.35);
+}
+.md-ds-save--focused:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 5px rgba($focus-shadow-ink, 0.35),
+    inset 0 1px 0 rgba($focus-on-dark, 0.18),
+    0 1px 2px rgba($focus-shadow-ink, 0.18);
+}
 /* Narrow viewports (small landscape): fall back to the original single column
    with the toggles stacked on top of the preview. */
 @media (max-width: 860px) {
@@ -33625,6 +33737,11 @@ $ds-choice-width: 380px;
       "sections"
       "legend"
       "live";
+    /* THREE rows here, so the two-row template above would leave row 3 implicit and put its
+       `minmax(0, 1fr)` on the LEGEND — which, now that the items stretch, would blow the legend
+       up to fill the modal and push the preview off the bottom. Restate the tracks so the
+       flexible one is the live preview, matching the wide layout's intent. */
+    grid-template-rows: auto auto minmax(0, 1fr);
     column-gap: 0;
   }
   .md-ds-preview--with-toggles .md-ds-sections {
@@ -33820,9 +33937,11 @@ $ds-choice-width: 380px;
     linear-gradient(180deg, #fdfdfe, #f3f6fb);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 26px rgba($la-navy, 0.10);
   overflow: hidden;
-  /* Extra top padding so the scaled grid sits lower in the frame, with breathing
-     room above the first row of cards. */
-  padding: 30px 0 16px;
+  /* Even 12px top and bottom (requested 2026-09-20), replacing the asymmetric 30/16 that sat
+     the scaled grid lower in the frame. The horizontal 0 is unchanged: the cloned grid brings
+     its own side gutters. `_fitPreviewZoom` reads this back via getComputedStyle (`padY`), so
+     the zoom that fits the clone to the viewport tracks the new value with no JS change. */
+  padding: 12px 0;
   min-height: 188px;
 }
 /* Empty-state overlay — shown over the preview when no display elements are
@@ -49710,7 +49829,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Scoped to >900px: below that the rail is an in-flow grid across the top, and it is also
    where the shell class stops being the right hook -- there is nothing to clear. */
 @media (min-width: 901px) {
-  .md-shell--user-rail {
+  /* `.md-shell--home` joined this selector on 2026-09-20: the modern home page now renders the
+     same rail (components/dashboard/authenticated-view.hbs) and needs the identical gutter.
+     Added to the EXISTING rule rather than given an override of its own, so the two shells can
+     never disagree about the panel's width.
+     It is NOT added to the `margin-top: 0` rule above: that exists because the account page
+     suppresses the pill row, and the home page keeps it. */
+  .md-shell--user-rail,
+  .md-shell--home {
     /* EXACTLY the panel's width, so the content edge meets the panel's right edge. The panel
        is `box-sizing: border-box`, so its 208px already contains its 10px padding and its 1px
        right border -- reserving 236px (208 + a 28px gutter borrowed from `.md-acct-top`'s
@@ -50154,6 +50280,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
+/* UPDATES PAGE, REACHED FROM THE PILL-NAV — 64px of headroom (requested 2026-09-20).
+   The modifier is set in templates/user.hbs from the same `homeNavContext` flag that decides
+   which nav renders, so this cannot apply to the logs page reached from the account rail
+   (that arrival shows the rail and no pill row) or to any other user.* page.
+
+   MODERN ONLY, WITHOUT NEEDING A MODERN SELECTOR — there is no classic body class to hang one
+   on, and none is required: `homeNavContext` is true only for `?nav=home`, and every link that
+   emits that param lives in modern-only markup (components/user-pill-nav.hbs and
+   components/dashboard/authenticated-view.hbs). Classic renders Dashboard::ClassicView, which
+   emits none, so a Classic user has no route that sets this flag.
+
+   SPECIFICITY (0,4,1), NOT SOURCE ORDER. This has to beat two rules that are both
+   `!important`: the base `.md-workspace` padding (0,1,0) and, in Focused View,
+   `body.ll-layout-focused .md-shell--user > .md-workspace` (0,3,1), which sets 20px. Matching
+   that at (0,3,1) would have left the winner decided by source order — and _focused-view.scss
+   is a `@use`d partial emitted ~61k lines ABOVE this file, so that is precisely the coin-flip
+   this codebase avoids. The redundant-looking `body` + `.md-shell` carry the weight.
+   Applies in BOTH layouts, since the request named the Modern/Classic axis, not Gentle/Focused.
+   Only the top is set; sides and the `calc(40px - 9rem)` bottom keep their values. */
+body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
+  padding-top: 64px !important;
+}
+
 /* The 208px gutter for bare-layout pages that carry the rail (currently only Reports,
    user.stats). `.md-shell--user-rail` cannot do this job here: bare routes never render that
    shell. Scoped to its own wrapper rather than to `.md-shell--reports-view`, which Boards
@@ -50243,6 +50392,37 @@ a.md-pillnav__pill.active .md-pillnav__badge,
        is reset to `auto` just above. The bottom 20px was already here and is unchanged --
        this sets the leading edge to match. */
     margin: 22px 0 20px;
+    /* PADDING (requested 2026-09-20): +32px on top, and sides set to ALIGN WITH THE WORKSPACE.
+       Top was 12px here -- set by the `max-width: 1024px` block above, which this later,
+       narrower query overrides at equal specificity -- so +32 lands at 44.
+       SIDES ARE 52px, AND THE RAIL IS DELIBERATELY INSET MORE THAN THE CONTENT BELOW IT.
+       Read this before "fixing" it to match the workspace: at these widths the workspace does
+       NOT inset by 52px. `@media (max-width: 950px) .md-workspace` resets it to `margin: 0`
+       with `padding: … 16px …` (and `<=820px` takes the sides to 12px), so workspace content
+       starts 16px from the shell edge, not 52. Measured in headless Chrome at a 900px
+       viewport: workspace computed padding-left 16px, max-width 100%, margin-left 0.
+       16px was therefore tried FIRST and rejected by eye -- it is exactly the workspace's own
+       inset, and at that width everything sits so close to the edge that the rail read as
+       having no padding at all. 52px is the value that makes the rail's rows visibly inset;
+       it is a deliberate 36px MORE than the content under them, not an alignment.
+       (An earlier version of this comment claimed 52 = 12px centring + 40px padding and called
+       it "aligned with the workspace". That arithmetic came from the BASE `.md-workspace`
+       rule, which the <=950px rule above overrides -- it never applies at this width.)
+       Bottom is restated as its existing 10px rather than left out, because this is the
+       shorthand.
+       NOT scoped to modern view, deliberately. `body.ll-view-modern` exists (app.js
+       `set_view_scope`) but has ZERO uses in any stylesheet, and app.js notes an unrecognised
+       preference leaves BOTH view classes off -- so keying on it would silently drop this
+       padding. More importantly the same rail renders on the account-section pages in Basic
+       view too, and giving the two views different padding at the same width would read as a
+       bug rather than a choice.
+       NOTE FOR THE NEXT EDIT: `.md-acct-rail__pager` carries `margin: -10px -10px 10px` to
+       cancel the panel's 10px side padding and sit wall-to-wall. It is NOT adjusted here
+       because it cannot render at this width -- the rail is `position: static` with auto
+       height and `overflow-y: visible`, so `scrollHeight === clientHeight` and
+       `rail_scrollable` (components/account-rail.js) is never true. If that ever changes, the
+       pager needs -16px sides to match. */
+    padding: 44px 52px 10px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 8px;
@@ -51558,6 +51738,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-logs__card .pagination > .active > a {
   background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
   border-color: rgba($brand-charcoal-blue, 0.3);
+}
+/* The in-content New Note / Quick Assessment pair on the Updates view (`?type=note`, the
+   `messages_only` branch of templates/user/logs.hbs). Right-aligned in EVERY view — the
+   request named no layout, so this is deliberately not scoped to Gentle or Focused.
+   Distinct from `.md-logs__action-pills` below, which is the floating pill row above the card
+   and is left as it was. `gap` + `flex-wrap` so the two do not collide on a narrow screen,
+   where they would otherwise be pushed together against the right edge. */
+.md-logs__note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .md-logs__action-pills {
   display: flex;
@@ -55269,20 +55461,28 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-card--speak-focused__icon,
 .md-card--caseload-focused__icon { color: $focus-on-dark; line-height: 0; }
-/* Caseload badge — 126px wide, matching the Speak badge below so the two heroes carry
-   identical visual weight.
-   HEIGHT IS A DELIBERATE 15% STRETCH (requested 2026-09-18), which is why this is
-   `object-fit: fill` and not the `contain` the Speak badge uses. The caseload-folder
-   artwork is 252x214 (landscape); contained at 126px wide it paints 107px tall and left a
-   19px band of dead space against the text beside it. 107 x 1.15 = 123, so the box is
-   126x123 and `fill` stretches the source to exactly that -- the 15%.
-   The 3px height difference against the Speak badge is not visible anywhere: the two never
+/* Caseload badge — 132px wide, 123px tall. Slightly wider than the 126px Speak badge below
+   (requested 2026-09-20: 5% wider than the original 126, = 132.3 -> 132. A 15% widening to
+   145 was tried the same day and reverted).
+   WHY `object-fit: fill` AND NOT the `contain` the Speak badge uses: the height is a
+   deliberate stretch, added 2026-09-18 to close a band of dead space against the text beside
+   it. The caseload-folder artwork is 252x214, so at 132px wide its natural height is 112.1px
+   against this 123px box -- a 9.7% vertical stretch.
+   THAT PERCENTAGE MOVES WITH THE WIDTH, which is worth knowing before tuning either number:
+   the stretch was 15% at 126px wide, 0.1% (i.e. none) at 145px, and is 9.7% here. Height was
+   left at 123px because only the width was asked to change; if the intent is to hold a fixed
+   15% stretch, the height has to be recomputed each time the width moves.
+   KEPT AS `fill` WITH EXPLICIT DIMENSIONS rather than `contain`, which would letterbox to the
+   natural ratio and silently discard the stretch.
+   Both numbers are tied to the 252x214 source, NOT to a ratio the browser works out, so
+   swapping the artwork means recomputing them. (The attention tile's `inset: 7.5%` in
+   _focused-view.scss is the orientation-independent form and needs no such recompute --
+   the difference is deliberate: this box has to line up with text beside it.)
+   The height difference against the Speak badge is not visible anywhere: the two never
    render together. `focusedHeroKey` (utils/dashboard_sections.js) returns exactly ONE key
    and stamps a single `md-grid--hero-*` on the grid, so a supporter sees the caseload hero
-   and a communicator sees the Speak one.
-   Changing the artwork means recomputing this: it is tied to the 252x214 source, not to a
-   ratio the browser works out. */
-.md-card--caseload-focused__img { width: 126px; height: 123px; display: block; object-fit: fill; }
+   and a communicator sees the Speak one. */
+.md-card--caseload-focused__img { width: 132px; height: 123px; display: block; object-fit: fill; }
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
    becomes the hero's unmistakable focal point. */
 .md-card--speak-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
@@ -55487,6 +55687,25 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-shell--layout-focused .md-display-style__trigger {
   padding-top: 5px !important;
   padding-bottom: 5px !important;
+}
+/* MODERN HOME, <=900px: NO top padding on the workspace (requested 2026-09-20).
+   Below 900px `.md-acct-rail` stops being a fixed side panel and becomes an in-flow grid ABOVE
+   this element (see its `position: static` block), and it already carries its own
+   `margin: 22px 0 20px`. The workspace's 40px top was sized for a page that started under open
+   space, so on top of the rail's own bottom margin it read as a gap rather than as breathing
+   room. Zero here; the rail's 20px bottom margin is the whole separation.
+   ONE RULE FOR BOTH VIEW STYLES. Focused normally takes 32px here
+   (`.md-shell--layout-focused > .md-workspace`, just below) against Gentle's 40px, but zero is
+   zero -- there is no difference left to preserve, so this deliberately flattens the two.
+   `.md-shell.md-shell--home` is (0,3,0), which outranks that focused rule's (0,2,0) WITHOUT
+   depending on source order -- both classes are genuinely on the element, so this is an honest
+   selector rather than a specificity hack, and it survives the rule below being moved.
+   `.md-shell--home` is the modern home tab only: `authenticated-view.hbs` stamps it on
+   `activeTab === 'home'`, which is also the only tab that renders the rail. */
+@media (max-width: 900px) {
+  .md-shell.md-shell--home > .md-workspace {
+    padding-top: 0 !important;
+  }
 }
 /* Focused View workspace keeps a 32px top breathing room (padding) at all widths,
    and a 16px top MARGIN on full-size screens. (The general .md-workspace margin is
@@ -55927,17 +56146,32 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   color: $la-navy !important;
   border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
+  /* 10% DARKER (requested 2026-09-20, Create a Board + Edit Dashboard — the only two
+     badge-action cards left after Account and Reports were retired from the grid).
+     `color-mix(… 90%, black)` and NOT `color.scale()`: these stops are themselves CSS
+     `color-mix()` values, so Sass colour functions cannot operate on them. Same constraint
+     and same idiom as the focused button fills in _focused-view.scss.
+     CONTRAST — AND THE PRECEDENT'S REASONING DOES NOT TRANSFER. That rule notes "the ink is
+     white on a fill that is getting DARKER, so white-on-fill can only improve. No AA risk in
+     this direction." Here the ink is DARK ($la-navy) on a fill getting darker, so contrast
+     FALLS. Measured rather than assumed: navy on the two base stops goes 10.48:1 -> 8.38:1 and
+     9.44:1 -> 7.55:1, both still far above the 4.5:1 AA floor for normal text.
+     THE TOP-LEFT SHEEN IS LEFT AT 0.65 — only the three COLOUR stops are darkened, which is
+     what was asked. The sheen is white, so the darkening reads weakest under it and strongest
+     away from it; if the card should come down evenly, that alpha is the second lever. */
   background:
     /* Top-left white sheen. */
     radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 48%),
     /* Verdigris tucked tight into the FAR bottom-right corner (a small radial
        glow), fading into the denim tint everywhere else. */
-    radial-gradient(28% 40% at 100% 100%, color-mix(in oklch, $brand-verdigris 24%, white) 0%, transparent 46%),
+    radial-gradient(28% 40% at 100% 100%,
+      color-mix(in oklab, color-mix(in oklch, $brand-verdigris 24%, white) 90%, black) 0%,
+      transparent 46%),
     /* LIGHT denim-tinted base — keeps the brand hue but stays bright enough for a
        dark navy header to clear WCAG AA. */
     linear-gradient(140deg,
-      color-mix(in oklch, $brand-dusty-denim 13%, white) 0%,
-      color-mix(in oklch, $brand-dusty-denim 22%, white) 100%) !important;
+      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 13%, white) 90%, black) 0%,
+      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 22%, white) 90%, black) 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba($la-navy, 0.06),
@@ -55967,12 +56201,43 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   background: #64748B !important;
   box-shadow: none !important;
 }
-/* Title underline divider → denim→verdigris reading on the light bg. Made a
-   touch easier to perceive (NOT brighter): +1px height and the solid portion of
-   the fade-mask extended (55%→75%) so more of the line registers before it fades. */
+/* Title underline divider → denim→verdigris reading on the light bg, as GLASS and THINNER
+   (both requested 2026-09-20), matching the glass-morphism icon tiles on these same cards.
+   HEIGHT 3px → 2px → 2.5px. The 3px was Focused's bump for perceptibility; 2px is what every
+   non-focused variant uses (the extras/badge-action rule and the org-management one), and the
+   glass treatment below was meant to carry that legibility with a highlight rather than bulk.
+   2px then read too faint once translucent, so it is nudged back to 2.5 — deliberately BETWEEN
+   the two, because returning to 3 would undo the thinning asked for a step earlier. The half
+   pixel antialiases on a 1x display, which on a translucent bar softens the edge rather than
+   blurring a hard line.
+   The fade-mask is deliberately UNCHANGED at 75%: it is what gives the bar its shape, and it
+   was widened from 55% for perceptibility, which thinning does not undo.
+   GLASS AT HAIRLINE SCALE. The same vocabulary as the icon tiles, adapted to 2px:
+     - the brand ramp goes TRANSLUCENT ($brand-dusty-denim → $brand-verdigris as rgba, not
+       replaced by new colours), so what is behind shows through. DARKENED 2026-09-20
+       (requested): 0.58/0.48 → 0.80/0.70, and the sheen below trimmed 0.55 → 0.38 so it stops
+       washing the bar back out. Alpha is the right lever here rather than height — the bar
+       read faint because the light card showed through it, not because it was too thin, and
+       two prior size changes had already been made for the same symptom. Real translucency is
+       kept at both stops: at 1.0 the backdrop blur below becomes a no-op and the bar is just a
+       solid line again;
+     - a top-weighted white sheen as a second layer, which is what reads as the glass
+       highlight at this height — an `inset` box-shadow would occupy half the bar;
+     - a real backdrop blur, smaller than the tiles' 14px because a 2px strip only ever
+       samples a 2px band: 6px is enough to soften it without smearing the card texture.
+   `-webkit-` twin included for older iOS/iPadOS, where it degrades to the translucent
+   gradient — still a visible denim→verdigris line, just without the frost. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__title::after {
-  background: linear-gradient(90deg, $brand-dusty-denim, $brand-verdigris) !important;
-  height: 3px !important;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0) 100%),
+    linear-gradient(90deg,
+      rgba($brand-dusty-denim, 0.80) 0%,
+      rgba($brand-verdigris, 0.70) 100%) !important;
+  backdrop-filter: blur(6px) saturate(1.25) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(1.25) !important;
+  height: 2.5px !important;
   -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%) !important;
   mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%) !important;
 }
@@ -56334,18 +56599,52 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    equal-specificity source-order tie. Glyphs get a slight brightness lift so the
    denim/teal line art still reads on the darker surface. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon {
-  /* Darker, LESS-SATURATED blue (muted slate-blue) at the CENTRE, fading to a
-     lighter slate-blue at the outer edges. */
-  background: radial-gradient(circle at 50% 46%,
-    #262d3a 0%,
-    #333c4a 48%,
-    #515d70 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  /* Calmer tile — most of the glossy glow removed (faint top rim only), keeping
-     just the dark square + a subtle drop shadow. */
+  /* GLASS MORPHISM (requested 2026-09-20), replacing the opaque "calmer tile" this rule used
+     to paint. The four properties below are the whole recipe and each one is load-bearing:
+     a TRANSLUCENT fill, a BACKDROP BLUR behind it, a bright RIM, and an inner top highlight
+     with a dark inner lip. Drop any one and it stops reading as glass — a translucent fill
+     with no blur is just a weak colour, and a blur with an opaque fill does nothing at all.
+
+     SAME SLATE, NOW TRANSLUCENT. The three stops are the app's dark icon-tile ramp
+     (#262d3a / #333c4a / #515d70 — also on the Extras setup cards and the preferences boxes)
+     expressed as rgba rather than replaced, so this is the established palette gone glassy and
+     not a new colour.
+     DARKENED 2026-09-20 (requested) by RAISING THE ALPHAS, 0.80/0.76/0.66 -> 0.93/0.90/0.84,
+     not by darkening the stops. That is the right lever here: the tile sits on the LIGHT
+     focused card surface and the blur pulls that brightness through, so what made it read pale
+     was the card showing through, not the slate being too light. Deepening the colours as well
+     would have drifted off the shared ramp for no gain. The sheen is trimmed
+     (0.16 -> 0.12 at its peak) so it lifts the top edge without undoing the darkening.
+     There is still real translucency left at every stop — push these to 1.0 and the backdrop
+     blur below becomes a no-op and the tile stops being glass at all.
+
+     blur(14px) saturate(1.3) is the repo's existing frosted value, reused verbatim from the
+     focused Boards and Logs card surfaces (_focused-view.scss) rather than invented here.
+     `-webkit-` twin included: without it the effect is silently dropped on older iOS/iPadOS,
+     which is a very common AAC device population — and there it degrades to the plain
+     translucent fill, which still reads as a dark tile.
+
+     SCOPE COMES FROM THE SELECTOR, unchanged: `.md-grid--layout-focused` is Focused View, and
+     the `md-grid--*` classes only exist on the modern dashboard (Basic renders
+     Dashboard::ClassicView with `.ch-*` markup), so this is focused + modern without any extra
+     gate. It reaches the SMALL 41px badge-action tiles sized by the rule further down — not
+     the full-width hero showcases, which are images rather than tiles. */
+  background:
+    linear-gradient(158deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.04) 44%,
+      rgba(255, 255, 255, 0) 72%),
+    radial-gradient(circle at 50% 46%,
+      rgba(38, 45, 58, 0.93) 0%,
+      rgba(51, 60, 74, 0.90) 48%,
+      rgba(81, 93, 112, 0.84) 100%) !important;
+  backdrop-filter: blur(14px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 2px 5px rgba(0, 0, 0, 0.16) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -2px 6px rgba(15, 23, 42, 0.24),
+    0 6px 16px rgba(15, 23, 42, 0.18) !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
   filter: brightness(1.4) saturate(1.05);
@@ -56386,8 +56685,14 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   color: #0F2540 !important;
   text-shadow: none !important;
 }
+/* WIDER (requested 2026-09-20): 150px -> 180px. This `width` is the bar's FULL length, and the
+   75% fade-mask on the appearance rule above means roughly the first three quarters reads as
+   solid and the last quarter dissolves. So the extra 30px lengthens the solid run and the fade
+   in proportion rather than just adding more nothing at the end.
+   The base rule's `max-width: 100%` still caps it, so a narrow card clips the bar instead of
+   being pushed wider by it. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__title::after {
-  width: 150px !important;
+  width: 180px !important;
 }
 /* `.md-grid.md-grid--layout-focused` (0,6,0) beats the later 18px gentle-intended
    rule (`.md-grid .md-card.md-card--badge-action...`, 0,5,0) that isn't layout-scoped. */

@@ -2,8 +2,9 @@
 <div class="md-shell md-shell--caseload">
   <div class="md-workspace">
     {{!-- Same primary pill-nav as the other supervisor pages (Home · Caseload ·
-         Organizations · Boards · Reports · Extras · Account), with Caseload marked
-         active. Responsive via .md-pillnav--dashboard (wraps on narrow screens). --}}
+         Organizations · Boards · Extras · Account), with Caseload marked active.
+         Reports is not in this nav at all any more (2026-09-20) — it lives in the account
+         rail. Responsive via .md-pillnav--dashboard (wraps on narrow screens). --}}
     <UserPillNav @active="caseload" @userName={{this.appState.currentUser.user_name}} />
 
     <article class="md-card md-card--sup" aria-label={{t "My Caseload" key="my_caseload"}}>

@@ -1463,7 +1463,9 @@ export default Component.extend({
     editDashboard: function() {
       var opener = this.get('appState.dashboard_design_opener');
       if (opener) {
-        opener('display_style_display');
+        // The style-chooser page was removed 2026-09-20 (components/display-style.js);
+        // this opener now lands on the customize page, which is the whole flow.
+        opener('display_style_layout');
       } else {
         this.get('appState').set('open_dashboard_design', 'display');
       }

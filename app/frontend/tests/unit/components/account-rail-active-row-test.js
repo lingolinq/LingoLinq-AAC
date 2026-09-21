@@ -60,6 +60,30 @@ module('Unit | Component | account-rail activeRow', function(hooks) {
       'Goals must not leave the Account row lit');
   });
 
+  /* The rail renders on the modern home page as of 2026-09-20
+   * (components/dashboard/authenticated-view.hbs), so its "Home Page" row has to light up
+   * there. Both names matter: the home page is served by top-level `index` AND by `user.home`,
+   * which routes/user/home.js renders through the same index template and controller. A map
+   * keyed on only one would leave the row dark on half the URLs that show the same page.
+   */
+  test('both home-page routes highlight the Home Page row', function(assert) {
+    assert.expect(2);
+    assert.strictEqual(rail(this, 'index').get('activeRow'), 'home',
+      'the top-level index route is the home page');
+    assert.strictEqual(rail(this, 'user.home').get('activeRow'), 'home',
+      'and so is user.home');
+  });
+
+  // Home and Account are the two rows with multi-route aliases; a mix-up between the two maps
+  // would be invisible on one of them.
+  test('home and account do not claim each other', function(assert) {
+    assert.expect(2);
+    assert.notStrictEqual(rail(this, 'index').get('activeRow'), 'account',
+      'the home page must not light the Account row');
+    assert.notStrictEqual(rail(this, 'user.account').get('activeRow'), 'home',
+      'the account page must not light the Home Page row');
+  });
+
   test('the section index counts as the account page', function(assert) {
     assert.strictEqual(rail(this, 'user.index').get('activeRow'), 'account',
       'user.index and user.account are the same page');

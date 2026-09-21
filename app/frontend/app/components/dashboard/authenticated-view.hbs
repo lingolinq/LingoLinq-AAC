@@ -1,4 +1,23 @@
 <div class="md-shell {{if (is-equal this.activeTab "home") "md-shell--home"}} {{if (is-equal this.effectiveLayout "focused") "md-shell--layout-focused"}} {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
+  {{!-- THE ACCOUNT-SECTION RAIL, ALSO ON THE MODERN HOME PAGE (requested 2026-09-20).
+       Mounted HERE rather than in templates/user.hbs because the home page is served by TWO
+       routes -- top-level `index` (path /) and `user.home` -- and only the second passes
+       through that template. `user.home` is also in BARE_ROUTE_BASES (controllers/user.js), so
+       it renders a plain outlet there. Mounting inside this component is the one place that
+       covers both routes identically.
+       MODERN ONLY, and that is structural rather than a gate: this component IS the modern
+       dashboard. Basic view renders Dashboard::ClassicView instead (templates/index.hbs
+       branches on `classicHome`), which this never touches.
+       HOME TAB ONLY. This shell is reused for the Boards, Reports and Extras tabs, and two of
+       those are deliberately full-width layouts (`md-workspace--boards-full`,
+       `md-shell--reports-view`) that a 208px fixed panel would fight.
+       THE PILL ROW STAYS. On the account page the rail REPLACES it, because there the two
+       carried the same destinations. Here they are complementary, not duplicates: Boards,
+       Caseload, Organizations, Extras and Updates exist ONLY in the pill row, so dropping it
+       would remove those from the home page entirely. --}}
+  {{#if (is-equal this.activeTab "home")}}
+    <AccountRail @user={{this.appState.currentUser}} />
+  {{/if}}
   <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
   {{!-- The "Take a tour" + "Get Started" triggers live in the inner header
        (app-navbar-authenticated-inner → .app-navbar__home-actions) as circle icon

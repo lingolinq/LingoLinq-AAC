@@ -57,7 +57,6 @@ export default Component.extend({
       case 'caseload': return i18n.t('caseload_pill', "Caseload");
       case 'organizations': return i18n.t('organizations', "Organizations");
       case 'boards': return i18n.t('boards', "Boards");
-      case 'reports': return i18n.t('reports', "Reports");
       case 'extras': return i18n.t('extras', "Extras");
       case 'updates': return i18n.t('updates', "Updates");
       default: return i18n.t('menu', "Menu");

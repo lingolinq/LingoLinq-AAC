@@ -157,8 +157,14 @@
   {{else}}
     {{#if this.messages_only}}
       {{#if this.model.permissions.edit}}
-        <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</button>
-        <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+        {{!-- RIGHT-ALIGNED, AND THE PAIR SWAPPED so Quick Assessment leads (requested
+             2026-09-20). Wrapped in their own row rather than aligning `.md-logs__card`:
+             the sibling `{{#if this.all_logs}}` branch above puts Download Log File and
+             Clear All Logs in the same parent, and those are not part of this request. --}}
+        <div class="md-logs__note-actions">
+          <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+          <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</button>
+        </div>
       {{/if}}
     {{/if}}
   {{/if}}

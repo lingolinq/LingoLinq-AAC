@@ -26,7 +26,11 @@
   {{!-- `--home` is a LEVEL UP, not a sibling: every other row in this nav is a `user.*`
        sub-page of the account section, and this one leaves it for the app home. It is
        styled as a quieter, separated link so the eight section pages read as one group. --}}
-  <LinkTo @route="index" class="md-acct-rail__row md-acct-rail__row--home">
+  {{!-- `@current-when` covers BOTH names the home page answers to (`index` and `user.home`),
+       bound from the component so the list is stated once. Before 2026-09-20 this row carried
+       no active state, because the rail never rendered on the home page — it was only ever a
+       way out of the section. It renders there now, so it lights up like any other row. --}}
+  <LinkTo @route="index" @current-when={{this.homeCurrentWhen}} @activeClass="is-active" class="md-acct-rail__row md-acct-rail__row--home" aria-current={{if (is_equal this.activeRow "home") "page"}}>
   <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
   <span class="md-acct-rail__label">{{t "Home Page" key="home_page"}}</span>
   </LinkTo>

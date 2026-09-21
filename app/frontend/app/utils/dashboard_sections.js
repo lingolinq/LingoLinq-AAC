@@ -23,16 +23,45 @@
 import i18n from './i18n';
 
 var HOME_SECTIONS = [
-  { key: 'boards',   cardClass: 'md-card--boards',        labelKey: 'boards',           labelDefault: "Boards",           available: function() { return true; } },
+  // BOARDS IS COMMUNICATOR-ONLY ON THE HOME GRID (2026-09-20). An SLP/supporter's home is
+  // their caseload and an org manager's is their organization; for both, a Boards card sits
+  // below work they actually came here to do. Communicators (and signed-out/unknown users)
+  // still get it.
+  // `hasOrgManagement` is a function declaration below, so it is hoisted and callable here —
+  // the `org` entry already relies on that, so this is the established pattern rather than a
+  // new dependency.
+  // A supporter who is ALSO a communicator loses the card: `supporter_role` decides, and that
+  // is the role the request named. They keep every other route to boards — the Boards pill and
+  // tab in the nav are untouched, as is the account rail's Home Board row.
+  { key: 'boards',   cardClass: 'md-card--boards',        labelKey: 'boards',           labelDefault: "Boards",           available: function(user) { return !(user && (user.get('supporter_role') || hasOrgManagement(user))); } },
   { key: 'speak',    cardClass: 'md-card--speak',         labelKey: 'speak_mode',       labelDefault: "Speak Mode",       available: function() { return true; }, hero_for: 'communicator' },
   { key: 'extras',   cardClass: 'md-card--extras',        labelKey: 'extras',           labelDefault: "Extras",           available: function() { return true; } },
   { key: 'caseload', cardClass: 'md-card--caseload',      labelKey: 'my_caseload',      labelDefault: "My Caseload",      available: function(user) { return !!(user && user.get('supporter_role')); }, hero_for: 'supervisor' },
   { key: 'rooms',    cardClass: 'md-card--rooms',         labelKey: 'rooms',            labelDefault: "Rooms",            available: function(user) { return !!(user && user.get('supporter_role') && (user.get('supervised_units') || []).length > 0); } },
   { key: 'attention', cardClass: 'md-card--attention',    labelKey: 'communicators_need_attention', labelDefault: "Communicators Need Attention", available: function(user) { return !!(user && user.get('supporter_role') && communicatorsNeedingAttention(user).length > 0); } },
   { key: 'org',      cardClass: 'md-card--org-management', labelKey: 'my_organizations', labelDefault: "My Organizations", available: function(user) { return hasOrgManagement(user); }, hero_for: 'admin' },
-  { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return true; } },
+  // RETIRED FROM THE HOME GRID 2026-09-20 (`available` false, entries deliberately kept).
+  // My Account and Reports no longer appear as cards on the modern home dashboard.
+  //
+  // WHY `available: false` RATHER THAN DELETING THE ENTRIES. This registry is the single
+  // source of truth, so returning false removes them from EVERY consumer at once and that is
+  // what makes the Edit Dashboard modal update itself: `layoutPresentation` builds its `vis`
+  // map from `availableHomeSections`, and `display-style` builds the modal's checkbox list
+  // and its live-preview clone from the same function. Nothing had to be told twice.
+  // It also produces a state the layout engine ALREADY handles every day — a key that is
+  // present in the order arrays but absent from `vis` is exactly what a user-hidden card looks
+  // like — whereas deleting the entries would mean matching surgery on `AREA`, four
+  // DEFAULT_ORDER arrays, `FOCUSED_ACTION_KEYS` and the grid-area matrices, for no behavioural
+  // gain and a real chance of shifting the remaining cards.
+  // Re-enabling is a one-word change back to `true`. Users who had explicitly toggled either
+  // card off keep that stored preference untouched in `dashboard_sections`.
+  //
+  // NEITHER DESTINATION IS LOST: My Account is in the account rail (components/account-rail.hbs)
+  // and, for communicators, the far-right nav pill; Reports is in that same rail and in the
+  // Extras card list (`extrasItems`, dashboard/authenticated-view.js).
+  { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return false; } },
   { key: 'createboard', cardClass: 'md-card--create-board', labelKey: 'create_a_board',   labelDefault: "Create a Board",   available: function() { return true; } },
-  { key: 'reports',  cardClass: 'md-card--reports',        labelKey: 'reports',          labelDefault: "Reports",          available: function() { return true; } },
+  { key: 'reports',  cardClass: 'md-card--reports',        labelKey: 'reports',          labelDefault: "Reports",          available: function() { return false; } },
   { key: 'editdashboard', cardClass: 'md-card--edit-dashboard', labelKey: 'edit_dashboard', labelDefault: "Edit Dashboard", available: function() { return true; } }
 ];
 
@@ -175,6 +204,68 @@ function attentionBadgeFor(supervisee) {
 // The subset of sections that exist for this user (in display order).
 function availableHomeSections(user) {
   return HOME_SECTIONS.filter(function(s) { return s.available(user); });
+}
+
+// The sections a LAYOUT actually renders for this user, IN THE ORDER THE PAGE SHOWS THEM. `availableHomeSections` answers "does
+// this user have it"; the two layouts then diverge, because Focused View drops sections BY
+// DESIGN, for everyone, whatever the user's own on/off preference says — `extras` always, and
+// `speak` whenever Speak is not the role hero and the org caseload+speak pair does not apply
+// (focusedLayout, below). A dropped card is not merely unplaced: gridLayoutState flags it and
+// app/styles/app.scss ~55329 sets `display: none !important` on it. So a checkbox for one of
+// those is a control that cannot change anything, and the Dashboard Design checklist uses this
+// function instead of availableHomeSections to avoid offering one.
+//
+// DERIVED FROM THE BUILT AREAS, NOT FROM A COPY OF THOSE CONDITIONS. Restating them here would
+// be a third copy (focusedLayout and layoutPresentation each hold one), and the next force-hide
+// would have to be added to every copy or the surfaces silently disagree. Reading the engine's
+// own output cannot drift. It is also the established idiom in this file: gridLayoutState
+// derives `speakPlaced` the same way, for the reason its comment gives.
+//
+// `vis` IS ALL-TRUE ON PURPOSE. The question is "can this layout ever render this section",
+// not "is it rendering right now" — so a toggle the user has currently switched off is still
+// offered, which is the whole point of having the toggle. The deliberate limit: a force-hide
+// CONDITIONAL on another card's visibility is not covered, because it is not hidden by design
+// for everyone. An org manager who has hidden My Caseload breaks `orgPair` and loses the Speak
+// card while keeping its toggle. That state is unchanged by this function and is reachable
+// only by the user's own choice; covering it would mean recomputing the list on every
+// checkbox change, and a toggle that vanished because you unchecked a different one would
+// read as a glitch.
+//
+// ADDING A HOME_SECTIONS ENTRY: `orderedVisible` keeps only keys present in the layout's
+// default order array, so a new key must also be added to DEFAULT_ORDER,
+// SUPERVISOR_DEFAULT_ORDER, ORG_DEFAULT_ORDER and FOCUSED_DEFAULT_ORDER, or it will be absent
+// from the areas and this function will stop offering it. All four are complete today.
+function sectionsForLayout(user, layout, order) {
+  var all = availableHomeSections(user);
+  var name = (['gentle', 'focused'].indexOf(layout) === -1) ? 'gentle' : layout;
+  var vis = {};
+  all.forEach(function(s) { vis[s.key] = true; });
+  var built = gridLayoutState(vis, (order && order.length) ? order : null, name, focusedHeroKey(user));
+  var placed = {};
+  built.areas.forEach(function(row) {
+    row.split(' ').forEach(function(token) { placed[token] = true; });
+  });
+  // Match on AREA NAMES, not keys — `org` occupies the area `org_mgmt` (AREA, below), so
+  // comparing raw keys would drop the Organizations row. The spacer tokens `.` and `sup` that
+  // framed()/framedN() emit match no AREA value, so they cannot mark a section placed.
+  //
+  // SORTED INTO PAGE READING ORDER, top-to-bottom and left-to-right, using the
+  // `orderIndices` gridLayoutState already computes by walking the built areas. The order
+  // ARRAYS (defaultOrderFor and a saved `dashboard_order`) are NOT the rendered order in
+  // Focused View and must not be used for this: `focusedLayout` collapses every visible
+  // FOCUSED_ACTION_KEYS card into ONE row emitted at the first one's slot, and the org
+  // caseload+speak pair is moved to the BOTTOM row. For a supervisor that alone is a visible
+  // disagreement — Create a Board and Edit Dashboard sit side by side near the top of the
+  // page, while SUPERVISOR_DEFAULT_ORDER ranks them 2 and 8 with Attention, Rooms,
+  // Organizations and Boards in between. Reading the areas gets all of that for free.
+  var oi = built.orderIndices || {};
+  return all
+    .filter(function(s) { return !!placed[AREA[s.key]]; })
+    .sort(function(a, b) {
+      var ia = (oi[a.key] === undefined) ? 999 : oi[a.key];
+      var ib = (oi[b.key] === undefined) ? 999 : oi[b.key];
+      return ia - ib;
+    });
 }
 
 // A section is hidden ONLY when the user explicitly turned it off. Missing or
@@ -650,5 +741,5 @@ function layoutPresentation(user, layout, opts) {
   };
 }
 
-export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, ORG_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
-export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
+export { HOME_SECTIONS, sectionsForLayout, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, ORG_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
+export default { HOME_SECTIONS, sectionsForLayout, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };

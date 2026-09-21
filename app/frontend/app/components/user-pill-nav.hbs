@@ -30,11 +30,15 @@
     <LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav__pill">{{t "Boards" key="boards"}}</LinkTo>
   {{/if}}
 
-  {{#if (is-equal @active "reports")}}
-    <span class="md-pillnav__pill is-active" aria-current="page">{{t "Reports" key="reports"}}</span>
-  {{else}}
-    <LinkTo @route="user.stats" @model={{@userName}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
-  {{/if}}
+  {{!-- REPORTS IS NOT IN THIS NAV (retired 2026-09-20). It moved to the account rail, which
+       carries it on every page that renders one (components/account-rail.hbs:71 ->
+       `user.stats`), so the page is not orphaned — this is a closed access point, not a
+       removed feature.
+       REMOVED OUTRIGHT rather than left behind the per-page `@hideReports` opt-out it briefly
+       had: once all four consumers passed that flag, its DEFAULT was wrong, and a fifth
+       consumer added later would have silently reintroduced the pill. To restore it, put the
+       LinkTo back here AND in the collapsed dropdown below — that mirror is load-bearing, see
+       its own note. --}}
 
   {{#if (is-equal @active "extras")}}
     <span class="md-pillnav__pill is-active" aria-current="page">{{t "Extras" key="extras"}}</span>
@@ -88,7 +92,6 @@
       <li><LinkTo @route="organizations" class="md-pillnav-dropdown__option {{if (is-equal @active "organizations") "is-active"}}">{{t "Organizations" key="organizations"}}</LinkTo></li>
     {{/if}}
     <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
-    <li><LinkTo @route="user.stats" @model={{@userName}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav-dropdown__option {{if (is-equal @active "reports") "is-active"}}">{{t "Reports" key="reports"}}</LinkTo></li>
     <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>
     {{#if this.appState.feature_flags.updates_pill}}
       <li><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav-dropdown__option {{if (is-equal @active "updates") "is-active"}}">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo></li>

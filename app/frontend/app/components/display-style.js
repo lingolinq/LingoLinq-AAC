@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import i18n from '../utils/i18n';
-import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, layoutPresentation, reorderInsert, reorderForFocused, defaultOrderFor } from '../utils/dashboard_sections';
+import { availableHomeSections, sectionsForLayout, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, layoutPresentation, reorderInsert, reorderForFocused, defaultOrderFor } from '../utils/dashboard_sections';
 
 // Centered-step show hook — toggles the body flag the CSS uses to scope the
 // "paused" backdrop blur to centered (non-anchored) modal steps, mirroring
@@ -321,27 +321,69 @@ function _fitPreviewZoom(live) {
   if (!live) { return; }
   var page = live.querySelector('.md-ds-preview__page');
   if (!page) { return; }
-  var MAX_ZOOM = 0.8;   // the stylesheet default — never scale UP past it
+  // FILL THE FRAME (requested 2026-09-20). The cap was 1, on the reasoning that a clone larger
+  // than the real dashboard misrepresents what it previews. That ceiling is now the thing
+  // leaving dead space: the frame is a stretched grid item sized by the modal, so on a wide or
+  // tall screen it is simply bigger than the dashboard is at 1:1 and the cards floated in an
+  // empty box. Filling it is the explicit ask, so the clone may now render larger than life.
+  // It stays a uniform scale — proportions, spacing and relative sizes are all preserved, so it
+  // still reads as the real dashboard, just nearer. The ceiling is kept (not removed) because
+  // the drag maths divides the pointer delta by this same factor, and an unbounded value would
+  // push that compensation past anything it has been exercised at.
+  var MAX_ZOOM = 2;
   var MIN_ZOOM = 0.28;  // below this the cards stop being recognisable/draggable
   try {
-    // Measure unscaled: with zoom neutralised, `natural` is the true content
-    // height. Same tick as the write below, so no intermediate paint.
-    live.style.setProperty('--md-ds-preview-zoom', '1');
-    var natural = page.getBoundingClientRect().height;
-    if (!natural) { live.style.removeProperty('--md-ds-preview-zoom'); return; }
+    // MEASURE THE FRAME, do not reconstruct it. This used to derive the available height from
+    // viewport arithmetic — innerHeight, minus the frame's top, minus the footer and its
+    // margins, minus a BOTTOM_PAD constant — and never measured the element it was fitting
+    // into. That held while the frame's height came from its own content; it stopped holding
+    // when the frame became a stretched grid item whose height the modal layout decides. The
+    // two numbers then disagreed by whatever those constants failed to model, and the
+    // difference was visible as dead space under the cards. `clientHeight` already excludes
+    // the border and the scrollbar, so the padding is the only thing left to take off, and
+    // there is nothing left to drift out of sync.
     var cs = window.getComputedStyle(live);
     var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-    var content = live.closest('.shepherd-content');
-    var footer = content && content.querySelector('.shepherd-footer');
-    // + its margin-top/padding-top/border (16 + 16) from the footer rule.
-    var footerH = footer ? footer.getBoundingClientRect().height + 32 : 0;
-    // The frame's own top is set by the content above it and does not depend on
-    // the page's zoom, so it is safe to read while zoom is neutralised.
-    var top = live.getBoundingClientRect().top;
-    var avail = window.innerHeight - top - padY - footerH - 12;
-    var zoom = Math.min(MAX_ZOOM, avail / natural);
-    if (!isFinite(zoom) || zoom <= 0) { zoom = MAX_ZOOM; }
-    live.style.setProperty('--md-ds-preview-zoom', String(Math.max(MIN_ZOOM, zoom)));
+    var target = live.clientHeight - padY;
+    if (!(target > 0)) { live.style.removeProperty('--md-ds-preview-zoom'); return; }
+    // SEARCH, DO NOT EXTRAPOLATE — and bisect rather than correct proportionally.
+    // `zoom` rescales the clone's LAYOUT, so at factor z the page is only (frameWidth / z) CSS
+    // pixels wide and the dashboard grid REFLOWS: cards wrap onto more rows as z rises. Height
+    // is therefore not proportional to z, which is why the old single `avail / natural`
+    // division was wrong — and, measured, why multiplying by the error ratio is wrong too. It
+    // oscillates: one pass wraps the grid into a tall column and asks for a much smaller
+    // factor, the next unwraps it and asks for a much larger one, and a pass-limited loop
+    // walks away from a poor guess (measured at 54% to 60% of the frame on several viewports).
+    //
+    // Bisection is stable here because rendered height IS monotonic in z even though it is not
+    // proportional: raising z both narrows the layout (never fewer rows) and scales the result
+    // up, so height never decreases as z rises. So: take MAX_ZOOM if it already fits, else
+    // bisect between the largest factor measured to FIT and the smallest measured NOT to.
+    //
+    // The answer is always a factor that has been MEASURED at or under the target, never an
+    // extrapolated one — the frame is `overflow: hidden`, so a high guess silently crops the
+    // bottom row rather than showing an obvious error.
+    var measure = function(z) {
+      live.style.setProperty('--md-ds-preview-zoom', String(z));
+      return page.getBoundingClientRect().height;
+    };
+    var first = measure(MAX_ZOOM);
+    if (!first) { live.style.removeProperty('--md-ds-preview-zoom'); return; }
+    var best = MIN_ZOOM;
+    if (first <= target) {
+      best = MAX_ZOOM;
+    } else {
+      // 7 passes narrow the interval to under 1.5% of the zoom range, i.e. the preview ends up
+      // within a couple of percent of touching the frame's bottom — below the threshold where
+      // the gap reads as a gap. Each pass is one forced layout of a small, inert clone.
+      var lo = MIN_ZOOM, hi = MAX_ZOOM;
+      for (var i = 0; i < 7; i++) {
+        var mid = (lo + hi) / 2;
+        if (measure(mid) <= target) { lo = mid; } else { hi = mid; }
+      }
+      best = lo;
+    }
+    live.style.setProperty('--md-ds-preview-zoom', String(best));
   } catch (e) {
     // Any measurement failure falls back to the stylesheet default.
     live.style.removeProperty('--md-ds-preview-zoom');
@@ -398,6 +440,22 @@ function _buildGentleViewClone(live) {
 // matters most: ~24 of its rules key off document-level ancestors such as
 // `#within_ember #content.modern-dashboard:has(.md-shell--caseload)`, which cannot
 // resolve inside a container, and those are the rules that restyle the caseload page.
+// Save-changes button styling, per layout, as requested 2026-09-20:
+//   Gentle  — the SAME classes the Gentle dashboard's own action buttons carry
+//             (`.md-btn.md-btn--primary`, e.g. the My Caseload card's "Manage"), so it is
+//             literally that style rather than a copy that can drift from it.
+//   Focused — the glossy dark-slate treatment of the Focused My Caseload hero
+//             (.md-card--caseload-focused, app.scss ~55229), at button scale. That rule cannot
+//             be reused directly: it is scoped to `.md-grid--layout-focused.md-grid--hero-caseload`
+//             and every declaration in it is `!important` (it has to beat the .md-card base), so
+//             `.md-ds-save--focused` restates the recipe from the SAME shared tokens
+//             ($focus-hero-center / $focus-hero-edge / $focus-shadow-ink) at a button's size.
+function saveButtonClass(layout) {
+  return (layout === 'focused')
+    ? 'md-ds-save md-ds-save--focused'
+    : 'md-ds-save md-btn md-btn--primary';
+}
+
 var PREVIEW_SHELL_SELECTOR = '.md-shell:not(.md-ds-preview__clone)';
 
 // The page's own root, e.g. `.md-shell--caseload` or `.md-shell--dashboard`.
@@ -1074,6 +1132,15 @@ function _onDisplayShow(component) {
         cancelBtn.classList.toggle('md-ds-cancel--blocked', disabled);
         cancelBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
       }
+      // Save Changes is an alias for the primary button, so it is gated with it — otherwise it
+      // would look live while forwarding a click to a disabled target and appearing to do
+      // nothing.
+      var saveEl = el.querySelector('.md-ds-save');
+      if (saveEl) {
+        saveEl.disabled = disabled;
+        saveEl.classList.toggle('md-ds-save--disabled', disabled);
+        saveEl.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      }
       // The empty-state overlay only applies where the toggles live (customize page).
       if (overlay) { overlay.classList.toggle('is-visible', applicable.length > 0 && !hasSection); }
     };
@@ -1100,16 +1167,40 @@ function _onDisplayShow(component) {
     };
     var applyLayoutSections = function(layout) {
       var focused = (layout === 'focused');
+      // A row is offered only if the SELECTED layout actually renders that section for this
+      // user. Focused View drops Extras for everyone, and drops Speak for everyone whose role
+      // hero is not Speak (a supervisor's hero is My Caseload, an org manager's is
+      // Organizations) — so those users were being shown a checkbox that could not change
+      // anything on their page. `sectionsForLayout` reads this off the built grid areas
+      // (utils/dashboard_sections.js) rather than restating the force-hide rules here, which
+      // is why the `key === 'extras'` special case this line used to carry is now gone rather
+      // than joined by a second one.
+      var offered = {};
+      sectionsForLayout(previewUser, layout).forEach(function(s) { offered[s.key] = true; });
+      var isGridSection = {};
+      HOME_SECTIONS.forEach(function(s) { isGridSection[s.key] = true; });
       Array.prototype.forEach.call(boxes, function(box) {
         var key = box.getAttribute('data-gst-section');
         var row = box.closest('.md-ds-section');
         if (!row) { return; }
-        // Focused View offers everything EXCEPT Extras (Speak becomes the full-width
-        // hero, Extras never shows) and the gentle-only non-grid toggles (the
-        // welcome hero, which Focused View hides); Gentle View offers the full checklist.
+        // EXTRA_HOME_TOGGLES rows (the welcome banner, data-gst-section="hero") are not
+        // HOME_SECTIONS entries and so are never in `offered` — they keep their own
+        // `gentleOnly` rule instead of being swept away by a test that was never about them.
         var gentleOnly = row.classList.contains('md-ds-section--gentle-only');
-        row.style.display = (focused && (key === 'extras' || gentleOnly)) ? 'none' : '';
+        var hide = isGridSection[key] ? !offered[key] : (focused && gentleOnly);
+        // HIDDEN, NOT REMOVED — and this must stay true. `_persistDisplaySelection` builds its
+        // visibility map from the checkboxes PRESENT IN THE DOM (~1462) and `sectionsMapFor`
+        // walks availableHomeSections, which is layout-blind: a row that is absent reads as
+        // unchecked, so closing the modal would write that section off in
+        // `preferences.dashboard_sections` — a supervisor opening Dashboard Design on Focused
+        // and changing nothing would silently lose Speak Mode on GENTLE View, with no checkbox
+        // left to restore it. A display:none row keeps its input and its `.checked` state, so
+        // the stored preference is carried through untouched. Filtering in
+        // `_sectionTogglesHtml` instead would look equivalent and would cause exactly that.
+        row.style.display = hide ? 'none' : '';
       });
+      var saveEl = el.querySelector('.md-ds-save');
+      if (saveEl) { saveEl.className = saveButtonClass(layout) + (saveEl.disabled ? ' md-ds-save--disabled' : ''); }
       updateSpeakLabel(layout);
     };
     // The Speak checklist item reads as "Let's Communicate" on Focused View (where
@@ -1133,20 +1224,22 @@ function _onDisplayShow(component) {
       var listEl = el.querySelector('.md-ds-sections__list');
       if (!listEl) { return; }
       var layout = currentLayout();
-      var base = defaultOrderFor(previewUser, layout);
-      var ord = (order && order.length) ? order.slice() : base.slice();
-      base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
+      // Page reading order, straight from the layout engine — the same source
+      // `_sectionTogglesHtml` builds the initial list from, so a drag re-sorts the checklist
+      // the way it re-sorts the page. This replaces a rank over the default/saved ORDER ARRAY
+      // plus a hand-written "pin Speak first on Focused" special case: the hero already sorts
+      // first in the built areas, so that case is now redundant rather than merely stale.
+      var pageIndex = {};
+      sectionsForLayout(previewUser, layout, order).forEach(function(s, i) { pageIndex[s.key] = i; });
       var rank = function(row) {
         var input = row.querySelector('.md-ds-section__input');
         var key = input && input.getAttribute('data-gst-section');
-        // Focused View pins Speak as the always-top hero (its order slot is ignored
-        // by focusedLayout), so pin "Let's Communicate" first to match the preview.
-        if (layout === 'focused' && key === 'speak') { return -1; }
-        // Gentle View renders the Welcome banner ABOVE the grid, so list it first
-        // there too (it's a non-grid toggle, absent from the order array).
+        // Gentle View renders the Welcome banner ABOVE the grid, so list it first there too.
+        // It is a non-grid toggle (EXTRA_HOME_TOGGLES), so it is absent from the areas and
+        // needs its own slot; on Focused its row is hidden anyway.
         if (layout !== 'focused' && key === 'hero') { return -2; }
-        var i = ord.indexOf(key);
-        return i === -1 ? 999 : i; // any other non-grid toggle keeps its trailing slot
+        var i = pageIndex[key];
+        return i === undefined ? 999 : i; // any other non-grid toggle keeps its trailing slot
       };
       Array.prototype.slice.call(listEl.querySelectorAll('.md-ds-section'))
         .sort(function(a, b) { return rank(a) - rank(b); })
@@ -1227,6 +1320,17 @@ function _onDisplayShow(component) {
         persist();
       });
     });
+    // Forward Save Changes to the footer's primary button. Delegating the CLICK (rather than
+    // re-implementing save + close) means this button cannot drift from Done: the persist runs
+    // through the step's `hide` hook exactly as it always has.
+    var saveBtn = el.querySelector('.md-ds-save');
+    if (saveBtn && !saveBtn._gstWired) {
+      saveBtn._gstWired = true;
+      saveBtn.addEventListener('click', function() {
+        if (saveBtn.disabled) { return; }
+        if (nextBtn) { nextBtn.click(); }
+      });
+    }
     applyLayoutSections(currentLayout());
     syncState();
 
@@ -1508,28 +1612,15 @@ export default Component.extend({
     // Step 2 is OPTIONAL now (the display-style page carries its own Done button
     // and only links onward to the customize page), so the lead no longer promises
     // "two quick steps" — it names the second as a choice.
-    var lead = i18n.t('display_style_welcome_text', "Design your dashboard: choose a display style, then customize what appears on it if you'd like.");
-    var t1 = i18n.t('display_style_display_title', "Choose your display style");
-    var t2 = i18n.t('display_style_layout_title', "Customize your dashboard");
+    var lead = i18n.t('display_style_welcome_text_single', "Choose what appears on your dashboard, and arrange it the way you like.");
     // Non-actionable label cards (no mockup, no click-to-jump) — each just names a
     // step and sits under its number. The footer "Get started" advances the tour.
-    var card = function(title) {
-      return '<div class="md-ds-welcome-card">' +
-          '<span class="md-ds-welcome-card__title">' + title + '</span>' +
-        '</div>';
-    };
+    // The 1->2 stepper and its two label cards are gone with the step they described. One
+    // remaining page needs no progress indicator, and a stepper reading "1" alone would say
+    // less than nothing. The lead carries the whole intro now.
     return '' +
       '<div class="md-ds-welcome">' +
         '<p class="md-ds-welcome__lead">' + lead + '</p>' +
-        '<div class="md-ds-welcome__progress" aria-hidden="true">' +
-          '<span class="md-ds-welcome__num beta-welcome-steps__num">1</span>' +
-          '<span class="md-ds-welcome__line"></span>' +
-          '<span class="md-ds-welcome__num beta-welcome-steps__num">2</span>' +
-        '</div>' +
-        '<div class="md-ds-welcome__cards">' +
-          card(t1) +
-          card(t2) +
-        '</div>' +
       '</div>';
   },
 
@@ -1773,10 +1864,26 @@ export default Component.extend({
     // Combined legend: the bracketed preview tag and (when dragging is enabled) the
     // reorder instruction read as one modern, professional line directly above the
     // live preview — instead of two competing labels above and below the controls.
+    // The drag instruction is omitted on FOCUSED VIEW (requested 2026-09-20) — the legend there
+    // is just the "Preview — Focused View" tag.
+    //
+    // OMITTED, NOT HIDDEN. An empty `.md-ds-preview__legend-hint` would still be a flex child of
+    // `.md-ds-preview__legend` (`display: flex; gap: 12px 14px`), so it would leave a stray 14px
+    // gap after the tag. The dot goes with it for the same reason.
+    //
+    // KNOWN CONSEQUENCE, flagged to the user: `_wirePreviewDrag`'s `setBlocked` writes the
+    // "Action buttons can only be reordered within their own row…" REFUSAL message into this
+    // same element (it is passed as `hintEl`). With the element absent, that message has nowhere
+    // to go on Focused View — and Focused is the layout where `reorderForFocused` actually
+    // refuses drags, so it is the layout where the message mattered most. `setBlocked` is
+    // null-guarded (`if (hintEl)`), so nothing breaks; the feedback is simply silent. If it
+    // should be kept, the fix is to render the hint with a modifier that hides it until
+    // `--blocked` is set, rather than dropping the element.
+    var showDragHint = dragOn && savedLayout !== 'focused';
     var legend = '' +
       '<div class="md-ds-preview__legend">' +
         '<span class="md-ds-preview__legend-tag">' + this._previewLabel(savedLayout) + '</span>' +
-        (dragOn ?
+        (showDragHint ?
           '<span class="md-ds-preview__legend-dot" aria-hidden="true"></span>' +
           '<span class="md-ds-preview__legend-hint">' + i18n.t('display_style_drag_hint', "Drag rows to change row position or drag the smaller buttons on the same row to reorder them on the row") + '</span>'
           : '') +
@@ -1830,22 +1937,22 @@ export default Component.extend({
   _sectionTogglesHtml: function() {
     // Dashboard user (see _persistDisplaySelection): referenced_user || currentUser.
     var user = this.get('appState.referenced_user') || this.get('appState.currentUser');
-    // Order the checklist to MATCH the live preview / dashboard order (was an
-    // alphabetical sort): rank each available section by its index in the active
-    // layout's saved order so the list reads top-to-bottom the way the cards lay
-    // out. `.slice()` so we never mutate the array availableHomeSections returns.
     var layout = (user && user.get('preferences.dashboard_layout')) || 'gentle';
     if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
-    // Role-aware default order so a supervisor's checklist ranks by SUPERVISOR order
-    // (matching their grid), not the communicator default.
-    var base = defaultOrderFor(user, layout);
-    var savedOrder = user && user.get('preferences.dashboard_order');
-    var ord = (savedOrder && savedOrder.length) ? savedOrder.slice() : base.slice();
-    base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
-    var rank = function(s) { var i = ord.indexOf(s.key); return i === -1 ? 999 : i; };
-    var sections = availableHomeSections(user).slice().sort(function(a, b) {
-      return rank(a) - rank(b);
-    });
+    // The checklist lists exactly the sections THIS layout renders, in the order the page
+    // shows them. Both answers come from `sectionsForLayout`, which walks the built grid
+    // areas (utils/dashboard_sections.js) — it previously ranked by the layout's default
+    // ORDER ARRAY, which is not the rendered order in Focused View: the utility cards
+    // collapse into one row at the first one's slot, and the org caseload+speak pair moves
+    // to the bottom.
+    //
+    // The saved `dashboard_order` is honoured only when the drag flag is on, matching the
+    // gate `layoutPresentation` applies before the real grid uses it — with the flag off the
+    // page renders the canonical default, so ranking by a saved order here would order the
+    // checklist by an arrangement the user cannot see.
+    var dragOrderOn = !!this.get('appState.feature_flags.dashboard_drag_layout');
+    var savedOrder = dragOrderOn ? (user && user.get('preferences.dashboard_order')) : null;
+    var sections = sectionsForLayout(user, layout, savedOrder);
     var toggleItem = function(key, label, gentleOnly) {
       var checked = sectionHidden(user, key) ? '' : ' checked';
       // `gentleOnly` rows are hidden when Focused View is selected (applyLayoutSections).
@@ -1874,6 +1981,13 @@ export default Component.extend({
       '<div class="md-ds-sections">' +
         '<div class="md-ds-sections__title">' + i18n.t('display_style_sections_label', "Choose what appears on your home page") + '</div>' +
         '<div class="md-ds-sections__list">' + items + '</div>' +
+        // Explicit save at the foot of the checklist. It is an ALIAS for the footer's primary
+        // button rather than a second save path: the click is forwarded to it (see
+        // _onDisplayShow), so the persist + complete sequence, and the gate that disables both
+        // when nothing is selected, stay defined in exactly one place.
+        '<button type="button" class="' + saveButtonClass(layout) + '">' +
+          i18n.t('display_style_save_changes', "Save Changes") +
+        '</button>' +
       '</div>';
   },
 
@@ -1895,99 +2009,29 @@ export default Component.extend({
     // always reflects the page the user is actually on.
     var onDashboard = this._onDashboardPage();
     var steps = [
-      // Step 1 — welcome (centered intro). Dashboard only — see above.
-      {
-        id: 'display_style_welcome',
-        title: this._decoratedTitle('display_style_welcome_title', "Customize your dashboard"),
-        // Roomier welcome page: a short lead, a 1→2 progress stepper, and two
-        // mini-mockup cards previewing the next two steps (see _welcomeContentHtml).
-        text: this._welcomeContentHtml(),
-        // md-ds-modal scopes the size/position overrides to THIS modal so the
-        // home-tour welcome/outro keep the shared intro default; --welcome doubles
-        // its size for the stepper + preview cards.
-        classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--welcome',
-        when: {
-          // Step-level show OVERRIDES the default (_onShow from defaultStepOptions),
-          // so _onWelcomeShow re-runs the shared centered-step setup AND wires the
-          // showcase cards to advance the flow on click.
-          show: function() { _onWelcomeShow.call(this); }
-        },
-        buttons: [
-          {
-            text: i18n.t('display_style_skip', "Maybe later"),
-            type: 'cancel',
-            classes: 'md-tour__btn md-tour__btn--ghost'
-          },
-          {
-            text: i18n.t('display_style_begin', "Get started"),
-            type: 'next',
-            classes: 'md-tour__btn md-tour__btn--primary'
-          }
-        ]
-      },
-      // Step 2 — "Choose your display style": the layout style cards, each paired with
-      // a `→` and its OWN read-only preview of the current page in that style
-      // (_styleCardsHtml + _buildStylePreviews). The user only picks a style here;
-      // configuring what appears + arranging it happens on the next page. The same
-      // _onDisplayShow hook wires both pages — on this one there are no toggles and
-      // drag is off, so it only wires the style cards + gate.
-      //
-      // The old single swapping preview panel (`_gentlePreviewHtml`) is NOT rendered
-      // here any more: it showed one style at a time below the cards, which is what the
-      // per-card previews replace. It still serves the customize step below, where the
-      // preview is interactive (toggles + drag) and only one is wanted.
-      {
-        id: 'display_style_display',
-        title: this._decoratedTitle('display_style_display_title', "Choose your display style"),
-        text: this._styleCardsHtml() + this._orientationOverlayHtml('-display'),
-        when: {
-          show: function() { _onDisplayShow.call(this, component); },
-          // Persist whenever this step is HIDDEN — Next, Back, OR closing the modal
-          // (X / Esc / "Maybe later"). Shepherd fires `hide` while the step's DOM is
-          // still present, so the selection is readable. Scoped to THIS step's element
-          // (`this.el`) so the two display pages never read each other's controls.
-          hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
-        },
-        classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--display',
-        // Off-dashboard this is the ONLY step: nowhere to go Back to, and no
-        // customize page to continue to — just Done.
-        buttons: (onDashboard ? [
-          {
-            text: i18n.t('display_style_back', "Back"),
-            type: 'back',
-            classes: 'md-tour__btn md-tour__btn--ghost'
-          },
-          {
-            // Continuing to the customize page is OPTIONAL now that Done lives on
-            // this page, so it reads as a link rather than a second solid button
-            // competing with the primary action. Labelled with that page's own
-            // title, so the link names exactly where it goes.
-            // No `type`: ember-shepherd's makeButton passes a typeless button
-            // straight through (dist/utils/buttons.js), so `action` is what runs.
-            text: i18n.t('display_style_layout_title', "Customize your dashboard"),
-            action: function() { component.get('tour').next(); },
-            classes: 'md-tour__btn md-tour__btn--link'
-          }
-        ] : []).concat([
-          {
-            // Done COMPLETES from this page in both cases, so the user can finish as
-            // soon as they've picked a style instead of being marched through the
-            // customize page. Completing (not cancelling) fires the same end handler
-            // the flow already used, and this step's `hide` hook above still saves
-            // the selection, so the save + reload path is unchanged.
-            // Driven through the tour SERVICE captured in `component` rather than
-            // `this`, so it never depends on how Shepherd binds button callbacks.
-            // (Gate: the show hook keeps it disabled until a style is picked.)
-            text: i18n.t('display_style_done', "Done"),
-            action: function() { component.get('tour').complete(); },
-            classes: 'md-tour__btn md-tour__btn--primary'
-          }
-        ])
-      },
-      // Step 3 — "Choose your home page layout": NO style cards. Shows the live
-      // preview of the style picked on page 2's predecessor, the "Choose what appears
-      // on your home page" toggles, and drag-to-swap. The same _onDisplayShow hook
-      // wires it — here there are no style cards, so it wires the toggles + drag + gate.
+      /* THE WELCOME INTRO WAS REMOVED HERE (2026-09-20, requested). It was a centered page
+         carrying a lead line plus "Maybe later" / "Get started", and with the style chooser
+         already gone (see below) it stood in front of a SINGLE remaining page — a click to
+         reach a click.
+         ITS "Maybe later" MOVED rather than vanished: the customize step's first button was a
+         `type: 'back'` that now has no previous step to return to, so it is that cancel
+         instead. Without the swap the modal would have had a dead button and no dismiss
+         affordance except the × in the corner.
+         `_welcomeContentHtml` and `_onWelcomeShow` are left in place, unreferenced, on the same
+         reasoning as the style-chooser builders below: restoring the page is re-adding one step
+         object, and deleting the helpers buys nothing. */
+      /* THE "Choose your display style" STEP WAS REMOVED HERE (2026-09-20, requested).
+         The Gentle/Focused choice now lives in the navbar View menu (components/view-switcher),
+         which lists both with the active one ticked and badges Focused as the default — so this
+         page was a second, less discoverable copy of a control that already exists.
+         The HTML builders it used (`_styleCardsHtml`, `_buildStylePreviews` and the per-style
+         preview clones) are intentionally LEFT IN PLACE, unreferenced. Retiring a flow means
+         closing the way in, not deleting the machinery: restoring this page is re-adding one
+         step object, and the preview code is a few hundred lines that nothing else can break.
+         Three other consumers pointed at this step id and were all repointed to
+         `display_style_layout`: the off-dashboard filter below, and the two "Edit Dashboard"
+         openers (components/app-navbar-authenticated-inner.js, dashboard/authenticated-view.js).
+         Leaving any of them would have opened a page that no longer exists in the flow. */
       {
         id: 'display_style_layout',
         title: this._decoratedTitle('display_style_layout_title', "Customize your dashboard"),
@@ -1999,8 +2043,11 @@ export default Component.extend({
         classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--display',
         buttons: [
           {
-            text: i18n.t('display_style_back', "Back"),
-            type: 'back',
+            // Was `type: 'back'` while the welcome page sat in front of this one. This is now
+            // the FIRST and only step, so 'back' had nowhere to go — it is the welcome page's
+            // "Maybe later" cancel instead, which keeps a dismiss affordance on the page.
+            text: i18n.t('display_style_skip', "Maybe later"),
+            type: 'cancel',
             classes: 'md-tour__btn md-tour__btn--ghost'
           },
           {
@@ -2012,11 +2059,13 @@ export default Component.extend({
         ]
       }
     ];
-    // Off-dashboard: drop the welcome intro and the "Customize your dashboard"
-    // page, leaving just the style chooser. Filter by id rather than slicing so
-    // the mapping stays readable if the step order ever changes.
+    // Off-dashboard: keep only the customize page. With the style chooser and the welcome
+    // intro both removed this is now a NO-OP — that page is the only step either way — but it
+    // is retained deliberately: it encodes the intent "off-dashboard shows just the customize
+    // page", so if a step is ever added back the off-dashboard flow does not silently inherit
+    // it. Filter by id rather than slicing so the mapping stays readable if the order changes.
     if (!onDashboard) {
-      steps = steps.filter(function(s) { return s.id === 'display_style_display'; });
+      steps = steps.filter(function(s) { return s.id === 'display_style_layout'; });
     }
     return steps;
   },
@@ -2032,7 +2081,10 @@ export default Component.extend({
     var step = this.get('appState.open_dashboard_design');
     if (!step) { return; }
     this.set('appState.open_dashboard_design', null);
-    this._startDisplayStyle(step === 'display' ? 'display_style_display' : null);
+    // 'display' used to mean the style-chooser page. That page is gone, so the signal now
+    // lands on the customize page — the two "Edit Dashboard" openers send it, and they should
+    // open the flow, not fail to find a step.
+    this._startDisplayStyle(step === 'display' ? 'display_style_layout' : null);
   }),
 
   _startDisplayStyle: function(startStepId) {

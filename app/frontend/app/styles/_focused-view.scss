@@ -56,6 +56,136 @@
 @use "chips" as *;
 @use "sass:color";
 
+// =============================================================================
+// THE FOCUSED GLASS SLATE CARD — one dark tile recipe, shared by its callers
+// =============================================================================
+//
+// A dark slate card with a specular highlight, a bright top rim and a dark inner lip, with an
+// illustration floated on top at 85% of the box. Built for the Communicators Need Attention
+// icon (2026-09-18) and reused verbatim by the Rooms icon (2026-09-20).
+//
+// EXTRACTED THE MOMENT IT HAD A SECOND CALLER, rather than pasted. `_chips.scss` exists because
+// the silver surface was copied four times across three files before anyone stopped; its header
+// says so. This is the same shape of recipe — ~10 declarations across two rules — so it gets a
+// mixin at the first repeat instead of the fourth.
+//
+// THE RAMP IS THE APP'S, lightened. `#262d3a / #333c4a / #515d70` is the Focused dark icon tile
+// (badge-action cards, Extras setup cards, preferences boxes). Lightness only, so hue and
+// saturation stay put.
+//
+// `$lightness` IS A SINGLE TOTAL, NOT A STACK OF STEPS. `color.scale` moves a colour that
+// fraction of its REMAINING distance to white, so successive scales compound rather than add:
+// +20% followed by a further +25% is 0.20 + 0.25 x 0.80 = 0.40, i.e. exactly one +40% step.
+// That identity is why Rooms can be "25% lighter than Attention" while both still call this
+// mixin once with a plain number — no nested scales, no second mixin.
+//   20%  Communicators Need Attention (the 2026-09-20 lightening), the default
+//   40%  Rooms (a further 25% on top of that, requested 2026-09-20)
+@mixin focus-glass-slate-card($lightness: 20%) {
+  background:
+    /* Specular highlight — the gloss. Off-centre to the top-left so the card reads as lit from
+       one side rather than uniformly washed. */
+    radial-gradient(120% 90% at 28% 12%,
+      rgba(255, 255, 255, 0.30) 0%,
+      rgba(255, 255, 255, 0.09) 38%,
+      transparent 62%),
+    radial-gradient(circle at 50% 46%,
+      color.scale(#262d3a, $lightness: $lightness) 0%,
+      color.scale(#333c4a, $lightness: $lightness) 48%,
+      color.scale(#515d70, $lightness: $lightness) 100%) !important;
+  /* Both callers sit on a base rule that sets `border: none` and `box-shadow: none`
+     `!important` ("the image IS the icon"), so both have to be restated or the card has no
+     edge at all. */
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),      /* bright top rim */
+    inset 0 -3px 6px rgba(0, 0, 0, 0.30),         /* dark inner lip -> domed, not flat */
+    0 4px 12px rgba($focus-shadow-ink, 0.28) !important;
+  /* The ::before is positioned against this. `.md-card__icon` is `display: grid`, so without
+     taking the pseudo out of flow it would be a zero-size grid item. */
+  position: relative;
+}
+
+// The light card PANEL that `.md-card--attention` and `.md-card--rooms` share, darkened.
+// Both base rules (app.scss) fill their card with the SAME
+// `linear-gradient(180deg, rgba(255,255,255,0.98), rgba(235,238,243,0.95))` and neither is
+// view-scoped, so Focused darkens each here while Gentle keeps the panel it has.
+//
+// The two stops live in ONE place for the same reason the slate card does: they are a copy of
+// a base-rule value, and if that base gradient is ever retuned both overrides have to follow.
+// One declaration is small, but the SYNC risk is what is being removed, not the typing.
+//
+// `color.scale(..., $lightness: -N%)` is the repo's idiom for "N% darker" (see
+// `$focus-section-bg-darkened` above, which darkens the Boards/Folders panel the same way).
+// NOT `darken()` (deprecated, and it subtracts flat lightness rather than scaling) and NOT
+// `filter: brightness()`, which would drag the card's text, border and icon tile down with it.
+// Per-stop alphas are preserved — `color.scale` leaves alpha alone — because these cards are
+// meant to read as slightly translucent on the Focused backdrop.
+//   20%  Communicators Need Attention (requested 2026-09-20)
+//   10%  Rooms (requested 2026-09-20)
+// `$top` overrides the gradient's FIRST stop and `$top-darkness` how far that stop is darkened.
+// The base top is plain white, which darkens to a perfectly NEUTRAL grey — and beside the cool
+// blue-grey bottom stop that neutral reads warm, which is what "more silver, less brown" was
+// describing on the attention card (2026-09-20).
+//
+// `$top-darkness` IS A SEPARATE KNOB FOR A REASON, not over-parameterisation. `color.scale`
+// darkens by lightness, and lowering the lightness of a tinted colour RAISES its apparent
+// saturation — passing `$ch-chip-hi` at the shared 20% produced `rgb(167, 188, 217)`, a clearly
+// blue tile rather than a silver one, and darker than the neutral it replaced. There is no
+// colour that darkens by 20% to a COOL value as light as white does (white x 0.8 = 204 is the
+// ceiling for that step), so matching the old lightness while adding the silver hue REQUIRES a
+// smaller step for that stop.
+// TUNED TWICE, WITH THE NUMBERS COMPUTED RATHER THAN GUESSED. 20% gave rgb(167,188,217) and
+// 15% gave rgb(184,201,224) — both read BLUE, because the R-B spread widens as the stop
+// darkens (50.4 and 40.8 respectively, against 0.0 for a neutral). 4% lands at
+// rgb(221, 229, 240): spread 19.6, mean 230 — whiter than the neutral 204 it replaced AND
+// half the blue of the 15% attempt, which is what "more white and less blue" asked for.
+// If it needs retuning again, the lever is this number and the two quantities to watch are
+// MEAN (white) and R-B SPREAD (blue); they move in opposite directions as it darkens.
+// Rooms keeps the white default, so the two cards stay distinguishable.
+// `$top-darkness` DEFAULTS TO `$darkness` by referencing it directly — Sass evaluates argument
+// defaults left to right, so a later parameter may name an earlier one. The first version used
+// `if($top-darkness == null, …)` and Dart Sass deprecated `if()`; migrated rather than silenced,
+// and the parameter default is simpler than the conditional it replaced.
+@mixin focus-card-panel-darkened($darkness, $top: rgb(255, 255, 255), $top-darkness: $darkness) {
+  background:
+    linear-gradient(180deg,
+      rgba(color.scale($top, $lightness: -$top-darkness), 0.98),
+      rgba(color.scale(rgb(235, 238, 243), $lightness: -$darkness), 0.95)) !important;
+}
+
+// The artwork that floats on the card above. `$base` is the filename stem: both a `.webp` and a
+// `.png` must exist under `app/frontend/public/images/` AND `public/images/` (Ember build vs
+// Rails serve).
+//
+// ART 15% SMALLER THAN THE CARD, so the slate reads as a frame rather than a backing plate.
+// 7.5% per side shrinks the background positioning area to 85% of the box in BOTH axes and
+// `contain` fits the art into that. Deliberately an inset and NOT `background-size: 85%`, which
+// sets WIDTH only: these artworks have arrived portrait, landscape and square across successive
+// swaps, and only the inset form means the same thing in all three.
+@mixin focus-glass-card-art($base) {
+  content: '';
+  position: absolute;
+  inset: 7.5%;
+  /* Match the card it sits on, whatever radius that caller's base rule gives it. */
+  border-radius: inherit;
+  /* PLAIN url() FIRST as the fallback: `type()` inside image-set() needs Safari 17+ /
+     Chrome 113+, and legacy -webkit-image-set() never supported it at all — so on an older iPad
+     or a pre-2023 Android WebView (a very common AAC device population) BOTH declarations below
+     are dropped and this line is what carries the artwork. */
+  background-image: url('../images/#{$base}.png');
+  background-image: -webkit-image-set(
+    url('../images/#{$base}.webp') type('image/webp'),
+    url('../images/#{$base}.png') type('image/png'));
+  background-image: image-set(
+    url('../images/#{$base}.webp') type('image/webp'),
+    url('../images/#{$base}.png') type('image/png'));
+  /* Restated rather than inherited: the base `background:` shorthand that supplied these
+     applies to the ELEMENT, which now carries the slate card instead. */
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
 // Shared focused "card" surface — the home page's badge-action card fill (white sheen
 // top-left + a verdigris bottom-right corner over a light dusty-denim gradient; mirrors
 // `.md-grid--layout-focused .md-card--badge-action` in app.scss:47584). Reused by the
@@ -140,9 +270,21 @@ $focus-extras-icon-colors: (
 // `.md-shell--reports-view` is used only by these two pages + the dashboard's own
 // reports tab (already focused-styled, so a harmless match) — org/system-settings use
 // different shells and are untouched.
+//
+// THE UPDATES PAGE JOINS THEM (requested 2026-09-20). Reached from the home pill-nav's
+// "Updates" (`?nav=home`), it renders <UserPillNav> inside `.md-shell--user`, which matches
+// NONE of the three existing focused pill rules: it is not `--reports-view` (boards/stats),
+// not `--caseload`, and not `.md-pillnav--user` (that rule styles the separate user menu this
+// page renders on its OTHER branch, and additionally requires an `a`, which would not match
+// here anyway — the current pill is a <span>, not a link). So its active pill kept the gentle
+// charcoal-blue. Qualified with `.md-pillnav--dashboard` so it reaches only the pill-nav
+// arrival; the account-rail branch of the same shell renders no pills, and the user-menu
+// branch keeps its own rule.
 body.ll-layout-focused {
   .md-shell--reports-view .md-pillnav__pill.active,
-  .md-shell--reports-view .md-pillnav__pill.is-active {
+  .md-shell--reports-view .md-pillnav__pill.is-active,
+  .md-shell--user .md-pillnav--dashboard .md-pillnav__pill.active,
+  .md-shell--user .md-pillnav--dashboard .md-pillnav__pill.is-active {
     background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
     border-color: rgba($focus-pill-accent-to, 0.3) !important;
   }
@@ -2018,6 +2160,455 @@ body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon-
   // The light illustration was warmed with saturate/brightness to lift it off the card;
   // the dark art is already tuned, so the filter is cleared rather than stacked on top.
   filter: none !important;
+}
+
+// -----------------------------------------------------------------------------
+// Communicators Need Attention — the glassy illustration (Focused View only)
+// -----------------------------------------------------------------------------
+// The base rule paints this tile with `communicators.png`
+// (`.md-grid .md-card.md-card--attention .md-card__icon--attention` in app.scss, a
+// `background:` shorthand at (0,4,0) + !important). That rule is NOT view-scoped — it serves
+// Gentle View too — so the glassy artwork is swapped in HERE rather than edited there, and
+// Gentle keeps the illustration it has.
+//
+// ONLY `background-image` IS RESTATED. The base shorthand still supplies
+// `center / contain no-repeat` and the 122px box, and the cascade resolves per longhand, so
+// this rule replaces the artwork and nothing else. In particular it does NOT re-introduce the
+// silver `ch-chip` tile, the 7.5% inset or the 50% desaturation that briefly sat here on
+// 2026-09-18: those were removed with the previous artwork and have not been asked for again.
+// The base rule's "the image IS the icon — no tile, border, or shadow" therefore still holds.
+//
+// ASSETS (`communicators-glassy-2`, in use since 2026-09-20): 244x223 — the 122px box at 2x —
+// from a 1312x1199 815KB source (artwork revised 2026-09-20; same dimensions, redrawn).
+// 8.4KB WebP primary, 29.2KB PNG fallback. 512 colours, for the
+// same reason every glassy artwork here has needed them: at 256 (12.0KB) the gradients speckle
+// visibly, and this one adds a blue→purple ramp in the speech bubble that quantizes worst of
+// all. Inspected and rejected. Above 256 ImageMagick writes truecolour anyway, and the fallback
+// is reached only by an engine with no WebP support, so the extra bytes are theoretical.
+//
+// `communicators-glassy` (the previous artwork, 222x244 portrait, 10.4KB/36.3KB) IS STILL ON
+// DISK in both asset roots, kept deliberately so this can be switched back — see the note at
+// the URLs below. It is referenced by nothing while `-2` is in use.
+//
+// ORIENTATION IS FREE HERE. `-2` is landscape (244x223) where the one it replaced was portrait
+// (222x244), and no number in this rule changed: `contain` re-fits and `inset: 7.5%` shrinks in
+// both axes. Contrast `.md-card--caseload-focused__img` (app.scss), whose explicit box IS tied
+// to its source's ratio and must be recomputed on every swap.
+//
+// NO PRELOAD, deliberately, unlike the org illustration above. That card is `display:none`
+// until Focused View is active, so nothing would fetch its art until it painted. This card is
+// not view-gated — it renders in both views whenever `sectionAvailable.attention` is true — so
+// the background is found on the normal stylesheet match. Preloading it in both shells would
+// spend the bytes on every user, including the majority who are not supporters with flagged
+// communicators.
+// MODERN HOME, <=900px, FOCUSED: the pill row's top margin matches its bottom (requested
+// 2026-09-20). It was asymmetric — 48px above, 12px below — which at this width reads as the
+// nav being pushed down rather than sitting in its own band.
+//
+// 12px is `.md-workspace > .md-pillnav`'s `margin-bottom` (app.scss), restated here because
+// CSS cannot read one property off another. IF THAT BOTTOM VALUE CHANGES, CHANGE THIS TOO —
+// the whole point of the rule is that the two are equal.
+//
+// The 48px comes from `.md-shell--layout-focused .md-workspace > .md-pillnav` (0,3,0), so this
+// needs to outrank it: `body` + 4 classes = (0,4,1). Both `!important`, so specificity decides,
+// which matters because @use emits this file far above app.scss.
+//
+// MODERN-ONLY COMES FREE from `.md-shell--home`: that class is stamped by
+// components/dashboard/authenticated-view.hbs, which IS the modern dashboard — Basic view
+// renders Dashboard::ClassicView and never has it. No `ll-view-modern` dependency needed.
+@media (max-width: 900px) {
+  body.ll-layout-focused .md-shell--home .md-workspace > .md-pillnav {
+    margin-top: 12px !important;
+  }
+}
+
+// THE CARD PANEL, 20% DARKER (requested 2026-09-20). The base rule
+// (`.md-grid .md-card.md-card--attention` in app.scss) fills this card with a near-white
+// `linear-gradient(180deg, rgba(255,255,255,0.98), rgba(235,238,243,0.95))`, and it is NOT
+// view-scoped — it serves Gentle View too. So the darkening is applied HERE and Gentle keeps
+// the panel it has.
+//
+// `color.scale(..., $lightness: -20%)` is the repo's idiom for "N% darker": it moves each stop
+// 20% of its remaining distance toward black, which is what "20% darker" means for a colour
+// that is already near white. Same construction as `$focus-section-bg-darkened` above, which
+// darkens the Boards/Folders panel by 10%. NOT `darken()` (deprecated, and it subtracts a flat
+// lightness rather than scaling), and not a `filter: brightness()` — a filter would drag the
+// card's TEXT, its border and the slate icon tile down with it.
+//
+// The per-stop alphas (0.98 / 0.95) are preserved deliberately: the card sits on the Focused
+// backdrop and is meant to read as slightly translucent, which the alpha carries. Scaling
+// lightness leaves alpha untouched.
+//
+// ONLY the panel. The communicator rows inside keep their own near-white gradient, so they now
+// read as lighter cards on a darker panel — that separation was the point of scoping this to
+// the panel alone rather than the whole div.
+//
+// (0,4,1) against the base rule's (0,3,0), both `!important`, so this wins on specificity —
+// which it must: @use puts this partial ~61k lines ABOVE that rule in the build, so source
+// order would lose.
+body.ll-layout-focused .md-grid .md-card.md-card--attention {
+  // Silver top stop, not the neutral white default — see the mixin. The bottom stop is already
+  // cool, so this is what makes the ramp read silver rather than warming toward the middle.
+  @include focus-card-panel-darkened(20%, $ch-chip-hi, $top-darkness: 4%);
+}
+
+// INDIVIDUAL ROOM CARDS -> the glassy door on its own light slate tile (requested 2026-09-20).
+//
+// SCOPED TO `.md-card--rooms`, NOT to `.md-room-card__icon` generally. That class is SHARED:
+// the org-management card reuses the same room-tile chrome and already has its own focused
+// override a little further down, swapping the door for the organization art. An unscoped rule
+// here would fight it.
+//
+// SAME MIXIN PAIR as the Rooms and Attention header tiles — element takes the card, pseudo
+// takes the art — so the three read as one family and a future artwork swap is one argument.
+//
+// 75% AGAINST THE ROOMS TILE'S 40% is the "much lighter" that was asked for, and the numbers
+// are why: the ramp's mean goes 143 -> 208 on a 0-255 scale, a clear step up while still a
+// tinted card rather than white. (Computed across the ramp before choosing; 55% and 65% landed
+// at 171 and 190, which read as "a bit lighter" rather than "much".)
+//
+// `border-radius` IS SET HERE, not inherited. The base `.md-room-card__icon` has NO radius — it
+// never needed one while the art sat on the page with no tile behind it — so without this the
+// card would be a hard square, and the pseudo's `border-radius: inherit` would inherit 0.
+//
+// `filter: none` clears the base rule's `brightness(1.10) saturate(0.8)`, which was tuned for
+// the old flat `door.png`. The same lift on glass artwork muddies it — exactly what the org
+// tile's own comment records about its swap.
+body.ll-layout-focused .md-card--rooms .md-room-card__icon {
+  @include focus-glass-slate-card(75%);
+  // 46px -> 92px (doubled, requested 2026-09-20) -> 69px (reduced 25% the same day).
+  // The base `.md-card--rooms .md-room-card__icon` sets 46px; this overrides both axes.
+  // The ASSET was rebuilt to match at each step and is 2x the display size (138px for 69px) —
+  // leaving the 184px build in place would have been 2.67x, which costs bytes for detail no
+  // screen can show.
+  // THE CARD GROWS ON ITS OWN — nothing sets a height or min-height on `.md-room-card`, and the
+  // row is `align-items: center`, so the tile's height is content-driven and the icon is the
+  // tallest thing in it. Checked before relying on it: the only height declarations in this
+  // subtree are the icon's own. The card's 10px top/bottom padding is left as-is, so the extra
+  // height is exactly the extra icon.
+  width: 69px;
+  height: 69px;
+  // Radius scaled with the tile so the corner keeps its proportion
+  // (12px on 46 -> 24px on 92 -> 18px on 69).
+  border-radius: 18px;
+  filter: none;
+}
+body.ll-layout-focused .md-card--rooms .md-room-card__icon::before {
+  @include focus-glass-card-art('door-glassy');
+}
+
+// ROOMS ICON -> THE GLASSY ILLUSTRATION (requested 2026-09-20), Focused View only.
+// The base rule (`.md-grid .md-card.md-card--rooms .md-card__icon--rooms`, app.scss) paints
+// this 122px tile with `classroom.png` and is NOT view-scoped, so the swap goes here and Gentle
+// keeps the illustration it has. Only `background-image` is restated: the base `background:`
+// shorthand still supplies `center / contain no-repeat` and the box, and the cascade resolves
+// per longhand.
+//
+// `filter: none` IS LOAD-BEARING, not tidiness. The base rule ends with `filter:
+// brightness(1.05)`, added to lift the older flat classroom art off the card. This artwork is
+// already pale glass — leaving that lift on washed the highlights toward white and cost the
+// glass its edges. Same reasoning, and the same one-line fix, as the org tile further up this
+// file.
+//
+// ASSETS: 244x244 — the 122px box at 2x — from a 1254x1254 1.07MB source. 9.6KB WebP primary,
+// 47.8KB PNG fallback. 512 colours, for the fourth time on the same evidence: at 256 (19.4KB)
+// the pale blue gradients speckle visibly. Both were rendered and compared before choosing.
+//
+// PLAIN url() FIRST for the same reason as every other image-set in this file: `type()` inside
+// image-set() needs Safari 17+ / Chrome 113+ and legacy -webkit-image-set() never supported it,
+// so on an older iPad both set forms are dropped and that line carries the swap alone.
+//
+// `classroom.png` is untouched and still serves Gentle View.
+// ROOMS PANEL, 10% DARKER (requested 2026-09-20) — half the attention card's 20%, so the two
+// are deliberately different depths rather than an oversight. Same base gradient, same idiom;
+// see the mixin.
+//
+// TOP STOP MADE WHITER AND COOL (requested 2026-09-20: "a bit too beige -> trend toward
+// whiteish"). The panel was not warm in absolute terms — it was NEUTRAL, which is the actual
+// cause. The mixin's default `$top` is pure white, and `color.scale(white, $lightness: -10%)`
+// is rgb(229.5, 229.5, 229.5): R, G and B exactly equal. Every surface around it is cool
+// ($focus-surface-top #ECF1FA, and this panel's own bottom stop computes to rgb(205, 213, 225),
+// 20 points more blue than red), so by simultaneous contrast a neutral grey against them reads
+// warm — beige. Measured, not eyeballed.
+//
+// So the fix moves the top stop on BOTH axes at once: lighter (229.5 -> 247) and off-neutral
+// toward blue (rgb(247, 249, 253)), which is "whiteish" in the literal sense AND in the same
+// cool family as the page. `$top-darkness: 0%` is REQUIRED alongside it — the parameter
+// defaults to `$darkness`, so passing a cool top without it would scale that 10% straight back
+// down toward neutral and reinstate the problem. The bottom stop keeps the full 10%, so the
+// panel's depth is unchanged; only the highlight moves. Same two-knob shape as the attention
+// panel above, which took `$ch-chip-hi` with `$top-darkness: 4%` for the same reason.
+body.ll-layout-focused .md-grid .md-card.md-card--rooms {
+  @include focus-card-panel-darkened(10%, color.mix($focus-surface-top, rgb(255, 255, 255), 40%), $top-darkness: 0%);
+}
+
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms {
+  // 50%, set DIRECTLY (requested 2026-09-20) — an absolute argument to the mixin, not a
+  // relative step, so nothing compounds here. Half way from the slate ramp to white, against
+  // the 20% the attention tile keeps, so the two differ by design and by a wide margin.
+  //
+  // Settled after a few passes (40 -> 49 -> 35 -> 55 -> 50); only the final value matters, but
+  // one thing from that sequence is worth keeping: `color.scale` moves a colour a FRACTION OF
+  // THE WAY to 100%, so a request phrased relatively ("N% lighter") is NOT the current number
+  // plus N. It has to be converted first — see the rooms panel above for the derivation and
+  // how it was verified against the compiler.
+  @include focus-glass-slate-card(50%);
+  // `filter: none` IS LOAD-BEARING. The base rule ends with `filter: brightness(1.05)`, added
+  // to lift the older flat classroom art off the card. A filter on this element applies to the
+  // slate card AND the artwork on the pseudo above it, and on pale glass it blows the
+  // highlights toward white — verified by rendering both ways. Cleared, not inherited.
+  filter: none !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms::before {
+  @include focus-glass-card-art('room-glassy');
+  // BRIGHTER (requested 2026-09-20). Brightness only — no saturation change, which is what was
+  // asked for and keeps the artwork's own hues intact.
+  //
+  // THE HISTORY MATTERS FOR THE NEXT EDIT: this pseudo went
+  // `saturate(0.85) brightness(0.94)` -> no filter (reverted on request) -> `brightness(1.1)`
+  // -> `brightness(1.265)` -> `brightness(1.2)`. Every value is measured against the artwork's
+  // TRUE colour, not against the state before it.
+  //
+  // THE ARITHMETIC: 1.1 x 1.15 = 1.265 ("another 15%"), then x 0.95 = 1.20175 ("reduce by 5%"),
+  // shipped as the round 1.2 — a 0.15% difference from the exact figure and not perceptible.
+  // `filter: brightness()` is a straight MULTIPLIER, so successive lifts and cuts just multiply
+  // — unlike `color.scale()` elsewhere in this file, which moves a fraction of the REMAINING
+  // distance and therefore compounds differently (see the panel mixin, where +20% then +25%
+  // collapses to a single 40%, not 1.2 x 1.25). Do not carry the mental model between them.
+  //
+  // CLIPPING CHECKED, not assumed: brightening glass artwork risks blowing its highlights to
+  // flat white. Sampled all 37,548 non-transparent pixels of the source — at 1.2 NOTHING clips:
+  // 0.0% of pixels blow a channel, against 0.5% at the 1.265 this replaced. The highlights hold
+  // full detail. Past roughly 1.4 that stops being true; re-measure rather than
+  // extrapolate.
+  //
+  // ON THE PSEUDO, not the mixin and not the element: `focus-glass-card-art` is shared with the
+  // attention tile and would brighten that artwork too, and the element carries the slate card,
+  // which would brighten with it. The pseudo is the only place that touches the image alone.
+  //
+  // The element's `filter: none !important` still stands and does NOT fight this — it clears
+  // the BASE rule's `brightness(1.05)` so this value is the only lift applied, rather than the
+  // two compounding to 1.155. Keeping both explicit is what makes that predictable.
+  // Desaturated 15% as well (requested 2026-09-20): `saturate(0.85)`. Saturation and brightness
+  // are INDEPENDENT filter functions applied in sequence, so this does not disturb the 1.2 lift
+  // above it — the artwork stays as bright, with less colour intensity.
+  filter: brightness(1.2) saturate(0.85);
+}
+
+// LONG STATUS BADGES STAY IN THEIR OWN COLUMN (requested 2026-09-20). A badge like "Waiting for
+// Recommendation from Eval" was dropping to a full-width second row that started at x=0, under
+// the USERNAME, leaving the divider dangling at the end of line one. It should stay to the
+// RIGHT of the divider and wrap underneath itself there.
+//
+// FLEX-WRAP CANNOT EXPRESS THIS. The base rule makes `__text` a `flex-wrap: wrap` row, and a
+// flex item that wraps starts at the container's left edge — there is no way to say "indent the
+// wrapped line to the third column". CSS grid can, because the columns exist independently of
+// how tall any cell grows:
+//   160px  the name (`__name` is already a fixed `width: 160px`)
+//   auto   the divider (1px rule + its 13px side margins = 27px)
+//   1fr    the badge, which now wraps INSIDE its own column instead of escaping the row
+//
+// `minmax(0, 1fr)` rather than `1fr`: a bare `1fr` is `minmax(auto, 1fr)`, whose auto minimum
+// is the pill's min-content width, so a long badge would push the row wider than the card. The
+// explicit 0 minimum lets the column shrink and the badge wrap instead — which preserves the
+// anti-overflow property the base rule's comment says the old wrap-under-the-name behaviour
+// existed to provide. That behaviour is replaced here, not discarded.
+//
+// The pill is `display: inline-flex` with `flex: none`, both inert on a grid item, so it needs
+// `justify-self: start` to stay hugged to its text rather than stretching across the column.
+//
+// SCOPED TO FOCUSED VIEW, matching the requests either side of it. Gentle View keeps the
+// wrap-under-the-name layout its base comment describes. If this should apply in both, the
+// base `.md-attention-item__text` rule is the place — not a second copy here.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__text {
+  display: grid;
+  grid-template-columns: 160px auto minmax(0, 1fr);
+  align-items: center;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
+  justify-self: start;
+  max-width: 100%;
+  text-align: left;
+}
+
+// MD-MAIN BLEEDS TO THE WORKSPACE EDGES (requested 2026-09-20), so its area covers
+// `.md-workspace` completely instead of stopping at the workspace's padding.
+//
+// `.md-workspace > .md-main` is already `max-width: 100%`, so md-main spans the workspace's
+// CONTENT box; what it never covered is the workspace's own side padding. The fix is a negative
+// margin per side equal to that padding, with the same amount added back as md-main's padding
+// so nothing inside it moves.
+//
+// `width: auto` + `max-width: none` ARE REQUIRED, not decoration. With `width: 100%` and
+// `max-width: 100%` (both `!important` on the base rules) the element is pinned to the content
+// box's width, so negative margins would SHIFT it left rather than widen it — the bleed would
+// silently do nothing on the right-hand side. `width: auto` lets the margins define the box,
+// which is what makes it grow by the two bleeds.
+//
+// THREE BREAKPOINTS, BECAUSE THE WORKSPACE PADDING HAS THREE VALUES (all from unscoped
+// `.md-workspace` rules in app.scss, which the home shell inherits — the 16px `--user` variant
+// is scoped to a shell this page does not have):
+//     >950px   40px      <=950px   16px      <=820px   12px
+// If any of those change, these must follow. That coupling is the cost of a bleed; it is
+// unavoidable while the padding lives on the parent.
+//
+// HORIZONTAL ONLY. The workspace's top padding sits above the pill row, and md-main comes AFTER
+// that row, so bleeding upward would slide md-main under the nav. The bottom is left alone too:
+// the workspace's `calc(40px - 9rem)` bottom padding is NEGATIVE, so there is no gap there to
+// cover.
+//
+// `.md-shell--home` keeps this to the modern home tab — Basic view renders
+// Dashboard::ClassicView and never carries that class.
+body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
+  width: auto !important;
+  max-width: none !important;
+  margin-left: -40px !important;
+  margin-right: -40px !important;
+  /* md-main's own 16px side padding + the 40px it just bled over, so its CONTENT stays put. */
+  padding-left: 56px !important;
+  padding-right: 56px !important;
+}
+@media (max-width: 950px) {
+  body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+@media (max-width: 820px) {
+  body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+}
+
+// ACCOUNT RAIL ROWS: silver outline + deeper shadow (requested 2026-09-20).
+//
+// THE RING RIDES IN `box-shadow`, NOT `border` OR `outline`, and both alternatives are traps:
+//   - `border` is already spoken for. `.md-acct-rail__row.is-active` (0,2,0) sets
+//     `border-color` to a brighter white so the current page stands out, and this rule is
+//     (0,2,1) — HIGHER — so setting `border` here would silently repaint the active row's edge.
+//     Leaving `border` alone keeps that distinction intact.
+//   - `outline` is the focus affordance. These rows are links and therefore focusable; a
+//     decorative outline would collide with the browser's focus ring.
+// A `0 0 0 1px` spread shadow draws the same crisp ring with neither side effect, and stacks in
+// the same declaration as the drop shadow.
+//
+// `$ch-chip-lo` / `$ch-chip-hi` are the repo's silver ramp from `_chips.scss` (already `@use`d
+// here) — the same pair behind the attention avatars' rings, so the two silvers match.
+//
+// THE HOVER RULE HAS TO BE RESTATED. The base `:hover, :focus-visible` box-shadow is (0,2,0),
+// below this rule's (0,2,1), so without the companion below the hover lift would be dead — the
+// rest state would win at every moment. That is the whole reason this is two rules.
+//
+// MORE SHADOW: rest 0 2px 8px / 0.05 -> 0 4px 14px / 0.10; hover 0 6px 16px / 0.10 ->
+// 0 10px 24px / 0.16. The inset white top highlight is carried through both, unchanged — it is
+// what makes the rows read as glass rather than flat chips.
+//
+// SCOPED TO FOCUSED ONLY, not modern. `body.ll-view-modern` still has zero uses anywhere and
+// app.js leaves BOTH view classes off for an unrecognised preference, so keying on it would
+// silently drop the treatment; and the same rail renders on the account pages in Basic view,
+// where a different edge would read as a bug. Same call, and same reasoning, as the rail
+// padding earlier.
+body.ll-layout-focused .md-acct-rail__row {
+  box-shadow:
+    0 0 0 1px $ch-chip-lo,
+    0 4px 14px rgba(17, 26, 46, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+body.ll-layout-focused .md-acct-rail__row:hover,
+body.ll-layout-focused .md-acct-rail__row:focus-visible {
+  box-shadow:
+    0 0 0 1px $ch-chip-hi,
+    0 10px 24px rgba(17, 26, 46, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+// ACCOUNT RAIL BACKGROUND, 10% DARKER (requested 2026-09-20). The base rule
+// (`.md-acct-rail`, app.scss) fills the panel with
+// `linear-gradient(160deg, rgba(255,255,255,0.55), rgba($la-navy,0.05))` and is NOT
+// view-scoped, so the darkening goes here and Gentle keeps the panel it has.
+//
+// `color.scale(..., $lightness: -10%)` on each stop — the repo's idiom for "N% darker", the
+// same one the attention and rooms card panels use via `focus-card-panel-darkened`. That mixin
+// is NOT reused here: it hardcodes the two CARD stops, and this gradient has different colours
+// and a different angle. Sharing it would mean parameterising every stop, which is more
+// indirection than two literals are worth.
+//
+// ALPHAS ARE PRESERVED (0.55 / 0.05) — `color.scale` leaves alpha alone. That matters because
+// this panel is deliberately translucent over the page behind it; raising the alphas would
+// have been a different change from the one asked for.
+// The white stop is what carries the effect: at 0.05 the navy stop is barely present either
+// way, so a 10% scale on it is close to a no-op by design.
+//
+// (0,2,1) against the base rule's (0,1,0), and the base carries NO `!important`, so specificity
+// alone decides — which it must, since @use emits this file far above app.scss.
+body.ll-layout-focused .md-acct-rail {
+  background:
+    linear-gradient(160deg,
+      rgba(color.scale(rgb(255, 255, 255), $lightness: -10%), 0.55) 0%,
+      rgba(color.scale($la-navy, $lightness: -10%), 0.05) 100%);
+}
+
+// SILVER RING ON THE ATTENTION AVATARS (requested 2026-09-20). Each communicator's avatar in
+// the Communicators Need Attention list gets a silver badge edge in Focused View.
+//
+// `$ch-chip-lo` / `$ch-chip-hi` are the repo's silver ramp from `_chips.scss` — the same two
+// values behind every classic rail icon and board card, already `@use`d at the top of this
+// file. Reusing them rather than picking a grey keeps the ring in the same material family as
+// the rest of the app's silver.
+//
+// BORDER ONLY, NEVER `box-shadow`. The base rule
+// (`.md-attention-item__avatar`, app.scss) uses box-shadow for the per-avatar GLOW —
+// `Dashboard::GlowAvatar` extracts each image's dominant colour into
+// `--avatar-glow-strong` / `--avatar-glow-soft` and the shadow is two layered tints of it.
+// Restating box-shadow here would silently delete that glow, so the ring is carried on the
+// `border` the base rule already sets (1px `var(--md-line)`), widened to 2px and recoloured.
+// The avatar is `box-sizing: border-box` via the global reset, so the extra pixel comes out of
+// the 40px box rather than growing the row — the ring reads as an inset edge, which is what a
+// badge ring should do.
+//
+// A second inset hairline gives it the two-tone look the silver chips have: the brighter
+// `$ch-chip-hi` just inside the `$ch-chip-lo` edge, so the ring has a lit top rather than
+// reading as a flat grey circle. `inset` keeps it off the glow's territory entirely.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__avatar {
+  border: 2px solid $ch-chip-lo;
+  outline: 1px solid rgba($ch-chip-hi, 0.75);
+  outline-offset: -3px;
+}
+
+// DARK SLATE GLASSY-GLOSSY CARD + ART ON TOP (requested 2026-09-20), split across the element
+// and its ::before rather than stacked into one multi-layer `background-image`. The element
+// owns the material, the pseudo owns the artwork; neither has to restate the other.
+//
+// THE SLATE RAMP IS THE APP'S, NOT A NEW ONE. `radial-gradient(circle at 50% 46%, #262d3a,
+// #333c4a, #515d70)` is the Focused View dark icon tile, already on the badge-action cards
+// (app.scss), the Extras setup cards and the preferences boxes (both earlier in this file).
+//
+// THE GLOSS IS THE DIFFERENCE. That tile is deliberately the CALM variant — its own comment
+// says "most of the glossy glow removed (faint top rim only)". "Glassy-glossy" was asked for
+// here, so the ramp is kept and the domed-glass treatment its header describes is built back
+// on top: a specular highlight off the top-left, a brighter top rim, and a dark inner lip at
+// the bottom that makes the surface read as domed rather than flat. This is a sibling of that
+// tile, not a fourth copy of it.
+//
+// NOTE FOR WHOEVER TOUCHES THE CALM ONE: that recipe is duplicated verbatim in THREE places
+// and both copies in this file cite `app.scss:47768`, a line that has since drifted to 56336.
+// It wants extracting into `_chips.scss` beside `ch-chip` the way the silver surface already
+// was. Not done here — repointing three live tiles is its own change, not a side effect of
+// this one.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--attention {
+  @include focus-glass-slate-card;
+}
+// The artwork, above the card. No `!important` anywhere: nothing else in the app targets this
+// pseudo-element, so there is no cascade to win.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--attention::before {
+  // SWITCHING BACK to the previous artwork is a one-word edit: drop the `-2`. Both are on disk
+  // in both asset roots.
+  @include focus-glass-card-art('communicators-glassy-2');
 }
 
 // ...LIGHTENED 10% (2026-08-16, requested). The tiles no longer take `$focus-boards-bg`
