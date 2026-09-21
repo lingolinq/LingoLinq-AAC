@@ -2495,6 +2495,36 @@ header:has(#normal_mode) #inner_header {
   padding-right: 12px !important;
 }
 
+/* Containing block for the absolutely-positioned board-intro button
+   (`.extra-btn`, templates/application.hbs). That control used to be a CHILD of
+   the sentence bar, which anchors it via `.button_list { ... position: relative }`
+   further down this file. It had to move out of the bar to stop nesting a
+   role="button" inside an <a href> (no-nested-interactive). Without a containing
+   block here the next positioned ancestor is the FIXED header: measured +776px
+   left / +17.5px top on dev, landing it beside the account avatar.
+
+   DELIBERATELY UNPREFIXED. The rest of the speak-bar styling is scoped
+   `#inner_header:has(#speak)`, but this one declaration must not be: an engine
+   without `:has()` support would drop the whole block and take the anchor with
+   it, reproducing the +776px bug, and this repo ships Cordova (Android System
+   WebView) and Electron alongside the browserslist targets in config/targets.js.
+   Before the control was un-nested the bar anchored it without needing `:has()`,
+   so scoping this would make the fix strictly more fragile than what it replaced.
+   The eval header carries the same declaration, also without `:has()`, in
+   `#speak.md-eval-header .speak-bar__button-list-wrap` (added 2026-05-04,
+   0e42a9471, for the quick-assessment layout) -- which is why eval mode never
+   showed this bug. This matches that shape.
+
+   This also matches the wrap in templates/brief.hbs, which has no absolutely
+   positioned descendants, so the rule is inert there.
+
+   Guarded by tests/integration/speak-bar-anchor-test.js: delete this, or re-scope
+   it behind a selector the test does not reproduce, and that test goes red. No
+   other CI gate can see it. */
+.speak-bar__button-list-wrap {
+  position: relative;
+}
+
 /* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap.
    wrap min-height + chip height + image height are driven by CSS
    custom properties so the bar scales with the user's
@@ -2526,18 +2556,6 @@ header:has(#normal_mode) #inner_header {
   min-height: var(--bav-wrap-h, 88px);
   box-sizing: border-box;
   gap: 0;
-
-  /* Containing block for the absolutely-positioned board-intro button
-     (.extra-btn, templates/application.hbs). That control used to be a CHILD of
-     #button_list, which is position:relative via `.button_list` (app.scss:4251),
-     so the bar itself anchored it. It had to move out of #button_list to stop
-     nesting a role="button" inside an <a href> (no-nested-interactive), and
-     without this the next positioned ancestor is the FIXED header: measured
-     +776px left, +17.5px top, landing it beside the account avatar.
-     The eval header already carries exactly this rule at app.scss:98001
-     (added 2026-05-04, 0e42a9471, for the quick-assessment layout), which is
-     why eval mode never showed the bug. This makes normal mode match it. */
-  position: relative;
 }
 
 /* Per-size CSS-var sets — applied to the speaking header so they
