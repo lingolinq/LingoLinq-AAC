@@ -135,4 +135,33 @@ module('Unit | Component | account-rail activeRow', function(hooks) {
     assert.strictEqual(rail(this, 'user.focus').get('activeRow'), null,
       'the Focus Words report has no rail row, so nothing is claimed');
   });
+
+  /* ARIA AND THE HIGHLIGHT MUST NAME THE SAME ROUTES, and this pins the defect that got past
+   * the first pass on 2026-09-21. ROW_FOR_ROUTE was widened so `user.log` set `aria-current`
+   * on Logs, but the highlight came from <LinkTo>'s `@activeClass`, which does not go active on
+   * a SIBLING route -- `user.log` is not a child of `user.logs`. The rendered result told a
+   * screen-reader user "Logs, current page" while a sighted user saw nothing lit: the inverse
+   * of the bug this file was created for, equally silent, and invisible to every assertion
+   * above because each one only ever read `activeRow`.
+   * `@current-when` was tried as the fix and does NOT work for these two: it resolves each
+   * route name against the LINK's own models, and the rows pass one (`user_name`) where
+   * `user.goal` / `user.log` need two. So Goals and Logs now take `is-active` from `activeRow`,
+   * the same computed behind their `aria-current` -- which is what makes them agree BY
+   * CONSTRUCTION. This test pins that every route those two rows answer for resolves to the
+   * row, so neither half can be widened without the other.
+   * Verified in a real browser as well (scripts/account-rail-pages-qa.mjs); a unit test cannot
+   * see a LinkTo's rendered class. */
+  test('each multi-route row claims every route it answers for', function(assert) {
+    var expected = {
+      'user.goals': 'goals', 'user.goal': 'goals', 'user.badges': 'goals',
+      'user.logs': 'logs', 'user.log': 'logs',
+      'user.account': 'account', 'user.index': 'account', 'user.history': 'account',
+      'index': 'home', 'user.home': 'home'
+    };
+    assert.expect(Object.keys(expected).length);
+    Object.keys(expected).forEach((route) => {
+      assert.strictEqual(rail(this, route).get('activeRow'), expected[route],
+        route + ' resolves to the ' + expected[route] + ' row');
+    });
+  });
 });

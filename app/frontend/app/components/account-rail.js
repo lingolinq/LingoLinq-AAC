@@ -9,7 +9,7 @@ import { inject as service } from '@ember/service';
    Stated ONCE and consumed twice: bound into that row's `@current-when` (which drives the
    highlight) and folded into ROW_FOR_ROUTE below (which drives `aria-current`), so the two
    cannot drift apart. */
-const ACCOUNT_ROUTES = 'user.account user.index';
+const ACCOUNT_ROUTES = 'user.account user.index user.history';
 
 /* THE ROUTES THAT ARE THE HOME PAGE. Like the account page it answers to two names: top-level
    `index` (path `/`) and `user.home` (path `/:user_id/home`), which routes/user/home.js renders
@@ -20,6 +20,25 @@ const ACCOUNT_ROUTES = 'user.account user.index';
    up like any other. Stated once, consumed twice — `@current-when` and ROW_FOR_ROUTE below. */
 const HOME_ROUTES = 'index user.home';
 
+/* THE ROUTES THAT ARE THE GOALS ROW and THE LOGS ROW (2026-09-21), added when the account
+   pill row was retired and the section's DETAIL pages started rendering the rail.
+   THE DETAIL ROUTES ARE SIBLINGS, NOT CHILDREN. router.js declares `goal` with path
+   '/goals/:goal_id' alongside `goals`, so the URL nests but the route name does not -- which
+   means <LinkTo @route="user.goals"> does NOT go active on `user.goal`. Naming the siblings
+   here is what makes the row light up on the detail page.
+   THESE TWO FEED ROW_FOR_ROUTE ONLY, not `@current-when`. That was tried first and does not
+   work: `@current-when` resolves each route name against the LINK's own models, and these rows
+   supply one (`user_name`) where `user.goal` / `user.log` need two, so the match silently
+   fails. The Goals and Logs rows therefore take their `is-active` from `activeRow` instead --
+   the same computed that sets their `aria-current`, so the highlight and the announcement
+   cannot disagree. Setting one without the other tells a screen-reader user "Logs, current
+   page" while a sighted user sees nothing lit: the inverse of the bug `activeRow` was written
+   to fix, equally silent, and caught only by looking at the rendered page.
+   Badges rides with Goals: they are goal badges (templates/user/badges.hbs links to
+   `user.goal`), and the rail has no Badges row of its own. */
+const GOALS_ROUTES = 'user.goals user.goal user.badges';
+const LOGS_ROUTES = 'user.logs user.log';
+
 /* Route name -> the rail row that route belongs to. Used ONLY for `aria-current`: <LinkTo>
    computes the visual highlight itself (see `@activeClass` in the template) but does not set
    `aria-current`, and a nav whose highlight a sighted user can see must say the same thing to
@@ -29,31 +48,25 @@ const HOME_ROUTES = 'index user.home';
    a row to highlight, and a page with no row does not get the rail. Adding a page means
    touching both. */
 const ROW_FOR_ROUTE = {
-  'user.goals': 'goals',
-  'user.logs': 'logs',
   'user.edit': 'edit',
   'user.recordings': 'recordings',
   'user.stats': 'stats',
   'user.preferences': 'preferences',
   'user.subscription': 'subscription',
-  'user.supervision': 'supervision',
-  /* THE SECTION'S DETAIL PAGES (2026-09-21), each pointing at the LIST page it belongs to: a
-     single log entry belongs to Logs, a single goal to Goals. Badges answer Goals because they
-     are goal badges (templates/user/badges.hbs links to `user.goal`, and templates/user/goals.hbs
-     links here), and History is the ACCOUNT's edit history, reached only from the account page's
-     support actions (templates/user/index.hbs).
-     `user.lessons` and `user.focus` are DELIBERATELY ABSENT, not overlooked. "Current Trainings"
-     and the Focus Words report have no row in this rail, and Reports (`user.stats`) is usage
-     statistics, not either of them -- pointing them at a row would make the nav say something
-     untrue, which is worse than saying nothing. They resolve to null and light nothing. If the
-     rail ever gains rows for them, add the keys here and update the test. */
-  'user.log': 'logs',
-  'user.goal': 'goals',
-  'user.badges': 'goals',
-  'user.history': 'account'
+  'user.supervision': 'supervision'
 };
+/* DERIVED FROM THE ALIAS LISTS ABOVE, never written out again here: every route that lights a
+   row through `@current-when` must claim the SAME row through `aria-current`, and deriving
+   both from one constant is what stops them drifting.
+   `user.lessons` and `user.focus` appear in NO list, deliberately. "Current Trainings" and the
+   Focus Words report have no row in this rail, and Reports (`user.stats`) is usage statistics,
+   not either of them -- pointing them at a row would make the nav say something untrue, which
+   is worse than saying nothing. They resolve to null and light nothing. If the rail ever gains
+   rows for them, add an alias list and update the test. */
 ACCOUNT_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'account'; });
 HOME_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'home'; });
+GOALS_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'goals'; });
+LOGS_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'logs'; });
 
 /**
  * THE ACCOUNT SECTION'S LEFT NAV, as a fixed full-height panel.

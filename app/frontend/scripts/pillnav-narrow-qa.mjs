@@ -64,7 +64,7 @@ try {
         await page.setViewport({ width: w, height: 900 });
         await new Promise(r => setTimeout(r, 450));
         const out = await page.evaluate(probe);
-        const nav = out.navDashboard || out.navUser;
+        const nav = out.navDashboard;
         const navState = nav ? (nav.shown ? `shown (${out.visiblePills} pills on ${out.pillRows} row(s))` : 'HIDDEN') : 'absent';
         const dd = out.dropdown ? (out.dropdown.shown ? 'shown' : 'hidden') : 'absent';
         const verdict = (!nav || !nav.shown) && dd !== 'shown' ? '  <-- NO NAV AT ALL' : '';
