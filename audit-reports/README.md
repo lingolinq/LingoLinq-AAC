@@ -35,9 +35,10 @@ register via `scripts/audit-merge.rb`, runs the `adversary` agent as an independ
 and validates every citation with `scripts/citation-check.rb`. Governance is enforced
 mechanically: `audit-merge.rb` only ever ADDS findings or marks them `open`; it never closes,
 downgrades, or accepts risk. **Only Scot** moves a finding to `verified-closed`/`accepted-risk`
-(and `closureEvidence.attestation` stays empty until he signs). A previously-closed finding that
-a finder re-surfaces is flagged `regression: true` for adversary review and a Scot decision,
-never silently reopened or reclosed.
+(and `closureEvidence.attestation` stays empty until he signs). A finding whose status Scot has
+already moved to `verified-closed`/`accepted-risk`/`superseded`/`remediated-unverified`, or whose
+disposition he has already set, that a finder re-surfaces is flagged `regression: true` for
+adversary review and a Scot decision, never silently reopened, reclosed, or re-anchored.
 
 ### The audit pointer vs. the evidence anchor
 

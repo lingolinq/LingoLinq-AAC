@@ -148,12 +148,7 @@
                     {{/if}}
                   </div>
                 {{/if}}
-                {{#if this.show_board_intro}}
-                  <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc; background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
-                    <img src={{path "images/learn.png"}} alt="" style='height: 100%; max-height: 50px;'>
-                    {{t "Intro" key="intro"}}
-                  </div>
-                {{else if this.app_state.eye_gaze_state}}
+                {{#if (and this.app_state.eye_gaze_state (not this.show_board_intro))}}
                   <div class="eye_status" title={{this.app_state.eye_gaze_state.status}}>
                     {{#if this.app_state.eye_gaze_state.active}}
                       <span class="glyphicon glyphicon-eye-open"></span>
@@ -171,6 +166,31 @@
             <ButtonList @buttonList={{button_list}} />
           {{/let}}
         </a>
+        {{! Rendered as a SIBLING of #button_list, never inside it. This is a
+            role="button" control and #button_list is an anchor with an href, so
+            nesting them left two separately focusable controls one inside the other
+            -- ambiguous for switch-scanning and eye-gaze users, and the inner label
+            was folded into the outer link's accessible name (no-nested-interactive).
+            The guard restates the conditions this branch used to sit under. Testing
+            button_list.length rather than button_list is deliberate: the local `not`
+            helper is plain-JS falsy, where an empty array is TRUTHY, unlike the
+            unless helper it replaces.
+
+            POSITIONING: moving this out of #button_list DOES change its containing
+            block. What keeps it anchored to the bar is the unprefixed rule
+            `.speak-bar__button-list-wrap { position: relative }` in app/styles/app.scss.
+            The bar used to anchor this control itself, via `.button_list { ...
+            position: relative }` in the same file. Without the rule on the wrap the
+            next positioned ancestor is the FIXED header: measured +776px left and
+            +17.5px top on dev, beside the account avatar, outside the sentence bar
+            entirely. Do not remove it; tests/integration/speak-bar-anchor-test.js
+            goes red if you do, and no other CI gate can see it. }}
+        {{#if (and (not this.app_state.button_list.length) (not this.app_state.embedded) this.app_state.currentUser.preferences.blank_status this.show_board_intro)}}
+          <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc; background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
+            <img src={{path "images/learn.png"}} alt="" style='height: 100%; max-height: 50px;'>
+            {{t "Intro" key="intro"}}
+          </div>
+        {{/if}}
         {{#unless this.app_state.eval_mode}}
           {{#unless this.app_state.currentUser.preferences.device.disable_speak_options}}
             <button class="btn btn-default pass_to_btn_list" type="button" {{on "click" (this.ctrlAction "speakOptions")}} id="speak_options">

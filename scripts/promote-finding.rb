@@ -27,10 +27,13 @@
 #     PII or secret shape in any text field -- such a finding is REFUSED outright (skipped, never
 #     redacted-in), because the register is code/path evidence only (PII-free, Tier 2 content).
 #   * Adds genuinely new findings as status "open", disposition "untriaged", with PR provenance.
-#   * For a known id still "open"/"remediated-unverified": refreshes lastSeen, records the PR
-#     provenance in notes, re-anchors evidence to the finding's sha only if it still verifies.
-#   * For a known id previously closed/accepted/superseded that a reviewer re-surfaced: leaves the
-#     Scot-owned status UNTOUCHED, sets regression:true with a loud note, lists it in the summary.
+#   * For a known id still "open": refreshes lastSeen, records the PR provenance in notes,
+#     re-anchors evidence to the finding's sha only if it still verifies.
+#   * For a known id whose status is verified-closed/accepted-risk/superseded/remediated-unverified
+#     (SCOT_OWNED_CLOSED), or whose disposition is Scot-set (SCOT_OWNED_DISPOSITIONS), but a
+#     reviewer re-surfaced it: leaves the Scot-owned status UNTOUCHED, sets regression:true with
+#     a loud note, lists it in the summary (issue #1014: remediated-unverified used to be
+#     silently re-anchored here instead).
 #
 # WHY a manual command and not a hook / an n8n auto-promote step (the trigger decision):
 #   1. The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA). FINDINGS.json is the compliance
@@ -79,7 +82,9 @@ SEVERITY_ENUM = %w[critical high medium low].freeze
 PROMOTABLE_SEVERITIES = %w[critical high].freeze
 FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
 # Statuses a reviewer may NOT change. A re-find of one of these is a regression, not a status flip.
-SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
+# Includes remediated-unverified for the same reason as scripts/audit-merge.rb (issue #1014,
+# kept in lockstep by hand): Scot has already accepted a fix as deployed pending verification.
+SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded remediated-unverified].freeze
 # The only status this script is ever allowed to assign.
 ASSIGNABLE_STATUS = 'open'
 # The only disposition this script is ever allowed to assign (Scot owns every other value).
@@ -224,6 +229,8 @@ end
 
 summary = { 'promotedDate' => run_date, 'new' => [], 'reseen' => [],
             'regressions' => [], 'skipped' => [] }
+# ids this invocation actually created (see the end-of-run invariant below).
+created_ids = []
 
 opts[:ins].each do |path|
   die("input not found: #{path}") unless File.file?(path)
@@ -333,8 +340,15 @@ opts[:ins].each do |path|
         # status and do NOT touch the disposition; flag it loudly for adversary verification + Scot.
         existing['regression'] = true
         reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
-        note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} (#{reason}). Needs adversary verification + Scot decision."
-        existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        # Same dedupe as scripts/audit-merge.rb, keyed on the REASON rather than a boolean
+        # `regression` flag: a boolean would also suppress the note the one time it matters
+        # again -- a second regression for a DIFFERENT reason after Scot re-decided the row
+        # without clearing `regression` (adversary review, round 2; issue #1014 fix review).
+        reason_tag = "(#{reason})"
+        unless existing['notes'].to_s.include?(reason_tag)
+          note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} #{reason_tag}. Needs adversary verification + Scot decision."
+          existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
+        end
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
                                     'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'reviewer' => reviewer, 'pr' => pr }
@@ -364,16 +378,23 @@ opts[:ins].each do |path|
     }
     findings << record
     by_id[id] = record
+    created_ids << id
     summary['new'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => sev, 'reviewer' => reviewer, 'pr' => pr, 'file' => file }
   end
 end
 
 # Invariant: this script must never have produced a Scot-owned status or a non-untriaged
-# disposition on a finding it just created this run. Scope by source.promotedDate == run_date so
-# the check covers everything THIS script created this run (source-value-agnostic) and never
-# touches a pre-existing finding that happens to share today's firstSeen.
+# disposition on a finding it just created THIS RUN. Checked against `created_ids`, the ids this
+# very invocation added to `findings` above -- NOT a `source.promotedDate == run_date` date-string
+# match, which also matches a row an EARLIER invocation created today and that Scot (or a direct
+# register edit) has since moved to a Scot-owned status: that row's re-find in THIS run only takes
+# the reseen/regression branch above, which never writes status or disposition, so it cannot be
+# what this invariant is checking for, and a date-proxy match on it is a false positive that would
+# abort the whole batch under a diagnostic ("assigned a Scot-owned status") this run did not do
+# (issue #1014 fix review; reproduced: promote a finding, flip its status to remediated-unverified
+# out of band, re-find it later the same day -- the date-proxy form dies, this form does not).
 findings.each do |f|
-  next unless f.dig('source', 'promotedDate') == run_date
+  next unless created_ids.include?(f['id'])
   if SCOT_OWNED_CLOSED.include?(f['status'])
     die("invariant violation: assigned a Scot-owned status to #{f['id']}")
   end

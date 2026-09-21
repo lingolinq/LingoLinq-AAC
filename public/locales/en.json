@@ -8427,6 +8427,7 @@
   "no_stats_available": "No statistics available for this organization",
   "recent_activity": "Recent Activity",
   "view": "View",
+  "view_log": "View",
   "loading_sessions": "Loading sessions...",
   "view_only_access_label": "View-only access",
   "org_view_only_lead": "You have view-only access to this organization. The organization management tools are available to managers.",
