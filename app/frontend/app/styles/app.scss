@@ -51639,9 +51639,15 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   color: var(--md-ink);
 }
 .md-logs__header {
+  /* COLUMN, unlike the other account-section headers: this one carries the page's filter
+     controls below the title (requested 2026-09-21), where the rest carry a title alone.
+     `align-items: flex-start` because a stretched column would make the links span the full
+     width and put their hover targets miles from the text. The 10px gap is title-to-links,
+     deliberately tighter than the 14px icon-to-title gap the row-based headers use. */
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 28px;
   padding-bottom: 18px;
   border-bottom: 1.5px solid rgba($brand-blue-black, 0.12);
@@ -51654,7 +51660,9 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
   letter-spacing: -0.2px;
   color: var(--md-ink);
 }
-.md-logs__title a {
+/* Was `.md-logs__title a`, when the filter links lived inside the <h2>. They are a sibling
+   of it now, so the selector followed them rather than being duplicated. */
+.md-logs__filters a {
   font-size: 14px;
   font-weight: 600;
   color: $brand-teal;

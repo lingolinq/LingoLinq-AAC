@@ -12,28 +12,37 @@
     {{/if}}
     {{#if this.filtered_results}}
       {{t "(filtered)" key="filtered"}}
-      <span style='font-size: 14px; padding-left: 5px;'>
+    {{/if}}
+  </h2>
+  {{!-- FILTER LINKS SIT BELOW THE TITLE, NOT BESIDE IT (requested 2026-09-21). They used to
+       be inline `<span>`s INSIDE the <h2>, which put them on the title's baseline and, once
+       the name was long enough, wrapped "Show Journal" onto its own line mid-heading. They
+       are controls, not part of the page's name, so they are a sibling of the heading now
+       and `.md-logs__header` stacks. They stay INSIDE the header block, above its rule, so
+       the divider still closes the whole group.
+       The 14px sizing moved to `.md-logs__filters a` in app.scss -- it was two copies of an
+       inline `style` attribute before. Every branch and separator is otherwise unchanged;
+       this is a move, not a rewrite. --}}
+  <div class="md-logs__filters">
+    {{#if this.filtered_results}}
       <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=this.type highlighted=null start="" end="" device_id="" location_id=""}}>
         {{t "clear filter" key="clear_filter"}}
       </LinkTo>
-      </span>
     {{else}}
-      <span style='font-size: 14px; padding-left: 5px;'>
-        {{#if this.all_logs}}
-          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo> 
-          {{#if this.model.currently_premium}}
-            | 
-            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted="1"}}>{{t "Show Highlighted" key="show_highlighted"}}</LinkTo>
-            {{#if this.model.permissions.delete}}
-              | <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="journal" highlighted=null}}>{{t "Show Journal" key="show_journal"}}</LinkTo>
-            {{/if}}
+      {{#if this.all_logs}}
+        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo>
+        {{#if this.model.currently_premium}}
+          |
+          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted="1"}}>{{t "Show Highlighted" key="show_highlighted"}}</LinkTo>
+          {{#if this.model.permissions.delete}}
+            | <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="journal" highlighted=null}}>{{t "Show Journal" key="show_journal"}}</LinkTo>
           {{/if}}
-        {{else}}
-          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted=null}}>{{t "Show Full Log" key="show_full_log"}}</LinkTo>
         {{/if}}
-      </span>
+      {{else}}
+        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted=null}}>{{t "Show Full Log" key="show_full_log"}}</LinkTo>
+      {{/if}}
     {{/if}}
-  </h2>
+  </div>
   </div>
   {{#if this.model.external_device}}
     {{#if this.model.permissions.supervise}}
