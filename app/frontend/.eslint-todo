@@ -661,9 +661,9 @@ app/models/user.js|ember/require-return-from-computed|421|70|1|8c8d53fa71e0
 app/models/user.js|ember/require-return-from-computed|480|85|1|8c8d53fa71e0
 app/models/user.js|ember/require-return-from-computed|789|5|1|8c8d53fa71e0
 app/models/utterance.js|ember/no-runloop|48|7|2|5addc2170315
-app/routes/application.js|ember/no-runloop|185|7|2|5addc2170315
+app/routes/application.js|ember/no-runloop|191|7|2|5addc2170315
 app/routes/application.js|ember/no-runloop|74|7|2|5addc2170315
-app/routes/application.js|lingolinq/no-orphaned-action|205|5|1|492ba5da3bab
+app/routes/application.js|lingolinq/no-orphaned-action|211|5|1|492ba5da3bab
 app/routes/board.js|ember/no-runloop|122|15|2|5addc2170315
 app/routes/board.js|ember/no-runloop|125|11|2|5addc2170315
 app/routes/board.js|ember/no-runloop|159|13|2|5addc2170315
