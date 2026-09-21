@@ -36,7 +36,21 @@ const ROW_FOR_ROUTE = {
   'user.stats': 'stats',
   'user.preferences': 'preferences',
   'user.subscription': 'subscription',
-  'user.supervision': 'supervision'
+  'user.supervision': 'supervision',
+  /* THE SECTION'S DETAIL PAGES (2026-09-21), each pointing at the LIST page it belongs to: a
+     single log entry belongs to Logs, a single goal to Goals. Badges answer Goals because they
+     are goal badges (templates/user/badges.hbs links to `user.goal`, and templates/user/goals.hbs
+     links here), and History is the ACCOUNT's edit history, reached only from the account page's
+     support actions (templates/user/index.hbs).
+     `user.lessons` and `user.focus` are DELIBERATELY ABSENT, not overlooked. "Current Trainings"
+     and the Focus Words report have no row in this rail, and Reports (`user.stats`) is usage
+     statistics, not either of them -- pointing them at a row would make the nav say something
+     untrue, which is worse than saying nothing. They resolve to null and light nothing. If the
+     rail ever gains rows for them, add the keys here and update the test. */
+  'user.log': 'logs',
+  'user.goal': 'goals',
+  'user.badges': 'goals',
+  'user.history': 'account'
 };
 ACCOUNT_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'account'; });
 HOME_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'home'; });

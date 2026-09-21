@@ -65,10 +65,30 @@ export default Controller.extend({
          would have included them silently. Any route not named here simply has no rail.
          `user.index` and `user.account` both render templates/user/index.hbs (routes/user/
          account.js sets `templateName`), so both are listed. */
+      /* THE SIX DETAIL PAGES ON THE SECOND LINE BLOCK were added when the account pill row was
+         retired (2026-09-21, templates/user.hbs). They are the section's DETAIL pages, and they
+         were missing here for a mechanical reason worth stating so it is not reintroduced: this
+         test is EXACT-MATCH while `bareUserOutletLayout` below matches base-plus-children, and
+         `user.goal` / `user.log` are SIBLING routes of `user.goals` / `user.logs`, not children
+         (router.js declares `goal` with path '/goals/:goal_id', so the PATH nests but the ROUTE
+         NAME does not). They therefore fell through to the pill row, and clicking a log entry
+         swapped the left rail for a top pill bar mid-section.
+         ADDING A ROUTE HERE MEANS ADDING IT TO ROW_FOR_ROUTE in components/account-rail.js --
+         that invariant is stated there and pinned by
+         tests/unit/components/account-rail-active-row-test.js. A route in this list with no row
+         there renders a nav that never says where you are.
+         DELIBERATELY ABSENT: `user.password_reset` and `user.confirm_registration`. They are
+         single-task pages reached from an email, and signed out the user fetch still SUCCEEDS
+         (api/users_controller.rb exempts `show`; User grants 'view_existence' to everyone), so a
+         rail there would render rows naming a stranger's account that all bounce to login. Both
+         carry their own exit already and the global header in application.hbs renders signed
+         out. Also absent: `user.device`, which is declared in the router with no route,
+         controller or template. */
       return [
         'user.index', 'user.account', 'user.goals', 'user.logs', 'user.edit',
         'user.recordings', 'user.stats', 'user.preferences', 'user.subscription',
-        'user.supervision'
+        'user.supervision',
+        'user.goal', 'user.log', 'user.badges', 'user.history', 'user.lessons', 'user.focus'
       ].indexOf(route) !== -1;
     }
   ),

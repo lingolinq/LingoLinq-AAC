@@ -558,11 +558,13 @@ $focus-pill-accent-to:   $focus-accent;
 
 // — Focused View ACTIVE PILL fill —
 // The active pill carries ONE gradient across every page that has a pill-nav: the
-// dashboard (.md-shell--layout-focused), the caseload, Boards/Reports
-// (.md-shell--reports-view) and the account pages (.md-pillnav--user). That gradient
-// was written out as a literal at all four sites, with a "change them together" comment
-// standing in for the link — so these tokens exist to make the link real. Change here
-// and all four move; there is nowhere left for them to drift apart.
+// dashboard (.md-shell--layout-focused), the caseload, and Boards/Reports
+// (.md-shell--reports-view). That gradient was written out as a literal at each site,
+// with a "change them together" comment standing in for the link — so these tokens exist
+// to make the link real. Change here and they all move; there is nowhere left for them
+// to drift apart.
+// There was a FOURTH site, the account pages (.md-pillnav--user); it went with the
+// account pill row on 2026-09-21, replaced by the account rail.
 //
 // DESATURATED 10 POINTS from the chrome accents above (2026-08-16). They get their own
 // tokens rather than a change to `$focus-accent-from` / `$focus-pill-accent-to` because

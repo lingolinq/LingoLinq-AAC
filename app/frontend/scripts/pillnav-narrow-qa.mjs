@@ -38,7 +38,6 @@ function probe() {
   const rows = new Set(pills.map(p => Math.round(p.getBoundingClientRect().y)));
   return {
     navDashboard: vis(document.querySelector('.md-pillnav--dashboard')),
-    navUser: vis(document.querySelector('.md-pillnav--user')),
     dropdown: vis(document.querySelector('.md-pillnav-dropdown')),
     visiblePills: pills.length,
     pillRows: rows.size

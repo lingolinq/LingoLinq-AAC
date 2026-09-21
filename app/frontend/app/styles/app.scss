@@ -46687,9 +46687,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   /* 4px top / 4px bottom / 2px sides — a slim bar that seats the pills
      tightly while keeping the horizontal edges flush. Single base rule
      covers the home page and the caseload page (both render bare
-     `<nav class="md-pillnav">`); `.md-pillnav--user` further down
-     re-declares the same 4px top/bottom values for its own variant so
-     the result matches. */
+     `<nav class="md-pillnav">`). A `.md-pillnav--user` variant further
+     down used to re-declare the same 4px top/bottom values; it went with
+     the account pill row it styled (2026-09-21). */
   padding: 4px 2px !important;
 
   display: flex !important;
@@ -46932,58 +46932,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-pillnav__upgrade:active { transform: scale(var(--md-tap)); }
 
-/* User page: pill nav + meta below, then full-width outlet */
-.md-pillnav--user {
-  margin-top: 18px !important;
-
-  margin-bottom: 0 !important;
-
-  padding-top: 4px !important;
-
-  padding-bottom: 4px !important;
-  width: fit-content !important;
-
-  max-width: 100% !important;
-
-  box-sizing: border-box !important;
-
-  flex-wrap: nowrap !important;
-
-  overflow: hidden !important;
-
-  flex-shrink: 0 !important;
-
-}
-/* User page: same minimal active pill (LinkTo adds .active) */
-.md-pillnav--user a.md-pillnav__pill.active,
-.md-pillnav--user a.md-pillnav__pill.is-active {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue) !important;
-
-  color: #fff !important;
-
-  border: 1px solid rgba($brand-charcoal-blue, 0.3) !important;
-
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
-
-}
-.md-pillnav--user a.md-pillnav__pill.active:not(:first-child),
-.md-pillnav--user a.md-pillnav__pill.is-active:not(:first-child) {
-  border-left: none !important;
-
-  margin-left: 0 !important;
-
-  padding-left: 18px !important;
-
-}
-.md-pillnav--user a.md-pillnav__pill.active .md-pillnav__badge,
-.md-pillnav--user a.md-pillnav__pill.is-active .md-pillnav__badge {
-  background: rgba(255, 255, 255, 0.95) !important;
-
-  color: rgba(58, 107, 199, 0.95) !important;
-
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
-
-}
 /* User page: same shell/workspace as dashboard; main content area */
 .md-shell--user > .md-workspace > .md-main--user {
   padding-bottom: calc(var(--bottombar-height, 59px) - 24px) !important;
@@ -55240,8 +55188,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     margin-top: 8px !important;
 
   }
-  .md-pillnav,
-  .md-pillnav--user {
+  .md-pillnav {
     margin-top: 24px !important;
   }
   .md-pillnav-dropdown {
@@ -65808,8 +65755,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-workspace,
   .md-workspace > .md-main,
   .md-user-layout,
-  .md-pillnav,
-  .md-pillnav--user {
+  .md-pillnav {
     /* `clip` companion, same reasoning as the base `.md-shell` rule (~43788):
        `overflow-x: hidden` makes the other axis compute to `auto`, turning every
        one of these into a scrolling box, and `position: sticky` binds to the
@@ -66228,11 +66174,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      rules still apply and break the symmetry of the tighter 4px 12px
      padding above — pulling the active pill wider than the inactive
      one. Force padding-left back to 12px so all four sides match the
-     inactive pill (4/12/4/12). The `.md-pillnav--user` selectors are
-     listed explicitly because the account-page active-pill rule
-     (app.scss ~41743) is specificity (0,4,1) — higher than the generic
-     fix — so matching that specificity (and winning on source order)
-     is required for the account pills to come out symmetric too.
+     inactive pill (4/12/4/12). This list used to carry three
+     `.md-pillnav--user` selectors as well, to out-specify the
+     account-page active-pill rule at (0,4,1); both that rule and these
+     went with the account pill row on 2026-09-21.
 
      `:first-child` is in the SAME list for the same reason, and is the
      case that was missed: `.md-pillnav__pill:first-child` (app.scss
@@ -66244,10 +66189,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      Listed here at equal (0,2,0) and later in source, so it wins. */
   .md-pillnav__pill:first-child,
   .md-pillnav__pill.is-active:not(:first-child),
-  a.md-pillnav__pill.active:not(:first-child),
-  .md-pillnav--user a.md-pillnav__pill:first-child,
-  .md-pillnav--user a.md-pillnav__pill.is-active:not(:first-child),
-  .md-pillnav--user a.md-pillnav__pill.active:not(:first-child) {
+  a.md-pillnav__pill.active:not(:first-child) {
     padding-left: 12px !important;
   }
   .nav-header__brand {
@@ -66369,22 +66311,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   }
   .md-shell--user > .md-workspace {
     padding-top: var(--topbar-height, 68px) !important;
-  }
-  .md-pillnav--user {
-    display: flex !important;
-    flex-wrap: wrap !important;
-
-    gap: 4px !important;
-
-    justify-content: center !important;
-
-    margin-top: 12px !important;
-  }
-  .md-pillnav--user .md-pillnav__pill {
-    font-size: 14px !important;
-
-    padding: 8px 10px !important;
-
   }
   .md-pillnav-dropdown {
     display: none !important;
@@ -66707,15 +66633,20 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   User page (.md-pillnav--user) — collapse the pill row into the shared
-   dropdown drawer at ≤460px, mirroring the home page's md-pillnav-dropdown.
-   Uses native <details>/<summary> (see user.hbs), so the [open] attribute
-   replaces the JS-driven .is-open reveal — same end state, different open
-   signal (identical approach to .md-pillnav-dropdown--caseload). The shared
+   .md-pillnav-dropdown--user — the native <details> drawer styling.
+   NAMED FOR A NAV THAT NO LONGER EXISTS. These rules were written for the
+   account page's own pill row (.md-pillnav--user), retired 2026-09-21 in
+   favour of the account rail. They are KEPT because the class has a second,
+   live emitter: components/user-pill-nav.hbs:81 takes
+   `md-pillnav-dropdown--user` deliberately "purely to inherit that details
+   styling", and below 460px that drawer is the ONLY nav on Home, Boards,
+   Caseload and Organizations.
+   Uses native <details>/<summary>, so the [open] attribute replaces the
+   JS-driven .is-open reveal — same end state, different open signal
+   (identical approach to .md-pillnav-dropdown--caseload). The shared
    trigger/list/option styling lives in the ≤550px block above and applies
-   here unchanged, so the drawer looks the same as home. This block sits
-   after the ≤375px + ≤550px pillnav blocks so its display swap wins on
-   source order (equal specificity). */
+   here unchanged. This block sits after the ≤375px + ≤550px pillnav blocks
+   so its display swap wins on source order (equal specificity). */
 .md-pillnav-dropdown--user {
   list-style: none;
 }
@@ -66743,12 +66674,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-pillnav-dropdown--user .md-pillnav-dropdown__option {
   text-decoration: none;
 }
-/* The swap: hide the pill row, show the dropdown drawer (centered, matching
-   the home drawer's 40%-width centered geometry) at ≤460px. */
+/* Show the dropdown drawer (centered, matching the home drawer's 40%-width
+   centered geometry) at ≤460px. This was a two-part swap until 2026-09-21 —
+   it also hid `.md-pillnav--user`, which no longer exists. */
 @media (max-width: 460px) {
-  .md-pillnav--user {
-    display: none !important;
-  }
+  /* The `.md-pillnav--user { display: none }` half of this swap went with the account pill row
+     it hid (2026-09-21). What remains is NOT dead: `md-pillnav-dropdown--user` is ALSO emitted
+     by components/user-pill-nav.hbs:81, which takes the class deliberately to inherit this
+     <details> styling, and below 460px that drawer is the only nav on Home, Boards, Caseload
+     and Organizations. Do not delete these rules with the rest of the --user cleanup. */
   .md-pillnav-dropdown--user {
     display: block !important;
     width: 52% !important;

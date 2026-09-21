@@ -64,4 +64,37 @@ module('Unit | Controller | user nav context', function(hooks) {
     assert.false(ctrl(this, 'user.board-alt', '/someone/board/x').get('accountRailContext'),
       'no rail over the classic board either');
   });
+
+  /* THE ACCOUNT PILL NAV IS GONE (2026-09-21) and the rail takes its place. These six routes
+   * used to fall through templates/user.hbs's final `{{else}}` to the `.md-pillnav--user` row
+   * because `accountRailContext` matches EXACT route names while `bareUserOutletLayout` matches
+   * base-plus-children -- and `user.goal`/`user.log` are SIBLING routes of `user.goals`/
+   * `user.logs` (router.js declares `goal` with path `/goals/:goal_id`), so the path nests but
+   * the route name does not. With the pill row deleted, a route missing from the list below
+   * gets NO nav at all, which is why this is pinned per-route rather than in aggregate. */
+  test('the six detail pages that carried the pill nav now get the rail', function(assert) {
+    assert.expect(6);
+    ['user.log', 'user.goal', 'user.badges', 'user.history', 'user.lessons', 'user.focus'].forEach((route) => {
+      assert.true(ctrl(this, route, '/someone/thing').get('accountRailContext'),
+        route + ' carries the account rail');
+    });
+  });
+
+  /* THE TWO EMAIL-LINK LANDINGS CARRY NO NAV, DELIBERATELY. `user.password_reset` and
+   * `user.confirm_registration` are single-task pages reached from an email, often by someone
+   * not signed in -- and signed out the user fetch still SUCCEEDS (the API exempts `show` and
+   * grants `view_existence` to everyone), so a rail here would render rows naming a stranger's
+   * account that all bounce to login. Both templates carry their own exit already
+   * (`confirm_registration.hbs:17` and `:24` are Home buttons; `password_reset.hbs:48` is
+   * "sign back in"), and the global header in `application.hbs:22-25` renders signed out too.
+   * Asserting BOTH computeds because "no nav" is the product decision: one of them being true
+   * would put a menu back on the page. */
+  test('the email-link landing pages carry no nav at all', function(assert) {
+    assert.expect(4);
+    ['user.password_reset', 'user.confirm_registration'].forEach((route) => {
+      var c = ctrl(this, route, '/someone/thing');
+      assert.false(c.get('accountRailContext'), route + ' gets no rail');
+      assert.false(c.get('homeNavContext'), route + ' gets no pill nav either');
+    });
+  });
 });

@@ -273,10 +273,10 @@ $focus-extras-icon-colors: (
 //
 // THE UPDATES PAGE JOINS THEM (requested 2026-09-20). Reached from the home pill-nav's
 // "Updates" (`?nav=home`), it renders <UserPillNav> inside `.md-shell--user`, which matches
-// NONE of the three existing focused pill rules: it is not `--reports-view` (boards/stats),
-// not `--caseload`, and not `.md-pillnav--user` (that rule styles the separate user menu this
-// page renders on its OTHER branch, and additionally requires an `a`, which would not match
-// here anyway — the current pill is a <span>, not a link). So its active pill kept the gentle
+// NONE of the other focused pill rules: it is not `--reports-view` (boards/stats) and not
+// `--caseload`. (It was not `.md-pillnav--user` either — that rule styled the account page's
+// own pill row, which was retired on 2026-09-21; it also required an `a`, and the current
+// pill is a <span>, not a link.) So its active pill kept the gentle
 // charcoal-blue. Qualified with `.md-pillnav--dashboard` so it reaches only the pill-nav
 // arrival; the account-rail branch of the same shell renders no pills, and the user-menu
 // branch keeps its own rule.
@@ -1798,19 +1798,6 @@ body.ll-layout-focused {
   .md-shell--caseload .md-caseload__list-avatar--placeholder svg * {
     stroke: $focus-on-dark !important;
   }
-}
-
-// -----------------------------------------------------------------------------
-// Account page pill-nav (.md-pillnav--user) — Focused View
-// -----------------------------------------------------------------------------
-// It already matches the home pill-nav in Gentle View (same charcoal-blue active
-// pill); in Focused View the home pill-nav's active pill switches to the dusty-denim
-// gradient (`.md-shell--layout-focused .md-pillnav__pill.is-active`), so mirror that
-// here. (0,4,2) beats the base `.md-pillnav--user a.md-pillnav__pill.active` (0,3,1).
-body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.active,
-body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.is-active {
-  background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
-  border-color: rgba($focus-pill-accent-to, 0.3) !important;
 }
 
 // -----------------------------------------------------------------------------

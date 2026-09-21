@@ -98,4 +98,41 @@ module('Unit | Component | account-rail activeRow', function(hooks) {
     assert.strictEqual(rail(this, 'user.board-detail').get('activeRow'), null,
       'no row is claimed for a page the rail does not link to');
   });
+
+  /* THE SIX PAGES THAT GAINED THE RAIL when the account pill nav was retired (2026-09-21).
+   * `account-rail.js` states the invariant this pins: "a page that gets the rail has a row to
+   * highlight, and a page with no row does not get the rail. Adding a page means touching
+   * both." Widening `accountRailContext` without widening ROW_FOR_ROUTE would leave a NEW
+   * primary nav with no lit row and no `aria-current` on all six -- silent, per this file's
+   * own header.
+   * The mappings are to the LIST page each detail page belongs to: a single log entry is Logs,
+   * a single goal is Goals. Badges answer Goals because they are goal badges (badges.hbs links
+   * to `user.goal`, goals.hbs links to badges), and History is the ACCOUNT's edit history,
+   * reached only from the account page's support actions. */
+  test('the detail pages light the section row they belong to', function(assert) {
+    assert.expect(4);
+    var expected = {
+      'user.log': 'logs',
+      'user.goal': 'goals',
+      'user.badges': 'goals',
+      'user.history': 'account'
+    };
+    Object.keys(expected).forEach((route) => {
+      assert.strictEqual(rail(this, route).get('activeRow'), expected[route],
+        route + ' lights the ' + expected[route] + ' row');
+    });
+  });
+
+  /* NO HONEST ROW, SO NO ROW -- pinned as a decision, not left as an oversight. `user.lessons`
+   * is "Current Trainings" and `user.focus` is the Focus Words report; the rail has no row for
+   * either, and Reports (`user.stats`) is usage statistics, not these. A nav that highlights
+   * the wrong row is worse than one that highlights none, so these stay null until the rail
+   * gains rows of their own. If a row is ever added, update ROW_FOR_ROUTE and this test. */
+  test('pages with no matching row stay unlit rather than lighting a wrong one', function(assert) {
+    assert.expect(2);
+    assert.strictEqual(rail(this, 'user.lessons').get('activeRow'), null,
+      'Trainings has no rail row, so nothing is claimed');
+    assert.strictEqual(rail(this, 'user.focus').get('activeRow'), null,
+      'the Focus Words report has no rail row, so nothing is claimed');
+  });
 });
