@@ -41,6 +41,7 @@ const TARGETS = [
   { name: 'lessons',  kind: 'rail', path: '/{u}/lessons' },
   { name: 'focus',    kind: 'rail', path: '/{u}/focus' },
   { name: 'history',  kind: 'rail', path: '/{u}/history' },
+  { name: 'supervision', kind: 'rail', path: '/{u}/supervision' },
   { name: 'pwreset',  kind: 'nonav', path: '/{u}/password_reset/bogus-code' },
   { name: 'confirm',  kind: 'nonav', path: '/{u}/confirm_registration/bogus-code' }
 ];
@@ -80,7 +81,16 @@ function probe() {
     });
   }
   const cur = document.querySelector('.md-acct-rail [aria-current="page"]');
+  /* EXACTLY ONE SHELL PER PAGE. templates/user.hbs already wraps every NON-bare user.* route
+     in `.md-shell--user` (plus `--user-rail`, which reserves the rail's 208px) and a
+     `.md-workspace`. A template that declares its own as well gets the gutter applied TWICE
+     and its content pushed right by exactly 208px -- how the supervision page shipped. Bare
+     routes legitimately bring their own shell, which is why this counts rather than forbids. */
+  const shells = document.querySelectorAll('.md-shell').length;
+  const workspaces = document.querySelectorAll('.md-workspace').length;
   return {
+    shells: shells,
+    workspaces: workspaces,
     rail: box('.md-acct-rail'),
     pillUser: box('.md-pillnav--user'),          // must always be null now
     pillAny: box('.md-pillnav'),
@@ -125,6 +135,8 @@ try {
       if (t.kind === 'nonav' && o.rail && o.rail.shown) { findings.push(`${t.name} @${w}: rail present on an email-link page`); }
       if (t.kind === 'nonav' && o.pillAny && o.pillAny.shown) { findings.push(`${t.name} @${w}: a pill nav is present on an email-link page`); }
       if (o.docOverflow > 2) { findings.push(`${t.name} @${w}: page scrolls horizontally by ${o.docOverflow}px`); }
+      if (o.shells > 1) { findings.push(`${t.name} @${w}: ${o.shells} nested .md-shell elements — the rail gutter is applied ${o.shells}x`); }
+      if (o.workspaces > 1) { findings.push(`${t.name} @${w}: ${o.workspaces} nested .md-workspace elements`); }
       for (const ov of o.overflowing) { findings.push(`${t.name} @${w}: ${ov.sel} clipped by ${ov.over}px (overflow-x:${ov.clip})`); }
 
       if (SHOTS && SHOT_WIDTHS.includes(w)) {

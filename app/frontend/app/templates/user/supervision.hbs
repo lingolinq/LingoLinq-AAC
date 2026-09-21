@@ -1,14 +1,29 @@
-<div class="md-shell md-shell--user md-shell--user-rail">
-  <div class="md-workspace">
-    {{!-- THE SAME COMPONENT THE MODAL USES, in `standalone` mode. ModalDialog drops its
-         overlay and dialog chrome in that mode and yields the body into a plain container, so
-         every list, control and action on this page is literally the modal's markup rather
-         than a port of it. That is what keeps the two from drifting: one body, not two.
+{{!-- NO `.md-shell` OR `.md-workspace` WRAPPER HERE, DELIBERATELY.
 
-         The heading lives here, not in the component: the component's own title is modal
-         furniture ("Supervision Settings for <user>"), and a page in this section should read
-         like its siblings. --}}
-    <h2 class="md-supervision-page__title">{{t "Supervision" key="supervision"}}</h2>
-    <SupervisionSettings @model={{this.model}} @standalone={{true}} />
-  </div>
-</div>
+     `user.supervision` is not a bare route -- it is in `accountRailContext`
+     (controllers/user.js) -- so templates/user.hbs has ALREADY wrapped this outlet in
+     `.md-shell md-shell--user`, the `md-shell--user-rail` modifier that reserves the account
+     rail's 208px, a `.md-workspace`, and a `<main class="md-main md-main--user">`.
+
+     This template used to declare its own copy of all of that. The result was two nested
+     shells both carrying `padding-left: 208px` (app.scss, the `min-width: 901px` block), so
+     the page's content sat exactly 208px right of where every sibling page sits -- the
+     off-centre "My Supervisors" card. Measured at a 1440px viewport before the fix: outer
+     shell x=0, inner shell x=280, modal body centred at 928 against a viewport centre of 720.
+
+     THE RULE: a bare route brings its own shell (user/boards.hbs, user/stats.hbs and
+     user/board-detail.hbs each do, correctly, and they are all in BARE_ROUTE_BASES). Every
+     other user.* page takes the one templates/user.hbs provides and starts straight in with
+     its content, exactly as goals/recordings/preferences/subscription/edit do.
+     Guarded by scripts/account-rail-pages-qa.mjs, which fails if a page renders more than
+     one `.md-shell`. --}}
+{{!-- THE SAME COMPONENT THE MODAL USES, in `standalone` mode. ModalDialog drops its overlay
+     and dialog chrome in that mode and yields the body into a plain container, so every list,
+     control and action on this page is literally the modal's markup rather than a port of it.
+     That is what keeps the two from drifting: one body, not two.
+
+     The heading lives here, not in the component: the component's own title is modal furniture
+     ("Supervision Settings for <user>"), and a page in this section should read like its
+     siblings. --}}
+<h2 class="md-supervision-page__title">{{t "Supervision" key="supervision"}}</h2>
+<SupervisionSettings @model={{this.model}} @standalone={{true}} />
