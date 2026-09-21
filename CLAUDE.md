@@ -198,7 +198,14 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 
 Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
 `/adversary-review` (red team). A Critical or High finding from either blocks the PR.
-Copilot code review runs automatically on every PR to `develop`.
+The senior-dev pass ships the diff to an external model on an account with no BAA, so run
+the PII pre-flight first and match the form to the argument: for a PR number,
+`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`
+(with `set -o pipefail`); for a branch or the working tree,
+`bash ~/ai-company-brain/scripts/codex-review-guard.sh <base-ref>`. Exit 2 means stop and
+report the flagged paths. The `<base-ref>` form run against a PR number guards the wrong
+diff and records a pass it did not earn. Codex-specific invocation detail lives in
+`AGENTS.md`. Copilot code review runs automatically on every PR to `develop`.
 
 ## Audit and compliance system
 

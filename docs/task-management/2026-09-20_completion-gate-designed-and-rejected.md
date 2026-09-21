@@ -49,11 +49,15 @@ failure shape in our own defect log:
 - The configured 10s hook timeout against a measured 4.9s `git status --porcelain
   --untracked-files=all` on the `/mnt/c` checkout, where the per-file digest costs ~40ms
   on drvfs. Roughly 125 dirty files exhausted the budget and the hook failed open silently.
-  Those three numbers were measured once, on 2026-09-20, against the main `/mnt/c`
-  checkout, and are NOT reproducible from this repo because the code they describe was
-  never committed. Treat them as an illustration, not a specification: the linked
-  worktrees under `~/.local/share/agent-wt/` sit on ext4 and were roughly thirty times
-  faster, so any future design must re-measure on the filesystem it will actually run on.
+  All of these were measured once, on 2026-09-20, against the main `/mnt/c` checkout
+  (drvfs), and the ext4 comparison below on a linked worktree under
+  `~/.local/share/agent-wt/` the same day: 0.26s for 50 files, 0.97s for 200, 4.38s for
+  800, against roughly 40ms per file on drvfs, so ext4 was about thirty times faster.
+  The `git status` and per-file digest costs are properties of stock git and the
+  filesystem, so they ARE reproducible, just not from an ext4 worktree; only the
+  whole-gate figures depend on code that was never committed. Treat all of them as an
+  illustration, not a specification, and re-measure on the filesystem a future design
+  will actually run on.
 - Backend scope mapped every non-frontend, non-`.md` path to a full `bundle exec rspec`,
   which is unsatisfiable locally without a scratch-DB override. Because the kill switch is
   read from the hook process environment, there was no in-session escape, which made
@@ -67,12 +71,25 @@ surface shared by every agent and every human contributor is the server.
 
 ## The shape these six share
 
-They are not six unrelated bugs. Each one is the same defect: the gate inferred
-"verified" from a cheap observable PROXY (is the tree dirty, does the path end in `.md`,
-does this filename resolve) instead of from the result of the check itself. Any future
-design that reasons about a proxy for verification rather than about the verification
-will reproduce this list with different names. That invariant, not the six instances, is
-what this record exists to preserve.
+They are not six unrelated bugs, but they are not all one mechanism either. What is true
+of all six is the DEFAULT: in every case the failure mode was to ALLOW. A proxy that did
+not fire allowed, an unparsed path allowed, an exhausted timeout allowed, an
+unsatisfiable check allowed by way of a forged marker. Not one of them failed towards
+blocking.
+
+Three distinct mechanisms produced that default, and a design that avoids one can still
+reproduce another:
+
+1. **A proxy stood in for the verification** (items 1 to 3): tree dirtiness, the `.md`
+   suffix, a resolvable filename. None of these is the result of the check.
+2. **An error path returned a benign sentinel** (item 4): a path git C-quoted failed a
+   `[ -f ]` test and was digested as the literal string `ABSENT` instead of raising.
+3. **An incomplete run counted as a pass** (items 5 and 6): a hook cancelled at its
+   timeout does not block, and a check that cannot be satisfied locally makes forging its
+   evidence the only way forward.
+
+The fail-open default is the invariant worth preserving. The three mechanisms are worth
+keeping because avoiding proxies alone would still have shipped items 4 through 6.
 
 ## What should happen instead
 
