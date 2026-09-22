@@ -19,11 +19,11 @@
          `md-shell--user-rail` above reserves the 208px the fixed panel occupies -- the two
          are driven by the same flag, so a page can never get the panel without the gutter or
          the gutter without the panel. --}}
-    {{!-- `md-workspace--homenav` marks the ONE case the extra headroom applies to: the logs
-         page reached from the home pill-nav's Updates. Same `homeNavContext` flag the nav
-         choice below uses, so the padding and the nav can never disagree about which arrival
-         this is. See the rule in app.scss. --}}
-    <div class="md-workspace {{if this.homeNavContext "md-workspace--homenav"}}">
+    {{!-- `md-workspace--homenav` is gone (2026-09-21). It marked the logs page reached from
+         the Updates pill, for 64px of extra headroom that cleared a nav which no longer
+         renders inside the page -- the app shell clears the hoisted nav for every
+         destination now. See the note left at that rule's old site in app.scss. --}}
+    <div class="md-workspace">
       {{!-- WHICH NAV, DECIDED BY WHERE THE USER CAME FROM (requested 2026-09-14).
            `homeNavContext` (controllers/user.js) is true only on the logs page and only when it
            was reached from the home page's Updates pill, which says so with `nav=home` in the

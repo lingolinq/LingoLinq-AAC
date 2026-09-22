@@ -50276,28 +50276,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
-/* UPDATES PAGE, REACHED FROM THE PILL-NAV — 64px of headroom (requested 2026-09-20).
-   The modifier is set in templates/user.hbs from the same `homeNavContext` flag that decides
-   which nav renders, so this cannot apply to the logs page reached from the account rail
-   (that arrival shows the rail and no pill row) or to any other user.* page.
-
-   MODERN ONLY, WITHOUT NEEDING A MODERN SELECTOR — there is no classic body class to hang one
-   on, and none is required: `homeNavContext` is true only for `?nav=home`, and every link that
-   emits that param lives in modern-only markup (components/user-pill-nav.hbs and
-   components/dashboard/authenticated-view.hbs). Classic renders Dashboard::ClassicView, which
-   emits none, so a Classic user has no route that sets this flag.
-
-   SPECIFICITY (0,4,1), NOT SOURCE ORDER. This has to beat two rules that are both
-   `!important`: the base `.md-workspace` padding (0,1,0) and, in Focused View,
-   `body.ll-layout-focused .md-shell--user > .md-workspace` (0,3,1), which sets 20px. Matching
-   that at (0,3,1) would have left the winner decided by source order — and _focused-view.scss
-   is a `@use`d partial emitted ~61k lines ABOVE this file, so that is precisely the coin-flip
-   this codebase avoids. The redundant-looking `body` + `.md-shell` carry the weight.
-   Applies in BOTH layouts, since the request named the Modern/Classic axis, not Gentle/Focused.
-   Only the top is set; sides and the `calc(40px - 9rem)` bottom keep their values. */
-body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
-  padding-top: 64px !important;
-}
+/* THE UPDATES PAGE'S 64px OF HEADROOM IS GONE (2026-09-21), and this note is what is left of
+   it. Requested 2026-09-20, it cleared the pill nav back when the nav rendered INSIDE the
+   page on that one route. The nav was hoisted above the page later the same week and the app
+   shell now supplies that clearance for every destination
+   (`.ll-appshell .md-shell`, `--ll-nav-clearance`), so the 64px had become a second helping:
+   measured, `.md-main` sat at y=262 on the Updates page against y=218 on its own log-detail
+   page and y=176 on the dashboard. Removed with the requester's agreement rather than
+   silently, because it was an explicit styling request.
+   `homeNavContext` (controllers/user.js) keeps its other consumer and is untouched. */
 
 /* The 208px gutter for bare-layout pages that carry the rail (currently only Reports,
    user.stats). `.md-shell--user-rail` cannot do this job here: bare routes never render that
