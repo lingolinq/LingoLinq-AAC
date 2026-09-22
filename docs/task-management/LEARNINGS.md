@@ -235,14 +235,14 @@ Admission rule for an entry in this file:
   whole file makes stubs inert; a negative assertion passes when its selector matches nothing; a hang
   test must assert on the spawn option, not hang the suite; curated examples miss the byte the author
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
-- **`.eslint-todo` is line-anchored: fix a shifted finding only if the fix cannot change behaviour.** The
-  fingerprint is `file|rule|line|column|severity|messageHash`, so an insert above a legacy finding reports it
-  "new". Leave behaviour-changing fixes (`ember/no-runloop` and the inline-function finding on its line,
-  computed dependencies, `_super` calls, orphaned actions) for a tested PR of their own. Placing new code so
-  rows do not shift is fine; deleting or compressing existing lines to hold them still is not. The other
-  remedy, `npm run lint:js:todo`, absorbs every finding: it needs approval and its own commit. Before any
-  fixes, `npm run lint:js:ci` (read-only) must show `findings=` equal to `baseline=`, every "new" row paired
-  by file, rule, column, severity and message, and no same-shape swap in your added lines. Cite `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.eslint-todo` is line-anchored: fix a shifted finding only if the fix cannot change behaviour.** The fingerprint is
+  `file|rule|line|column|severity|messageHash`, so inserted lines make legacy findings "new". If a test would be needed to show a fix
+  is safe, it changes behaviour (examples, not a boundary: `ember/no-runloop` and the inline-function finding on its line, computed
+  dependencies, `_super`, orphaned actions, duplicate keys) and belongs in its own tested PR. Placing new code so rows do not shift
+  is fine; deleting or compressing existing lines is not. `npm run lint:js:todo` absorbs every finding, so it needs approval and its
+  own commit. Read-only evidence: `npm run lint:js:ci` `findings=` plus the findings you fixed equals the base branch's; if higher,
+  your lines hold a real finding. Pair every "new" row (the gate prints 50; `npx eslint . --ext .js,.mjs --format json` lists all) on the
+  fingerprint minus line, and check added lines for a same-shape swap. Cite `app/frontend/scripts/eslint-todo-gate.js`.
 - **`.lint-todo` can fuzzy-match a shifted todo by source hash, and a plain run can append to it.** An exact
   match (rule, range and hash) runs first, then rule plus hash with the range ignored. That is weak where a
   rule hashes only an attribute (`require-context-role` hashes just `role="..."`) or a file has several
