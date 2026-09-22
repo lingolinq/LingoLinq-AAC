@@ -1825,6 +1825,31 @@
   background: linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.08) 100%);
   color: $la-navy;
 }
+/* AN AVATAR THAT HAS NOT ARRIVED YET STILL SHOWS THE PERSON SYMBOL (reported 2026-09-21:
+   "when the caseload pillnav menu is selected, the avatar symbols don't immediately render").
+   templates/caseload.hbs renders the placeholder <span> only when `avatar_url` is ABSENT, so a
+   communicator WITH a photo got a bare <img> and an empty disc until the bytes landed.
+   Measured on a throttled hop with the cache disabled: the 14 rows painted at t+125ms with
+   `painted=0`, and the last portrait did not finish until t+4.7s -- nearly five seconds of
+   blank circles on the page's primary identifying element.
+   THE <img> ITSELF CARRIES THE PLACEHOLDER, as its background: a background is painted
+   immediately and sits BEHIND the image content, so the symbol is there on the first frame and
+   the photo covers it the moment it decodes, with no class to toggle, no JS, and no second
+   element that could get out of step. It also survives a broken or 404 avatar, which
+   previously left the disc empty for good.
+   The glyph is the same two-tone person the placeholder span draws (circle + shoulders,
+   #46505F / #2A9D8F), inlined so it needs no extra request -- a placeholder that has to be
+   fetched would defeat the point. Sized to 55%, matching the span's 33-in-60 ratio.
+   TRADE-OFF, stated rather than discovered: an avatar with TRANSPARENT areas will show the
+   glyph faintly through them. Portraits are opaque; this is the cost of not adding state. */
+.md-caseload__list-avatar:not(.md-caseload__list-avatar--placeholder) {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4' stroke='%2346505F'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0' stroke='%232A9D8F'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.08) 100%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 55%, cover;
+}
 /* Glyph scales with the disc — 33px in 60px keeps the 22-in-40 ratio the
    placeholder was drawn at, so the person icon does not shrink into a big empty
    circle. Overrides the markup's width/height attributes, which stay at 22 as
