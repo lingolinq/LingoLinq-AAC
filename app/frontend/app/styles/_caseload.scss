@@ -625,12 +625,16 @@
    one statement instead of spread over two lines in a narrow column.
    Rather than reordering the DOM, the trigger's grid gains a third track and the status
    block is placed into row 1 beside the identity. */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   /* The base layout stacks the role badge UNDER the name (only >=1025px puts them on one
      line). Both stacked variants exist to protect the shared line with the toolbar — which
      is not shared at this width — so the name and its role badge go back onto one line.
      No fixed 200px name slot like the >=1025px rule: that exists to align badges into a
-     column down the list, and there is not enough width here to spend on alignment. */
+     column down the list, and there is not enough width here to spend on alignment.
+     WIDENED FROM 768 TO 1024 (2026-09-21): the request is one identity row from 1300 down,
+     and 769-1024 was the only band still stacking. It is also the band where the reason for
+     stacking has already gone — the toolbar now takes its own row from 1300 — so the line no
+     longer has to be protected. 1025 and up is untouched and keeps its fixed name slot. */
   .md-caseload__list-name-row {
     flex-direction: row;
     align-items: center;
@@ -639,24 +643,71 @@
   .md-caseload__list-name-row .md-caseload__list-name {
     flex: 0 1 auto;
   }
-  /* Full-width flex item — the toolbar always breaks to its own row here rather than
-     only when the badges happen to push it. `margin-left: auto` on the base rule
-     resolves to 0 once this item owns the whole line, so the buttons stay right-aligned
-     via the toolbar's own `justify-content: flex-end`. */
-  .md-caseload__list-header > .md-caseload__list-quick {
-    flex: 0 0 100%;
+  /* 12px of air between the username and the role chip (requested 2026-09-21). Applied to
+     the BADGES wrapper, not to `.md-caseload__list-access` itself: that class is also worn
+     by the status chips ("Board needed", the attention alert), which sit in their own group
+     further along the line and are not what was asked about. The wrapper holds the role
+     badge alone (see the template's note at caseload.hbs), so this cannot reach them.
+     It adds to the row's existing 10px gap rather than replacing it. */
+  .md-caseload__list-badges {
+    margin-left: 12px;
   }
 }
-/* 641-768px: enough width for the attention/status badges to join the username line too,
+
+/* THE ACTION BUTTONS GET THEIR OWN ROW FROM 1300px DOWN (requested 2026-09-21: "the
+   communicator card layout needs to be avatar, username, role, info badge on one row and
+   action buttons pushed to the next row"). This declaration used to live in the <=768 block
+   below and is lifted here rather than copied -- one rule, a wider breakpoint.
+   `margin-left: auto` on the base rule resolves to 0 once this item owns the whole line, so
+   the buttons stay right-aligned via the toolbar's own `justify-content: flex-end`.
+   Not scoped to a view: the request covers Focused and Gentle alike, and this file is the
+   modern caseload's stylesheet (Classic renders its own page). */
+@media (max-width: 1300px) {
+  .md-caseload__list-header > .md-caseload__list-quick {
+    flex: 0 0 100%;
+    /* A DIVIDER BETWEEN THE IDENTITY ROW AND THE ACTIONS ROW (requested 2026-09-21), which
+       only earns its place once the toolbar is on a line of its own -- above 1300 the two
+       share a line and a rule through the middle would be nonsense. A hairline at 10% navy
+       rather than a full-strength border: it separates two parts of ONE card, so it should
+       read as a fold in the card, not as an edge between two cards. The 12px above and
+       below keep the buttons from crowding it. */
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba($la-navy, 0.10);
+  }
+}
+/* 641-1300px: enough width for the attention/status badges to join the username line too,
    so identity, role and any alert read as one statement. A third grid track carries them,
-   which avoids reordering the DOM. */
-@media (max-width: 768px) and (min-width: 641px) {
+   which avoids reordering the DOM.
+   WIDENED FROM 768 TO 1300 (2026-09-21) by the same request: with the toolbar now on its own
+   row from 1300 down, the identity line has the whole width to itself and the info badge no
+   longer has to compete with the buttons for it. The 641px floor stays -- below it the badge
+   would squeeze the name to a few ellipsised characters, which is what the <=640 rule that
+   moves it back under the username is for. */
+@media (max-width: 1300px) and (min-width: 641px) {
   .md-caseload__list-trigger {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
+  /* CENTRED ON THE AVATAR (requested 2026-09-21: "the username, role, and badges need to be
+     centered on the avatar"). The avatar is `grid-row: 1 / span 2` and its 72px is what gives
+     the trigger its height; measured, the tracks come out `22px 41px` and the identity
+     occupied only the first, so the name sat at y-centre 239 against the avatar's 263.
+     `span 2`, NOT `1 / -1`, and the difference is not cosmetic: the trigger declares
+     `grid-template-columns` but no `grid-template-rows`, so every row here is IMPLICIT and
+     `-1` resolves against the EXPLICIT grid's last line -- which is line 1. `1 / -1` therefore
+     collapsed to a single row and changed nothing, which is exactly what the first attempt
+     did. `span 2` counts rows instead of naming an explicit line, so it reaches the implicit
+     second row the avatar created.
+     Bounded at 641 with the rest of this band: below it the status badge moves to row 2 in
+     the same column the identity occupies, and a spanning identity would sit on top of it. */
+  .md-caseload__list-identity {
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
   .md-caseload__list-status {
     grid-column: 3;
-    grid-row: 1;
+    grid-row: 1 / span 2;
+    align-self: center;
     /* Left-aligned now: it sits directly after the role badge on a shared line, so the
        right-anchoring the full-width row needed would open a gap mid-sentence. */
     justify-content: flex-start;
@@ -1733,6 +1784,19 @@
      which communicator the row belongs to, and the row has vertical room. */
   overflow-wrap: anywhere;
   word-break: normal;
+}
+/* THE NAME IS 18px ONCE THE TOOLBAR LEAVES THE LINE (requested 2026-09-21: "the username
+   needs to be larger"). Declared HERE, immediately after the base rule, and not up in the
+   <=1300 block with the rest of that change: both selectors are (0,1,0) and a media query
+   adds no specificity, so the winner is whichever comes LAST -- and the base sits at ~1760,
+   far below that block, which is exactly why the first attempt at this had no effect.
+   Adjacency is also the honest place for it: base value, then its one override.
+   The role and status chips stay at 14px, so the name reads as the heading of the row rather
+   than one chip among several. */
+@media (max-width: 1300px) {
+  .md-caseload__list-name {
+    font-size: 18px;
+  }
 }
 /* ── Row action buttons — per-rank glass surfaces ──────────────────────────
      1a. Choose Board — teal→denim, the priority/setup action (halo + deepest ramp)
