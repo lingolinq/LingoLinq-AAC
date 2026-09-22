@@ -50652,6 +50652,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     transform: translateX(0);
   }
 }
+/* The mirror of the above, for an element that should arrive from the other side. Same 30px
+   and the same easing where it is used, so a pair animating together reads as one movement
+   rather than two effects that happen to overlap. */
+@keyframes md-slide-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 .md-edit-profile__header {
   display: flex;
   align-items: center;
@@ -51674,6 +51687,22 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 28px;
   padding-bottom: 18px;
   border-bottom: 1.5px solid rgba($brand-blue-black, 0.12);
+}
+/* GENTLE: THE HEADER ARRIVES FROM THE LEFT, ITS LINKS FROM THE RIGHT, AND BOTH FINISH CENTRED
+   (requested 2026-09-21: "make the header and links below it move in from the left and right
+   from the page, respectively, centered when they are done (like the other pages on gentle
+   view)").
+   Half of this already existed: `.md-logs__header` carries `md-slide-in-from-left` further
+   down this file, so only the links were missing their half of the movement, and the block was
+   left-aligned rather than centred like the other Gentle pages' headers.
+   `align-items: center` rather than `text-align` alone: this is a flex column, so centring the
+   ITEMS is what moves the links; `text-align` then centres the title's own wrapped lines. It
+   does not stretch them, so the links keep their shrink-wrapped hover targets -- which is the
+   reason the base rule gives for choosing `flex-start` over `stretch`, and it still holds.
+   Gentle only, as asked; Focused keeps the left-aligned header. */
+body:not(.ll-layout-focused) .md-logs__header {
+  align-items: center;
+  text-align: center;
   animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .md-logs__title {
@@ -51685,6 +51714,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* Was `.md-logs__title a`, when the filter links lived inside the <h2>. They are a sibling
    of it now, so the selector followed them rather than being duplicated. */
+/* The links' half of the movement above. Same duration and easing as the header's
+   `md-slide-in-from-left`, so the two sides meet rather than racing. */
+body:not(.ll-layout-focused) .md-logs__filters {
+  animation: md-slide-in-from-right 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
 .md-logs__filters a {
   font-size: 14px;
   font-weight: 600;
