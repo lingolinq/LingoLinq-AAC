@@ -253,17 +253,19 @@ Admission rule for an entry in this file:
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
 - **`.eslint-todo` is line-anchored; prefer net-zero line shifts in a grandfathered file.** The fingerprint
   is `file|rule|line|column|severity|messageHash`, so lines inserted above a legacy finding report it as
-  "new". Where the code reads naturally that way, edit existing lines. If a shift is unavoidable, prove a
-  uniform offset with identical file, rule, column, severity and hash: that makes it a re-anchor rather
-  than a re-baseline, but it is still `npm run lint:js:todo`, so it needs explicit approval and its own
-  commit. Symbol: `fingerprint` in `app/frontend/scripts/eslint-todo-gate.js`.
-- **`.lint-todo` matches by content hash, not line, and a plain run rewrites it.** A todo pairs on rule
-  plus a hash of the flagged node's source (exact range match first, then rule plus hash with the range
-  ignored), so a recorded line that differs from the reported one is harmless. An edit INSIDE the flagged node changes its hash and orphans
-  it, which is why an insert can orphan a `<form>` todo hundreds of lines above. `--clean-todo` defaults
-  on outside CI (and `--fix` forces it) and appends `remove|` rows for resolved AND expired todos alike; an
-  expired violation still errors that run, but the file no longer says whether it was fixed or aged out.
-  Use `--no-clean-todo` to read. Cite `app/frontend/.lint-todo`.
+  "new". Where the code reads naturally that way, edit existing lines. A shift means `npm run lint:js:todo`,
+  which rewrites every current finding and so absorbs a real new one; a uniform offset is not proof. Diff
+  rule identity: the whole-file multiset of `file|rule|column|severity|messageHash` (line dropped) and the
+  gate's `findings=` count must both be unchanged. Only then is it a re-anchor, and it still needs explicit
+  approval and its own commit. Symbol: `fingerprint` in `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.lint-todo` can fuzzy-match a shifted todo by source hash, and a plain run can append to it.** An exact
+  match (rule, range and hash) runs first, then rule plus hash with the range ignored. That is weak where a
+  rule hashes only an attribute (`require-context-role` hashes just `role="..."`) or a file has several
+  same-rule, same-hash rows: the first unmatched row wins, so a new violation can take over a fixed one's
+  todo. An edit INSIDE the flagged node changes its hash and orphans it (an insert can orphan a `<form>`
+  hundreds of lines above). `--clean-todo` defaults on outside CI (`--fix` forces it) and appends `remove|`
+  rows for resolved AND expired todos alike, so the file no longer says which; an expired violation still
+  errors that run. Use `--no-clean-todo` to read. Cite `app/frontend/.lint-todo`.
 - **Browser probes lie in three ways.** Puppeteer `page.click` delivers nothing inside the nested modal
   scroll containers; Playwright e2e specs write the signed-in user's real device prefs and poison later
   runs; a fixed sleep tests the old bundle, so poll the built asset for a marker. Cite
