@@ -56340,6 +56340,15 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 
 }
 .md-card__icon {
+  /* NEVER COMPRESSED BELOW ITS DECLARED SQUARE (reported 2026-09-21: "make sure the icon bgs
+     retain their square shape on smaller screens"). The width and height below are absolute
+     and `!important`, but this tile is a FLEX ITEM, and a flex item's width is a starting
+     point, not a floor -- default `flex-shrink: 1` let it be squeezed as its card narrowed.
+     Measured on the Gentle dashboard's Create a Board card: 64x64 at 1280 and 1200, then
+     36x64 at 1000 -- a rounded upright oval rather than the square the radius was drawn for.
+     `flex-shrink: 0` makes the declared size the floor it was always written as. */
+  flex-shrink: 0 !important;
+
   width: 46px !important;
 
   height: 46px !important;
@@ -62687,6 +62696,20 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   min-height: 180px !important;
 
+}
+/* HALF THE SIDE PADDING AT 1200 AND BELOW (requested 2026-09-21, Gentle): "on 1200px and
+   smaller reduce the l/r padding of these cards by half" -- 32px -> 16px. The vertical 20px
+   is untouched; only the left/right were named, and they are what squeezes the icon and title
+   together as the card narrows.
+   A sibling rule rather than a change to the padding above, because that declaration is the
+   value from 1201 up and both are wanted. `body:not(.ll-layout-focused)` scopes it to the view
+   that asked and also supplies the specificity needed to beat the `!important` above. */
+@media (max-width: 1200px) {
+  body:not(.ll-layout-focused) .md-grid--dashboard .md-card--extras,
+  body:not(.ll-layout-focused) .md-grid--dashboard .md-card--badge-action {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
 }
 /* Dashboard home only: Boards card – larger previews for visual prominence */
 .md-grid--dashboard .md-card--boards .md-strip__item {
