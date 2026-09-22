@@ -124,7 +124,7 @@
             </tr>
           {{/if}}
           {{#each this.logs as |log|}}
-            <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} />
+            <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} @navOrigin={{this.nav}} />
           {{/each}}
         </tbody>
       </table>
