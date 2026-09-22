@@ -15,31 +15,17 @@
        carried the same destinations. Here they are complementary, not duplicates: Boards,
        Caseload, Organizations, Extras and Updates exist ONLY in the pill row, so dropping it
        would remove those from the home page entirely. --}}
-  {{#if (is-equal this.activeTab "home")}}
-    <AccountRail @user={{this.appState.currentUser}} />
-  {{/if}}
   <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
   {{!-- The "Take a tour" + "Get Started" triggers live in the inner header
        (app-navbar-authenticated-inner → .app-navbar__home-actions) as circle icon
        buttons for EVERY dashboard layout. That navbar is global, so the
        display-style component stays mounted across a mid-modal layout flip
        (no fixed-corner copy needed). --}}
-  {{!-- PRIMARY NAV -- the shared component, not a private copy.
-       Until 2026-09-21 this page carried its own hand-written pill row AND its own
-       collapsed dropdown, duplicating components/user-pill-nav.hbs. The comment that
-       used to sit here instructed the next editor to keep the two in sync BY HAND, which
-       is exactly how they drifted: different element types (buttons vs links, so no
-       href, no middle-click, no open-in-new-tab), no `aria-current` on this copy, and
-       two independent spellings of the same visibility rules.
-       The dashboard's buttons called `goTab`, but goTab TRANSITIONS for every nav
-       destination (authenticated-view.js, the boards/extras/home branches) -- it was
-       never an in-page tab switch -- so links reach the same places. Its two extra
-       effects are both gone: the scroll reset is now done unconditionally for every
-       transition in routes/application.js, and `showNewBoardForm` has no readers left.
-       `goTab` itself stays; the home grid's Reports card still calls it.
-       `activeTab` can be 'supervisors', which has no pill of its own; UserPillNav's
-       `activeKey` maps it onto Extras so that view still lights the right pill. --}}
-  <UserPillNav @active={{this.activeTab}} @userName={{this.appState.currentUser.user_name}} />
+  {{!-- NO NAV HERE ANY MORE. It moved to templates/application.hbs on 2026-09-21 so it
+       persists across transitions rather than being rebuilt per page; this component is
+       one of six destinations that now share that single instance. The active pill is
+       derived from the route (`globalNavActive`, controllers/application.js) instead of
+       being passed in from here. --}}
 
   {{#if (is-equal this.activeTab "boards")}}
   <main class="md-main md-main--dashboard-boards-embed" aria-label={{t "Boards" key="boards"}}>

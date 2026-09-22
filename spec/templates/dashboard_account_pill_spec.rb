@@ -44,13 +44,33 @@ describe 'modern dashboard account pill' do
       "identity dropdown carry it. Found:\n  #{offenders.join("\n  ")}"
   end
 
-  # Sanity guard, so an emptied or renamed file cannot make the check above pass
-  # vacuously. Since 2026-09-21 the dashboard no longer writes its own pill markup at
-  # all -- it renders the shared component -- so THAT is what is pinned here.
-  it 'delegates its primary nav to the shared UserPillNav' do
-    expect(dashboard_hbs).to include('<UserPillNav')
+  # Sanity guard, so an emptied or renamed file cannot make the check above pass vacuously.
+  # This has now moved twice in one day: the dashboard first stopped hand-writing pill
+  # markup and delegated to <UserPillNav>, then stopped mounting a nav AT ALL when the
+  # chrome was hoisted to application.hbs. What is pinned is the end state.
+  it 'hand-writes no pill markup and mounts no nav of its own' do
     expect(dashboard_hbs).to_not include('md-pillnav__pill'),
       'the dashboard should not hand-write pill markup again; extend UserPillNav instead'
+    expect(dashboard_hbs).to_not include('<UserPillNav'),
+      'the nav is mounted once in application.hbs; a second mount here would be rebuilt ' \
+      'per transition, which is the defect the hoist removed'
+  end
+
+  # THE POINT OF THE HOIST. Chrome mounted per-page is chrome that gets destroyed and
+  # rebuilt on every transition -- measured at 1/6 hops keeping the same DOM node before
+  # this change, and 6/6 after. A single mount is what makes that true, so the count is
+  # what gets pinned rather than any one file's contents.
+  it 'mounts the rail and the nav exactly once, in application.hbs' do
+    root = Rails.root.join('app/frontend/app')
+    files = Dir.glob("#{root}/templates/**/*.hbs") + Dir.glob("#{root}/components/**/*.hbs")
+    rail = files.select { |f| File.read(f).include?('<AccountRail') }
+    nav  = files.select { |f| File.read(f).include?('<UserPillNav') }
+    rel  = ->(list) { list.map { |f| f.sub("#{root}/", '') }.sort }
+
+    expect(rel.call(rail)).to eq(['templates/application.hbs']),
+      "AccountRail must be mounted only in application.hbs. Found: #{rel.call(rail).join(', ')}"
+    expect(rel.call(nav)).to eq(['templates/application.hbs']),
+      "UserPillNav must be mounted only in application.hbs. Found: #{rel.call(nav).join(', ')}"
   end
 
   # 2026-09-21, second decision: Traci listed the nav destinations as Home, Caseload,

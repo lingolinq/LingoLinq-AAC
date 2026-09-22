@@ -1,4 +1,15 @@
-import Controller from '@ember/controller';
+import Controller, { inject as controller } from '@ember/controller';
+
+/* Routes that render the persistent chrome. A module CONSTANT, not a controller property:
+   it never changes, so making it reactive state would be a lie -- and as a property it
+   tripped `ember/require-computed-property-dependencies`, which was right to complain. */
+const CHROME_ROUTES = [
+  'index', 'user.home', 'caseload', 'organizations',
+  'user.boards', 'user.extras', 'user.logs', 'user.log',
+  'user.index', 'user.account', 'user.goals', 'user.goal', 'user.badges',
+  'user.edit', 'user.recordings', 'user.stats', 'user.preferences',
+  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus'
+];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -2223,6 +2234,69 @@ export default Controller.extend({
     }
     return res;
   }),
+  /* ── THE PERSISTENT CHROME (2026-09-21) ────────────────────────────────────────
+     The account rail and the primary pill nav are mounted ONCE here, above the outlet,
+     instead of inside each page's template.
+
+     WHY HERE AND NOWHERE ELSE: `index`, `caseload` and `organizations` are top-level
+     routes while `user.*` nests under `user` with `resetNamespace: true`, so `application`
+     is the ONLY common ancestor of the six destinations. Nesting them under a shared
+     parent would change their URLs and break deep links and district bookmarks, and was
+     rejected for that reason.
+
+     WHAT IT FIXES: mounted per-page, the chrome was destroyed and rebuilt on every
+     transition — measured 1/6 hops kept the same DOM node — and the rail was not rendered
+     on four of the six destinations at all. Mounted once, it simply never unmounts, which
+     is what makes the section feel like one app rather than six pages.
+
+     The two email-link routes stay deliberately BARE (`user.password_reset`,
+     `user.confirm_registration`): they are single-task pages reached from an email, the
+     user fetch succeeds even signed out, and chrome there would offer a stranger's account
+     menu. This is the same exclusion `accountRailContext` already makes. */
+  showGlobalChrome: computed('appState.current_route', 'appState.currentUser', 'appState.speak_mode', function() {
+    if(!this.appState.get('currentUser')) { return false; }
+    // Speak mode takes the whole screen; chrome there would sit over the board.
+    if(this.appState.get('speak_mode')) { return false; }
+    var route = this.appState.get('current_route') || '';
+    return CHROME_ROUTES.indexOf(route) !== -1;
+  }),
+
+  /* Which pill is current. Derived from the ROUTE rather than passed in per template,
+     which is the whole point of mounting once — there is no longer a caller to pass it.
+     Account-section routes return null on purpose: they are not a top-level section, so
+     no pill should light while the RAIL carries the active row instead. */
+  globalNavActive: computed('appState.current_route', 'router.currentURL', function() {
+    var route = this.appState.get('current_route') || '';
+    if(route === 'index' || route === 'user.home') { return 'home'; }
+    if(route === 'caseload') { return 'caseload'; }
+    if(route === 'organizations') { return 'organizations'; }
+    if(route === 'user.boards') { return 'boards'; }
+    if(route === 'user.extras') { return 'extras'; }
+    // Updates is the logs page reached FROM the nav; the plain Logs row in the rail is a
+    // different entry point to the same route and must not light the pill.
+    if(route === 'user.logs' && (this.get('router.currentURL') || '').match(/[?&]nav=home(&|$)/)) {
+      return 'updates';
+    }
+    return null;
+  }),
+
+  userController: controller('user'),
+
+  /* The rail links by `user_name`, and on a supervisee's account pages it must point at
+     THEM, not at me — which is what the per-template `@user={{this.model}}` did. Mounted
+     globally there is no template model to read, so the viewed user comes from the `user`
+     controller when we are inside that route, and falls back to the signed-in user
+     everywhere else. Getting this wrong would silently retarget every rail row at the
+     wrong person while still looking correct. */
+  globalChromeUser: computed('appState.current_route', 'userController.model', 'appState.currentUser', function() {
+    var route = this.appState.get('current_route') || '';
+    if(route.indexOf('user.') === 0) {
+      var viewed = this.get('userController.model');
+      if(viewed) { return viewed; }
+    }
+    return this.appState.get('currentUser');
+  }),
+
   content_class: computed(
     'appState.sidebar_visible',
     'appState.index_view',

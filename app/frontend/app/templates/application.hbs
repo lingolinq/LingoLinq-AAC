@@ -1552,7 +1552,29 @@
        absolutely positioned, so it adds nothing to this flex column. Self-
        suppressing — renders nothing on your own pages or with the flag off. --}}
   <SupervisingContextPill />
-  {{ outlet }}
+  {{!-- THE PERSISTENT CHROME. Mounted ONCE here rather than inside each page's template,
+       so it is never destroyed and rebuilt on a transition -- see `showGlobalChrome` in
+       controllers/application.js for why this is the only possible mount point and which
+       routes it covers. The rail is fixed to the left and the nav sticks to the top of
+       this scroller, so only `.ll-appshell__content` moves when the page scrolls.
+       The {{outlet}} appears TWICE on purpose: bare for every route without chrome
+       (login, boards in speak mode, the email-link pages), wrapped for the rest. Ember
+       renders whichever branch is live, so there is only ever one outlet on screen. --}}
+  {{#if this.showGlobalChrome}}
+    <div class="ll-appshell">
+      <AccountRail @user={{this.globalChromeUser}} />
+      <div class="ll-appshell__main">
+        <div class="ll-appshell__navbar">
+          <UserPillNav @active={{this.globalNavActive}} @userName={{this.globalChromeUser.user_name}} />
+        </div>
+        <div class="ll-appshell__content">
+          {{ outlet }}
+        </div>
+      </div>
+    </div>
+  {{else}}
+    {{ outlet }}
+  {{/if}}
 </div>
 {{#if this.app_state.eval_paused}}
   {{!-- In-place eval pause overlay: covers the board below the header and eats

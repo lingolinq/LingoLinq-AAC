@@ -81,7 +81,6 @@
        The sort is on the ENGLISH labels and is baked into template order, so it does not
        re-sort per locale; a translated rail will not be alphabetical in its own language.
        Fixing that would mean building the list in JS and sorting with `localeCompare`. --}}
-  <AccountRail @user={{this.model}} />
     <div class="md-acct-main">
   {{!-- PROFILE HEADER: three columns on large screens, avatar | identity | rail.
        Rebuilt 2026-09-17 over two passes; both are recorded here because each fixed a

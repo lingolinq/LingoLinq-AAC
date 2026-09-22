@@ -7,24 +7,18 @@
        Gated on the SAME `accountRailContext` as the other branch, so the two can never
        disagree about which pages have a rail. Boards and the board routes are also bare but
        are not in that list, so they fall through to the plain outlet unchanged. --}}
-  {{#if this.accountRailContext}}
-    <AccountRail @user={{this.model}} />
-    <div class="md-bare-rail-gutter">{{outlet}}</div>
-  {{else}}
-    {{outlet}}
-  {{/if}}
+  {{!-- Chrome (rail + pill nav) is mounted ONCE in templates/application.hbs as of
+         2026-09-21, so it persists across transitions instead of being rebuilt here. --}}
+  {{outlet}}
 {{else}}
 <div class="md-user-layout hide_print">
-  <div class="md-shell md-shell--user {{if this.accountRailContext "md-shell--user-rail"}}">
+  <div class="md-shell md-shell--user">
     {{!-- THE ACCOUNT SECTION NAV (2026-09-18). One instance here serves every page in the
          section: it used to live inside templates/user/index.hbs, so only the account page
          had it. `accountRailContext` (controllers/user.js) decides WHICH routes get it, and
          `md-shell--user-rail` above reserves the 208px the fixed panel occupies -- the two
          are driven by the same flag, so a page can never get the panel without the gutter or
          the gutter without the panel. --}}
-    {{#if this.accountRailContext}}
-      <AccountRail @user={{this.model}} />
-    {{/if}}
     {{!-- `md-workspace--homenav` marks the ONE case the extra headroom applies to: the logs
          page reached from the home pill-nav's Updates. Same `homeNavContext` flag the nav
          choice below uses, so the padding and the nav can never disagree about which arrival
@@ -62,15 +56,6 @@
            `user.password_reset` and `user.confirm_registration` deliberately get NO nav: they
            are single-task pages reached from an email, they carry their own exit, and the
            global header in application.hbs renders for signed-out visitors too. --}}
-      {{#if this.homeNavContext}}
-        {{!-- ARRIVED FROM THE HOME PILL-NAV'S "Updates" (`?nav=home`). The rail is suppressed
-             for this case in `accountRailContext`, so exactly one nav renders: the home
-             pill-nav, with Updates still marked current. Clicking Logs in the account rail
-             instead carries no `nav` param, so this is false, the rail renders, and its Logs
-             row lights up through `activeRow` (components/account-rail.js). One page, two
-             origins, one nav each. --}}
-        <UserPillNav @active="updates" @userName={{this.model.user_name}} />
-      {{/if}}
       <main class="md-main md-main--user">
         {{outlet}}
       </main>

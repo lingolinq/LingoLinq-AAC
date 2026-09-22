@@ -854,3 +854,82 @@ This touches every page in the authenticated app. There are currently ~15 change
 verified, unlanded work in the tree. Landing that first makes this unit isolated and
 revertible on its own; stacking it on top means a single `git checkout` can no longer
 separate them. Recommended to Traci before starting.
+
+---
+
+# UNIT 3 — IMPLEMENTED. Persistent chrome.
+
+## Result, measured against Traci's own criteria
+
+| criterion | before | after |
+|---|---|---|
+| left panel present | 2/6 | **6/6** |
+| nav survives the hop (SAME DOM node) | 1/6 | **6/6** |
+| nav stays visible when content scrolls | 1/5 | **6/6** |
+
+`scripts/spa-chrome-persistence-qa.mjs`. The "same DOM node" check is the one that
+matters: it distinguishes chrome that PERSISTED from chrome that was destroyed and
+rebuilt to look identical, which is what every earlier pass was actually doing.
+
+## What changed
+
+- **`controllers/application.js`** — `showGlobalChrome`, `globalNavActive`,
+  `globalChromeUser`, and a module-level `CHROME_ROUTES`.
+- **`templates/application.hbs`** — rail + nav mounted once inside `#content`, before the
+  outlet, wrapped in `.ll-appshell`.
+- **Nine mounts removed** across `caseload.hbs`, `organizations.hbs`, `user/boards.hbs`,
+  `user/index.hbs`, `user.hbs` (×3) and `dashboard/authenticated-view.hbs` (×2).
+- **`app.scss`** — `.ll-appshell__main` clears the 208px fixed rail;
+  `.ll-appshell__navbar` is sticky below the app navbar.
+
+## Three things that had to be got right, none of them obvious
+
+**The rail must follow the VIEWED user, not me.** Per-template it received
+`@user={{this.model}}` — on a supervisee's account pages that is THEM. Mounted globally
+there is no template model, so `globalChromeUser` reads the `user` controller's model
+when inside a `user.*` route and falls back to `currentUser`. Using `currentUser`
+unconditionally would have silently retargeted every rail row at the wrong person while
+still looking correct.
+
+**`referenced_user` is NOT the viewed user.** It looked like the obvious source; reading
+`services/app-state.js:4073` shows it is about speak-mode modeling and returns
+`currentUser` except while modeling. Using it would have been wrong in exactly the case
+that matters.
+
+**Sticky resolves against the SCROLLER, not the viewport.** `top: 0` pinned the pills
+*behind* the fixed 70px app navbar, because `#content` — the scroll container — starts at
+y=0 underneath it. Measured: nav top 58 against a 70px bar, a 12px clip. Now
+`max(var(--topbar-height, 70px), 70px)`, the same expression the rail uses, for the
+reason its own comment gives: on an authenticated page `--topbar-height` is 16px (it
+describes `#content` padding, not the bar), so the literal fallback is load-bearing.
+
+## Why NOT the "one page that inlines everything" idea
+
+Ember already loads one bundle and never reloads the document, and `{{outlet}}` is
+already the insertion point — so there was nothing to gain in LOADING terms. Inlining
+would have collapsed five URLs into one (breaking deep links, bookmarks, back/forward,
+and district installs' saved links) and forced every section's data to load on first
+paint, which is worst on the low-end tablets this audience uses.
+
+## Tests
+
+`spec/templates/dashboard_account_pill_spec.rb` gains a **single-mount invariant**: it
+globs every `.hbs` under `templates/` and `components/` and asserts `<AccountRail>` and
+`<UserPillNav>` each appear in exactly one file. That is the property the whole unit rests
+on — a second mount anywhere reintroduces per-page rebuilds — so it is pinned as a count
+rather than as any one file's contents. 13 examples, 0 failures.
+
+## Gates
+
+`lint:js:ci` 1604/1604, 0 new (23 entries re-anchored after proving the multiset AND the
+line-order sequence unchanged); `lint:hbs` 0; `spec/templates/` 13 passing.
+
+## Follow-ups this exposes, NOT done here
+
+- `accountRailContext` / `activeRow` still only know `user.*` routes, so no rail row lights
+  on Caseload, Organizations, Boards or Extras. The pill nav carries the active state
+  there, so nothing is wrong on screen, but the rail is inert on those four.
+- `homeNavContext` and the `?nav=home` parameter exist only to prevent the old double-nav.
+  With one nav they are dead weight and should be retired deliberately.
+- Per-page shells still carry their own padding assumptions; only the ones that broke were
+  reconciled. That is Unit 4's remaining scope.

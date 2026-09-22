@@ -2,7 +2,6 @@
   <div class="md-workspace">
     {{!-- Shared user-level pill-nav (Home / Organizations / Boards / Reports /
          Extras / Account) — the Organizations pill renders as the active page here. --}}
-    <UserPillNav @active="organizations" @userName={{this.app_state.currentUser.user_name}} />
     <header class="md-hero md-hero--dashboard">
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Organizations" key="my_organizations"}}</span></h1>
       <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Choose an organization to" key="choose_org_to_manage_pre"}} <em class="md-hero__gradient-text">{{t "manage or view..." key="choose_org_to_manage_em"}}</em></span></p>

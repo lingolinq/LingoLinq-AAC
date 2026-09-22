@@ -24,7 +24,6 @@
          change. Note when you do: boards_layout_state is NOT dead. Its clearStoredLayout is
          called from services/app-state.js on session teardown so a shared school or clinic
          device does not leak one user's arrangement to the next person who signs in. --}}
-    <UserPillNav @active="boards" @userName={{this.model.user_name}} />
 
 <div class="ub-boards-page ub-boards-page--split ub-boards-page--below-dashboard-pills">
 

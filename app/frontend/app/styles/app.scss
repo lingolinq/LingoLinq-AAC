@@ -109642,3 +109642,52 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 }
 .la-inbox__action-icon { flex-shrink: 0; }
 .la-inbox__action-label { line-height: 1.25; }
+
+/* ── PERSISTENT APP SHELL (2026-09-21) ──────────────────────────────────────────────
+   The wrapper that `templates/application.hbs` puts around the account rail, the primary
+   pill nav and the outlet, now that all three are mounted ONCE above the routes instead
+   of inside each page.
+
+   THE RAIL POSITIONS ITSELF. `.md-acct-rail` has been `position: fixed; left: 0; bottom: 0`
+   with a 208px width since 2026-09-18, so nothing here places it — this only has to keep
+   the main column clear of it and stop the nav scrolling away.
+
+   `.ll-appshell__navbar` is `sticky`, not `fixed`, and that is deliberate: `#content` is
+   the app's scroll container (it is `position: fixed; overflow` on the page-footer
+   layout), so a `fixed` nav would be positioned against the VIEWPORT and would not move
+   with the shell's own left offset, while `sticky` resolves against the scroller it
+   lives in. It needs an opaque background or the content scrolls visibly underneath it. */
+.ll-appshell__main {
+  margin-left: 208px;
+  min-width: 0;   /* a flex/grid child with long content would otherwise force the page wider */
+}
+.ll-appshell__main {
+  /* The shell's own top gap. Measured: without it the nav row started at y=58 while the
+     fixed app navbar is 70px tall, so the pills were clipped by 12px. */
+  padding-top: 20px;
+}
+.ll-appshell__navbar {
+  position: sticky;
+  /* NOT `top: 0`. Sticky resolves against `#content`, whose padding box starts at y=0
+     BEHIND the fixed 70px app navbar, so `0` pinned the pills underneath it. This is the
+     same `max(var(--topbar-height, 70px), 70px)` the rail uses to sit below that bar, and
+     for the same reason its comment gives: on an authenticated page `--topbar-height` is
+     16px (it describes #content's padding, not the bar), and the fallback inside the
+     var() matters because an unset variable would otherwise invalidate the whole max(). */
+  top: max(var(--topbar-height, 70px), 70px);
+  /* Above page content, below the app navbar and any modal. */
+  z-index: 60;
+  /* Opaque-ish, or the content scrolls visibly through the pills. */
+  background: inherit;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding-bottom: 6px;
+}
+/* At 900px and below the rail stops being a fixed panel and becomes an in-flow block above
+   the page (see the rail's own breakpoint rules), so the offset that clears it has to go or
+   the content is pushed off-screen on a tablet held in portrait. */
+@media (max-width: 900px) {
+  .ll-appshell__main {
+    margin-left: 0;
+  }
+}
