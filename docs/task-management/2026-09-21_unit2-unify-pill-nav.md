@@ -964,3 +964,29 @@ none of them announced itself; each was found by measuring the rendered box tree
 reading the SCSS.
 
 Gates: `lint:js:ci` 1604/1604 0 new; `lint:hbs` 0; `spec/templates/` 13 passing.
+
+## Fourth regression: the page wash stopped short of the top
+
+Traci: *"the bg from the page is not extending all the way up the page."* Measured:
+`.md-shell` — which paints the app's page wash, on the BASE rule, not a variant — began at
+y=84 while its column began at y=16. The 68px between them (my 20px top padding plus the
+48px nav) had no wash, so it read as a pale band under the app navbar.
+
+Cause is structural, not cosmetic: the nav used to sit INSIDE each page, so the shell's
+wash covered it. Hoisted, the nav sits ABOVE the shell and the wash no longer reaches it.
+
+Fix: the nav is pulled out of flow (`margin-bottom: -48px`, exactly its height) so the
+shell starts at the top of the column and its wash covers the full height, with the nav
+floating over it. The clearance is given back as shell padding — `112px`, since the nav is
+sticky at 70 and 48 tall, so its underside is 118 and 16+112=128 clears it by 10px.
+
+Checked before relying on it: ALL SIX destinations root on `.md-shell` — home and extras
+(`authenticated-view.hbs`), `caseload.hbs:2`, `organizations.hbs:1`, `user/boards.hbs:1`
+and `user.hbs` — so none is missed by the padding.
+
+REJECTED: hoisting the wash onto `.ll-appshell__main` instead. Two rules paint the shell
+element itself (`.md-shell.md-shell--user`, `.md-board-detail--dark.md-shell--board-detail`),
+so a single hoisted painter would have silently dropped the account section's own surface.
+
+Verified: `.md-shell` top 84 → **16**, matching its column; workspace content at 144, clear
+of the nav. Gates: 1604/1604 0 new, lint:hbs 0, 13 specs.
