@@ -2640,6 +2640,30 @@ body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
   }
 }
 
+// THE WORKSPACE'S SIDE PADDING, 12px NARROWER ON THE FOCUSED DASHBOARD (requested
+// 2026-09-21: "reduce the left and right padding of md-workspace by 12px when screens are
+// 1024px and smaller"). 40px -> 28px.
+//
+// BOUNDED AT THE BOTTOM AT 951px, WHICH IS NOT WHAT THE REQUEST SAID, and the reason is
+// arithmetic rather than interpretation. `.md-workspace` does not hold one value below
+// 1024: measured, it is 40px from 1024 down to 951, then 16px at <=950, 12px at <=820 and
+// 6px at <=375 (app.scss, plus this file's own <=375 rule). Taking 12px off every band would
+// leave 4px, 0px and -6px -- the last invalid, the other two not a gutter. The 40px band is
+// the one the request is looking at and the only one with 12px to give, so the reduction
+// applies there and the narrower steps keep the values they were tuned to.
+// Say the word if the smaller breakpoints should come down too; they need values chosen, not
+// a subtraction.
+//
+// `min-width: 951px` is load-bearing, not tidiness: this selector is (0,3,1) against the
+// baseline's (0,1,0), so without the lower bound it would outrank the <=950 rule and hold
+// 28px all the way down, overriding the steps above.
+@media (max-width: 1024px) and (min-width: 951px) {
+  body.ll-layout-focused .md-shell--home > .md-workspace {
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+}
+
 // ACCOUNT RAIL ROWS: silver outline + deeper shadow (requested 2026-09-20).
 //
 // THE RING RIDES IN `box-shadow`, NOT `border` OR `outline`, and both alternatives are traps:
