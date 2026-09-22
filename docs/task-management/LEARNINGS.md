@@ -184,9 +184,10 @@ Admission rule for an entry in this file:
   `app/frontend/app/utils/ai_word_predictor.js`.
 - **Render-check the Classic speak bar on `/<user>/board/<name>`, reached by in-app navigation.**
   `application.hbs` wraps the whole global header, `#speak` included, in `{{#unless this.on_board_detail}}`,
-  so on a `/board-detail/` route the bar is absent by design and a null query there proves nothing. In-app
-  navigation lands on board-detail unless the user's board view style is classic, and a hard load of the
-  Classic URL 404s until issue #1037 is fixed. Symbol: `on_board_detail` in `app/frontend/app/controllers/application.js`.
+  so on a `/board-detail/` route the Classic bar is absent by design. Board-detail renders its own
+  `id="speak"` sentence row, so probe a selector it does not render (`.speak-bar__button-list-wrap`), not
+  `#speak`. In-app navigation lands on board-detail unless the user's board view style is classic, and a
+  hard load of the Classic URL 404s until issue #1037 is fixed. Symbol: `on_board_detail` in `app/frontend/app/controllers/application.js`.
 
 ## SCSS and layout
 
@@ -251,21 +252,22 @@ Admission rule for an entry in this file:
   whole file makes stubs inert; a negative assertion passes when its selector matches nothing; a hang
   test must assert on the spawn option, not hang the suite; curated examples miss the byte the author
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
-- **`.eslint-todo` is line-anchored; prefer net-zero line shifts in a grandfathered file.** The fingerprint
-  is `file|rule|line|column|severity|messageHash`, so lines inserted above a legacy finding report it as
-  "new". Where the code reads naturally that way, edit existing lines. A shift means `npm run lint:js:todo`,
-  which rewrites every current finding and so absorbs a real new one; a uniform offset is not proof. Diff
-  rule identity: the whole-file multiset of `file|rule|column|severity|messageHash` (line dropped) and the
-  gate's `findings=` count must both be unchanged. Only then is it a re-anchor, and it still needs explicit
-  approval and its own commit. Symbol: `fingerprint` in `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.eslint-todo` is line-anchored: fix shifted findings where you can; a re-anchor needs approval.** The
+  fingerprint is `file|rule|line|column|severity|messageHash`, so lines inserted above a legacy finding report
+  it as "new". Fixing them is the preferred answer (the frontend CLAUDE.md says so). Otherwise the remedy is
+  `npm run lint:js:todo`, which rewrites every current finding and absorbs a real new one, so it needs
+  explicit approval and its own commit; never reshape code after a red gate just to silence it. Before
+  asking, check the multiset of `file|rule|column|severity|messageHash` and `findings=` are unchanged, then
+  read the added lines: a fix-one, add-one swap of the same shape passes both. Symbol: `fingerprint` in
+  `app/frontend/scripts/eslint-todo-gate.js`.
 - **`.lint-todo` can fuzzy-match a shifted todo by source hash, and a plain run can append to it.** An exact
   match (rule, range and hash) runs first, then rule plus hash with the range ignored. That is weak where a
   rule hashes only an attribute (`require-context-role` hashes just `role="..."`) or a file has several
   same-rule, same-hash rows: the first unmatched row wins, so a new violation can take over a fixed one's
-  todo. An edit INSIDE the flagged node changes its hash and orphans it (an insert can orphan a `<form>`
-  hundreds of lines above). `--clean-todo` defaults on outside CI (`--fix` forces it) and appends `remove|`
-  rows for resolved AND expired todos alike, so the file no longer says which; an expired violation still
-  errors that run. Use `--no-clean-todo` to read. Cite `app/frontend/.lint-todo`.
+  todo. An edit inside the hashed span (the node, or the attribute or parent `<label>` a rule hashes
+  instead) orphans it; an insert can orphan a `<form>` hundreds of lines above. `--clean-todo` defaults on
+  outside CI (`--fix` forces it) and appends `remove|` rows for resolved AND expired todos alike, so the
+  file no longer says which; an expired violation still errors that run. Use `--no-clean-todo` to read. Cite `app/frontend/.lint-todo`.
 - **Browser probes lie in three ways.** Puppeteer `page.click` delivers nothing inside the nested modal
   scroll containers; Playwright e2e specs write the signed-in user's real device prefs and poison later
   runs; a fixed sleep tests the old bundle, so poll the built asset for a marker. Cite
