@@ -109930,6 +109930,24 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md
     margin-top: 0 !important;
   }
 }
+
+/* FOCUSED DASHBOARD: 32px OFF THE TOP BELOW 901px (requested 2026-09-21: "reduce the top
+   padding on the dashboard content by 32px"). 112px -> 80px.
+   THE SHELL'S CLEARANCE IS THE ONLY TOP PADDING LEFT AT THESE WIDTHS, which is why it is the
+   one reduced: measured on the focused dashboard at 900 and 820, `.md-workspace` is already
+   `padding-top: 0; margin-top: 0` and `.md-main` is 0, so the 112px nav clearance is the whole
+   gap. Taking the 32px off anything else would have had no effect.
+   TWO SELECTORS, because the dashboard answers to two routes and `content_class`
+   (controllers/application.js) labels them differently: `user.home` gets `home-page`, while
+   the top-level `index` route gets `index`. The `:not(.extras-page)` is load-bearing -- the
+   extras page ALSO carries `index` (its live class list is "index modern-dashboard
+   extras-page"), so a bare `#content.index` would have moved Extras too. */
+@media (max-width: 900px) {
+  body.ll-layout-focused #content.home-page .ll-appshell .md-shell,
+  body.ll-layout-focused #content.index:not(.extras-page) .ll-appshell .md-shell {
+    padding-top: 80px !important;
+  }
+}
 /* THE NAV FITS ITS CONTENT. `.md-pillnav` is a block-level flex container with no width of
    its own, so it stretched to the shell's full 1232px (capped by its own 1120px max-width)
    once mounted here instead of inside each page's narrower column. `fit-content` restores
