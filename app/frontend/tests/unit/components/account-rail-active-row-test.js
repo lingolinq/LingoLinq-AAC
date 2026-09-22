@@ -24,16 +24,39 @@ import { setupTest } from '../../helpers';
 module('Unit | Component | account-rail activeRow', function(hooks) {
   setupTest(hooks);
 
-  function rail(context, routeName, fallbackRoute) {
+  /* `currentURL` is the fourth argument because ONE row's answer depends on more than the
+     route name: `user.logs` is the Logs row when it was reached from the rail and the HOME
+     row when it was reached from the pill nav's Updates, and the only thing that tells the
+     two apart is `?nav=home` in the URL (controllers/user/logs.js:32 declares the param).
+     Every call that omits it leaves `currentURL` undefined, which is the rail arrival — so
+     the assertions written before this argument existed still describe the case they were
+     written for. */
+  /* THE TWO GATED PILLS have to be stubbed, or the rule under test cannot name them: the
+     Organizations pill is gated on `has_management_responsibility` and Updates on the
+     `updates_pill` flag (components/user-pill-nav.hbs:19,53), and `pillForRoute` applies the
+     same gates so it can never claim a pill the nav will not draw. Both default to ABSENT
+     here, which is also the safe direction in the app. */
+  function rail(context, routeName, fallbackRoute, currentURL, appState) {
+    var state = appState || {};
     // UNREGISTER FIRST — a bare `register` over an already-registered service is silently
     // ignored, which would leave every lookup `undefined` and make every assertion below pass
     // for the wrong reason. Same reason view-switcher-availability-test.js#stubAppState does it.
     context.owner.unregister('service:router');
-    context.owner.register('service:router', Service.extend({ currentRouteName: routeName }));
+    context.owner.register('service:router', Service.extend({ currentRouteName: routeName, currentURL: currentURL }));
     context.owner.unregister('service:app-state');
-    context.owner.register('service:app-state', Service.extend({ current_route: fallbackRoute }));
+    context.owner.register('service:app-state', Service.extend({
+      current_route: fallbackRoute,
+      currentUser: state.currentUser,
+      feature_flags: state.feature_flags
+    }));
     return context.owner.factoryFor('component:account-rail').create();
   }
+
+  // A user who can see every pill the nav has.
+  var FULL_NAV = {
+    currentUser: { has_management_responsibility: true },
+    feature_flags: { updates_pill: true }
+  };
 
   test('each section route maps to its own row', function(assert) {
     assert.expect(9);
@@ -163,5 +186,94 @@ module('Unit | Component | account-rail activeRow', function(hooks) {
       assert.strictEqual(rail(this, route).get('activeRow'), expected[route],
         route + ' resolves to the ' + expected[route] + ' row');
     });
+  });
+
+  /* THE PILL NAV IS THE HOME SECTION'S NAV (requested 2026-09-21), which makes every
+   * destination it offers part of the Home row's territory rather than a page of its own in
+   * this rail. The request states it for one case: "if you select Updates, it shouldn't
+   * highlight the Logs item on the left panel because it was navigated from the pillnav menu."
+   *
+   * THE SAME PAGE, TWO ANSWERS. `user.logs` is reached BOTH ways -- as Logs from the rail and
+   * as Updates from the pill -- and it is the only route that is, so `?nav=home` is the whole
+   * difference between the two rows. Before this change the rail lit Logs on both arrivals
+   * (measured in the browser: scripts/home-section-nav-qa.mjs reported `lit=Logs` on
+   * /USER/logs?type=note&nav=home), which told the user they had left the menu they were
+   * navigating with.
+   */
+  test('Updates reached from the pill nav lights Home, not Logs', function(assert) {
+    assert.expect(2);
+    var arrival = rail(this, 'user.logs', null, '/marcus_williams_slp/logs?type=note&nav=home', FULL_NAV);
+    assert.strictEqual(arrival.get('activeRow'), 'home',
+      'arriving from the pill nav keeps the user in the Home section');
+    assert.notStrictEqual(arrival.get('activeRow'), 'logs',
+      'the Logs row must not light for an arrival the rail did not make');
+  });
+
+  /* THE OTHER HALF, and the reason the rule is keyed on the URL rather than on the route:
+   * the rail's own Logs row passes no query (components/account-rail.hbs:66), so the same
+   * route must still answer Logs. A fix that returned 'home' for every `user.logs` would pass
+   * the test above and break the row it was protecting. */
+  test('Logs reached from the rail still lights Logs', function(assert) {
+    assert.expect(1);
+    assert.strictEqual(rail(this, 'user.logs', null, '/marcus_williams_slp/logs').get('activeRow'), 'logs',
+      'no nav=home means the rail is where the user came from');
+  });
+
+  /* THE GATE, NOT JUST THE PARAM. `updates_pill` is documented as temporary and due off before
+     production (lib/feature_flags.rb:140). With it off there is no Updates pill to have
+     arrived from, so a stale `?nav=home` link must fall back to the Logs row rather than
+     lighting Home for a nav that renders nothing. Sharing one rule with the pill is what makes
+     this true without a second check. */
+  test('with the Updates pill switched off the logs page is the Logs row again', function(assert) {
+    assert.expect(1);
+    assert.strictEqual(
+      rail(this, 'user.logs', null, '/marcus_williams_slp/logs?type=note&nav=home').get('activeRow'),
+      'logs',
+      'no Updates pill, no Home-section arrival');
+  });
+
+  /* THE SAME GATE ON THE OTHER PILL. routes/organizations.js has no permission guard, so a
+     user without management responsibility can land on /organizations with no Organizations
+     pill rendered. Lighting Home there would assert a section the nav is not showing. */
+  test('Organizations without the pill lights nothing', function(assert) {
+    assert.expect(2);
+    assert.strictEqual(rail(this, 'organizations').get('activeRow'), null,
+      'no pill for this user, so no Home-section claim');
+    assert.strictEqual(rail(this, 'organizations', null, null, FULL_NAV).get('activeRow'), 'home',
+      'a manager, who does get the pill, is in the Home section');
+  });
+
+  /* THE FOUR DESTINATIONS THE PILL NAV OFFERS that are not the home page itself. They had NO
+   * row at all until now -- measured `lit=null` on Caseload, Boards and Extras -- because
+   * ROW_FOR_ROUTE only ever knew `user.*` account routes. Under the rule above they are Home
+   * section pages, so the Home row is the honest answer: it is the row whose sub-nav the user
+   * is standing in. This is what makes the rail stop going dark on four of the six
+   * destinations it renders on. */
+  test('the pill nav destinations light the Home row', function(assert) {
+    var expected = {
+      'caseload': 'home',
+      'organizations': 'home',
+      'user.boards': 'home',
+      'user.extras': 'home'
+    };
+    assert.expect(Object.keys(expected).length);
+    Object.keys(expected).forEach((route) => {
+      assert.strictEqual(rail(this, route, null, null, FULL_NAV).get('activeRow'), expected[route],
+        route + ' is a Home-section destination');
+    });
+  });
+
+  /* THE RULE MUST NOT REACH THE ACCOUNT SECTION. If the pill-nav test were written loosely --
+   * say, any route not in ROW_FOR_ROUTE -- every account page would answer Home and the rail
+   * would light the wrong row on all ten of them, which is the 2026-09-18 regression this
+   * whole file exists for, reintroduced from the other end. */
+  test('account pages are untouched by the Home-section rule', function(assert) {
+    assert.expect(3);
+    assert.strictEqual(rail(this, 'user.stats', null, '/marcus_williams_slp/stats').get('activeRow'), 'stats',
+      'Reports is an account page, not a Home-section destination');
+    assert.strictEqual(rail(this, 'user.preferences', null, '/marcus_williams_slp/preferences').get('activeRow'), 'preferences',
+      'Settings is an account page');
+    assert.strictEqual(rail(this, 'user.goal', null, '/marcus_williams_slp/goals/1_1').get('activeRow'), 'goals',
+      'a goal detail page is still the Goals row');
   });
 });
