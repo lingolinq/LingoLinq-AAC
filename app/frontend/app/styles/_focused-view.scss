@@ -2664,6 +2664,33 @@ body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
   }
 }
 
+// ── FOCUSED CASELOAD WORKSPACE (requested 2026-09-21) ───────────────────────────────────
+// "the md-workspace top margin needs to be increased by 32px and on screens 1024px and
+// smaller, the md-workspace l and r padding needs to be reduced by 12px each".
+//
+// THE TOP MARGIN IS +32px AT EVERY WIDTH, which takes two declarations because the baseline
+// is not one value: measured, `.md-workspace` here has `margin-top: 16px` from 1280 down to
+// 951 and 0 at <=950. So 48px and 32px respectively -- each is the measured value plus 32,
+// not a number picked to look right.
+body.ll-layout-focused .md-shell--caseload > .md-workspace {
+  margin-top: 48px !important;
+}
+@media (max-width: 950px) {
+  body.ll-layout-focused .md-shell--caseload > .md-workspace {
+    margin-top: 32px !important;
+  }
+}
+// The side padding follows the dashboard rule above exactly, for the same measured reason:
+// 40px from 1024 down to 951, then 16px at <=950 and 12px at <=820, so only the 40px band has
+// 12px to give and `min-width: 951px` keeps this (0,3,1) selector from flattening the steps
+// below it.
+@media (max-width: 1024px) and (min-width: 951px) {
+  body.ll-layout-focused .md-shell--caseload > .md-workspace {
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+}
+
 // ACCOUNT RAIL ROWS: silver outline + deeper shadow (requested 2026-09-20).
 //
 // THE RING RIDES IN `box-shadow`, NOT `border` OR `outline`, and both alternatives are traps:
