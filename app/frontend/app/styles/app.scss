@@ -109661,6 +109661,12 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   padding-top: 0;
 }
 .ll-appshell__navbar {
+  /* BELOW 901px THIS STAYS IN FLOW. At 900px and under the rail stops being a fixed panel and
+     becomes an in-flow band above the page, and the pill row gives way to its collapsed
+     <details> drawer -- a nav floating over that band, or a drawer expanding out of flow,
+     would each be worse than the variance being fixed above. The desktop anchoring is in the
+     `min-width: 901px` block further down; everything in THIS rule is the behaviour that
+     shipped earlier on 2026-09-21, unchanged. */
   position: sticky;
   /* NOT `top: 0`. Sticky resolves against `#content`, whose padding box starts at y=0
      BEHIND the fixed 70px app navbar, so `0` pinned the pills underneath it. This is the
@@ -109749,5 +109755,44 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 @media (max-width: 900px) {
   .ll-appshell__main {
     margin-left: 0;
+  }
+}
+
+/* ── THE NAV SITS IN ONE PLACE ON EVERY PAGE (2026-09-21) ───────────────────────────────
+   Reported: "all pillnav menus need to show in the same place on the page ... they are
+   varying all over the place on modern focused view". Measured on Modern + Focused at
+   1280x900, the nav's top was 86 on Dashboard, Caseload and Extras, 96 on Boards, and 116 on
+   Organizations and Updates -- a 30px spread on a nav that is mounted ONCE precisely so it
+   does not move between pages.
+
+   THE CAUSE, traced rather than guessed: `position: sticky` offsets from the SCROLL
+   CONTAINER's padding box, and that container is `#content`, whose `padding-top` is set
+   per-page -- `calc(var(--topbar-height) + 3rem)` = 46px by default, `+ 1rem` = 26px for
+   `.boards-page` / `.modern-dashboard` / `.stats-page`, and `var(--topbar-height)` = 16px for
+   the focused index. At rest the nav sits AT that padding edge, so its screen position was
+   the page's own top padding + 70. Each measurement above is exactly that sum.
+
+   THE FIX IS THE RAIL'S. `.md-acct-rail` (~49712) has been `position: fixed; top:
+   max(var(--topbar-height, 70px), 70px); left: 0` since 2026-09-18, which is why the rail
+   held still on all six pages while the nav wandered. Anchoring the nav to the same app frame
+   makes the two halves of the chrome one thing. See that rule for why the offset is a `max()`
+   with the fallback INSIDE the `var()`.
+
+   NOTHING ELSE MOVES. In flow the nav occupied a 48px band and cancelled it with
+   `margin-bottom: -48px`, a net contribution of 0; fixed, it contributes 0 as well. The
+   `+ 16px` is the gap the Dashboard already had (86 = 70 + 16), and `left: 208px; right: 0`
+   is the same band `.ll-appshell__main` gives it, so `width: fit-content` centres the pills
+   exactly where they were. Verified: left 390/392 and width 704/707 before and after.
+
+   ABOVE 900px ONLY, matching the rail's own breakpoint: below it the rail is in flow and the
+   pill row has given way to its collapsed drawer, so the nav belongs in the document there. */
+@media (min-width: 901px) {
+  .ll-appshell__navbar {
+    position: fixed;
+    top: calc(max(var(--topbar-height, 70px), 70px) + 16px);
+    left: 208px;
+    right: 0;
+    /* The in-flow band it cancelled no longer exists. */
+    margin-bottom: 0;
   }
 }
