@@ -34,8 +34,9 @@ export default Component.extend({
      where they are as well as offering where to go — and it matches the home dashboard's
      dropdown, which already shows its active tab.
      Mirrors the pill row's own labels exactly, so the collapsed and expanded navs never
-     disagree about what a destination is called. The home pill reads "Home" for every
-     role (2026-09-02); it used to read "Dashboard" for strictly-SLP users.
+     disagree about what a destination is called. The home pill reads "Dashboard" for every
+     role (requested 2026-09-21); it read "Home" from 2026-09-02, and "Dashboard" for
+     strictly-SLP users only before that.
      Falls back to "Menu" only when `@active` names nothing this nav renders — the trigger
      must always have a label. */
   /* The Updates badge count. Shares one definition with classic view's Updates tab via
@@ -64,7 +65,7 @@ export default Component.extend({
   activeLabel: computed('activeKey', function() {
     switch (this.get('activeKey')) {
       case 'home':
-        return i18n.t('home_nav', "Home");
+        return i18n.t('dashboard', "Dashboard");
       case 'caseload': return i18n.t('caseload_pill', "Caseload");
       case 'organizations': return i18n.t('organizations', "Organizations");
       case 'boards': return i18n.t('boards', "Boards");
