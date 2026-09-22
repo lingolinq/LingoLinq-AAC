@@ -678,27 +678,6 @@
     padding-top: 12px;
     border-top: 1px solid rgba($la-navy, 0.10);
   }
-}
-/* 641-1300px: enough width for the attention/status badges to join the username line too,
-   so identity, role and any alert read as one statement. A third grid track carries them,
-   which avoids reordering the DOM.
-   WIDENED FROM 768 TO 1300 (2026-09-21) by the same request: with the toolbar now on its own
-   row from 1300 down, the identity line has the whole width to itself and the info badge no
-   longer has to compete with the buttons for it. The 641px floor stays -- below it the badge
-   would squeeze the name to a few ellipsised characters, which is what the <=640 rule that
-   moves it back under the username is for. */
-@media (max-width: 1300px) and (min-width: 641px) {
-  .md-caseload__list-trigger {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-  /* THE IDENTITY ROW CARRIES THE SIDE PANEL'S WASH once the actions wrap (requested
-     2026-09-21: "the avatar row needs the same gradient that the side panel has"). The value
-     is `.md-acct-rail`'s own, read off the computed style rather than re-mixed by eye, so the
-     two surfaces stay the same thing: a 160deg wash from a near-white grey into a barely
-     tinted navy. It goes on the TRIGGER, which is the identity line -- the header wraps both
-     rows, so painting there would wash the action buttons too.
-     Only below 1300, because above it the trigger shares its line with the toolbar and a
-     banded background would stop halfway across the card. */
   .md-caseload__list-trigger {
     /* THE SAME GRADIENT AS THE "MORE ACTIONS" BUTTON, 10% LIGHTER (requested 2026-09-21).
        Both layers are restated from that rule (~2242) rather than approximated, so the row
@@ -708,7 +687,13 @@
        of flattening them the way three hand-picked hex values would. 15%, raised from 10%
        on 2026-09-21 after seeing it on screen.
        This replaces the account rail's wash, which was the previous request for this
-       surface. */
+       surface.
+       IN THE PLAIN <=1300 BAND, NOT THE `min-width: 641px` ONE. It lived there at first,
+       beside the centring rules it was written with, and the consequence was reported as
+       "you didn't extend it all the way - there's a gap": below 641 the wash kept the
+       trigger's own inset box while the card around it did not, so it sat 14px short of
+       each edge with a square corner. The centring rules genuinely need that floor -- below
+       it the status badge drops to its own grid row -- but the wash does not. */
     background:
       linear-gradient(180deg,
         rgba(255, 255, 255, 0.82) 0%,
@@ -746,6 +731,27 @@
     padding: 10px 14px 8px 14px;
     border-radius: 0 12px 0 0;
   }
+}
+/* 641-1300px: enough width for the attention/status badges to join the username line too,
+   so identity, role and any alert read as one statement. A third grid track carries them,
+   which avoids reordering the DOM.
+   WIDENED FROM 768 TO 1300 (2026-09-21) by the same request: with the toolbar now on its own
+   row from 1300 down, the identity line has the whole width to itself and the info badge no
+   longer has to compete with the buttons for it. The 641px floor stays -- below it the badge
+   would squeeze the name to a few ellipsised characters, which is what the <=640 rule that
+   moves it back under the username is for. */
+@media (max-width: 1300px) and (min-width: 641px) {
+  .md-caseload__list-trigger {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  /* THE IDENTITY ROW CARRIES THE SIDE PANEL'S WASH once the actions wrap (requested
+     2026-09-21: "the avatar row needs the same gradient that the side panel has"). The value
+     is `.md-acct-rail`'s own, read off the computed style rather than re-mixed by eye, so the
+     two surfaces stay the same thing: a 160deg wash from a near-white grey into a barely
+     tinted navy. It goes on the TRIGGER, which is the identity line -- the header wraps both
+     rows, so painting there would wash the action buttons too.
+     Only below 1300, because above it the trigger shares its line with the toolbar and a
+     banded background would stop halfway across the card. */
   /* CENTRED ON THE AVATAR (requested 2026-09-21: "the username, role, and badges need to be
      centered on the avatar"). The avatar is `grid-row: 1 / span 2` and its 72px is what gives
      the trigger its height; measured, the tracks come out `22px 41px` and the identity

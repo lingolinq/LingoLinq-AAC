@@ -2696,6 +2696,15 @@ body.ll-layout-focused .md-shell--caseload > .md-workspace {
   }
 }
 
+// A further 12px on the caseload list below 950 (requested 2026-09-21: "on 950px and smaller,
+// focused view md-caseload top margin needs to be 12px more"). 56px -> 68px. Its own band
+// rather than a change to the 56px above, which is the value from 951 up.
+@media (max-width: 950px) {
+  body.ll-layout-focused .md-shell--caseload .md-caseload {
+    margin-top: 68px;
+  }
+}
+
 // THE IDENTITY ROW'S WASH, MATCHED TO *FOCUSED'S* MORE ACTIONS TILE (requested 2026-09-21:
 // "make the bg a gradient that matches the more actions gradient, but 15% lighter"
 // (asked for at 10%, raised to 15% after seeing it)).
