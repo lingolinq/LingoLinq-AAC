@@ -2696,6 +2696,39 @@ body.ll-layout-focused .md-shell--caseload > .md-workspace {
   }
 }
 
+// THE IDENTITY ROW'S WASH, MATCHED TO *FOCUSED'S* MORE ACTIONS TILE (requested 2026-09-21:
+// "make the bg a gradient that matches the more actions gradient, but 15% lighter"
+// (asked for at 10%, raised to 15% after seeing it)).
+//
+// A SEPARATE RULE IS REQUIRED, not an oversight. _caseload.scss gives this row the GENTLE
+// More Actions ramp (#F6F8FA/#EBEFF4/#E2E7EE) lightened 10%, but Focused does not render that
+// button: `caseload-focused-tile` repaints it from the palette tokens, so on screen here the
+// tile is `linear-gradient(145deg, #B8C0CD, #98A3B3)` — confirmed by reading its computed
+// background, `rgb(184,192,205) -> rgb(152,163,179)`. Matching the gentle ramp in this view
+// would have matched a button nobody is looking at. Derived from the same two tokens rather
+// than restated as hexes, so if the palette moves this moves with it.
+//
+// The two gloss layers are the tile's own specular cap and base sheen, so the row reads as the
+// same material and not as a flat panel with a highlight painted on it.
+// Bounded at 1300 like the rule it overrides: above that the trigger shares its line with the
+// toolbar and carries no background at all.
+@media (max-width: 1300px) {
+  body.ll-layout-focused .md-caseload__list-trigger {
+    background:
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.62) 0%,
+        rgba(255, 255, 255, 0.34) 16%,
+        rgba(255, 255, 255, 0.10) 40%,
+        rgba(255, 255, 255, 0) 52%),
+      linear-gradient(0deg,
+        rgba(255, 255, 255, 0.20) 0%,
+        rgba(255, 255, 255, 0) 26%),
+      linear-gradient(145deg,
+        #{color.scale($caseload-tile-more-from, $lightness: 15%)},
+        #{color.scale($caseload-tile-more-to, $lightness: 15%)});
+  }
+}
+
 // ACCOUNT RAIL ROWS: silver outline + deeper shadow (requested 2026-09-20).
 //
 // THE RING RIDES IN `box-shadow`, NOT `border` OR `outline`, and both alternatives are traps:

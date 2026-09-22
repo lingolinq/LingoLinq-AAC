@@ -700,9 +700,51 @@
      Only below 1300, because above it the trigger shares its line with the toolbar and a
      banded background would stop halfway across the card. */
   .md-caseload__list-trigger {
-    background: linear-gradient(160deg, rgba(230, 230, 230, 0.55) 0%, rgba(24, 49, 84, 0.05) 100%);
-    border-radius: 10px;
-    padding: 6px 10px;
+    /* THE SAME GRADIENT AS THE "MORE ACTIONS" BUTTON, 10% LIGHTER (requested 2026-09-21).
+       Both layers are restated from that rule (~2242) rather than approximated, so the row
+       and the button read as the same material: the white gloss pass on top, the grey ramp
+       under it. `color.scale(..., $lightness: 10%)` is the lightening -- a relative scale
+       toward white, which keeps the ramp's shape and its relationship between stops instead
+       of flattening them the way three hand-picked hex values would. 15%, raised from 10%
+       on 2026-09-21 after seeing it on screen.
+       This replaces the account rail's wash, which was the previous request for this
+       surface. */
+    background:
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.82) 0%,
+        rgba(255, 255, 255, 0.34) 32%,
+        rgba(255, 255, 255, 0) 60%),
+      linear-gradient(160deg,
+        #{color.scale(#F6F8FA, $lightness: 15%)} 0%,
+        #{color.scale(#EBEFF4, $lightness: 15%)} 55%,
+        #{color.scale(#E2E7EE, $lightness: 15%)} 100%);
+    /* THE WASH BLEEDS TO THE CARD'S EDGES (requested 2026-09-21: "the bg that shows on the
+       list-trigger needs to expand all the way up, all the way left and all the way down to
+       the divider"). Inset, it read as a floating panel inside the card rather than as the
+       identity ROW of it.
+       EVERY OFFSET IS A MEASURED VALUE, not a guess: the header is `padding: 10px 14px`, so
+       -10 clears the top and -14 the left; the toolbar's divider sits 8px below the trigger
+       (the header's 8px row gap), so -8 carries the wash down to meet it. Each negative
+       margin is paired with the same amount of padding, so the avatar, name and badges do
+       not move a pixel -- only the painted box grows.
+       THE RIGHT EDGE BLEEDS TOO, asked for straight after the other three ("it also needs to
+       stretch all the way to the right edge of the card"), so the wash now spans the card's
+       full width.
+       THE TOP-RIGHT CORNER IS ROUNDED TO THE CARD'S OWN 12px (requested straight after):
+       the row is `border-radius: 12px` with `overflow: visible`, so a square corner here
+       poked past the card's curve instead of following it. Top-LEFT stays square -- the
+       gradient accent rail (`.md-caseload__list-row::before`) occupies that edge, and the
+       request named the right. */
+    margin-top: -10px;
+    margin-left: -14px;
+    margin-right: -14px;
+    margin-bottom: -8px;
+    /* Each side's padding EQUALS the negative margin beside it, so the painted box grows and
+       the content does not move at all. The first version added 6px/10px of its own on top
+       and shifted the avatar 10px right, which is the sort of drift that is invisible until
+       you measure the same element before and after. */
+    padding: 10px 14px 8px 14px;
+    border-radius: 0 12px 0 0;
   }
   /* CENTRED ON THE AVATAR (requested 2026-09-21: "the username, role, and badges need to be
      centered on the avatar"). The avatar is `grid-row: 1 / span 2` and its 72px is what gives
