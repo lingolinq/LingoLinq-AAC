@@ -33798,6 +33798,9 @@ $ds-choice-width: 380px;
   justify-content: center;
   gap: 12px 14px;
   margin: 2px 0 10px;
+  /* The positioning context for the drag-refusal message below, which must be able to
+     appear WITHOUT taking part in this flex row -- see `--blocked`. */
+  position: relative;
 }
 /* "Preview — Gentle Layout" framed by thin, modern brackets (drawn via
    ::before/::after in the brand accent) — uppercase, tracked, quietly muted. */
@@ -34141,9 +34144,46 @@ $ds-choice-width: 380px;
 .md-ds-preview__legend-hint--quiet:not(.md-ds-preview__legend-hint--blocked) {
   @include aac-sr-only;
 }
+/* THE REFUSAL MESSAGE IS OUT OF FLOW, and that is the whole fix for the drag "shaking"
+   (reported 2026-09-21: "when i try to drag and drop an action card over another row, the ui
+   shakes"). It used to become a normal in-flow flex item the moment `--blocked` arrived,
+   because `--quiet:not(--blocked)` above stopped matching and took `aac-sr-only` with it.
+   Measured with the pointer held PERFECTLY STILL over a forbidden card: the hint went
+   `position: absolute` -> `static` and 1px -> 23px tall, and the preview grid below it
+   dropped from y=236.1 to y=271.2 -- a 35px jump. That jump moves the card out from under
+   the cursor, so the next frame's hit-test finds no forbidden target, the message clears, the
+   preview springs back, the cursor is over the card again, and the message returns. The
+   oscillation IS the shake: the cue was destroying the geometry its own trigger was measured
+   against.
+   Absolutely positioned under the legend, it is visible and still announced (the element
+   remains the `aria-live` region) while contributing nothing to layout, so the hit-test sees
+   the same rects every frame and the loop cannot start. The not-allowed cursor the request
+   asked for is already on the dragged card's overlay, above.
+   Only reachable in Focused View -- `acceptsDrop` never refuses in Gentle -- so taking the
+   blocked state out of flow cannot disturb the in-flow instruction Gentle shows. */
 .md-ds-preview__legend-hint--blocked {
   color: $brand-danger;
   font-weight: 600;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  /* Undo the rest of `aac-sr-only`, which is no longer suppressed by the `:not()` above but
+     whose clipping would otherwise be inherited from the mixin's shorthand. */
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+  /* It now overlays the top of the preview, so it needs to be readable against whatever is
+     under it and must never eat a pointer event mid-drag. */
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  z-index: 3;
+  pointer-events: none;
 }
 /* Every card that will be SWAPPED OUT by the current drop lights up — not just the
    one under the cursor (e.g. both cards a Boards mirror displaces). Outline only (no
