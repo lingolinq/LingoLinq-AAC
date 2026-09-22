@@ -4,7 +4,6 @@
     "misogi.ruby-rubocop",
     "anthropic.claude-code",
     "dbaeumer.vscode-eslint",
-    "github.vscode-pull-request-github",
-    "rebornix.ruby"
+    "github.vscode-pull-request-github"
   ]
 }
