@@ -539,6 +539,20 @@ $(document).on('mousedown touchstart', function(event) {
     focusedMenuBtn.click();
     return;
   }
+  // Classic speak bar: the board-intro button is <div role="button" tabindex="0"
+  // class="extra-btn"> (templates/application.hbs) with only an {{on "click"}}
+  // handler. A div gets no native click from Space/Enter and matches none of the
+  // delegated keyup targets above, so a keyboard user could focus it, never fire it.
+  // Guards mirror the letter-typing branch below: `return` leaves only THIS listener
+  // and preventDefault stops none, so without them the select key (default 32/Space)
+  // also reaches the scanning handler, and a held key re-opens the intro every repeat.
+  var focusedExtraBtn = (event.target && event.target.closest) ?
+    event.target.closest('[role="button"].extra-btn') : null;
+  if(focusedExtraBtn && !event.repeat && !buttonTracker.check('scanning_enabled') && !dwell_key && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.preventDefault();
+    focusedExtraBtn.click();
+    return;
+  }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open() && !typing_into_a_field(event.target)) {
     // add letter to the sentence box
     var key = "+" + event.key;
