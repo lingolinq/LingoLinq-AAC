@@ -46392,6 +46392,22 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   flex-direction: column;
 }
 
+/* THE APP'S PAGE WASH — the five-radial mesh over a stone ramp, in ONE place.
+   It was written out twice (the base `.md-shell` below and `#content:has(.md-shell--user)`
+   under it) and a third copy was about to be added for the narrow-viewport case, so it is a
+   mixin now: both existing users include it and render identically, and a palette change
+   reaches every surface that paints the wash.
+   Carries its own `!important` because both original declarations did. */
+@mixin md-page-wash {
+  background:
+    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
+    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
+    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
+    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
+    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
+    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%) !important;
+}
+
 .md-shell {
   min-height: 100vh !important;
 
@@ -46432,13 +46448,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
   flex-direction: column !important;
 
-  background:
-    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
-    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
-    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
-    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
-    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
-    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%) !important;
+  @include md-page-wash;
   color: var(--md-ink) !important;
 
 }
@@ -46452,13 +46462,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    the shell is made transparent below so the two meshes don't seam. */
 #content:has(.md-shell--user),
 #within_ember:has(.md-shell--user) .page-footer {
-  background:
-    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
-    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
-    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
-    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
-    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
-    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%) !important;
+  @include md-page-wash;
   /* Pin the mesh to the viewport so #content AND the page-footer below it render
      the identical mesh with no seam, covering the whole page (the footer renders
      on every non-board page and is a sibling of #content). */
@@ -46467,6 +46471,46 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 #content:has(.md-shell--user) {
   /* fill the viewport when the badge grid is short so the mesh isn't cut off */
   min-height: 100vh !important;
+}
+
+/* ── THE WASH REACHES THE TOP OF THE PAGE BELOW 901px (2026-09-21) ──────────────────────
+   Requested, for Gentle and Focused alike: "the shell bg needs to extend all the way up to
+   the top of the page". Measured at 900 and 820: the rail stops being a fixed panel and
+   becomes an IN-FLOW band across the top, so `.ll-appshell__main` starts below it and the
+   shell -- which paints the wash -- began at y=291 (900px) and y=345 (820px). Everything
+   above that, the whole rail band, sat on bare page background.
+
+   PAINTED ON `.ll-appshell`, NOT ON `#content`, and the reason is worth keeping. The obvious
+   move is the one this file already uses for the account pages one rule above: paint the mesh
+   on `#content` and make the shell transparent. Tried that first and it broke two pages --
+   `#content.index.with_user` and the extras page paint their own `#content` background and
+   outranked the new rule, so the mesh never landed while the companion rule had ALREADY made
+   the shell transparent: the dashboard and extras rendered with no wash at all. Raising it to
+   two ids was not enough either; those pages have (2,3,0) rules. `.ll-appshell` has no
+   competing background at all, so one class-level rule lands everywhere with nothing to fight.
+   The lesson is the cheap one: a two-part change where half wins the cascade and half does not
+   is worse than either half, and only checking more than one page shows it.
+
+   IT STARTS AT THE APPSHELL'S OWN TOP (y=26), not y=0, and that is not a shortfall: the app
+   header is `position: fixed` across 0-70, so everything above 70 is behind it at every
+   scroll position. The wash is visible from the header's underside down, which is what "the
+   top of the page" means on screen.
+
+   The shell is made transparent so the two do not stack -- both paint the SAME translucent
+   mesh, and two of them overlapping would darken the lower part of the page rather than
+   match it. `min-height: 0` for the reason the account-page rule gives: the shell's own 100vh
+   would double-count against the space above it and overflow.
+   Both views, as asked; scoped to the Home-section pages by `:has(.ll-appshell__navbar)`,
+   which leaves the account pages to the rule above. */
+@media (max-width: 900px) {
+  #content:has(.ll-appshell__navbar) .ll-appshell {
+    @include md-page-wash;
+    min-height: 100vh;
+  }
+  #content:has(.ll-appshell__navbar) .ll-appshell .md-shell {
+    background: transparent !important;
+    min-height: 0 !important;
+  }
 }
 /* Two-class selector (0,2,0) so this beats the plain `.md-shell` (0,1,0)
    background rules defined later in the file (e.g. ~L58263/58282) that would
