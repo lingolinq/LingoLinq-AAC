@@ -39,6 +39,7 @@ import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 import { board_edit_route } from '../utils/board_view';
 import { set_view_style } from '../utils/view_style';
+import { pillForRoute } from '../utils/primary_nav';
 
 export default Controller.extend({
   router: service('router'),
@@ -2264,20 +2265,41 @@ export default Controller.extend({
   /* Which pill is current. Derived from the ROUTE rather than passed in per template,
      which is the whole point of mounting once — there is no longer a caller to pass it.
      Account-section routes return null on purpose: they are not a top-level section, so
-     no pill should light while the RAIL carries the active row instead. */
-  globalNavActive: computed('appState.current_route', 'router.currentURL', function() {
-    var route = this.appState.get('current_route') || '';
-    if(route === 'index' || route === 'user.home') { return 'home'; }
-    if(route === 'caseload') { return 'caseload'; }
-    if(route === 'organizations') { return 'organizations'; }
-    if(route === 'user.boards') { return 'boards'; }
-    if(route === 'user.extras') { return 'extras'; }
-    // Updates is the logs page reached FROM the nav; the plain Logs row in the rail is a
-    // different entry point to the same route and must not light the pill.
-    if(route === 'user.logs' && (this.get('router.currentURL') || '').match(/[?&]nav=home(&|$)/)) {
-      return 'updates';
+     no pill should light while the RAIL carries the active row instead.
+     The rule itself lives in utils/primary_nav.js because the rail needs the same answer;
+     this reads it, it does not restate it. */
+  globalNavActive: computed(
+    'appState.current_route',
+    'router.currentURL',
+    'appState.currentUser.has_management_responsibility',
+    'appState.feature_flags.updates_pill',
+    function() {
+      return pillForRoute(
+        this.appState.get('current_route') || '',
+        this.get('router.currentURL'),
+        {
+          canManageOrgs: this.appState.get('currentUser.has_management_responsibility'),
+          updatesEnabled: this.appState.get('feature_flags.updates_pill')
+        }
+      );
     }
-    return null;
+  ),
+
+  /* WHETHER THE PILL NAV RENDERS AT ALL (requested 2026-09-21): it is the HOME section's
+     navigation, so it belongs on Home and on the destinations it itself offers, and nowhere
+     else. On an account-section page the RAIL is the navigation, and the nav was rendering
+     there with no active pill — present, but not claiming to be that section's nav.
+
+     THE SAME VALUE AS THE ACTIVE PILL, deliberately, not a second route list: a page this nav
+     can name is a page this nav belongs on, and the two can therefore never disagree about
+     which pages those are. That also means the gates in `pillForRoute` reach here — with the
+     `updates_pill` flag off, `?nav=home` on the logs page is just the logs page, and the rail
+     owns it.
+
+     `showGlobalChrome` above is UNCHANGED and still governs the rail, which does belong on
+     all 22 routes. Only the nav narrows. */
+  showPillNav: computed('globalNavActive', function() {
+    return !!this.get('globalNavActive');
   }),
 
   userController: controller('user'),

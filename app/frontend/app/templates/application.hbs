@@ -1561,12 +1561,26 @@
        (login, boards in speak mode, the email-link pages), wrapped for the rest. Ember
        renders whichever branch is live, so there is only ever one outlet on screen. --}}
   {{#if this.showGlobalChrome}}
-    <div class="ll-appshell">
+    {{!-- `ll-appshell--no-nav` is not decoration: the shell's top padding exists ONLY to clear
+         the floating nav, so the page has to know when there is no nav to clear. Same flag as
+         the nav's own `{{#if}}` below, so the clearance and the thing it clears can never
+         disagree -- see `--ll-nav-clearance` in app.scss. --}}
+    <div class="ll-appshell {{unless this.showPillNav "ll-appshell--no-nav"}}">
       <AccountRail @user={{this.globalChromeUser}} />
       <div class="ll-appshell__main">
-        <div class="ll-appshell__navbar">
-          <UserPillNav @active={{this.globalNavActive}} @userName={{this.globalChromeUser.user_name}} />
-        </div>
+        {{!-- THE PILL NAV IS THE HOME SECTION'S, NOT THE APP'S (requested 2026-09-21). The rail
+             above renders on all 22 chrome routes because it genuinely belongs on them; this
+             nav renders only where it can say where you are. `showPillNav` is
+             `globalNavActive != null`, so the set of pages that get the nav is exactly the set
+             of pages the nav has a pill for -- see controllers/application.js.
+             AN {{#if}}, NOT `display: none`: a hidden nav is still in the DOM, still in the tab
+             order and still a landmark a screen-reader user can jump into, on pages where it is
+             not the navigation. --}}
+        {{#if this.showPillNav}}
+          <div class="ll-appshell__navbar">
+            <UserPillNav @active={{this.globalNavActive}} @userName={{this.globalChromeUser.user_name}} />
+          </div>
+        {{/if}}
         <div class="ll-appshell__content">
           {{ outlet }}
         </div>

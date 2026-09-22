@@ -109684,14 +109684,39 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
      floating over it. The clearance the nav needs is given back as shell padding below. */
   margin-bottom: -48px;
 }
-/* The page then has to start BELOW the floating nav. Base `.md-shell` is `padding-top: 3rem`
-   (48px), which was enough when the nav sat above it and is not now: the nav is sticky at
+/* The page then has to start BELOW the floating nav. Base `.md-shell` is `padding-top: 3rem`,
+   which is 30px, NOT the 48px this comment claimed until 2026-09-21: `html` is `font-size:
+   10px` in this app (measured in the browser), so every rem here is 10px. That was enough when
+   the nav sat above the page and is not now: the nav is sticky at
    70px and 48px tall, so its underside is 118 while the shell begins at 16. 112px puts the
    first content at 128 -- clear of the nav with a 10px gap -- and every destination in the
    shell roots on `.md-shell` (home, caseload, organizations, boards, extras, updates), so
-   none is missed. `!important` only because the base declaration carries one. */
+   none is missed. `!important` only because the base declaration carries one.
+
+   IT IS NOT WINNING A SPECIFICITY FIGHT. The base rule is `#content .ember-view > .md-shell,
+   #content > .md-shell` (~46345) and neither selector can MATCH inside the shell: the chain is
+   `#content > .ll-appshell > .ll-appshell__main > .ll-appshell__content > .md-user-layout >
+   .md-shell`, with no `.ember-view` parent and no direct-child relationship. So this rule has
+   no competitor here, and would lose to that ID selector if anyone ever made it match again.
+
+   THE CLEARANCE IS THE NAV'S, so it goes when the nav does (2026-09-21): the nav renders only
+   on the Home section's pages now, and on an account page this 112px was 82px of space held
+   for something that is not there. A CUSTOM PROPERTY rather than a second padding rule, so there
+   is still exactly ONE declaration of this padding to find and change.
+   `.ll-appshell.ll-appshell--no-nav` deliberately carries both classes: that beats the base
+   `.ll-appshell` on specificity, so the two values do not depend on which is written first. */
+.ll-appshell {
+  --ll-nav-clearance: 112px;
+}
+.ll-appshell.ll-appshell--no-nav {
+  /* The value the base `.md-shell` rule gives a shell with no nav floating over it -- 3rem,
+     i.e. 30px at this app's 10px root -- which is the geometry these pages had before the
+     chrome was hoisted above them. Measured before and after on the account pages
+     (scripts/home-section-nav-qa.mjs): the shell's first content moved from y=198 to y=116. */
+  --ll-nav-clearance: 3rem;
+}
 .ll-appshell .md-shell {
-  padding-top: 112px !important;
+  padding-top: var(--ll-nav-clearance) !important;
 }
 /* THE NAV FITS ITS CONTENT. `.md-pillnav` is a block-level flex container with no width of
    its own, so it stretched to the shell's full 1232px (capped by its own 1120px max-width)
