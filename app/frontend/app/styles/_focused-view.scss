@@ -2718,6 +2718,33 @@ body.ll-layout-focused .md-shell--caseload > .md-workspace {
   }
 }
 
+// THE BOARDS PAGE TAKES NO WORKSPACE TOP MARGIN (requested 2026-09-21: "on focused view
+// boards page (modern view), remove the top margin of the md-workspace on that page").
+// Measured there: 40px, from the unscoped `.md-workspace { margin-top: 40px !important }`.
+//
+// HOOKED ON THE PAGE, NOT THE SHELL, and that is the whole care needed here: Boards renders
+// `.md-shell--reports-view`, which it SHARES with the Reports page (user.stats) -- scoping to
+// that class would have silently moved Reports too, and nothing on screen would have said so.
+// `#content.boards-page` comes from `content_class` in controllers/application.js and is set
+// for the `user.boards` route alone.
+// The id gives this (1,3,1) against the base rule's (0,1,0); `!important` only because that
+// declaration carries one. Below 1024 the margin is already 0, so this bites at 1025 and up.
+body.ll-layout-focused #content.boards-page .md-workspace {
+  margin-top: 0 !important;
+}
+
+// ...and the page block inside it loses its own top padding too (requested 2026-09-21, same
+// page). Measured 24px, from `.ub-boards-page--below-dashboard-pills`, whose name says what
+// it was for: clearing the pill nav when that nav sat IN the page. The nav has been fixed to
+// the app frame since earlier today and the shell carries its clearance, so this is the third
+// helping of the same gap rather than spacing of its own.
+// No `!important` needed -- the id takes this to (1,3,1) against the base rule's (0,1,0). At
+// <=1024 an existing `!important` on `.ub-boards-page` already zeroes it, so this bites from
+// 1025 up and the two agree rather than fight.
+body.ll-layout-focused #content.boards-page .ub-boards-page--below-dashboard-pills {
+  padding-top: 0;
+}
+
 // THE IDENTITY ROW'S WASH, MATCHED TO *FOCUSED'S* MORE ACTIONS TILE (requested 2026-09-21:
 // "make the bg a gradient that matches the more actions gradient, but 15% lighter"
 // (asked for at 10%, raised to 15% after seeing it)).
