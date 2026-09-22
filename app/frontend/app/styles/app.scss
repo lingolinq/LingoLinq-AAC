@@ -109816,7 +109816,16 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 @media (min-width: 901px) {
   .ll-appshell__navbar {
     position: fixed;
-    top: calc(max(var(--topbar-height, 70px), 70px) + 16px);
+    /* THE FROSTED BAND REACHES THE APP NAVBAR (requested 2026-09-21: "the frosted band from
+       this div needs to extend all the way up and 12px down from where it is"). It used to
+       start 16px below the navbar, leaving a strip of page content showing unfrosted between
+       the two. The 16px did not disappear -- it moved from `top` into `padding-top`, so the
+       BAND now starts at the navbar's underside while the pills inside it stay exactly where
+       they were at y=86. Changing `top` alone would have moved the pills with it. */
+    top: max(var(--topbar-height, 70px), 70px);
+    padding-top: 16px;
+    /* 6px base + the 12px asked for. */
+    padding-bottom: 18px;
     left: 208px;
     right: 0;
     /* The in-flow band it cancelled no longer exists. */
