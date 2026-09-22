@@ -109850,6 +109850,26 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md
   body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md-shell {
     padding-top: 52px !important;
   }
+  /* NO SIDE GUTTER ON THE WORKSPACE AT THESE WIDTHS (requested 2026-09-21: "the md-workspace
+     l/r padding needs to be 0"). It was not one value to halve or zero -- measured at 1024 the
+     five pages ran 40px (caseload, dashboard, extras), 14px (boards) and 16px (updates), and
+     the steps below diverged further, with extras still at 40px at 820 while everything else
+     had stepped down twice. One declaration replaces all of it, so the pages agree.
+     `!important` because the base `.md-workspace` padding carries one, and the id in the scope
+     supplies the weight to reach past it. */
+  body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .md-workspace {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  /* BOARDS SITS 24px LOWER THAN THE REST (requested 2026-09-21: "boards content needs to move
+     down by 24px"). 52px + 24px, written as the sum's result on the same property the rule
+     above sets, so there is one padding value per page rather than a base and a nudge.
+     `#content.boards-page` matches the general scope's specificity exactly -- both are
+     (1,2,1) once `body:not(...)` is counted -- so this has to come AFTER it to win, which is
+     why it is here rather than beside the other boards rules. */
+  body:not(.ll-layout-focused) #content.boards-page .ll-appshell .md-shell {
+    padding-top: 76px !important;
+  }
 }
 /* THE NAV FITS ITS CONTENT. `.md-pillnav` is a block-level flex container with no width of
    its own, so it stretched to the shell's full 1232px (capped by its own 1120px max-width)
