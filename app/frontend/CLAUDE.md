@@ -91,7 +91,10 @@ a `# fail` line, which looks exactly like a red suite.
   and gate features on capability checks; the app ships as web, Cordova, and Electron.
 - **ESLint gate is line-anchored.** CI runs `npm run lint:js:ci` against `.eslint-todo`,
   which fingerprints legacy findings by line. Editing a legacy file can surface "new"
-  findings that are really shifted old ones; fix them rather than re-baselining.
+  findings that are really shifted old ones. Fix them only when the fix cannot change
+  behaviour; one you would need a test to prove safe (converting `ember/no-runloop`
+  calls, for example) belongs in its own tested PR. Re-baselining needs approval
+  (Rule #14). Details: the `.eslint-todo` entry in `docs/task-management/LEARNINGS.md`.
 
 ## Map
 
