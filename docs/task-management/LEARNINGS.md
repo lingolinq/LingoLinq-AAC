@@ -182,6 +182,11 @@ Admission rule for an entry in this file:
   indistinguishable from "no words", and blanked the panel under a live dwell. Keep stale predictions
   visible until the new set arrives; never swap under a dwell. Symbol: `_pending_reject` in
   `app/frontend/app/utils/ai_word_predictor.js`.
+- **Render-check the Classic speak bar on `/<user>/board/<name>`, reached by in-app navigation.**
+  `application.hbs` wraps the whole global header, `#speak` included, in `{{#unless this.on_board_detail}}`,
+  so on a `/board-detail/` route the bar is absent by design and a null query there proves nothing. In-app
+  navigation lands on board-detail unless the user's board view style is classic, and a hard load of the
+  Classic URL 404s until issue #1037 is fixed. Symbol: `on_board_detail` in `app/frontend/app/controllers/application.js`.
 
 ## SCSS and layout
 
@@ -208,6 +213,11 @@ Admission rule for an entry in this file:
   kills descendant `position: sticky`; `overscroll-behavior: contain` on a non-overflowing scroll box
   swallows the wheel; `cqmin` under `container-type: inline-size` resolves to the viewport; percentage
   padding resolves against width on all sides. Symbol: `overflow-x: hidden !important` in `app/frontend/app/styles/app.scss`.
+- **Lint, build and the acceptance suite cannot see a containing-block change.** Moving an absolutely
+  positioned node out of a `position: relative` parent re-anchors it to the next positioned ancestor; the
+  Classic speak-bar Intro button left its bar (`offsetParent` became `HEADER`) with every gate green. Before moving
+  a node, check the old parent's `position` and compare `offsetParent` and the rect before and after; only
+  a targeted computed-style test holds it. Symbol: `.speak-bar__button-list-wrap` in `app/frontend/app/styles/app.scss`.
 - **The modern symbol card also carries class `.button`, so every classic `.button` rule leaks onto
   it.** Symbol: `md-board-detail-symbol-card` in `app/frontend/app/components/board-detail-grid.hbs`.
 - **Sprockets rewrites `url(#id)` fragment refs inside CSS data-URI SVGs in production.** Gradient fills
@@ -241,11 +251,19 @@ Admission rule for an entry in this file:
   whole file makes stubs inert; a negative assertion passes when its selector matches nothing; a hang
   test must assert on the spawn option, not hang the suite; curated examples miss the byte the author
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
-- **Both lint baselines are line-anchored append logs.** `.eslint-todo` shows a storm of "new" findings
-  after any edit to a grandfathered file (compare `file|rule|hash` net deltas; never `--update-todo`
-  without diffing rule identity). `.lint-todo` is `add`/`remove` rows, and a plain
-  `ember-template-lint` run rewrites it; pass `--no-clean-todo` for read-only checks. Cite
-  `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.eslint-todo` is line-anchored; prefer net-zero line shifts in a grandfathered file.** The fingerprint
+  is `file|rule|line|column|severity|messageHash`, so lines inserted above a legacy finding report it as
+  "new". Where the code reads naturally that way, edit existing lines. If a shift is unavoidable, prove a
+  uniform offset with identical file, rule, column, severity and hash: that makes it a re-anchor rather
+  than a re-baseline, but it is still `npm run lint:js:todo`, so it needs explicit approval and its own
+  commit. Symbol: `fingerprint` in `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.lint-todo` matches by content hash, not line, and a plain run rewrites it.** A todo pairs on rule
+  plus a hash of the flagged node's source (exact range match first, then rule plus hash with the range
+  ignored), so a recorded line that differs from the reported one is harmless. An edit INSIDE the flagged node changes its hash and orphans
+  it, which is why an insert can orphan a `<form>` todo hundreds of lines above. `--clean-todo` defaults
+  on outside CI (and `--fix` forces it) and appends `remove|` rows for resolved AND expired todos alike; an
+  expired violation still errors that run, but the file no longer says whether it was fixed or aged out.
+  Use `--no-clean-todo` to read. Cite `app/frontend/.lint-todo`.
 - **Browser probes lie in three ways.** Puppeteer `page.click` delivers nothing inside the nested modal
   scroll containers; Playwright e2e specs write the signed-in user's real device prefs and poison later
   runs; a fixed sleep tests the old bundle, so poll the built asset for a marker. Cite
