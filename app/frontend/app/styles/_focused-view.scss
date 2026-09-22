@@ -1117,10 +1117,12 @@ body.ll-layout-focused {
   //     !important, and this lands at (0,3,1) vs its (0,1,0), so it wins on
   //     specificity alone — no !important needed, and Gentle is untouched.
   .md-shell--caseload .md-caseload {
-    /* 32px -> 44px (requested 2026-09-21: "caseload md-caseload div needs 12px added to its
-       top margin"). Edited here rather than answered with a new rule elsewhere: this is the
+    /* 32px -> 44px -> 56px. TWO separate +12 requests on 2026-09-21, the second worded the
+       same as the first ("add 12px to md-caseload's top margin") and made after the first had
+       landed, so it is read as a further increment from the value then on screen rather than
+       as a repeat. Edited here rather than answered with a new rule elsewhere: this is the
        declaration that owns the value, and a second one would have had to outrank it. */
-    margin-top: 44px;
+    margin-top: 56px;
   }
 
   // The article wrapping the hero + list adds another 2rem above the now-hidden
