@@ -93,8 +93,11 @@ a `# fail` line, which looks exactly like a red suite.
   which fingerprints legacy findings by line. Editing a legacy file can surface "new"
   findings that are really shifted old ones. Fix them only when the fix cannot change
   behaviour; one you would need a test to prove safe (converting `ember/no-runloop`
-  calls, for example) belongs in its own tested PR. Re-baselining needs approval
-  (Rule #14). Details: the `.eslint-todo` entry in `docs/task-management/LEARNINGS.md`.
+  calls, for example) belongs in its own tested PR. Placing new code so rows do not shift
+  is fine; deleting or compressing existing lines to hold them still is not. Otherwise,
+  stop and ask. In test files, a lint fix that rewrites an assertion is a test change and
+  needs approval. Re-baselining needs approval too (Rule #14, "Never edit a test to make a
+  check pass"). Details: the `.eslint-todo` entry in `docs/task-management/LEARNINGS.md`.
 
 ## Map
 
