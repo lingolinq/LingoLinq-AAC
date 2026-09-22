@@ -54898,12 +54898,12 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .ub-boards-page--split .ub-boards-page__boards-body:has(> .ub-boards-page__folders-section):has(> .ub-boards-page__boards-summary-section) {
   display: grid;
   /* 1/3 folders : 2/3 boards at EVERY width this layout exists at (2026-08-20,
-     requested). One value, no breakpoint: side-by-side runs from 901px up (below that
-     the `max-width: 900px` fallback at the foot of this block switches to `display:
+     requested). One value, no breakpoint: side-by-side runs from 1201px up (below that
+     the `max-width: 1200px` fallback at the foot of this block switches to `display:
      block` and these column values go inert), so this single declaration covers the
-     whole range. Corrected 2026-09-18: this said 769px and named a `max-width: 768px`
-     fallback; the fallback at the foot of this block is `max-width: 900px`, which is also
-     the breakpoint templates/user/boards.hbs documents.
+     whole range. The fallback has moved twice since -- 900px on 2026-09-18, 1200px on
+     2026-09-21 -- and this sentence has been corrected with it each time; templates/
+     user/boards.hbs documents the breakpoint too and is worth checking against.
 
      This replaces a 1fr 3fr base with a `min-width: 1025px` override to 1fr 2fr. The
      quarter column was kept below 1025px on the reasoning that a third of a ~570-770px
@@ -54948,30 +54948,23 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     grid-column: 2;
   }
 
-  /* Automatic fallback to stacked, at 768px rather than 1024px. It sat at 1024
-     originally, but that silently overrode an EXPLICIT choice across the most common
-     window sizes — the selector would read "Side by side" while the page stayed
-     stacked. 768px is where the folders header's own rules take over (it re-flows to
-     `grid-template-areas` with the action pills on their own row further down this
-     file), so below that a quarter column genuinely cannot hold its contents.
-     Between 769 and 1024 the column is ~185-220px: tight, but it is what the user
-     asked to see, which is the point of a comparison control.
+  /* AUTOMATIC FALLBACK TO STACKED, AT 1200px (requested 2026-09-21: "the boards page folders
+     div needs to stack on top of the boards div", at 1200 and below, in both Gentle and
+     Focused). It has moved twice: 1024 originally, then 900, now 1200.
+     The reasoning for 900 was that between 901 and 1200 the folders column is ~185-220px --
+     tight, but "it is what the user asked to see". That was the judgement being revisited:
+     at those widths folder names truncate hard and the column reads as a different component
+     than the one on a wide screen, so stacking is the better trade and this is now where it
+     happens.
+     THIS SUBSUMES THE ACCOUNT PAGE'S OWN 1200px RULE, which used to live right here as
+     `.md-user-summary & { @media (max-width: 1200px) { display: block } }` (added 2026-09-18,
+     because that page gives 208px of its width to the fixed nav panel and hit the cramped
+     range sooner). Same property, same value, and its scope is now a subset of this rule's,
+     so it is removed rather than left as a special case that no longer specialises anything.
+     The two pages behave identically at every width again.
      The `grid-column` values above go inert under `display: block`. */
-  @media (max-width: 900px) {
+  @media (max-width: 1200px) {
     display: block;
-  }
-  /* THE ACCOUNT PAGE STACKS EARLIER, at 1200px (requested 2026-09-18). Same component, less
-     room: `.md-user-summary` is the account page's wrapper, and that page gives 208px of its
-     width to the fixed nav panel above 900px, so its folders column hits the cramped
-     ~185-220px range while the boards page still has slack at the same viewport. Folders on
-     top of boards is what 900px already does for both -- this only moves the account page's
-     copy of that switch upward.
-     Scoped rather than global so templates/user/boards.hbs keeps the side-by-side comparison
-     down to 900px, which is the width its own comment above reasons about. */
-  .md-user-summary & {
-    @media (max-width: 1200px) {
-      display: block;
-    }
   }
 }
 
