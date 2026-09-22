@@ -669,9 +669,12 @@
        only earns its place once the toolbar is on a line of its own -- above 1300 the two
        share a line and a rule through the middle would be nonsense. A hairline at 10% navy
        rather than a full-strength border: it separates two parts of ONE card, so it should
-       read as a fold in the card, not as an edge between two cards. The 12px above and
-       below keep the buttons from crowding it. */
-    margin-top: 12px;
+       read as a fold in the card, not as an edge between two cards.
+       NO TOP MARGIN (requested 2026-09-21: "remove the top margin from
+       md-caseload__list-quick"). The 12px that was here is gone; the divider sits directly
+       under the identity row and keeps its 12px of padding BELOW, so the buttons still do
+       not crowd the rule. */
+    margin-top: 0;
     padding-top: 12px;
     border-top: 1px solid rgba($la-navy, 0.10);
   }
@@ -687,6 +690,19 @@
 @media (max-width: 1300px) and (min-width: 641px) {
   .md-caseload__list-trigger {
     grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  /* THE IDENTITY ROW CARRIES THE SIDE PANEL'S WASH once the actions wrap (requested
+     2026-09-21: "the avatar row needs the same gradient that the side panel has"). The value
+     is `.md-acct-rail`'s own, read off the computed style rather than re-mixed by eye, so the
+     two surfaces stay the same thing: a 160deg wash from a near-white grey into a barely
+     tinted navy. It goes on the TRIGGER, which is the identity line -- the header wraps both
+     rows, so painting there would wash the action buttons too.
+     Only below 1300, because above it the trigger shares its line with the toolbar and a
+     banded background would stop halfway across the card. */
+  .md-caseload__list-trigger {
+    background: linear-gradient(160deg, rgba(230, 230, 230, 0.55) 0%, rgba(24, 49, 84, 0.05) 100%);
+    border-radius: 10px;
+    padding: 6px 10px;
   }
   /* CENTRED ON THE AVATAR (requested 2026-09-21: "the username, role, and badges need to be
      centered on the avatar"). The avatar is `grid-row: 1 / span 2` and its 72px is what gives
