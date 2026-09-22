@@ -109948,6 +109948,45 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md
     padding-top: 80px !important;
   }
 }
+
+/* BOARDS, EXTRAS AND UPDATES START WHERE THE DASHBOARD DOES, BELOW 901px (requested
+   2026-09-21, Focused: "the boards, extras, and updates content all need to move up to the
+   same level as the dashboard content").
+   THREE INDEPENDENT OFFSETS STACK HERE, which is why one declaration could not do it.
+   Measured at 900, the content y was dashboard 361, extras 425, updates 443, boards 473, and
+   the gap is made of three different things:
+     - `#content`'s own top padding: 16px on the dashboard and extras, 46px on updates, 52px
+       on boards -- which moves the whole appshell, rail band included;
+     - the shell's nav clearance: 80px on the dashboard (reduced earlier today), 112px on the
+       other three;
+     - `.md-workspace`'s top padding: 0 on the dashboard, 20px updates, 32px extras, 44px
+       boards.
+   All three are set to the dashboard's values, so the four pages compute the same sum rather
+   than being nudged to look equal at one width: 16 + rail + nav + 80 + 0.
+
+   CASELOAD IS DELIBERATELY NOT INCLUDED. It was not named, and it sits 16px ABOVE the
+   dashboard (345 at 900), so folding it in would have MOVED it to satisfy a request about
+   three other pages.
+   UPDATES HAS NO PAGE CLASS to select, unlike boards and extras, so it is identified by what
+   is true of it alone: it is the only `.md-shell--user` page that renders the pill nav -- the
+   account pages share the shell class but have no nav.
+   `#within_ember` for the two-id weight: the `#content` padding these override is itself set
+   by `#within_ember #content...` rules at (2,1,0), which a one-id selector cannot reach. */
+@media (max-width: 900px) {
+  body.ll-layout-focused #within_ember #content.boards-page,
+  body.ll-layout-focused #within_ember #content.extras-page,
+  body.ll-layout-focused #within_ember #content:has(.ll-appshell__navbar):has(.md-shell--user) {
+    padding-top: var(--topbar-height) !important;
+
+    .ll-appshell .md-shell {
+      padding-top: 80px !important;
+    }
+
+    .md-workspace {
+      padding-top: 0 !important;
+    }
+  }
+}
 /* THE NAV FITS ITS CONTENT. `.md-pillnav` is a block-level flex container with no width of
    its own, so it stretched to the shell's full 1232px (capped by its own 1120px max-width)
    once mounted here instead of inside each page's narrower column. `fit-content` restores
