@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { hasHomeNavParam } from '../utils/primary_nav';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
@@ -100,8 +101,12 @@ export default Controller.extend({
     function() {
       var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
       if(route !== 'user.logs') { return false; }
-      var url = this.get('router.currentURL') || '';
-      return /[?&]nav=home(&|$)/.test(url);
+      /* The regex itself lives in utils/primary_nav.js: the pill nav and the account rail read
+         the same param, and three copies of one pattern is three things to keep in step. This
+         computed keeps its OWN route test (`user.logs` only) -- widening it to the log DETAIL
+         page would change which pages `accountRailContext` suppresses, which is not this
+         change's business. */
+      return hasHomeNavParam(this.get('router.currentURL'));
     }
   ),
 
