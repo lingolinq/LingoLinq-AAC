@@ -2705,6 +2705,19 @@ body.ll-layout-focused .md-shell--caseload > .md-workspace {
   }
 }
 
+// ...AND NONE AT ALL BELOW 900 (requested 2026-09-21: "on focused view 900px and smaller,
+// remove this top margin"). The 68px above therefore lives in a 51px window, 901-950, which
+// looks odd written down but is what was asked for at each width in turn: 56px from 951 up,
+// 68px through the 901-950 step, nothing below it. Kept as its own band rather than by
+// narrowing the rule above, so each request stays legible as its own line.
+// Same selector as the rule above and later in the file, so it wins on order without needing
+// extra weight.
+@media (max-width: 900px) {
+  body.ll-layout-focused .md-shell--caseload .md-caseload {
+    margin-top: 0;
+  }
+}
+
 // THE IDENTITY ROW'S WASH, MATCHED TO *FOCUSED'S* MORE ACTIONS TILE (requested 2026-09-21:
 // "make the bg a gradient that matches the more actions gradient, but 15% lighter"
 // (asked for at 10%, raised to 15% after seeing it)).
