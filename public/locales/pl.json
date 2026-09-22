@@ -9523,5 +9523,22 @@
   "thurs_abbrev": "*** Th",
   "friday_abbrev": "*** F",
   "saturday_abbrev": "*** Sa",
-  "update_communication": "*** Update Communication"
+  "update_communication": "*** Update Communication",
+  "home_tour_page_dashboard_title": "*** Dashboard",
+  "home_tour_page_caseload_title": "*** Caseload",
+  "home_tour_page_caseload_b1": "*** Everyone you support, in one list",
+  "home_tour_page_caseload_b2": "*** Open a communicator to model or take notes",
+  "home_tour_page_orgs_title": "*** Organizations",
+  "home_tour_page_orgs_b1": "*** Manage the organizations you run",
+  "home_tour_page_orgs_b2": "*** Add people and assign supervisors",
+  "home_tour_page_updates_title": "*** Updates",
+  "home_tour_page_updates_b1": "*** Messages and notes sent to you",
+  "home_tour_page_updates_b2": "*** The badge counts what you have not read",
+  "home_tour_nav_b2_generic": "*** Every section of the app, one tap away",
+  "board_url_or_key": "*** Board URL or key",
+  "board_url_or_key_placeholder": "*** e.g. lingolinq/vocal-flair-84-questions",
+  "link_board_by_url": "*** Link board",
+  "board_url_or_key_hint": "*** Paste a board page URL or an owner/key to link a sub-board that is not in the list.",
+  "no_board_for_url_or_key": "*** No board found for that URL or key",
+  "looking_up_board": "*** Looking up board…"
 }
