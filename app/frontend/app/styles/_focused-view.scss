@@ -2586,6 +2586,13 @@ body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
   /* md-main's own 16px side padding + the 40px it just bled over, so its CONTENT stays put. */
   padding-left: 56px !important;
   padding-right: 56px !important;
+  /* NO TOP PADDING on the focused dashboard (requested 2026-09-21). The base `.md-main`
+     rule's `padding: 18px 16px 24px` puts 18px above the first card, on top of the shell's
+     own nav clearance -- two stacked gaps where the page wanted one. Set here rather than on
+     the base rule because Gentle View keeps its 18px: this partial is the Focused overlay and
+     the baseline is untouched by contract. The bottom 24px stays; only the top was asked
+     about. */
+  padding-top: 0 !important;
 }
 @media (max-width: 950px) {
   body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
@@ -2601,6 +2608,35 @@ body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
     margin-right: -12px !important;
     padding-left: 28px !important;
     padding-right: 28px !important;
+  }
+}
+
+// THE DASHBOARD GRID'S SIDE GUTTER, DROPPED IN FOCUSED (requested 2026-09-21: "remove l and
+// r padding from this", on `section.md-grid--dashboard.md-grid--layout-focused`, which the
+// inspector showed at `0px 28px`).
+//
+// WHERE THE 28px COMES FROM: `app.scss` (~65867) sets `.md-grid.md-grid--dashboard
+// { padding-left/right: 28px !important }` inside `@media (max-width: 1024px)` only -- which
+// is why the gutter appears on a narrower window and is absent at 1280. Its stated purpose is
+// NOT spacing: at <=1024 the scroll guard puts `overflow-x: hidden` on `.md-main`, and the
+// 28px inset lets a card's resting glow (~38px) paint before that clip instead of being cut
+// at the card edge.
+//
+// WHY DROPPING IT IS DEFENSIBLE HERE, and it is a trade rather than a free win: that
+// reasoning is written against GENTLE geometry, where `.md-main`'s own side padding is
+// "only ~16px". In Focused this element is bled wide and padded far more -- 56px above 950,
+// 32px to 950, 28px to 820 (the rules just above) -- so the glow already has 28-56px of
+// `.md-main` padding to paint across before the clip, which is what the grid's own 28px was
+// there to provide. Below ~820 the two are comparable and some clipping of the resting glow
+// is possible; that is the accepted cost of the request, recorded so it is not a surprise.
+//
+// Scoped, per this file's contract: `body.ll-layout-focused` adds a tag + class over the
+// baseline's `.md-grid.md-grid--dashboard`, so it outranks it from anywhere. `!important`
+// only because the declaration it answers carries one.
+@media (max-width: 1024px) {
+  body.ll-layout-focused .md-grid.md-grid--dashboard {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 }
 
