@@ -933,3 +933,34 @@ line-order sequence unchanged); `lint:hbs` 0; `spec/templates/` 13 passing.
   With one nav they are dead weight and should be retired deliberately.
 - Per-page shells still carry their own padding assumptions; only the ones that broke were
   reconciled. That is Unit 4's remaining scope.
+
+---
+
+# UNIT 3 — three layout regressions from the hoist, fixed
+
+Traci, on the first render: *"the left panel's bg doesn't extend the full width of the
+panel bg ... you increased the width of the outer pillnav menu to fill the div instead of
+fitting its content ... you've squished the home page content."* All three were real and
+all three were caused by the hoist. Measured rather than guessed:
+
+| | cause | before | after |
+|---|---|---|---|
+| squished content | `.md-shell--home` STILL added `padding-left: 208px` for the rail, on top of `.ll-appshell__main`'s 208px — a **416px** double offset | workspace 1030, card 452 | workspace **1200**, card **537** |
+| nav filled the div | `.md-pillnav` is a block-level flex container with no width of its own, so it stretched to the shell's 1232 (capped by its own 1120 max-width). Inside each page's narrower column that never showed. | 1120 | **508**, content-fit |
+| rail bg seam | a legacy Bootstrap `.row.main_columns` with `margin: 0 -20px -10px` + `padding: 0 5px` — the classic negative-gutter pair — made the page 40px wider than its column and pushed its left edge 15px UNDER the fixed rail | shell left 193 vs main 208 | both **208**, widths equal |
+
+Both rail-gutter rules were DELETED rather than overridden, since the appshell now owns
+that job: `.md-shell--user-rail, .md-shell--home { padding-left: 208px }` and
+`.md-bare-rail-gutter`. Neither class is rendered by any template any more — checked
+before deleting.
+
+The Bootstrap row gutter is neutralised INSIDE the shell only, not at source: that
+negative margin is still doing its original job everywhere else the row is used.
+
+**The general lesson, and it is the same one as the styling work:** hoisting a fixed
+element does not just move it — every rule that previously compensated for its absence or
+presence has to be found and reconciled. Three separate compensations existed here and
+none of them announced itself; each was found by measuring the rendered box tree, not by
+reading the SCSS.
+
+Gates: `lint:js:ci` 1604/1604 0 new; `lint:hbs` 0; `spec/templates/` 13 passing.

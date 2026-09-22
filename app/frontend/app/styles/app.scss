@@ -49836,16 +49836,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      never disagree about the panel's width.
      It is NOT added to the `margin-top: 0` rule above: that exists because the account page
      suppresses the pill row, and the home page keeps it. */
-  .md-shell--user-rail,
-  .md-shell--home {
-    /* EXACTLY the panel's width, so the content edge meets the panel's right edge. The panel
-       is `box-sizing: border-box`, so its 208px already contains its 10px padding and its 1px
-       right border -- reserving 236px (208 + a 28px gutter borrowed from `.md-acct-top`'s
-       flex gap) left a 28px strip of shell padding beyond the panel that lined up with
-       nothing. Breathing room between panel and content comes from `.md-workspace`'s own
-       margins, not from padding out here. */
-    padding-left: 208px;
-  }
+  /* THE 208px RAIL GUTTER USED TO BE HERE and is gone as of 2026-09-21. The rail is now
+     mounted once above the routes and `.ll-appshell__main` clears it for every page at
+     once, so a shell reserving the width again produced a DOUBLE offset -- measured 416px,
+     which squashed the dashboard grid and clipped the action-card titles.
+     `.md-shell--user-rail` is dead with it: nothing renders that class any more. */
 }
 
 .md-acct-top {
@@ -50311,11 +50306,9 @@ body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav {
    against nothing.
    Above 900px only, matching the main gutter rule: below that the rail is an in-flow grid
    across the top and there is nothing to clear. */
-@media (min-width: 901px) {
-  .md-bare-rail-gutter {
-    padding-left: 208px;
-  }
-}
+/* `.md-bare-rail-gutter` is retired (2026-09-21): templates/user.hbs no longer wraps the
+   bare-route outlet, because `.ll-appshell__main` now clears the rail for every route
+   uniformly. Kept as a note rather than silently deleted so the reason is findable. */
 
 /* Supervision page heading: see `.md-billing__header` further down, which this now shares a
    definition with (2026-09-21, requested). It used to be a standalone 26px/700/$la-navy rule
@@ -109682,6 +109675,31 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   padding-bottom: 6px;
+}
+/* THE NAV FITS ITS CONTENT. `.md-pillnav` is a block-level flex container with no width of
+   its own, so it stretched to the shell's full 1232px (capped by its own 1120px max-width)
+   once mounted here instead of inside each page's narrower column. `fit-content` restores
+   the pill-bar look; the base rule's `margin: 42px auto 0` then centres it, and that 42px
+   top is zeroed because this wrapper owns the vertical spacing now. */
+.ll-appshell__navbar .md-pillnav {
+  width: fit-content !important;
+  margin-top: 0 !important;
+}
+
+/* The legacy Bootstrap `.row` wrapper inside the dashboard carries `margin: 0 -20px -10px`,
+   the classic negative gutter meant to cancel a parent's 20px padding. Inside the app shell
+   there is no such padding to cancel, so it simply made the page 40px wider than its column
+   and pushed its left edge 15px UNDER the fixed rail -- which read as the rail's background
+   not reaching the panel's full width. Neutralised here rather than at the source: that
+   negative margin is still doing its original job everywhere else the row is used. */
+.ll-appshell__content > .row {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  /* The matching 5px side padding goes with them. It is the other half of the same
+     Bootstrap gutter convention (negative margin on the row, padding back on the row/col),
+     so leaving it behind just inset the page by 5px against nothing. */
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 /* At 900px and below the rail stops being a fixed panel and becomes an in-flow block above
    the page (see the rail's own breakpoint rules), so the offset that clears it has to go or
