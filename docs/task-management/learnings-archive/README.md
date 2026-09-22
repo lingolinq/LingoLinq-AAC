@@ -4,8 +4,9 @@
   about 1.2 MB), moved here byte-for-byte on 2026-09-12 except for five entries prefixed
   `[SUPERSEDED ...]` because they describe the retired Render platform, Node 20, or an
   Ember 3.28 recipe. A sixth, the 2026-07-16 `.lint-todo` line-shift gotcha, was marked
-  `[SUPERSEDED 2026-09-21 ...]` when its cause was found to be wrong, and four lint-baseline entries were
-  prefixed `[SUPERSEDED IN PART 2026-09-22 ...]` for regenerate recipes that skip approval. Grep it by
+  `[SUPERSEDED 2026-09-21 ...]` when its cause was found to be wrong, and five lint-baseline entries were
+  prefixed `[SUPERSEDED IN PART 2026-09-22 ...]` for regenerate recipes that skip approval or overstate
+  what a baseline check proves. Grep it by
   surface keyword; do not read it linearly.
 - `YYYY-MM.md` files are the append targets. When a task finishes, add its durable lesson
   to the current month's file (create it if missing) using the same shape as the curated
