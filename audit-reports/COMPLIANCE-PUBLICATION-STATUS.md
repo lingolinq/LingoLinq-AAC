@@ -74,7 +74,6 @@
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-09-16. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-09-16. |
 | Compliance Posture Report (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-posture-report.md` | 2026-09-14 | approved | Review date is older than 2026-09-16. |
-| Data Retention Schedule (2026-09-14 successor) | git | `docs/legal/2026-09-14_data-retention.md` | 2026-09-14 | approved | Review date is older than 2026-09-16. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-09-16. |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-09-16. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-09-16. |
@@ -179,7 +178,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 10 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 58 | draft |
+| `policy-version` | supersession + 7 years | archive | 59 | draft |
 | `audit-evidence` | 7 years | archive | 21 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -188,7 +187,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 4 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 108 rows carry a retention block.
+All 109 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -264,6 +263,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-17) | `docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md` | Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-18 successor) | (none) |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
 | Data Retention Schedule (2026-08-09 draft) | `docs/legal/2026-08-09_data-retention_draft.md` | Data Retention Schedule (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, dsar |
+| Data Retention Schedule (2026-09-14 successor) | `docs/legal/2026-09-14_data-retention.md` | Data Retention Schedule (2026-09-22 successor) | (none) |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | `docs/legal/GCP_BAA_ACCEPTED.md` | GCP BAA Acceptance Record (2026-09-14 successor) | baa |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
 | Incident Response and Breach Runbook (2026-08-15 successor) | `docs/legal/2026-08-15_incident-response-breach-runbook.md` | Incident Response & Breach Runbook (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, baa |
@@ -323,4 +323,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_108 documents tracked. 71 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 33 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_109 documents tracked. 70 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 34 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

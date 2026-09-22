@@ -4050,7 +4050,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_data-retention.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -4066,14 +4066,9 @@
         "note": "Path A successor to DOC-e62caf7fb9 (2026-08-09_data-retention_draft.md), frozen, and a DRAFT. Scope of this pin: the Render decommission restatements, plus the archive retention correction, which is the most consequential content here and is NOT about customer data. An earlier draft called gs://lingolinq-prod-render-archive immutable and said an Article 17 erasure could not be executed against it. Both were false. The bucket's retentionPolicy has NO isLocked field, re-verified live at attestation 2026-09-16 (retentionPeriod 31557600s, effectiveTime 2026-09-02T17:30:22Z, isLocked absent), so a project admin can remove the policy and then delete. The document states that erasure is a DECISION, not a technical impossibility. This matters for the schedule's accuracy about GCS retention mechanics generally, not because the archive holds customer data: it does not. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
       },
       "contentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "bundles": [],
       "mirrors": [],
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO COPIED FORWARD from PR #969, which landed on the predecessor after this branch started: cadence-versus-execution language for LL-3e36a18199. Without that copy-forward this successor would have re-asserted that retention jobs run as of 2026-09-14.",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO COPIED FORWARD from PR #969, which landed on the predecessor after this branch started: cadence-versus-execution language for LL-3e36a18199. Without that copy-forward this successor would have re-asserted that retention jobs run as of 2026-09-14. SUPERSEDED 2026-09-22 by DOC-b08fdd2b17 (docs/legal/2026-09-22_data-retention.md), which corrects three doc-versus-code defects this row carried: the user-account inactivity window and outcome, the LogSession \"3 years default\", and the absent AuditEvent row. This row and its 2026-09-16 attestation stay frozen over its own bytes; the live bundles moved to the successor.",
       "supersedes": "DOC-e62caf7fb9",
       "retention": {
         "class": "policy-version",
@@ -4083,7 +4078,44 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-4dc241c83a"
+      "id": "DOC-4dc241c83a",
+      "supersededBy": "DOC-b08fdd2b17"
+    },
+    {
+      "title": "Data Retention Schedule (2026-09-22 successor)",
+      "description": "Path A successor correcting three doc-versus-code defects the predecessor carried: the user-account inactivity row (2 years and soft-delete, where the code is 12 months and permanent destruction), the LogSession row (\"3 years default\", where no default exists in code), and the absence of any AuditEvent row (no retention control; the table grows without bound). Every other row is carried forward byte-identical.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-22_data-retention.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-09-22",
+      "nextReviewDue": "2027-04-20",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-09-22. Each correction was verified by reading the runtime source at origin/develop e64653c59 before the file was written: subscription.rb selects updated_at < 12.months.ago, warns up to three times at least 3 weeks apart, then sets schedule_deletion_at = 36.hours.from_now, after which the daily flush_users step of scheduler:dispatch runs Flusher.flush_deleted_users -> Flusher.flush_user_completely, which calls flush_record and logs an AuditEvent of type user_permanently_destroyed (lib/flusher.rb); lib/data_policy_enforcer.rb applies only a configured retention_months and skips any account without one (next unless months && months > 0); app/models/audit_event.rb defines no purge method and no task in lib/tasks/scheduler.rake references the model. ATTESTER MUST CONFIRM: (1) that 12 months plus the warning cycle is the retention the business intends to promise customers, since it is SHORTER than the 2 years the superseded schedules stated and shorter than some customer expectations may assume; (2) that publishing \"no default LogSession window\" is acceptable, or whether a default should be implemented in code instead of documented away; (3) whether the unbounded AuditEvent table needs a retention rule before this schedule is published externally. This successor does NOT close, downgrade or supersede any finding. The branded Drive render DOC-52c8c33583 still carries pre-correction text and needs re-publication and re-attestation separately.",
+      "supersedes": "DOC-4dc241c83a",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-b08fdd2b17",
+      "contentHash": "14c8243a3109af28f47de5a29e4b4f2abbe0caf017de969d01dd44b399601c3e"
     },
     {
       "title": "Subprocessor Register (2026-09-14 successor)",
