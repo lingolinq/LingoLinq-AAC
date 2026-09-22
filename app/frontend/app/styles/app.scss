@@ -109756,6 +109756,32 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 .ll-appshell .md-shell.md-shell--caseload {
   padding-top: 0 !important;
 }
+
+/* ── GENTLE: EVERY HOME-SECTION PAGE STARTS WHERE CASELOAD DOES (2026-09-21) ────────────
+   Requested: "on gentle view modern view the dashboard, boards, extras, and updates content
+   all needs to begin in the same place it does on the caseload page: make it consistent".
+   Measured at 1280 before this, as the y of the first thing actually visible inside the
+   workspace: caseload 106, dashboard / boards / extras 218, updates 238. Two separate causes,
+   so it takes two rules:
+     - the shell's 112px nav clearance, which caseload alone does not take (above); and
+     - `#content`'s own top padding, which is `calc(--topbar-height + 1rem)` = 26px on the
+       pages that carry a page class and the bare `+ 3rem` = 46px default on Updates, which
+       has none. That 20px is the whole of Updates' extra offset.
+
+   `:has(.ll-appshell__navbar)` IS THE SCOPE, and it is the honest one: the nav renders on
+   exactly the Home-section destinations and nowhere else (controllers/application.js
+   `showPillNav`), so this reads as "the pages this nav serves" rather than as a list of page
+   classes that would have to be maintained alongside it -- and Updates has no page class to
+   list anyway. It also cannot reach the account pages, which have no nav and keep their own
+   `--no-nav` clearance.
+
+   GENTLE ONLY, as asked. Focused sets these per page in _focused-view.scss and is untouched. */
+body:not(.ll-layout-focused) #within_ember #content:has(.ll-appshell__navbar) {
+  padding-top: calc(var(--topbar-height) + 1rem) !important;
+}
+body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md-shell {
+  padding-top: 0 !important;
+}
 /* THE NAV FITS ITS CONTENT. `.md-pillnav` is a block-level flex container with no width of
    its own, so it stretched to the shell's full 1232px (capped by its own 1120px max-width)
    once mounted here instead of inside each page's narrower column. `fit-content` restores
