@@ -231,8 +231,8 @@
             "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "Incident Log",
@@ -273,8 +273,8 @@
             "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "COPPA Final-Rule Verification",
@@ -327,8 +327,8 @@
             "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
@@ -423,8 +423,8 @@
             "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "AI Data-Flow Classification (2026-08-17 successor)",
@@ -1011,14 +1011,9 @@
       "nextReviewDue": "2027-04-20",
       "attestation": {},
       "contentHash": "246a4ae192bd7678599c75259485b96f289cd01b13bce2e3d0a8dba93bc42e45",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "bundles": [],
       "mirrors": [],
-      "notes": "Path A successor to DOC-bff9acf51f. Draft pending CEO attestation. Live bundles retargeted here; predecessor remains the frozen attested cut.",
+      "notes": "Path A successor to DOC-bff9acf51f. Draft pending CEO attestation. Live bundles retargeted here; predecessor remains the frozen attested cut. BUNDLES REMOVED 2026-09-22: the four live bundles (soc2-evidence, school-dpa-package, security-review, dsar) required THIS superseded draft by location until now. Their requiredDocs entries were retargeted to DOC-b08fdd2b17 (docs/legal/2026-09-22_data-retention.md) and this row was dropped from the bundles, so a customer package no longer resolves to a superseded draft carrying withdrawn retention claims. The 2026-09-14 supersession moved the bundles array but not the requiredDocs bindings, which is why --check stayed green over a stale requirement.",
       "supersedes": "DOC-bff9acf51f",
       "retention": {
         "class": "policy-version",
@@ -2331,7 +2326,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "driveFileId": "1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k"
+      "driveFileId": "1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k",
+      "notes": "KNOWN INACCURATE 2026-09-22, pending re-publication and re-attestation. This branded Drive render carries the pre-correction retention text, including \"automatic purge at age 18 or after 2 years of inactivity\", which docs/legal/2026-09-14_data-retention.md and DOC-b08fdd2b17 have withdrawn as unsupported by code. It remains status published and a member of soc2-evidence and school-dpa-package, so it is the only published retention schedule in those bundles and it is wrong. Do not release it to a customer until it is re-rendered from DOC-b08fdd2b17 and re-attested. Owner: Scot (Drive write plus attestation are CEO-only). Related: the public privacy page carries the same class of claim, filed as issue #1050 and tracked by open finding LL-933e61efd7."
     },
     {
       "title": "Subprocessor Register (branded)",
@@ -4104,7 +4100,7 @@
         "dsar"
       ],
       "mirrors": [],
-      "notes": "Created 2026-09-22. Each correction was verified by reading the runtime source at origin/develop e64653c59 before the file was written: subscription.rb selects updated_at < 12.months.ago, warns up to three times at least 3 weeks apart, then sets schedule_deletion_at = 36.hours.from_now, after which the daily flush_users step of scheduler:dispatch runs Flusher.flush_deleted_users -> Flusher.flush_user_completely, which calls flush_record and logs an AuditEvent of type user_permanently_destroyed (lib/flusher.rb); lib/data_policy_enforcer.rb applies only a configured retention_months and skips any account without one (next unless months && months > 0); app/models/audit_event.rb defines no purge method and no task in lib/tasks/scheduler.rake references the model. ATTESTER MUST CONFIRM: (1) that 12 months plus the warning cycle is the retention the business intends to promise customers, since it is SHORTER than the 2 years the superseded schedules stated and shorter than some customer expectations may assume; (2) that publishing \"no default LogSession window\" is acceptable, or whether a default should be implemented in code instead of documented away; (3) whether the unbounded AuditEvent table needs a retention rule before this schedule is published externally. This successor does NOT close, downgrade or supersede any finding. The branded Drive render DOC-52c8c33583 still carries pre-correction text and needs re-publication and re-attestation separately.",
+      "notes": "Created 2026-09-22. Each correction was verified by reading the runtime source at origin/develop e64653c59 before the file was written: subscription.rb selects updated_at < 12.months.ago, sends two deletion_warning emails at least 3 weeks apart and then, on the next eligible pass, takes the attempts > 2 branch which sets schedule_deletion_at = 36.hours.from_now and sends account_deleted, after which the daily flush_users step of scheduler:dispatch runs Flusher.flush_deleted_users -> Flusher.flush_user_completely, which calls flush_record and logs an AuditEvent of type user_permanently_destroyed (lib/flusher.rb); lib/data_policy_enforcer.rb iterates only organizations with data_policy_version > 0 and their sponsored_users, purges only RETAINABLE_LOG_TYPES (session, note, assessment, eval, journal), and reaches no standalone account at all; app/models/audit_event.rb defines no purge method and no task in lib/tasks/scheduler.rake references the model. ATTESTER MUST CONFIRM: (1) that 12 months plus the warning cycle is the retention the business intends to promise customers, since it is SHORTER than the 2 years the superseded schedules stated and shorter than some customer expectations may assume; (2) that publishing \"no default LogSession window\" is acceptable, or whether a default should be implemented in code instead of documented away; (3) whether the unbounded AuditEvent table needs a retention rule before this schedule is published externally. This successor does NOT close, downgrade or supersede any finding. The branded Drive render DOC-52c8c33583 still carries pre-correction text and needs re-publication and re-attestation separately. DUAL REVIEW 2026-09-22 (Codex gpt-5.6-terra plus Claude adversary, findings at outputs/docs/2026-09-22-pr1047-dual-review-findings.md in ai-company-brain): five High and six Medium, all applied on this branch before merge. The substantive ones: the LogSession correction was itself wrong about scope; section 3 claimed org-policy inheritance works, which LL-14edf1a801 contradicts; the warning count was off by one; the document asserted LL-3e36a18199 open after Scot closed it on 2026-09-18; the account row omitted the expired-trial and COPPA offboarding destruction paths; and the four bundle requiredDocs still named the 2026-08-09 draft, now retargeted here. The public privacy page carries the same withdrawn claims and is filed as issue #1050 under open finding LL-933e61efd7; it is NOT fixed by this PR.",
       "supersedes": "DOC-4dc241c83a",
       "retention": {
         "class": "policy-version",
@@ -4115,7 +4111,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-b08fdd2b17",
-      "contentHash": "14c8243a3109af28f47de5a29e4b4f2abbe0caf017de969d01dd44b399601c3e"
+      "contentHash": "30f53072fe90e35dfa885af54af8db666235bd6ee095b08827638138b136b843"
     },
     {
       "title": "Subprocessor Register (2026-09-14 successor)",

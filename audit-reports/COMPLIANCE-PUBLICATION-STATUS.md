@@ -262,7 +262,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Compliance Status Snapshot (2026-09-14 successor) | `docs/legal/2026-09-14_compliance-status-snapshot.md` | Compliance Status Snapshot (2026-09-17 successor) | (none) |
 | Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-17) | `docs/legal/2026-09-17_counsel-review-addendum-closure-retraction.md` | Counsel Review Memorandum Addendum: retracted closure of LL-c0b3d59f58 (2026-09-18 successor) | (none) |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
-| Data Retention Schedule (2026-08-09 draft) | `docs/legal/2026-08-09_data-retention_draft.md` | Data Retention Schedule (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, dsar |
+| Data Retention Schedule (2026-08-09 draft) | `docs/legal/2026-08-09_data-retention_draft.md` | Data Retention Schedule (2026-09-14 successor) | (none) |
 | Data Retention Schedule (2026-09-14 successor) | `docs/legal/2026-09-14_data-retention.md` | Data Retention Schedule (2026-09-22 successor) | (none) |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | `docs/legal/GCP_BAA_ACCEPTED.md` | GCP BAA Acceptance Record (2026-09-14 successor) | baa |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
