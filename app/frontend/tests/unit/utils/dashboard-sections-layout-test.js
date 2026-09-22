@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { sectionsForLayout, availableHomeSections, layoutPresentation, AREA } from 'frontend/utils/dashboard_sections';
+import { sectionsForLayout, availableHomeSections, layoutPresentation, gridLayoutState, AREA } from 'frontend/utils/dashboard_sections';
 
 /* THE DASHBOARD DESIGN CHECKLIST MUST OFFER ONLY WHAT THE SELECTED LAYOUT ACTUALLY RENDERS.
  *
@@ -131,18 +131,49 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     );
   });
 
-  test('Gentle View ordering is unchanged by the page-order switch', function(assert) {
+  /* THE GENTLE DEFAULT CHANGED ON 2026-09-21, by request: "the edit dashboard button needs to
+   * show to the right of the create a board button by default". Edit Dashboard used to trail
+   * the order (last but one for a supervisor, after Speak); it now follows Create a Board
+   * directly in all three Gentle orders so the two pack onto one row.
+   * These expectations are updated to the NEW specification, not relaxed to accommodate the
+   * change: they are still exact `deepEqual`s on the full reading order, and the supervisor
+   * case still pins every other key's relative position. */
+  test('Gentle View reads in its default order, with Edit Dashboard beside Create a Board', function(assert) {
     assert.expect(2);
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'gentle').map(function(s) { return s.key; }),
-      ['caseload', 'createboard', 'attention', 'rooms', 'speak', 'editdashboard', 'extras'],
-      'Gentle still reads in its default order'
+      ['caseload', 'createboard', 'editdashboard', 'attention', 'rooms', 'speak', 'extras'],
+      'Gentle reads in its default order, Edit Dashboard now paired with Create a Board'
     );
     assert.deepEqual(
       sectionsForLayout(SHAPES['a communicator'], 'gentle').map(function(s) { return s.key; }),
       ['speak', 'boards', 'createboard', 'editdashboard', 'extras'],
       'and for a communicator'
     );
+  });
+
+  /* THE PAIR IS A GUARANTEE, NOT A SIDE EFFECT OF THE ORDER ARRAY. Packing is positional --
+   * it fills rows two at a time from whatever is VISIBLE -- so before this was named as a
+   * pair, a communicator with Account visible packed `account createboard` and then
+   * `editdashboard reports`, and the two cards the request is about never shared a row.
+   * This pins the row itself rather than the order, which is the thing that was asked for. */
+  test('Create a Board and Edit Dashboard share a row whatever else is visible', function(assert) {
+    var cases = [
+      ['a supervisor with rooms and attention', SHAPES['a supervisor with rooms and attention']],
+      ['a communicator', SHAPES['a communicator']],
+      ['an org manager who also supervises', SHAPES['an org manager who also supervises']]
+    ];
+    assert.expect(cases.length);
+    cases.forEach(function(pair) {
+      // `gridLayoutState` takes a VISIBILITY map, not a user shape (vis, order, layout).
+      var vis = {};
+      availableHomeSections(pair[1]).forEach(function(s) { vis[s.key] = true; });
+      var state = gridLayoutState(vis, null, 'gentle');
+      var areas = (state && state.areas) || [];
+      var row = areas.filter(function(r) { return r.indexOf('createboard') !== -1; })[0] || '';
+      assert.strictEqual(row, 'createboard editdashboard',
+        pair[0] + ': Create a Board shares its row with Edit Dashboard');
+    });
   });
 
   test('an unknown layout name is treated as Gentle, not as "nothing is available"', function(assert) {

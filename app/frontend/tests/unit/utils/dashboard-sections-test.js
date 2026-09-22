@@ -21,17 +21,26 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     // No caseload/org → DEFAULT_ORDER filters to speak, boards, account,
     // createboard, reports, editdashboard, extras. Speak + Extras are full-width
     // showcase rows for communicators (md-grid--fullspan-*).
+    /* CHANGED 2026-09-21 by request: "the edit dashboard button needs to show to the right of
+       the create a board button by default" (Gentle). Create a Board and Edit Dashboard are
+       now packed as a NAMED PAIR, so they own a row wherever they fall.
+       THE COST IS VISIBLE HERE AND IS NOT AN OVERSIGHT: Account precedes the pair in the
+       order, so it can no longer share a row with Create a Board and is flushed to a
+       full-width row of its own; Reports, left alone after the pair, does the same. Pinning
+       it means a later change to the packing cannot quietly re-pair them without this test
+       saying so. */
     var vis = visFor(['account', 'extras', 'boards', 'createboard', 'speak', 'reports', 'editdashboard']);
     var state = gridLayoutState(vis, null, 'gentle');
     assert.deepEqual(state.areas, [
       'speak speak',
       'boards boards',
-      'account createboard',
-      'reports editdashboard',
+      'account account',
+      'createboard editdashboard',
+      'reports reports',
       'extras extras',
       '. sup'
     ], 'default communicator areas');
-    assert.equal(state.rows, 'auto auto auto auto auto 0', 'rows');
+    assert.equal(state.rows, 'auto auto auto auto auto auto 0', 'rows');
     assert.ok(state.classes.indexOf('md-grid--fullspan-speak') !== -1, 'speak full-width styling');
     assert.ok(state.classes.indexOf('md-grid--fullspan-extras') !== -1, 'extras full-width styling');
   });

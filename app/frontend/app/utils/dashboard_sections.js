@@ -380,7 +380,11 @@ function defaultOrderFor(user, layout) {
   var base = gentleDefaultOrder(user);
   // The drag preview + live grid both resolve their default here so they agree.
   if (layout === 'focused') { return heroFirst(base, focusedHeroKey(user)); }
-  return base;
+  /* GENTLE ONLY. `gentleDefaultOrder` is the shared base BOTH layouts start from -- Focused
+     takes it above and only promotes its hero -- so the Edit-Dashboard-beside-Create-a-Board
+     move has to happen on this side of that branch, not inside it. Putting it in the shared
+     function reordered Focused's utility row too, which the request did not ask for. */
+  return editBesideCreate(base);
 }
 
 // The visible section keys in display order: start from the saved order (or the
@@ -396,6 +400,24 @@ function orderedVisible(vis, order, defaultOrder) {
 // Pack an ordered list of visible keys into area-row strings (WITHOUT the trailing
 // '. sup' spacer). Small cards pair two-per-row; Boards is its own full-width row;
 // a small card left without a partner spans the full width.
+/* GENTLE PUTS EDIT DASHBOARD IMMEDIATELY AFTER CREATE A BOARD (requested 2026-09-21: "the
+   edit dashboard button needs to show to the right of the create a board button by default").
+   DERIVED FROM THE SHARED ORDER, NOT A FOURTH LIST. The three *_DEFAULT_ORDER constants are
+   read by BOTH layouts -- `focusedLayout` builds on them too (`var base = supervisor ?
+   SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER`) -- so editing them in place moved Focused's
+   utility row as well, which this request did not ask for and which its own tests caught.
+   Deriving here keeps one source list and confines the change to Gentle.
+   Both callers matter: the live grid (`dashboardLayout`) and the editor/preview
+   (`gentleDefaultOrder`). This file already records what happens when only one of them gets a
+   new order -- the preview reorders and the real page does not. */
+function editBesideCreate(base) {
+  var i = base.indexOf('createboard');
+  if (i === -1 || base.indexOf('editdashboard') === -1) { return base; }
+  var out = base.filter(function(k) { return k !== 'editdashboard'; });
+  out.splice(out.indexOf('createboard') + 1, 0, 'editdashboard');
+  return out;
+}
+
 function packOrder(keys, extraFull) {
   var a = function(k) { return AREA[k]; };
   var rows = [], pending = null;
@@ -408,8 +430,24 @@ function packOrder(keys, extraFull) {
     if (key === 'boards' || key === 'caseload' || key === 'rooms' || key === 'attention' || key === 'org') { return true; }
     return !!(extraFull && extraFull.indexOf(key) !== -1);
   };
-  keys.forEach(function(key) {
-    if (fullWidth(key)) {
+  /* EDIT DASHBOARD SITS TO THE RIGHT OF CREATE A BOARD (requested 2026-09-21, Gentle View).
+     Stated as a PAIR rather than left to the packing, because packing is positional: it fills
+     rows two-at-a-time from whatever is VISIBLE, so the same order array produces different
+     pairings for different users. With Account visible the run is account+createboard, then
+     editdashboard+reports -- the two never meet. Hiding one card would move them again.
+     Naming the pair makes the guarantee hold for every visibility combination, and the
+     orders above put the two adjacent so the row is emitted where Create a Board sits.
+     Only applies when BOTH are visible; either one alone packs normally. */
+  var pairedWith = function(key, next) {
+    return key === 'createboard' && next === 'editdashboard';
+  };
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (pairedWith(key, keys[i + 1])) {
+      if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
+      rows.push(a(key) + ' ' + a(keys[i + 1]));
+      i++;
+    } else if (fullWidth(key)) {
       if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
       rows.push(a(key) + ' ' + a(key));
     } else if (pending) {
@@ -417,7 +455,7 @@ function packOrder(keys, extraFull) {
     } else {
       pending = key;
     }
-  });
+  }
   if (pending) { rows.push(a(pending) + ' ' + a(pending)); }
   return rows;
 }
@@ -449,7 +487,7 @@ function dashboardLayout(vis, order) {
      order has to be added in BOTH places or the dashboard and its editor disagree. That is
      exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
      alone: the preview reordered and the real page did not. */
-  var def = vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER);
+  var def = editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER));
   var extraFull = supervisor ? ['speak'] : ['speak', 'extras'];
   return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
