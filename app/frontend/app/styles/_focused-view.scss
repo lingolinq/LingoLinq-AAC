@@ -104,7 +104,11 @@
 // mid-tone (~#5C687C-#727C8D) that is the worst case for legibility: too dark for dark ink
 // (2.8:1) and too light for light ink (3.9:1). Cards dial it down so the header can be
 // genuinely dark and take light ink.
-@mixin focus-glass-slate-card($lightness: 20%, $centre-shift: 0%, $edge-shift: 0%, $raised: true, $shape: circle at 50% 46%, $gloss: 0.30) {
+/* `$lighten` is a FINAL scale applied to all three ramp stops after the base lightness and the
+   centre/edge shifts, so a caller can say "this card, N% lighter" without retuning the shifts
+   that give it its shape. Defaults to 0%, which `color.scale` treats as no change, so every
+   existing caller renders byte-identically. */
+@mixin focus-glass-slate-card($lightness: 20%, $centre-shift: 0%, $edge-shift: 0%, $raised: true, $shape: circle at 50% 46%, $gloss: 0.30, $lighten: 0%) {
   background:
     /* Specular highlight — the gloss. Off-centre to the top-left so the card reads as lit from
        one side rather than uniformly washed. */
@@ -113,9 +117,9 @@
       rgba(255, 255, 255, $gloss * 0.3) 38%,
       transparent 62%),
     radial-gradient(#{$shape},
-      color.scale(color.scale(#262d3a, $lightness: $lightness), $lightness: $centre-shift) 0%,
-      color.scale(color.scale(#333c4a, $lightness: $lightness), $lightness: 0.5 * $centre-shift) 48%,
-      color.scale(color.scale(#515d70, $lightness: $lightness), $lightness: $edge-shift) 100%) !important;
+      color.scale(color.scale(color.scale(#262d3a, $lightness: $lightness), $lightness: $centre-shift), $lightness: $lighten) 0%,
+      color.scale(color.scale(color.scale(#333c4a, $lightness: $lightness), $lightness: 0.5 * $centre-shift), $lightness: $lighten) 48%,
+      color.scale(color.scale(color.scale(#515d70, $lightness: $lightness), $lightness: $edge-shift), $lightness: $lighten) 100%) !important;
   /* Callers sit on a base rule that sets `border: none` and `box-shadow: none` `!important`
      ("the image IS the icon"), so anything wanted here has to be restated or the tile has no
      edge at all. */
@@ -2322,7 +2326,13 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention {
   // INVERTED 2026-09-21 (requested: "darker on the outside and lighter towards the center").
   // Signs flipped rather than values retuned: +55 lifts the middle, -20 sinks the rim, so the
   // card reads as a dished vignette instead of the raised dome it was a moment ago.
-  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08,
+  // 25% LIGHTER (requested 2026-09-21: "the communicators need attention div bg gradients need
+  // to be 25% lighter"). Passed as `$lighten` rather than by raising `$centre-shift` /
+  // `$edge-shift`: those two set the card's SHAPE -- the dished vignette and where its ramp
+  // turns -- and moving them to change brightness would have flattened the dish. `$lighten`
+  // scales all three stops equally after the shape is decided, which is the repo's idiom for
+  // "N% lighter" (`color.scale` moves each stop N% of its remaining distance to white).
+  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08, $lighten: 25%,
     // Centre pushed DOWN and the vertical radius tightened (requested: "don't start the
     // lighter gradient until you get past the top section"). `at 50% 70%` with a 40% vertical
     // radius means the ramp's outer stop is reached at 30% of the card height — the header
