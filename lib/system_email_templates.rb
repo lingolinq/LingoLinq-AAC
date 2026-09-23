@@ -174,19 +174,33 @@ module SystemEmailTemplates
     end
   end
 
-  # The mailers interpolate only the placeholders a block lists
-  # (SystemEmailRegistry i18n_blocks), so any other %{...} or %<...> raises
-  # I18n::MissingInterpolationArgument at send time.
+  # Raised when an admin's consent-email override would not send as written.
+  class InvalidOverride < ArgumentError; end
+
+  # Only blocks listed in SystemEmailRegistry i18n_blocks are editable, and only the plain
+  # %{name} form of a placeholder that block lists is allowed. SystemEmailI18n.resolve
+  # interpolates only when the mailer passes values: for those blocks any other %{...} or
+  # %<...> raises I18n::MissingInterpolationArgument or a sprintf ArgumentError at send time
+  # (the consent email is not sent); for the rest a token or %% is sent to parents literally.
   def self.validate_i18n_placeholders!(key, text, entry)
     block = (entry[:i18n_blocks] || []).find { |b| (b[:key] || b['key']).to_s == key.to_s }
-    allowed = Array(block && (block[:placeholders] || block['placeholders'])).map(&:to_s)
-    pattern = Regexp.union(I18n.config.interpolation_patterns)
-    used = text.scan(pattern).map { |m| m[0] || m[1] }.compact.map { |name| name.split('|').first }.uniq
-    unknown = used - allowed
-    return if unknown.empty?
+    raise InvalidOverride, "#{key} is not an editable part of this email" unless block
 
+    label = block[:label] || block['label'] || key
+    allowed = Array(block[:placeholders] || block['placeholders']).map(&:to_s)
     allowed_list = allowed.any? ? allowed.map { |name| "%{#{name}}" }.join(', ') : 'none'
-    raise ArgumentError, "Unknown placeholder #{unknown.map { |name| "%{#{name}}" }.join(', ')} in #{key}. Allowed: #{allowed_list}"
+    pattern = Regexp.union(I18n.config.interpolation_patterns)
+    text.scan(pattern) do
+      token = Regexp.last_match[0]
+      name = Regexp.last_match[1]
+      if token == '%%'
+        next if allowed.any?
+        raise InvalidOverride, "#{label}: write a single % here (this field takes no placeholders)"
+      end
+      next if name && allowed.include?(name)
+
+      raise InvalidOverride, "#{label}: #{token} is not a placeholder this field supports. Allowed: #{allowed_list}"
+    end
   end
 
   def self.render_string(template_string, mailer_binding, validate: true)

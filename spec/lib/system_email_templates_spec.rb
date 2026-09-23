@@ -60,8 +60,48 @@ describe SystemEmailTemplates do
         SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
           i18n_overrides: {'parental_consent_mailer.intro' => 'Welcome to %{app_nam}'}
         })
-      }.to raise_error(ArgumentError, /%\{app_nam\}/)
+      }.to raise_error(SystemEmailTemplates::InvalidOverride, /\AIntroduction: %\{app_nam\}/)
       expect(SystemEmailTemplates.lookup('user_mailer/parental_consent_request')).to be_nil
+    end
+
+    {
+      'a pipe-suffixed name' => 'Welcome to %{app_name|lowercase}',
+      'a %<name>d format' => 'Welcome to %<app_name>d',
+      'a %<name>s format' => 'Welcome to %<app_name>s'
+    }.each do |label, text|
+      it "rejects #{label}, which the mailer cannot interpolate as written" do
+        expect {
+          SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+            i18n_overrides: {'parental_consent_mailer.intro' => text}
+          })
+        }.to raise_error(SystemEmailTemplates::InvalidOverride, /is not a placeholder this field supports/)
+      end
+    end
+
+    it 'rejects %% in a block the mailer does not interpolate, where it would be sent literally' do
+      expect {
+        SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+          i18n_overrides: {'parental_consent_mailer.greeting' => 'Hi, 100%% here'}
+        })
+      }.to raise_error(SystemEmailTemplates::InvalidOverride, /single %/)
+    end
+
+    it 'rejects a key that is not an editable block of the email' do
+      expect {
+        SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+          i18n_overrides: {'parental_consent_mailer.offboarding_intro' => 'Plain text'}
+        })
+      }.to raise_error(SystemEmailTemplates::InvalidOverride, /not an editable part/)
+    end
+
+    it 'accepts only text that the consent mailer can send' do
+      text = 'Welcome to %{app_name}. Under %{consent_age}, 100%% safe.'
+      SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+        i18n_overrides: {'parental_consent_mailer.intro' => text}
+      })
+      sent = SystemEmailI18n.resolve('user_mailer/parental_consent_request', 'parental_consent_mailer.intro',
+                                     'app_name' => 'LingoLinq', 'consent_age' => 13)
+      expect(sent).to eq('Welcome to LingoLinq. Under 13, 100% safe.')
     end
 
     it 'rejects a placeholder in a block that takes none' do

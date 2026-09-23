@@ -132,6 +132,17 @@ describe Api::SystemEmailTemplatesController, type: :controller do
       expect(json['html_body']).not_to include('%{app_name}')
     end
 
+    it 'returns a 400 for a placeholder in a block the mailer does not interpolate' do
+      make_site_admin
+      post :preview, params: {
+        id: 'user_mailer.parental_consent_request',
+        org_id: 'default',
+        template: {i18n_overrides: {'parental_consent_mailer.greeting' => 'Hello %{app_name}'}}
+      }
+      expect(response).to have_http_status(400)
+      expect(JSON.parse(response.body)['error']).to start_with('Greeting: %{app_name}')
+    end
+
     it 'returns a 400, not a 500, for an unknown i18n placeholder' do
       make_site_admin
       post :preview, params: {

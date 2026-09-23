@@ -114,7 +114,7 @@ class Api::SystemEmailTemplatesController < ApplicationController
       text_body: text,
       note: 'Preview uses synthetic sample data for variables like @consent_url.'
     }.to_json
-  rescue ArgumentError => e
+  rescue SystemEmailTemplates::InvalidOverride, I18n::ArgumentError => e
     api_error 400, {error: e.message}
   end
 
