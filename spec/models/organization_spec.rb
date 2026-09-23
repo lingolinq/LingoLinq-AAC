@@ -3858,6 +3858,53 @@ describe Organization, :type => :model do
       expect(org.licenses.where(user_id: u.id, status: 'active').count).to eq(1)
     end
 
+    it "does not consume a second seat when a sibling request already seated the student" do
+      # The "already ours" lookup must happen INSIDE the user lock. Read before it, two
+      # concurrent claims of the same student by one district both see no existing seat, then
+      # each takes a DIFFERENT empty license and each compare-and-set succeeds, so the district
+      # holds two seats for one student and is billed twice. The compare-and-set cannot catch
+      # this: it defends a single row and cannot see a sibling request seating the same student.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      first = License.create!(organization: org, seat_type: 'student', status: 'active')
+      second = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      # A sibling request seats the student on the OTHER license just before our lock is taken.
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, &blk|
+        License.where(id: second.id).update_all(user_id: u.id, granted_at: Time.now)
+        orig.call(&blk)
+      end
+
+      claimed = org.claim_user(u)
+
+      # We must adopt the sibling's seat, not add our own on top of it.
+      expect(claimed.id).to eq(second.id)
+      expect(org.licenses.where(user_id: u.id, status: 'active').count).to eq(1)
+      expect(first.reload.user_id).to be_nil
+    end
+
+    it "does not bank another organization's seat time as the family's credit" do
+      # clear_existing_subscription(:track_seconds_left => true) banks whatever expires_at holds
+      # and checks nothing about expiration_source, so a second organization's claim would
+      # otherwise credit the family with the first organization's unused seat time, which
+      # License#release_user! later restores to them as a free subscription.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+
+      morning.claim_user(u)
+      # The first claim legitimately banks the student's OWN remaining trial.
+      banked_after_first = u.reload.settings['subscription']['seconds_left']
+      expect(u.reload.expires_at).to_not be_nil
+
+      afternoon.claim_user(u.reload)
+
+      # The second claim must add nothing: the family did not buy the morning district's 200 days.
+      expect(u.reload.settings['subscription']['seconds_left']).to eq(banked_after_first)
+    end
+
     it "raises when the district has no seat to give" do
       u = User.create
       org = Organization.create(:settings => {'total_licenses' => 0})
@@ -3877,16 +3924,28 @@ describe Organization, :type => :model do
       org = Organization.create(:settings => {'total_licenses' => 1})
       license = License.create!(organization: org, seat_type: 'student', status: 'active')
 
-      # Stand in for the losing side of the race. The free seat has already been SELECTed by
-      # the time the lock is taken, so stealing the row here lands in exactly the window the
-      # conditional UPDATE exists to cover: chosen, then taken, then claimed.
-      allow(second_user).to receive(:with_lock).and_wrap_original do |orig, &blk|
-        License.where(id: license.id).update_all(user_id: first_user.id, granted_at: Time.now)
-        orig.call(&blk)
+      # Take the row in the window the compare-and-set exists to cover: after the SELECT that
+      # chose it, before the UPDATE that claims it. The seat lookups go through the
+      # `org.licenses` association, so hooking `License.where` fires only on the compare-and-set
+      # itself. Raw SQL inside the hook so it cannot re-enter itself.
+      stolen = false
+      allow(License).to receive(:where).and_wrap_original do |orig, *args|
+        if !stolen && args.first.is_a?(Hash) && args.first.key?(:id) &&
+           args.first.key?(:user_id) && args.first[:user_id].nil?
+          stolen = true
+          ActiveRecord::Base.connection.update(
+            "UPDATE licenses SET user_id = #{first_user.id}, granted_at = now() WHERE id = #{license.id}"
+          )
+        end
+        orig.call(*args)
       end
 
       expect { org.claim_user(second_user) }.to raise_error(/claimed by another request/)
-      expect(license.reload.user_id).to eq(first_user.id)
+
+      # The losing claim must take nothing. The winner's row is not asserted here: the steal
+      # runs inside this claim's own transaction, so the raise rolls it back with everything
+      # else. What matters, and what is observable, is that the loser did not get the seat.
+      expect(org.licenses.where(user_id: second_user.id, status: 'active').count).to eq(0)
     end
 
     it "attaches only after the seat transaction commits" do

@@ -108,4 +108,77 @@ describe License, :type => :model do
       expect(License.find(l.id).metadata).to eq({'po' => 'PO-9'})
     end
   end
+
+  describe "release_user!" do
+    # A communicator may be supported by more than one organization at the same time, so a
+    # second active license is a normal steady state. License.expire_stale_licenses! releases
+    # each expired license independently, so one organization's seat expiring must not disturb
+    # another organization that still holds and pays for one.
+
+    it "hands the account back to the family when no other organization holds a seat" do
+      u = User.create
+      only_org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: only_org, seat_type: 'student', status: 'active')
+      only_org.claim_user(u)
+
+      license.reload.release_user!
+
+      u.reload
+      expect(license.reload.user_id).to be_nil
+      expect(u.managing_organization_id).to be_nil
+      # The two-month "own care" trial.
+      expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
+    end
+
+    it "does not disturb another organization that still holds a seat" do
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      morning_license = License.create!(organization: morning, seat_type: 'student',
+                                        status: 'active', expires_at: 30.days.from_now)
+      afternoon_license = License.create!(organization: afternoon, seat_type: 'student',
+                                          status: 'active', expires_at: 300.days.from_now)
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+
+      # Morning's seat expires and is released while afternoon still holds and pays for one.
+      morning_license.reload.release_user!
+
+      u.reload
+      # Afternoon keeps its seat and stays the sponsor. Unconditional release used to nil the
+      # column and overwrite expires_at with a flat two-month trial here, so the student read as
+      # in_trial? while a district was still paying.
+      expect(afternoon_license.reload.user_id).to eq(u.id)
+      expect(u.managing_organization_id).to eq(afternoon.id)
+      expect(u.in_trial?).to eq(false)
+      expect(u.expires_at.to_i).to be_within(5).of(afternoon_license.reload.expires_at.to_i)
+      # Morning's seat genuinely returns to its pool.
+      expect(morning_license.reload.user_id).to be_nil
+    end
+
+    it "repoints the sponsor column when the released seat was the one it named" do
+      # The column names whichever organization claimed last. If THAT seat is released, leaving
+      # the column alone would point it at an organization holding no seat, which is the state
+      # Organization#claim_user checks for before writing it.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      morning_license = License.create!(organization: morning, seat_type: 'student',
+                                        status: 'active', expires_at: 30.days.from_now)
+      afternoon_license = License.create!(organization: afternoon, seat_type: 'student',
+                                          status: 'active', expires_at: 300.days.from_now)
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+      expect(u.reload.managing_organization_id).to eq(afternoon.id)
+
+      # Release the seat the column currently names.
+      afternoon_license.reload.release_user!
+
+      u.reload
+      # The column must name an organization that actually holds an active seat.
+      expect(u.managing_organization_id).to eq(morning.id)
+      expect(morning_license.reload.user_id).to eq(u.id)
+      expect(u.expires_at.to_i).to be_within(5).of(morning_license.reload.expires_at.to_i)
+    end
+  end
 end

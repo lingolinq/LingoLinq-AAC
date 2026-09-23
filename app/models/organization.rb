@@ -39,13 +39,8 @@ class Organization < ApplicationRecord
   end
 
   def claim_user(user, seat_type='student')
-    # Already ours: hand back the existing seat instead of consuming a second one. Without
-    # this, a repeat claim allocated ANOTHER empty seat while the first stayed assigned, so
-    # the district paid twice for one student, or it raised "No seats available" while already
-    # holding that student.
-    existing = self.licenses.where(user_id: user.id, seat_type: seat_type, status: 'active').first
-    license = existing || self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
-    raise "No seats available in this district" unless license
+    license = nil
+    existing = nil
 
 
     # Another organization already supporting this student is NOT a conflict, and this method
@@ -61,21 +56,34 @@ class Organization < ApplicationRecord
     # a seat, so an organization the student adds without spending a license does not become
     # the sponsor. Decided by Scot, 2026-09-23.
 
-    # 2. Assign the seat, CONDITIONALLY, under a lock on the user row.
+    # 2. Choose and assign the seat, both INSIDE a lock on the user row.
     #
-    # The lock is what makes the repeat-claim check above race-safe: two concurrent claims of
-    # the same student by this district would otherwise both read existing as nil and both
-    # succeed, consuming two seats for one student.
+    # The "already ours" lookup has to be inside the lock, not before it. Read outside, two
+    # concurrent claims of the same student by this district both see no existing seat, then
+    # each takes a DIFFERENT empty license and each compare-and-set succeeds, so the district
+    # consumes two seats for one student and is billed twice. The compare-and-set only defends
+    # a single row; it cannot see that this student was seated by a sibling request. An earlier
+    # revision of this method read it outside the lock while claiming in a comment that the
+    # lock made it race-safe, which it did not.
     #
-    # The update is conditional because the lock serializes claims of the same STUDENT, not
-    # claims against the same empty SEAT: two students seated by one district lock different
-    # rows and race for the same license. An unconditional write let the second claim
+    # Hand back an existing seat rather than allocating a second one: a repeat claim used to
+    # allocate ANOTHER empty seat while the first stayed assigned, so the district paid twice
+    # for one student, or it raised "No seats available" while already holding them.
+    #
+    # The assignment is still a compare-and-set, because the lock serializes claims of the same
+    # STUDENT, not claims against the same empty SEAT: two students seated by one district lock
+    # different rows and race for the same license. An unconditional write let the second claim
     # overwrite the first, leaving one student with no seat while the roster and the seat count
     # both still looked correct. db/schema.rb:410 indexes licenses.user_id but NOT uniquely, so
     # the database does not catch it either. The predicates mirror the SELECT that chose the
     # row, so a concurrent status, seat_type or organization change cannot be overwritten.
     user.with_lock do
+      existing = self.licenses.where(user_id: user.id, seat_type: seat_type, status: 'active').first
+      license = existing
       unless existing
+        license = self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
+        raise "No seats available in this district" unless license
+
         taken = License.where(id: license.id, organization_id: self.id, seat_type: seat_type,
                               status: 'active', user_id: nil)
                        .update_all(user_id: user.id, granted_at: Time.now, updated_at: Time.now)
@@ -97,6 +105,23 @@ class Organization < ApplicationRecord
     attached_now = false
     unless attached_as_communicator?(user)
       attached_now = true
+
+      # Do not let ANOTHER organization's seat time be banked as the family's own credit.
+      # update_subscription_organization calls
+      # clear_existing_subscription(:track_seconds_left => true), which banks whatever
+      # expires_at holds and performs NO check on expiration_source: it writes
+      # seconds_left = max(seconds_left, expires_at - now). A prior organization's claim set
+      # expires_at to ITS license expiry, so without this a second organization's claim credits
+      # the family with the first organization's unused seat time, and License#release_user!
+      # later restores it to them as a free subscription. Supporting more than one organization
+      # at a time makes that a routine path rather than an edge case, so it is cleared here.
+      # The predicate is the managing-organization COLUMN, not org_sponsored?. Step 6 below
+      # writes that column and expires_at in the SAME statement, so the column being set is
+      # exactly what "this expiry came from a license" means. org_sponsored? reads any sponsored
+      # link and is also true in cases where expires_at was never license-derived, where this
+      # would discard genuine family credit instead of protecting it.
+      user.update_columns(expires_at: nil) if user.expires_at && user.managing_organization_id
+
       user.update_subscription_organization(self, false, true)
     end
 

@@ -91,12 +91,39 @@ class License < ApplicationRecord
       self.update!(user_id: nil, granted_at: nil)
 
       if old_user
-        # 2. Trigger the User's "Free Trial"
-        # This puts them back in "their own care" or ready for a new sponsor
-        old_user.update!(
-          managing_organization_id: nil,
-          expires_at: 2.months.from_now
-        )
+        # 2. Hand the account back to the family ONLY if no other organization still holds an
+        # active seat for them.
+        #
+        # A communicator may be supported by more than one organization at the same time, so a
+        # second active license is a normal steady state, not an anomaly. This write used to be
+        # unconditional, and because License.expire_stale_licenses! releases each expired
+        # license independently, one organization's seat expiring would wipe ANOTHER
+        # organization's sponsorship and overwrite expires_at with a flat two-month trial while
+        # that organization still held and paid for its seat. The student showed as in_trial?,
+        # and the column consumers (telemetry_event.rb, the word predictor) lost their
+        # attribution, even though a district was still responsible throughout.
+        #
+        # When another seat remains, the column is REPOINTED at it rather than left alone.
+        # Leaving it would point managing_organization_id at the organization whose seat was
+        # just released, which is the exact state Organization#claim_user checks for before it
+        # writes that column.
+        remaining = License.where(user_id: old_user.id, status: 'active')
+                           .where.not(id: self.id)
+                           .order(:expires_at)
+                           .last
+        if remaining
+          old_user.update!(
+            managing_organization_id: remaining.organization_id,
+            expires_at: remaining.expires_at
+          )
+        else
+          # Trigger the User's "Free Trial": puts them back in "their own care", or ready for a
+          # new sponsor.
+          old_user.update!(
+            managing_organization_id: nil,
+            expires_at: 2.months.from_now
+          )
+        end
         
         # 3. Cleanup existing UserLink (Management Rights)
         UserLink.remove(old_user, old_org, 'org_user')
