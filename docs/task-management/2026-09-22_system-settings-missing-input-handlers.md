@@ -59,3 +59,25 @@ Weakest passing state: a handler defined but wired to the wrong action or the wr
 
 - Answered by review: the consent fields worked until `8c9363c70` (2026-07-22), which replaced `<Textarea @value={{block.value}}>` with the handler call.
 - Found by review: re-enabling consent-copy editing also re-enables a server-side risk. `normalize_i18n_overrides` does not validate `%{...}` placeholders, so an admin typo could make the consent email raise at send time; overrides also apply to every locale. Needs a decision before the email-edit fix ships.
+
+## Outcome (applied after proposal review)
+
+The review changed the approach; Candidate A was not applied as written.
+
+- **email-edit:** one `init()` defining `ctrlAction` and `ctrlActionNoBubble`. The three consent fields use `{{on "input" (set-field block "value")}}`, writing in place as the pre-`8c9363c70` `<Textarea @value>` did. `updateI18nBlock` and email-edit's `ctrlActionEventValueBound` became unreachable and were removed (the eslint gate flagged the action as `lingolinq/no-orphaned-action`).
+- **app-defaults:** Candidate D. The dead `ctrlActionEventValueBound` modifier was removed from five inputs; `set-field` already wrote the value, so production behaviour is unchanged. `updateField` became unreachable and was removed.
+- **Server (Scot chose "fix editing + safety check"):** `SystemEmailTemplates.validate_i18n_placeholders!` rejects any `%{...}` or `%<...>` token that the block does not list in `SystemEmailRegistry`. The lists match every consent mailer view's interpolation keys (checked call by call). `update` returns 400; `preview` now rescues `ArgumentError` as 400 instead of a 500.
+
+## Verification
+
+- Ember (`--filter "system-settings"`): 3 of 3 pass. With the four app files reverted to `origin/develop`, both rendering tests fail. The controller test passes either way (it guards the Save and Preview factories, not this bug).
+- Review claim NOT confirmed: "replacing the block object drops focus after each keystroke". The mutation test failed on the value assertion instead, because in the rendering test the handler writes to the controller, not the rendered context. The in-place approach was chosen on its own merits: it restores the pre-July behaviour.
+- RSpec: all 5 system-email spec files, 27 examples, 0 failures. The 4 new specs fail with `lib/` and the controller reverted to `origin/develop`.
+- Broad run (every spec touching overrides or consent mailers, 1413 examples): 14 to 18 failures per run, varying run to run, in AuditEvent, premium-voice and log-summary specs. The 4 that appeared only with the fix pass in isolation both with and without it, so they are order-dependent flakes (orphaned test-DB rows), not regressions.
+- `npm run lint:js:ci`: `findings=1596 baseline=1597 new=0` (the `no-dupe-keys` row is now stale). Template lint (`--no-clean-todo`) clean on both templates.
+
+## Not covered
+
+- Overrides apply to every locale, so an edited block goes out in the editor's language to all parents. Pre-existing; not changed here.
+- The unreachable setup-wizard components and `stats/geo-disabled.hbs` also call an undefined `this.ctrlAction` (review finding; not reachable today).
+- The `no-dupe-keys` error was grandfathered into `.eslint-todo` in `eec90591a` (#927); a gate that refuses to baseline always-a-bug rules is a follow-up.
