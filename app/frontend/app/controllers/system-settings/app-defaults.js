@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
+import apiErrorMessage from '../../utils/api_error_message';
 
 export default Controller.extend({
   persistence: service('persistence'),
@@ -52,12 +53,6 @@ export default Controller.extend({
 
 
   actions: {
-    updateField: function(key, value) {
-      var settings = Object.assign({}, this.get('settings') || {});
-      settings[key] = value;
-      this.set('settings', settings);
-    },
-
     saveDefaults: function() {
       var _this = this;
       this.set('saving', true);
@@ -72,7 +67,7 @@ export default Controller.extend({
         _this.loadDefaults();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     }
   }
