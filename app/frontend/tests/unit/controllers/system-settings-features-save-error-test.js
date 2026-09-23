@@ -10,7 +10,7 @@ import modal from 'frontend/utils/modal';
 module('Unit | Controller | system-settings/features save errors', function(hooks) {
   setupTest(hooks);
 
-  // getOrgId() is 'default' here, so the only reachable write refusal is the site-admin
+  // getOrgId() is 'default' here, where a non-site-admin is refused by the site-admin
   // guard (app/controllers/concerns/api/system_settings_access.rb:25). Fail at the
   // transport, so the app's own $.ajax wrapper (utils/extras.js) builds the rejection.
   // The wrapper parses responseText, so the fake jqXHR must carry it.
