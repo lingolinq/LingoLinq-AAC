@@ -52,12 +52,6 @@ export default Controller.extend({
 
 
   actions: {
-    updateField: function(key, value) {
-      var settings = Object.assign({}, this.get('settings') || {});
-      settings[key] = value;
-      this.set('settings', settings);
-    },
-
     saveDefaults: function() {
       var _this = this;
       this.set('saving', true);

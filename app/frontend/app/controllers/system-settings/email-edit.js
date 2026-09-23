@@ -23,12 +23,6 @@ export default Controller.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
-    this.ctrlActionEventValueBound = function(actionName, boundArg, targetProp) {
-      return function(event) {
-        var value = event && event.target ? event.target[targetProp] : undefined;
-        self.send(actionName, boundArg, value);
-      };
-    };
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -148,16 +142,6 @@ export default Controller.extend({
   actions: {
     setFormat: function(format) {
       this.set('activeFormat', format);
-    },
-
-    updateI18nBlock: function(block, value) {
-      var blocks = (this.get('i18nBlocks') || []).map(function(item) {
-        if (item.key === block.key) {
-          return Object.assign({}, item, { value: value });
-        }
-        return item;
-      });
-      this.set('i18nBlocks', blocks);
     },
 
     saveTemplate: function() {

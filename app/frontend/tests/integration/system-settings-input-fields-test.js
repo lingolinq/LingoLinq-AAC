@@ -10,11 +10,10 @@ import appDefaultsTemplate from 'frontend/templates/system-settings/app-defaults
 module('Unit | Controller | system-settings/email-edit handlers', function(hooks) {
   setupTest(hooks);
 
-  test('init defines every handler factory the page uses', function(assert) {
+  test('a single init defines the handler factories the page uses', function(assert) {
     var controller = this.owner.lookup('controller:system-settings/email-edit');
     assert.strictEqual(typeof controller.ctrlAction, 'function', 'ctrlAction is defined');
     assert.strictEqual(typeof controller.ctrlActionNoBubble, 'function', 'ctrlActionNoBubble is defined');
-    assert.strictEqual(typeof controller.ctrlActionEventValueBound, 'function', 'ctrlActionEventValueBound is defined');
   });
 });
 
@@ -26,7 +25,7 @@ module('Integration | Template | system-settings input fields', function(hooks) 
   });
 
   function copyHandlers(context, controller) {
-    ['ctrlAction', 'ctrlActionNoBubble', 'ctrlActionEventValueBound'].forEach(function(name) {
+    ['ctrlAction', 'ctrlActionNoBubble'].forEach(function(name) {
       context.set(name, controller[name]);
     });
   }
