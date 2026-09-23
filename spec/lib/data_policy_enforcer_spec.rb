@@ -8,7 +8,11 @@ describe DataPolicyEnforcer do
     s
   end
 
-  def sponsored_org(retention_months)
+  # Backdate when this organization's sponsorship began. An organization may only purge
+  # sessions recorded since it attached, so a fixture that attaches "now" can never purge
+  # anything older than the cutoff, and every age-based example below would assert zero for the
+  # wrong reason. Real long-tenured students are the case these examples stand for.
+  def sponsored_org(retention_months, sponsored_since: 5.years.ago)
     o = Organization.create(settings: {total_licenses: 1})
     manager = User.create
     o.add_manager(manager.user_name, true)
@@ -17,7 +21,17 @@ describe DataPolicyEnforcer do
     o.reload
     o.update_data_policy({'retention_months' => retention_months}, manager)
     o.save!
+    backdate_sponsorship(o, u, sponsored_since)
     [o, u.reload]
+  end
+
+  def backdate_sponsorship(org, user, when_at)
+    link = UserLink.generate(user.reload, org, 'org_user')
+    link.data['state']['added'] = when_at.iso8601
+    link.save!
+    UserLink.invalidate_cache_for(org)
+    UserLink.invalidate_cache_for(user)
+    link
   end
 
   describe "enforce_retention!" do
@@ -35,6 +49,41 @@ describe DataPolicyEnforcer do
       log(u, 'session', 10.years.ago)
       expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
       expect(LogSession.where(user_id: u.id).count).to eq(1)
+    end
+
+    it "never purges sessions recorded BEFORE this organization sponsored the student" do
+      # A student may be supported by more than one organization, and org.sponsored_users lists
+      # them regardless of who else does. Unbounded, the organization with the shortest window
+      # purged every qualifying session the student had ever recorded, including history from
+      # before it had any relationship with them. Flusher destroys the row and its PaperTrail
+      # versions, so this is not recoverable.
+      o, u = sponsored_org(3, sponsored_since: 6.months.ago)
+      before_us = log(u, 'session', 3.years.ago)
+      during_us = log(u, 'session', 5.months.ago)
+      fresh = log(u, 'session', 1.month.ago)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+
+      # Only the session inside our own sponsorship window and past the cutoff is purged.
+      expect(LogSession.where(id: during_us.id).count).to eq(0)
+      expect(LogSession.where(id: before_us.id).count).to eq(1)
+      expect(LogSession.where(id: fresh.id).count).to eq(1)
+    end
+
+    it "skips the purge when no sponsorship start date can be established" do
+      # On an irreversible deletion an unknown start date must not be read as "since the
+      # beginning of time". Links created by the pre-2026-09 claim path carry no 'added' stamp.
+      o, u = sponsored_org(3)
+      link = UserLink.generate(u.reload, o, 'org_user')
+      link.data['state'].delete('added')
+      link.save!
+      UserLink.invalidate_cache_for(o)
+      UserLink.invalidate_cache_for(u)
+      License.where(organization_id: o.id, user_id: u.id).update_all(granted_at: nil)
+      stale = log(u, 'session', 4.years.ago)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
+      expect(LogSession.where(id: stale.id).count).to eq(1)
     end
 
     it "purges stale session logs older than the retention window" do
