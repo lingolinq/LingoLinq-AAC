@@ -71,7 +71,7 @@ The review changed the approach; Candidate A was not applied as written.
 ## Verification
 
 - Ember (`--filter "system-settings"`): 3 of 3 pass. With the four app files reverted to `origin/develop`, both rendering tests fail. The controller test passes either way (it guards the Save and Preview factories, not this bug).
-- Review claim NOT confirmed: "replacing the block object drops focus after each keystroke". The mutation test failed on the value assertion instead, because in the rendering test the handler writes to the controller, not the rendered context. The in-place approach was chosen on its own merits: it restores the pre-July behaviour.
+- Replacing the block object DOES drop focus: the PR review reproduced it in Ember 5.12 (unkeyed `{{#each}}`, `Object.assign` on input; the row element is replaced after one keystroke). My own mutation test could not show it, because in the rendering test the handler writes to the controller, not the rendered context. So the in-place write is load-bearing; `email-edit.hbs` now carries a comment saying so. (Corrected: an earlier draft said this claim was not confirmed.)
 - RSpec: all 5 system-email spec files, 27 examples, 0 failures. The 4 new specs fail with `lib/` and the controller reverted to `origin/develop`.
 - Broad run (every spec touching overrides or consent mailers, 1413 examples): 14 to 18 failures per run, varying run to run, in AuditEvent, premium-voice and log-summary specs. The 4 that appeared only with the fix pass in isolation both with and without it, so they are order-dependent flakes (orphaned test-DB rows), not regressions.
 - `npm run lint:js:ci`: `findings=1596 baseline=1597 new=0` (the `no-dupe-keys` row is now stale). Template lint (`--no-clean-todo`) clean on both templates.
@@ -81,3 +81,9 @@ The review changed the approach; Candidate A was not applied as written.
 - Overrides apply to every locale, so an edited block goes out in the editor's language to all parents. Pre-existing; not changed here.
 - The unreachable setup-wizard components and `stats/geo-disabled.hbs` also call an undefined `this.ctrlAction` (review finding; not reachable today).
 - The `no-dupe-keys` error was grandfathered into `.eslint-todo` in `eec90591a` (#927); a gate that refuses to baseline always-a-bug rules is a follow-up.
+
+## Second round (dual review of #1054)
+
+- **The placeholder check had two holes (Codex, High x2; confirmed with `I18n.interpolate`):** `%{app_name|lowercase}` (the check split on `|`; I18n looks up the whole name) and `%<app_name>d` (`sprintf` on a string raises). The check now accepts only the exact `%{name}` form of a listed placeholder, rejects any `%<...>`, rejects `%%` in blocks the mailer does not interpolate (sent literally), and rejects keys that are not editable blocks. Errors name the field. Preview rescues only `SystemEmailTemplates::InvalidOverride` and `I18n::ArgumentError`. All 7 new or tightened specs fail against the first version.
+- **Admins never saw the error (adversary, Medium):** the controllers read `err.error`, but the `$.ajax` wrapper rejects with `{fakeXHR, message, result}`. The new `utils/api_error_message.js` is used in email-edit (3 sites) and app-defaults (1). `features.js` (2 sites) is deferred: its import line shifted a grandfathered `.eslint-todo` row.
+- **Test harness limit:** the app's `$.ajax` wrapper did not settle inside a unit test (a probe with a stubbed `$.realAjax` timed out at 4s), so the save-error test stubs `persistence.ajax` with a hand-written rejection matching `utils/extras.js`'s error branch. It fails against the old error read.
