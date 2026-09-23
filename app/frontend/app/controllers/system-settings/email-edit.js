@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
+import apiErrorMessage from '../../utils/api_error_message';
 
 export default Controller.extend({
   persistence: service('persistence'),
@@ -170,7 +171,7 @@ export default Controller.extend({
         _this.loadTemplate();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     },
 
@@ -185,7 +186,7 @@ export default Controller.extend({
         modal.success(i18n.t('system_settings_email_reset_done', 'Email template reset.'));
         _this.loadTemplate();
       }, function(err) {
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     },
 
@@ -219,7 +220,7 @@ export default Controller.extend({
         _this.set('previewText', res.text_body);
       }, function(err) {
         _this.set('previewing', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_preview_error', 'Could not generate preview.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_preview_error', 'Could not generate preview.')));
       });
     }
   }
