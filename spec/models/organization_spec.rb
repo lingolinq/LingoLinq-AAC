@@ -3883,6 +3883,33 @@ describe Organization, :type => :model do
       expect(first.reload.user_id).to be_nil
     end
 
+    it "does not claim a seat that stopped being active mid-flight" do
+      # The compare-and-set carries a status predicate as well as user_id, because
+      # License.expire_stale_licenses! flips status on its own schedule. Without it a claim could
+      # assign a student to a seat that had just expired, which reads as a live seat on the
+      # roster while the license is no longer valid.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      # Expire the row in the window between the SELECT that chose it and the UPDATE that claims
+      # it. Raw SQL so the hook cannot re-enter itself.
+      flipped = false
+      allow(License).to receive(:where).and_wrap_original do |orig, *args|
+        if !flipped && args.first.is_a?(Hash) && args.first.key?(:id) &&
+           args.first.key?(:user_id) && args.first[:user_id].nil?
+          flipped = true
+          ActiveRecord::Base.connection.update(
+            "UPDATE licenses SET status = 'expired' WHERE id = #{license.id}"
+          )
+        end
+        orig.call(*args)
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/claimed by another request/)
+      expect(org.licenses.where(user_id: u.id).count).to eq(0)
+    end
+
     it "does not bank another organization's seat time as the family's credit" do
       # clear_existing_subscription(:track_seconds_left => true) banks whatever expires_at holds
       # and checks nothing about expiration_source, so a second organization's claim would

@@ -5719,4 +5719,53 @@ describe User, :type => :model do
       expect(u.settings['ai_consent']['granted_at']).to be_present
     end
   end
+
+  describe "effective_data_policy with more than one sponsoring organization" do
+    # A communicator may be supported by more than one organization at once. Resolution used to
+    # pick a single organization via managing_organization, which returns the first sponsored
+    # link UserLink.links_for happens to yield, and that query carries no ORDER BY.
+    it "takes the strictest value from every sponsoring organization" do
+      u = User.create
+      hospital = Organization.create(:settings => {'total_licenses' => 1})
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      hospital.update_data_policy({
+        'logging_allowed' => false, 'retention_months' => 1, 'max_logging_cutoff_hours' => 4
+      }, nil) rescue hospital.settings['data_policy'] = {
+        'logging_allowed' => false, 'retention_months' => 1, 'max_logging_cutoff_hours' => 4
+      }
+      hospital.save!
+      district.settings['data_policy'] = {
+        'logging_allowed' => true, 'retention_months' => 36, 'max_logging_cutoff_hours' => 720
+      }
+      district.save!
+      License.create!(organization: hospital, seat_type: 'student', status: 'active')
+      License.create!(organization: district, seat_type: 'student', status: 'active')
+
+      hospital.claim_user(u)
+      district.claim_user(u.reload)
+      u.reload
+
+      expect(u.sponsoring_organizations.map(&:id).sort).to eq([hospital.id, district.id].sort)
+      policy = u.effective_data_policy
+      # The hospital's HIPAA floor must win regardless of which link is yielded first.
+      expect(policy['logging_allowed']).to eq(false)
+      expect(policy['retention_months']).to eq(1)
+      expect(policy['max_logging_cutoff_hours']).to eq(4)
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "is unchanged for a single sponsoring organization" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      org.settings['data_policy'] = {'logging_allowed' => true, 'retention_months' => 24}
+      org.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      org.claim_user(u)
+      u.reload
+
+      expect(u.effective_data_policy['retention_months']).to eq(24)
+      expect(u.effective_data_policy).to eq(org.reload.effective_data_policy)
+    end
+  end
 end

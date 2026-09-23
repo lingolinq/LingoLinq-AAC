@@ -107,15 +107,24 @@ class License < ApplicationRecord
         # Leaving it would point managing_organization_id at the organization whose seat was
         # just released, which is the exact state Organization#claim_user checks for before it
         # writes that column.
-        remaining = License.where(user_id: old_user.id, status: 'active')
-                           .where.not(id: self.id)
-                           .order(:expires_at)
-                           .last
-        if remaining
-          old_user.update!(
-            managing_organization_id: remaining.organization_id,
-            expires_at: remaining.expires_at
-          )
+        # Read the survivor with an explicit `where.not(id: self.id)` rather than relying on the
+        # release above having already nilled our own user_id, so the result does not depend on
+        # statement order inside this transaction.
+        survivor = License.where(user_id: old_user.id, status: 'active')
+                          .where.not(id: self.id)
+                          .order(:expires_at)
+                          .last
+        if survivor
+          # Only move the column when it names the organization whose seat is being released.
+          # An earlier revision repointed it whenever any survivor existed, which with three
+          # organizations took sponsorship away from an uninvolved one: column names C, B's seat
+          # is released, and the column was moved to whichever survivor sorted first.
+          if old_user.managing_organization_id == old_org&.id
+            old_user.update!(
+              managing_organization_id: survivor.organization_id,
+              expires_at: survivor.expires_at
+            )
+          end
         else
           # Trigger the User's "Free Trial": puts them back in "their own care", or ready for a
           # new sponsor.

@@ -3410,9 +3410,49 @@ class User < ApplicationRecord
   # request (LogSession save calls this multiple times).
   def effective_data_policy
     @effective_data_policy ||= begin
-      org = self.managing_organization
-      org ? org.effective_data_policy : {}
+      policies = sponsoring_organizations.map(&:effective_data_policy)
+      if policies.empty?
+        {}
+      else
+        # Intersect STRICTEST-WINS across every sponsoring organization rather than picking one.
+        #
+        # This used to read `self.managing_organization`, which returns the first sponsored link
+        # that Organization.attached_orgs happens to yield. UserLink.links_for builds that list
+        # with `self.where(user_id: record.id)` and no ORDER BY, so with two sponsored links the
+        # governing organization was row-order dependent and could differ between requests. A
+        # student supported by a hospital (logging_allowed false, a short retention_months) and
+        # by a permissive district therefore resolved to whichever row came back first, and the
+        # hospital's floor was bypassed intermittently rather than never or always.
+        #
+        # A communicator may legitimately be supported by more than one organization at a time,
+        # so this is a normal configuration, not an edge case. The merge mirrors
+        # Organization#effective_data_policy, which already applies exactly this intersection
+        # against a parent organization: a false on any boolean wins, and the smallest limit
+        # wins. For a single sponsoring organization the result is that organization's own
+        # policy, so nothing changes for the ordinary case.
+        merged = policies.first.dup
+        policies.drop(1).each do |policy|
+          %w[logging_allowed geo_logging_allowed log_reports_allowed
+             log_publishing_allowed research_opt_in_allowed].each do |key|
+            merged[key] = false if policy[key] == false
+          end
+          %w[max_logging_cutoff_hours retention_months].each do |key|
+            if policy[key] && (merged[key].nil? || policy[key] < merged[key])
+              merged[key] = policy[key]
+            end
+          end
+        end
+        merged
+      end
     end
+  end
+
+  # Every organization currently sponsoring this user as a communicator, accepted invitations
+  # only. Plural by design: co-existing sponsorship is supported.
+  def sponsoring_organizations
+    Organization.attached_orgs(self).select do |o|
+      o['type'] == 'user' && !o['pending'] && o['sponsored']
+    end.map { |o| Organization.find_by_global_id(o['id']) }.compact
   end
 
   def clear_effective_data_policy_cache

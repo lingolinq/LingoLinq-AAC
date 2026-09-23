@@ -1177,7 +1177,15 @@ class Organization < ApplicationRecord
       # Try to use formal license first
       license = self.licenses.available.where(seat_type: 'student').first
       if license
-        return self.claim_user(user, 'student')
+        # Return the USER, not the License. The two branches of this method used to return
+        # different types, and process_params' assignment_action branch calls
+        # `new_user.settings['preferences']`. The licenses table has no settings column
+        # (db/schema.rb), so on the claim path that raised NoMethodError, which the surrounding
+        # rescue turned into "user management action failed" and a false return AFTER the seat
+        # was consumed, the subscription routine had run and the assignment mail had been sent.
+        # gift_purchase.rb and lib/seed_organization.rb also consume this return value.
+        self.claim_user(user, 'student')
+        return user
       end
     end
 

@@ -156,6 +156,32 @@ describe License, :type => :model do
       expect(morning_license.reload.user_id).to be_nil
     end
 
+    it "leaves an uninvolved organization's sponsorship alone when a third org releases" do
+      # With three sponsors, releasing a seat the column does NOT name must not move the column.
+      # An earlier revision repointed whenever any survivor existed, which took sponsorship away
+      # from an organization that had nothing to do with the release.
+      u = User.create
+      a = Organization.create(:settings => {'total_licenses' => 1})
+      b = Organization.create(:settings => {'total_licenses' => 1})
+      c = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: a, seat_type: 'student', status: 'active', expires_at: 10.days.from_now)
+      b_license = License.create!(organization: b, seat_type: 'student', status: 'active', expires_at: 20.days.from_now)
+      c_license = License.create!(organization: c, seat_type: 'student', status: 'active', expires_at: 300.days.from_now)
+      a.claim_user(u)
+      b.claim_user(u.reload)
+      c.claim_user(u.reload)
+      expect(u.reload.managing_organization_id).to eq(c.id)
+
+      b_license.reload.release_user!
+
+      u.reload
+      # C is untouched: still the sponsor, still holding its seat, expiry still C's.
+      expect(u.managing_organization_id).to eq(c.id)
+      expect(c_license.reload.user_id).to eq(u.id)
+      expect(u.expires_at.to_i).to be_within(5).of(c_license.reload.expires_at.to_i)
+      expect(b_license.reload.user_id).to be_nil
+    end
+
     it "repoints the sponsor column when the released seat was the one it named" do
       # The column names whichever organization claimed last. If THAT seat is released, leaving
       # the column alone would point it at an organization holding no seat, which is the state
