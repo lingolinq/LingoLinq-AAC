@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import { setupTest, setupRenderingTest } from 'frontend/tests/helpers';
-import { render, triggerEvent, fillIn, settled } from '@ember/test-helpers';
+import { render, triggerEvent, fillIn, settled, waitUntil } from '@ember/test-helpers';
+import $ from 'jquery';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
 import emailEditTemplate from 'frontend/templates/system-settings/email-edit';
@@ -32,19 +33,19 @@ module('Unit | Controller | system-settings/email-edit handlers', function(hooks
 
   test('a rejected save shows the server error, not the generic message', async function(assert) {
     var controller = this.owner.lookup('controller:system-settings/email-edit');
-    var originalAjax = controller.persistence.ajax;
+    var persistence = this.owner.lookup('service:persistence');
+    var originalOnline = persistence.get('online');
+    var originalRealAjax = $.realAjax;
     var originalError = modal.error;
     var shown = [];
     var message = 'Introduction: %{app_nam} is not a placeholder this field supports. Allowed: %{app_name}, %{consent_age}';
-    // The rejection the app's $.ajax wrapper builds for a 400 with a JSON error body
-    // (utils/extras.js, the error branch: result = xhr.responseJSON.error, fakeXHR keeps
-    // responseJSON). Written by hand: that wrapper does not settle in a unit test.
-    controller.persistence.ajax = function() {
-      return RSVP.reject({
-        fakeXHR: { status: 400, readyState: 4, statusText: 'Bad Request', responseJSON: { error: message } },
-        message: 'error',
-        result: message
-      });
+    persistence.set('online', true);
+    // Fail at the transport, so the app's own $.ajax wrapper (utils/extras.js) builds the
+    // rejection. The wrapper parses responseText, so the fake jqXHR must carry it.
+    $.realAjax = function() {
+      var body = { error: message };
+      var xhr = { status: 400, readyState: 4, statusText: 'Bad Request', responseJSON: body, responseText: JSON.stringify(body), getResponseHeader: function() { return null; } };
+      return $.Deferred().reject(xhr, 'error', 'Bad Request').promise();
     };
     modal.error = function(text) { shown.push(text); };
     try {
@@ -52,10 +53,12 @@ module('Unit | Controller | system-settings/email-edit handlers', function(hooks
       controller.set('template', { has_i18n_blocks: true });
       controller.set('i18nBlocks', [{ key: 'parental_consent_mailer.intro', value: 'Welcome to %{app_nam}' }]);
       controller.send('saveTemplate');
+      await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
       await settled();
     } finally {
-      controller.persistence.ajax = originalAjax;
+      $.realAjax = originalRealAjax;
       modal.error = originalError;
+      persistence.set('online', originalOnline);
     }
     assert.deepEqual(shown, [message], 'the admin sees which field and placeholder is wrong');
     assert.false(controller.get('saving'), 'the Save button is re-enabled');

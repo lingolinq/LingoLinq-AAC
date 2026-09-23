@@ -12,6 +12,10 @@ module('Unit | Utility | api error message', function() {
     assert.strictEqual(apiErrorMessage(err, 'fallback'), 'Template not found');
   });
 
+  test('reads the offline rejection from persistence.ajax', function(assert) {
+    assert.strictEqual(apiErrorMessage({ offline: true, error: 'not online' }, 'fallback'), 'not online');
+  });
+
   test('falls back when no message is present', function(assert) {
     assert.strictEqual(apiErrorMessage({ fakeXHR: { status: 0 }, message: 'error', result: 'timeout' }, 'fallback'), 'fallback');
     assert.strictEqual(apiErrorMessage(null, 'fallback'), 'fallback');
