@@ -11,26 +11,135 @@ class Organization < ApplicationRecord
   has_many :licenses
   include Replicate
 
+
+  # Is this user already attached to us as a communicator? Read from UserLink, which is what
+  # Organization#attached_users and Organization.attached_orgs both derive from, so it is the
+  # operative grant. Used to keep a repeat claim from re-running the attach routine, which
+  # would re-enqueue billing work for an attachment that already exists.
+  def attached_as_communicator?(user)
+    return false unless user
+
+    code = Webhook.get_record_code(self)
+    link = UserLink.links_for(user, true).detect { |l| l['type'] == 'org_user' && l['record_code'] == code }
+    return false unless link
+
+    # An invitation is a RELATIONSHIP, not a completed attachment. Treating any link as
+    # attached skipped the attach routine on exactly the legitimate transfer path, where the
+    # receiving district invites the student first: the seat was assigned while sponsorship
+    # state, the subscription handling and added_org_id were all left unset, and the
+    # post-attach verification was skipped too, so it failed silently. Caught by the spec that
+    # asserts the new link is sponsored and non-pending.
+    state = link['state'] || {}
+    !state['pending'] && !!state['sponsored']
+  end
+
   def can_manage_user?(user)
     # District can see data ONLY if they have an active license for this user
     self.licenses.where(user_id: user.id, status: 'active').exists?
   end
 
   def claim_user(user, seat_type='student')
-    # Find an empty seat
-    license = self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
+    # Already ours: hand back the existing seat instead of consuming a second one. Without
+    # this, a repeat claim allocated ANOTHER empty seat while the first stayed assigned, so
+    # the district paid twice for one student, or it raised "No seats available" while already
+    # holding that student.
+    existing = self.licenses.where(user_id: user.id, seat_type: seat_type, status: 'active').first
+    license = existing || self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
     raise "No seats available in this district" unless license
 
-    License.transaction do
-      # 1. Assign the seat
-      license.update!(user_id: user.id, granted_at: Time.now)
 
-      # 2. Set the user to be managed by this district
-      user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
+    # Another organization already supporting this student is NOT a conflict, and this method
+    # deliberately leaves one alone: no seat release, no link removal, no revocation of
+    # classroom membership. Concurrent support is a state the product wants (a student
+    # transitioning between districts, or attending one school in the morning and another in
+    # the afternoon) and the model is built for it. Organization.attached_orgs returns one
+    # entry per org_user link with its own pending and sponsored flags, and licenses.user_id
+    # carries no unique index, so each organization seats the student from its own pool.
+    #
+    # Sponsorship needs no rule of its own because it follows the seat: this method is the
+    # only writer of managing_organization_id, and it reaches that write only after assigning
+    # a seat, so an organization the student adds without spending a license does not become
+    # the sponsor. Decided by Scot, 2026-09-23.
 
-      # 3. Create the UserLink to grant dashboard/tracking rights
-      UserLink.generate(user, self, 'org_user', { sponsored: true }).save!
+    # 2. Assign the seat, CONDITIONALLY, under a lock on the user row.
+    #
+    # The lock is what makes the repeat-claim check above race-safe: two concurrent claims of
+    # the same student by this district would otherwise both read existing as nil and both
+    # succeed, consuming two seats for one student.
+    #
+    # The update is conditional because the lock serializes claims of the same STUDENT, not
+    # claims against the same empty SEAT: two students seated by one district lock different
+    # rows and race for the same license. An unconditional write let the second claim
+    # overwrite the first, leaving one student with no seat while the roster and the seat count
+    # both still looked correct. db/schema.rb:410 indexes licenses.user_id but NOT uniquely, so
+    # the database does not catch it either. The predicates mirror the SELECT that chose the
+    # row, so a concurrent status, seat_type or organization change cannot be overwritten.
+    user.with_lock do
+      unless existing
+        taken = License.where(id: license.id, organization_id: self.id, seat_type: seat_type,
+                              status: 'active', user_id: nil)
+                       .update_all(user_id: user.id, granted_at: Time.now, updated_at: Time.now)
+        raise "Seat #{license.global_id} was claimed by another request; re-run the claim" if taken == 0
+
+        license.reload
+      end
     end
+
+    # 3. Attach through the established routine, AFTER the transaction has committed.
+    #
+    # It must NOT run inside the transaction. The routine enqueues irreversible billing work
+    # through plain Resque.enqueue, which fires immediately rather than on commit:
+    # Purchasing.cancel_subscription from clear_existing_subscription, and
+    # process_subscription_token 'unsubscribe' on every sponsored attach. Inside a
+    # transaction, any later failure would roll the seat back while a paying family's Stripe
+    # subscription had ALREADY been cancelled, with nothing able to undo it. That is worse
+    # than the defect this method fixes, and add_user never had a transaction here.
+    attached_now = false
+    unless attached_as_communicator?(user)
+      attached_now = true
+      user.update_subscription_organization(self, false, true)
+    end
+
+    user.reload
+
+    # 4. Confirm the attach actually applied before treating the claim as done.
+    #
+    # update_subscription_organization rescues ActiveRecord::StaleObjectError, saves only the
+    # link, reschedules ITSELF and returns normally. A half-applied attach would otherwise
+    # look like success: seat assigned and link saved, but added_org_id, the communicator
+    # role, the pending flag and the seconds_left banking all lost. Worse, the rescheduled
+    # retry runs later, after the column write below has set expires_at to the licence expiry,
+    # so its clear_existing_subscription would bank the DISTRICT's seat time as family credit.
+    if attached_now && user.settings.dig('subscription', 'added_org_id') != self.global_id
+      raise "Seat claim for #{user.global_id} did not complete the organization attach; re-run the claim"
+    end
+
+    # 5. Confirm we still hold the seat BEFORE writing the managing-organization column.
+    #
+    # Checked before the write, not after: a claim that lost a concurrent race used to write
+    # its own id over the winner's and only then notice, leaving the column pointing at a
+    # district with no seat. We undo only our own link, never the winner's.
+    if license.reload.user_id != user.id
+      # Cleanup is conditional on losing the SEAT, not on whether we attached in this call.
+      # Gating it on attached_now left a district that had been invited and had accepted
+      # holding an accepted org_user link with no license when it lost the race, and
+      # Organization.manager_for? reads that link while ignoring seats: the losing district's
+      # managers would keep managing a student it does not pay for. Scoped to self, so it can
+      # never touch the winner's link.
+      UserLink.remove(user, self, 'org_user')
+      raise "Seat claim for #{user.global_id} lost a concurrent race; re-run the claim"
+    end
+
+    # 6. Set the managing-organization COLUMN. It is a separate field from the link-derived
+    # User#managing_organization, and several consumers read the column directly
+    # (telemetry_event.rb, user.rb, the word predictor), so the link write does not cover them.
+    user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
+
+    # 7. Refresh the student's available boards. update_subscription_organization does not do
+    # this, while every other attach and detach path in this model does. A claim changes which
+    # district's shared boards the student should see, so a stale set means a newly claimed
+    # student can miss this district's boards.
+    user.schedule(:update_available_boards)
     license
   end
 
