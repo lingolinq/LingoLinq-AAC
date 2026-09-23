@@ -236,12 +236,12 @@ Admission rule for an entry in this file:
   test must assert on the spawn option, not hang the suite; curated examples miss the byte the author
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
 - **`.eslint-todo` is line-anchored: fix a shifted finding only if the fix cannot change behaviour.** The fingerprint is
-  `file|rule|line|column|severity|messageHash`, so inserts make old findings "new". A fix you would need a test to prove safe changes
-  behaviour (examples, not a boundary: `ember/no-runloop` and the inline-function finding on its line, computed dependencies, `_super`,
-  orphaned actions, duplicate keys) and goes in its own tested PR; in a test file, rewriting an assertion is a test change needing
-  approval. Placing new code to keep rows still is fine; deleting or compressing existing lines is not. `npm run lint:js:todo` absorbs
-  every finding, so it needs approval and its own commit. Read-only evidence: `npm run lint:js:ci` `findings=` plus your fixes equals the
-  base branch's; higher means a real new finding. Pair every "new" row (the gate prints 50; `npx eslint . --ext .js,.mjs --format json`
+  `file|rule|line|column|severity|messageHash`, so inserts make old findings "new". Any fix that needs a test to prove it safe changes
+  behaviour (a partial list: `ember/no-runloop` and the inline-function finding on its line, computed dependencies, `_super`, orphaned
+  actions, duplicate keys) and goes in its own tested PR; in tests, rewriting an assertion is a test change needing approval. Placing
+  new code to keep rows still is fine; deleting or compressing old lines is not. `npm run lint:js:todo` absorbs every finding, so it
+  needs approval and its own commit. Read-only evidence: `npm run lint:js:ci` `findings=` plus the findings you cleared equals the base
+  branch's; higher means a real new finding. Pair every "new" row (the gate prints 50; `npx eslint . --ext .js,.mjs --format json`
   lists all) on the fingerprint minus line; check added lines for a same-shape swap. Cite `app/frontend/scripts/eslint-todo-gate.js`.
 - **`.lint-todo` can fuzzy-match a shifted todo by source hash, and a plain run can append to it.** An exact
   match (rule, range and hash) runs first, then rule plus hash with the range ignored. That is weak where a
