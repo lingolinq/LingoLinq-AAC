@@ -589,10 +589,19 @@ function focusedLayout(vis, order, heroKey) {
 // Move srcKey to just before/after dstKey in a FULL order array (all section
 // keys, including hidden ones, so a hidden card keeps its relative slot). Returns
 // a new normalized full order. Drives the Dashboard Design drag-to-insert.
-function reorderInsert(order, srcKey, dstKey, after, defaultOrder) {
-  var base = defaultOrder || DEFAULT_ORDER;
+// The saved order, completed against a base: start from the caller's order (or the base when
+// there is none) and append any base key it is missing, so callers can index into a FULL order
+// even for a user who has never dragged anything. Extracted because reorderInsert and
+// reorderForFocused's two branches all did these same three lines verbatim.
+function normalizedOrder(order, base) {
   var full = (order && order.length) ? order.slice() : base.slice();
   base.forEach(function(k) { if (full.indexOf(k) === -1) { full.push(k); } });
+  return full;
+}
+
+function reorderInsert(order, srcKey, dstKey, after, defaultOrder) {
+  var base = defaultOrder || DEFAULT_ORDER;
+  var full = normalizedOrder(order, base);
   full = full.filter(function(k) { return k !== srcKey; });
   var idx = full.indexOf(dstKey);
   if (idx < 0) { full.push(srcKey); return full; }
@@ -680,15 +689,40 @@ function gridLayoutState(vis, order, layout, heroKey) {
 function reorderForFocused(order, srcKey, dstKey, after, defaultOrder) {
   var srcAction = FOCUSED_ACTION_KEYS.indexOf(srcKey) !== -1;
   var dstAction = FOCUSED_ACTION_KEYS.indexOf(dstKey) !== -1;
-  // A utility card can't leave its row onto a full-width row.
-  if (srcAction && !dstAction) { return null; }
+  /* A UTILITY CARD DROPPED ON A FULL-WIDTH ROW IS MIRRORED, not refused (2026-09-22, requested).
+     It used to `return null`, because a single utility card cannot meaningfully leave its row
+     and land inside a row that spans both columns. The gesture is now read as the one the user
+     evidently meant: as though the FULL-WIDTH ROW had been dragged onto the utility card, so the
+     two rows exchange places. Implemented by recursing with the roles swapped, which reuses the
+     snap-to-block-edge branch below rather than restating it.
+
+     DIRECTION COMES FROM THE CURRENT ORDER, NOT THE POINTER. `after` is measured over whichever
+     element was the drop TARGET (_dropAfter, components/display-style.js), and mirroring the
+     gesture changes which element that is — so the measured value no longer means what it did
+     and is deliberately discarded here. A row sitting BEFORE the utility block is sent after it
+     and vice versa, which is what makes this a swap: keeping the pointer half would leave one
+     half of every row resolving to where the row already is, i.e. a drop that visibly does
+     nothing. (Requested behaviour: "always swap".)
+
+     Recursion is exactly one level deep: the swapped call has srcAction false and dstAction
+     true, which takes the branch below and returns. */
+  if (srcAction && !dstAction) {
+    var swapBase = defaultOrder || FOCUSED_DEFAULT_ORDER;
+    var swapFull = normalizedOrder(order, swapBase);
+    var rowIdx = swapFull.indexOf(dstKey);
+    var actionIdxs = [];
+    swapFull.forEach(function(k, i) { if (FOCUSED_ACTION_KEYS.indexOf(k) !== -1) { actionIdxs.push(i); } });
+    // Degenerate inputs keep the old refusal: an unplaceable row, or an order with no utility
+    // row at all, has no "other side of the block" to swap to.
+    if (rowIdx < 0 || !actionIdxs.length) { return null; }
+    return reorderForFocused(order, dstKey, srcKey, rowIdx < Math.min.apply(null, actionIdxs), defaultOrder);
+  }
   // A full-width row dropped onto the utility row snaps to the utility block's
   // edge, so the row lands directly above/below the WHOLE utility row (never
   // between two utility cards).
   if (!srcAction && dstAction) {
     var base = defaultOrder || FOCUSED_DEFAULT_ORDER;
-    var full = (order && order.length) ? order.slice() : base.slice();
-    base.forEach(function(k) { if (full.indexOf(k) === -1) { full.push(k); } });
+    var full = normalizedOrder(order, base);
     var actionsInOrder = full.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
     if (actionsInOrder.length) {
       dstKey = after ? actionsInOrder[actionsInOrder.length - 1] : actionsInOrder[0];

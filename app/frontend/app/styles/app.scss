@@ -1828,6 +1828,13 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
    hamburger button rather than #normal_mode's full-width container
    (which let the menu drop down from the far-right of the header).
    Inline-block so the wrapper hugs the button width. */
+/* The shared board menu's anchor. `.dropdown` already carries `position: relative` from
+   Bootstrap, but this is stated because the menu's placement now DEPENDS on it -- a future
+   edit dropping the Bootstrap class would otherwise silently reparent the menu to the page. */
+.ll-board-more-wrap {
+  position: relative;
+}
+
 .la-board-hamburger-wrap {
   position: relative;
   display: inline-block;
@@ -1843,7 +1850,14 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
      header, so a 240px-min-width menu ran off the side of the page and clipped its own
      labels. Same correction, same reason, as `.ll-viewswitch__menu` in
      _view-switcher.scss: anchor a dropdown on the side its trigger is nearest. */
-  left: 0;
+  /* CENTRED UNDER THE TRIGGER (2026-09-22). This was `left: 0`, which pinned the menu's left
+     edge to the trigger's and opened it down-and-to-the-RIGHT -- correct while the trigger was
+     the hamburger at the far left of the header, wrong now the menu hangs off the More button
+     in the middle of the bar, where it read as sitting beside More rather than belonging to it.
+     `translateX(-50%)` centres it on the trigger regardless of the trigger's width, so it holds
+     for both the wide "More ▾" button and the zero-width wrapper the hamburger anchors to. */
+  left: 50%;
+  transform: translateX(-50%);
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba($la-navy, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -1861,13 +1875,85 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
   /* Cap the menu height to the available viewport space and scroll
      internally so users on short viewports can reach Exit Boards at
      the bottom. The 16px buffer pads against the page edge. */
-  max-height: calc(100vh - 100px);
+  /* ONLY SCROLLS WHEN IT GENUINELY CANNOT FIT. This was `calc(100vh - 100px)`, a reserve that
+     did not match where the menu actually starts: measured, its top sits at 65-66px in both
+     anchoring modes, so 100px left ~34px unused and the menu scrolled while its content still
+     had room on the page -- at a 700px-tall window it capped itself at 598px against 606px of
+     content that would have fitted. 88px is the measured top plus a ~22px bottom margin, so the
+     cap now tracks the space that is really available.
+     Re-measure this if the header's height changes: the number encodes where the menu begins. */
+  max-height: calc(100vh - 88px);
   overflow-y: auto;
 }
+/* THE X CENTRING HAS TO BE REPEATED HERE, not just on the rule (2026-09-22). An animated
+   `transform` overrides the declared one for as long as the animation is applied, so keyframes
+   that set only `translateY` were wiping the `translateX(-50%)` that centres the menu under its
+   trigger -- measured, the menu sat exactly half its own width (120px) to the right. Used by
+   `.la-board-mobile-menu` alone, so folding the centring in is safe; if either the keyframes or
+   the rule's transform changes, the other has to change with it. */
 @keyframes la-board-menu-fade-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+/* THE LEFT-ANCHORED TWIN, for the widths where the HAMBURGER is the trigger. Identical to the
+   one above except it carries no X shift, because the menu is not centred in that mode.
+   IT HAS TO BE A SEPARATE ANIMATION rather than a `transform` override in the media query:
+   an animated transform beats the declared one, so a rule setting `transform: none` there
+   would still be overridden by these keyframes for the life of the animation -- the same trap
+   that put the menu 120px off-centre before the centring was folded into the keyframes. */
+@keyframes la-board-menu-fade-in-left {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* LEFT-ANCHORED WHEN THE HAMBURGER IS THE TRIGGER (2026-09-22), i.e. opening down-and-to-the-
+   RIGHT from it. Centring is right for the More button, which is mid-bar and wide; it is wrong
+   here, because at these widths the More wrapper the menu hangs off is ZERO-WIDTH, so centring
+   a 240px menu on it puts 120px of the menu off the left edge of a narrow screen and clips it.
+   The two widths match each view's collapse point, the same pair used for `.ll-compact-only`. */
+@media (max-width: 460px) {
+  #within_ember.board-alt-view .la-board-mobile-menu {
+    left: 0;
+    transform: none;
+    animation-name: la-board-menu-fade-in-left;
+    /* CLEARS THE HAMBURGER. `top: calc(100% + 8px)` works off the More WRAPPER, and at these
+       widths that wrapper is zero-height (its button is hidden), so 100% resolves to 0 and the
+       menu opened 14px ABOVE the hamburger's bottom edge -- measured -- overlapping the very
+       control that opened it. 30px is the hamburger's height less the wrapper's own top offset,
+       plus the same 8px breathing gap the centred variant gets. */
+    top: calc(100% + 30px);
+  }
+}
+@media (max-width: 1500px) {
+  #within_ember:not(.board-alt-view) .la-board-mobile-menu {
+    left: 0;
+    transform: none;
+    animation-name: la-board-menu-fade-in-left;
+    /* CLEARS THE HAMBURGER. `top: calc(100% + 8px)` works off the More WRAPPER, and at these
+       widths that wrapper is zero-height (its button is hidden), so 100% resolves to 0 and the
+       menu opened 14px ABOVE the hamburger's bottom edge -- measured -- overlapping the very
+       control that opened it. 30px is the hamburger's height less the wrapper's own top offset,
+       plus the same 8px breathing gap the centred variant gets. */
+    top: calc(100% + 30px);
+  }
+}
+/* MENU ITEMS THAT ONLY APPEAR ONCE THE BAR HAS GIVEN UP THE SAME CONTROL. Hidden by default
+   and revealed at each view's own collapse width, so the control is reachable in exactly one
+   place at any width -- never duplicated on the bar AND in the menu, never missing from both.
+   THE TWO WIDTHS ARE NOT THE SAME, and that is the point: board-alt drops its copies button at
+   640px, the classic board view at 1500px, matching where each one's bar control actually goes.
+   A single breakpoint here would leave the classic view with no route to Copies between 641px
+   and 1500px. Keep these in step with the `display: none` rules on `.ll-copies-slot`. */
+.ll-compact-only {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  #within_ember.board-alt-view .ll-compact-only { display: flex !important; }
+}
+@media (max-width: 1500px) {
+  #within_ember:not(.board-alt-view) .ll-compact-only { display: flex !important; }
+}
+
 .la-board-mobile-menu__item {
   display: flex;
   align-items: center;
@@ -1917,7 +2003,11 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
    normal mode never overruns the header. Affects both the classic
    board view (.nav-header__board-bar) and board-alt; the hamburger
    menu items themselves are unchanged. */
-@media (max-width: 1500px) {
+/* THE COLLAPSE ITSELF, stated once and applied at two different widths below. It was a
+   single `@media (max-width: 1500px)` block covering both board views; board-alt now folds
+   at 460px instead (requested 2026-09-22), and duplicating fifty lines of `!important`
+   selectors to say the same thing twice is how the two would drift apart. */
+@mixin board-bar-collapsed {
   /* Show hamburger */
   #inner_header .la-board-hamburger {
     display: flex !important;
@@ -1933,7 +2023,12 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
      the two rules that did have moved to the ≤640px block. */
   .nav-header__board-bar #normal_mode .btn,
   .nav-header__board-bar #normal_mode .btn-group,
-  .nav-header__board-bar #normal_mode .dropdown,
+  /* `:not(.ll-board-more-wrap)` (2026-09-22): that span carries the `dropdown` class but is no
+     longer just a control -- it is the shared board menu's positioning context, and the menu
+     lives INSIDE it. Hiding it here hid the menu with it, so the hamburger (which is the
+     trigger at these widths) opened nothing. The More BUTTON inside it is still hidden, by the
+     `.btn` selector on the line above and by the explicit rule in the board-alt block. */
+  .nav-header__board-bar #normal_mode .dropdown:not(.ll-board-more-wrap),
   .nav-header__board-bar #normal_mode a.btn,
   .nav-header__board-bar #normal_mode span.btn {
     display: none !important;
@@ -1979,6 +2074,36 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
   }
 }
 
+/* ── Board page responsive: collapse action buttons into hamburger ──
+   THE CLASSIC BOARD VIEW still collapses at 1500px. That number is not arbitrary: it was
+   raised from 1024px so the right-side action cluster never overruns the header, so it is
+   left exactly where it was rather than dragged down with board-alt. */
+@media (max-width: 1500px) {
+  #within_ember:not(.board-alt-view) { @include board-bar-collapsed; }
+}
+
+/* BOARD-ALT COLLAPSES AT 460px, NOT 1500px (requested 2026-09-22, for Focused and Gentle
+   alike: "it shouldn't do that until 460px width or lower"). board-alt was folding its
+   material into the hamburger on every laptop because it shares `.nav-header__board-bar`
+   with the classic board view and therefore inherited that view's breakpoint.
+   SCOPED WITH `#within_ember.board-alt-view` rather than the breakpoint simply being
+   lowered, because lowering it would have taken the classic board view down with it and
+   reintroduced the header overrun 1500px exists to prevent. Between 461px and 1500px
+   board-alt now keeps its buttons on the bar, which is the whole point of the request. */
+@media (max-width: 460px) {
+  #within_ember.board-alt-view { @include board-bar-collapsed; }
+
+  /* Exit Boards folds here for board-alt, rather than at the 640px block below that still
+     governs the classic board view. Same reasoning as that block's note -- it is the
+     primary way out of a board, so it is the LAST thing to leave the header, not the
+     first -- only the width differs. */
+  #within_ember.board-alt-view #inner_header #board_done,
+  #within_ember.board-alt-view .nav-header__board-bar #board_done,
+  #within_ember.board-alt-view #inner_header:has(#nav_header) #board_done {
+    display: none !important;
+  }
+}
+
 @media (max-width: 640px) {
   /* EXIT BOARDS FOLDS INTO THE HAMBURGER HERE, not at the 1500px collapse above
      (moved 2026-09-15). It is the primary way out of a board, and at 1500px it vanished
@@ -1992,9 +2117,13 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
      — these four were the only thing hiding it. The board-alt / board-view pair is far
      higher specificity than the first two and has to travel with them, or it alone would
      keep the button hidden up to 1500px. */
-  #inner_header #board_done,
-  .nav-header__board-bar #board_done,
-  #within_ember.board-alt-view #inner_header:has(#nav_header) #board_done,
+  /* BOARD-ALT IS EXCLUDED HERE and folds Exit Boards at 460px instead, with the rest of
+     its cluster (requested 2026-09-22). The first two selectors were unscoped, so they
+     reached board-alt too -- `:not(.board-alt-view)` is what keeps them off it; without
+     that the button would still have vanished at 640px and board-alt would have gone on
+     collapsing material well above 460. */
+  #within_ember:not(.board-alt-view) #inner_header #board_done,
+  #within_ember:not(.board-alt-view) .nav-header__board-bar #board_done,
   #within_ember.board-view #inner_header:has(#nav_header) #board_done {
     display: none !important;
   }
@@ -2325,6 +2454,19 @@ header:has(#normal_mode) #inner_header {
   min-height: 84px !important;
   height: auto !important;
   padding: 0 18px !important;
+
+  /* 4px GUTTERS AT <=1024px (requested 2026-09-22), so the header spends its width on the
+     action cluster rather than on padding once the bar gets tight.
+     NESTED IN THIS RULE rather than written as its own block, because this selector is
+     (0,2,2) with `:has()` and `!important` -- a separate `#within_ember.board-alt-view
+     #inner_header` rule is (0,2,1) and loses to it no matter where it sits in the file or
+     how many `!important`s it carries. That was tried first and measured as a no-op.
+     Left/right only: `min-height` above owns the bar's height and the base rule's vertical
+     0 is deliberate, so only the horizontal values move. */
+  @media (max-width: 1024px) {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
 }
 /* Let the classic normal-mode nav header grow when the toolbar (now
    including the View Style toggle) wraps, instead of clipping the
@@ -10042,6 +10184,44 @@ body.pretty_loader #loading_box {
    unaffected. 1.55:1 -> 8.16:1. */
 #within_ember.board-alt-view #word_suggestions {
   color: #fff;
+
+  /* A SHORTER RAIL WITH SMALLER TILES ON BOARD-ALT (requested 2026-09-22). The shared sizing
+     above is built for the classic board: a 105px row carrying 50px images inside tiles padded
+     `12px 30px`. On board-alt that rail eats a disproportionate slice of the board area, which
+     is the part of the screen that actually matters in speak mode.
+     Scoped rather than changed at source: the classic board and the eval word bar both render
+     this same element and neither asked for a different size. */
+  /* HUGS ITS TILES (requested 2026-09-22: less space above and below the rail). Measured, the
+     74px box left 10px of dead space under the tiles while they already overhang its top edge
+     by 6px, so the row read as a band with the tiles floating in it. A tile is 70px tall and
+     sits at -6px, so it occupies 64px of the box; 66px is that plus the 2px bottom gap below,
+     and nothing else. Re-measure if the tile's padding or image height changes -- this number
+     is derived from them, not chosen. */
+  &.with_images {
+    height: 66px;
+  }
+
+  .suggestion {
+    padding: 5px 14px;
+    /* The -6px top margin is kept: it is what tucks the tile up under the row's top edge, and
+       dropping it would give back the height this rule is removing. The bottom gap comes in
+       from 10px to 2px, which is the "below" half of the request. */
+    margin: -6px 5px 2px;
+  }
+  .suggestion:hover,
+  .suggestion:focus-visible {
+    /* Mirrors the shared hover rule, which trades 1px of padding for 1px of border so the tile
+       does not move on hover. Restated because the padding it offsets is different here. */
+    padding: 4px 13px;
+  }
+
+  .suggestion .image_holder {
+    height: 32px;
+  }
+  .suggestion img {
+    height: 32px;
+    max-width: 48px;
+  }
 }
 
 /* Secondary copy — kept a step below the #fff above so the hierarchy survives.
@@ -51763,6 +51943,25 @@ body:not(.ll-layout-focused) .md-logs__header {
 body:not(.ll-layout-focused) .md-logs__filters {
   animation: md-slide-in-from-right 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
+/* ARRIVED FROM THE UPDATES PILL-NAV — centre the page title and the filter links under it
+   (requested 2026-09-22). Keyed on `.md-main--updates-arrival` (templates/user.hbs), set from
+   the same `homeNavContext` the nav choice uses, so this cannot reach the logs page opened
+   from the account rail, nor any other account-section page.
+
+   `align-items`, NOT JUST `text-align`. A first attempt set `text-align: center` on the title
+   and the links and did nothing: `.md-logs__header` is `display: flex; flex-direction: column;
+   align-items: flex-start` (~51721), so its children shrink-wrap to their content at the left
+   edge and there is no spare width for text-align to centre within. Overriding the cross-axis
+   alignment is what actually moves them; text-align then centres the wrapped lines of a long
+   title. Both are needed.
+
+   Not scoped to Focused View: the marker describes the ARRIVAL, not the view. It is a no-op in
+   Gentle, where `body:not(.ll-layout-focused) .md-logs__header` already centres — so this
+   brings Focused into line rather than introducing a new behaviour. */
+.md-main--updates-arrival .md-logs__header {
+  align-items: center;
+  text-align: center;
+}
 .md-logs__filters a {
   font-size: 14px;
   font-weight: 600;
@@ -54463,13 +54662,27 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    afterwards: the <=640px viewport case keeps the pills left-aligned under the title,
    while the side-by-side column centres them in its narrow track. Passing it in keeps one
    authoritative `justify-content` per context instead of a second competing declaration. */
-@mixin boards-folders-narrow-header($actions-justify: flex-start) {
+/* `$chevron-with-actions` puts the caret on the ACTIONS row instead of the heading row
+   (requested 2026-09-22 for <=900px). A PARAMETER, like `$actions-justify` above, rather than
+   an override at the call site: the two callers want different arrangements and the mixin sets
+   `grid-template-areas` with `!important`, so a caller-side override would have to out-specify
+   its own mixin — exactly the override-stacking this codebase forbids.
+   Only the <=640px VIEWPORT caller opts in. The `@container` caller (the side-by-side folders
+   column, which exists only above 1200px) keeps the caret beside the heading, because the
+   request was scoped to the stacked page. */
+@mixin boards-folders-narrow-header($actions-justify: flex-start, $chevron-with-actions: false) {
   .ub-boards-page__folders-header {
     display: grid !important;
     grid-template-columns: 1fr auto !important;
-    grid-template-areas:
-      "toggle chevron"
-      "actions actions" !important;
+    @if $chevron-with-actions {
+      grid-template-areas:
+        "toggle toggle"
+        "actions chevron" !important;
+    } @else {
+      grid-template-areas:
+        "toggle chevron"
+        "actions actions" !important;
+    }
     align-items: center !important;
   }
   .ub-boards-page__folders-toggle {
@@ -54692,13 +54905,34 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
        Positioning declarations (grid-area/justify-self/padding-left) were REMOVED
        rather than left behind the `display: none` — they cannot take effect and would
        read as live layout to the next person.
-       GATED AT 769px by the enclosing media query, which is load-bearing: the body
-       attribute keeps saying `side-by-side` below 768px even though the page has fallen
-       back to STACKED, and down there the caret is the only expand control the user
-       has — `_syncNarrowFoldersCollapse` collapses the card on the way down and they
-       need a way back. */
+       THE GATE IS THE LOAD-BEARING PART, and it drifted (fixed 2026-09-22). This hide is
+       correct ONLY where the layout is actually side-by-side; in a stacked page the caret is
+       the only expand affordance the user has. It was gated on the ENCLOSING
+       `@media (min-width: 901px)` as a proxy for that layout — and the side-by-side
+       breakpoint has since moved twice (900px on 2026-09-18, 1200px on 2026-09-21; see the
+       `max-width: 1200px` fallback at ~55044). The proxy was not moved with it, so between
+       901px and 1200px the page was STACKED with no expand control at all: the title button
+       still toggled, but nothing on screen said so.
+       Re-gated on the real breakpoint with a nested query rather than by relocating the
+       declaration, so the condition lives ON the rule it governs instead of being inherited
+       from a block that is about something else. If the fallback moves again, this number and
+       the one at ~55044 move together — they are the same boundary. */
     .ub-boards-page__folders-chevron-btn {
-      display: none;
+      /* RESTORED with the caret (2026-09-22). The comment above records that the positioning
+         declarations were deleted when this was hidden, because behind a `display: none` they
+         could not take effect and would read as live layout. Re-gating the hide to >=1201px
+         makes the caret a real grid item again in the 901-1200 stacked band, and without this
+         it stretched the full `1fr` chevron track — measured 805px wide at 1200px, i.e. a
+         click target spanning the whole row with its icon marooned in the middle.
+         `end` pins it to the RIGHT edge of the `1fr` chevron track (requested 2026-09-22), so
+         in the stacked band the caret sits at the far side of the row rather than trailing the
+         subtitle. Not `stretch` (the default), which is what made it span the whole track and
+         centre its icon — see the measurement above. The side-by-side layout never sees this:
+         the caret is `display: none` there via the nested query below. */
+      justify-self: end;
+      @media (min-width: 1201px) {
+        display: none;
+      }
     }
     /* THE FOLDERS ROW GETS THE SAME UNDER-SHADOW THE BODY DRAWS (2026-08-16, requested).
        The card's one divider treatment — hairline + highlight + tight inner shadow + wide
@@ -54770,9 +55004,11 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     }
     .ub-boards-page__folders-chevron-btn {
       order: 1;
-      /* The toggle already pads 18px on its right; the caret's own 18px left pad on top of
-         that read as detached from the heading it belongs to. */
-      padding-left: 0;
+      /* `padding-left: 0` REMOVED here (2026-09-22). Its reason — "the toggle already pads 18px
+         on its right, so the caret's own 18px left pad read as detached from the heading" —
+         described a caret sitting BESIDE the heading. It is right-aligned now, and the base
+         rule gives it a fixed 32px square with `padding: 0`, so the declaration was both
+         inapplicable and the thing making the button 32x42 rather than square. */
     }
     .ub-boards-page__folders-actions--header {
       order: 2;
@@ -65718,18 +65954,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   border-radius: var(--md-r-lg) !important;
 
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95)) !important;
-
-  border: 1px solid var(--md-line) !important;
-
-  /* Glassy raised as-button shadow stack — matches the My Organizations
-     card-as-button. */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba($la-navy, 0.06),
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 10px rgba($la-navy, 0.08),
-    0 12px 28px rgba($la-navy, 0.10) !important;
+  /* SAME MATERIAL AS THE CASELOAD "ADDITIONAL ACTIONS" TILES (requested 2026-09-22).
+     Included from the shared mixin rather than copied: `caseload-action-surface` is what
+     `.md-caseload__action--tile` itself uses (_caseload.scss:46), so the two cannot drift.
+     It supplies border, radius, background, shadow and the transition, which is why the
+     three declarations that were here — a white->slate gradient, `var(--md-line)` border and
+     a heavier glassy shadow stack — are gone rather than left to fight it.
+     Reachable because app.scss already `@use`s caseload (line 9); the namespace prefix is
+     required since that @use has no `as *`.
+     The radius is passed through so the card keeps its own `--md-r-lg`, which is larger than
+     the tiles' 12px — matching the MATERIAL was the request, not shrinking the card. */
+  @include caseload.caseload-action-surface(var(--md-r-lg));
 
   overflow: hidden !important;
 
@@ -65746,17 +65981,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 
 }
+/* Hover/press also come from the tile mixins, so the whole interaction reads as one
+   material — the previous hover lifted 2px with a much heavier shadow than the tiles use. */
 .md-extras-card:hover,
 .md-extras-card:focus-visible {
-  transform: translateY(-2px) !important;
+  @include caseload.caseload-action-surface-hover;
+}
+.md-extras-card:active {
+  @include caseload.caseload-action-surface-active;
+}
 
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba($la-navy, 0.07),
-    0 2px 4px rgba($la-navy, 0.06),
-    0 8px 18px rgba($la-navy, 0.10),
-    0 20px 44px rgba($la-navy, 0.14) !important;
+/* FOCUSED VIEW — same tile material, 20% darker (requested 2026-09-22), so the extras cards
+   still read as the caseload tiles' surface rather than a different one. Through the mixin's
+   `$darken` rather than a competing `background`, which is the drift that mixin exists to stop.
 
+   IN app.scss, NOT _focused-view.scss, and that is load-bearing. Putting it there meant adding
+   `@use "caseload"` to that partial, and Sass emits a module where it is FIRST pulled in — which
+   moved the entire caseload stylesheet from line ~5442 to ~3798 and pushed focused-view from
+   ~3738 to ~7757, i.e. it silently swapped the emission order of two whole stylesheets. Any
+   rule where those two tie on specificity would have flipped. app.scss already `@use`s caseload
+   and is emitted last, so the include costs no reordering here.
+
+   `.md-shell--layout-focused` is a focused-only class (see the extras workspace rule in
+   _focused-view.scss), so this cannot reach Gentle. (0,3,0) against the base rule's (0,1,0),
+   so it wins on weight without !important. */
+.md-shell--layout-focused.md-shell--extras-view .md-extras-card {
+  @include caseload.caseload-action-surface(var(--md-r-lg), 20%);
 }
 .md-extras-card:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55) !important;
@@ -65813,6 +66063,42 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   height: 28px !important;
 
+}
+
+/* TWO-TONE ICON ACCENTS — WCAG 1.4.11 NON-TEXT CONTRAST (fixed 2026-09-22).
+   The extras icons are two-tone: a slate outline plus one accent stroke carrying that card's
+   identity. Two of those accents are pale yellows baked into the SVG markup, and both failed
+   the 3:1 minimum for meaningful graphics against the card surface — MEASURED against all
+   three stops of the ramp, worst case:
+
+       #F2B95A amber   1.08:1 (Focused)   1.41:1 (Gentle)
+       #C9AD7A tan     1.05:1 (Focused)   1.72:1 (Gentle)
+
+   Replaced with the darkest-preserving variants: same hue (38deg / 39deg) and the same
+   saturation — saturation could not be raised, so lightness was the only lever — giving
+
+       #82550A         3.14:1 (Focused)   5.15:1 (Gentle)
+       #735B2F         3.13:1 (Focused)   5.13:1 (Gentle)
+
+   NOT SCOPED TO FOCUSED VIEW, although the darkened card surface is what surfaced it: both
+   colours already failed in Gentle, so scoping the fix there would have left a known failure
+   standing in the other view for the same icons. The new values pass comfortably in both.
+
+   FIXED IN CSS, NOT IN THE SVG MARKUP, matching how the slate outline is already handled
+   (`[stroke="#46505F"]` -> #1F2A44 in _focused-view.scss): the attribute selector keeps the
+   source SVGs untouched and keeps every colour decision for these icons in the stylesheet. */
+/* SELF *AND* DESCENDANT. Several of these icons declare their accent on the <svg> ROOT rather
+   than on a child path — Basic Access (offline_boards) is `<svg class="md-extras-card__svg-icon"
+   stroke="#C9AD7A">` with an unstroked <path> inside. A descendant-only selector cannot reach
+   the element that carries the class, so that card kept its failing pale tan while the cards
+   whose accent sits on a child path were corrected. Both forms are listed for each colour. */
+.md-extras-card__svg-icon[stroke="#F2B95A"],
+.md-extras-card__svg-icon [stroke="#F2B95A"] {
+  stroke: #82550A !important;
+}
+.md-extras-card__svg-icon[stroke="#C9AD7A"],
+.md-extras-card__svg-icon [stroke="#C9AD7A"] {
+  stroke: #735B2F !important;
 }
 /* Per-action icon tile — background tinted to match that card's own icon
    color, plus a soft ambient glow behind the icon in the SAME color. !important
@@ -67174,10 +67460,113 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   #inner_header {
     text-align: center !important;
   }
+  /* A CENTRED ROW, not a block (2026-09-22). `#inner_header` already centres its children
+     vertically, but this was `display: block`, so its own content sat on the text baseline at
+     the TOP of a 70px box -- measured 0px above the button and 31px below it. Flex centres the
+     buttons on both axes; `wrap` keeps the toolbar from overflowing when it has more controls
+     than fit, which a plain flex row would not. */
   #inner_header #nav_header {
-    display: block !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
     text-align: center !important;
     width: 100%;
+  }
+
+  /* THE PAINT-MODE TOGGLE ("Edit") TAKES DARK INK. It is the one button here that is not
+     `btn-default`: `no_paint_mode_class` (controllers/application.js:2235) gives it `btn-info`
+     while paint mode is off, and the white label the rest of the toolbar uses does not hold on
+     that lighter fill. Scoped to the toggle rather than to `.btn-info` generally, so no other
+     info button in the app is caught by it. */
+  #inner_header #nav_header .btn.btn-info,
+  #inner_header #nav_header .btn.btn-info .wide,
+  #inner_header #nav_header .btn.btn-info .skinny {
+    color: #18202C !important;
+  }
+}
+
+/* EDIT-MODE TOOLBAR BUTTONS MATCH NORMAL MODE (requested 2026-09-22).
+   Measured, the two were already closer than they looked: both resolve to the same fill,
+   white label, 12px radius, no border and the same shadow. What differed was SIZING -- the
+   normal-mode buttons pick up `height: 36px` from `header #normal_mode .btn` and then
+   `padding: 8px 7px` from the per-icon rules, and the edit toolbar gets neither because it
+   lives in `#nav_header` and never inside `#normal_mode`. So this sets the geometry only.
+   NO `background` OR `color` HERE ON PURPOSE: they already agree, and restating them is how
+   the two toolbars would drift apart the next time the shared fill is retuned. */
+#within_ember.board-alt-view.edit-mode-active {
+  #inner_header #nav_header .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 42px !important;
+    padding: 8px 12px !important;
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    &:hover { filter: brightness(1.1); }
+  }
+  /* The grid +/- controls sit inside a dropdown as small square steppers; the padding above
+     would stretch them out of their row, so they keep their own compact box. */
+  #inner_header #nav_header .dropdown-menu .btn {
+    height: auto !important;
+    padding: 4px 8px !important;
+  }
+}
+
+/* THE EDIT-MODE "More" DROPDOWN WEARS THE BOARD MENU'S LOOK (requested 2026-09-22).
+   It is a Bootstrap `.dropdown-menu` of bare links, while normal mode's More now opens
+   `.la-board-mobile-menu` -- a white rounded panel of icon+label rows. The two menus hold
+   DIFFERENT items (Undo, Redo, Button Stash... versus Set as Home, Share...), so this is the
+   panel's appearance being matched, not its contents shared; the markup stays a <ul>/<li>/<a>
+   because those items are wired to edit actions that only exist here.
+   Values are taken from `.la-board-mobile-menu` / `__item` rather than re-picked, so the two
+   panels read as one component. The icons themselves were added in application.hbs. */
+#within_ember.board-alt-view.edit-mode-active {
+  #inner_header #nav_header .dropdown-menu {
+    background: #fff !important;
+    border: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba($la-navy, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    padding: 8px !important;
+    min-width: 240px !important;
+    text-align: left !important;
+
+    > li > a {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 12px 16px !important;
+      border-radius: 10px !important;
+      font-size: 15px !important;
+      font-weight: 500 !important;
+      color: $brand-charcoal-dark !important;
+      white-space: nowrap;
+
+      &:hover,
+      &:focus-visible {
+        background: rgba($la-navy, 0.06) !important;
+        color: $brand-charcoal-dark !important;
+      }
+
+      /* The glyph sits in a fixed column so the labels line up whatever each icon's
+         natural width is -- the same thing the flex `gap` does for the mobile menu, which
+         uses uniform 16px SVGs rather than a glyph font. */
+      > .glyphicon {
+        width: 18px;
+        flex-shrink: 0;
+        text-align: center;
+        opacity: 0.75;
+      }
+    }
+
+    /* Disabled rows (Undo/Redo carry `undo_class`/`redo_class` when there is nothing to
+       undo) keep the layout but read as inert rather than simply looking clickable. */
+    > li.disabled > a {
+      opacity: 0.45 !important;
+    }
   }
 }
 
@@ -67771,6 +68160,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
 // === Board Alt: nav mode board bar (non-speak) ===
 #within_ember.board-alt-view {
+  /* NO RIGHT MARGIN ON THE SETTINGS GEAR (requested 2026-09-22). There is already a
+     `margin-right: 0 !important` for this button, but it sits inside
+     `@media (min-width: 1201px)`, so the gap came back on every narrower window -- measured
+     0px at 1201px and 16px at 1200px and below. This is unconditional and board-alt only;
+     every other surface keeps whatever that media query and the 1rem default give it. */
+  #inner_header .ll-header-settings-btn {
+    margin-right: 0 !important;
+  }
+
 
   // Dark header bar matching speak mode
   #inner_header:has(#nav_header) {
@@ -67793,19 +68191,37 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     border-radius: 12px !important;
     color: #fff !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
-    /* Bounded to >=641px so it cannot fight the ≤640px hide that folds Exit Boards into
-       the hamburger. Once nested, this selector resolves to the SAME specificity as that
-       hide and sits ~65,000 lines later, so an unbounded `display: inline-flex !important`
-       won on source order and the button never disappeared. Only `display` needs the
-       bound — everything else here is cosmetics on a button hidden below 641px anyway. */
-    @media (min-width: 641px) {
+    /* Bounded so it cannot fight the hide that folds Exit Boards into the hamburger. Once
+       nested, this selector resolves to the SAME specificity as that hide and sits ~65,000
+       lines later, so an unbounded `display: inline-flex !important` won on source order and
+       the button never disappeared. Only `display` needs the bound.
+
+       THE BOUND IS 461px, NOT 641px (fixed 2026-09-22). It matched the old hide, which was at
+       640px for both board views; board-alt's hide moved to <=460px when board-alt stopped
+       collapsing early, so between 461px and 640px the button was still SHOWN but was no
+       longer `inline-flex`. That silently broke its children: the icon is `height: auto` with
+       `align-self: stretch`, which needs a flex parent to have any height at all, so it
+       collapsed to 0 and the button rendered as text with no icon. Measured: ico height 31px
+       at 900px, 0px at 640px.
+
+       The classic board view still hides at 640px, and its own rule below is what does that,
+       so widening this bound does not resurrect the button there. */
+    @media (min-width: 461px) {
       display: inline-flex !important;
     }
-    flex-direction: column !important;
-    align-items: center !important;
+    /* ICON LEFT, LABEL STACKED RIGHT (requested 2026-09-22). This was a centred COLUMN --
+       icon above the words -- so the two now swap axes: `row` puts the icon beside the text
+       and `stretch` is what lets it run the button's full height rather than sitting on the
+       text's centre line. */
+    flex-direction: row !important;
+    align-items: stretch !important;
     justify-content: center !important;
-    gap: 4px !important;
-    padding: 10px 18px !important;
+    gap: 10px !important;
+    /* PADDING KEPT AT 16px (requested 2026-09-22): the l/r halving applied to the CONTROL
+       buttons in `#normal_mode` deliberately stops short of this one. Exit Boards is the
+       primary way out of a board and reads as a distinct element at the bar's left end, so
+       it keeps its breathing room while the secondary cluster tightens. */
+    padding: 8px 16px !important;
     width: auto !important;
     height: auto !important;
     min-width: 72px !important;
@@ -67814,9 +68230,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   #inner_header:has(#nav_header) #board_done .board-done__exit-icon {
     display: block !important;
 
-    width: 20px !important;
+    /* FULL HEIGHT, and wider to match: `height: auto` + `align-self: stretch` make the mask
+       box as tall as the button's content box, and `center/contain` on the mask below keeps
+       the glyph's aspect ratio inside it, so it scales rather than distorting. */
+    width: 30px !important;
 
-    height: 20px !important;
+    height: auto !important;
+
+    align-self: stretch !important;
 
     background-color: #fff !important;
 
@@ -67833,8 +68254,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     color: #fff !important;
     letter-spacing: 0.4px !important;
     text-transform: uppercase !important;
-    line-height: 1 !important;
+    line-height: 1.05 !important;
     white-space: nowrap !important;
+
+    /* The two lines. A column keeps them left-aligned against the icon rather than centred
+       under each other, and `justify-content: center` holds the pair vertically centred
+       beside the taller icon. */
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    gap: 2px !important;
   }
 
   // Separator between Exit Boards and normal_mode buttons
@@ -67901,7 +68331,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
+    /* L/R PADDING HALVED (requested 2026-09-22): these are the CONTROL buttons in the
+       board-alt header -- Speak Mode, Copies, Edit Board, Like, Share, More and the back
+       arrow -- not the board's own buttons, which are a different tree entirely. Vertical
+       padding is untouched, so the 42px control height and the header's 84px min-height
+       both hold; only the horizontal inset moves, which is what buys room on the bar. */
+    padding: 8px 7px !important;
     &:hover { filter: brightness(1.1); }
     .glyphicon-volume-up, .skinny, .real_skinny { display: none !important; }
     &::before {
@@ -67921,7 +68356,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
+    padding: 8px 7px !important;
     border-radius: 12px !important;
     border: none !important;
     color: #fff !important;
@@ -67948,21 +68383,188 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   // filled heart + red outline heart). Recolour the real heart instead.
   //
   // `stroke` and `fill` are presentation ATTRIBUTES on that svg, which any stylesheet
-  // declaration outranks, so these need no !important. The svg's inline `color`
-  // (#e74c6f) is deliberately left alone -- it is what the LIGHT header everywhere
-  // else in the app renders, where the button background is #fff and a white heart
-  // would be invisible (header #normal_mode .btn, app.scss:1657). currentColor simply
+  // declaration outranks, so these need no !important.
+  //
+  // THE HEART WAS WHITE HERE AND INVISIBLE (fixed 2026-09-22). The white was chosen for a
+  // DARK button, and the note that used to sit here even said a white heart "would be
+  // invisible" on the light header -- which is exactly what this button is: measured, this
+  // button's own background on board-alt computes to rgb(255,255,255), so white-on-white
+  // gave the heart a contrast ratio of 1.00. It was not low-contrast, it was not there.
+  //
+  // A DEEP ROSE rather than plain dark: the heart is the one control here that carries a
+  // colour meaning (liked / not liked), so it keeps its hue and only goes dark enough to
+  // read. Measured on the white button: 7.38:1, against the 3:1 WCAG 1.4.11 asks of a
+  // graphic. The svg's inline `color` (#e74c6f) is still left alone; currentColor simply
   // stops being consulted here.
   #inner_header:has(#nav_header) #normal_mode .btn:has(.badge) {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
-    svg { stroke: #fff; }
-    // Liked state: the template swaps the fill attribute to currentColor
-    // (application.hbs:500). Match the stroke so a liked board reads as a solid
-    // white heart, and leave fill="none" -- the unliked state -- untouched.
-    svg[fill='currentColor'] { fill: #fff; }
+    padding: 8px 7px !important;
+    // The heart's COLOUR is set on `.ll-like-btn` below, not here: this rule only matches
+    // when the board has stars (the `.badge` is inside `{{#if board.model.stars}}`), and an
+    // unstarred board needs the same treatment.
+  }
+
+  // THE LIKE HEART. The inline `#e74c6f` reads 1.20-1.23:1 on this button, which is why the
+  // heart was invisible here.
+  //
+  // THE BUTTON'S FILL MEASURES DIFFERENTLY DEPENDING ON HOW IT IS SAMPLED -- rgb(124,150,187)
+  // off a screenshot of the running app, rgb(112,120,132) resolved from this stylesheet in a
+  // headless page -- and the two disagree about whether a mid-dark rose passes: #6B0D25 is
+  // 4.06 against the first and 2.75 against the second. Rather than bet on one sample, this
+  // value clears 3:1 against BOTH (3.46 and 5.10). If the fill is ever pinned down for
+  // certain, there is room to bring the colour back up toward the rose.
+  //
+  // `color`, NOT `stroke`/`fill`: the svg is authored `stroke="currentColor"` with
+  // `fill="currentColor"` only when starred, so one `color` covers the outline AND the
+  // filled state, which two declarations would have to be kept in step by hand.
+  //
+  // `!important` IS LOAD-BEARING: `#e74c6f` is an INLINE style attribute on the svg
+  // (application.hbs), and an inline declaration outranks any stylesheet selector without it.
+  //
+  // KEYED ON `.ll-like-btn`, a class added for this: the previous hook was `.btn:has(.badge)`,
+  // and the badge only renders when the board HAS stars -- so the old rule silently skipped
+  // every unstarred board, which is most of them. `.not_really_skinny` was the other
+  // candidate and is worn by six buttons in this header, so it is not a hook either.
+  #inner_header:has(#nav_header) #normal_mode .ll-like-btn svg {
+    color: #4A0C1B !important;
+  }
+
+  // LEVEL DROPDOWN (L10) -- board-alt treatment (requested 2026-09-22). It renders in
+  // `#normal_mode` like its siblings but had no board-alt rule, so it kept the light Classic
+  // styling: a white `btn-default` carrying a pale blue chip, on a dark header.
+  //
+  // SHAPE ONLY, NO BACKGROUND. The sibling rules here (home, pencil, share, the like button)
+  // deliberately set no `background` either -- they inherit the one shared `#normal_mode .btn`
+  // fill, which is what keeps the cluster one colour. Restating a colour here is how this
+  // button would later drift away from the others when that fill is retuned.
+  //
+  // The chip keeps its light fill: it is the level READOUT, not a button face, and the
+  // contrast it needs is against itself, not the header. Dark navy on the pale chip measures
+  // 13.4:1. The caret flips to white to match the label colour around it.
+  #inner_header:has(#nav_header) #normal_mode #level_dropdown {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 8px 7px !important;
+    border-radius: 12px !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    &:hover { filter: brightness(1.1); }
+
+    .caret { border-top-color: #fff !important; }
+
+    /* The pale "L10" chip. Targeted through its inline style, the same hook the existing
+       `header #normal_mode #level_dropdown span[...]` rule uses, because the span carries no
+       class of its own in application.hbs. */
+    span[style*="border-radius: 100px"] {
+      background: #EAF5FF !important;
+      border-color: #EAF5FF !important;
+      color: #10243F !important;
+      padding: 3px 9px !important;
+      margin-left: 0 !important;
+      font-weight: 700 !important;
+    }
+  }
+
+  // ICON-ONLY EDIT BOARD AND LIKE AT <=950px (requested 2026-09-22). Everything else about
+  // these two buttons is unchanged -- same fill, radius, padding, icon and order -- only the
+  // text label drops out, so the pair shrink to their icons while their neighbours keep their
+  // words. Above 950px nothing here applies.
+  //
+  // `.wide` IS THE LABEL. Each of these buttons ships a `.wide` text span beside a
+  // `.skinny.real_skinny` glyph twin (application.hbs), and the board-alt rules below already
+  // hide the skinny twin permanently -- Edit Board draws its icon from a `::before` mask and
+  // Like from its own inline svg. So hiding `.wide` here leaves exactly the icon, and does not
+  // resurrect the glyph the base rules turned off.
+  //
+  // KEYED OFF `.ll-like-btn` FOR THE HEART, not `.btn:has(.badge)`: the badge only renders when
+  // the board has stars, so a `:has(.badge)` hook would leave the label showing on every
+  // unstarred board -- the same trap the heart's colour rule hit.
+  @media (max-width: 950px) {
+    #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-pencil) .wide,
+    #inner_header:has(#nav_header) #normal_mode .ll-like-btn .wide {
+      display: none !important;
+    }
+  }
+
+  // ICON-ONLY SHARE AND MORE AT <=850px (requested 2026-09-22), one step below the 950px
+  // rule above so the bar sheds its words in two stages rather than all at once.
+  //
+  // THE TWO ARE HANDLED DIFFERENTLY, and it is not arbitrary. Share's `.wide` holds nothing
+  // but the word, so it can simply go. More's `.wide` holds the word AND the dropdown caret
+  // (`<span class="wide">More <b class="caret"></b></span>`, application.hbs:554), so
+  // `display: none` there would take the caret with it and the button would lose the one mark
+  // that says it opens a menu. `font-size: 0` collapses the text node instead; the caret is a
+  // CSS triangle built from BORDERS, not glyph metrics, so it is unaffected and stays visible.
+  //
+  // Both keep their `::before` mask icons -- a share glyph and an ellipsis -- which the base
+  // board-alt rules already draw in place of the hidden `.skinny.real_skinny` twins.
+  @media (max-width: 850px) {
+    #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-share) .wide {
+      display: none !important;
+    }
+    #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-chevron-down) .wide {
+      font-size: 0 !important;
+    }
+  }
+
+  // ICON-ONLY SPEAK MODE AT <=768px (requested 2026-09-22) -- the third and last stage of the
+  // bar shedding its words: Edit Board and Like at 950, Share and More at 850, Speak Mode here.
+  // Speak Mode goes LAST on purpose: it is the primary action on this bar, so it keeps its
+  // label longer than the secondary controls around it.
+  //
+  // `display: none` is safe on this one, unlike More. Speak Mode's `.wide` holds only the
+  // words -- in the supporter variant the dropdown caret is a SIBLING of `.wide`
+  // (application.hbs:391), not a child, so it is untouched either way. The speaker glyph is
+  // drawn by this button's own `::before` mask, so the button is never left blank.
+  @media (max-width: 768px) {
+    #inner_header:has(#nav_header) #speak_mode .wide {
+      display: none !important;
+    }
+  }
+
+  // AT <=640px, LIKE AND THE COPIES SLOT MOVE INTO THE "More" DROPDOWN (requested 2026-09-22).
+  // This is the last stage of the bar shedding controls: 950 and 850 and 768 removed LABELS,
+  // this one removes the two CONTROLS themselves, because past a point there is no width left
+  // to take and something has to leave the bar.
+  //
+  // IT IS A HANDOFF, NOT A HIDE. The same two controls are mirrored as menu items in
+  // application.hbs, marked `.ll-compact-only`, and the two halves are driven by this one
+  // breakpoint in opposite directions -- the bar loses them exactly where the menu gains them.
+  // Keeping both rules here, adjacent, is what stops a future edit moving one and not the other
+  // and leaving either a duplicate or no way to reach the action at all.
+  //
+  // `.ll-copies-slot` is a class added for this. The slot's three mutually exclusive states
+  // (Copies / My Copy / Original) used to be reachable as `> span:has(.btn-info)`, but that
+  // stopped matching on board-alt when the slot took `btn-default` to match the More button, so
+  // it is no longer a hook here.
+  @media (max-width: 640px) {
+    #inner_header:has(#nav_header) #normal_mode .ll-like-btn,
+    #inner_header:has(#nav_header) #normal_mode > .ll-copies-slot {
+      display: none !important;
+    }
+  }
+
+  // AT <=640px THE EXIT BOARDS BUTTON KEEPS ONLY "EXIT" (requested 2026-09-22), centred on
+  // its icon. Same breakpoint at which Like and the copies slot leave the bar -- by this width
+  // the button is competing with the controls beside it for room, and "BOARDS" is the half that
+  // carries no information the icon and "EXIT" do not already give.
+  //
+  // The LABEL COLUMN centres rather than the text: `.board-done__exit-label` is a flex column
+  // holding the two lines, so with one line left `justify-content: center` puts "EXIT" on the
+  // icon's centre line instead of leaving it sitting where the top line used to be. It is
+  // restated here rather than relied on from the base rule, because the base value is what
+  // centres a PAIR -- the two happen to agree today and this is the one that must not drift.
+  @media (max-width: 640px) {
+    #inner_header:has(#nav_header) #board_done .board-done__exit-line--boards {
+      display: none !important;
+    }
+    #inner_header:has(#nav_header) #board_done .board-done__exit-label {
+      justify-content: center !important;
+    }
   }
 
   // Edit Board button: pencil icon
@@ -67970,7 +68572,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
+    padding: 8px 7px !important;
     .glyphicon-pencil, .skinny, .real_skinny { display: none !important; }
     &::before {
       content: '' !important;
@@ -67990,7 +68592,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
+    padding: 8px 7px !important;
     .glyphicon-share, .skinny, .real_skinny { display: none !important; }
     &::before {
       content: '' !important;
@@ -68011,7 +68613,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
+    padding: 8px 7px !important;
     .glyphicon-chevron-down, .skinny, .real_skinny { display: none !important; }
     &::before {
       content: '' !important;
@@ -68038,26 +68640,45 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     gap: 6px !important;
   }
 
-  // Board name: pulled out of header bar, fixed below it to the right of stash_hover.
-  // Width grows with content (inline-flex + width: max-content) so the dark pill background
-  // stretches the full width of the displayed name; capped at the viewport so very long names
-  // clip instead of escaping the screen.
+  // Board name: IN FLOW, directly beneath the button cluster (requested 2026-09-22).
+  //
+  // WAS `position: fixed` at `top: calc(68.1px + 0.5rem); left: 0` -- pulled out of the header
+  // bar and pinned to the VIEWPORT's left edge, which is why it appeared to be missing from
+  // the bar entirely: measured, it rendered at x=0 while its own parent started at x=180, and
+  // the parent's height (56px) never included it. It was not hidden, it had left the header.
+  //
+  // Static is all it takes to land where it is wanted: `.nav-header__board-bar-right` is
+  // already `flex-direction: column`, so with the name back in flow it falls under
+  // `#normal_mode` on its own. `#inner_header` is `min-height: 84px` with `height: auto`, so
+  // the header grows to fit rather than the name being clipped -- that is the "push the div
+  // up to make room" half, and it needs no extra rule.
+  //
+  // `top`/`left`/`z-index` are GONE rather than set to `auto`: a static box ignores the
+  // offsets, and a z-index on a non-positioned element does nothing, so leaving them would be
+  // three declarations that read as load-bearing and are not.
+  // The pill keeps its fill and padding; only its radius changes -- `0 0 10px 10px` was shaped
+  // for something hanging off the bottom edge of the header, which it no longer is.
   #inner_header:has(#nav_header) #board_id {
-    position: fixed !important;
-    top: calc(68.1px + 0.5rem) !important;
-    left: 0 !important;
-    z-index: 300 !important;
+    position: static !important;
+    align-self: flex-start !important;
+    /* NO TOP MARGIN (requested 2026-09-22). The 6px added when this came back into flow is
+       gone; the name sits directly under the button row. This also has to WIN, not just be
+       absent: `#within_ember.board-alt-view #board_id` further up still carries
+       `margin-top: 8px`, left from when this was fixed-positioned and needed nudging clear
+       of the header, so declaring 0 here is what actually zeroes it. That rule is left alone
+       because it still applies on board-alt surfaces this selector does not reach. */
+    margin-top: 0 !important;
     background: rgba($brand-charcoal-dark, 0.92) !important;
     color: rgba(255, 255, 255, 0.9) !important;
     padding: 4px 12px 4px 10px !important;
-    border-radius: 0 0 10px 10px !important;
+    border-radius: 10px !important;
     font-size: 14px !important;
     line-height: 1.4 !important;
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
     width: max-content !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -68090,7 +68711,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    padding: 8px 14px !important;
+    padding: 8px 7px !important;
     &:hover { filter: brightness(1.1); }
   }
 
@@ -68101,8 +68722,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   #inner_header:has(#nav_header) .nav-header__board-bar-right {
     justify-content: center !important;
   }
+  // NO TOP MARGIN (requested 2026-09-22): the space above the buttons goes, and the content
+  // moves UP to close it rather than the header keeping its height with the gap redistributed.
+  //
+  // This 0.85rem (13.6px) was the whole gap -- measured, `.nav-header__board-bar-right` has no
+  // padding-top and no margin-top of its own, so the 14px between the bar's top edge and the
+  // first button came entirely from here. It dates from when the bar held ONE row and the
+  // nudge optically centred it against the 84px header; the bar carries two rows now (the
+  // buttons and the board name), and `align-self: center` on `.nav-header__board-bar` above
+  // already centres the pair, so the nudge is now just a gap on top.
   #inner_header:has(#nav_header) #normal_mode {
-    margin-top: 0.85rem !important;
+    margin-top: 0 !important;
   }
 
   // Help button: white icon/text in nav mode
@@ -68163,7 +68793,63 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    here only matched at 1024 too — now both are at 1500 so the
    hamburger reveals action items the header was no longer rendering
    at the wider 1024-1500 range. */
+/* THE PER-ICON ACTION HIDES. Split by view 2026-09-22: board-alt folds at 460px, the
+   classic board view keeps 1500px. These rules are far more specific than the shared
+   `board-bar-collapsed` mixin near the top of this file (`#within_ember.<view>
+   #inner_header:has(#nav_header) #normal_mode .btn:has(...)`), so moving that mixin's
+   breakpoint alone left THESE still hiding board-alt's buttons at 1500px -- the change
+   would have looked like it did nothing. The two halves have to move together. */
 @media (max-width: 1500px) {
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-home) {
+    display: none !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.badge) {
+    display: none !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-pencil) {
+    display: none !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-share) {
+    display: none !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-chevron-down) {
+    display: none !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-usd) {
+    display: none !important;
+  }
+  /* Also hide the More dropdown and Copies/My Copy/Original buttons.
+     `:not(.ll-board-more-wrap)` keeps the More WRAPPER in the DOM while hiding the button
+     inside it just below. The wrapper is the shared board menu's positioning context, so
+     hiding it outright would leave the hamburger -- which is the trigger at this width --
+     opening a menu with nothing to anchor to. */
+  #within_ember.board-view .nav-header__board-bar #normal_mode > span.dropdown:not(.ll-board-more-wrap),
+  #within_ember.board-view .nav-header__board-bar #normal_mode > span:has(.btn-info),
+  #within_ember.board-view .nav-header__board-bar #normal_mode .ll-board-more-btn {
+    display: none !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode a.btn:has(.glyphicon-arrow-left) {
+    display: inline-flex !important;
+  }
+  #within_ember.board-view #inner_header:has(#nav_header) #speak_mode {
+    display: inline-flex !important;
+  }
+  #within_ember.board-view #inner_header #normal_mode .btn-group:has(#speak_mode) {
+    display: inline-flex !important;
+  }
+  #within_ember.board-view #inner_header #normal_mode .btn-group:has(#speak_mode) .btn {
+    display: inline-flex !important;
+  }
+  /* Keep visible: hamburger */
+  #within_ember.board-view #inner_header .la-board-hamburger {
+    display: flex !important;
+  }
+}
+
+/* BOARD-ALT's half of the same set, at 460px (requested 2026-09-22). Paired with the
+   `board-bar-collapsed` include at the same width near the top of this file; both are
+   needed for board-alt to actually keep its buttons between 461px and 1500px. */
+@media (max-width: 460px) {
   /* Exit Boards is NOT hidden here either — moved to ≤640px with the two rules in the
      earlier 1500px collapse block. This pair is much higher specificity than those two,
      so moving only them would have left this one hiding the button all the way to 1500px
@@ -68187,56 +68873,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   #within_ember.board-alt-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-usd) {
     display: none !important;
   }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-home) {
-    display: none !important;
-  }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.badge) {
-    display: none !important;
-  }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-pencil) {
-    display: none !important;
-  }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-share) {
-    display: none !important;
-  }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-chevron-down) {
-    display: none !important;
-  }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-usd) {
-    display: none !important;
-  }
-  /* Also hide the More dropdown and Copies/My Copy/Original buttons */
-  #within_ember.board-alt-view .nav-header__board-bar #normal_mode > span.dropdown,
+  /* Also hide the More dropdown and Copies/My Copy/Original buttons.
+     `:not(.ll-board-more-wrap)` keeps the More WRAPPER in the DOM while hiding the button
+     inside it just below. The wrapper is the shared board menu's positioning context, so
+     hiding it outright would leave the hamburger -- which is the trigger at this width --
+     opening a menu with nothing to anchor to. */
+  #within_ember.board-alt-view .nav-header__board-bar #normal_mode > span.dropdown:not(.ll-board-more-wrap),
   #within_ember.board-alt-view .nav-header__board-bar #normal_mode > span:has(.btn-info),
-  #within_ember.board-view .nav-header__board-bar #normal_mode > span.dropdown,
-  #within_ember.board-view .nav-header__board-bar #normal_mode > span:has(.btn-info) {
+  #within_ember.board-alt-view .nav-header__board-bar #normal_mode .ll-board-more-btn {
     display: none !important;
   }
   /* Keep visible: back button */
   #within_ember.board-alt-view #inner_header:has(#nav_header) #normal_mode a.btn:has(.glyphicon-arrow-left) {
     display: inline-flex !important;
   }
-  #within_ember.board-view #inner_header:has(#nav_header) #normal_mode a.btn:has(.glyphicon-arrow-left) {
-    display: inline-flex !important;
-  }
   /* Keep visible: speak mode */
   #within_ember.board-alt-view #inner_header:has(#nav_header) #speak_mode {
     display: inline-flex !important;
   }
-  #within_ember.board-view #inner_header:has(#nav_header) #speak_mode {
+  #within_ember.board-alt-view #inner_header #normal_mode .btn-group:has(#speak_mode) {
     display: inline-flex !important;
   }
-  #within_ember.board-alt-view #inner_header #normal_mode .btn-group:has(#speak_mode),
-  #within_ember.board-view #inner_header #normal_mode .btn-group:has(#speak_mode) {
-    display: inline-flex !important;
-  }
-  #within_ember.board-alt-view #inner_header #normal_mode .btn-group:has(#speak_mode) .btn,
-  #within_ember.board-view #inner_header #normal_mode .btn-group:has(#speak_mode) .btn {
+  #within_ember.board-alt-view #inner_header #normal_mode .btn-group:has(#speak_mode) .btn {
     display: inline-flex !important;
   }
   /* Keep visible: hamburger */
-  #within_ember.board-alt-view #inner_header .la-board-hamburger,
-  #within_ember.board-view #inner_header .la-board-hamburger {
+  #within_ember.board-alt-view #inner_header .la-board-hamburger {
     display: flex !important;
   }
 }
@@ -69281,7 +69943,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   /* Same reflow the side-by-side folders column needs; defined once as
      `boards-folders-narrow-header` near the boards-page layout block above. Declarations
      are unchanged from what was written inline here. */
-  @include boards-folders-narrow-header;
+  @include boards-folders-narrow-header($chevron-with-actions: true);
   /* Boards-summary header — flex-column layout. Children stack
      vertically with explicit align-self per item:
        Row 1: BOARDS title    (align-self: flex-start, left)
@@ -70460,7 +71122,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   &__folders-section {
     /* Sunken-in surface mirroring create-board-new `.nb-section`
        chrome (cool-blue gradient + inset top shadow + subtle
-       highlights). Resting state; body padding grows when expanded. */
+       highlights). Resting state; body padding grows when expanded.
+       NOTE: this selector is declared TWICE in this file (see the second
+       `&__folders-section` block, "Sunken-in surface that mirrors"); same specificity, so the
+       LATER one wins and editing this rule alone changes nothing on screen. */
     margin: 0 0 16px;
     padding: 0;
     border-radius: 22px;
@@ -70534,7 +71199,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     margin-right: 12px;
   }
   &__folders-chevron {
-    margin-left: auto;
+    /* `margin-left: auto` REMOVED (2026-09-22). It pushed the glyph to the right edge of what
+       used to be a WIDE padded button; the button is now a fixed 32px square that centres its
+       content, so the auto margin shoved the icon off-centre against the right rim.
+       DECLARED TWICE in this file (the other copy is in the second folders cluster) — same
+       specificity, so the later one wins and changing only one leaves the glyph off-centre.
+       Both were updated together. */
     color: rgba(13, 36, 56, 0.45);
     transition: transform 0.18s ease;
     flex-shrink: 0;
@@ -70577,7 +71247,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      translucent white background + backdrop blur + soft inset
      highlight + subtle outer shadow so the icon sits in a frosted
      glass tile on top of the sunken nb-section gradient behind it. */
-  &__section-icon {
+  /* THE CARET BUTTON SHARES THIS CHIP'S SHAPE AND SURFACE (requested 2026-09-22): same 32px
+     rounded square, same glassy fill, same rim and lift. Added to the SELECTOR rather than
+     copied into the caret's own rule so the two cannot drift — one surface, one definition.
+     The caret keeps its own rule below for what is genuinely button-only: the appearance
+     reset, the pointer cursor, and the hover/active/focus states a static chip has no use for.
+     Focused View re-skins this chip via `.ub-boards-page__section-icon` in _focused-view.scss;
+     the caret is listed there too, for the same reason. */
+  &__section-icon,
+  &__folders-chevron-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -71897,7 +72575,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     /* Sunken-in surface that mirrors the create-board-new `.nb-section`
        chrome (cool-blue gradient + inset top shadow + subtle highlights).
        This is the collapsed/resting state — when expanded the body
-       padding grows to make room for the inner content. */
+       padding grows to make room for the inner content.
+       THIS SELECTOR IS DECLARED TWICE in this file — there is a second, near-identical
+       `&__folders-section` block above. Same specificity, so THIS one wins on source order
+       and editing the other alone changes nothing on screen. */
     margin: 0 0 16px;
     padding: 0;
     border-radius: 22px;
@@ -71959,22 +72640,51 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      buttons can sit between the toggle and the chevron in the same
      row. Same toggle action, separate <button> so we don't nest. */
   &__folders-chevron-btn {
+    /* READS AS A BUTTON (requested 2026-09-22). It was a bare transparent icon — no surface,
+       no edge — so nothing said it was pressable; with the caret now right-aligned there is
+       also no heading beside it to borrow affordance from.
+       Deliberately the SAME treatment as `&__folders-action-btn` (the New folder / Tag a board
+       pills in this very header) rather than a new look: white surface, the same border token,
+       the same layered lift (soft drop + 1px top highlight) that stops a control sinking into
+       the card's cool-blue gradient. One button family in one header.
+       FIXED 32px SQUARE with `padding: 0` instead of the old `14px 18px`: an icon-only control
+       should be a defined target, not text padding around a glyph. That asymmetric padding was
+       also being zeroed on one side at >=901px, which is what made it 32x42 and lopsided. */
+    /* Shape, size, fill, rim and lift all come from the shared `&__section-icon` rule above —
+       NOTHING here may restate them or the two surfaces drift. This rule carries only what a
+       <button> needs and a <span> chip does not. The icon centres via that rule's
+       inline-flex + `justify-content: center`, with `padding: 0` so the 32px box is the
+       target rather than padding around a glyph. */
     appearance: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    padding: 0;
     flex: 0 0 auto;
-    padding: 14px 18px;
-    background: transparent;
-    border: none;
     cursor: pointer;
-    color: inherit;
-    transition: background 0.12s ease;
-    &:hover { background: rgba(13, 36, 56, 0.04); }
-    &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: -2px; }
+    /* 641-900px: the header is a plain flex row with `align-items: stretch`, so the caret —
+       which has a fixed 32px height — pinned to the TOP of a 76px row while the action pills
+       sat centred below it. Measured 102-134 against the pills' 117-125. Centring it lines the
+       two up without touching the header's own alignment, which the toggle also depends on.
+       At <=640px the mixin's grid already centres, so this is consistent rather than a second
+       behaviour. */
+    @media (max-width: 900px) { align-self: center; }
+    /* Breathing room from the card's right edge (requested 2026-09-22). `justify-self: end`
+       put the caret 1px off it — that 1px being the card's own border, i.e. visually flush.
+       18px MIRRORS THE LEFT SIDE rather than being picked by eye: the FOLDERS chip measures
+       19px from the card's left edge, and 18 + the 1px border lands the caret at the same 19.
+       On this rule, not the shared `&__section-icon` one above — the chip must not gain a
+       right margin from it. */
+    margin-right: 18px;
+    transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    &:hover { transform: translateY(-1px); }
+    &:active { transform: translateY(0); box-shadow: inset 0 1px 3px rgba($la-navy, 0.18); }
+    &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: 2px; }
   }
   &__folders-chevron {
-    margin-left: auto;
+    /* `margin-left: auto` REMOVED (2026-09-22). It pushed the glyph to the right edge of what
+       used to be a WIDE padded button; the button is now a fixed 32px square that centres its
+       content, so the auto margin shoved the icon off-centre against the right rim.
+       DECLARED TWICE in this file (the other copy is in the second folders cluster) — same
+       specificity, so the later one wins and changing only one leaves the glyph off-centre.
+       Both were updated together. */
     color: rgba(13, 36, 56, 0.45);
     transition: transform 0.18s ease;
     flex-shrink: 0;
@@ -72254,6 +72964,23 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     flex-direction: column;
     gap: 8px;
     width: 100%;
+
+    /* TWO COLUMNS IN THE STACKED LAYOUT, 640px AND UP (requested 2026-09-22). Stacked gives
+       the folders the page's full width, so a single column left long rows of whitespace to
+       the right of each folder name.
+       THE UPPER BOUND IS THE SIDE-BY-SIDE BREAKPOINT, not a number chosen here: above 1200px
+       the page switches back to folders-beside-boards (`max-width: 1200px { display: block }`,
+       ~55044) and the folders live in a ~1/3 column, where two tracks would be cramped. The
+       two values are the same boundary — if that fallback moves, this moves with it.
+       Nested in this rule rather than added as a later override, so the list has ONE layout
+       definition. `minmax(0, 1fr)` not `1fr`: a grid track's default `auto` minimum is
+       min-content, so a long folder name would otherwise widen its column and break the even
+       split. The rows need no change — `&__folder-row` is `display: flex; width: 100%`, which
+       is its own internal layout and works the same in a grid cell as in a flex column. */
+    @media (min-width: 640px) and (max-width: 1200px) {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 
     /* Hover suppressed for the duration of a board drag and briefly after a drop, so
        the cursor travelling back across the list does not fire the lift on every row

@@ -2164,6 +2164,51 @@ export default Component.extend({
     if(el && el.classList) { el.classList.remove('md-board-detail-grid__cell--image-drop'); }
   },
 
+  /* ── THE CREATE WIZARD ─────────────────────────────────────────────────
+     The page used to present Basics, grid size, Core Words and "for someone else" as one
+     long form, with Board Labels and Advanced options below it. They are now four steps
+     (requested 2026-09-22), taken in that order, after which the labels and advanced
+     sections appear exactly as before.
+
+     NOTHING ABOUT THOSE SECTIONS MOVED IN THE MODEL -- the same fields write to the same
+     `model` properties through the same actions. This is purely which of them is on screen
+     at a time, so validation, the AI path and save are untouched.
+
+     `wizard_done` is separate from "step 4" on purpose: the last step's button does not
+     advance to a fifth step, it REVEALS the rest of the page, and the two need to be
+     distinguishable so Back from nowhere cannot un-reveal it. */
+  wizard_step: 1,
+  wizard_done: false,
+  WIZARD_LAST_STEP: 4,
+
+  /* STEP 3 (Core Words) IS SKIPPED WHEN NOT GENERATING WITH AI, in both directions.
+     `include_core_words` is read in exactly one place -- the `generate_labels` request payload
+     (see `generate_labels_with_ai` below) -- so on the "create my own" path the switch changes
+     nothing that is later read. Showing it there would be a control that does nothing, which is
+     worse than one step fewer. If core words should also seed a hand-made board, that is new
+     behaviour to add deliberately, and this is the single place that would stop skipping.
+     Stepping is centralised here so forward and back cannot disagree about which steps exist. */
+  wizard_adjacent_step: function(step, dir) {
+    var next = step + dir;
+    if(next === 3 && !this.get('ai_mode')) { next = next + dir; }
+    if(next < 1) { next = 1; }
+    if(next > this.WIZARD_LAST_STEP) { next = this.WIZARD_LAST_STEP; }
+    return next;
+  },
+
+  wizard_on_last_step: computed('wizard_step', 'WIZARD_LAST_STEP', function() {
+    return (this.get('wizard_step') || 1) >= this.get('WIZARD_LAST_STEP');
+  }),
+
+  /* Step 1 asks for a description and, optionally, a name. The description is what the AI
+     path generates from and what the non-AI path uses as the board's summary, so it is the
+     one field the wizard will not let past. Name stays optional here; `saveBoard`'s own
+     required-name validation is unchanged and still applies at the end. */
+  wizard_next_disabled: computed('wizard_step', 'model.description', function() {
+    if((this.get('wizard_step') || 1) !== 1) { return false; }
+    return !(this.get('model.description') || '').trim();
+  }),
+
   actions: {
     close: function() {
       if(this.get('standalone')) {
@@ -2239,6 +2284,30 @@ export default Component.extend({
     /** Segmented mode switch: 'regular' or 'ai'. Import stays its own
      *  button. Leaving AI mode keeps any generated labels so toggling
      *  back and forth doesn't lose work. */
+    wizard_next: function() {
+      if(this.get('wizard_next_disabled')) { return; }
+      var step = this.get('wizard_step') || 1;
+      if(step >= this.WIZARD_LAST_STEP) {
+        // Past the last step the wizard does not advance, it opens the rest of the page.
+        this.set('wizard_done', true);
+      } else {
+        this.set('wizard_step', this.wizard_adjacent_step(step, 1));
+      }
+    },
+
+    wizard_back: function() {
+      var step = this.get('wizard_step') || 1;
+      if(step > 1) { this.set('wizard_step', this.wizard_adjacent_step(step, -1)); }
+    },
+
+    /* The AI path's terminal button. It reveals the labels section FIRST and then runs the
+       existing generation action untouched, so the labels arrive into a section the user can
+       already see rather than into one still hidden behind the wizard. */
+    wizard_generate: function() {
+      this.set('wizard_done', true);
+      this.send('generate_labels_with_ai');
+    },
+
     set_create_mode: function(mode) {
       var to_ai = (mode === 'ai');
       /* LEAVING AI mode must clear what AI produced. `model.ai_generated` is the

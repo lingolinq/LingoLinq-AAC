@@ -38,7 +38,7 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 import { board_edit_route } from '../utils/board_view';
-import { set_view_style } from '../utils/view_style';
+import { set_view_style, is_classic } from '../utils/view_style';
 import { pillForRoute } from '../utils/primary_nav';
 
 export default Controller.extend({
@@ -1452,7 +1452,11 @@ export default Controller.extend({
       if(this.get('boardMenuOpen')) {
         var _this = this;
         var handler = function(e) {
-          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+          // `.ll-board-more-btn` is the THIRD trigger, added 2026-09-22 when the More button
+          // started opening this same menu. Without it here, a click on More to CLOSE the menu
+          // is seen as an outside click: this handler sets `boardMenuOpen` false and the
+          // button's own action then toggles it straight back to true, so the menu never shuts.
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger') && !e.target.closest('.ll-board-more-btn')) {
             _this.set('boardMenuOpen', false);
             document.removeEventListener('click', handler, true);
           }
@@ -1460,6 +1464,31 @@ export default Controller.extend({
         setTimeout(function() {
           document.addEventListener('click', handler, true);
         }, 10);
+        // SIZE THE MENU TO THE SPACE ACTUALLY BELOW IT. The stylesheet can only guess where the
+        // menu starts -- it had `max-height: calc(100vh - 88px)`, 88px being a measured guess at
+        // the menu's top -- and the board-alt header is not one fixed height: it grows with the
+        // board-name row and shrinks across breakpoints. Whenever the real top exceeded the
+        // guess, the menu was allowed to be taller than the room beneath it, ran past the
+        // bottom of `#within_ember` (which is `overflow: hidden`) and clipped its last item,
+        // while still showing a scrollbar as if it had nowhere to go.
+        //
+        // Measuring the top and subtracting it is the only version of this that cannot drift,
+        // because it asks the layout instead of predicting it. The CSS max-height stays as the
+        // pre-measurement fallback for the frame before this runs, and for any path where it
+        // does not (no rAF).
+        //
+        // requestAnimationFrame, not the runloop: this file's own convention since the
+        // `ember/no-runloop` conversion, and the menu must already be laid out to be measured.
+        if(typeof window !== 'undefined' && window.requestAnimationFrame) {
+          window.requestAnimationFrame(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            var menu = document.querySelector('.la-board-mobile-menu');
+            if(!menu) { return; }
+            var top = menu.getBoundingClientRect().top;
+            var room = window.innerHeight - top - 12;   // 12px breathing space at the bottom
+            if(room > 120) { menu.style.maxHeight = room + 'px'; }
+          });
+        }
       }
     },
     boardDetails: function() {
@@ -2254,10 +2283,28 @@ export default Controller.extend({
      `user.confirm_registration`): they are single-task pages reached from an email, the
      user fetch succeeds even signed out, and chrome there would offer a stranger's account
      menu. This is the same exclusion `accountRailContext` already makes. */
-  showGlobalChrome: computed('appState.current_route', 'appState.currentUser', 'appState.speak_mode', function() {
+  showGlobalChrome: computed(
+    'appState.current_route',
+    'appState.currentUser',
+    'appState.speak_mode',
+    'appState.effective_view_user.preferences.board_view_style',
+    function() {
     if(!this.appState.get('currentUser')) { return false; }
     // Speak mode takes the whole screen; chrome there would sit over the board.
     if(this.appState.get('speak_mode')) { return false; }
+    /* BASIC VIEW HAS NO APP SHELL (requested 2026-09-22). Basic ("classic",
+       `preferences.board_view_style`) brings its own page chrome, so the account rail and the
+       floating pill nav are both wrong there — they are Modern's navigation.
+       RETURNED FALSE HERE rather than hidden in CSS, and rather than gated on each of the two
+       separately: this flag already wraps both (templates/application.hbs), and its `{{else}}`
+       renders the bare outlet, which is exactly the chrome-less page Basic wants. It also
+       drops the shell's nav-clearance padding, which a `display: none` would have left behind
+       as a gap at the top of every Basic page.
+       Not rendering also keeps them out of the tab order and the landmark list — the same
+       reasoning the pill nav's own `{{#if}}` records in that template.
+       Read through `utils/view_style` so the preference has one reader; `effective_view_user`
+       is what every other consumer of this preference keys off. */
+    if(is_classic(this.appState.get('effective_view_user'))) { return false; }
     var route = this.appState.get('current_route') || '';
     return CHROME_ROUTES.indexOf(route) !== -1;
   }),

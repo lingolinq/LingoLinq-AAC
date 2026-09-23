@@ -116,8 +116,45 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     assert.equal(order.indexOf('reports'), order.indexOf('account') - 1, 'reports lands just before account');
   });
 
-  test('reorderForFocused: a utility card cannot leave its row onto a full-width row', function(assert) {
-    assert.equal(reorderForFocused(FOCUSED_DEFAULT_ORDER, 'account', 'boards', true), null, 'utility-onto-row drop rejected');
+  /* SPEC CHANGED 2026-09-22 (requested). This test previously asserted that dropping a utility
+     card onto a full-width row was REJECTED (returned null). It is now re-interpreted as the
+     mirror gesture — as though the full-width row had been dragged onto the utility card — so
+     the two rows exchange places. Rewritten to pin the new contract rather than deleted: same
+     function, same code path, same drop being exercised.
+
+     "Always swap": the direction comes from where the two already sit relative to each other,
+     NOT from the pointer half. A row currently ABOVE the utility block lands below it and vice
+     versa, so the gesture can never resolve to "no change". */
+  test('reorderForFocused: a utility card dropped on a full-width row swaps the two rows', function(assert) {
+    assert.expect(3);
+    var order = reorderForFocused(FOCUSED_DEFAULT_ORDER, 'account', 'boards', true);
+    assert.ok(order, 'utility-onto-row drop is accepted, not rejected');
+    var actionIdxs = order.map(function(k, i) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1 ? i : -1; })
+                          .filter(function(i) { return i !== -1; });
+    // `boards` starts BEFORE the utility block in FOCUSED_DEFAULT_ORDER, so it must end after it.
+    assert.ok(order.indexOf('boards') > Math.max.apply(null, actionIdxs),
+      'boards moved to the far side of the whole utility block');
+    assert.strictEqual(order.length, FOCUSED_DEFAULT_ORDER.length, 'no key gained or lost');
+  });
+
+  test('reorderForFocused: the swap works in the other direction too', function(assert) {
+    assert.expect(2);
+    // A full-width row sitting AFTER the utility block must end up before it.
+    var start = ['speak', 'createboard', 'editdashboard', 'boards'];
+    var order = reorderForFocused(start, 'createboard', 'boards', true, start);
+    assert.ok(order, 'accepted');
+    var actionIdxs = order.map(function(k, i) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1 ? i : -1; })
+                          .filter(function(i) { return i !== -1; });
+    assert.ok(order.indexOf('boards') < Math.min.apply(null, actionIdxs),
+      'boards moved above the utility block');
+  });
+
+  test('reorderForFocused: the pointer half does not change the swap result', function(assert) {
+    assert.expect(1);
+    // "Always swap" means the release point within the row is irrelevant — both halves agree.
+    var lower = reorderForFocused(FOCUSED_DEFAULT_ORDER, 'account', 'boards', true);
+    var upper = reorderForFocused(FOCUSED_DEFAULT_ORDER, 'account', 'boards', false);
+    assert.deepEqual(upper, lower, 'releasing on either half of the row gives the same order');
   });
 
   test('reorderForFocused: a full-width row snaps to the utility-block edge', function(assert) {
@@ -128,10 +165,16 @@ module('Unit | Utility | dashboard sections layout engine', function() {
   });
 
   test('every layout ends with the 0-height ". sup" spacer row', function(assert) {
-    [['account', 'boards'], ['speak', 'extras', 'reports'], []].forEach(function(on) {
+    var CASES = [['account', 'boards'], ['speak', 'extras', 'reports'], []];
+    assert.expect(CASES.length * 2);
+    CASES.forEach(function(on) {
       var state = gridLayoutState(visFor(on), null, 'gentle');
-      assert.equal(state.areas[state.areas.length - 1], '. sup', 'sup row — ' + (on.join('+') || 'none'));
-      assert.ok(/ 0$/.test(state.rows) || state.rows === '0', 'rows end at 0 — ' + (on.join('+') || 'none'));
+      assert.strictEqual(state.areas[state.areas.length - 1], '. sup', 'sup row — ' + (on.join('+') || 'none'));
+      // Hoisted out of the assertion (qunit/no-assert-logical-expression): the rule reads an
+      // `||` inside assert.ok as two claims smuggled into one, which reports the wrong half
+      // on failure. Naming it keeps the message pointing at the thing being checked.
+      var endsAtZero = / 0$/.test(state.rows) || state.rows === '0';
+      assert.ok(endsAtZero, 'rows end at 0 — ' + (on.join('+') || 'none'));
     });
   });
   // ── Focused View now shares Gentle's default ORDER (2026-08-15) ─────────────
@@ -199,11 +242,11 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     };
     var g = seq(gridLayoutState(vis, null, 'gentle'));
     var f = seq(gridLayoutState(vis, null, 'focused', 'org'));
-    assert.ok(g.indexOf('org_mgmt') === 0, 'gentle leads with My Organizations');
-    assert.ok(f.indexOf('org_mgmt') === 0, 'focused leads with My Organizations');
+    assert.strictEqual(g.indexOf('org_mgmt'), 0, 'gentle leads with My Organizations');
+    assert.strictEqual(f.indexOf('org_mgmt'), 0, 'focused leads with My Organizations');
     assert.ok(g.indexOf('caseload') < g.indexOf('boards'), 'gentle: caseload before boards');
     assert.ok(f.indexOf('boards') < f.indexOf('caseload'), 'focused: boards before the caseload/speak pair');
-    assert.ok(f.indexOf('speak') === f.indexOf('caseload') + 1, 'focused: speak sits immediately after caseload (the paired row)');
+    assert.strictEqual(f.indexOf('speak'), f.indexOf('caseload') + 1, 'focused: speak sits immediately after caseload (the paired row)');
   });
 
   test('focused drops Speak when it is not the hero', function(assert) {
@@ -225,7 +268,7 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     var rowsWithUtility = state.areas.filter(function(row) {
       return row.split(' ').some(function(t) { return FOCUSED_ACTION_KEYS.indexOf(t) !== -1; });
     });
-    assert.equal(rowsWithUtility.length, 1,
+    assert.strictEqual(rowsWithUtility.length, 1,
       'all four utility cards share a single row — that collapse is why the reading ' +
       'order differs from gentle even though the base order is shared');
   });
@@ -244,10 +287,10 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     // change must be a no-op for them. If this fails, communicators were affected.
     var vis = visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard']);
     var state = gridLayoutState(vis, null, 'focused');
-    assert.ok(state.areas.indexOf('account createboard reports editdashboard') !== -1,
+    assert.notStrictEqual(state.areas.indexOf('account createboard reports editdashboard'), -1,
       'utility cards still share one row');
-    assert.equal(state.columns, 'repeat(4, 1fr)', 'still 4 columns');
-    assert.ok(!state.areasValue.includes('extras'), 'extras still hidden in focused');
+    assert.strictEqual(state.columns, 'repeat(4, 1fr)', 'still 4 columns');
+    assert.notOk(state.areasValue.includes('extras'), 'extras still hidden in focused');
   });
 });
 
@@ -287,7 +330,7 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
     var user = fakeUser({ preferences: { dashboard_order: order } });
 
     var off = layoutPresentation(user, 'gentle', { dragEnabled: false });
-    assert.equal(off.order, null, 'flag off → saved order ignored');
+    assert.strictEqual(off.order, null, 'flag off → saved order ignored');
 
     var on = layoutPresentation(user, 'gentle', { dragEnabled: true });
     assert.deepEqual(on.order, order, 'flag on → saved order used');
@@ -320,8 +363,25 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
         organizations: [{ type: 'manager' }]
       })
     };
+    var LAYOUTS = ['gentle', 'focused'];
+    // COUNTED UP FRONT (qunit/require-expect). Every assertion below runs inside three
+    // nested callbacks, which is exactly the shape `expect()` exists to guard: if a filter
+    // silently returns nothing, the test passes having asserted nothing at all. The count is
+    // derived the same way the loop derives it rather than hard-coded, so it tracks
+    // HOME_SECTIONS instead of going stale the next time a section is added.
+    var expected = 0;
     Object.keys(users).forEach(function(role) {
-      ['gentle', 'focused'].forEach(function(layout) {
+      LAYOUTS.forEach(function(layout) {
+        var p = layoutPresentation(users[role], layout, {});
+        expected += HOME_SECTIONS.filter(function(sec) {
+          return p.vis[sec.key] && FULLSPAN_SAFETY_NET.indexOf(sec.key) === -1;
+        }).length + 1;   // + the Extras claim asserted once per role/layout
+      });
+    });
+    assert.expect(expected);
+
+    Object.keys(users).forEach(function(role) {
+      LAYOUTS.forEach(function(layout) {
         var pres = layoutPresentation(users[role], layout, {});
         var placed = placedKeys(pres.grid);
         // Filtered rather than guarded with early returns: qunit/no-early-return treats a
@@ -339,7 +399,11 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
         // Asserted unconditionally (qunit/no-conditional-assertions): on Gentle the
         // left-hand side is false, so the claim holds vacuously and the assertion still
         // runs, keeping the per-run assertion count stable.
-        assert.notOk(layout === 'focused' && pres.vis.extras,
+        // Hoisted out of the assertion (qunit/no-assert-logical-expression), same reason as
+        // the spacer-row test above: naming the claim keeps the failure message about the
+        // claim rather than about one arbitrary half of an `&&`.
+        var extrasVisibleOnFocused = layout === 'focused' && pres.vis.extras;
+        assert.notOk(extrasVisibleOnFocused,
           role + ' / ' + layout + ': Extras is never visible on Focused View');
       });
     });
@@ -347,41 +411,41 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
 
   test('Focused View forces Extras off, so vis and the grid agree', function(assert) {
     var user = fakeUser({});
-    assert.equal(layoutPresentation(user, 'focused', {}).vis.extras, false,
+    assert.false(layoutPresentation(user, 'focused', {}).vis.extras,
       'focused hides extras — Speak takes the focal hero slot');
-    assert.equal(layoutPresentation(user, 'gentle', {}).vis.extras, true,
+    assert.true(layoutPresentation(user, 'gentle', {}).vis.extras,
       'gentle still shows extras');
     // Even when a caller hands in live UI state that says otherwise.
-    assert.equal(layoutPresentation(user, 'focused', { vis: { extras: true } }).vis.extras, false,
+    assert.false(layoutPresentation(user, 'focused', { vis: { extras: true } }).vis.extras,
       'a checkbox cannot re-enable Extras on Focused View');
   });
 
   test('live UI state wins over saved preferences when supplied', function(assert) {
     // The Dashboard Design modal passes the checkboxes the user is toggling RIGHT NOW.
     var user = fakeUser({ preferences: { dashboard_sections: { boards: false } } });
-    assert.equal(layoutPresentation(user, 'gentle', {}).vis.boards, false,
+    assert.false(layoutPresentation(user, 'gentle', {}).vis.boards,
       'no override → saved preference governs');
-    assert.equal(layoutPresentation(user, 'gentle', { vis: { boards: true } }).vis.boards, true,
+    assert.true(layoutPresentation(user, 'gentle', { vis: { boards: true } }).vis.boards,
       'override → the live checkbox governs');
   });
 
   test('non-grid toggles follow the caller, and gentleOnly ones drop on Focused', function(assert) {
     var user = fakeUser({});
-    assert.equal(layoutPresentation(user, 'gentle', {}).toggles.hero, true,
+    assert.true(layoutPresentation(user, 'gentle', {}).toggles.hero,
       'welcome banner shows on gentle by default');
-    assert.equal(layoutPresentation(user, 'focused', {}).toggles.hero, false,
+    assert.false(layoutPresentation(user, 'focused', {}).toggles.hero,
       'gentleOnly toggle is off on focused');
-    assert.equal(layoutPresentation(user, 'gentle', { vis: { hero: false } }).toggles.hero, false,
+    assert.false(layoutPresentation(user, 'gentle', { vis: { hero: false } }).toggles.hero,
       'a live checkbox turns it off');
-    assert.equal(layoutPresentation(user, 'gentle', { vis: {} }).toggles.hero, undefined,
+    assert.strictEqual(layoutPresentation(user, 'gentle', { vis: {} }).toggles.hero, undefined,
       'a caller whose UI does not offer the toggle gets undefined, and skips it — ' +
       'never a value driven from a preference its UI cannot see');
   });
 
   test('an unknown layout resolves to gentle rather than an empty grid', function(assert) {
     var pres = layoutPresentation(fakeUser({}), 'balanced', {});
-    assert.equal(pres.layout, 'gentle', 'the retired "balanced" value falls back');
-    assert.equal(pres.bodyClass, null, 'and carries no focused body class');
+    assert.strictEqual(pres.layout, 'gentle', 'the retired "balanced" value falls back');
+    assert.strictEqual(pres.bodyClass, null, 'and carries no focused body class');
     assert.deepEqual(pres.grid.areas, layoutPresentation(fakeUser({}), 'gentle', {}).grid.areas);
   });
 });

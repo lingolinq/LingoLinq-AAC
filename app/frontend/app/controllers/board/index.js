@@ -567,17 +567,31 @@ export default Controller.extend(prefClasses, {
       var sidebarTopHeight = topHeight;
       this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode') && !this.appState.get('eval_mode'));
       if(this.get('show_word_suggestions')) {
-        topHeight = topHeight + 55;
         var style = this.get('get_style');
         var position = this.get('text_position');
-        if(style == 'text_small') { topHeight = topHeight - 4; }
-        else if(style == 'text_large') { topHeight = topHeight + 4; }
-        else if(style == 'text_huge') { topHeight = topHeight + 17; }
-        if(this.get('appState.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
-          topHeight = topHeight + 50;
-          this.set('show_word_suggestion_images', true);
+        var with_images = this.get('appState.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only';
+        this.set('show_word_suggestion_images', with_images);
+        // THIS RESERVATION AND THE RAIL'S CSS HEIGHT ARE ONE NUMBER IN TWO PLACES. Whatever is
+        // added here is the strip the board subtracts from its own height, so if it exceeds the
+        // rail's rendered height the board comes up short and leaves dead space beneath the last
+        // row; if it is less, the board runs under the rail.
+        //
+        // BOARD-ALT'S RAIL IS SHORTER (2026-09-22). It is styled down to a flat 66px there --
+        // `#within_ember.board-alt-view #word_suggestions.with_images` in app.scss -- against
+        // the shared 55 + 50 = 105 the classic board uses, and the board was still reserving
+        // 105, which is exactly the ~39px gap this fixes.
+        //
+        // The text-size adjustments below are deliberately NOT applied on board-alt: that
+        // stylesheet pins the height at 66px whatever the text style, so tracking the style
+        // here would re-introduce the same disagreement in the other direction.
+        if(with_images && this.appState.get('current_route') === 'user.board-alt.index') {
+          topHeight = topHeight + 66;
         } else {
-          this.set('show_word_suggestion_images', false);
+          topHeight = topHeight + 55;
+          if(style == 'text_small') { topHeight = topHeight - 4; }
+          else if(style == 'text_large') { topHeight = topHeight + 4; }
+          else if(style == 'text_huge') { topHeight = topHeight + 17; }
+          if(with_images) { topHeight = topHeight + 50; }
         }
       }
       if(this.appState.controller && this.appState.controller.get('setup_footer')) {

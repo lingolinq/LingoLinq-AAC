@@ -347,16 +347,49 @@ body.ll-layout-focused {
   // SIDES ARE UNCHANGED at 16px: the narrower gutter is deliberate on these pages.
   .md-shell--reports-view > .md-workspace {
     padding: 16px 16px 0px !important;
-    // 1024 -> 950: the base workspace margin drops here, which cost 2px against the
-    // dashboard; 60px restores it.
+    // 1024 -> 950: the base `.md-workspace` 40px top MARGIN drops to 0 at this breakpoint, so
+    // the padding has to absorb it or the content jumps up. 56px is that absorption exactly:
+    // above the breakpoint the gap is 40 margin + 16 padding = 56, and below it 0 + 56 = 56, so
+    // nothing moves as you cross it.
+    //
+    // WAS 60px, which over-absorbed by 4 and dropped the content 4px at 1024 — the visible
+    // shift this rule was supposed to prevent. The old comment read "cost 2px against the
+    // dashboard; 60px restores it"; measured, the step is 4px and 60 does not restore it.
+    // Numbers here are MEASURED (headless probe of the compiled CSS, computed margin-top +
+    // padding-top per width), not derived from reading the rules — that is what settled it.
+    //
+    // This deliberately does NOT chase parity with the dashboard: the boards shell already sits
+    // 8px below it at every width above the breakpoint (56 vs 48), and closing that here would
+    // trade a 4px drop for an 8px lift at the same boundary. Continuity across the breakpoint is
+    // the property being fixed; matching the dashboard is a separate decision.
     @media (max-width: 1024px) {
-      padding: 60px 16px 0px !important;
+      padding: 56px 16px 0px !important;
     }
     // Below 950 the dashboard drops its own 16px workspace margin (app.scss ~62111),
     // taking its gap from 42 to 26. This tracks that step.
     @media (max-width: 950px) {
       padding: 44px 16px 0px !important;
     }
+  }
+
+  /* NO TOP PADDING AT >=1024px ON THE BOARDS PAGE (requested 2026-09-22).
+     SCOPED OFF `--stats`, not folded into the rule above: `.md-shell--reports-view` is shared
+     by Boards (user/boards.hbs) and Reports (user/stats.hbs), and Reports carries the extra
+     `.md-shell--stats` (templates/user/stats.hbs:5). Adding `:not()` to the shared rule would
+     have stripped Reports of its 16/56/44 padding entirely, so this is a narrower SCOPE rather
+     than a specificity override — the shared rule keeps owning both pages' base rhythm.
+     `:not()` also lifts this to (0,4,0), so it beats the shared rule at the 1024 overlap where
+     both queries match. */
+  .md-shell--reports-view:not(.md-shell--stats) > .md-workspace {
+    /* NO TOP GAP AT ANY WIDTH (requested 2026-09-22). Both boxes, because `.md-workspace`
+       carries a margin as well as padding and zeroing one leaves the other holding the gap
+       open — that is why this looked like it only worked at exactly 1024px, where the base
+       margin happens to drop to 0 on its own.
+       UNGATED ON PURPOSE: this was briefly scoped to `min-width: 1024px`, which left the
+       narrower breakpoints still applying their own top padding. The rule now out-specifies
+       those, so there is one answer at every width instead of three. */
+    padding-top: 0 !important;
+    margin-top: 0 !important;
   }
   // REPORTS ONLY — NOT BOARDS. Reduce the workspace top padding by 16px at each
   // breakpoint (requested 2026-09-21). The two pages share `--reports-view`, so this
@@ -391,6 +424,49 @@ body.ll-layout-focused {
   .md-shell--reports-view .md-workspace > .md-pillnav {
     margin-top: 0 !important;
   }
+
+  /* UPDATES (logs) page — no top padding at >=1024px (requested 2026-09-22). The target is
+     `.md-main--user`, not the workspace: app.scss:47050 gives every account-section page
+     `padding-top: calc(var(--bottombar-height, 59px) - 24px)` (the 35px the inspector showed).
+     `:has(.md-logs)` narrows it to THIS page — that rule is deliberately shared by the whole
+     account section ("one section, one vertical rhythm"), so it must keep applying to account,
+     goals, settings and the rest. The `:has()` also out-specifies it, which is what lets a
+     non-!important-fight override land. */
+  /* THE UPDATES ARRIVAL ONLY (tightened 2026-09-22). This was keyed on `:has(.md-logs)`, i.e.
+     the logs PAGE, which also stripped the padding when the page is opened from the account
+     rail — and that arrival should keep its normal account-section rhythm. `--updates-arrival`
+     (templates/user.hbs) marks the pill-nav arrival specifically. */
+  .md-shell--user > .md-workspace > .md-main--user.md-main--updates-arrival {
+    padding-top: 0 !important;
+  }
+
+  /* ...and the WORKSPACE itself on that page, same breakpoint (requested 2026-09-22). Separate
+     from the `.md-main--user` rule above because they are two different boxes, each with its
+     own top padding: the workspace's comes from `.md-shell--user > .md-workspace`
+     (padding-top: 20px in Focused, ~1833) or, on the pill-nav arrival, from
+     `.md-workspace--homenav` (64px, app.scss). Zeroing one leaves the other.
+
+     SPECIFICITY (0,5,1) VIA THE EXTRA `.md-shell`, and it is load-bearing: the homenav rule is
+     `body .md-shell.md-shell--user > .md-workspace.md-workspace--homenav` at (0,4,1) and also
+     `!important`. Matching it would tie, and a tie is decided by source order — this file is a
+     `@use`d partial emitted ~61k lines ABOVE app.scss, so the homenav 64px would win and this
+     would silently do nothing. The extra class settles it by weight instead.
+
+     NOTE this supersedes that 64px headroom on this page at >=1024px; the arrival still gets
+     it below that width. */
+  /* Same tightening as the rule above: the WORKSPACE loses its top gap only on the Updates
+     arrival, so the rail arrival keeps the section's normal spacing. */
+  .md-shell.md-shell--user > .md-workspace:has(.md-main--updates-arrival) {
+    /* NO TOP GAP AT ANY WIDTH (requested 2026-09-22). Both boxes, because `.md-workspace`
+       carries a margin as well as padding and zeroing one leaves the other holding the gap
+       open — that is why this looked like it only worked at exactly 1024px, where the base
+       margin happens to drop to 0 on its own.
+       UNGATED ON PURPOSE: this was briefly scoped to `min-width: 1024px`, which left the
+       narrower breakpoints still applying their own top padding. The rule now out-specifies
+       those, so there is one answer at every width instead of three. */
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -409,7 +485,13 @@ body.ll-layout-focused {
 // (app.scss:56433) that pulls side padding to 6px — the Extras page keeps 40px sides on
 // very small screens too.
 .md-shell--layout-focused.md-shell--extras-view > .md-workspace {
-  padding: 32px 40px 0px !important;
+  /* Top gap removed at EVERY width (requested 2026-09-22), matching the Boards and Updates
+     pages; sides keep their 40px. The margin matters as much as the padding here:
+     `.md-shell--layout-focused > .md-workspace` (app.scss ~55835) gives this shell
+     `margin-top: 16px !important`, and this selector is (0,3,0) against its (0,2,0), so it
+     wins on weight. Was `padding: 32px 40px 0px`. */
+  padding: 0 40px 0px !important;
+  margin-top: 0 !important;
 }
 
 // PAGE BACKGROUND — match Boards / Reports / Caseload, not the dashboard.
@@ -475,33 +557,43 @@ body.ll-layout-focused #within_ember #content.index.with_user.extras-page {
   .md-extras-page__focus-divider {
     display: block !important;
   }
-  // Setup cards take the badge-action card surface.
-  .md-extras-card {
-    background: $focus-card-surface !important;
-    border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
-  }
-  // Icon tiles take the dark slate badge-action icon tile (overrides the per-action
-  // tint variants — those are !important, beaten here by specificity).
-  // It said "Mirrors …" and did not: this painted the ORIGINAL OPAQUE ramp
-  // (#262d3a/#333c4a/#515d70) with its own lighter border and flatter shadow, having
-  // missed both the 2026-09-20 glass pass and the 2026-09-21 darkening applied to the
-  // badge-action tile. Requested 2026-09-21 that the two match, so the recipe is now a
-  // shared token and the claim is enforced by construction rather than by comment.
+  // THE EXTRAS CARDS' SURFACE IS NO LONGER RE-SKINNED HERE (2026-09-22, requested: they should
+  // look like the caseload "Additional actions" tiles). Those tiles are NOT re-skinned in
+  // Focused View — grep `md-caseload__action` in this file, no hits — so they present one
+  // material in both views, and matching them means letting the base rule through rather than
+  // painting a focused variant on top. These two `!important` declarations were what made the
+  // base change invisible here.
+  // The icon tiles below keep their focused treatment; only the CARD surface changed.
+  // Was: background: $focus-card-surface; border: 1px solid rgba($brand-dusty-denim, 0.22);
+  // ICONS MATCH THE CASELOAD "ADDITIONAL ACTIONS" TILES (requested 2026-09-22) — which means
+  // NO ICON TILE AT ALL. `.md-caseload__action-tile__icon` (_caseload.scss:3608) is a bare
+  // flex wrapper: the glyph sits directly on the card surface, with no background, border or
+  // shadow behind it. Checked before matching, because "icon bgs" implies there is one to
+  // copy and there is not.
+  //
+  // This replaces the dark-slate badge-action tile that was here ($focus-icon-tile-*). That
+  // treatment only made sense against the focused card surface this card no longer has — it
+  // now carries the caseload tile material, and a dark slate chip on it read as a different
+  // component bolted onto the same button.
   .md-extras-card__icon-wrap {
-    background: $focus-icon-tile-bg !important;
-    backdrop-filter: $focus-icon-tile-blur !important;
-    -webkit-backdrop-filter: $focus-icon-tile-blur !important;
-    border: $focus-icon-tile-border !important;
-    box-shadow: $focus-icon-tile-shadow !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
   }
-  // Glyphs get a VARIED bright colour per card (no hue more than twice) so the icons
-  // read as the extras palette, not a flat white. CSS `stroke` overrides the SVG
-  // presentation attribute; `[stroke]` catches the per-path hardcoded strokes too.
-  @each $action, $color in $focus-extras-icon-colors {
-    .md-extras-card__icon-wrap--#{$action} .md-extras-card__svg-icon,
-    .md-extras-card__icon-wrap--#{$action} .md-extras-card__svg-icon [stroke]:not([stroke="none"]) {
-      stroke: $color !important;
-    }
+  // Glyphs take the caseload tiles' ink rather than a per-card bright colour. The tiles
+  // recolour ONLY the slate outline strokes (`[stroke="#46505F"]` -> #1F2A44, _caseload.scss
+  // ~3617) and deliberately leave every other stroke alone, so each icon keeps its own accent
+  // — that per-action chroma is the identity those tiles are built around. Matching them means
+  // adopting that same narrow rule, so the `$focus-extras-icon-colors` loop that repainted
+  // EVERY stroke a single bright hue per card is gone: it would have flattened exactly the
+  // accents this is meant to preserve.
+  // Self AND descendant, same reason as the accent rules in app.scss: the Account icon puts
+  // `stroke="#46505F"` on the <svg> root, which a descendant-only selector never reaches.
+  .md-extras-card__svg-icon[stroke="#46505F"],
+  .md-extras-card__svg-icon [stroke="#46505F"] {
+    stroke: #1F2A44 !important;
   }
   // ≤460px — strip the grid + main horizontal padding so the cards use the full width,
   // and collapse the extras grid to a single full-width column so each card stretches
@@ -545,9 +637,14 @@ body.ll-layout-focused .md-user-summary {
   //    not the inner summary panel.
   .ub-boards-page__boards-section {
     margin-top: 16px !important;
-    // Smaller screens get a larger top gap and flush sides.
+    // NO TOP MARGIN FROM 1024px DOWN (requested 2026-09-22); sides stay flush, as they were.
+    // This block used to set `32px 0 0`, with a second `max-width: 900px` block added earlier
+    // the same day to zero it below 900. The 900px block is GONE rather than left in place:
+    // with the 1024 value itself now 0 it could only ever restate the same result, and a
+    // second breakpoint that no longer changes anything is a thing to trip over later.
+    // Above 1024 the 16px top margin on the base declaration still stands.
     @media (max-width: 1024px) {
-      margin: 32px 0px 0px !important;
+      margin: 0px 0px 0px !important;
     }
     background: $focus-boards-bg !important;
     border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
@@ -742,7 +839,11 @@ body.ll-layout-focused .md-user-summary {
   // page's focused badge-action card surface (white sheen top-left + a verdigris
   // bottom-right corner over a light dusty-denim gradient). Mirrors
   // `.md-grid--layout-focused .md-card--badge-action.md-card--as-button` (app.scss:47584).
-  .ub-boards-page__section-icon {
+  // The folders expand/collapse caret takes the SAME surface as the section chips
+  // (requested 2026-09-22) — it shares their shape and fill in app.scss, so it has to share
+  // the Focused re-skin too or it would revert to the base glassy white here alone.
+  .ub-boards-page__section-icon,
+  .ub-boards-page__folders-chevron-btn {
     background: $focus-card-surface !important;
     border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
   }
@@ -3028,6 +3129,141 @@ $ch-focused-speak-end:     #7498B9;   // was #6299CB
 $ch-focused-reports-start: #C9D9D8;   // was #C4DEDC
 $ch-focused-reports-mid:   #90B3B1;   // was #87BCB9
 $ch-focused-reports-end:   #719997;   // was #66A4A1
+
+// REPORTS HERO (2026-09-22) — the VIBRANT DARK TEAL counterpart of the navy `$focus-hero-*`
+// pair, for the Basic/Focused Reports tile now that it wears the Modern caseload-hero material.
+//
+// BUILT FROM `$brand-teal` (#147F82), not from `$ch-focused-reports-end`. Deriving it from the
+// tile's own teal was the first attempt and it came out muted, not vibrant: that token is
+// already desaturated (#719997), and darkening a low-chroma colour only lowers chroma further
+// — the result measured oklch(0.500 0.023 192), i.e. near-grey. `$brand-teal` is the brand's
+// deep saturated teal, so the chroma is there before any darkening.
+//
+// 32% BLACK, chosen by MEASUREMENT rather than by eye. In oklch every step toward black pulls
+// chroma down with lightness, so the black share is a direct trade between "dark" and
+// "vibrant" — over-darkening is what produced the washed-out first attempt (38% of an already
+// desaturated teal). 32% is the value that lands this tile's centre stop at the SAME lightness
+// as its navy sibling (oklch L 0.471), so the two heroes sit at one depth and differ only in
+// hue — and it is the most chroma the brand teal has left at that depth.
+// Measured: 0.023 chroma before (near-grey) -> ~0.050 here, at hue 198deg.
+// Raising the black share darkens further but flattens the hue; lowering it brightens the tile
+// away from the navy. Re-measure both stops if this is retuned.
+//
+// Built with the SAME 84%-white / 34%-black construction as $focus-hero-center/-edge
+// (_variables.scss ~540), so the two hero tiles read as one material in different colourways
+// rather than two materials that happen to share a shadow.
+//
+// LIGHTENED 6% (requested 2026-09-22), together with the Ideas and Extras heroes below.
+// ASKED FOR AS 20%, SETTLED AT 6% ON A MEASUREMENT. At 20% the three tinted heroes land at
+// rgb(93,129,130) / rgb(126,123,118) / rgb(115,119,127), where even PURE WHITE reads
+// 4.26 / 4.22 / 4.49 against them -- under the 4.5:1 floor that the 14-15px `.ch-tile__more`
+// and `.ch-tile__sub` need. No ink is available above white, so at that depth the tiles cannot
+// carry their own body text, and the light-grey `.ch-tile__more` requested in the same breath
+// is further out of reach still. 6% is the most lightening that leaves BOTH white and that
+// grey clearing 4.5 on all three: white 5.83 / 5.72 / 6.23, grey #E5E5E5 4.63 / 4.54 / 4.94.
+// Re-measure both inks before raising this number.
+// Speak is NOT in that set, so the four no longer sit at one depth -- the three tinted heroes
+// are now one step forward of the navy one. That is the requested relationship; the
+// equal-lightness note above describes how 32% was originally chosen, not the current result.
+// The lightening is a SEPARATE STEP on top of the tuned dark value rather than a smaller black
+// share, so the hue/chroma tuning that 32% encodes survives it. It is a white mix, not
+// `color.scale()`: these are CSS `color-mix()` values, which Sass cannot scale.
+// =============================================================================
+// THE ACTIONS HERO COLOUR SYSTEM  (2026-09-22)
+// =============================================================================
+// ONE FORMULA, FOUR HUES. Each of the four Actions cards used to pick its own two colours by
+// its own derivation -- Speak from the shared `$focus-hero-*` tokens, Reports from a brand-teal
+// black-mix, Ideas and Extras from ad-hoc oklch -- so the relationship between a card's outer
+// shell and its inner surfaces was different on every card. Everything is now derived from a
+// SINGLE shell colour per card, and the only thing that differs between cards is hue.
+//
+//   outer shell   oklch($ch-hero-shell-l, <chroma>, <hue>)   dark, saturated, the identity
+//   inner glass   + `$ch-hero-veil-panel` white              same hue, lighter, less saturated
+//   CTA           + `$ch-hero-veil-cta`   white              same hue, another step lighter
+//   chip          + `$ch-hero-veil-chip`  white, over the panel
+//   borders       white at low alpha, unchanged
+//
+// A WHITE VEIL IS WHAT MAKES THIS WORK: compositing white over the shell raises lightness and
+// lowers saturation while holding hue EXACTLY, so "same hue, lighter and less saturated" falls
+// out of the construction instead of a second colour being chosen to match the first.
+//
+// THIS PASS ALSO FIXED A REAL CONTRAST DEFECT. The inks had been measured against the CARD, but
+// `.ch-tile__more` sits inside `.ch-tile__info` and `.ch-tile__sub` inside `.ch-tile__cta`, and
+// both carry a white veil -- so every ink actually sits on a surface LIGHTER than the one it was
+// checked against. Measured correctly, the shipped values were `more` 3.71-4.33 and `sub`
+// 3.62-4.12 against a 4.5 floor, and the chip glyphs 2.73-3.09 against 3. The shell lightness
+// and the veil alphas are jointly the fix. MEASURE AGAINST THE COMPOSITED SURFACE, not the card.
+//
+// $ch-hero-shell-l 0.30 IS SET BY THAT STACK, not by taste: the veils only ever lighten, so the
+// shell must start dark enough that the CTA -- the lightest surface any ink sits on -- still
+// carries white at 4.5:1. At 0.32 the worst ink is 4.4; at 0.35 it is 4.0.
+//
+// CHROMA IS PER-HUE, CLAMPED BY THE sRGB GAMUT, which is the one place the cards legitimately
+// differ. At L 0.30 the ramp-wide gamut ceiling is 0.165 for the indigo, 0.145 for the violet,
+// 0.100 for the terracotta and only 0.050 for the teal -- sRGB has no more saturated teal at
+// this darkness, so Reports is quieter than its siblings by necessity, not by choice. The shared
+// target is 0.13 and each card takes the lesser of that and its own ceiling. Past the ceiling a
+// channel clips and the rendered hue stops matching the token.
+//
+// SPEAK SITS AT THE BLUE EDGE OF THE GAMUT, which is why its two numbers are 260/0.128 and not
+// rounder ones (requested 2026-09-22, "more blue less purple" -- it was 270/0.130). At L 0.30
+// the red channel reaches 0 at about hue 258, and past that the colour is CLAMPED rather than
+// rejected: asking for hue 250 renders as 256 with the chroma quietly cut from 0.110 to 0.105.
+// So a bluer token does not buy a bluer tile, it buys a token that no longer describes what is
+// drawn. Verified by round-tripping the rendered sRGB back to oklch and comparing, which is the
+// check to use here -- testing for a zero channel does NOT work, because a dark blue legitimately
+// has red at 0. 260/0.128 is the bluest pair that still round-trips faithfully.
+//
+// IDEAS AND EXTRAS ARE BOTH SET BELOW THEIR CEILINGS, by request rather than by gamut.
+// Extras: 0.130 -> 0.120 ("~5-10% less saturated") -> 0.102 (-15%) -> 0.082 (-20%), against a
+// gamut ceiling of 0.145. Ideas: 0.100 -> 0.080 (-20%), where 0.100 WAS its ceiling.
+// Each trim is RELATIVE, so they compound rather than summing -- Extras is now x0.63 of where
+// it started, not x0.55. These two are the numbers in this block that taste rather than
+// measurement sets; Speak and Reports are still pinned by hue gamut.
+$ch-hero-shell-l:    0.30;
+$ch-hero-veil-panel: 0.08;
+$ch-hero-veil-cta:   0.16;
+$ch-hero-veil-chip:  0.12;
+
+// Builds a shell colour at the shared lightness. Returned as an UNQUOTED STRING rather than
+// built with Sass's own `oklch()`: that function takes real Sass numbers and rejects
+// interpolated channels ("Expected lightness channel to be a number"), which is exactly what
+// sharing `$ch-hero-shell-l` across four tokens requires. The string is emitted verbatim and
+// the browser parses it, which is also what lets the `color-mix()` chain below stay in oklch.
+@function ch-hero-shell($c, $h, $l: $ch-hero-shell-l) {
+  @return #{'oklch(' + $l + ' ' + $c + ' ' + $h + ')'};
+}
+
+// Hue and chroma per card. These four lines are the whole palette.
+$ch-hero-speak-c:   0.128;  $ch-hero-speak-h:   260;   // deep blue indigo  -> dusty periwinkle
+$ch-hero-reports-c: 0.050;  $ch-hero-reports-h: 198;   // deep slate teal   -> muted eucalyptus
+// IDEAS CARRIES ITS OWN LIGHTNESS. At the shared 0.30 with 0.080 chroma the shell rendered
+// #4E1B10 -- read as chocolate/red-black beside its cool neighbours, because the chroma is high
+// for how dark it is. Muted clay is the opposite balance: lighter and LESS saturated, so L goes
+// up and C comes down by a third. Measured: #4E1B10 -> #4B2A22.
+//
+// 0.325 IS A CEILING, NOT A PREFERENCE. The requested direction was #543027-#57352D, and
+// oklch(0.37 0.051 34.5) renders #57362D -- essentially that colour exactly. It is not used
+// because the ink cannot follow: at L 0.37 the description falls to 3.99 and the sub-label to
+// 4.21 against a 4.5 floor, and the sub-label is already WHITE, so there is no lighter ink to
+// rescue it. 0.325 is the last step where every ink still clears (more 4.57, sub 4.74).
+$ch-hero-ideas-l:   0.325;
+$ch-hero-ideas-c:   0.052;  $ch-hero-ideas-h:  34.5;   // muted clay / terracotta
+$ch-hero-extras-c:  0.082;  $ch-hero-extras-h:  315;   // deep slate-violet -> smoky violet-grey
+
+// SPEAK joins the system. It used `$focus-hero-center/-edge` directly -- the Modern caseload
+// hero's own tokens -- so Basic Speak matched Modern Speak exactly. The shift is small
+// (centre rgb(67,86,152) -> rgb(63,80,141), the same hue a little deeper) but it IS a
+// divergence from the Modern hero, which keeps its tokens. Flagged rather than silent.
+$ch-focused-speak-hero-dark:     ch-hero-shell($ch-hero-speak-c, $ch-hero-speak-h);
+$ch-focused-speak-hero-base:     color-mix(in oklch, $ch-focused-speak-hero-dark, white 6%);
+$ch-focused-speak-hero-center:   color-mix(in oklch, $ch-focused-speak-hero-base 84%, white);
+$ch-focused-speak-hero-edge:     color-mix(in oklch, $ch-focused-speak-hero-base, black 34%);
+
+$ch-focused-reports-hero-dark:   ch-hero-shell($ch-hero-reports-c, $ch-hero-reports-h);
+$ch-focused-reports-hero-base:   color-mix(in oklch, $ch-focused-reports-hero-dark, white 6%);
+$ch-focused-reports-hero-center: color-mix(in oklch, $ch-focused-reports-hero-base 84%, white);
+$ch-focused-reports-hero-edge:   color-mix(in oklch, $ch-focused-reports-hero-base, black 34%);
 // DESATURATED 35% (requested 2026-09-14), completing the pass across Speak, Reports, the
 // account card and this one. Lightness and hue are held, so its ink barely moves: at the
 // ramp's darkest point under the glass bottom shade, label 5.45 -> 5.28, sub 5.20 -> 5.04,
@@ -3037,8 +3273,85 @@ $ch-focused-reports-end:   #719997;   // was #66A4A1
 // If the set is ever muted further, that is the one that breaks first.
 $ch-focused-ideas-start:   #AEA899;   // was #B4AA93
 $ch-focused-ideas-end:     #A09888;   // was #A79A81
+
+// IDEAS HERO (2026-09-22) — the third colourway of the Modern caseload-hero material, for the
+// Basic/Focused Modeling Ideas tile. DERIVED FROM `$ch-focused-ideas-end`, the tile's own
+// colour, because the request was explicitly "darker variations of the current Modeling Ideas
+// bg" — unlike the Reports hero, which had to leave its own token behind (that one was too
+// desaturated to darken into anything but grey; this warm taupe holds its hue).
+// 44% BLACK is set by MEASUREMENT, not taste: it is the share that lands this tile's centre
+// stop at the same oklch lightness (~0.471) as the navy Speak and teal Reports heroes, so all
+// three sit at one depth and differ only in hue. Re-measure if retuned.
+// LIGHTENED 6% (requested 2026-09-22) -- see the note on the Reports hero above, including
+// why it is 6% and not the 20% asked for, and that 44% no longer lands this tile level with Speak.
+// ORANGE-RED / TERRACOTTA, STATED DIRECTLY IN OKLCH (requested 2026-09-22, after two passes
+// that were still read as brown). The problem was never the hue on its own, it was CHROMA:
+// this ramp reached the centre stop with 0.011, then 0.052, and at that saturation any warm
+// hue reads as brown wherever it sits on the wheel. It is now 0.103 at hue 35deg.
+//
+// WHY THE `color-mix(..., black N%)` DERIVATION IS GONE. Every earlier version built this from
+// a source hex darkened by a black mix, and that is what kept flattening it -- darkening in
+// oklch pulls chroma down with lightness, so the ramp arrived muted however saturated the
+// source was. Even deriving from #B87333 outright only reached 0.052. Stating the dark stop as
+// an oklch triplet sets lightness and chroma independently, which is the only way to be both
+// dark enough for the ink and saturated enough to read as orange. `$ch-focused-ideas-end` is
+// untouched and still dresses the tile's non-hero states.
+//
+// A DEEP GOLD WAS TRIED HERE AND REVERTED (2026-09-22), which is worth recording so it is not
+// re-attempted blind. Gold lives at hue 72-96deg, and at that hue the most chroma that leaves
+// the grey #E5E5E5 description at 4.5:1 is 0.055 -- the same saturation already rejected as
+// brown. Gold reads as gold only when it is LIGHT, which is what white and grey ink cannot sit
+// on, so it needs the tile to invert to dark ink; and a light tile on the shared ramp lands its
+// edge at rgb(165,135,43), where the softer description ink measures 3.48 and the chip glyphs
+// 2.11. Gold is reachable on this material only by also compressing the ramp AND inverting the
+// ink AND re-darkening the chip glyphs, and it then reads as the one light tile of four.
+//
+// THE THREE NUMBERS ARE EACH PINNED BY A MEASUREMENT, so treat them as a set:
+//   L 0.39 -- the ceiling. The grey `.ch-tile__more` (#E5E5E5) needs 4.5:1 and lands at 4.60
+//             here; L 0.42 drops it to 4.25 and fails. A saturated orange carries MORE
+//             relative luminance than the muted brown it replaces at the same oklch L, which
+//             is why this sits lower than the old 0.48 centre did.
+//   C 0.13 -- the gamut edge for this L and hue. 0.15 and above clip a channel to 0, which
+//             shifts the rendered hue away from what is written here.
+//   h 35   -- orange-red. 42 and 49 also pass but read closer to copper.
+// Measured: centre rgb(154,81,62), edge rgb(73,22,10), white 5.80, grey 4.60, chip glyph 3.30.
+$ch-focused-ideas-hero-dark:   ch-hero-shell($ch-hero-ideas-c, $ch-hero-ideas-h, $ch-hero-ideas-l);
+// LIGHTENED 6% (requested 2026-09-22) -- see the note on the Reports hero above, including why
+// it is 6% and not the 20% asked for. The 6% is applied to the oklch stop above like any other.
+$ch-focused-ideas-hero-base:   color-mix(in oklch, $ch-focused-ideas-hero-dark, white 6%);
+$ch-focused-ideas-hero-center: color-mix(in oklch, $ch-focused-ideas-hero-base 84%, white);
+$ch-focused-ideas-hero-edge:   color-mix(in oklch, $ch-focused-ideas-hero-base, black 34%);
 $ch-focused-extras-start:  #9EA5B1;
 $ch-focused-extras-end:    #8A93A3;
+
+// EXTRAS HERO (2026-09-22) -- fourth colourway of the Modern caseload-hero material, for the
+// Basic/Focused Extras tile.
+//
+// A SUBTLE COLOUR IDENTITY, STILL DARK: muted slate-purple / aubergine-grey, as requested.
+// This tile has been the neutral of the four throughout -- it began derived from
+// `$ch-focused-extras-end` (#8A93A3) darkened 42%, which arrived at 0.010 chroma, and a pass
+// that mixed it toward a true slate only lifted that to 0.016. Both were near-greys, and a
+// near-grey has no identity of its own: it takes its cast from whatever sits beside it.
+//
+// STATED DIRECTLY IN OKLCH, for the same reason the Ideas hero is (see its note): the
+// mix-then-darken derivation is what kept flattening the chroma, because darkening in oklch
+// pulls chroma down with lightness. Setting lightness and chroma independently is the only way
+// to hold a little colour at this depth. `$ch-focused-extras-start/end` are untouched and still
+// dress the tile's non-hero state.
+//
+// THE NUMBERS:
+//   L 0.36 -- chosen to hold the tile at EXACTLY the darkness it already had. The centre stop
+//             lands at relative luminance 0.116 against the previous 0.119, so this is a hue
+//             change and not a lightness change: grey #E5E5E5 reads 5.01 where it read 4.94.
+//   C 0.07 -- subtle on purpose. It resolves to 0.055 at the centre stop, roughly half the
+//             Ideas terracotta (0.103) and the Speak indigo (0.110), so it reads as a tinted
+//             grey rather than a purple tile.
+//   h 315  -- aubergine. 295-305 read as a colder slate-violet, 325 as a dusty mauve.
+// Measured: centre rgb(110,88,120), edge rgb(45,30,51), white 6.31, grey 5.01, chip glyph 3.46.
+$ch-focused-extras-hero-dark:   ch-hero-shell($ch-hero-extras-c, $ch-hero-extras-h);
+$ch-focused-extras-hero-base:   color-mix(in oklch, $ch-focused-extras-hero-dark, white 6%);
+$ch-focused-extras-hero-center: color-mix(in oklch, $ch-focused-extras-hero-base 84%, white);
+$ch-focused-extras-hero-edge:   color-mix(in oklch, $ch-focused-extras-hero-base, black 34%);
 // THE PANEL RAMP — the communicator cards, the boards container and the Updates cards.
 // `color.scale($lightness: 10%)` of the two extras stops above, written as the resolved hex
 // for the reason `$ch-focused-ink-sub` is (a fractional channel can be dropped whole by a
@@ -3106,6 +3419,29 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
 // Glyph strokes darkened to the SAME hue and saturation, solved against the disc's darkest
 // point (its base, which is the binding case for dark ink — not the lit top) at 3.5:1.
 // Charcoal already cleared it and is left exactly as it is.
+// THE LIGHT GLYPH SET, for a chip that is glass rather than a pale plate. Mirrors
+// `ch-focused-glyphs` below stroke for stroke; the two differ only in direction -- that one
+// DARKENS each accent for a near-white chip, this one LIGHTENS it for the card's own mid-tone
+// seen through glass. `#46505F` appears here and not there because it is already dark enough
+// to read on a pale chip and is the first thing to disappear on a dark one.
+// THESE ARE PALER THAN A FIRST PASS WOULD PICK, and the reason is that the chip is now a
+// MID-TONE rather than dark: glass over a card whose centre sits at rgb(66,108,110) to
+// rgb(105,102,96). A mid-tone is the worst ground there is -- it has little room either way --
+// so a mid-weight accent like #BFDDF8 only reaches 2.0-2.3:1 on it. Measured against the
+// chip's lightest point (the top of its veil over each hero's centre, the worst case for light
+// ink), this set's worst is 3.20:1 on Ideas, clear of the 3:1 WCAG 1.4.11 asks of a graphic.
+// The veil alpha and these colours are a PAIR: lifting the veil past 0.14 puts them back under
+// 3:1. Re-measure both together if either moves.
+@mixin ch-focused-glyphs-on-glass {
+  [stroke="#46505F"], &[stroke="#46505F"] { stroke: #FFFFFF; }
+  [stroke="#4C86D8"], &[stroke="#4C86D8"] { stroke: #E0EFFD; }
+  [stroke="#2A9D8F"], &[stroke="#2A9D8F"] { stroke: #C8F6EE; }
+  [fill="#2A9D8F"],   &[fill="#2A9D8F"]   { fill:   #C8F6EE; }
+  [stroke="#C0392B"], &[stroke="#C0392B"] { stroke: #FCD9D2; }
+  [stroke="#2873B4"], &[stroke="#2873B4"] { stroke: #D6EAFC; }
+  [stroke="#23779B"], &[stroke="#23779B"] { stroke: #D1EEF8; }
+}
+
 @mixin ch-focused-glyphs {
   [stroke="#4C86D8"], &[stroke="#4C86D8"] { stroke: #2357A1; }
   [stroke="#2A9D8F"], &[stroke="#2A9D8F"] { stroke: #1A635A; }
@@ -3139,7 +3475,101 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
 // user can click and wrong for a container they merely point at — a large panel brightening
 // because the cursor crossed it reads as a bug. Made a parameter rather than something a
 // caller overrides afterwards, so there is one place that decides and no shadow is restated.
-@mixin ch-focused-glass-tile($colour, $hover: true) {
+// The Modern caseload hero material (`.md-card--caseload-focused`, app.scss ~55229) as a
+// colourway-parameterised mixin: the oklab radial, the lit-bevel/inner-lip shadow stack, the
+// white ink and the hover/press states. Extracted 2026-09-22 when a SECOND tile (Reports) was
+// asked for the same treatment — one definition, two colourways, so they cannot drift.
+//
+// RESTATED FROM THE SHARED TOKENS rather than @include'ing the Modern rule: that rule is not a
+// mixin, it is a grid-scoped selector whose every declaration is `!important` (it has to beat
+// the .md-card base). Extracting THAT would mean refactoring the live Modern hero and proving
+// the refactor inert — a bigger change than either request. Colours come from shared tokens, so
+// only the shadow geometry is restated, at tile scale.
+// THE DESCRIPTION LINE'S INK on a hero tile: a light grey rather than the white the title and
+// sub-label take (requested 2026-09-22, "light gray ... but don't make them gray enough that
+// they fail for contrast"). #E5E5E5 is the greyest value that still clears 4.5:1 on all four
+// ramps at their lightest point -- 4.54 on Ideas, which is the tightest of them, and 5.5+ on
+// the darker navy Speak. Going one step greyer to #DCDCDC drops Ideas to 4.3 and fails.
+// This is measured against the CENTRE stop of each radial ramp, which is its lightest point and
+// therefore the worst case for light ink; the edges are darker and read higher.
+$ch-focused-hero-more-ink: #E5E5E5;
+
+@mixin ch-focused-hero-tile($center, $edge) {
+  color: $focus-on-dark !important;
+  border: 1px solid rgba($focus-on-dark, 0.14) !important;
+  background: radial-gradient(ellipse at center in oklab,
+    #{$center} 0%,
+    #{$edge} 100%) !important;
+  box-shadow:
+    inset 0 3px 0 rgba($focus-on-dark, 0.36),
+    inset 0 -7px 14px rgba($focus-shadow-ink, 0.36),
+    0 3px 6px rgba($focus-shadow-ink, 0.26),
+    0 14px 28px rgba($focus-shadow-ink, 0.34),
+    0 0 22px rgba($focus-hero-glow, 0.10) !important;
+  transition: transform 0.14s ease, box-shadow 0.14s ease !important;
+
+  /* WHITE INK ON THE DESCENDANTS, not just the tile. The note above `.ch-tile__label` records
+     that its colour is set in two mutually exclusive media blocks, so a matching rule always
+     beats inheritance — `color` on the tile alone leaves a dark label on a dark fill. */
+  .ch-tile__label,
+  .ch-tile__sub { color: $focus-on-dark !important; }
+  /* SPLIT OUT OF THE GROUP ABOVE so the description can be grey while the title and sub-label
+     stay white -- see `$ch-focused-hero-more-ink` for the value and the measurement. */
+  .ch-tile__more { color: $ch-focused-hero-more-ink !important; }
+
+  &:hover {
+    transform: translateY(-2px) !important;
+    box-shadow:
+      inset 0 3px 0 rgba($focus-on-dark, 0.40),
+      inset 0 -7px 14px rgba($focus-shadow-ink, 0.34),
+      0 6px 14px rgba($focus-shadow-ink, 0.28),
+      0 22px 40px rgba($focus-shadow-ink, 0.42),
+      0 0 34px rgba($focus-hero-glow-hover, 0.35) !important;
+  }
+  &:active {
+    transform: translateY(2px) !important;
+    box-shadow:
+      inset 0 2px 5px rgba($focus-shadow-ink, 0.35),
+      inset 0 1px 0 rgba($focus-on-dark, 0.18),
+      0 1px 2px rgba($focus-shadow-ink, 0.18) !important;
+  }
+}
+
+
+@mixin ch-focused-tile($start, $end) {
+  background: linear-gradient(155deg, $start 0%, $end 100%);
+  // Shadows are inked with $focus-shadow-ink rather than derived from the fill. Gentle's
+  // `ch-tile-tint` mixin tints its shadow with the card's own colour
+  // (`_classic-home.scss:1209`); at these lightnesses that shadow is invisible.
+  // A DARK rim, not the white one this carried while the fills were dark. At these
+  // lightnesses the cards sit only 1.79-2.23:1 from the page ground, so the rim is what
+  // holds their edge; white on them is invisible. At 0.30 the rim reads 3.82:1 against the
+  // ground.
+  border-color: rgba($ch-focused-ink-on-tint, 0.30);
+  box-shadow:
+    0 8px 20px rgba($focus-shadow-ink, 0.22),
+    0 1px 3px rgba($focus-shadow-ink, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+  // Re-declared because the block below sets `box-shadow` on the resting state at a
+  // specificity that outranks both of Gentle's hover rules (`_classic-home.scss:963` at
+  // (0,2,1) and the `ch-tile-tint` mixin's own `&:hover` at (0,2,0)). Without this the
+  // resting shadow would win in the hover state too and the card would lift on hover
+  // with no change in elevation.
+  &:hover,
+  &:focus-visible {
+    box-shadow:
+      0 14px 30px rgba($focus-shadow-ink, 0.38),
+      0 2px 5px rgba($focus-shadow-ink, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+}
+
+// Just the four background layers of the light glass tile, with no border or shadow.
+// Extracted 2026-09-22 so the rail rows can take the Extras tile's BACKGROUND (requested)
+// while keeping their own hairline, shadow and 64px target height. One definition means
+// "the same bg as the Extras button" stays true rather than becoming a copy that drifts.
+@mixin ch-focused-glass-bg($colour) {
   background:
     // corner specular — the highlight that makes it read as a curved surface
     radial-gradient(125% 95% at 18% 6%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 54%),
@@ -3154,6 +3584,10 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
       rgba($ch-focused-ink-on-tint, 0) 38%),
     // the colour itself
     $colour;
+}
+
+@mixin ch-focused-glass-tile($colour, $hover: true) {
+  @include ch-focused-glass-bg($colour);
   border-color: rgba($ch-focused-ink-on-tint, 0.30);
   box-shadow:
     0 8px 20px rgba($focus-shadow-ink, 0.22),
@@ -3232,42 +3666,32 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
       inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.08);
   }
 }
+.ch-grid:not(.ch-grid--extras) {
 
-@mixin ch-focused-tile($start, $end) {
-  background: linear-gradient(155deg, $start 0%, $end 100%);
-  // Shadows are inked with $focus-shadow-ink rather than derived from the fill. Gentle's
-  // `ch-tile-tint` mixin tints its shadow with the card's own colour
-  // (`_classic-home.scss:1209`); at these lightnesses that shadow is invisible.
-  // A DARK rim, not the white one this carried while the fills were dark. At these
-  // lightnesses the cards sit only 1.79-2.23:1 from the page ground, so the rim is what
-  // holds their edge; white on them is invisible. At 0.30 the rim reads 3.82:1 against the
-  // ground.
-  border-color: rgba($ch-focused-ink-on-tint, 0.30);
-  box-shadow:
-    0 8px 20px rgba($focus-shadow-ink, 0.22),
-    0 1px 3px rgba($focus-shadow-ink, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-
-  // Re-declared because the block below sets `box-shadow` on the resting state at a
-  // specificity that outranks both of Gentle's hover rules (`_classic-home.scss:963` at
-  // (0,2,1) and the `ch-tile-tint` mixin's own `&:hover` at (0,2,0)). Without this the
-  // resting shadow would win in the hover state too and the card would lift on hover
-  // with no change in elevation.
-  &:hover,
-  &:focus-visible {
-    box-shadow:
-      0 14px 30px rgba($focus-shadow-ink, 0.38),
-      0 2px 5px rgba($focus-shadow-ink, 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  /* SPEAK + REPORTS WEAR THE MODERN CASELOAD-HERO MATERIAL, FOCUSED ONLY (2026-09-22).
+     The glass-tile include stays as the BASE so Basic+Gentle keeps exactly the tile it had;
+     the hero is layered in a `body.ll-layout-focused &` wrapper on top. That scoping is the
+     whole point: this block lost its `body.ll-layout-focused` prefix earlier the same day so
+     Basic could use the focused PALETTE in both layouts, which meant an unscoped hero here
+     silently restyled the Gentle Speak button too — reported, and this is the fix.
+     The hero mixin is `!important` throughout, so it cleanly supersedes the glass tile where
+     it applies rather than racing it. */
+  .ch-tile--big.ch-tile--speak-main {
+    @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-speak-start 0%, $ch-focused-speak-end 100%));
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-speak-hero-center, $ch-focused-speak-hero-edge); }
   }
-}
-
-body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
-
-  .ch-tile--big.ch-tile--speak-main    { @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-speak-start 0%, $ch-focused-speak-end 100%)); }
-  .ch-tile--big.ch-tile--reports       { @include ch-focused-glass-tile(linear-gradient(145deg, $ch-focused-reports-start 0%, $ch-focused-reports-mid 55%, $ch-focused-reports-end 100%)); }
-  .ch-tile--big.ch-tile--ideas         { @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-ideas-start 0%, $ch-focused-ideas-end 100%)); }
-  .ch-tile--big.ch-tile--extras-toggle { @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-extras-start 0%, $ch-focused-extras-end 100%)); }
+  .ch-tile--big.ch-tile--reports {
+    @include ch-focused-glass-tile(linear-gradient(145deg, $ch-focused-reports-start 0%, $ch-focused-reports-mid 55%, $ch-focused-reports-end 100%));
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-reports-hero-center, $ch-focused-reports-hero-edge); }
+  }
+  .ch-tile--big.ch-tile--ideas {
+    @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-ideas-start 0%, $ch-focused-ideas-end 100%));
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-ideas-hero-center, $ch-focused-ideas-hero-edge); }
+  }
+  .ch-tile--big.ch-tile--extras-toggle {
+    @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-extras-start 0%, $ch-focused-extras-end 100%));
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-extras-hero-center, $ch-focused-extras-hero-edge); }
+  }
 
   .ch-tile--big {
     // Gentle's two white decorative layers are re-specified, not inherited.
@@ -3366,11 +3790,14 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
     // `.ch-tile--big .ch-tile__rule` — that spelling compiles to a doubled class that matches
     // nothing.
     .ch-tile__rule {
-      // 0.72, matching Gentle. Measured on the focused CTA veil below: 4.12-4.40 against the
-      // 3:1 WCAG 1.4.11 floor for non-text UI, on all four card tints.
-      // §10, matching Gentle's step to a firmer glyph. 0.88 near-black reads 5.0-5.4 on the
-      // CTA veil, well clear of the 3:1 non-text floor.
-      color: rgba($ch-focused-ink-on-tint, 0.88);
+      // A LIGHT GREY, not the near-black this carried (requested 2026-09-22). The figures in
+      // the note this replaces -- "0.88 near-black reads 5.0-5.4 on the CTA veil" -- were true
+      // of the LIGHT cards this scheme started with. The cards are dark now, and the same ink
+      // measures 1.7-2.1 on the CTA veil: the arrow had quietly gone under the 3:1 non-text
+      // floor and was the least visible thing on the card.
+      // Shares `$ch-focused-hero-more-ink` with `.ch-tile__more` rather than introducing a
+      // second grey, so the card's two quiet marks stay one value.
+      color: $ch-focused-hero-more-ink;
       background: none;
       border: 0;
       border-radius: 0;
@@ -3412,7 +3839,7 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
     // Every ink on it GAINS: near-black reads 5.68-6.43 here against 4.93-5.12 on the bare
     // card, so this is headroom bought, not spent.
     .ch-tile__info {
-      background: rgba(255, 255, 255, 0.10);
+      background: rgba(255, 255, 255, $ch-hero-veil-panel);
       // §2, this scheme's weight. Gentle lights the panel's top edge at 0.35 over near-white
       // cards; on these mid-tones that reads as a hard line, so it drops to 0.22 — still a
       // lit edge, still no border and no outer shadow.
@@ -3442,7 +3869,7 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
     // with the inset edge-light kept and an ambient shadow added so the control reads as
     // raised off the card while the panel above it reads as cut into it.
     .ch-tile__cta {
-      background: rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, $ch-hero-veil-cta);
       border-color: rgba(255, 255, 255, 0.28);
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.40),
@@ -3455,8 +3882,15 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
 
     // The disclosure chevron is a CSS triangle, so its colour is a border
     // (`_classic-home.scss:1390`); on dark, $la-navy at 0.55 is invisible.
-    .ch-tile__toggle-caret { border-top-color: rgba($ch-focused-ink-on-tint, 0.70); }
+    // The caret is a CSS triangle, so its colour is a border. Light grey for the same reason
+    // as the arrow above, and the same token -- on the dark card the near-black it carried
+    // measured 2.0 on the panel veil, under the 3:1 floor for a non-text cue.
+    .ch-tile__toggle-caret { border-top-color: $ch-focused-hero-more-ink; }
 
+    // THE SHARED CHIP -- this block is UNSCOPED (see `.ch-grid:not(.ch-grid--extras)` above,
+    // which lost its `body.ll-layout-focused` prefix so Basic could take this palette in BOTH
+    // layouts), so what is written here reaches Gentle Basic as well. The pale plate below is
+    // what Gentle keeps; the glass variant is scoped to Focused immediately after it.
     .ch-tile__chip {
       background:
         linear-gradient(180deg,
@@ -3472,6 +3906,47 @@ body.ll-layout-focused .ch-grid:not(.ch-grid--extras) {
     }
 
     .ch-tile__icon { @include ch-focused-glyphs; }
+
+    // GLOSSY GLASS, FOCUSED ONLY (requested 2026-09-22: "basic view focused only"). The chip
+    // above carries an OPAQUE second layer -- `linear-gradient(160deg, $ch-focused-chip-lite,
+    // $ch-focused-chip)` -- so it reads as a light tile sitting ON the card. Dropping that
+    // layer leaves the card's own gradient showing through, and what remains is the gloss: a
+    // top-weighted white veil, a bright top edge and a soft drop.
+    //
+    // SCOPED WITH `body.ll-layout-focused &` RATHER THAN EDITED IN PLACE, which is the one
+    // case where a second rule is right instead of changing the first: the block this sits in
+    // is deliberately unscoped so Gentle Basic shares it, and the request is for Focused only.
+    // Editing the rule above would have taken Gentle's chip with it. This is the same idiom the
+    // rest of the file uses wherever the two layouts diverge inside a shared block.
+    //
+    // THE VEIL IS KEPT LOW, topping out at 0.14. A heavier wash was tried first: at 0.34 the
+    // chip becomes a light grey plate in its own right, which both loses the transparency asked
+    // for and puts every glyph under 3:1 (measured: white 2.81-3.18, accents 1.7-2.4). The
+    // gloss here is the top edge and the drop, not opacity.
+    //
+    // `backdrop-filter` is what makes it read as glass rather than a white wash -- the card
+    // gradient behind it is what gets blurred. It degrades to a plain veil where unsupported,
+    // which is the same shape, just flatter.
+    body.ll-layout-focused & {
+      .ch-tile__chip {
+        background:
+          linear-gradient(180deg,
+            rgba(255, 255, 255, $ch-hero-veil-chip) 0%,
+            rgba(255, 255, 255, 0.06) 46%,
+            rgba(255, 255, 255, 0.02) 100%);
+        border-color: rgba(255, 255, 255, 0.42);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.55),
+          inset 0 -2px 4px rgba($ch-focused-ink-on-tint, 0.10),
+          0 4px 10px rgba($focus-shadow-ink, 0.20);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+
+      // THE LIGHT SET, not `ch-focused-glyphs`. That mixin darkens each accent so it reads on
+      // the pale chip above; against the card's own mid-tone it would be dark-on-dark.
+      .ch-tile__icon { @include ch-focused-glyphs-on-glass; }
+    }
   }
 }
 
@@ -3567,10 +4042,22 @@ $ch-focused-warn-peach: #EAA68F;   // == $ch-gentle-warn-peach (_classic-home.sc
 //
 // And it further narrows CONFLICT 2 (the account teal against the Reports tile): both were
 // cut 35% in the same pass, so their saturations stay apart rather than converging.
-$ch-focused-identity-start: #8EA5C4;   // was #80A3D2
-$ch-focused-identity-end:   #82B9B2;   // was #73C8BD
+// DESATURATED 15% (requested 2026-09-22), in step with the active tab below. `color.scale`
+// rather than `color.adjust`: scale moves the saturation 15% of the way toward grey, which is
+// the relative step this file uses everywhere, not a flat 15-point subtraction.
+// Lightness is untouched, so the inks on the identity block keep the grounds already measured.
+// Written as the RESOLVED HEX, not as the `color.scale()` calls that produced it, for the same
+// reason `$ch-focused-ink-sub` is: `color.scale` lands on fractional channels here
+// (rgb(148.3, 166.3, 189.7)) and a fractional channel can be dropped whole by a
+// Cordova/Electron webview.
+// DESATURATED IN TWO STEPS, -15% then a further -10% (both requested 2026-09-22). The steps are
+// RELATIVE and therefore compound rather than summing to -25%: each moves the remaining
+// saturation that fraction of the way to grey, so the pair is x0.85 then x0.90 = x0.765 of the
+// original. Navy ink reads 7.19 and 7.73 on these, up slightly from before.
+$ch-focused-identity-start: #94A6BE;   // #8EA5C4 -> -15% -> #92A6C0 -> -10%; was #80A3D2
+$ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; was #73C8BD
 
-body.ll-layout-focused .ch-rail {
+.ch-rail {
   // Glassy silver: a corner specular, a raking band, a bottom shade, then the ramp — the same
   // four-layer recipe the Actions cards use, so the two surfaces read as one material.
   //
@@ -3602,42 +4089,60 @@ body.ll-layout-focused .ch-rail {
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.06);
 
-  // --- identity -------------------------------------------------------------
-  .ch-rail__identity {
-    background: linear-gradient(150deg, $ch-focused-identity-start 0%, $ch-focused-identity-end 100%);
-    // Dark rim: at this lightness the block reads only 1.39:1 against the rail pane, so its
-    // edge is what separates the two rather than luminance.
-    border-color: rgba($ch-focused-ink-on-tint, 0.32);
-    box-shadow:
-      0 6px 18px rgba($focus-shadow-ink, 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.35);
-    color: $ch-focused-ink-on-tint;
+  /* IDENTITY BLOCK (the panel the avatar sits in) IS FOCUSED-ONLY (requested 2026-09-22:
+     "keep the gentle avatar bg the same as it is on gentle basic"). This `.ch-rail` block lost
+     its `body.ll-layout-focused` prefix earlier the same day so Basic could take the focused
+     PALETTE in both layouts — which also handed Gentle this identity fill. Reverted by scoping.
 
-    // Gloss down from 0.5 (`_classic-home.scss:181`) to the same 0.10 budget the
-    // Actions cards use, so the measured figures below describe what renders.
-    &::before {
-      background: linear-gradient(
-        to bottom,
-        rgba(255, 255, 255, 0.10) 0%,
-        rgba(255, 255, 255, 0.035) 55%,
-        rgba(255, 255, 255, 0) 100%
-      );
+     THE INK GOES WITH THE FILL, not just the background. `.ch-rail__username`,
+     `__identity-sub` and `__arrow` are measured AGAINST this wash (see the figures in the
+     comments below), so scoping the background alone would leave focused ink on Gentle's
+     original panel — a contrast mismatch rather than a revert. All of it moves together. */
+  body.ll-layout-focused & {
+    // --- identity -------------------------------------------------------------
+    .ch-rail__identity {
+      background: linear-gradient(150deg, $ch-focused-identity-start 0%, $ch-focused-identity-end 100%);
+      // Dark rim: at this lightness the block reads only 1.39:1 against the rail pane, so its
+      // edge is what separates the two rather than luminance.
+      border-color: rgba($ch-focused-ink-on-tint, 0.32);
+      box-shadow:
+        0 6px 18px rgba($focus-shadow-ink, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      color: $ch-focused-ink-on-tint;
+
+      // Gloss down from 0.5 (`_classic-home.scss:181`) to the same 0.10 budget the
+      // Actions cards use, so the measured figures below describe what renders.
+      &::before {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.10) 0%,
+          rgba(255, 255, 255, 0.035) 55%,
+          rgba(255, 255, 255, 0) 100%
+        );
+      }
     }
+
+    .ch-rail__username { color: $ch-focused-ink-on-tint; }
+
+    // Gentle sets these with `opacity` rather than an alpha colour, so the overlay has to set
+    // BOTH — recolouring alone would leave the inherited opacity multiplying it. Near-black
+    // now that the wash is a mid-tone: the sub measures 5.3:1 at 0.85 and the arrow 4.00:1 at
+    // 0.70, against the 3:1 WCAG 1.4.11 asks of a non-text affordance.
+    .ch-rail__identity-sub { color: $ch-focused-ink-on-tint; opacity: 0.85; }
+    .ch-rail__arrow        { color: $ch-focused-ink-on-tint; opacity: 0.70; }
   }
-
-  .ch-rail__username { color: $ch-focused-ink-on-tint; }
-
-  // Gentle sets these with `opacity` rather than an alpha colour, so the overlay has to set
-  // BOTH — recolouring alone would leave the inherited opacity multiplying it. Near-black
-  // now that the wash is a mid-tone: the sub measures 5.3:1 at 0.85 and the arrow 4.00:1 at
-  // 0.70, against the 3:1 WCAG 1.4.11 asks of a non-text affordance.
-  .ch-rail__identity-sub { color: $ch-focused-ink-on-tint; opacity: 0.85; }
-  .ch-rail__arrow        { color: $ch-focused-ink-on-tint; opacity: 0.70; }
 
   // The ring goes back DARK now the wash it sits on is a mid-tone: a white ring was right
   // against the old dark identity block and is weak against this one. The photo backdrop
   // stays white either way.
-  .ch-rail__avatar { border-color: rgba($ch-focused-ink-on-tint, 0.38); }
+  // AVATAR RING STAYS FOCUSED-ONLY (requested 2026-09-22: "keep the gentle avatar bg the same
+  // as it is on gentle basic"). The avatar's BACKGROUND is already identical in both layouts —
+  // `.ch-rail__avatar { background: #fff }` in _classic-home.scss, which nothing here touches —
+  // so the only thing this palette would have changed on the avatar is its ring, and that is
+  // what the exclusion protects.
+  .ch-rail__avatar {
+    body.ll-layout-focused & { border-color: rgba($ch-focused-ink-on-tint, 0.38); }
+  }
 
   // --- rows: NAVIGATION, not cards ----------------------------------------
   // Flattened 2026-09-14. These were six elevated glass cards stacked inside an already
@@ -3663,6 +4168,7 @@ body.ll-layout-focused .ch-rail {
     padding: 9px 15px;
     border-radius: 15px;
     background: rgba(255, 255, 255, 0.34);
+
     // A SILVER HAIRLINE, not the white one and not nothing. This was transparent while the
     // veil alone was meant to carry the row; it reads as under-defined on the light pane, so
     // the edge is back — but in $brand-cool-steel, the silver the Gentle rows already use
@@ -3922,7 +4428,17 @@ body.ll-layout-focused {
   // This is the same trap $focus-pill-active-from/to were darkened 20% to escape — the note
   // there records white on the undarkened pill at exactly 3.62:1. Re-measure before lightening.
   .ch-tab.is-active {
-    background: linear-gradient(135deg, #367D8E 0%, #536FAE 100%);
+    // DESATURATED 15% (requested 2026-09-22), the same relative step the identity gradient
+    // above takes. Both stops move together so the ramp keeps its direction; `color.scale`
+    // holds lightness, so the white label keeps the headroom measured for the original stops.
+    // Resolved hex rather than the `color.scale()` calls, per the note on the identity
+    // gradient above: both landed on fractional channels. Desaturated in the same two relative
+    // steps, -15% then a further -10% (x0.765 of the original saturation, not x0.75 -- see the
+    // note there). White label measures 5.01 on the first stop and 4.71 on the second, so the
+    // 4.5 floor survives both steps; the second stop is the one to watch if this goes further.
+    background: linear-gradient(135deg,
+      #417783 0%,    // #367D8E -> -15% -> #3D7987 -> -10%
+      #5E73A3 100%); // #536FAE -> -15% -> #5A72A7 -> -10%
     color: $focus-on-dark;
     font-weight: 750;
     opacity: 1;
@@ -4323,7 +4839,10 @@ body.ll-layout-focused {
   // the relationship Gentle states at `_classic-home.scss:1445-1448`. A DARK rim now, at the
   // same 0.38 the rail avatar uses (:2364) — the white one was legible only while this card
   // was navy.
-  .ch-comm__avatar { border-color: rgba($ch-focused-ink-on-tint, 0.38); }
+  // Focused-only for the same reason as the rail avatar above.
+  .ch-comm__avatar {
+    body.ll-layout-focused & { border-color: rgba($ch-focused-ink-on-tint, 0.38); }
+  }
 
   // All three flipped from white to dark with the card's fill. Measured on the fill's darkest
   // point (#7E8797): name 4.91, goal 4.91, the goal link 4.68 — against 3.64 / 2.87 / 2.13
@@ -4505,7 +5024,7 @@ body.ll-layout-focused {
 
 // The toggle sits on the focused rail's own glass, so it takes the silver ramp rather than
 // the near-white one the gentle rail gives it.
-body.ll-layout-focused .ch-rail__toggle {
+.ch-rail__toggle {
   background: linear-gradient(160deg, $ch-focused-silver-hi 0%, $ch-focused-silver-lo 100%);
   border-color: rgba(255, 255, 255, 0.85);
   box-shadow:

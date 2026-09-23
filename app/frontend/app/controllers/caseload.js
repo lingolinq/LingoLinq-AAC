@@ -1,7 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
-import { scheduleOnce } from '@ember/runloop';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
@@ -172,9 +171,10 @@ export default Controller.extend({
     }
     // Deferred so the row has actually rendered with its --active/--highlighted
     // class before we look for it. requestAnimationFrame rather than the runloop's
-    // scheduleOnce (used by selectSupervisee below) purely to avoid adding another
-    // `ember/no-runloop` violation to this file — the project has no ember-lifeline
-    // dependency to migrate to. The callback is best-effort: it re-checks isDestroyed
+    // scheduleOnce purely to avoid an `ember/no-runloop` violation — the project has no
+    // ember-lifeline dependency to migrate to. `selectSupervisee` below used to be the
+    // counter-example named here; it takes this same approach as of 2026-09-22, so the
+    // file now has no runloop calls at all. The callback is best-effort: it re-checks isDestroyed
     // and _scrollExpandedIntoView is itself try/caught and no-ops when the row is
     // absent, so a teardown mid-frame is harmless.
     var _this = this;
@@ -319,7 +319,19 @@ export default Controller.extend({
       // utils/scroll_below_header.js for why each is the way it is. The classic
       // home page's Extras drawer needs the identical behaviour, and this logic
       // is entirely about the app's chrome rather than about this page.
-      scrollBelowHeader(row);
+      //
+      // `gap: 76` = the helper's default 12 plus 64 (requested 2026-09-22). Arriving here
+      // from the home page's "Communicators Need Attention" card landed the card's top
+      // tight under the chrome, so the communicator's name and the top of their card were
+      // not readable. The helper already clears the FIXED header exactly — verified — so
+      // this is not a correction to its measurement; it is extra breathing room below it,
+      // because the pill-nav menu sits under the header and is NOT fixed, so no amount of
+      // measuring picks it up.
+      //
+      // PASSED HERE, NOT CHANGED IN THE HELPER: the classic home page's Extras drawer is
+      // the other caller and wants the tighter default — it opens in place rather than
+      // being arrived at from another page, so it has no menu to clear.
+      scrollBelowHeader(row, { gap: 76 });
     } catch (e) { /* best-effort — never block toggling */ }
   },
 
@@ -465,7 +477,24 @@ export default Controller.extend({
         this._loadBadgeForSupervisee(supervisee);
         // After the panel renders, bring the newly-expanded card into view —
         // expanding a low row can push its content below the fold.
-        scheduleOnce('afterRender', this, this._scrollExpandedIntoView);
+        //
+        // requestAnimationFrame, NOT `scheduleOnce('afterRender', ...)` (changed 2026-09-22).
+        // This is the same deferral the sibling above uses on this same method, and for the
+        // same stated reason: `ember/no-runloop`, with no ember-lifeline in the project to
+        // migrate to. It was the file's last runloop call, so the import is gone with it.
+        //
+        // WHY IT SURFACED NOW: the rule is not new and neither was this line. `.eslint-todo`
+        // anchors legacy findings BY LINE, and an edit higher up this file shifted this call
+        // down, so the gate stopped recognising it as the known entry and reported it as a
+        // new violation. Re-anchoring the baseline would have buried it; converting the call
+        // removes it. See app/frontend/CLAUDE.md on the line-anchored gate.
+        var _this2 = this;
+        if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+          window.requestAnimationFrame(function() {
+            if (_this2.isDestroyed || _this2.isDestroying) { return; }
+            _this2._scrollExpandedIntoView();
+          });
+        }
       }
     },
 

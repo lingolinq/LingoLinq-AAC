@@ -342,8 +342,21 @@
         <div class="nav-header__board-bar">
         <button id='board_done' class='btn btn-default' {{on "click" (this.ctrlAction "back_to_from_route")}}>
           {{#if this.on_board_alt}}
+            {{!-- TWO LINES, not one wrapped string (requested 2026-09-22): the icon runs the
+                 full height on the left and "EXIT" / "BOARDS" stack to its right.
+                 SPLIT INTO TWO EXISTING KEYS rather than CSS-breaking the single
+                 `exit_boards` string: a forced line break inside a translated phrase puts
+                 the break wherever English happens to put its space, which is meaningless in
+                 a language that words this differently. `exit` and `boards` are both already
+                 in public/locales, so this adds no new keys and needs no generator run. --}}
             <span class='board-done__exit-icon'></span>
-            <span class='board-done__exit-label'>{{t "Exit Boards" key="exit_boards"}}</span>
+            <span class='board-done__exit-label'>
+              {{!-- The two lines carry distinct modifiers so the second can drop on a narrow
+                   screen (SCSS, <=640px) without also taking the first. A shared class was
+                   enough while both always showed; it is not once they diverge. --}}
+              <span class='board-done__exit-line board-done__exit-line--exit'>{{t "Exit" key="exit"}}</span>
+              <span class='board-done__exit-line board-done__exit-line--boards'>{{t "Boards" key="boards"}}</span>
+            </span>
           {{else}}
             <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
             <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
@@ -452,22 +465,29 @@
                   {{/if}}
                 {{else}}
                   {{#if this.board.model.multiple_copies}}
-                    <span style="margin-right: -1px;">
-                    <a href="#" class='btn btn-info' {{on "click" (this.ctrlAction "list_copies")}}>
+                    <span class="ll-copies-slot" style="margin-right: -1px;">
+                    {{!-- BOARD-ALT WEARS THE "More" BUTTON'S STYLE HERE (requested 2026-09-22). `btn-info`
+                         everywhere else, `btn-default` on board-alt -- the same class the More
+                         dropdown beside it uses, rather than a board-alt rule in SCSS that
+                         restates More's colours and then drifts from them.
+                         All THREE states of this slot carry it (Copies / My Copy / Original):
+                         they are one control in three mutually exclusive branches, so styling
+                         only the first would change the slot's appearance by board state. --}}
+                    <a href="#" class="btn {{if this.on_board_alt 'btn-default' 'btn-info'}}" {{on "click" (this.ctrlAction "list_copies")}}>
                       <span class="wide">{{t "Copies" key="copies"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                     </a>
                     </span>
                   {{else if this.board.model.copy.key}}
                     <!-- TODO: no idea why this is necessary -->
-                    <span style="margin-right: -1px;">
-                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn btn-info">
+                    <span class="ll-copies-slot" style="margin-right: -1px;">
+                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn {{if this.on_board_alt 'btn-default' 'btn-info'}}">
                       <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                     </LinkTo>
                     </span>
                   {{else if this.board.model.original.key}}
                     <!-- TODO: no idea why this is necessary -->
-                    <span style="margin-right: -1px;">
-                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="btn btn-info">
+                    <span class="ll-copies-slot" style="margin-right: -1px;">
+                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="btn {{if this.on_board_alt 'btn-default' 'btn-info'}}">
                       <span class="wide">{{t "Original" key="original"}}</span><span class="skinny real_skinny glyphicon glyphicon-certificate"></span>
                     </LinkTo>
                     </span>
@@ -516,12 +536,12 @@
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}
-                  <a class='btn btn-default medium_skinny not_really_skinny' href="#" {{on "click" (this.ctrlAction "star")}}>
+                  <a class='btn btn-default medium_skinny not_really_skinny ll-like-btn' href="#" {{on "click" (this.ctrlAction "star")}}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     <span class="wide">{{t "Like" key="star"}}</span>{{#if this.board.model.stars}} <span class="badge">{{this.board.model.stars}}</span>{{/if}}
                   </a>
                 {{else}}
-                  <span class='btn btn-default not_really_skinny' href="#">
+                  <span class='btn btn-default not_really_skinny ll-like-btn' href="#">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     <span class="wide">{{t "Like" key="star"}}</span>{{#if this.board.model.stars}} <span class="badge">{{this.board.model.stars}}</span>{{/if}}
                   </span>
@@ -532,91 +552,31 @@
                   </a>
                 {{/if}}
               {{/unless}}
-              <span class="dropdown" style="display: inline-block;">
-                <a class='btn btn-default' href="#" data-toggle="dropdown">
+              {{!-- `ll-board-more-wrap` is the menu's POSITIONING CONTEXT. The menu used to live
+                   in `.la-board-hamburger-wrap`, which sits further along the bar, so it opened
+                   beside the More button rather than under it. It is anchored to the trigger
+                   the user actually clicks now. --}}
+              <span class="dropdown ll-board-more-wrap" style="display: inline-block;">
+                {{!-- MORE OPENS THE SHARED BOARD MENU (2026-09-22), the same one the hamburger
+                     opens, instead of its own Bootstrap dropdown. The menu itself is defined
+                     ONCE, further down inside `.la-board-hamburger-wrap`, and this is simply a
+                     second trigger for it -- the alternative was a second copy of eleven wired
+                     menu items that would drift from the first.
+                     ANCHORING WORKS BECAUSE THE WRAP ALWAYS EXISTS: `.la-board-hamburger-wrap`
+                     is `position: relative; display: inline-block` at every width and only the
+                     BUTTON inside it is `display: none`, so the absolutely-positioned menu has
+                     a valid anchor in the bar whether the hamburger is showing or not.
+                     `.ll-board-more-btn` is also what keeps the close-click working -- see the
+                     outside-click handler in controllers/application.js. --}}
+                <a class='btn btn-default ll-board-more-btn' href="#" {{on "click" (this.ctrlAction "toggleBoardMenu")}}>
                   <span class="wide">{{t "More" key="more"}} <b class="caret"></b></span><span class="skinny real_skinny glyphicon glyphicon-chevron-down"></span>
                 </a>
-                <ul class="dropdown-menu skinny-right" role="menu" aria-labelledby="dLabel">
-                  <li role="presentation">
-                    <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "boardDetails")}}>{{t "Board Details" key="board_details"}}</a>
-                  </li>
-                  {{#unless this.board.model.uncopyable}}
-                    {{#if this.app_state.currentUser}}
-                      {{#if this.board.model.permissions.edit}}
-                        <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "toggleEditMode")}}>{{t "Edit Board" key="edit_board"}}</a>
-                        </li>
-                      {{/if}}
-                      <li role="presentation">
-                        <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "tweakBoard")}}>{{t "Make a Copy" key="make_copy"}}</a>
-                      </li>
-                      {{#if this.app_state.current_board_not_home_or_supervising}}
-                        <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>{{t "Set as Home Board" key="set_as_home_board"}}</a>
-                        </li>
-                      {{/if}}
-                      <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "add_to_sidebar")}}>{{t "Add to Sidebar" key="add_to_sidebar"}}</a>
-                      </li>
-                    {{/if}}
-                    {{#unless this.app_state.feature_flags.other_menu}}
-                    <li role="presentation">
-                      <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "downloadBoard")}}>{{t "Download Board" key="download_board"}}</a>
-                    </li>
-                    {{/unless}}
-                    <li role="presentation">
-                      <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "printBoard")}}>{{t "Print Board" key="print_board"}}</a>
-                    </li>
-                    {{#if this.board.model.local_only}}
-                      {{#if this.board.model.editable_source_key}} 
-                          <li role="presentation">
-                            <LinkTo @route="board" @model={{this.board.model.editable_source_key}} role="menuitem" tabindex="-1">{{t "Editable Version" key="editable_version"}}</LinkTo>
-                          </li>
-                      {{/if}}
-                    {{else}}
-                      {{#if this.board.model.levels}}
-                        {{#if this.board.model.multiple_copies}}
-                          <li role="presentation">
-                            <a role='menuitem' tabindex='-1' href="#" {{on "click" (this.ctrlAction "list_copies")}}>{{t "View Copies" key="view_copies"}}</a>
-                          </li>
-                        {{else if this.board.model.copy.key}}
-                          <li role="presentation">
-                            <LinkTo @route="board" @model={{this.board.model.copy.key}} role="menuitem" tabindex="-1">{{t "View My Copy" key="view_my_copy"}}</LinkTo>
-                          </li>
-                        {{else if this.board.model.original.key}}
-                          <li role="presentation">
-                            <LinkTo @route="board" @model={{this.board.model.original.key}} role="menuitem" tabindex="-1">{{t "View Original" key="original_board"}}</LinkTo>
-                          </li>
-                        {{/if}}
-                      {{/if}}
-                    {{/if}}
-                    {{#if this.app_state.feature_flags.other_menu}}
-                      <li role="presentation">
-                        <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "board_actions")}}>{{t "Other Actions" key="other_actions"}}</a>
-                      </li>
-                    {{/if}}
-                  {{/unless}}
-                </ul>
-              </span>
-              {{!-- The "Card View" link was REMOVED here (2026-09-02, requested): the
-                   navbar View dropdown now offers the same switch from every
-                   authenticated page, so this was a second control for one action —
-                   and on this page specifically, sitting inside `#normal_mode` right
-                   beside "Try in Speak Mode". See components/view-switcher.js. --}}
-            {{/if}}
-          {{/if}}
-
-          {{!-- Hamburger menu for small screens. The button + dropdown
-               share a positioning wrapper so the menu anchors directly
-               below the hamburger instead of inheriting #normal_mode's
-               wider positioning context (which dropped the menu out
-               to the right of the button). --}}
-          <span class="la-board-hamburger-wrap">
-          <button class="la-board-hamburger" type="button" {{on "click" (this.ctrlAction "toggleBoardMenu")}} aria-label={{t "Menu" key="menu"}}>
-            <span class="la-board-hamburger__bar"></span>
-            <span class="la-board-hamburger__bar"></span>
-            <span class="la-board-hamburger__bar"></span>
-          </button>
+                {{!-- The old Bootstrap `<ul class="dropdown-menu">` that lived here is GONE
+                     (2026-09-22). Its items are all present in the shared board menu the
+                     trigger above now opens, so keeping it would have meant two menus for one
+                     button, drifting apart on every future edit. The two items it carried that
+                     the shared menu did NOT have -- the copies slot and Like -- were moved into
+                     that menu rather than dropped; see `.ll-compact-only` there. --}}
           {{#if this.boardMenuOpen}}
             <div class="la-board-mobile-menu">
               {{#if this.board.model.permissions.edit}}
@@ -686,6 +646,39 @@
                   <span class="glyphicon glyphicon-print"></span>
                   {{t "Print Board" key="print_board"}}
                 </button>
+                {{!-- CARRIED OVER FROM THE RETIRED "More" DROPDOWN (2026-09-22). These were the
+                     only two things that menu offered which this one did not, so they move here
+                     rather than being lost when it was removed. Same actions, same guards.
+
+                     The copies trio keeps `.ll-compact-only`, so it appears only at the widths
+                     where the bar's own copies button is hidden (<=640px) -- above that the bar
+                     still carries it and a menu entry would be a duplicate. Editable Version has
+                     no bar equivalent, so it is always offered. --}}
+                {{#if this.board.model.local_only}}
+                  {{#if this.board.model.editable_source_key}}
+                    <LinkTo @route="board" @model={{this.board.model.editable_source_key}} class="la-board-mobile-menu__item">
+                      <span class="glyphicon glyphicon-pencil"></span>
+                      {{t "Editable Version" key="editable_version"}}
+                    </LinkTo>
+                  {{/if}}
+                {{else}}
+                  {{#if this.board.model.multiple_copies}}
+                    <button type="button" class="la-board-mobile-menu__item ll-compact-only" {{on "click" (this.ctrlAction "list_copies")}}>
+                      <span class="glyphicon glyphicon-file"></span>
+                      {{t "View Copies" key="view_copies"}}
+                    </button>
+                  {{else if this.board.model.copy.key}}
+                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="la-board-mobile-menu__item ll-compact-only">
+                      <span class="glyphicon glyphicon-file"></span>
+                      {{t "View My Copy" key="view_my_copy"}}
+                    </LinkTo>
+                  {{else if this.board.model.original.key}}
+                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="la-board-mobile-menu__item ll-compact-only">
+                      <span class="glyphicon glyphicon-certificate"></span>
+                      {{t "View Original" key="original_board"}}
+                    </LinkTo>
+                  {{/if}}
+                {{/if}}
                 {{!-- Other Actions: wires to the same `board_actions`
                      action used at full size (opens modals/board-actions
                      via application.js#board_actions), gated on the
@@ -704,6 +697,26 @@
               </button>
             </div>
           {{/if}}
+              </span>
+              {{!-- The "Card View" link was REMOVED here (2026-09-02, requested): the
+                   navbar View dropdown now offers the same switch from every
+                   authenticated page, so this was a second control for one action —
+                   and on this page specifically, sitting inside `#normal_mode` right
+                   beside "Try in Speak Mode". See components/view-switcher.js. --}}
+            {{/if}}
+          {{/if}}
+
+          {{!-- Hamburger menu for small screens. The button + dropdown
+               share a positioning wrapper so the menu anchors directly
+               below the hamburger instead of inheriting #normal_mode's
+               wider positioning context (which dropped the menu out
+               to the right of the button). --}}
+          <span class="la-board-hamburger-wrap">
+          <button class="la-board-hamburger" type="button" {{on "click" (this.ctrlAction "toggleBoardMenu")}} aria-label={{t "Menu" key="menu"}}>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+          </button>
           </span>
         </span>
         <span id="board_id">
@@ -911,27 +924,27 @@
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "More" key="more"}}</span><span class="skinny glyphicon glyphicon-wrench"></span> <span class='caret'></span></button>
           <ul class="dropdown-menu skinny_right" role="menu" aria-labelledby="dLabel">
             <li role="presentation" class={{this.undo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "undoEdit")}}>{{t "Undo" key="undo"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "undoEdit")}}><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>{{t "Undo" key="undo"}}</a>
             </li>
             <li role="presentation" class={{this.redo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "redoEdit")}} disabled="true">{{t "Redo" key="redo"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "redoEdit")}} disabled="true"><span class="glyphicon glyphicon-arrow-right" aria-hidden="true"></span>{{t "Redo" key="redo"}}</a>
             </li>
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "editBoardDetails")}}>{{t "Edit Name & Details" key="edit_details"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "editBoardDetails")}}><span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>{{t "Edit Name & Details" key="edit_details"}}</a>
             </li>
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "openButtonStash")}}>{{t "Button Stash" key="button_stash"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "openButtonStash")}}><span class="glyphicon glyphicon-inbox" aria-hidden="true"></span>{{t "Button Stash" key="button_stash"}}</a>
             </li>
             {{#if this.board.button_levels}}
               <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "preview_levels")}}>{{t "Preview Levels" key="preview_levels"}}</a>
+                <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "preview_levels")}}><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>{{t "Preview Levels" key="preview_levels"}}</a>
               </li>
             {{/if}}
             <li role="presentation" class="really_skinny">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "saveBoard")}}>{{t "Save Board" key="save_board"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "saveBoard")}}><span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span>{{t "Save Board" key="save_board"}}</a>
             </li>
             <li role="presentation" class="really_skinny">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "resetBoard")}}>{{t "Cancel Changes" key="cancel_changes"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "resetBoard")}}><span class="glyphicon glyphicon-remove" aria-hidden="true"></span>{{t "Cancel Changes" key="cancel_changes"}}</a>
             </li>
           </ul>
         </span>
@@ -948,8 +961,19 @@
          is false on user.board-alt.index (controllers/application.js:2326), so the
          modern navbar's <ViewSwitcher /> does not render there — the classic board
          needs its own mount to stay switchable. The component self-hides with no
-         user and in speak mode. --}}
-    <ViewSwitcher />
+         user and in speak mode.
+
+         NOT ON BOARD-ALT (requested 2026-09-22), for both Focused and Gentle. Note the
+         irony this guard has to hold: this mount exists BECAUSE board-alt has no modern
+         navbar, so board-alt is the page it was most obviously "for" -- but the View
+         menu is not wanted there. Every OTHER page this mount serves, the classic board
+         view in particular, keeps it, which is why the guard is here and the mount is
+         not simply deleted.
+         Gated rather than hidden in SCSS so the trigger and its menu leave the DOM: a
+         `display: none` dropdown is still focusable in source order. --}}
+    {{#unless this.on_board_alt}}
+      <ViewSwitcher />
+    {{/unless}}
     <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if this.showBentoStyleHeader "identity-with-dark-toggle"}} {{unless this.app_state.speak_mode "app-navbar-auth-nav--desktop identity-with-dark-toggle"}}">
       {{#if this.app_state.speak_mode}}
       {{#if this.showBentoStyleHeader}}
@@ -1354,10 +1378,17 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser}}
+    {{!-- NOT ON BOARD-ALT (requested 2026-09-22), for both Focused and Gentle. Gated here
+         rather than hidden in SCSS so it leaves the DOM entirely: a `display: none` link
+         is still in the tab order's source and still reachable by a screen reader on a
+         page it is not meant to be on. The circular variant below carries the same guard --
+         they are one control at two breakpoints, so they have to agree. --}}
+    {{#unless this.on_board_alt}}
     <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       {{t "Beta feedback" key="beta_feedback_nav"}}
     </a>
+    {{/unless}}
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support app-navbar__large-only" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
@@ -1373,9 +1404,12 @@
          elements up) already renders before the settings gear, while the circular β that
          replaces it below 1200px used to render after it, so the pair visibly traded places
          as the window crossed that threshold. --}}
+    {{!-- Same board-alt guard as the full pill above; see its note. --}}
+    {{#unless this.on_board_alt}}
     <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
     </a>
+    {{/unless}}
     <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -1529,6 +1563,16 @@
        delete `hide_beta_feedback_temporarily` from controllers/application.js. --}}
   {{#unless this.hide_beta_feedback_temporarily}}
   {{#if this.showBetaFeedbackDrawer}}
+  {{!-- NOT IN BOARD-ALT SPEAK MODE (requested 2026-09-22). Speak mode on board-alt is the
+       communicator's actual talking surface: a floating "Beta feedback" tab sits over the
+       board there, and it is the one screen where an accidental tap costs the user their
+       sentence. The header's beta buttons were already gated off board-alt entirely; this is
+       the bottom-centre drawer tab, which reaches this point through `speak_mode` in the
+       condition below.
+       THE DRAWER IS WRAPPED TOO, not just the tab. Leaving the panel mounted would let a
+       drawer opened on another page follow the user into speak mode with its trigger gone,
+       so the only way to shut it would be the panel's own buttons. --}}
+  {{#unless (and this.on_board_alt this.app_state.speak_mode)}}
     {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
       <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.onToggleBetaFeedbackDrawer}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1541,6 +1585,7 @@
         <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onCloseBetaFeedbackDrawer}} @onCancel={{this.onCloseBetaFeedbackDrawer}} @onClose={{this.onCloseBetaFeedbackDrawer}} />
       </aside>
     </div>
+  {{/unless}}
   {{/if}}
   {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}

@@ -56,7 +56,14 @@
            `user.password_reset` and `user.confirm_registration` deliberately get NO nav: they
            are single-task pages reached from an email, they carry their own exit, and the
            global header in application.hbs renders for signed-out visitors too. --}}
-      <main class="md-main md-main--user">
+      {{!-- `md-main--updates-arrival` marks the logs page reached from the home pill-nav's
+           Updates, so its header can centre there (app.scss). Driven by the same
+           `homeNavContext` the nav choice uses, so the two can never disagree about which
+           arrival this is.
+           A NEW NAME, not the retired `md-workspace--homenav`: that one existed for headroom
+           that a since-removed in-page nav needed, and reviving it would imply this is the
+           same concern. It is not — this is purely the header's alignment. --}}
+      <main class="md-main md-main--user {{if this.homeNavContext "md-main--updates-arrival"}}">
         {{outlet}}
       </main>
     </div>

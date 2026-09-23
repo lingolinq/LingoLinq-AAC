@@ -43,12 +43,22 @@
 // never in the tile surface — that part still holds for the panel. The row went
 // the other way: four of its five slots now carry a hue in the SURFACE too (see
 // the rank list on `.md-caseload__quick-action`).
-@mixin caseload-action-surface($radius: 12px) {
+// `$darken` scales every solid stop of the ramp toward black by that much, including the
+// radial highlight's white — darkening the ramp but leaving the highlight at full white would
+// invert the material's relief, making it read as a lit dome rather than a tile.
+// A PARAMETER, not a caller-side background override: the whole point of this mixin is that
+// the tiles and anything matching them share one definition, and a second `background` painted
+// over its output is exactly the drift it exists to prevent. Default 0% keeps every existing
+// caller byte-identical.
+@mixin caseload-action-surface($radius: 12px, $darken: 0%) {
   border: 1px solid rgba(76, 134, 216, 0.20);
   border-radius: $radius;
   background:
-    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
-    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
+    radial-gradient(125% 125% at 26% 18%, rgba(color.scale(#ffffff, $lightness: -$darken), 0.95), transparent 60%),
+    linear-gradient(140deg,
+      color.scale(#ffffff, $lightness: -$darken) 0%,
+      color.scale(#eef0f4, $lightness: -$darken) 52%,
+      color.scale(#e2e6ec, $lightness: -$darken) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.90),
     inset 0 -2px 4px rgba(76, 134, 216, 0.06),
