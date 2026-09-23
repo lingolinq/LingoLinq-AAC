@@ -4,7 +4,7 @@ import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
-
+import apiErrorMessage from '../../utils/api_error_message';
 export default Controller.extend({
   persistence: service('persistence'),
 
@@ -195,7 +195,7 @@ export default Controller.extend({
         _this.loadFeatures();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     },
 
@@ -212,7 +212,7 @@ export default Controller.extend({
         _this.loadFeatures();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     }
   }
