@@ -114,6 +114,8 @@ class Api::SystemEmailTemplatesController < ApplicationController
       text_body: text,
       note: 'Preview uses synthetic sample data for variables like @consent_url.'
     }.to_json
+  rescue ArgumentError => e
+    api_error 400, {error: e.message}
   end
 
   private
@@ -148,7 +150,7 @@ class Api::SystemEmailTemplatesController < ApplicationController
   end
 
   def build_preview_i18n(raw_overrides)
-    overrides = SystemEmailTemplates.normalize_i18n_overrides(raw_overrides || {})
+    overrides = SystemEmailTemplates.normalize_i18n_overrides(raw_overrides || {}, @entry)
     (@entry[:i18n_blocks] || []).each_with_object({}) do |block, memo|
       key = block[:key] || block['key']
       memo[key] = overrides[key].presence || I18n.t(key, default: '')

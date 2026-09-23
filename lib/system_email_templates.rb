@@ -169,8 +169,24 @@ module SystemEmailTemplates
       default = I18n.t(key, default: '')
       next if stripped == default
 
+      validate_i18n_placeholders!(key, stripped, entry) if entry
       memo[key.to_s] = stripped
     end
+  end
+
+  # The mailers interpolate only the placeholders a block lists
+  # (SystemEmailRegistry i18n_blocks), so any other %{...} or %<...> raises
+  # I18n::MissingInterpolationArgument at send time.
+  def self.validate_i18n_placeholders!(key, text, entry)
+    block = (entry[:i18n_blocks] || []).find { |b| (b[:key] || b['key']).to_s == key.to_s }
+    allowed = Array(block && (block[:placeholders] || block['placeholders'])).map(&:to_s)
+    pattern = Regexp.union(I18n.config.interpolation_patterns)
+    used = text.scan(pattern).map { |m| m[0] || m[1] }.compact.map { |name| name.split('|').first }.uniq
+    unknown = used - allowed
+    return if unknown.empty?
+
+    allowed_list = allowed.any? ? allowed.map { |name| "%{#{name}}" }.join(', ') : 'none'
+    raise ArgumentError, "Unknown placeholder #{unknown.map { |name| "%{#{name}}" }.join(', ')} in #{key}. Allowed: #{allowed_list}"
   end
 
   def self.render_string(template_string, mailer_binding, validate: true)
