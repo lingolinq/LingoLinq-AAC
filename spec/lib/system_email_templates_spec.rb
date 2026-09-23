@@ -69,12 +69,27 @@ describe SystemEmailTemplates do
       'a %<name>d format' => 'Welcome to %<app_name>d',
       'a %<name>s format' => 'Welcome to %<app_name>s'
     }.each do |label, text|
-      it "rejects #{label}, which the mailer cannot interpolate as written" do
+      it "rejects #{label}: only the plain %{name} form is supported" do
         expect {
           SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
             i18n_overrides: {'parental_consent_mailer.intro' => text}
           })
         }.to raise_error(SystemEmailTemplates::InvalidOverride, /is not a placeholder this field supports/)
+      end
+    end
+
+    {
+      'a spaced name' => 'Welcome to %{ app_name }',
+      'an unterminated placeholder' => 'Welcome to %{app_name',
+      'an empty placeholder' => 'Welcome to %{}',
+      'an escaped %% before a placeholder' => 'Welcome to %%{app_name}'
+    }.each do |label, text|
+      it "rejects #{label}, which would reach parents as literal text" do
+        expect {
+          SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+            i18n_overrides: {'parental_consent_mailer.intro' => text}
+          })
+        }.to raise_error(SystemEmailTemplates::InvalidOverride, /Introduction: .*placeholder/)
       end
     end
 

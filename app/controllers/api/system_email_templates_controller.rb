@@ -95,8 +95,12 @@ class Api::SystemEmailTemplatesController < ApplicationController
     subject ||= @entry[:default_subject]
     subject = "#{app_name} - #{subject}" unless @entry[:uses_i18n_subject]
 
+    # The editor always sends both bodies; one equal to the default view is not a
+    # customization (set_template! drops it the same way), so it is not validated as one.
     html_custom = attrs[:html_body].presence
+    html_custom = nil if html_custom && SystemEmailTemplates.default_field_value?(@entry[:key], @entry, 'html_body', html_custom, org)
     text_custom = attrs[:text_body].presence
+    text_custom = nil if text_custom && SystemEmailTemplates.default_field_value?(@entry[:key], @entry, 'text_body', text_custom, org)
     html_template = html_custom || SystemEmailTemplates.default_body(@entry[:key], 'html') || ''
     text_template = text_custom || SystemEmailTemplates.default_body(@entry[:key], 'text') || ''
     sample_consent_url = "#{JsonApi::Json.absolute_host}/parental_consent/complete?user_id=#{user.global_id}&token=sample-token"
