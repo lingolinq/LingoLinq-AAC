@@ -115,6 +115,32 @@ describe License, :type => :model do
     # each expired license independently, so one organization's seat expiring must not disturb
     # another organization that still holds and pays for one.
 
+    it "takes the user lock so concurrent releases cannot orphan the sponsor column" do
+      # Organization#claim_user locks the user row then writes the license. This method must
+      # acquire in the SAME order or the two can deadlock, and without the user lock two
+      # concurrent releases each read the survivor set before the other commits, leaving
+      # managing_organization_id naming an organization that holds no seat.
+      u = User.create
+      a = Organization.create(:settings => {'total_licenses' => 1})
+      b = Organization.create(:settings => {'total_licenses' => 1})
+      a_license = License.create!(organization: a, seat_type: 'student', status: 'active', expires_at: 10.days.from_now)
+      License.create!(organization: b, seat_type: 'student', status: 'active', expires_at: 20.days.from_now)
+      a.claim_user(u)
+      b.claim_user(u.reload)
+
+      locked = false
+      allow_any_instance_of(User).to receive(:with_lock).and_wrap_original do |orig, &blk|
+        locked = true
+        orig.call(&blk)
+      end
+
+      a_license.reload.release_user!
+
+      # The lock is taken, and it is taken on the USER, matching claim_user's order.
+      expect(locked).to eq(true)
+      expect(a_license.reload.user_id).to be_nil
+    end
+
     it "hands the account back to the family when no other organization holds a seat" do
       u = User.create
       only_org = Organization.create(:settings => {'total_licenses' => 1})
@@ -164,9 +190,14 @@ describe License, :type => :model do
       a = Organization.create(:settings => {'total_licenses' => 1})
       b = Organization.create(:settings => {'total_licenses' => 1})
       c = Organization.create(:settings => {'total_licenses' => 1})
-      License.create!(organization: a, seat_type: 'student', status: 'active', expires_at: 10.days.from_now)
+      # Expiries are deliberately inverted relative to claim order: the survivor with the LONGEST
+      # expiry (a) is NOT the organization the column names (c). With them aligned, an
+      # unconditional repoint would write the same value the predicate leaves in place, and this
+      # example would pass either way. Verified: replacing the predicate with `if true` used to
+      # leave all five release_user! examples green.
+      a_license = License.create!(organization: a, seat_type: 'student', status: 'active', expires_at: 300.days.from_now)
       b_license = License.create!(organization: b, seat_type: 'student', status: 'active', expires_at: 20.days.from_now)
-      c_license = License.create!(organization: c, seat_type: 'student', status: 'active', expires_at: 300.days.from_now)
+      c_license = License.create!(organization: c, seat_type: 'student', status: 'active', expires_at: 10.days.from_now)
       a.claim_user(u)
       b.claim_user(u.reload)
       c.claim_user(u.reload)
@@ -175,8 +206,10 @@ describe License, :type => :model do
       b_license.reload.release_user!
 
       u.reload
-      # C is untouched: still the sponsor, still holding its seat, expiry still C's.
+      # C is untouched: still the sponsor, still holding its seat, expiry still C's. An
+      # unconditional repoint would have written A here, since A is the longest-lived survivor.
       expect(u.managing_organization_id).to eq(c.id)
+      expect(u.managing_organization_id).to_not eq(a.id)
       expect(c_license.reload.user_id).to eq(u.id)
       expect(u.expires_at.to_i).to be_within(5).of(c_license.reload.expires_at.to_i)
       expect(b_license.reload.user_id).to be_nil

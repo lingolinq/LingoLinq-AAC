@@ -40,22 +40,54 @@ module DataPolicyEnforcer
   #
   # This iterates per student rather than issuing one query per organization. The job is
   # nightly and the bound is per student, so the extra queries are accepted deliberately.
-  def self.sponsorship_started_at(org, user)
-    stamps = []
+  # Full ISO-8601 date and time. Deliberately stricter than Time.parse, which accepts
+  # "01/02/03" and reads it as 2001-02-03. A stamp read EARLIER than the truth widens an
+  # irreversible deletion, so an unrecognised format must fall through to the license fallback
+  # (and from there to skipping) rather than be guessed at. update_subscription_organization
+  # writes Time.now.iso8601, so a conforming value is the norm and a non-conforming one is
+  # corruption.
+  ISO8601_STAMP = /\A\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/.freeze
 
-    link = UserLink.links_for(org).detect do |l|
-      l['type'] == 'org_user' && l['user_id'] == user.global_id
+  # Build the org_user 'added' stamps for a whole organization in ONE pass.
+  #
+  # Hoisted out of the per-student loop deliberately. UserLink.links_for(org) returns EVERY link
+  # for the organization, not just org_user, and each call is a Redis GET plus a JSON.parse of the
+  # whole blob followed by a linear scan. Called per student it made the nightly job O(students^2)
+  # in parse and comparison work for one organization: a 10,000-student district meant 10,000
+  # parses of a multi-megabyte blob. The scheduler aborts the run on failure, so a timeout here
+  # takes the whole nightly dispatch down with it.
+  def self.sponsorship_stamps_for(org)
+    stamps = {}
+    UserLink.links_for(org).each do |l|
+      next unless l['type'] == 'org_user'
+
+      stamps[l['user_id']] = l['state'] && l['state']['added']
     end
-    added = link && link['state'] && link['state']['added']
-    if added
+    stamps
+  end
+
+  def self.sponsorship_started_at(org, user, added)
+
+    if added.is_a?(String) && added.match?(ISO8601_STAMP)
       parsed = (Time.parse(added) rescue nil)
-      stamps << parsed if parsed
+      return parsed if parsed
     end
 
-    granted = License.where(organization_id: org.id, user_id: user.id).minimum(:granted_at)
-    stamps << granted if granted
-
-    stamps.compact.min
+    # Fallback for links predating the 'added' stamp: the earliest seat this organization
+    # CURRENTLY holds for the student.
+    #
+    # Scoped to status 'active', which the first version of this method omitted. A non-active
+    # row that still carries user_id belongs to an ENDED sponsorship episode, so its granted_at
+    # would extend the purge window backwards across the gap in which this organization had no
+    # relationship with the student, and the purge is irreversible. Rows in that state are
+    # reachable in practice: expire_stale_licenses! sets status before calling release_user!,
+    # and scheduled dispatch was interrupted from 2026-07-21 to 2026-09-02 (LL-3e36a18199).
+    #
+    # The link stamp is preferred over this rather than taking the earlier of the two. Both are
+    # legitimate readings of when sponsorship began, and on an irreversible deletion the
+    # narrower one is the right default.
+    License.where(organization_id: org.id, user_id: user.id, status: 'active')
+           .minimum(:granted_at)
   end
 
   def self.enforce_retention!
@@ -67,13 +99,30 @@ module DataPolicyEnforcer
 
       cutoff = months.months.ago
 
+      stamps = sponsorship_stamps_for(org)
+
       org.sponsored_users.find_each do |user|
-        started = sponsorship_started_at(org, user)
+        started = sponsorship_started_at(org, user, stamps[user.global_id])
         if started.nil?
           Rails.logger.warn(
             "DataPolicyEnforcer: skipping retention purge for user #{user.global_id} under " \
             "org #{org.global_id}; no sponsorship start date could be established, so the " \
             "purge window cannot be bounded"
+          )
+          next
+        end
+
+        # A start date at or after the cutoff makes the two predicates contradictory, so the
+        # purge silently does nothing and the nightly output is indistinguishable from "nothing
+        # to purge". Reachable from a clock-skewed or regenerated 'added' stamp: the ISO-8601
+        # gate accepts a well-formed future date. Warn rather than stay silent, because a
+        # customer's contractual retention deletion never happening is the compliance-visible
+        # half of failing safe.
+        if started >= cutoff
+          Rails.logger.warn(
+            "DataPolicyEnforcer: retention purge window is empty for user #{user.global_id} " \
+            "under org #{org.global_id}; sponsorship start #{started.iso8601} is at or after " \
+            "the retention cutoff #{cutoff.iso8601}, so nothing can be purged"
           )
           next
         end

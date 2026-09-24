@@ -3410,7 +3410,7 @@ class User < ApplicationRecord
   # request (LogSession save calls this multiple times).
   def effective_data_policy
     @effective_data_policy ||= begin
-      policies = sponsoring_organizations.map(&:effective_data_policy)
+      policies = policy_governing_organizations.map(&:effective_data_policy)
       if policies.empty?
         {}
       else
@@ -3447,12 +3447,28 @@ class User < ApplicationRecord
     end
   end
 
-  # Every organization currently sponsoring this user as a communicator, accepted invitations
-  # only. Plural by design: co-existing sponsorship is supported.
-  def sponsoring_organizations
-    Organization.attached_orgs(self).select do |o|
-      o['type'] == 'user' && !o['pending'] && o['sponsored']
-    end.map { |o| Organization.find_by_global_id(o['id']) }.compact
+  # Every organization whose data policy governs this user as a communicator. Plural by design:
+  # co-existing organizations are supported.
+  #
+  # Deliberately NOT filtered on 'sponsored'. The single-org resolver this replaced,
+  # User#managing_organization, falls back through three detects: sponsored, then any
+  # non-pending, then any at all. Its second detect meant an UNSPONSORED organization's policy
+  # still governed, which matters because organizations attach communicators unsponsored through
+  # `add_unsponsored_user` and `add_external_user` (Organization#process_params calls
+  # add_user(key, true, false, false)) and through gift-code redemption. Requiring 'sponsored'
+  # here returned an empty policy for exactly those users, and an empty policy is PERMISSIVE:
+  # LogSession reads `effective_data_policy['logging_allowed'] != false` and strips geo only on an
+  # explicit false, so a clinic's logging_allowed=false silently stopped applying.
+  #
+  # Accepted links are preferred, with pending ones used only when there are none, mirroring the
+  # old detect-2-then-detect-3 order. A pending invitation from an organization the family has not
+  # accepted therefore cannot tighten the policy of an account another organization already
+  # governs.
+  def policy_governing_organizations
+    links = Organization.attached_orgs(self).select { |o| o['type'] == 'user' }
+    accepted = links.reject { |o| o['pending'] }
+    chosen = accepted.any? ? accepted : links
+    chosen.map { |o| Organization.find_by_global_id(o['id']) }.compact
   end
 
   def clear_effective_data_policy_cache

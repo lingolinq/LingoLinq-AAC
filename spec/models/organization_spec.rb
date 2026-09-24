@@ -3910,6 +3910,37 @@ describe Organization, :type => :model do
       expect(org.licenses.where(user_id: u.id).count).to eq(0)
     end
 
+    it "does not destroy time the family purchased while already sponsored" do
+      # The guard that stops a second organization banking the first one's seat time must not
+      # reach an expiry the FAMILY paid for. update_subscription moves expires_at forward on a
+      # purchase and sets expiration_source to 'purchase' without touching
+      # managing_organization_id, so keying the guard on that column destroyed purchased time and
+      # did not bank it, because skipping the banking is the whole point of the guard.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+
+      morning.claim_user(u)
+      u.reload
+      banked_before_purchase = u.settings['subscription']['seconds_left'] || 0
+
+      # The family buys time while the morning district still sponsors them. This is the state the
+      # old guard could not distinguish from an org-granted expiry.
+      u.expires_at = 5.years.from_now
+      sub = u.settings['subscription'].merge('expiration_source' => 'purchase')
+      u.settings = u.settings.merge('subscription' => sub)
+      u.save!
+
+      afternoon.claim_user(u.reload)
+      u.reload
+
+      # The purchase must be banked, not silently discarded.
+      expect(u.settings['subscription']['seconds_left']).to be > banked_before_purchase
+      expect(u.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(5.years.to_i)
+    end
+
     it "does not bank another organization's seat time as the family's credit" do
       # clear_existing_subscription(:track_seconds_left => true) banks whatever expires_at holds
       # and checks nothing about expiration_source, so a second organization's claim would

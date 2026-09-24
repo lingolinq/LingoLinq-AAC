@@ -82,8 +82,54 @@ describe DataPolicyEnforcer do
       License.where(organization_id: o.id, user_id: u.id).update_all(granted_at: nil)
       stale = log(u, 'session', 4.years.ago)
 
+      # Assert the WARNING, not just the zero. Zero proves nothing here: with the guard deleted,
+      # `where('started_at >= ?', nil)` renders `started_at >= NULL`, which matches no rows, so the
+      # count is zero either way. This suite documents that same SQL semantics further down
+      # ("NULL < cutoff never matches in SQL"). The log line is the only effect the guard uniquely
+      # produces, and it is the compliance-visible half of choosing to fail safe.
+      expect(Rails.logger).to receive(:warn).with(/no sponsorship start date could be established/)
+
       expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
       expect(LogSession.where(id: stale.id).count).to eq(1)
+    end
+
+    it "ignores a non-active license when establishing when sponsorship began" do
+      # A row that still carries user_id but is no longer active belongs to an ENDED sponsorship
+      # episode. Using its granted_at would extend the purge window back across the gap in which
+      # this organization had no relationship with the student, and the purge is irreversible.
+      o, u = sponsored_org(3, sponsored_since: 6.months.ago)
+      # Strip the link stamp so the license fallback is the path under test.
+      link = UserLink.generate(u.reload, o, 'org_user')
+      link.data['state'].delete('added')
+      link.save!
+      UserLink.invalidate_cache_for(o)
+      UserLink.invalidate_cache_for(u)
+      # An ended episode from years ago, still carrying user_id.
+      License.create!(organization: o, user_id: u.id, seat_type: 'student',
+                      status: 'expired', granted_at: 4.years.ago)
+      License.where(organization_id: o.id, user_id: u.id, status: 'active')
+             .update_all(granted_at: 6.months.ago)
+      ancient = log(u, 'session', 3.years.ago)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
+      expect(LogSession.where(id: ancient.id).count).to eq(1)
+    end
+
+    it "refuses an ambiguous sponsorship stamp rather than guessing at it" do
+      # Time.parse reads "01/02/03" as 2001-02-03. A stamp read earlier than the truth widens an
+      # irreversible deletion, so a non-ISO-8601 value must not be used.
+      o, u = sponsored_org(3)
+      link = UserLink.generate(u.reload, o, 'org_user')
+      link.data['state']['added'] = '01/02/03'
+      link.save!
+      UserLink.invalidate_cache_for(o)
+      UserLink.invalidate_cache_for(u)
+      License.where(organization_id: o.id, user_id: u.id).update_all(granted_at: nil)
+      ancient = log(u, 'session', 3.years.ago)
+
+      # No usable stamp and no license fallback, so the student is skipped, not purged from 2001.
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
+      expect(LogSession.where(id: ancient.id).count).to eq(1)
     end
 
     it "purges stale session logs older than the retention window" do

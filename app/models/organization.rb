@@ -115,12 +115,26 @@ class Organization < ApplicationRecord
       # the family with the first organization's unused seat time, and License#release_user!
       # later restores it to them as a free subscription. Supporting more than one organization
       # at a time makes that a routine path rather than an edge case, so it is cleared here.
-      # The predicate is the managing-organization COLUMN, not org_sponsored?. Step 6 below
-      # writes that column and expires_at in the SAME statement, so the column being set is
-      # exactly what "this expiry came from a license" means. org_sponsored? reads any sponsored
-      # link and is also true in cases where expires_at was never license-derived, where this
-      # would discard genuine family credit instead of protecting it.
-      user.update_columns(expires_at: nil) if user.expires_at && user.managing_organization_id
+      # The predicate is an explicit 'org_license' stamp, NOT the managing-organization column.
+      #
+      # An earlier revision keyed this on the column and justified it by claiming step 6 writes
+      # the column and expires_at in the same statement, so a set column meant a license-derived
+      # expiry. That invariant is false. The column PERSISTS after step 6, while
+      # User#update_subscription later moves expires_at forward on a purchase
+      # (app/models/concerns/subscription.rb: "self.expires_at = [self.expires_at, Time.now]
+      # .compact.max" then "+= args['seconds_to_add']", setting expiration_source to 'purchase')
+      # and subscription_override('add_5_years') does the same. Neither touches the column.
+      # So a family that bought five years while sponsored by organization A had that expiry
+      # silently destroyed, and NOT banked, by organization B's claim: the banking in
+      # clear_existing_subscription is exactly what this guard skips.
+      #
+      # Gating on expiration_source == 'purchase' is not enough either, because the source
+      # survives a claim: nothing resets it, so a pre-claim 'purchase' would wrongly suppress the
+      # guard. The value has to be STAMPED by step 6, which is what makes it mean "this expiry
+      # was granted by a seat and nothing has replaced it since".
+      if user.expires_at && user.settings.dig('subscription', 'expiration_source') == 'org_license'
+        user.update_columns(expires_at: nil)
+      end
 
       user.update_subscription_organization(self, false, true)
     end
@@ -158,6 +172,12 @@ class Organization < ApplicationRecord
     # 6. Set the managing-organization COLUMN. It is a separate field from the link-derived
     # User#managing_organization, and several consumers read the column directly
     # (telemetry_event.rb, user.rb, the word predictor), so the link write does not cover them.
+    # Stamp the expiry's provenance in the same write. The guard above depends on this: it is
+    # the only signal that distinguishes an expiry this method granted from one the family paid
+    # for. Assigned as a new hash rather than mutated in place so dirty tracking sees it through
+    # secure_serialize.
+    subscription = (user.settings['subscription'] || {}).merge('expiration_source' => 'org_license')
+    user.settings = (user.settings || {}).merge('subscription' => subscription)
     user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
 
     # 7. Refresh the student's available boards. update_subscription_organization does not do
@@ -258,12 +278,39 @@ class Organization < ApplicationRecord
     end
   end
 
+  # Booleans and numerics in the data policy, for coercion on write. Values arrive from
+  # Api::OrganizationsController#update_data_policy as `policy_params.permit!.to_h` and from
+  # process_params as `policy_hash.stringify_keys`, neither of which casts, and a form-encoded
+  # client sends every value as a String. Stored uncast, two organizations could hold
+  # retention_months as 12 and "3", and the strictest-wins intersections in this class and in
+  # User#effective_data_policy compare them with `<`: "3" < 12 raises ArgumentError inside
+  # LogSession's before_save, failing every log upload for that student, and "3" < "12" is
+  # lexicographically false so the LONGER window would be chosen as the stricter one.
+  DATA_POLICY_BOOLEAN_KEYS = %w[logging_allowed geo_logging_allowed log_reports_allowed
+                                log_publishing_allowed research_opt_in_allowed].freeze
+  DATA_POLICY_NUMERIC_KEYS = %w[max_logging_cutoff_hours retention_months].freeze
+
+  def self.cast_data_policy_value(key, value)
+    return nil if value.nil?
+
+    if DATA_POLICY_BOOLEAN_KEYS.include?(key)
+      return false if [false, 'false', '0', 0].include?(value)
+      return true if [true, 'true', '1', 1].include?(value)
+
+      !!value
+    elsif DATA_POLICY_NUMERIC_KEYS.include?(key)
+      value.to_i
+    else
+      value
+    end
+  end
+
   def update_data_policy(policy_params, updater)
     self.settings ||= {}
     self.settings['data_policy'] ||= {}
     DATA_POLICY_KEYS.each do |key|
       if policy_params.key?(key)
-        self.settings['data_policy'][key] = policy_params[key]
+        self.settings['data_policy'][key] = Organization.cast_data_policy_value(key, policy_params[key])
       end
     end
     self.settings['data_policy']['updated_at'] = Time.now.iso8601
