@@ -368,6 +368,33 @@ describe Transcoder do
     end
   end
 
+  describe "audio_job" do
+    # The two audio outputs share one name_modifier and neither set an explicit
+    # extension. AWS's own docs promise a codec-derived default for a RAW
+    # (no-container) output, but confirmed on staging 2026-09-19 against two
+    # real jobs (1789855178463-xw2g13, 1789856386401-7lemzf): MediaConvert
+    # rejected both with errorCode 1040, "Duplicate output paths ... found in
+    # input job." This is an AWS execution-time uniqueness check, not the SDK's
+    # local ParamValidator, so stub_responses cannot reproduce it; the
+    # assertion instead pins the invariant AWS enforces directly on the hash.
+    it "should give the MP3 and WAV outputs distinct file extensions" do
+      u = User.create
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c.wav'})
+      job = Transcoder.audio_job(bs, 'd/e/f', 'qwert')
+      outputs = job[:settings][:output_groups][0][:outputs]
+      mp3 = outputs.detect { |o| o.dig(:audio_descriptions, 0, :codec_settings, :codec) == 'MP3' }
+      wav = outputs.detect { |o| o.dig(:audio_descriptions, 0, :codec_settings, :codec) == 'WAV' }
+      expect(mp3[:extension]).to eq('mp3')
+      expect(wav[:extension]).to eq('wav')
+      # Broader than the two literal checks above: pins the actual invariant AWS
+      # enforces (every output's [name_modifier, extension] pair must be unique
+      # within the group), not just that these two happen to differ today. Would
+      # also catch a third output added later that collides with either.
+      pairs = outputs.map { |o| [o[:name_modifier], o[:extension]] }
+      expect(pairs.uniq.length).to eq(pairs.length)
+    end
+  end
+
   describe "config" do
     env_wrap({
       'AWS_KEY' => 'bacon',
