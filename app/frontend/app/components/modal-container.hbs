@@ -262,6 +262,10 @@
     <EuAiParentalConsent />
   {{else if (is-equal this.currentTemplate "enable-ai-features")}}
     <EnableAiFeatures />
+  {{else if (is-equal this.currentTemplate "confirm-blank-board")}}
+    <ConfirmBlankBoard />
+  {{else if (is-equal this.currentTemplate "confirm-partial-board")}}
+    <ConfirmPartialBoard />
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

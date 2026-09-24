@@ -95,6 +95,41 @@
   transform: translateZ(0);
 }
 
+/* SLIGHT GLASSMORPHISM FOR A CONTROL sitting on a dark frosted bar -- board-alt's header
+   buttons, and the simulated ones on the create-board-new Basic preview.
+   Distinct from `glass-bar-surface` above, which is a light SURFACE; this is the small-object
+   treatment that goes ON one.
+
+   IT DELIBERATELY DOES NOT TOUCH THE FILL. Translucency is the obvious way to make a control
+   glassy, and here it is the wrong one: measured against the darkened bar (#282F3A), the
+   identity button (#46505F) sits at 1.65:1 SOLID and the speak chips at 2.93:1, both already
+   under the 3:1 WCAG 1.4.11 needs for a UI boundary, and thinning the fill pushes them
+   further down. So the fill is left exactly as each control defines it -- `background-image`
+   is a longhand and does not disturb the `background` shorthand's colour -- and the glass is
+   carried by three things that ADD contrast instead of removing it:
+
+     - an inset white RING, which is what actually restores the boundary. At 0.26 it measures
+       3.14:1 against the bar on the worst control (identity) and 3.60-5.43:1 on the rest, so
+       every control ends up with a boundary it did not have before this was applied.
+     - a top specular highlight, the lit edge that reads as glass thickness.
+     - a real backdrop blur. It has something to do: these sit on a bar that is itself
+       translucent over the page, so what is behind them genuinely varies.
+
+   `$ring` and `$sheen` are parameters because the preview's bar is shorter and lighter than
+   the real header, not so callers can invent their own values. */
+@mixin control-glass($ring: 0.26, $sheen: 0.12, $blur: 6px) {
+  background-image: linear-gradient(180deg,
+    rgba(255, 255, 255, $sheen) 0%,
+    rgba(255, 255, 255, $sheen * 0.25) 55%,
+    rgba(255, 255, 255, 0) 100%) !important;
+  backdrop-filter: blur($blur) saturate(1.15);
+  -webkit-backdrop-filter: blur($blur) saturate(1.15);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, $ring),
+    inset 0 1px 0 rgba(255, 255, 255, $ring + 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.20) !important;
+}
+
 @mixin board-card-modern {
   position: relative;
   border-radius: 28px !important;
@@ -2501,21 +2536,58 @@ header:has(#normal_mode) #inner_header {
   height: auto !important;
   min-height: 0 !important;
 }
+/* GLASSMORPHISM, board-alt speak bar (requested).
+   THE GLASS IS ON `#inner_header` -- background, blur and sheen all on the one element, which
+   is where the bar's colour has always lived.
+
+   The outer `header.speaking` is therefore TRANSPARENT rather than charcoal. That is not a
+   spare change: `#inner_header` is its child, so an opaque parent is the only thing the
+   child's `backdrop-filter` would ever see, and the blur would frost a flat colour and render
+   as an ordinary solid bar. Clearing the parent lets the glass see the PAGE -- the header is
+   `position: fixed`, so board content scrolls underneath it and there is something real to
+   frost. `#inner_header` fills the header box (no padding or margin on `header.speaking` in
+   this state, checked), so nothing shows through around it.
+
+   SAFE TO PUT A BACKDROP-FILTER HERE, in this state, and it was checked rather than assumed:
+   `backdrop-filter` makes an element the containing block for every `position: fixed`
+   descendant, and the compiled CSS has NINE rules fixing `#inner_header` descendants
+   (#header_search, the mobile auth nav, the support button, the create-board link). All nine
+   need `.app-navbar` or `#nav_header` inside it, and
+   `controllers/application.js#useAppNavbarInHeader` returns FALSE for `user.board-alt.index`,
+   so board-alt never renders the navbar and this selector's `:has(#speak)` state renders the
+   speak bar instead. If a future change puts the navbar back into board-alt's header, this
+   blur must move to a pseudo-element first.
+
+   ALPHA IS MEASURED, NOT EYEBALLED. The bar carries white text. On plain charcoal that is
+   8.16:1; translucency erodes it, and the WORST case is the bar scrolled over white content.
+   At 0.82 -- the value that looks right -- white text falls to 4.11:1 and FAILS AA. At 0.92 it
+   holds 5.15:1 in that worst case and 6.22:1 over ordinary dark content. Not headroom an AAC
+   surface should trade for a finish. The 0.10 white film is counted in both figures. */
 #within_ember.board-alt-view header.speaking:has(#speak) {
-  background: $brand-charcoal-blue !important;
+  background: transparent !important;
 }
-/* Match #inner_header's background + suppress the light `border-bottom`
-   on board-alt speak. The base `#inner_header:has(#speak)` rule above
-   sets `background: #fff` and `border-bottom: 1px solid #e9ecef` —
-   intended for light-themed speak pages — but on board-alt the outer
-   header is charcoal-blue, so the white inner bg + light border show
-   as a thin white sliver at the bottom of the speak bar against the
-   dark surround. Override locally so board-alt's bar reads as one
-   continuous dark surface. */
 #within_ember.board-alt-view header.speaking:has(#speak) #inner_header {
-  background: $brand-charcoal-blue !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
+  /* Darkened in step with the non-speak bar above (same 28%-toward-black mix and the same
+     halved sheen) so the two board-alt header states do not drift apart. Alpha can relax
+     0.92 -> 0.86 here precisely BECAUSE the base is darker now: the 0.92 floor existed to
+     protect white text on the lighter $brand-charcoal-blue, and that constraint moves with
+     the colour. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.02) 45%,
+      rgba(255, 255, 255, 0.01) 100%),
+    rgba(color.mix($brand-charcoal-blue, #000, 72%), 0.86) !important;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  /* The glass EDGE, not the light border this rule used to strip. The old `border-bottom:
+     none` existed because the base `#inner_header:has(#speak)` rule leaks a pale border meant
+     for light speak pages, which showed as a white sliver against the dark surround. This is a
+     deliberate translucent-white hairline, which is what gives a glass panel its edge. */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    0 6px 18px rgba(0, 0, 0, 0.16) !important;
 }
 
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
@@ -48689,8 +48761,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-shell--org-directory .md-rooms__grid .md-room-card:only-child {
   grid-column: 1 / -1;
 }
+/* NO TOP MARGIN ON THE ROOMS GRID, DELIBERATELY (2026-09-23, requested: "is it because of the
+   top margin here? remove it").
+   THE HISTORY, so it is not re-added a fourth time: the gap originally belonged to an
+   `<hr class="md-org-report-divider">` that opened `.md-stats-main` -- 1px of line plus its own
+   `margin: 0 0 24px`. The line was removed because it had nothing above it inside the container
+   and read as a stray top border. Its 24px was then briefly restored here as a grid margin,
+   while the page was still sitting 132px too low in Focused; once that was fixed
+   (_focused-view.scss, "THE ORG DETAIL PAGES ARE THE GENTLE ONES") the compensation was slack
+   and was removed.
+   `.md-stats-main` carries no padding and no border, so a top margin on its only child COLLAPSES
+   THROUGH it -- which is why this space showed up in DevTools as part of `.md-main--org`'s
+   content box rather than above the grid, and why it looked like a padding problem on the wrong
+   element. The grid now sits directly on `.md-main--org`'s own 29px of padding. */
+
+/* `.md-shell--org .md-rooms__grid` ADDED 2026-09-23. The room card was styled only under the
+   Modern dashboard's cards and under `.md-shell--org-directory` -- the org LIST page. The org
+   DETAIL pages carry `.md-shell--org` WITHOUT `--org-directory`, so the supervisor rooms list
+   on `/organizations/:id/rooms` matched neither and rendered as bare links with an arrow.
+   Scoped through `.md-rooms__grid` so it reaches room cards and not, say, the switcher.
+   Added to this existing selector list rather than as a new block, so the three surfaces keep
+   one definition of the card. */
 .md-grid .md-card.md-card--rooms .md-room-card,
 .md-grid .md-card.md-card--org-management .md-room-card,
+.md-shell--org .md-rooms__grid .md-room-card,
+/* `.md-shell--org .md-rooms__grid` added 2026-09-23 -- see the note on the shared base rule
+   above. This is the rule that carries the card's LOOK, and extending only the base one
+   left the rooms page with `display` and nothing else: a bare link with an arrow. */
+.md-shell--org .md-rooms__grid .md-room-card,
 .md-shell--org-directory .md-room-card {
   display: flex;
   align-items: center;
@@ -48724,6 +48822,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid .md-card.md-card--rooms .md-room-card:focus-visible,
 .md-grid .md-card.md-card--org-management .md-room-card:hover,
 .md-grid .md-card.md-card--org-management .md-room-card:focus-visible,
+.md-shell--org .md-rooms__grid .md-room-card:hover,
+.md-shell--org .md-rooms__grid .md-room-card:focus-visible,
 .md-shell--org-directory .md-room-card:hover,
 .md-shell--org-directory .md-room-card:focus-visible {
   box-shadow:
@@ -48735,6 +48835,39 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 0 30px rgba(76, 134, 216, 0.24);
   transform: translateY(-1px);
   outline: none;
+}
+
+/* STANDALONE, AFTER the rule above closes. These were twice inserted between a selector
+   LIST and its opening brace -- those lists end in commas, so `.md-room-card__sub` was
+   absorbed into the group and the dashboard's own room-card rules rendered with the
+   sub-label's `display: block; font-size: 13px` in place of their flex layout and hover
+   shadow. That is what turned the focused Modern home page's room tiles into full-width
+   bars. Verified by diffing compiled CSS against the pre-change build: no pre-existing
+   room-card rule differs now. */
+/* MOVED HERE 2026-09-23. These two sat between the base card rule's SELECTOR LIST and its
+   opening brace -- the list ends in a comma, so `.md-room-card__sub` was swallowed into the
+   group and the dashboard's own `.md-grid .md-card--rooms .md-room-card` rendered with the
+   sub-label's `display: block; font-size: 13px` instead of the card's flex layout. That is
+   what turned the focused Modern home page's room tiles into full-width bars. Standalone
+   rules below, after the group closes, so nothing can be absorbed again. */
+/* ORG PICKER ON THE ROOMS PAGE (2026-09-23). Two additions to the room-card pattern the
+   Organizations directory already uses, so the picker reads as the same component rather than
+   a new one: a sub-line for the room count, and a non-link state for the org being viewed.
+
+   The current org is a <div>, not a <a>: there is nowhere to go, and `aria-current="page"` on
+   an inert element is what says "this is the one you are on". It is dimmed with a background
+   and a cursor, NOT with lowered text contrast -- the name still has to be readable, and it is
+   the one row a screen-reader user is most likely to be looking for. */
+.md-room-card__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--md-muted, #{$brand-charcoal-blue});
+}
+.md-room-card--current {
+  background: rgba($la-navy, 0.05);
+  cursor: default;
 }
 .md-room-card__icon {
   flex: 0 0 auto;
@@ -48834,6 +48967,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Org tiles read as actionable "open this org" rows. A stronger border than the
    shared room-card (0.20) signals clickability; the shared surface rule provides
    the rest of the chrome so this only overrides the border colour. */
+.md-shell--org .md-rooms__grid .md-room-card,
 .md-shell--org-directory .md-room-card {
   border-color: rgba(76, 134, 216, 0.40);
 }
@@ -57569,21 +57703,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   background: rgba(255, 255, 255, 0.88) !important;
 
 }
-/* Top-right Create Board: visually match the footer primary CTA
-   (teal→blue gradient) instead of inheriting the neutral header
-   action-button look. Higher specificity than the rule above. */
-.new-board--modern .create-board-actions .new-board__submit--top {
-  /* Push only this button to the far right of the flex row; the
-     Import / Paste HTML / Generate group stays left-aligned. */
-  margin-left: auto !important;
-  border: 1px solid rgba(44, 183, 176, 0.18) !important;
-  font-weight: 850 !important;
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.24), rgba(91, 141, 239, 0.20)) !important;
-  color: var(--md-ink) !important;
-}
-.new-board--modern .create-board-actions .new-board__submit--top:hover {
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.32), rgba(91, 141, 239, 0.28)) !important;
-}
 /* Import Board(s) wraps its button in a .file_select_holder span (so the
    hidden file input can intercept clicks). In a flex row, force the span
    to behave like a sibling button — and use overflow: visible so the
@@ -58608,6 +58727,70 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Wizard step footer (every step of the create-board wizard shares this one nav).
+   `flex-end` puts the whole group hard right, so Back sits DIRECTLY beside Next
+   (one `gap` apart) rather than being pushed to the opposite edge, and the primary
+   action lands in the same place on every step — including step 1, where Back is
+   not rendered, and the last step, where "Generate Labels with AI" takes its place. */
+/* The card-level Back nav. Inherits `.nb-wizard__nav`'s flex-end alignment so it lands in
+   the same right-hand corner the wizard's own footer used; this only spaces it off the
+   last section above it. */
+.nb-create-card-nav {
+  margin-top: 16px;
+}
+.nb-wizard__nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+/* Secondary counterpart to the Next CTA, matching the modal-footer Cancel
+   button so the pair reads as one set. */
+.nb-wizard__nav .nb-wizard__back {
+  padding: 12px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--md-line);
+  font-weight: 750;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--md-ink);
+  box-shadow: var(--md-shadow-2);
+  transition: background 0.2s ease;
+}
+.nb-wizard__nav .nb-wizard__back:hover {
+  background: rgba(255, 255, 255, 0.88);
+}
+/* Modern primary CTA, matching the modal-footer Create Board button and the
+   sibling Generate button above. The soft actionable glow is deliberately not
+   reused here: it marks the AI action specifically. */
+.nb-wizard__next.btn.btn-primary {
+  padding: 12px 28px;
+  border-radius: 16px;
+  border: 1px solid rgba(44, 183, 176, 0.18);
+  font-weight: 850;
+  font-size: 15px;
+  color: var(--md-ink, #1f2933);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.30), rgba(91, 141, 239, 0.26));
+  box-shadow: 0 2px 6px rgba(13, 36, 56, 0.08);
+  transition: box-shadow 0.25s ease, background 0.2s ease;
+}
+.nb-wizard__next.btn.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.40), rgba(91, 141, 239, 0.34));
+  box-shadow: 0 6px 18px rgba(44, 183, 176, 0.26), 0 2px 8px rgba(13, 36, 56, 0.12);
+}
+/* Light gray bg + dark slate text for WCAG AA contrast, the same disabled
+   treatment the footer CTA uses; an opacity wash fails contrast here. */
+.nb-wizard__next.btn.btn-primary:disabled,
+.nb-wizard__next.btn.btn-primary[aria-disabled="true"] {
+  background: #e5e7eb;
+  color: #1f2937;
+  border: 1px solid rgba(31, 41, 55, 0.18);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
 }
 .new-board--modern .modal-footer .new-board__cancel {
   padding: 12px 24px !important;
@@ -59883,8 +60066,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 /* Context-scoped (0,3,0) + !important so it beats the base
    `.new-board--modern .create-board-actions button` rule (line ~48687),
    which forces a flat white background, neutral border and shadow with
-   !important — that's what was flattening this button. Same winning
-   pattern used by `.new-board__submit--top` just above. */
+   !important — that's what was flattening this button. */
 .new-board--modern .create-board-actions .nb-other-methods-btn {
   margin: 0;
   /* Raised, dimensional pill (not the flat .nb-ai-mode-other chip): a
@@ -59933,22 +60115,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-create-header__intro {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;   /* left-align the title + subtitle */
+  align-items: flex-start;   /* left-align the title */
   text-align: left;
   gap: 4px;
   min-width: 0;
   flex: 1 1 auto;            /* fill the available width (the actions stay right) */
 }
-.nb-create-header__intro > h3,
-.nb-create-header__subtitle {
+.nb-create-header__intro > h3 {
   text-align: left !important;
   align-self: stretch;
-}
-.nb-create-header__subtitle {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: rgba($la-navy, 0.62);
 }
 .nb-create-header .create-board-actions {
   flex: 0 0 auto;
@@ -60249,6 +60424,153 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin-bottom: 10px;
   padding-left: 4px;
   padding-right: 4px;
+}
+/* BASIC VIEW: the preview's speak bar becomes board-alt's, by taking the REAL header's
+   own surface rather than inventing one. On board-alt in speak mode the bar is
+   `#inner_header` inside `header.speaking`, and that header is painted
+   `background: $brand-charcoal-blue` (#46505F) by
+   `#within_ember.board-alt-view header.speaking:has(#speak)` (app.scss ~2504). The SAME
+   TOKEN is reused here, so the preview strip cannot drift from the bar it depicts.
+
+   Only the STRIP is added. The controls sitting on it -- the text field, the home button
+   and the action buttons -- already carry `rgba(110, 122, 140, 0.32)` over a 1px white
+   hairline, which is the lighter-slate-on-charcoal relationship board-alt's own controls
+   have, so they need nothing but an ink correction.
+
+   SCOPED ON `body.ll-view-basic`, not the grid's `--basic` modifier: this row is a
+   SIBLING of the grid inside `.new-board-mockup-wrap`, so the grid class cannot reach it.
+   That body class is stamped by `LingoLinq.set_view_scope` (app.js:524-527) from
+   `effective_view_style` -- the same resolved value `preview_is_basic` reads -- so the
+   strip and the tiles can never disagree about which view is active. It is deliberately
+   NOT gated on the layout axis: board-alt is board-alt in Gentle and Focused alike. */
+body.ll-view-basic .nb-preview-sentence-row {
+  background: $brand-charcoal-blue;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+/* THE BAR ITSELF, which is the part that actually reads as board-detail. It is painted
+   by `.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar`
+   at (0,3,0) with a near-white gradient -- and because the dark-mode class sits on
+   `.nb-preview-stage`, its PARENT, that `:not()` matches whatever the mode is, so the
+   white always wins. Beating it needs (0,3,1), which the `body` element supplies.
+   Board-alt's field is a translucent slate well on the charcoal header, not a white
+   card. */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar,
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-home-btn {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+  /* NO FROSTED GLASS IN BASIC. Both of these carry
+     `backdrop-filter: blur(18-20px) saturate(180%)` from the same (0,3,0) wrap rule that
+     paints them white. Overriding only `background` left the blur behind, so the control
+     still read as a pane of glass over the board -- board-alt's header controls are flat
+     slate wells with no blur at all. Killing the filter is what actually removes the
+     glassiness; the colour change alone did not. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Tighter action group in Basic. The bar defaults to `gap: 8px`; board-alt's header sets
+   its controls `margin-left: 4px` (app.scss ~68223), so 4px is the spacing the real bar
+   uses rather than a number picked to look right. With the mic hidden in this view the
+   group is down to two buttons, and 8px between just two reads as a gap rather than a
+   pair. (0,3,1) over the base (0,1,0). */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__actions {
+  gap: 4px;
+}
+/* THE BAR'S TOOL BUTTONS GO FLAT. Backspace and Clear carry
+   `inset 0 1px 0 rgba(255, 255, 255, 0.12)` plus a `0 2px 6px` drop shadow -- a lit top
+   edge over a raised body, which is exactly the "glass" read, and the last of it left in
+   the row once the bar and the home button were done. Board-alt's header controls are
+   flat wells: no lit edge, no lift. Removing the shadow outright is what flattens them;
+   recolouring alone left the highlight in place, which is the same mistake the sentence
+   bar's own backdrop-filter taught. (0,3,1) over the base (0,1,0). */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar,
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-home-btn,
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__btn {
+  box-shadow: none;
+}
+/* "Tapped words will appear here" goes lighter (requested), and the way it is lightened
+   matters: the base sets `opacity: 0.55` with no colour of its own, so on the charcoal
+   bar it inherited white and then dimmed it. MEASURED at 3.11:1 against the bar surface
+   -- under the 4.5:1 AA floor, on a page built for AAC users.
+   An explicit colour at full opacity replaces that: white at 0.85 over the bar resolves
+   to rgb(230, 231, 233) for 5.00:1, comfortably clear of AA and visibly lighter, which is
+   what was asked for. `opacity: 1` is required, not incidental -- leaving 0.55 in place
+   would re-dim the new colour and put it straight back under the floor.
+   Italic stays: that is the placeholder convention, and it is doing no contrast work. */
+body.ll-view-basic .new-board-mockup-wrap .nb-preview-sentence-bar__placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+}
+
+/* BACKSPACE + CLEAR ARE THE REAL HEADER BUTTONS, ported declaration for declaration from
+   `#within_ember.board-alt-view #inner_header:has(#speak) #backspace_button` and
+   `... #clear_button` (app.scss ~68156 / ~68184): borderless, 12px corners, a plain
+   `0 2px 6px rgba(0,0,0,0.2)` drop shadow and white glyphs, over two DIFFERENT fills --
+   blue-grey for backspace, a lightened charcoal for clear. The tokens are reused rather
+   than the resolved colours copied, so these cannot drift from the header they mirror.
+   THESE TWO ARE EXCLUDED FROM THE GLOSS RESET ABOVE, deliberately: board-alt gives them a
+   genuine drop shadow. That is depth, not gloss -- the gloss was the LIT INSET EDGE
+   (`inset 0 1px 0 rgba(255,255,255,.12)`), which this replaces outright.
+   The preview keeps its own button SIZE. Board-alt's 60px squares are sized to a 90px
+   header; this bar is shorter, and forcing the height would burst the row for a
+   dimension the eye reads from the shape, not the pixel count.
+   The `--backspace` / `--clear` modifiers are new: both buttons previously shared one
+   class, so nothing in CSS could tell them apart. */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__tool-btn {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  color: #fff;
+}
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__tool-btn--backspace {
+  background: $brand-blue-grey;
+}
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__tool-btn--clear {
+  background: color-mix(in oklch, #{$brand-charcoal-blue} 75%, white);
+}
+/* The same slight glass the real board-alt controls wear, via the shared mixin so the two
+   cannot drift -- which is the whole contract of this block: these buttons exist to depict
+   that header. A LIGHTER ring and sheen than the header's, because this bar is shorter and
+   sits on the pale create-board card rather than a dark page, so the full-strength values
+   read as a hard outline here instead of an edge. The home button is included: it is the
+   third simulated control, even though it is not a `__tool-btn`. */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__tool-btn,
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-home-btn {
+  @include control-glass($ring: 0.20, $sheen: 0.10, $blur: 4px);
+}
+/* NO MIC BUTTON IN BASIC (requested). `--btn--speak` is board-detail's in-bar speak
+   control; board-alt's header has no such button -- vocalizing there is the bar itself --
+   so it is a control with no counterpart in the view being depicted. Hidden rather than
+   removed from the template so the Modern preview keeps it, and `display: none` takes it
+   out of the accessibility tree as well as the layout. */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__btn--speak {
+  display: none;
+}
+/* The wrap's own frosted backdrop goes with them, for the same reason, as do the word
+   chips that appear in the bar once labels are tapped -- they carry their own
+   `blur(12px) saturate(140%)` and would be the one glassy thing left in the row. */
+body.ll-view-basic .new-board-mockup-wrap--dark,
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__chip,
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__prediction {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* The home button's glyph is `$indigo` on the modern bar, which sat on a light-enough
+   surface to work. On the charcoal strip it would be near-invisible, so it takes the
+   text field's own `#fff` -- the same ink board-alt's header controls use. */
+body.ll-view-basic .nb-preview-sentence-row .md-board-detail-home-btn {
+  color: #fff;
+}
+/* NO LIGHT/DARK SELECTOR IN BASIC (requested). The sun/moon segmented switch in Edit
+   Tools chooses between board-detail's two board themes; board-alt has no such pair --
+   its speak bar is the charcoal header in every theme -- so the control offers a choice
+   that does not exist in this view. Hidden rather than removed from the template so the
+   Modern preview, which does have both themes, keeps it.
+   `aria-hidden` is not needed: `display: none` takes it out of the accessibility tree
+   as well as the layout. */
+body.ll-view-basic .new-board-mockup-toggle {
+  display: none;
 }
 /* The preview speak bar's surface is NOT set here. Light mode comes from the
    shared board-detail light rule (app.scss ~72528, which this preview scope was
@@ -60579,6 +60901,111 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    duplicate ones, so the X works on every card. */
 .md-board-detail-grid--preview .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty) .md-board-detail-symbol-card {
   position: relative;
+}
+
+/* ---- BASIC MODE: the preview wears the board-alt (classic) tile -----------------
+   Applied when `preview_is_basic` is true (create-board-new.js) -- i.e. the user's
+   app-wide view style is Basic, whose board is board-alt rather than board-detail.
+
+   WHY A RESKIN AND NOT THE REAL THING: the board-alt grid is a ROUTE template driven by
+   the `board.index` controller and cannot be embedded. Its `computeHeight` sizes from
+   `window.innerHeight` and writes `--sidebar-width` onto the document element, and
+   `editManager` / `appState.board_virtual_dom` are single-slot globals that two live
+   grids would fight over. Its 99 `#within_ember.board-alt-view` selectors are also
+   route-gated (`templates/application.hbs:1`) and never reach this page. So the classic
+   LOOK is applied to the cards already here.
+   That is also what preserves the editing interactions: click-to-edit, drag-swap, paint,
+   remove and the inline input all hang off the same cell and card elements in both
+   modes, so there is no second copy of the markup to drift.
+
+   VALUES ARE PORTED FROM THE REAL BOARD-ALT TILE RULE, `#within_ember.board-alt-view
+   .board .button` (app.scss ~67697), NOT from the generic `.button` base. An earlier
+   version of this block read the base instead and got every number wrong -- 3px corners
+   where board-alt uses 12px, a 1px grey border where it uses 2px, and a serif label,
+   which board-alt never shows because the board's own font preference
+   (`.board.arial .button .button-label` and friends) overrides that default. */
+.md-board-detail-grid--basic .md-board-detail-symbol-card {
+  /* The three that define the classic tile's shape. `var(--btn-bg)` is the cell's own
+     fill, which `bg_style` already sets per cell (create-board-new.js) -- the same
+     custom property board-alt's rule reads, so the border tracks the tile colour exactly
+     as it does there. The darker visible edge is the outline ring the card already
+     carries, coloured per cell from `bg_style`'s `outline-color`. */
+  border-style: solid !important;
+  /* WIDTH -- the user's Border preference, with a 2px FLOOR so Basic view ALWAYS draws one
+     (requested). On a classic tile the border is the only thing separating a button from
+     its neighbour: there is no ambient shadow and no gap doing that job, so a `none`
+     preference fuses a colour-run of buttons into one block. The preference still drives
+     every value ABOVE the floor, so the Border stepper keeps working -- this sets the
+     starting assumption, it does not take the setting away. */
+  border-width: max(2px, var(--bd-button-border, 3px)) !important;
+  /* COLOUR -- the DARKER edge the Fitzgerald palette pairs with each fill, published as
+     `--btn-border` by `bg_style` (create-board-new.js) next to `--btn-bg`. This is what
+     makes a classic tile read as a bordered tile rather than a flat swatch: light green
+     inside mid green, pale yellow inside gold. The earlier version of this rule bordered
+     in `--btn-bg`, the FILL, so the border was there but invisible on every coloured cell
+     -- which is what "the colours and borders are still board-detail" was pointing at.
+     Falls back to the fill, then to linen for a cell with no POS colour yet. */
+  border-color: var(--btn-border, var(--btn-bg, #{$color-linen})) !important;
+  border-radius: 12px;
+  padding: 4px;
+  color: $indigo;
+  /* The MODERN card draws its ring as an inset `outline` (~line 85711) whose colour
+     `bg_style` also sets inline. Leaving it on would give Basic two concentric rings, an
+     inset one and the border above. The classic tile has exactly one. Width rather than
+     colour, because the colour arrives inline and only width is ours to set here. */
+  outline-width: 0 !important;
+}
+/* PRESS AND KEYBOARD FOCUS. Modern signals both by thickening its inset outline -- which
+   the rule above deliberately switched off, and which would have taken the affordance with
+   it. Classic signals the same thing on the BORDER instead
+   (`.board .button.touched, .board .button:focus-visible { border-width: 5px }`, ~line
+   8931), so that is what is ported here. Same feedback, drawn the classic way. */
+.md-board-detail-grid--basic .md-board-detail-symbol-card:active,
+.md-board-detail-grid--basic .md-board-detail-symbol-card:focus-visible {
+  border-width: 5px !important;
+}
+/* Board-alt keeps a soft contact shadow rather than the modern card's ambient float.
+   The two state shadows are EXCLUDED BY SELECTOR, not overridden: `--painted` and
+   `--image-drop` are editing FEEDBACK (paint applied, drag-hover target) and both sit at
+   (0,2) like a bare `--basic` rule would, so an unqualified shadow here would silently
+   take two affordances with it. */
+.md-board-detail-grid--basic .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--painted):not(.md-board-detail-grid__cell--image-drop) .md-board-detail-symbol-card {
+  box-shadow: 0 1px 3px rgba($indigo, 0.06) !important;
+}
+/* The image area follows the card's corners; the modern rule matches its own clamp()
+   radius, which would leave a differently-rounded symbol box inside the tile. */
+.md-board-detail-grid--basic .md-board-detail-symbol-card__image {
+  border-radius: 10px;
+}
+/* Board-alt gives the symbol the whole band the label leaves, edge to edge
+   (`.board a.button .img_holder img.symbol { width/height: 100% }`, app.scss ~67775).
+   The preview's symbols carry an INLINE `max-width: 70%; max-height: 70%`, the modern
+   card's proportion, and an inline style can only be beaten by `!important`.
+   `object-fit: contain` stays inline, so a wide symbol letterboxes rather than
+   stretching -- on an AAC board the picture carries the meaning. */
+.md-board-detail-grid--basic .md-board-detail-symbol-card__image .symbol {
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+/* EMPTY tiles. The modern card marks an empty slot with a repeating dot texture over a
+   navy wash (`!important`), a board-detail affordance that -- on a board with no labels
+   yet -- is the only thing on screen and so dominates the whole preview.
+   Classic has no such treatment: `.button.empty` is `visibility: hidden` (app.scss
+   ~9639), i.e. board-alt does not draw empty buttons AT ALL. THAT IS DELIBERATELY NOT
+   COPIED: these cells are the builder's click and drop targets, so hiding them would
+   make the page unusable in Basic view to win a cosmetic point. A flat, quiet tile is
+   the honest compromise. */
+body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
+  background: rgba($la-navy, 0.035) !important;
+  /* A BLANK SLOT IS NOT A BUTTON YET, and the border is what says so. A real tile in this
+     view carries `2px solid var(--btn-bg)` -- its own colour, filled in -- so a blank one
+     takes the same WEIGHT but a broken line: the dotted-vs-solid contrast now carries the
+     whole signal on its own (thickened from 1px on request -- at 1px the dashes were too
+     faint to read as a deliberate placeholder on the dark stage).
+     Alpha lifted to 0.38 with it: a 2px line at 0.3 looked washed rather than dotted.
+     Still deliberately restrained -- every cell on a new board is blank, so a loud dotted
+     grid would dominate the page and fight the tiles that do get filled in. */
+  border: 2px dotted rgba(255, 255, 255, 0.38) !important;
 }
 /* Compact 2-icon segmented switch — sun on the left (light), moon on the
    right (dark). The thumb slides under the active icon. Matches the
@@ -61636,84 +62063,68 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin: 0;
   padding-left: 0;
 }
-/* Rows/Cols steppers + grid picker, pinned to the TOP-RIGHT of the Basics header.
-   `margin-left: auto` pushes the group to the right of the title/hint pair;
-   `align-self: flex-start` keeps it on the header's top line when the hint wraps
-   to a second line on a narrow column. */
-.nb-section__header-inline .nb-section__header-dimensions {
-  margin-left: auto;
-  align-self: flex-start;
-}
-/* Narrow: the header is already `flex-wrap: wrap`, so the group drops to its own
-   line — centre it there rather than leaving it hard against the right edge. */
-@media (max-width: $aac-breakpoint-sm) {
-  .nb-section__header-inline .nb-section__header-dimensions {
-    margin-left: 0;
-    align-self: center;
-    justify-content: center;
-    width: 100%;
-  }
+/* Rows/Cols steppers, centred on the wizard's grid-size step.
+   THIS RULE WAS `.nb-section__header-inline .nb-section__header-dimensions`, pinning
+   the group to the TOP-RIGHT of the Basics header with `margin-left: auto` +
+   `align-self: flex-start`, which is where it used to live. The wizard moved it out of
+   that header and into step 2 — it is a child of `.nb-wizard__step--grid` now, a
+   SIBLING of `.nb-section__header-inline` — so that selector stopped matching anything
+   and the group fell back to the shared `.new-board-dimensions { justify-content:
+   flex-start }`, hard against the left edge. Re-pointed at where the element actually
+   is and centred, so it sits over the grid picker below, which centres itself.
+   Its narrow-width companion rule went with it: that one existed only to centre the
+   group when the header wrapped, which is now the behaviour at every width.
+   SCOPED TO THE VARIANT CLASS, not the shared `.new-board-dimensions` base — that base
+   is also the legacy new-board.hbs steppers row, which is not moving. */
+.nb-wizard__step--grid .nb-section__header-dimensions {
+  justify-content: center;
 }
 
 /* ---- Grid-size picker (components/grid-size-picker) ---------------------------
-   Sits to the right of the Rows/Cols steppers. Closed it is a single square
-   button; open it drops a 20x20 grid whose filled region IS the current board
-   size, and sweeping across it sets rows x columns in one gesture. */
+   ALWAYS ON SCREEN, as the content of the wizard's grid-size step -- it is no longer
+   a popover behind a toggle, so the toggle, its chevron and the fixed-position /
+   portal treatment of the panel are all gone with it (see the component). It takes a
+   full row of the wrapping `.new-board-dimensions` flex container so it sits under
+   the Rows/Cols steppers rather than squeezing in beside them. */
 .nb-grid-picker {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  /* Own row in the wrapping flex parent, under the steppers. */
+  flex: 1 0 100%;
+  margin-top: 4px;
 }
-.nb-grid-picker__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  /* Geometry matched to .nb-stepper-mini — same 36px height and pill radius — and
-     the SAME surface via the shared mixin, so the three controls read as one band. */
-  height: 36px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  @include nb-header-control-surface;
-  color: $la-navy;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-/* Open or focused, it takes the steppers' verdigris ring rather than a treatment
-   of its own. */
-.nb-grid-picker__toggle:focus-visible,
-.nb-grid-picker--open .nb-grid-picker__toggle {
-  @include nb-header-control-focus;
-}
-.nb-grid-picker__toggle-icon { color: $brand-verdigris-aa; }
-.nb-grid-picker__toggle-chevron { opacity: 0.6; }
-.nb-grid-picker--open .nb-grid-picker__toggle-chevron { transform: rotate(180deg); }
-
-/* FIXED, and placed by JS (grid-size-picker#_positionPanel) rather than anchored
-   here. The new-board card is `.new-board--modern { overflow: hidden !important }`
-   — deliberate, it clips content to the card's rounded corners — and an absolutely
-   positioned panel is clipped by it, which cut the bottom off the grid. A fixed
-   element escapes ancestor overflow. `top`/`left` are placeholders; the component
-   right-aligns the panel to the toggle, flips it above when there is no room below,
-   and clamps it into the viewport. */
+/* In normal flow now, so nothing needs to escape the card's `overflow: hidden` and
+   there is no JS placement: a plain inline card. */
 .nb-grid-picker__panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 100;
-  padding: 10px;
+  padding: 12px;
   background: #fff;
   border: 1px solid rgba($la-navy, 0.10);
   border-radius: 14px;
   box-shadow:
-    0 8px 24px rgba($la-navy, 0.18),
-    0 2px 6px rgba($la-navy, 0.08);
+    0 8px 24px rgba($la-navy, 0.10),
+    0 2px 6px rgba($la-navy, 0.06);
+}
+/* Shown only above the ceiling. Amber rather than red: going over is allowed, so this is
+   a caveat, not an error -- it must not read as "you cannot do that". Sits above the grid
+   so it is seen before the shape it is describing. */
+.nb-grid-picker__notice {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(214, 158, 46, 0.12);
+  border: 1px solid rgba(214, 158, 46, 0.30);
+  color: #7a5a12;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  max-width: 312px;
 }
 .nb-grid-picker__grid {
   display: grid;
-  grid-template-columns: repeat(15, 14px);
-  gap: 2px;
+  grid-template-columns: repeat(14, 18px);
+  gap: 3px;
 }
-/* Keeps the ARIA grid > row > gridcell structure while letting all 400 cells
+/* Keeps the ARIA grid > row > gridcell structure while letting all 225 cells
    auto-place into the single CSS grid above (same trick as
    .md-board-detail-grid__row). */
 .nb-grid-picker__row {
@@ -61722,36 +62133,46 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-grid-picker__cell {
   /* Explicit min/max as well as width/height: these are <button>s, and a stray
      global button rule with a min-width would otherwise inflate the cell. */
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
-  min-height: 14px;
-  max-width: 14px;
-  max-height: 14px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  max-width: 18px;
+  max-height: 18px;
   padding: 0;
   border: 1px solid rgba($la-navy, 0.16);
-  border-radius: 2px;
+  border-radius: 3px;
   background: rgba($la-navy, 0.04);
   cursor: pointer;
-  /* No transition: sweeping the pointer repaints up to 400 cells at once, and a
+  /* No transition: sweeping the pointer repaints up to 225 cells at once, and a
      per-cell fade turns that into visible lag. */
 }
+/* Glass: a white sheen falling off over the top half of the cell, over the verdigris
+   fill, with an inset light edge above and a shadow line below so each selected cell
+   reads as a rounded piece of glass rather than a flat swatch. The sheen is a
+   separate gradient layer, not a lightened fill, so the verdigris underneath keeps
+   its AA-checked value. */
 .nb-grid-picker__cell--on {
-  background: $brand-verdigris;
   border-color: $brand-verdigris-aa;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.20) 40%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 55%),
+    $brand-verdigris;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.80),
+    inset 0 -1px 1px rgba($la-navy, 0.22),
+    0 1px 2px rgba($la-navy, 0.18);
 }
 .nb-grid-picker__cell:focus-visible {
   outline: 2px solid $brand-verdigris-aa;
   outline-offset: 1px;
 }
-/* Footer: the live readout on the left, Cancel / OK on the right. Present because
-   a cell click STAGES a size rather than committing it — the panel stays open so
-   the choice can be compared or abandoned. */
+/* Just the live readout now. Cancel / OK went with the popover -- with the panel
+   always on screen there was nothing to dismiss and nothing staged to confirm. */
 .nb-grid-picker__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid rgba($la-navy, 0.10);
@@ -61763,49 +62184,19 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   color: $la-navy;
   white-space: nowrap;
 }
-.nb-grid-picker__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.nb-grid-picker__btn {
-  min-height: 32px;
-  padding: 5px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba($la-navy, 0.16);
-  background: rgba(255, 255, 255, 0.9);
-  color: $la-navy;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-.nb-grid-picker__btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: rgba($la-navy, 0.24);
-}
-.nb-grid-picker__btn--ok {
-  background: $brand-verdigris;
-  border-color: $brand-verdigris-aa;
-  color: #fff;
-}
-.nb-grid-picker__btn--ok:hover {
-  background: $brand-verdigris-aa;
-  border-color: $brand-verdigris-aa;
-}
-/* Narrow: shrink the cells so 15 columns still fit a phone. Placement needs no
-   media rule — _positionPanel clamps the panel into the viewport at every width. */
+/* Narrow: shrink the cells so 15 columns still fit a phone. */
 @media (max-width: $aac-breakpoint-sm) {
   .nb-grid-picker__grid {
-    grid-template-columns: repeat(15, 12px);
+    grid-template-columns: repeat(14, 14px);
+    gap: 2px;
   }
   .nb-grid-picker__cell {
-    width: 12px;
-    height: 12px;
-    min-width: 12px;
-    min-height: 12px;
-    max-width: 12px;
-    max-height: 12px;
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
+    max-width: 14px;
+    max-height: 14px;
   }
 }
 .nb-section__toggle {
@@ -65991,9 +66382,19 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   @include caseload.caseload-action-surface-active;
 }
 
-/* FOCUSED VIEW — same tile material, 20% darker (requested 2026-09-22), so the extras cards
-   still read as the caseload tiles' surface rather than a different one. Through the mixin's
-   `$darken` rather than a competing `background`, which is the drift that mixin exists to stop.
+/* FOCUSED VIEW — same tile material, darkened, so the extras cards still read as the caseload
+   tiles' surface rather than a different one. Through the mixin's `$darken` rather than a
+   competing `background`, which is the drift that mixin exists to stop.
+
+   20% -> 10% ON 2026-09-23 (requested: "on focused view extras -> lighten the button gradients
+   on their bgs"). At 20% the ramp computed to #CCCCCC -> #B3BCCE -> #AAB6C7, which is a long way
+   from the white-to-pale-slate material the tiles are built on -- the cards read as grey rather
+   than as the same surface a shade deeper. Halved rather than dropped to 0: the step exists so
+   Focused's cards sit a little heavier than Gentle's, and removing it would make the two
+   layouts identical here, which is not what was asked. 10% computes to roughly
+   #E6E6E6 -> #D4D8E1 -> #CBD0D9.
+   THE NUMBER IS THE ONLY THING TO CHANGE if it wants to go lighter or darker again -- the
+   gradient itself lives in the mixin, and editing a colour here would fork it.
 
    IN app.scss, NOT _focused-view.scss, and that is load-bearing. Putting it there meant adding
    `@use "caseload"` to that partial, and Sass emits a module where it is FIRST pulled in — which
@@ -66006,7 +66407,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    _focused-view.scss), so this cannot reach Gentle. (0,3,0) against the base rule's (0,1,0),
    so it wins on weight without !important. */
 .md-shell--layout-focused.md-shell--extras-view .md-extras-card {
-  @include caseload.caseload-action-surface(var(--md-r-lg), 20%);
+  @include caseload.caseload-action-surface(var(--md-r-lg), 10%);
 }
 .md-extras-card:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55) !important;
@@ -67506,6 +67907,22 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     border-radius: 12px !important;
     border: none !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    /* SLIGHT GLASSMORPHISM (requested), the same treatment the speak/nav controls wear, via
+       the shared mixin so the three toolbars cannot drift. Declared INSIDE this rule rather
+       than as a later sibling because both would otherwise set `box-shadow` at identical
+       specificity with `!important` and the outcome would rest on source order -- the trap
+       that silently dropped the ring from every `#nav_header` control the first time round.
+       Nested last, the mixin's shadow simply replaces the one above it.
+       `:not(.dropdown-menu *)` keeps it off the dropdown's menu items: those sit on a white
+       panel, not on the dark bar, so a white ring would be invisible on them and they are not
+       controls on the bar in the first place.
+       Both fills were measured against the bar: the shared btn-default fill goes from 2.93:1
+       -- under the 3:1 WCAG 1.4.11 minimum for a UI boundary -- to 4.72:1 with the ring, and
+       the lighter `.btn-info` paint toggle from 6.44:1 to 7.84:1. No fill is altered, so the
+       toggle's dark `#18202C` ink keeps its 7.83:1. */
+    &:not(.dropdown-menu *) {
+      @include control-glass;
+    }
     &:hover { filter: brightness(1.1); }
   }
   /* The grid +/- controls sit inside a dropdown as small square steppers; the padding above
@@ -68170,11 +68587,51 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   }
 
 
-  // Dark header bar matching speak mode
+  // Dark header bar matching speak mode -- GLASSMORPHISM (requested).
+  //
+  // THIS is board-alt's header in its ordinary, non-speak state, and it is the rule that
+  // governs what you see when you just open a board. An earlier attempt put the glass on
+  // `header.speaking:has(#speak) #inner_header`, which only exists once speak mode is ON, so
+  // it changed nothing for anyone looking at a board normally.
+  //
+  // The blur is on `#inner_header` itself. Nothing paints a background on board-alt's outer
+  // <header> in this state, so the glass sees the page behind the fixed header rather than an
+  // opaque parent -- which is what makes the frost real instead of a flat tint.
+  //
+  // SAFE HERE, checked not assumed: `backdrop-filter` makes an element the containing block
+  // for every `position: fixed` descendant, and nine compiled rules fix `#inner_header`
+  // descendants. All nine need `.app-navbar` inside it, and
+  // `controllers/application.js#useAppNavbarInHeader` returns FALSE for `user.board-alt.index`,
+  // so board-alt never renders one. If that changes, this blur must move to a pseudo-element.
+  //
+  // ALPHA IS MEASURED. White text on solid #374151 is 10.31:1. The worst case is the bar
+  // scrolled over white content: 0.78 falls to 4.35:1 and FAILS AA, 0.82 holds 4.80:1, and
+  // over an ordinary dark page it is 7.65:1. The 0.10 white film is counted in all three.
+  // (The speak-mode bar above sits on $brand-charcoal-blue, which is lighter and runs out of
+  //  headroom sooner -- it is held at 0.92 for the same reason. Same effect, different limit.)
   #inner_header:has(#nav_header) {
-    background: $brand-charcoal-dark !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
-    border-bottom: none !important;
+    // DARKER (requested). Two changes, both in the darkening direction: the base is mixed
+    // 28% toward black (#374151 -> #282F3A) and the white sheen is halved. Over an ordinary
+    // dark page the bar now renders about #343C47 where it was #4B5462. Alpha moves 0.82 ->
+    // 0.86 so the page bleeds through less and the bar reads dark consistently rather than
+    // picking up whatever is under it; 14% is still enough see-through for the frost to show.
+    // No contrast re-check was needed: every one of these moves DARKENS a bar carrying white
+    // text, so the AA figure above (4.80:1 worst case) can only improve -- it is now 7.52:1.
+    background:
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.05) 0%,
+        rgba(255, 255, 255, 0.02) 45%,
+        rgba(255, 255, 255, 0.01) 100%),
+      rgba(color.mix($brand-charcoal-dark, #000, 72%), 0.86) !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+    // The glass EDGE, replacing the `border-bottom: none` that was here to stop a pale
+    // inherited hairline reading as a white sliver. A deliberate translucent-white edge is
+    // what gives a glass panel its boundary.
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.20),
+      0 6px 18px rgba(0, 0, 0, 0.22) !important;
     padding-bottom: 0.25rem !important;
   }
 
@@ -68737,10 +69194,34 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   // Help button: white icon/text in nav mode
   #inner_header:has(#nav_header) .ll-bento-help-btn,
-  #inner_header:has(#nav_header) .ll-bento-help-btn--support,
-  #inner_header:has(#nav_header) .ll-bento-help-btn--support .ll-bento-help-btn__icon,
-  #inner_header:has(#nav_header) .ll-bento-help-btn--support .ll-bento-help-btn__support-icon {
-    color: #fff !important;
+  /* PLACED LAST IN THIS BLOCK ON PURPOSE. Every selector here ties with the rule that
+     defines the control's own `box-shadow`, and both carry `!important`, so SOURCE ORDER is
+     the only tiebreak. Sitting earlier in the block -- where this was first written -- the
+     speak-mode controls picked up the ring and every `#nav_header` control silently did not,
+     because their rules are defined further down. Verified against the compiled CSS, not
+     assumed: `#board_done` was resolving to the plain drop shadow. */
+  /* SLIGHT GLASSMORPHISM ON THE CONTROLS (requested), both header states.
+     Enumerated rather than applied with a blanket `.btn` selector: these are the controls
+     whose fills were measured against the bar (see @mixin control-glass), and a blanket rule
+     would also catch dropdown items, badges and the level chip, which are not controls
+     sitting on the bar and have not been checked. Each keeps its own fill; the mixin only
+     layers sheen, ring and blur over it. */
+  #inner_header:has(#speak) .speak-header__home-marker .btn,
+  #inner_header:has(#speak) #home_button.btn,
+  #inner_header:has(#speak) #back_button,
+  #inner_header:has(#speak) .speak-bar__button-list-wrap,
+  #inner_header:has(#speak) #backspace_button,
+  #inner_header:has(#speak) #clear_button,
+  #inner_header:has(#speak) #identity #identity_button.btn,
+  #inner_header:has(#nav_header) #board_done,
+  #inner_header:has(#nav_header) #speak_mode,
+  #inner_header:has(#nav_header) #normal_mode a.btn:has(.glyphicon-arrow-left),
+  #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-home),
+  #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-pencil),
+  #inner_header:has(#nav_header) #normal_mode .btn:has(.glyphicon-share),
+  #inner_header:has(#nav_header) .nav-header__board-bar .btn-default,
+  #inner_header:has(#nav_header) .nav-header__board-bar .board-view-modern-btn {
+    @include control-glass;
   }
 
 }
@@ -74804,6 +75285,63 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin: 0 !important;
   border: none !important;
 }
+
+/* THE SHELL BACKGROUND MUST REACH THE BOTTOM OF THE VIEWPORT AT NARROW WIDTHS.
+   At <=950px (and again at <=820px) the responsive guards set
+   `min-height: auto !important; flex: 0 0 auto !important` on `.md-shell` so a tall board
+   grid can never be cut off. The side effect is the opposite case: when the content is
+   SHORT the shell collapses to it, and on create-board-new's FIRST wizard step -- two
+   fields and a Next button -- that leaves the page background showing as a white band
+   under the card. It only appeared on that step, which is exactly why: every later step
+   is tall enough to cover the gap.
+
+   `min-height: 100vh` is restored for this shell alone. It does NOT undo the guard:
+   `flex: 0 0 auto` is deliberately left in place, so the shell still grows past the
+   viewport with its content and nothing is clipped -- a min-height only sets a FLOOR. The
+   two together are "at least the viewport, more if the content needs it", which is what
+   the page wanted all along.
+
+   SPECIFICITY IS THE WHOLE TRICK HERE. The guard is `#content > .md-shell` at (1,1,0)
+   WITH `!important`, so matching its shape is not enough -- repeating the same selector
+   with the modifier appended would tie at (1,1,0) and leave the outcome to source order.
+   Each selector below therefore adds the modifier as a SECOND class on the same element:
+   (0,2,0), (1,2,0) and (1,3,0) against the guard's (0,1,0), (1,1,0) and (1,2,0). All
+   three forms of the guard's selector list are mirrored because which one matches depends
+   on whether the route template lands under `#content > .ember-view`.
+   The query is 950px, not 820px: 950 covers both bands, and the guard at <=820px repeats
+   the same declarations. */
+@media (max-width: 950px) {
+  .md-shell.md-shell--create-board-new,
+  #content > .md-shell.md-shell--create-board-new,
+  #content .ember-view > .md-shell.md-shell--create-board-new {
+    min-height: 100vh !important;
+  }
+
+  /* ORGANISATION PAGES, same problem and the same remedy (2026-09-23). Reported on
+     `/organizations/:id/rooms`, where a supervisor sees one or two room tiles: below 950px the
+     guard above collapses `.md-shell` to its content, and with a short page the gradient stops
+     partway down leaving a white band beneath it.
+
+     `min-height: 100vh` does NOT undo the guard -- `flex: 0 0 auto` is deliberately left in
+     place, so the shell still grows past the viewport when a long org page needs it. A
+     min-height only sets a FLOOR; the two together mean "at least the viewport, more if the
+     content asks", which is what the page wanted.
+
+     THE THREE SELECTOR FORMS ARE THE POINT, exactly as above: the guard is
+     `#content > .md-shell` at (1,1,0) WITH `!important`, so a single `.md-shell--org` would
+     tie or lose depending on source order. Each form appends the modifier as a SECOND class on
+     the same element -- (0,2,0), (1,2,0) and (1,3,0) against the guard's (0,1,0), (1,1,0) and
+     (1,2,0) -- and all three are mirrored because which one matches depends on whether the
+     route template lands under `#content > .ember-view`.
+
+     Not scoped to Basic: the guard and the collapse are view-agnostic, and Modern's org pages
+     are just as short. */
+  .md-shell.md-shell--org,
+  #content > .md-shell.md-shell--org,
+  #content .ember-view > .md-shell.md-shell--org {
+    min-height: 100vh !important;
+  }
+}
 /* Suppress the .new-board--modern card chrome — .md-workspace is now the
    visual card (matching the home page pattern). We keep the
    .new-board--modern class on the wrapper for its descendant rules
@@ -74824,10 +75362,34 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   overflow: hidden !important;
   /* Anchor for the "feels like a modal" close button in the top-right corner. */
   position: relative !important;
-  /* No top gap; 64px left/right gap so the gradient breathes around the
-     card. Bottom margin kept at 40px so the gradient still shows beneath. */
-  margin: 0 auto 40px !important;
+  /* 64px left/right gap so the gradient breathes around the card. Top and
+     bottom gaps are both 40px: the card is short enough that anchoring it to
+     the very top left a dead band under it, and matching the two gutters
+     centres it in the gradient field instead.
+
+     The TOP gap is the one exception, and it comes from `--nb-create-card-top` rather
+     than a literal so the Board Labels state can change it WITHOUT a second margin
+     declaration fighting this one. Once the wizard hands off, the card is full height
+     (labels field + live preview + edit rail) and the 40px reads as a dead band above a
+     card that already reaches the fold, so that state sets the variable to 0 and the card
+     sits directly under the shell's own padding. This shorthand stays the only place
+     `margin` is declared for this card; the state rule only supplies the value. */
+  margin: var(--nb-create-card-top, 40px) auto 40px !important;
   max-width: calc(100% - 128px) !important;
+  /* NO TOP PADDING (requested, all views). The 40px comes from the shared
+     `.md-workspace { padding: 40px 40px calc(40px - 9rem) 40px !important }`, which every
+     workspace page in the app uses -- so it is overridden HERE, on this card's own rule,
+     rather than edited there. (0,2,0) + `!important` beats its (0,2,0)... its (0,1,0).
+     The side and bottom padding are deliberately left alone: only the top is dropped, so
+     the header sits flush against the card edge. */
+  padding-top: 0 !important;
+}
+/* BOARD LABELS STATE. Set by the template once `wizard_done` flips, i.e. exactly when the
+   wizard sections are gone and the page is the labels field + live preview + edit rail.
+   This declares no `margin` of its own -- it only supplies the value the base rule above
+   reads -- so there is no override and no specificity contest to lose. */
+.md-workspace--create-board-new--labels {
+  --nb-create-card-top: 0px;
 }
 /* At ≤1024px shrink the 64px side gutters to 1rem and bump max-width to
    match — must live AFTER the base rule above so source order wins the
@@ -74838,7 +75400,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     margin-left: 1rem !important;
     margin-right: 1rem !important;
     max-width: calc(100% - 2rem) !important;
-    padding: 20px !important;
+    /* Was `padding: 20px`. That is (0,2,0) like the base rule above and sits LATER in the
+       file, so the shorthand put the top padding straight back below 1024px -- the
+       longhand there would have been silently undone at exactly the widths where the card
+       is tightest. Split so the top stays 0 at every width. */
+    padding: 0 20px 20px !important;
   }
 }
 /* Modal-style close button — sits in the top-right of the workspace card
@@ -92905,6 +93471,43 @@ span.md-board-detail-modeling-btn--badge {
   line-height: 1.5;
   margin: 0 0 8px;
 }
+/* WARNING CALLOUT -- the whole message on the Save Board completeness dialogs, not a token
+   inside it. This is the sentence standing between someone and an empty or half-built board,
+   so it is given the weight of a warning rather than reading as ordinary body copy.
+
+   COLOURS ARE THE EXISTING WARM-CHIP SET, not new ones: `$caseload-badge-attn-*` is the
+   repo's attention chip, whose ink was measured at 6.45:1 on its own background when it was
+   desaturated (see the note at _variables.scss:707). Reusing it keeps this callout from
+   drifting away from the warm chips elsewhere, and its contrast is already established
+   rather than re-argued here.
+
+   THE GLOW IS STATIC. A pulse would pull at the eye and keep pulling; on an AAC surface,
+   where unexpected motion is disruptive, a steady halo says "look here" once and then stops
+   talking. Two layers: a tight ring that extends the border against the modal's white, and a
+   wider soft bloom for the glow itself. Alphas are measured as flattened tints over #FFF --
+   0.30 lands at 1.23:1 and is a halo nobody sees, so the ring runs at 0.45 (1.37:1) and the
+   bloom at 0.70 (1.66:1): plainly there, without becoming a second border. A glow is not
+   meant to clear a contrast threshold; the INK does that, at 6.45:1, and carries the meaning.
+
+   `border-radius: 14px` rather than a pill's 999px, because this wraps a FULL SENTENCE that
+   wraps to two or three lines at modal width -- a 999px radius on a multi-line block bows the
+   short edges into lozenge ends and eats the first and last words' breathing room. */
+.md-modal-message--warn {
+  padding: 12px 16px;
+  border: 1px solid $caseload-badge-attn-border;
+  border-radius: 14px;
+  background: $caseload-badge-attn-bg;
+  color: $caseload-badge-attn-ink;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 3px rgba($caseload-badge-attn-border, 0.45),
+    0 0 16px 3px rgba($caseload-badge-attn-border, 0.70);
+  /* The ring and bloom are drawn OUTSIDE the border box, so without room of its own the glow
+     is clipped by the modal body's padding on the sides and overlaps the hint below. The base
+     `.md-modal-message` sets `margin: 0 0 8px`; this restates all four so the extra bottom
+     gap cannot be read as an override of a value that is not there. */
+  margin: 4px 0 18px;
+}
 .md-modal-board-name {
   font-size: 16px;
   font-weight: 700;
@@ -110596,18 +111199,28 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
        pages that carry a page class and the bare `+ 3rem` = 46px default on Updates, which
        has none. That 20px is the whole of Updates' extra offset.
 
-   `:has(.ll-appshell__navbar)` IS THE SCOPE, and it is the honest one: the nav renders on
-   exactly the Home-section destinations and nowhere else (controllers/application.js
-   `showPillNav`), so this reads as "the pages this nav serves" rather than as a list of page
-   classes that would have to be maintained alongside it -- and Updates has no page class to
-   list anyway. It also cannot reach the account pages, which have no nav and keep their own
-   `--no-nav` clearance.
+   `:has(.ll-appshell)` IS THE SCOPE AS OF 2026-09-23 -- it was `:has(.ll-appshell__navbar)`,
+   which reached only the pages that render the pill nav. Requested: "make all of the page
+   content for account, goals, logs, profile, recordings, reports, settings, subscriptions, and
+   supervision move up on the page to the same place it begins on the home page", plus Rooms.
+   That is every page in the app shell, so the scope is now the shell itself rather than the nav
+   inside it -- one rule for "a page in this shell starts here" instead of two sets that have to
+   be kept level with each other.
+
+   MEASURED, at 1280, with scripts/account-pages-top-alignment-qa.mjs. The account pages sat at
+   y=156 and Reports at y=136 against the home section's y=106, and the whole of both gaps was
+   these two declarations: `#content` at the bare `calc(--topbar-height + 3rem)` = 46px because
+   those routes carry no page class (controllers/application.js `content_class` labels only
+   stats/home/boards/extras/caseload), and the shell's `--ll-nav-clearance`, which is 3rem =
+   30px on `.ll-appshell--no-nav`. 46+30+40+40 = 156, 26+30+40+40 = 136, 26+0+40+40 = 106 --
+   the chain reproduces all three, so setting the pair lands every one of them on 106.
+   (Reports already had 26px via `#content.stats-page`; only its 30px of clearance moves.)
 
    GENTLE ONLY, as asked. Focused sets these per page in _focused-view.scss and is untouched. */
-body:not(.ll-layout-focused) #within_ember #content:has(.ll-appshell__navbar) {
+body:not(.ll-layout-focused) #within_ember #content:has(.ll-appshell) {
   padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
-body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md-shell {
+body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
   padding-top: 0 !important;
 }
 /* ...AND 52px OF IT BACK AT 1024 AND BELOW (requested 2026-09-21: "the main page content
@@ -110615,10 +111228,12 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md
    updates)"). A RELATIVE push, as asked, not a target: the five pages already agree at these
    widths (all five measured at y=66 at 1024, where the workspace's own 40px padding drops to
    0), so adding the same 52px to the shell keeps them agreeing and moves them together.
-   On the same `:has(.ll-appshell__navbar)` scope as the rule above, so it reaches exactly the
-   five pages named and cannot touch the account pages. */
+   On the same `:has(.ll-appshell)` scope as the rule above (widened 2026-09-23), so the account
+   pages take the same push and the whole shell stays level at these widths too -- leaving them
+   on the old 30px clearance here would have aligned the pages at 1280 and split them again at
+   1024, which is the failure this block exists to prevent. */
 @media (max-width: 1024px) {
-  body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md-shell {
+  body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
     padding-top: 52px !important;
   }
   /* NO SIDE GUTTER ON THE WORKSPACE AT THESE WIDTHS (requested 2026-09-21: "the md-workspace
@@ -110627,7 +111242,11 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md
      the steps below diverged further, with extras still at 40px at 820 while everything else
      had stepped down twice. One declaration replaces all of it, so the pages agree.
      `!important` because the base `.md-workspace` padding carries one, and the id in the scope
-     supplies the weight to reach past it. */
+     supplies the weight to reach past it.
+     DELIBERATELY STILL `:has(.ll-appshell__navbar)` after the 2026-09-23 widening around it:
+     this is the only HORIZONTAL rule in the block, and the request that widened the others was
+     about where content BEGINS down the page. The account pages keep the side padding they have
+     always had here. */
   body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .md-workspace {
     padding-left: 0 !important;
     padding-right: 0 !important;
@@ -110649,10 +111268,10 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .ll-appshell .md
    margin 0 to 32px, each page carrying its own history. Both go to 0 so they agree.
    The shell's own top padding (52px, 76px on boards) is untouched -- that is what still holds
    the content clear of the chrome; this only removes the SECOND gap stacked inside it.
-   Same `:has(.ll-appshell__navbar)` scope, so it reaches exactly the six pages named and
-   leaves the account pages, which have no nav, alone. */
+   Widened to `:has(.ll-appshell)` on 2026-09-23 with the rest of this block, so the account
+   pages lose the same second gap rather than keeping one the six named pages do not. */
 @media (max-width: 900px) {
-  body:not(.ll-layout-focused) #content:has(.ll-appshell__navbar) .md-workspace {
+  body:not(.ll-layout-focused) #content:has(.ll-appshell) .md-workspace {
     padding-top: 0 !important;
     margin-top: 0 !important;
   }

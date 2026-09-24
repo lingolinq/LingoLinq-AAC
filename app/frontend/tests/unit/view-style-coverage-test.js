@@ -1,6 +1,8 @@
 import { module, test } from 'qunit';
 import { setupTest } from '../helpers';
 import EmberObject from '@ember/object';
+import { is_classic } from 'frontend/utils/view_style';
+import { board_view_route, board_edit_route, board_edit_needs_mode } from 'frontend/utils/board_view';
 
 /* "Does EVERY page and modal honour the Basic/Modern preference?"
  *
@@ -158,20 +160,70 @@ module('Unit | view style coverage', function(hooks) {
       assert.deepEqual(classes(), { basic: false, modern: true }, 'exactly one class, the right one');
     });
 
-    /* The case the whole feature exists for: the page starts as the supervisor's and becomes a
-       communicator's. The class has to follow WITHOUT a reload, or the first page of a
-       modelling session wears the wrong shell. */
-    test('it re-stamps when the resolved user changes', function(assert) {
+    /* The class has to follow a MANUAL switch without a reload, or the person who just changed
+       their view sits in the old shell until they navigate. */
+    test('it re-stamps when the session user switches their own view', function(assert) {
+      var me = user('slp-1', 'modern');
+      this.svc.set('currentUser', me);
+      assert.deepEqual(classes(), { basic: false, modern: true }, 'starts on Modern');
+
+      me.set('preferences.board_view_style', 'classic');
+      assert.strictEqual(this.svc.get('effective_view_style'), 'classic', 'resolves to the new choice');
+      assert.deepEqual(classes(), { basic: true, modern: false }, 'and the class followed, no reload');
+    });
+
+    /* CHANGED 2026-09-23. This previously asserted the OPPOSITE: that opening a communicator's
+       board or boards list re-stamped the body to THEIR view. That branch was removed on
+       request -- the view is now absolute and follows the session account everywhere except
+       live modelling -- because in practice it flipped a supervisor's whole shell back and
+       forth as they clicked between people. The assertion is inverted rather than deleted, so
+       the removed behaviour cannot creep back unnoticed. */
+    test('another person\'s page does not re-stamp the body', function(assert) {
       this.svc.set('currentUser', user('slp-1', 'modern'));
       assert.deepEqual(classes(), { basic: false, modern: true }, 'starts on the supervisor\'s view');
 
-      /* A COMMUNICATION route, because that is the only kind the page-owner branch applies to
-         (option C, 2026-09-17): a supervisor on a communicator's Reports page keeps their own
-         shell, and this test is about the board case. */
       this.svc.set('current_route', 'user.board-alt.index');
       this.svc.set('page_user', user('kiddo-1', 'classic'));
-      assert.strictEqual(this.svc.get('effective_view_style'), 'classic', 'resolves to the communicator');
-      assert.deepEqual(classes(), { basic: true, modern: false }, 'and the class followed, no reload');
+      assert.strictEqual(this.svc.get('effective_view_style'), 'modern', 'the page owner has no say');
+      assert.deepEqual(classes(), { basic: false, modern: true }, 'so the shell does not flip');
     });
+  });
+});
+
+/* `is_classic` and everything built on it, against a user record that is a PLAIN OBJECT.
+ *
+ * This is not hypothetical. `services/app-state.js:5166-5171` states that `currentUser` is
+ * assigned a plain object in several places, and resolves `effective_view_user` with
+ * `emberGet` for exactly that reason -- its comment records five unrelated tests dying when
+ * it used `.get()`. Anything that reads the preference with `user.get(...)` therefore has to
+ * survive the same shape.
+ *
+ * The consequence when it does not is silent and user-visible: `board_view_route` decides
+ * where a user LANDS after creating, importing or picking a board, so a Basic user gets
+ * pushed into the Modern board shell -- the exact thing the comment in
+ * `components/create-board-new.js` says must not happen.
+ */
+module('Unit | view style with a plain-object user', function() {
+  test('is_classic reads the preference off a plain object', function(assert) {
+    assert.true(is_classic({ preferences: { board_view_style: 'classic' } }),
+      'a Basic user held as a POJO reads as Basic');
+    assert.false(is_classic({ preferences: { board_view_style: 'modern' } }),
+      'a Modern user held as a POJO reads as Modern');
+    assert.false(is_classic(null), 'null is still safe, and still Modern');
+    assert.false(is_classic({}), 'a user with no preferences is Modern');
+  });
+
+  test('board_view_route sends a Basic POJO user to board-alt, not board-detail', function(assert) {
+    assert.strictEqual(board_view_route({ preferences: { board_view_style: 'classic' } }),
+      'user.board-alt', 'post-save routing honours Basic for a POJO user');
+    assert.strictEqual(board_view_route({ preferences: { board_view_style: 'modern' } }),
+      'user.board-detail', 'Modern is unchanged');
+  });
+
+  test('board_edit_route and board_edit_needs_mode agree for a Basic POJO user', function(assert) {
+    assert.strictEqual(board_edit_route({ preferences: { board_view_style: 'classic' } }),
+      'user.board-alt.index', 'classic has no /edit subroute, so it is the board itself');
+    assert.true(board_edit_needs_mode({ preferences: { board_view_style: 'classic' } }),
+      'and the caller is told to flip edit mode on arrival');
   });
 });

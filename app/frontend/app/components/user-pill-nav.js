@@ -3,6 +3,8 @@ import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import { pendingUpdates, PENDING_UPDATE_KEYS } from '../utils/pending_updates';
+import { is_classic } from '../utils/view_style';
+import { roomsOrgId, showsRoomsPill } from '../utils/rooms_nav';
 
 /**
  * Shared primary pill-nav for the user-level pages (Boards / Reports / the
@@ -26,6 +28,26 @@ import { pendingUpdates, PENDING_UPDATE_KEYS } from '../utils/pending_updates';
  * currentUser, not @userName.
  */
 export default Component.extend({
+  /* BASIC VIEW WEARS THE `ch-` TAB STRIP IN THIS NAV'S PLACE (requested 2026-09-23).
+   *
+   * The MARKUP IS NOT FORKED for the two views -- only the class names are. Every pill here
+   * carries a gate (`supporter_role`, `has_management_responsibility`, the updates flag) and a
+   * second copy of this nav would mean a second copy of those gates, which is exactly how two
+   * navs come to offer different things. Swapping `md-pillnav`/`md-pillnav__pill` for
+   * `ch-tabs`/`ch-tab` gets the Basic look from the home page's own rules -- gentle and focused
+   * both, since those classes are styled for each -- with one set of destinations.
+   *
+   * Read through `utils/view_style#is_classic`, the single reader for this preference, against
+   * `effective_view_user` so a supervisor modelling for someone gets that person's shell. */
+  isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
+  navClass: computed('isClassic', function() {
+    return this.get('isClassic') ? 'ch-tabs ch-tabs--primary' : 'md-pillnav md-pillnav--dashboard';
+  }),
+  pillClass: computed('isClassic', function() {
+    return this.get('isClassic') ? 'ch-tab' : 'md-pillnav__pill';
+  }),
   tagName: '',
   appState: service('app-state'),
 
@@ -62,12 +84,40 @@ export default Component.extend({
     return active === 'supervisors' ? 'extras' : active;
   }),
 
+  /* ROOMS **OR** ORGANIZATIONS, never both, in the one slot right of Caseload (requested
+     2026-09-23). Someone who manages an org gets Organizations and reaches rooms through it;
+     someone whose only org access is the rooms they supervise gets Rooms, because for them
+     `/organizations` is a page listing organisations they cannot open.
+     BOTH READ utils/rooms_nav, which also supplies the gate `utils/primary_nav` uses to decide
+     whether this nav renders on the rooms page at all. One reading of the user, so the pill
+     that is drawn and the page that lights it cannot disagree. */
+  roomsOrgId: computed('appState.currentUser.supervised_units.[]', function() {
+    return roomsOrgId(this.get('appState.currentUser'));
+  }),
+  showRoomsPill: computed('appState.currentUser.has_management_responsibility',
+                          'appState.currentUser.supervised_units.[]', function() {
+    return showsRoomsPill(this.get('appState.currentUser'));
+  }),
+
+  /* WHETHER THE ONE-OF-TWO SLOT IS FILLED, which is what the `--org-menu` breakpoint is
+     actually about: that modifier collapses the pill row at 550px instead of 460px because the
+     menu carries an EXTRA item, and it was bound to `has_management_responsibility` back when
+     Organizations was the only thing that could fill the slot. A rooms-only supervisor now
+     carries Rooms in the same slot and the same six items, so they need the same breakpoint --
+     bound to the pill being drawn rather than to one of the two reasons it might be. */
+  hasSlotPill: computed('appState.currentUser.has_management_responsibility', 'showRoomsPill',
+                        function() {
+    return !!this.get('appState.currentUser.has_management_responsibility') ||
+           !!this.get('showRoomsPill');
+  }),
+
   activeLabel: computed('activeKey', function() {
     switch (this.get('activeKey')) {
       case 'home':
         return i18n.t('dashboard', "Dashboard");
       case 'caseload': return i18n.t('caseload_pill', "Caseload");
       case 'organizations': return i18n.t('organizations', "Organizations");
+      case 'rooms': return i18n.t('rooms', "Rooms");
       case 'boards': return i18n.t('boards', "Boards");
       case 'extras': return i18n.t('extras', "Extras");
       case 'updates': return i18n.t('updates', "Updates");

@@ -5119,60 +5119,28 @@ export default Service.extend({
 
   /* WHOSE view style the app should be wearing right now.
    *
-   * Every reader of `board_view_style` used to ask `currentUser` directly, and that is wrong
-   * the moment a supervisor models for someone: `set_speak_mode_user(..., keep_as_self=true)`
-   * nulls `speakModeUser`, so `currentUser` REMAINS THE SUPERVISOR while `referenced_user` is
-   * the communicator. An SLP modelling for a Basic-view communicator was driving the
-   * communicator's session through the SLP's Modern shell.
+   * THE VIEW IS ABSOLUTE. It follows the SESSION ACCOUNT everywhere, with exactly one
+   * exception: while actively MODELLING in speak mode, the communicator decides, because it is
+   * their session on their device and an SLP's Modern shell has no business driving it.
+   * Nothing else changes the view. Only the person switching it changes it.
    *
-   * The order below is the rule, and each step earns its place:
-   *   1. While MODELLING, the communicator decides. Their session, their shell.
-   *   2. Otherwise, a COMMUNICATION page belonging to someone else follows that person --
-   *      their boards and home, where a supervisor is working on what the communicator will
-   *      actually use. `page_user` (set by routes/user.js for every `/:user_id/...` page)
-   *      says whose page it is; `communication_routes` above says which of those pages count.
-   *      Their administrative pages deliberately do NOT count: see that list's note.
-   *   3. Otherwise the session account's own pages use their own preference, which is the
-   *      "returning to the SLP's own pages" case.
+   * WHAT THIS REPLACED, and why it had to go. A third branch used to adopt `page_user` -- the
+   * owner of the page being viewed -- on `user.home`, `user.boards` and the three board routes.
+   * The intent was that a supervisor arranging a communicator's boards should see what that
+   * communicator will see. The effect was that clicking between people flipped the supervisor's
+   * entire UI back and forth, unasked and with no way to pin it: browse one person's boards and
+   * you were in Basic, click back to your own and you were in Modern again. Reported as "it
+   * keeps switching me back to basic view". The preview belongs on the surface being arranged,
+   * not on the whole shell, so the branch is gone rather than narrowed.
    *
    * Read this rather than `currentUser.preferences.board_view_style`. */
-  /* The routes where a supervisor is working ON the communicator's communication experience,
-     as opposed to administering their account. Only these adopt the page owner's view.
-     Reports, Logs, Subscription, Settings, Device and the rest stay in the SUPERVISOR's own
-     shell: an SLP reading a report is acting as themselves, and flipping their whole UI for it
-     is disorienting rather than helpful.
-     `user.boards` is included deliberately -- picking the next board to show is part of a
-     demonstration, and excluding it would snap the shell back mid-demo.
-     Every name here is asserted to be a real route by
-     tests/unit/services/app-state-effective-view-test.js, so a route rename fails loudly
-     instead of silently reverting this to the supervisor's view. */
-  communication_routes: [
-    'user.board-alt.index',
-    'user.board-detail.index',
-    'user.board-detail.edit',
-    'user.home',
-    'user.boards'
-  ],
-
   effective_view_user: computed(
-    'modeling_for_user', 'referenced_user', 'page_user', 'page_user.id',
-    'currentUser', 'currentUser.id', 'current_route',
+    'modeling_for_user', 'referenced_user', 'currentUser', 'currentUser.id',
     function() {
       var current = this.get('currentUser');
       if(this.get('modeling_for_user')) {
         var referenced = this.get('referenced_user');
         if(referenced) { return referenced; }
-      }
-      /* emberGet, NOT `.get()`. These records are USUALLY Ember objects, but not always --
-         `currentUser` is assigned a plain object in several places, and `.get is not a
-         function` thrown from here takes down whatever triggered the set, because this sits
-         on the path of every view-style read in the app. Caught by the full suite: five
-         unrelated-looking tests died inside `sync_view_scope` for exactly this reason.
-         emberGet handles both shapes. */
-      var page = this.get('page_user');
-      if(page && current && emberGet(page, 'id') && emberGet(page, 'id') != emberGet(current, 'id') &&
-         (this.get('communication_routes') || []).indexOf(this.get('current_route')) !== -1) {
-        return page;
       }
       return current;
     }
@@ -5189,9 +5157,25 @@ export default Service.extend({
      mirror holds. */
   effective_view_style: computed(
     'effective_view_user', 'effective_view_user.preferences.board_view_style',
+    'currentUser', 'currentUser.id',
     function() {
+      var showing = this.get('effective_view_user');
       var style = this.get('effective_view_user.preferences.board_view_style');
-      if(!style) { style = readStoredViewStyle(); }
+      if(!style) {
+        /* THE MIRROR HOLDS THE SESSION ACCOUNT'S STYLE, so it may only answer FOR the session
+           account. It used to answer for whoever was resolved, on the argument that at first
+           paint that is always the session account anyway -- which stopped being true the
+           moment another user's record could be resolved before its preferences hydrated. The
+           result was one person's question answered with another person's data, and because
+           nothing corrected it until that record landed, a stale Basic could re-assert itself
+           on page after page. For anyone else, an unread preference means the documented
+           'modern' default and nothing more. */
+        var current = this.get('currentUser');
+        var own = !showing || showing === current ||
+                  (!!current && !!emberGet(current, 'id') &&
+                   emberGet(current, 'id') == emberGet(showing, 'id'));
+        if(own) { style = readStoredViewStyle(); }
+      }
       return (style === 'classic') ? 'classic' : 'modern';
     }
   ),
@@ -5210,7 +5194,6 @@ export default Service.extend({
        `effective_view_user` can resolve to, plus the speak-mode flag that decides between
        them. */
     'currentUser', 'currentUser.preferences.board_view_style',
-    'page_user', 'page_user.preferences.board_view_style',
     'referenced_speak_mode_user', 'referenced_speak_mode_user.preferences.board_view_style',
     'speak_mode',
     function() {

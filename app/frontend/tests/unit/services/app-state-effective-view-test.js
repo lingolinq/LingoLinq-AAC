@@ -12,10 +12,19 @@ import modal from 'frontend/utils/modal';
  * `referenced_user` is the communicator. An SLP modelling for a Basic-view communicator was
  * driving that communicator's session through the SLP's Modern shell.
  *
- * `effective_view_user` is the single rule those readers now go through, and these tests pin
- * its three branches and the order between them. The order is the interesting part: the
- * modelling branch has to beat the page branch, or a supervisor modelling ON their own
- * account page would snap back to their own view mid-session.
+ * `effective_view_user` is the single rule those readers now go through.
+ *
+ * THE RULE IS NOW ABSOLUTE (changed 2026-09-23, on request). The view follows the SESSION
+ * ACCOUNT everywhere, with exactly ONE exception: while actively modelling in speak mode, the
+ * communicator decides, because it is their session on their device. Browsing or administering
+ * somebody else's pages no longer adopts their view.
+ *
+ * What that replaced: a `page_user` branch that made a supervisor's whole UI flip to the page
+ * owner's view on `user.home`, `user.boards` and the board routes. Clicking between org members
+ * changed the shell repeatedly with nobody having asked for it, which is the report this change
+ * came from. The per-device mirror is likewise no longer consulted for anyone but the session
+ * account -- it holds the SESSION user's style, so using it while another user's record was
+ * still hydrating answered a question about one person with another person's data.
  */
 module('Unit | Service | app-state effective view', function(hooks) {
   setupTest(hooks);
@@ -107,15 +116,38 @@ module('Unit | Service | app-state effective view', function(hooks) {
       'so the session runs in the communicator\'s Basic view, not the supervisor\'s Modern');
   });
 
-  test('a page belonging to someone else follows that person', function(assert) {
+  /* THE REPORTED BUG. This previously resolved to the page owner and wore their style, so an
+     SLP in Modern who opened a communicator's board, boards list or home was silently moved
+     into Basic -- and back again on the next page. Now the page owner has no say. */
+  test('a page belonging to someone else keeps the session account\'s view', function(assert) {
     var slp = user('slp-1', 'modern');
     var kiddo = user('kiddo-1', 'classic');
     this.svc.set('currentUser', slp);
     this.svc.set('page_user', kiddo);
     this.svc.set('current_route', 'user.board-detail.edit');
 
-    assert.strictEqual(this.svc.get('effective_view_user.id'), 'kiddo-1', 'resolves to the page owner');
-    assert.strictEqual(this.svc.get('effective_view_style'), 'classic', 'and wears their style');
+    assert.strictEqual(this.svc.get('effective_view_user.id'), 'slp-1', 'still the session account');
+    assert.strictEqual(this.svc.get('effective_view_style'), 'modern', 'so the view does not flip');
+  });
+
+  test('every communication page keeps the session account\'s view', function(assert) {
+    // The five routes that used to adopt the page owner. Named explicitly rather than read
+    // from a property, so deleting that property cannot quietly empty this test out.
+    var slp = user('slp-1', 'modern');
+    var kiddo = user('kiddo-1', 'classic');
+    this.svc.set('currentUser', slp);
+    this.svc.set('page_user', kiddo);
+    var routes = ['user.board-alt.index', 'user.board-detail.index', 'user.board-detail.edit',
+                  'user.home', 'user.boards'];
+    var _this = this;
+    /* Collected and compared once rather than asserted inside the loop: a single deepEqual
+       names every route that flipped, instead of stopping at the first. */
+    var resolved = routes.map(function(route) {
+      _this.svc.set('current_route', route);
+      return route + '=' + _this.svc.get('effective_view_style');
+    });
+    assert.deepEqual(resolved, routes.map(function(r) { return r + '=modern'; }),
+      'no communication route adopts the page owner\'s view');
   });
 
   /* The "returning to the SLP's own pages" half of the requirement. Without this case a
@@ -177,17 +209,62 @@ module('Unit | Service | app-state effective view', function(hooks) {
       'branch 1 is not gated on the route list');
   });
 
-  /* The route list is strings, and strings rot silently. A renamed route would not error --
-     it would just stop matching, and the communicator's view would quietly stop applying on
-     their own boards. */
-  test('every communication route names a real route', function(assert) {
-    var entries = (window.requirejs && window.requirejs.entries) || {};
-    var routes = this.svc.get('communication_routes') || [];
-    assert.true(routes.length > 0, 'the list is not empty');
-    var missing = routes.filter(function(name) {
-      return !entries['frontend/routes/' + name.replace(/\./g, '/')];
-    });
-    assert.deepEqual(missing, [],
-      'each entry resolves to a route module (missing: ' + missing.join(', ') + ')');
+  /* THE EXPLICIT HALF OF THE REQUEST: "when it goes back to one of the SLP's pages, it needs
+     to load the SLP's view preference". Leaving speak mode has to actually take the view back,
+     not leave it stuck on whoever was last modelled for. */
+  test('leaving modelling returns the SLP to their own view', function(assert) {
+    var slp = user('slp-1', 'modern');
+    var kiddo = user('kiddo-1', 'classic');
+    this.svc.set('referenced_speak_mode_user', kiddo);
+    enter_speak_mode(this);
+    this.svc.set('currentUser', slp);
+    assert.strictEqual(this.svc.get('effective_view_style'), 'classic', 'precondition: in the communicator\'s view');
+
+    // Leave speak mode the way production does, then land on a page that still BELONGS to the
+    // communicator -- the hardest case for "returns to the SLP's view", since the page owner
+    // is the person we were just modelling for.
+    this.stashes.set('current_mode', 'default');
+    this.svc.set('currentBoardState', null);
+    this.svc.set('referenced_speak_mode_user', null);
+    /* currentUser is re-set for the same reason the fixtures above set it last: changing the
+       mode wakes app-state's session lookup, which fails in a test and nulls `currentUser` on
+       the way through (app-state.js:423). Verified here rather than assumed -- an assertion on
+       it came back null before this line was added. Production has a real session user, so
+       this restores the state the assertions are actually about. */
+    this.svc.set('currentUser', slp);
+    this.svc.set('page_user', kiddo);
+    this.svc.set('current_route', 'user.home');
+
+    assert.false(!!this.svc.get('modeling_for_user'), 'modelling is over');
+    assert.strictEqual(this.svc.get('effective_view_user.id'), 'slp-1',
+      'resolves back to the SLP even though the page belongs to the communicator');
+    assert.strictEqual(this.svc.get('effective_view_style'), 'modern', 'and reloads the SLP\'s own preference');
+  });
+
+  /* THE SECOND FLIP MECHANISM. The per-device mirror holds the SESSION account's style, so
+     consulting it while a DIFFERENT user's record is still hydrating answers a question about
+     one person with another person's data -- and the stale value it returns is exactly the
+     "keeps switching me back" symptom, because nothing corrects it until that record lands. */
+  test('the per-device mirror is never consulted for anyone but the session account', function(assert) {
+    try { window.localStorage.setItem('ll_board_view_style', 'classic'); } catch(e) { /* unavailable */ }
+    var slp = user('slp-1', 'modern');
+    var kiddo = user('kiddo-1', null);          // preference not hydrated yet
+    this.svc.set('referenced_speak_mode_user', kiddo);
+    enter_speak_mode(this);
+    this.svc.set('currentUser', slp);
+
+    assert.strictEqual(this.svc.get('effective_view_user.id'), 'kiddo-1', 'precondition: resolved to the communicator');
+    assert.strictEqual(this.svc.get('effective_view_style'), 'modern',
+      'falls back to the modern DEFAULT, not to the session account\'s stored Basic');
+    try { window.localStorage.removeItem('ll_board_view_style'); } catch(e) { /* unavailable */ }
+  });
+
+  test('the mirror still covers the session account\'s own cold load', function(assert) {
+    // Its real job, kept: a Basic user must not flash Modern before their record hydrates.
+    try { window.localStorage.setItem('ll_board_view_style', 'classic'); } catch(e) { /* unavailable */ }
+    this.svc.set('currentUser', user('slp-1', null));
+    assert.strictEqual(this.svc.get('effective_view_style'), 'classic',
+      'the session account\'s own unhydrated load still uses its mirror');
+    try { window.localStorage.removeItem('ll_board_view_style'); } catch(e) { /* unavailable */ }
   });
 });

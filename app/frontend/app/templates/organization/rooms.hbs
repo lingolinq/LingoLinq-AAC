@@ -1,3 +1,59 @@
+{{!-- The Basic tab strip for this page now lives in templates/organization.hbs, in the slot
+     the pill nav occupies, so it sits above the page card rather than inside it. --}}
+
+{{#unless this.canEditOrg}}
+  {{!-- SUPERVISOR VIEW. This page's manager path calls `units#index` and `organizations#users`,
+       both of which require `edit` on the org and answer 400 otherwise -- which is what put
+       three console errors and "There was an unexpected problem loading rooms" on this page for
+       an org-unit supervisor. Their rooms come from `supervised_units` on the user record
+       instead, which needs no request and is the same source the rail counts. --}}
+  {{!-- The organisation switcher moved to templates/organization.hbs, above the page header,
+       and now appears only when there is more than one org to choose between. --}}
+
+  {{!-- STYLED AS THE REPORTS PAGE IS (requested 2026-09-23), by reusing its OWN container
+       rather than restating its look. `.md-stats-main` is the Reports page's layout wrapper: a
+       centred max-width column that carries no surface of its own, so its cards sit directly
+       on the page. It is styled in BOTH schemes already -- the gentle base in app.scss, and a
+       focused override in _focused-view.scss that explicitly clears every paint property -- so
+       wearing it here gets focused and gentle together, with no second set of rules to keep in
+       step. Its child rules also give the sections the page's staggered entrance.
+       (I first looked at `md-org-report-*`, the ORGANISATION reports sub-page, and wrongly
+       reported that Reports had no focused variant. The Reports page in the nav is
+       `user.stats`, and `.md-stats-*` is its vocabulary.) --}}
+  <div class="md-stats-main">
+  {{!-- NO LEADING DIVIDER (requested 2026-09-23: "rooms has a border on top of this and space
+       at the top that needs to be removed (both border and extra space)"). An
+       `<hr class="md-org-report-divider">` opened this container, which drew a hairline across
+       the top of the room grid and, through its own `margin: 0 0 24px`, held 24px of empty
+       space under it.
+       A divider SEPARATES two things; this one had nothing above it inside the container, so it
+       was reading as a stray top border on the card rather than as a rule between sections. The
+       one further down, before the "Add a Room" form, does sit between two sections and stays.
+       Deleted rather than zeroed in CSS: the element is what is wrong here, and a
+       `.md-stats-main > .md-org-report-divider:first-child { display: none }` would have left an
+       invisible node to rediscover. --}}
+  {{#if this.ownRooms.length}}
+    {{!-- ROOM BUTTONS, the same control the Modern home page's Rooms card uses (requested):
+         `md-rooms__grid` + `md-room-card` with an icon, the name and a trailing arrow. Copied
+         as a control rather than restyled from scratch so the two surfaces cannot drift, and
+         `@models` takes the ROOM's own `organization_id` -- as Modern's does -- rather than the
+         page's, so a card always points at its own org even if this list is ever unfiltered. --}}
+    <div class="md-rooms__grid">
+      {{#each this.ownRooms as |room|}}
+        <LinkTo @route="organization.room" @models={{array room.organization_id room.id}} class="md-room-card" title={{room.name}}>
+          <span class="md-room-card__icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M14 12h.01"/></svg>
+          </span>
+          <span class="md-room-card__name">{{room.name}}</span>
+          <span class="md-room-card__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      {{/each}}
+    </div>
+  {{else}}
+    <p class="md-muted">{{t "You do not supervise any rooms in this organization." key="no_supervised_rooms"}}</p>
+  {{/if}}
+  </div>
+{{else}}
 {{#if this.units.loading}}
   <div class="md-card__loading">
     <div class="md-spinner" aria-hidden="true">
@@ -135,3 +191,5 @@
     <button type="submit" class="md-org-btn md-org-btn--outline">{{t "Add Room" key="add_room"}}</button>
   </form>
 {{/if}}
+
+{{/unless}}

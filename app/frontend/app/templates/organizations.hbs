@@ -1,4 +1,21 @@
+{{!-- BASIC VIEW GETS THE `ch-` RAIL BESIDE THIS PAGE (requested 2026-09-23). This page is not
+     under the `user` route, so it received neither this rail nor the Modern `AccountRail` --
+     and after the rail's Rooms row was removed, an org-unit supervisor reached their rooms
+     through here with no way back out.
+
+     THE RAIL IS A DIRECT CHILD OF `.md-shell`, deliberately, and it was a sibling of it first.
+     `.md-shell` is the element carrying the page's gradient, so a rail outside it sat on bare
+     page background while the gradient covered only the content column. Putting it inside
+     stretches that background across the whole page, rail included.
+     It is NOT wrapped in a flex div either: `.md-shell > .md-workspace` is a DIRECT-CHILD
+     selector that sets the workspace's `flex` and `min-height`, and any wrapper between the two
+     silently stops those applying -- which would have changed Modern's layout for a Basic-only
+     feature. `.md-shell` is already `display: flex`, so Basic only has to turn it to a row
+     (_classic-home.scss); Modern keeps the column and renders exactly as before. --}}
 <div class="md-shell md-shell--org md-shell--org-directory">
+  {{#if this.isBasicView}}
+    <Dashboard::ClassicRail />
+  {{/if}}
   <div class="md-workspace">
     {{!-- Shared user-level pill-nav (Home / Organizations / Boards / Reports /
          Extras / Account) — the Organizations pill renders as the active page here. --}}

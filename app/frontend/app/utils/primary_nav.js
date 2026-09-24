@@ -50,15 +50,27 @@ function isUpdatesRoute(route) {
  *               a transition is still in flight -- consult both, in that order, the way
  *               components/account-rail.js does).
  * @param url    `router.currentURL`. Only the Updates pill reads it.
- * @param options `canManageOrgs` and `updatesEnabled`, the two gates above. Both default to
- *               false, which is the safe direction: a caller that cannot answer gets no pill
- *               rather than a pill the nav will not render.
+ * @param options `canManageOrgs`, `canSeeRooms` and `updatesEnabled`, the gates above. All
+ *               default to false, which is the safe direction: a caller that cannot answer
+ *               gets no pill rather than a pill the nav will not render.
  */
 export function pillForRoute(route, url, options) {
   var opts = options || {};
   if(route === 'index' || route === 'user.home') { return 'home'; }
   if(route === 'caseload') { return 'caseload'; }
   if(route === 'organizations') { return opts.canManageOrgs ? 'organizations' : null; }
+  /* THE ROOMS PAGE IS IN THIS NAV for the person whose pill it is (requested 2026-09-23: the
+     rooms page must keep the full left panel and the full nav, with Rooms active, and behave
+     like the rest of the section rather than like a page you leave the section for).
+     `/organizations/:id/rooms` is a child of the ORGANISATION route, so it also carries that
+     section's own two-item strip; templates/organization.hbs stands that strip down on exactly
+     this condition, so the page shows one nav and not two.
+     GATED, like Organizations above, and on the other side of the same gate: a manager is
+     offered Organizations and reaches rooms through it, so for them this page is an org
+     sub-page and the org strip is the right nav. `canSeeRooms` comes from
+     utils/rooms_nav#showsRoomsPill -- one reading of the user, shared with the nav that draws
+     the pill. */
+  if(route === 'organization.rooms') { return opts.canSeeRooms ? 'rooms' : null; }
   if(route === 'user.boards') { return 'boards'; }
   if(route === 'user.extras') { return 'extras'; }
   /* Updates is the logs page reached FROM this nav; the plain Logs row in the account rail is

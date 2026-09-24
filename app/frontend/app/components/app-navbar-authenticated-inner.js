@@ -76,6 +76,14 @@ export default Component.extend({
     };
     this.onToggleDrawer = () => { send('toggleDrawer'); };
     this.onCloseDrawer = () => { send('closeDrawer'); };
+    /* Dropdown twin of `onCloseDrawerAndNewBoard`. The drawer version has to shut the
+       drawer first; the dropdown closes itself on click, so this one only forwards. Both
+       land on the application route's `newBoard`, which runs the purchase check before
+       transitioning -- which is why neither is a plain LinkTo. */
+    this.onNewBoard = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('newBoard');
+    };
     this.onCloseDrawerAndNewBoard = (event) => {
       if (event && event.preventDefault) { event.preventDefault(); }
       send('closeDrawerAndSend', 'newBoard');

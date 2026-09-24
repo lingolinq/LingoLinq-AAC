@@ -1,3 +1,6 @@
 <div class="md-shell md-shell--create-board-new">
-  <CreateBoardNew @standalone={{true}} />
+  {{!-- `entryViewStyle` is resolved by the route on the way in (see
+       routes/create-board-new.js) rather than computed inside the component, so the
+       Basic/Modern decision cannot be made against a half-hydrated user. --}}
+  <CreateBoardNew @standalone={{true}} @entryViewStyle={{this.entry_view_style}} />
 </div>

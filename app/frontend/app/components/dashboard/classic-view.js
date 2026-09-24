@@ -246,13 +246,6 @@ export default AuthenticatedView.extend({
     return !!(this.get('loggingEnabled') && this.appState.get('currentUser.preferences.geo_logging'));
   }),
 
-  // The guided tour is feature-flagged and lives in the navbar (<GuidedTour />,
-  // mounted by app-navbar-authenticated-inner on the same `empty_header` gate the
-  // home page satisfies). Hide the row rather than offer a button that can't fire.
-  tourAvailable: computed('appState.feature_flags.home_tour', function() {
-    return !!this.appState.get('feature_flags.home_tour');
-  }),
-
   // Sessions only mean something once logging is on; the classic Recent Sessions
   // block otherwise explains itself instead of showing an empty list.
   showSessionList: computed('loggingEnabled', 'logs', function() {

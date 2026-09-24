@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { pillForRoute } from '../utils/primary_nav';
+import { showsRoomsPill } from '../utils/rooms_nav';
 
 /* THE ROUTES THAT ARE THE ACCOUNT PAGE. It is reachable under two names: `user.index` is the
    section's own index, and routes/user/account.js gives `user.account` the same template. A
@@ -125,6 +126,7 @@ export default Component.extend({
     'router.currentURL',
     'app_state.current_route',
     'app_state.currentUser.has_management_responsibility',
+    'app_state.currentUser.supervised_units.[]',
     'app_state.feature_flags.updates_pill',
     function() {
       var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
@@ -144,6 +146,11 @@ export default Component.extend({
          page is simply Logs again. */
       var pill = pillForRoute(route, this.get('router.currentURL'), {
         canManageOrgs: this.get('app_state.currentUser.has_management_responsibility'),
+        /* The rooms page is one of the nav's destinations for a rooms-only supervisor, so for
+           them it is a page inside Home like any other pill destination. Passing the gate here
+           as well as in controllers/application.js is what stops the rail and the nav
+           disagreeing about that -- the whole reason `pillForRoute` takes it as an option. */
+        canSeeRooms: showsRoomsPill(this.get('app_state.currentUser')),
         updatesEnabled: this.get('app_state.feature_flags.updates_pill')
       });
       if(pill) { return 'home'; }

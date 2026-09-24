@@ -40,6 +40,7 @@ import { alias } from '@ember/object/computed';
 import { board_edit_route } from '../utils/board_view';
 import { set_view_style, is_classic } from '../utils/view_style';
 import { pillForRoute } from '../utils/primary_nav';
+import { showsRoomsPill } from '../utils/rooms_nav';
 
 export default Controller.extend({
   router: service('router'),
@@ -2288,6 +2289,7 @@ export default Controller.extend({
     'appState.currentUser',
     'appState.speak_mode',
     'appState.effective_view_user.preferences.board_view_style',
+    'globalNavActive',
     function() {
     if(!this.appState.get('currentUser')) { return false; }
     // Speak mode takes the whole screen; chrome there would sit over the board.
@@ -2306,6 +2308,17 @@ export default Controller.extend({
        is what every other consumer of this preference keys off. */
     if(is_classic(this.appState.get('effective_view_user'))) { return false; }
     var route = this.appState.get('current_route') || '';
+    /* THE ROOMS PAGE IS CHROME FOR THE PERSON WHOSE NAV IT IS, AND NOT OTHERWISE (2026-09-23).
+       `/organizations/:id/rooms` is the one org page a rooms-only supervisor lives on -- Rooms
+       is their pill in the Organizations slot -- so for them it has to keep the rail and the
+       nav rather than dropping both for the org-section shell.
+       For a MANAGER the same URL is an ordinary org sub-page reached from the Organizations
+       page, and it gets the org section's own nav like its siblings. That is why this is not a
+       line in CHROME_ROUTES: a flat entry would have given managers the account rail on exactly
+       one page of a section that has none.
+       ASKED OF `globalNavActive`, so the rail and the nav turn on together and share the one
+       reading of the user in utils/rooms_nav. */
+    if(route === 'organization.rooms') { return !!this.get('globalNavActive'); }
     return CHROME_ROUTES.indexOf(route) !== -1;
   }),
 
@@ -2319,6 +2332,7 @@ export default Controller.extend({
     'appState.current_route',
     'router.currentURL',
     'appState.currentUser.has_management_responsibility',
+    'appState.currentUser.supervised_units.[]',
     'appState.feature_flags.updates_pill',
     function() {
       return pillForRoute(
@@ -2326,6 +2340,7 @@ export default Controller.extend({
         this.get('router.currentURL'),
         {
           canManageOrgs: this.appState.get('currentUser.has_management_responsibility'),
+          canSeeRooms: showsRoomsPill(this.appState.get('currentUser')),
           updatesEnabled: this.appState.get('feature_flags.updates_pill')
         }
       );

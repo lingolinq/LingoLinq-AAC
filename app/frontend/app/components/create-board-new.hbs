@@ -1,5 +1,5 @@
 <GridListener @gridEvent={{this.ctrlAction "grid_event"}}>
-  <div class="board_drop new-board--modern md-workspace md-workspace--create-board-new">
+  <div class="board_drop new-board--modern md-workspace md-workspace--create-board-new {{if this.wizard_done 'md-workspace--create-board-new--labels'}}">
     {{!-- Orientation overlay: at ≤768px the build canvas is cramped, so reuse
          the board-detail landscape-rotate overlay (same .md-board-detail-portrait-
          overlay visual) to invite a rotate. Always in the DOM; shown purely via a
@@ -41,46 +41,55 @@
          modals. The first two are promoted to full chooser buttons (OR between
          them, OR after the pair); the rest render as slate-gray links below. --}}
     {{#if (and this.standalone this.show_create_chooser)}}
-      <div class="nb-create-chooser" role="dialog" aria-modal="true" aria-label={{t "How would you like to create your board?" key="create_chooser_title"}}>
-        <div class="nb-create-chooser__panel">
-          {{!-- Close → the component's `close` action, which returns the user to
-               whichever page they opened create-board-new from (history back, the
-               board-picker tour modal, or an onClose handler). --}}
-          <button type="button" class="nb-create-chooser__close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close and return to previous page" key="close_create_board"}} title={{t "Close" key="close"}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-          <div class="nb-create-chooser__title">{{t "How would you like to create your board?" key="create_chooser_title"}}</div>
-          <div class="nb-create-chooser__separator" aria-hidden="true"></div>
-          <div class="nb-create-chooser__options">
-            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--own" style="animation-delay: 0.05s" {{on "click" (this.ctrlAction "choose_create_own")}}>
-              <span class="nb-create-chooser__btn-icon" aria-hidden="true">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </span>
-              <span class="nb-create-chooser__btn-label">{{t "Create My Own Board" key="create_my_own_board"}}</span>
+      {{!-- PORTALLED TO <body>. This scrim is `position: fixed; inset: 0` and must cover
+           the whole viewport, but it lives inside the workspace card, which carries a
+           `backdrop-filter` in Focused -- and that makes the card the containing block for
+           fixed descendants, so the scrim shrank to the card and was clipped by its
+           `overflow: hidden`. Out here it resolves against the viewport again, in every
+           view and layout. `insertBefore=null` APPENDS: without it `in-element` WIPES the
+           destination, which here is the entire document body. --}}
+      {{#in-element this.chooser_destination insertBefore=null}}
+        <div class="nb-create-chooser" role="dialog" aria-modal="true" aria-label={{t "How would you like to create your board?" key="create_chooser_title"}}>
+          <div class="nb-create-chooser__panel">
+            {{!-- Close → the component's `close` action, which returns the user to
+                 whichever page they opened create-board-new from (history back, the
+                 board-picker tour modal, or an onClose handler). --}}
+            <button type="button" class="nb-create-chooser__close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close and return to previous page" key="close_create_board"}} title={{t "Close" key="close"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-            <span class="nb-create-chooser__or" style="animation-delay: 0.25s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 0.45s" {{on "click" (this.ctrlAction "choose_ai")}}>
-              <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
-                <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
-              </span>
-              <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
-            </button>
-            <span class="nb-create-chooser__or" style="animation-delay: 0.65s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-            {{!-- Secondary methods: Create My Own / Generate with AI are the two
-                 promoted keys above; every remaining method drops to a small
-                 slate-gray text link here. Real <button>s (they fire actions —
-                 file picker, import modals — they don't navigate), so they reuse
-                 the .md-link-btn link-semantics primitive. --}}
-            <div class="nb-create-chooser__alt" style="animation-delay: 0.75s">
-              <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_import")}}>{{t "Import Board(s)" key="import_boards"}}</button>
-              {{#if this.paste_html_import_enabled}}
-                <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_paste_html")}}>{{t "Paste HTML" key="paste_html"}}</button>
-                <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_json_bundle")}}>{{t "Import Board from Another Platform" key="import_json_bundle"}}</button>
-              {{/if}}
+            <div class="nb-create-chooser__title">{{t "How would you like to create your board?" key="create_chooser_title"}}</div>
+            <div class="nb-create-chooser__separator" aria-hidden="true"></div>
+            <div class="nb-create-chooser__options">
+              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--own" style="animation-delay: 0.05s" {{on "click" (this.ctrlAction "choose_create_own")}}>
+                <span class="nb-create-chooser__btn-icon" aria-hidden="true">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </span>
+                <span class="nb-create-chooser__btn-label">{{t "Create My Own Board" key="create_my_own_board"}}</span>
+              </button>
+              <span class="nb-create-chooser__or" style="animation-delay: 0.25s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 0.45s" {{on "click" (this.ctrlAction "choose_ai")}}>
+                <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
+                  <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
+                </span>
+                <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
+              </button>
+              <span class="nb-create-chooser__or" style="animation-delay: 0.65s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+              {{!-- Secondary methods: Create My Own / Generate with AI are the two
+                   promoted keys above; every remaining method drops to a small
+                   slate-gray text link here. Real <button>s (they fire actions —
+                   file picker, import modals — they don't navigate), so they reuse
+                   the .md-link-btn link-semantics primitive. --}}
+              <div class="nb-create-chooser__alt" style="animation-delay: 0.75s">
+                <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_import")}}>{{t "Import Board(s)" key="import_boards"}}</button>
+                {{#if this.paste_html_import_enabled}}
+                  <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_paste_html")}}>{{t "Paste HTML" key="paste_html"}}</button>
+                  <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_json_bundle")}}>{{t "Import Board from Another Platform" key="import_json_bundle"}}</button>
+                {{/if}}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
+      {{/in-element}}
     {{/if}}
     {{#if this.standalone}}
     <button type="button" class="md-workspace__close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close and return to previous page" key="close_create_board"}} title={{t "Close" key="close"}}>
@@ -100,8 +109,6 @@
               {{t "You'll be able to review and edit everything before creating the board" key="ai_intro_check_review"}}
             </li>
           </ul>
-        {{else}}
-          <p class="nb-create-header__subtitle">{{t "Build from scratch, paste labels, import a CSV, or choose from core lists." key="create_board_intro_subtitle"}}</p>
         {{/if}}
       </div>
       <div class="create-board-actions">
@@ -133,9 +140,18 @@
                 {{/if}}
               </span>
             </span>
-            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
-              {{t "Other Create Board Methods" key="other_create_methods"}}
-            </button>
+            {{!-- SWITCHING CREATE METHOD IS AN ENTRY-POINT CHOICE, so it stops being offered once
+                 the wizard has handed off (`wizard_done`) and the page is showing Board Labels and
+                 the save action. By that point a board's name, grid and labels are already
+                 entered, and reopening the chooser would start a different method from scratch --
+                 an invitation to discard work, presented right beside Save Board.
+                 `{{#unless}}` rather than a CSS hide so it leaves the accessibility tree and the
+                 tab order too, not just the layout. --}}
+            {{#unless this.wizard_done}}
+              <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
+                {{t "Other Create Board Methods" key="other_create_methods"}}
+              </button>
+            {{/unless}}
           </div>
         {{else}}
           {{!-- The Import / Generate-with-AI options now live in the create-method
@@ -150,26 +166,14 @@
           {{! template-lint-disable require-input-accessible-name }}
           <input type="file" name="board_upload" id="board_upload" tabindex="-1" style="display: none;">
           {{! template-lint-enable require-input-accessible-name }}
-          <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
-            {{t "Other Create Board Methods" key="other_create_methods"}}
-          </button>
+          {{!-- Hidden after the wizard hands off, for the reason given on the AI-mode copy
+               of this button above. --}}
+          {{#unless this.wizard_done}}
+            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
+              {{t "Other Create Board Methods" key="other_create_methods"}}
+            </button>
+          {{/unless}}
         {{/if}}
-        {{!-- Top-right Save Board: same action as the footer button,
-             but only rendered once the form is valid (createBoardDisabled
-             is false) so it stays hidden until the user has filled out
-             the required fields. --}}
-        {{#unless this.createBoardDisabled}}
-          <button {{on "click" (this.ctrlAction "attemptSave")}}
-                  class="btn btn-primary new-board__submit new-board__submit--top">
-            {{#if this.status.saving}}
-              {{t "Creating Board..." key="creating_board"}}
-            {{else if this.status.error}}
-              {{t "Error Creating Board" key="error_creating_board"}}
-            {{else}}
-              {{t "Save Board" key="save_board"}}
-            {{/if}}
-          </button>
-        {{/unless}}
       </div>
     </div>
     {{else}}
@@ -247,10 +251,22 @@
       {{/unless}}
       <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (this.ctrlAction "saveBoard")}}>
 
+        {{!-- BASICS CLOSES WHEN THE WIZARD IS DONE. It is the wizard's own container --
+             header, steps and step footer -- so once the last step hands off
+             (`wizard_done`, set by Next on step 4) it has nothing left to show, and the
+             two sections below, which are gated on the SAME flag, take over. The pair
+             reads as one handover rather than the finished wizard sitting above them.
+             Removing it from the DOM is safe: every field writes THROUGH to `model` on
+             input (`set-field`), so nothing is held in the markup that is lost with it,
+             and save validation is `createBoardDisabled` in JS, not the name input's
+             native `required`. --}}
+        {{#unless this.wizard_done}}
         <section class="nb-section">
           <div class="nb-section__header-inline">
             <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
-            <p class="nb-section__hint">{{t "Give your board a name and brief description." key="new_board_section_basics_hint"}}</p>
+            {{!-- Caption follows the wizard step (see `wizard_hint`); empty on a step
+                 with nothing to caption, so the <p> is dropped rather than left blank. --}}
+            {{#if this.wizard_hint}}<p class="nb-section__hint">{{this.wizard_hint}}</p>{{/if}}
           </div>
           {{!-- THE CREATE WIZARD (2026-09-22). These four groups -- description/name, grid
                size, Core Words and "for someone else" -- were one long form; they are now
@@ -291,7 +307,7 @@
                     <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.rows")}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     </button>
-                    <input type="number" value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" {{on "input" (set-field this "model.grid.rows")}} />
+                    <input type="number" value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" {{on "input" (this.eventAction "setGridRows")}} />
                     <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.rows")}} aria-label={{t "Increase rows" key="increase_rows"}}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     </button>
@@ -301,7 +317,7 @@
                     <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.columns")}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     </button>
-                    <input type="number" value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" {{on "input" (set-field this "model.grid.columns")}} />
+                    <input type="number" value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" {{on "input" (this.eventAction "setGridColumns")}} />
                     <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.columns")}} aria-label={{t "Increase columns" key="increase_columns"}}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     </button>
@@ -439,6 +455,7 @@
             </div>
           </div>
         </section>
+        {{/unless}}
 
         {{!-- The whole Board Labels section is AI-post-generation / regular mode only.
              Its body is a single `show_full_size_section` conditional, so in AI
@@ -723,16 +740,37 @@
                         <line x1="8" y1="23" x2="16" y2="23"/>
                       </svg>
                     </button>
-                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace"}} aria-label={{t "Backspace" key="backspace"}} {{on "click" (this.ctrlAction "speak_backspace")}}>
+                    <button type="button" class="md-board-detail-sentence-bar__tool-btn md-board-detail-sentence-bar__tool-btn--backspace" title={{t "Backspace" key="backspace"}} aria-label={{t "Backspace" key="backspace"}} {{on "click" (this.ctrlAction "speak_backspace")}}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
                     </button>
-                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Clear" key="board_detail_clear"}} aria-label={{t "Clear" key="board_detail_clear"}} {{on "click" (this.ctrlAction "speak_clear")}}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <button type="button" class="md-board-detail-sentence-bar__tool-btn md-board-detail-sentence-bar__tool-btn--clear" title={{t "Clear" key="board_detail_clear"}} aria-label={{t "Clear" key="board_detail_clear"}} {{on "click" (this.ctrlAction "speak_clear")}}>
+                      {{!-- Basic previews board-alt, whose header Clear is an X, not a
+                           bin -- its `#clear_button` adds no icon of its own and keeps
+                           the glyphicon cross (app.scss ~68184). Modern keeps the bin.
+                           Branched in the TEMPLATE rather than masked over in CSS so each
+                           view ships a real icon, and the button's title/aria-label
+                           ("Clear") is unchanged and correct for both. --}}
+                      {{#if this.preview_is_basic}}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      {{else}}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      {{/if}}
                     </button>
                   </div>
                 </div>
               </div>
-              <div class="md-board-detail-grid md-board-detail-grid--preview {{this.button_text_position_class}} {{this.button_text_size_class}} {{this.button_shape_class}} {{this.preview_background_class}} {{if this.paint_mode 'md-board-detail-grid--paint-mode'}}"
+              {{!-- BASIC MODE PREVIEWS THE BOARD-ALT (classic) TILE, Modern previews
+                   board-detail. This is a MODIFIER CLASS, not a second copy of the grid:
+                   the board-alt board is a route template driven by the `board.index`
+                   controller and cannot be embedded (its `computeHeight` sizes from
+                   `window.innerHeight` and writes `--sidebar-width` on the document, and
+                   `editManager` / `board_virtual_dom` are single-slot globals two grids
+                   would fight over). So the classic LOOK is applied to these same cells.
+                   That is also what keeps the editing interactions intact: click-to-edit,
+                   drag-swap, paint, remove and the inline input all hang off the cell and
+                   card elements below, which are shared by both modes and so cannot
+                   diverge. See `preview_is_basic` in create-board-new.js. --}}
+              <div class="md-board-detail-grid md-board-detail-grid--preview {{this.button_text_position_class}} {{this.button_text_size_class}} {{this.button_shape_class}} {{this.preview_background_class}} {{if this.paint_mode 'md-board-detail-grid--paint-mode'}} {{if this.preview_is_basic 'md-board-detail-grid--basic'}}"
                    style={{this.preview_style}}
                    role="grid"
                    {{on "dragover" (this.eventAction "previewDragOver")}}
@@ -1507,5 +1545,22 @@
       </div>
     </div>
     {{/unless}}
+    {{!-- BACK TO THE WIZARD, at the bottom-right of the WORKSPACE CARD (requested).
+         Through every wizard step this control is the bottom-right one on the page, so
+         that is where it stays once the wizard hands off -- it has been tried in the Edit
+         Tools rail (beside Save Board) and inside the Board Labels section, and both
+         moved it out of the corner the user had been clicking all the way through.
+         Last child of the card, so it is genuinely the page's bottom-right rather than
+         one section's. Standalone only: the legacy modal has its own footer above.
+         Reuses `.nb-wizard__nav` / `.nb-wizard__back` rather than new classes, so the
+         alignment and surface come from the wizard's own Back and cannot drift from it.
+         No Next beside it -- the forward action from here is Save Board, in the rail. --}}
+    {{#if (and this.standalone this.wizard_done)}}
+      <div class="nb-wizard__nav nb-create-card-nav">
+        <button type="button" class="btn btn-default nb-wizard__back" {{on "click" (this.ctrlAction "wizard_reopen")}}>
+          {{t "Back" key="back"}}
+        </button>
+      </div>
+    {{/if}}
   </div>
 </GridListener>

@@ -5,11 +5,21 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
 
 export default Controller.extend({
   router: service('router'),
   app_state: service('app-state'),
   store: service('store'),
+
+  /* Basic view gets the `ch-` rail beside this page; Modern keeps the page as it was.
+     Read through `utils/view_style#is_classic` rather than touching
+     `preferences.board_view_style` here -- that module is the single reader for this
+     preference, and it resolves against `effective_view_user`, so a supervisor modelling
+     for someone sees the shell that person's view calls for. */
+  isBasicView: computed('app_state.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('app_state.effective_view_user'));
+  }),
 
   refresh_lists: function() {
     this.set('orgs', {});

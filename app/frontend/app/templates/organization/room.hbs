@@ -3,57 +3,61 @@
   {{#if this.model.permissions.view_stats}}
     <div class="row">
       <div class="col-sm-3 col-xs-6">
-        <div class="panel panel-default summary smaller">
-          <div class="panel-heading">
-            {{t "Last logged session" key="last_logged_session"}}
+        <article class="report-kpi report-kpi--sessions room-kpi">
+          <div class="report-kpi__icon" aria-hidden="true">
+            <Stats::ReportIcon @name="calendar" />
           </div>
-          <div class="panel-body">
-            {{#if this.first_log}}
+          <div class="report-kpi__content">
+            <h3 class="report-kpi__label">{{t "Last logged session" key="last_logged_session"}}</h3>
+            <p class="report-kpi__value">{{#if this.first_log}}
               {{date_ago this.first_log.started_at}}
             {{else}}
               {{t "..." key="ellipsis"}}
-            {{/if}}
+            {{/if}}</p>
           </div>
-        </div>
+        </article>
       </div>
       <div class="col-sm-3 col-xs-6">
-        <div class="panel panel-default summary smaller">
-          <div class="panel-heading">
-            {{t "Recent Sessions" key="recent_sessions"}}
+        <article class="report-kpi report-kpi--total-sessions room-kpi">
+          <div class="report-kpi__icon" aria-hidden="true">
+            <Stats::ReportIcon @name="sessions" />
           </div>
-          <div class="panel-body">
-            {{#if this.log_stats.loaded}}
+          <div class="report-kpi__content">
+            <h3 class="report-kpi__label">{{t "Recent Sessions" key="recent_sessions"}}</h3>
+            <p class="report-kpi__value">{{#if this.log_stats.loaded}}
               {{delimit this.log_stats.total_words}} {{t "words" key="words"}},
             {{/if}}
-            {{t "session" key="n_sessions" count=this.model.user_counts.recent_session_count}}
+            {{t "session" key="n_sessions" count=this.model.user_counts.recent_session_count}}</p>
           </div>
-        </div>
+        </article>
       </div>
       <div class="col-sm-3 col-xs-6">
-        <div class="panel panel-default summary smaller">
-          <div class="panel-heading">
-            {{t "Recently-logged Usage" key="recently_logged_usage"}}
+        <article class="report-kpi report-kpi--utterances room-kpi">
+          <div class="report-kpi__icon" aria-hidden="true">
+            <Stats::ReportIcon @name="activity" />
           </div>
-          <div class="panel-body">
-            {{t "hr" key="n_hours_abbrev" count=this.model.user_counts.recent_session_hours}},
+          <div class="report-kpi__content">
+            <h3 class="report-kpi__label">{{t "Recently-logged Usage" key="recently_logged_usage"}}</h3>
+            <p class="report-kpi__value">{{t "hr" key="n_hours_abbrev" count=this.model.user_counts.recent_session_hours}},
 
             {{this.model.user_counts.recent_session_user_count}} / {{this.model.user_counts.total_users}}
-            {{t "users" key="users_lower"}}
+            {{t "users" key="users_lower"}}</p>
           </div>
-        </div>
+        </article>
       </div>
 
       {{#if this.log_stats.loaded}}
         <div class="col-sm-3 col-xs-6">
-          <div class="panel panel-default summary smaller">
-            <div class="panel-heading">
-              {{t "Avg. Usage" key="words_per_day"}}
-            </div>
-            <div class="panel-body">
-              {{t "word" count=this.log_stats.avg_words_per_day key="n_words"}}/{{t "day" key="day_lower"}}, 
-              {{t "session" count=this.log_stats.avg_sessions_per_user_week key="n_sessions"}}/{{t "wk" key="wk"}}
-            </div>
+          <article class="report-kpi report-kpi--words-per-utterance room-kpi">
+          <div class="report-kpi__icon" aria-hidden="true">
+            <Stats::ReportIcon @name="rate" />
           </div>
+          <div class="report-kpi__content">
+            <h3 class="report-kpi__label">{{t "Avg. Usage" key="words_per_day"}}</h3>
+            <p class="report-kpi__value">{{t "word" count=this.log_stats.avg_words_per_day key="n_words"}}/{{t "day" key="day_lower"}}, 
+              {{t "session" count=this.log_stats.avg_sessions_per_user_week key="n_sessions"}}/{{t "wk" key="wk"}}</p>
+          </div>
+        </article>
         </div>
       {{/if}}
       {{#if this.model.permissions.view}}
@@ -111,13 +115,28 @@
           {{/if}}
         </div>
       {{/if}}
+      {{!-- START A FRESH LINE FOR THE PAIR BELOW (requested 2026-09-23: "these should be
+           side-by-side like the other elements above them").
+           WHY AN ELEMENT AND NOT A CSS RULE. The KPI columns are `inline-block` (see the note
+           on `.col-sm-3:has(> .room-kpi)`), and `clear` does not apply to an inline-level box
+           -- so neither list card can push itself past the FLOATED `col-sm-6` action column
+           that sits between them and the cards above. At 1200px and below that float takes
+           half the line, Goal Words takes the other half and Curriculum falls to the next
+           line on its own, which is the stagger being reported.
+           A block-level box breaks the inline run and CAN clear the float, so the two cards
+           start a line together. Empty and zero-height, so it costs no vertical space, and
+           `aria-hidden` because it is layout, not content. It is `display: none` above 1200px,
+           where the columns are a quarter each and the three still share one line. --}}
+      <div class="room-kpi-break" aria-hidden="true"></div>
       {{#if this.log_stats.loaded}}
         <div class="col-sm-3 col-xs-6">
-          <div class="panel panel-default summary smaller">
-            <div class="panel-heading">
-              {{t "Goal Words" key="goal_words"}}
+          <article class="report-kpi report-kpi--total-words room-kpi room-kpi--list">
+            <div class="report-kpi__icon" aria-hidden="true">
+              <Stats::ReportIcon @name="message-length" />
             </div>
-            <div class="panel-body" style='max-height: 90px; font-size: 14px; overflow: auto; white-space: normal;'>
+            <div class="report-kpi__content">
+              <h3 class="report-kpi__label">{{t "Goal Words" key="goal_words"}}</h3>
+              <div class="report-kpi__value">
 
               {{#if this.log_stats.goal_word_counts}}
                 {{#each this.log_stats.goal_word_counts as |wrd|}}
@@ -150,17 +169,20 @@
                   </div>
                 {{/if}}
               {{/if}}
+              </div>
             </div>
-          </div>
+          </article>
         </div>
       {{/if}}
       {{#if this.organization.premium}}
         <div class="col-sm-3">
-          <div class="panel panel-default summary smaller">
-            <div class="panel-heading">
-              {{t "Curriculum & Training" key="training_and_curriculum"}}
+          <article class="report-kpi report-kpi--utterances-per-minute room-kpi room-kpi--list">
+            <div class="report-kpi__icon" aria-hidden="true">
+              <Stats::ReportIcon @name="buttons" />
             </div>
-            <div class="panel-body" style='max-height: 90px; font-size: 14px; overflow: auto; white-space: normal;'>
+            <div class="report-kpi__content">
+              <h3 class="report-kpi__label">{{t "Curriculum & Training" key="training_and_curriculum"}}</h3>
+              <div class="report-kpi__value">
               {{#if this.lesson_or_topics}}
                 {{#if this.model.topics}}
                   {{#each this.model.topics as |topic|}}
@@ -189,8 +211,9 @@
                   <a href="#" {{on "click" (this.ctrlAction "update_curriculum")}}>{{t "update curriculum" key="update_curriculum_lower"}}</a>
                 </div>
               {{/if}}
+              </div>
             </div>
-          </div>
+          </article>
         </div>
       {{/if}}
       <div style='clear: both;'></div>

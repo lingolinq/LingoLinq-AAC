@@ -87,6 +87,66 @@
   padding: 0;
 }
 
+/* ORGANIZATIONS PAGE WITH THE BASIC RAIL (2026-09-23).
+   `templates/organizations.hbs` renders <Dashboard::ClassicRail /> as a DIRECT CHILD of
+   `.md-shell`, which is the element carrying the page gradient -- that is what stretches the
+   background across the whole page instead of leaving the rail on bare page background.
+
+   `.md-shell` is already `display: flex; flex-direction: column !important`, so Basic only has
+   to turn it into a row. No wrapper element is introduced, on purpose: `.md-shell >
+   .md-workspace` is a direct-child selector carrying the workspace's `flex` and `min-height`,
+   and a wrapper would silently detach both -- changing Modern's layout to deliver a
+   Basic-only feature.
+
+   `!important` THROUGHOUT, matching not fighting: every base declaration overridden here
+   (`.md-shell`'s `flex-direction` and `padding-top`, `.md-shell > .md-workspace`'s `flex`,
+   `.md-shell--org-directory .md-workspace`'s `margin-top`) is itself `!important`, and
+   `!important` is not beaten by specificity alone.
+
+   THE INSETS ARE THE HOME PAGE'S, not new ones (requested: "the same position on the page as
+   it does on the home page", and then the same distance from the left edge). `.ch-page` below
+   is what positions the rail on the Basic dashboard, and its padding is copied here whole --
+   `80px 28px 24px`, plus its two top steps (44px at <=1024px, 48px stacked at <=900px) and its
+   22px side inset at <=767px. The 28px left is what puts the rail the same distance in from
+   the page edge on both pages; without it the shell has no side padding and the rail sat flush
+   against the viewport.
+
+   THE BASE IS A SHORTHAND AND THE BREAKPOINTS ARE LONGHANDS, copying `.ch-page`'s own
+   discipline (see the note at its <=900px block): a shorthand in a media query would reset the
+   side padding every time it only meant to change the top.
+
+   The workspace's own 20px top margin is zeroed in this layout so the rail and the content
+   share one top edge, the way `.ch-page`'s two columns do. */
+body.ll-view-basic .md-shell--org-directory {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 80px 28px 24px !important;
+}
+body.ll-view-basic .md-shell--org-directory > .md-workspace {
+  flex: 1 1 auto !important;
+  min-width: 0;
+  margin-top: 0 !important;
+}
+@media (max-width: 1024px) {
+  body.ll-view-basic .md-shell--org-directory { padding-top: 44px !important; }
+}
+/* Stacks at the same width `.ch-page` stacks, and takes its 48px with it. */
+@media (max-width: 900px) {
+  body.ll-view-basic .md-shell--org-directory {
+    flex-direction: column !important;
+    padding-top: 48px !important;
+  }
+}
+/* Sides narrow with `.ch-page`'s, top left alone -- the 48px above still applies here. */
+@media (max-width: 767px) {
+  body.ll-view-basic .md-shell--org-directory {
+    padding-right: 22px !important;
+    padding-left: 22px !important;
+    padding-bottom: 28px !important;
+  }
+}
+
 .ch-page {
   display: flex;
   align-items: flex-start;
@@ -1231,6 +1291,469 @@ button.ch-row--sync:focus-visible {
 }
 
 .ch-tab:hover { color: $la-navy; }
+
+/* ORGANIZATION PEOPLE TABS (2026-09-23). The strip on `/organizations/:id/people` in Basic
+   view wears `ch-tabs ch-tab` so it inherits BOTH schemes from the rules around this one --
+   gentle here, focused in _focused-view.scss -- and this block adds only what the home page's
+   tabs do not have: a headline number under each label.
+
+   RECESSION BY SIZE AND WEIGHT, NOT BY COLOUR. The count deliberately inherits the tab's own
+   `color` rather than taking a lighter one. Dimming it is the obvious way to make it secondary
+   and it is how AA gets quietly undone -- the tab colour is chosen per scheme to clear 4.5:1,
+   and any alpha applied here would drop below that in whichever scheme is tighter, invisibly.
+   Smaller and lighter reads as secondary without touching contrast. */
+.ch-organizations-tabs .ch-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.2;
+}
+.ch-organizations-tabs .ch-tab__label {
+  font-size: 14px;
+  font-weight: 650;
+}
+/* ORGANISATION SWITCHER above the org header (2026-09-23), on a card that matches the room
+   buttons below it (requested): label on the left, dropdown on the right.
+
+   THE CARD VALUES ARE THE ROOM CARD'S, restated rather than borrowed by class. `.md-room-card`
+   is scoped to `.md-grid .md-card--rooms` and `.md-shell--org .md-rooms__grid` -- this control
+   sits ABOVE the header, outside both, so wearing that class would have styled nothing. They
+   are the same gradient, border, radius, padding and lift, so the two read as one family.
+
+   The select does NOT wear `.ch-tabselect`: that class is `display: none` until 550px, where
+   it stands in for the tab strip, so reusing it would hide this control at every normal width.
+   Its own look follows the app's modern-select idiom (`appearance: none` plus an inline-SVG
+   chevron), the same one `.md-preferences__form select.form-control` uses -- Bootstrap's native
+   select chrome is suppressed rather than inherited. */
+.ch-org-switcher {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  /* PUSHED DOWN, AND CLOSER TO THE TITLE (requested 2026-09-23). The 28px above separates it
+     from the tab strip; the 0 below hands the remaining gap entirely to the hero's own
+     padding, which is tightened just beneath. */
+  margin: 28px auto 0;
+  width: fit-content;
+  max-width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
+  border: 1px solid rgba(76, 134, 216, 0.20);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px rgba(76, 134, 216, 0.10),
+    0 3px 9px rgba(15, 23, 42, 0.08),
+    0 0 16px rgba(76, 134, 216, 0.16);
+}
+/* CLEAR OF THE FLOATING NAV, WHERE THERE IS ONE (2026-09-23, with the switcher's move into
+   Modern). Gentle's app shell gives `.md-shell` no top padding and pulls the pill nav out of
+   flow by its own height, so the page box starts at y=106 while the nav's underside is at 146 --
+   the nav deliberately floats over the first 40px of the page. Every other page's first element
+   is text that begins lower down, so nothing showed; this one is a CARD with a background, and
+   at the base 28px it sat visibly behind the pills (measured: switcher 134-204, nav 70-146).
+   68px = the 40px the nav overlaps + the same 28px the control already has above it in Basic,
+   so it keeps its spacing rather than being given a new one. Measured after: switcher at 174,
+   28px clear of the nav.
+   `:has(.ll-appshell__navbar)` is the same test the shell's own alignment rules use for "is
+   there a nav floating over this page" (app.scss), so the two cannot disagree. Basic renders no
+   app shell at all, so it never matches and keeps the 28px above.
+   BOTH LAYOUTS, and the reason is worth stating because it briefly was not: this clearance is
+   owed wherever the shell's own nav clearance is ZERO and the nav therefore floats over the
+   page. That was gentle only until the org pages were pointed at gentle's geometry in
+   _focused-view.scss, and it is now true of them in focused as well -- so the condition to test
+   is the floating nav, which `:has(.ll-appshell__navbar)` already names, and not the layout. */
+#content:has(.ll-appshell__navbar) .ch-org-switcher {
+  margin-top: 68px;
+}
+
+.ch-org-switcher__label {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  white-space: nowrap;
+}
+/* THE DROPDOWN. A <details> rather than a <select>, because the requirement was an on-brand
+   OPEN LIST and a native select's popup belongs to the operating system.
+   Its own classes: `.ch-tabselect` and `.md-pillnav-dropdown` are each `display: none` until
+   550px, where they stand in for a tab strip, so reusing either would have hidden this at every
+   normal width -- the same trap twice over. The trigger keeps the modern-select LOOK
+   (white field, hairline border, inline chevron) so it still reads as a select. */
+.ch-org-dropdown {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 200px;
+  max-width: 100%;
+}
+.ch-org-dropdown__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  /* Radius, border and hover taken from `.md-org-report-select` (app.scss ~97479), the
+     reports page's control, so the two org pages offer the same-looking select. Those rules
+     are view-agnostic -- the reports page has no focused/gentle split, every one of its 52
+     rules living in app.scss -- so matching them covers both layouts by construction rather
+     than needing a second set here. */
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 2px rgba($brand-blue-black, 0.05);
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  cursor: pointer;
+  // Removes the disclosure triangle in every engine; the chevron is drawn in the markup.
+  list-style: none;
+  &::-webkit-details-marker { display: none; }
+  &::marker { content: ''; }
+}
+.ch-org-dropdown__trigger:hover {
+  border-color: rgba($brand-dusty-denim, 0.3);
+  box-shadow: 0 2px 8px rgba($brand-dusty-denim, 0.1);
+}
+.ch-org-dropdown__current {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-org-dropdown__chevron {
+  flex: 0 0 auto;
+  transition: transform 0.15s ease;
+}
+.ch-org-dropdown[open] .ch-org-dropdown__chevron {
+  transform: rotate(180deg);
+}
+/* The panel. Absolutely positioned so opening it does not push the page title down, and above
+   the hero beneath it. */
+.ch-org-dropdown__list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 12px;
+  border: 1px solid rgba(76, 134, 216, 0.20);
+  background: #fff;
+  box-shadow:
+    0 8px 28px rgba($la-navy, 0.16),
+    0 2px 6px rgba($brand-blue-black, 0.06);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.ch-org-dropdown__option {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  text-decoration: none;
+  // 44px target is not reachable at this row height without padding the list out; 40px plus
+  // the 6px panel padding keeps the row comfortably clickable while the list stays compact.
+  min-height: 40px;
+  line-height: 20px;
+}
+.ch-org-dropdown__option:hover,
+.ch-org-dropdown__option:focus-visible {
+  background: rgba(76, 134, 216, 0.10);
+  text-decoration: none;
+}
+/* The org already open. Marked with a background and full-strength ink rather than dimmed --
+   the current row is the one a person is most likely scanning for. */
+.ch-org-dropdown__option.is-current {
+  background: rgba($la-navy, 0.06);
+  cursor: default;
+}
+
+/* THE GAP BELOW THE SWITCHER IS MOSTLY THE HERO'S, not the switcher's. `.md-hero--org` carries
+   `padding: 20px 2px 10px !important` (app.scss), so trimming the switcher's own margin alone
+   would still have left 20px of hero padding between the two. This takes that top padding down
+   while leaving the sides and bottom exactly as they are -- a shorthand here would have reset
+   them for a change that only concerns the top.
+
+   `:has(.ch-org-switcher)` SCOPES IT TO THE CASE THAT ASKED FOR IT. The switcher only renders
+   when there is more than one organisation; without this the title would pull up on every org
+   page, including the ones with no switcher above it to close the gap to.
+   BOTH VIEWS AS OF 2026-09-23, when the switcher itself stopped being Basic-only (see
+   `showOrgSwitcher` in controllers/organization.js) -- but NOT at the same value, so each view
+   states its own rather than one inheriting the other's and being corrected afterwards.
+   BASIC KEEPS 6px. Its switcher sits under the in-flow `ch-tabs` strip, and this pairing was
+   tuned against that (with its own 22px at 1201px and up, further down this file).
+   MODERN TAKES 22px (requested: "there needs to be a bit more space below the dropdown on the
+   rooms page"). Its switcher hangs below a nav that FLOATS over the page, so it reads as a
+   card on open space rather than as the second row of a strip, and the tight pairing that
+   suits Basic looks cramped here. 22px is Basic's own large-screen value for this same pair,
+   so the two views agree on a number rather than inventing a second one. */
+body.ll-view-basic .md-workspace:has(.ch-org-switcher) .md-hero--org {
+  padding-top: 6px !important;
+}
+body.ll-view-modern .md-workspace:has(.ch-org-switcher) .md-hero--org {
+  padding-top: 22px !important;
+}
+
+/* ROOM SUMMARY CARDS (2026-09-23). The org room page reuses the Reports page's `.report-kpi`,
+   but its figures are not headline numbers -- they are phrases like "0 words, 0 sessions" and
+   "0 words/day, 0 sessions/wk". At the Reports page's 25-32px they wrapped to three lines and
+   read as a headline the value cannot carry.
+
+   SO THE PAIR IS INVERTED HERE (requested): the LABEL leads, in the steadier weight, and the
+   figure sits under it at a size a phrase can actually hold. The markup order is swapped to
+   match, so this is not CSS re-ordering what the DOM says -- a screen reader hears the label
+   first too.
+
+   `.room-kpi` is an extra class on the same element, so the card keeps every other rule it
+   inherits, including the focused surface. Only type and order change. */
+/* EQUAL HEIGHT ACROSS THE FOUR. They sit in Bootstrap `col-sm-3` columns, which do not
+   stretch their children, so each card was only as tall as its own text and the row came out
+   ragged. A min-height equalises them without making the row a flex container -- that row also
+   holds the panels and charts below, and turning it flex would have re-laid those out too. */
+.room-kpi {
+  min-height: 92px;
+}
+.room-kpi .report-kpi__label {
+  margin: 0;
+  color: var(--report-ink);
+  /* 14px IS A FLOOR, not a preference. It was briefly taken to 13px while shrinking the pair,
+     which is below the size this product holds itself to -- its users include people reading
+     at distance, on mounted devices, and with low vision, and the label is the part that says
+     what the figure means. Shrink the VALUE if the row needs more room; this does not go
+     under 14. */
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.room-kpi .report-kpi__value {
+  /* HAIRLINE BETWEEN LABEL AND FIGURE. Carried as a `border-top` on the VALUE rather than a
+     `border-bottom` on the label, so it spans the value's box: the label often wraps to two
+     short lines and a rule under it would end mid-card, which is what reads as unfinished
+     rather than deliberate.
+     Low-alpha navy at 0.12 -- the same weight the reports page's own divider uses -- so it
+     separates without competing with either line it sits between. */
+  margin: 7px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid rgba($la-navy, 0.12);
+  color: var(--report-muted);
+  /* 15px, against the Reports page's clamp(25px, 2.6vw, 32px). These are not headline numbers
+     but phrases -- "0 words/day, 0 sessions/wk" -- and at the headline size they wrapped to
+     three lines in a quarter-width column, which is what made the row ragged in the first
+     place. Smaller is what lets them sit on one or two lines. */
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: normal;
+  line-height: 1.35;
+}
+
+/* LIST-SHAPED CARDS (Goal Words, Curriculum & Training). These two hold a word list or a
+   curriculum name plus an action link rather than a single figure, so their value slot is a
+   <div> of flowing content instead of a one-line <p>.
+
+   Kept SCROLLABLE rather than clipped: the original panel body carried
+   `max-height: 90px; overflow: auto`, and a room with a dozen goal words still needs to reach
+   all of them. Dropping that in the name of a tidy card would have hidden data.
+   `min-width: 0` is what lets the words wrap inside the grid's `minmax(0, 1fr)` track instead
+   of forcing the card wider than its column. */
+.room-kpi--list .report-kpi__value {
+  max-height: 84px;
+  overflow-y: auto;
+  min-width: 0;
+  /* The inline styles the original markup puts on its word spans (16px bold) still apply and
+     are left alone -- they are the words' own emphasis, not the card's. */
+}
+.room-kpi--list .report-kpi__value a {
+  font-size: 14px;
+}
+
+/* TWO PER ROW AT 1200px AND BELOW (requested 2026-09-23). The cards sit in Bootstrap
+   `col-sm-3 col-xs-6` columns -- four across from 768px up -- and at a quarter of the width
+   their phrase-shaped values wrap hard. Half-width gives them a line to sit on.
+
+   THE COLUMN IS WIDENED, NOT THE CARD. `width` lives on the `col-sm-3`; setting it on
+   `.room-kpi` would leave the card overflowing a 25% column rather than the column resizing.
+   `:has(> .room-kpi)` is what reaches it from the only class this page owns -- and it keeps the
+   rule off every other `col-sm-3` in the app, including the ones further down this same page.
+
+   (0,2,0) against Bootstrap's `.col-sm-3` at (0,1,0), so it wins on specificity and not on
+   source order, which matters because Bootstrap's own rule lives in a `min-width: 768px` query
+   that overlaps this one across 768-1200. Below 768 `col-xs-6` already gives two per row, so
+   the two agree rather than fight. */
+/* The break is a 1200px-and-below device only: above it the columns are a quarter each and the
+   action column plus both list cards still fit one line, which is the layout that page has
+   always had. Declared `none` here rather than left unstyled so that stays true by rule and not
+   by the accident of an empty div being harmless.
+   IT MUST PRECEDE THE QUERY: the two declarations have the same (0,1,0) specificity, so the
+   later one wins. Written after it, this `none` would beat the `block` inside the query at
+   every width and the break would never fire. */
+.room-kpi-break {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .col-sm-3:has(> .room-kpi) {
+    width: 50%;
+  }
+  /* AND THE LIST PAIR STARTS A LINE OF ITS OWN. At half-width the two list cards can no longer
+     share a line with the floated `col-sm-6` action column that precedes them in the markup:
+     the float takes half, Goal Words takes the other half, and Curriculum drops to the next
+     line by itself -- the stagger this widening introduced.
+     The break is a BLOCK box because `clear` has no effect on the inline-block columns
+     themselves, so nothing else in the row can reach past that float. Zero height, so the line
+     it starts costs no space. Its element lives in templates/organization/room.hbs. */
+  .room-kpi-break {
+    display: block;
+    width: 100%;
+    clear: both;
+  }
+}
+
+/* WRAPPING. These columns are Bootstrap FLOATS, and floats snag: a column taller than its
+   neighbours catches the next one, which then hangs off its side instead of starting a fresh
+   row. The six cards are not the same height -- Goal Words and Curriculum carry a list, the
+   other four a single line -- so the row staggered as soon as it wrapped.
+
+   `inline-block` instead of `float` is the fix. Inline-block items always begin a new row
+   together when they no longer fit, regardless of each other's height, and `vertical-align:
+   top` keeps them aligned at the top of that row rather than on their text baselines.
+   Widths are untouched, so the 25% / 50% / `col-xs-6` steps still decide how many fit.
+
+   SCOPED TO THE KPI COLUMNS ONLY, via `:has(> .room-kpi)`. The same row holds the action
+   buttons and the charts below, which are still floats and still want to be -- mixing the two
+   models across the whole row is what would look strange. */
+.col-sm-3:has(> .room-kpi) {
+  float: none;
+  display: inline-block;
+  vertical-align: top;
+  /* Inline-block honours whitespace between elements; the template indents these onto their
+     own lines, which would otherwise add a stray gap to every column's width and drop the
+     last card to the next row one step early. */
+  margin-right: -4px;
+}
+
+/* MORE BREATHING ROOM ABOVE THE ORG HEADER ON LARGE SCREENS (requested 2026-09-23), and more
+   again below the switcher when one is on screen.
+
+   ONLY ABOVE 1200px, deliberately. The tight 6px gap this widens was set for the case where
+   the switcher sits directly over the title, and on a narrow screen that closeness is what
+   keeps the two reading as one block without pushing the content below the fold. Wide screens
+   have the height to spare and the tightness reads as cramped instead.
+   1201px is the same seam the KPI columns use, so the page has one large/small boundary rather
+   than two that disagree.
+
+   TWO VALUES, because the two cases are not the same gap. Without a switcher this is the space
+   between the tab strip and the title; with one it is the space under the dropdown, which
+   already has its own 28px above it, so it needs slightly less to feel even. */
+@media (min-width: 1201px) {
+  body.ll-view-basic .md-hero--org {
+    padding-top: 28px !important;
+  }
+  body.ll-view-basic .md-workspace:has(.ch-org-switcher) .md-hero--org {
+    padding-top: 22px !important;
+  }
+}
+
+/* ORG HEADER ON BASIC VIEW (2026-09-23): no role meta row, and no entrance motion.
+   Both are scoped to `body.ll-view-basic`, the app-wide Basic body class, so Modern keeps the
+   header exactly as it is.
+
+   THE MOTION RULES CANNOT SIMPLY BE SWITCHED OFF. `.md-hero__title--from-left` and
+   `.md-hero__sub--from-right` (app.scss ~34501) each set `opacity: 0` and then animate to
+   visible with `forwards` -- the animation is what REVEALS the text, not just what moves it.
+   Setting `animation: none` alone would leave the header permanently invisible, so `opacity: 1`
+   has to come with it. That is the whole reason this is two declarations and not one.
+
+   No `!important`: the base rules carry none, and `body.ll-view-basic` ahead of the same
+   selector is (0,4,0) against their (0,3,0), so these win on specificity alone. */
+body.ll-view-basic .md-hero--dashboard .md-hero__title .md-hero__title--from-left,
+body.ll-view-basic .md-hero--dashboard .md-hero__sub .md-hero__sub--from-right {
+  animation: none;
+  opacity: 1;
+}
+/* The "User · Manager" counts under the org title. Scoped to `.md-hero--org` rather than the
+   `--meta` modifier generally, which the reports dashboard also uses and which was not asked
+   about. */
+body.ll-view-basic .md-hero--org .md-hero__sub--meta {
+  display: none;
+}
+
+/* PRIMARY NAV FORM (2026-09-23). `user-pill-nav` swaps its `md-pillnav` classes for these on
+   Basic view, so this same strip now serves as the page-level nav that `.md-pillnav--dashboard`
+   serves on Modern. The base `.ch-tabs` above is a full-width panel control living inside the
+   dashboard's card; as a page nav it should sit centred and only as wide as its items, the way
+   the pill row it replaces does.
+
+   THE UPDATES BADGE COMES ACROSS TOO. That pill carries `md-pillnav__badge`, and the swap
+   deliberately changes only the BASE class -- `md-pillnav__pill--updates` and the badge are
+   modifiers that position the count, and rewriting them would have meant forking the markup
+   after all. The badge simply has no `ch-` rule of its own, so it is given the home tabs'
+   `.ch-tab__badge` treatment here rather than left unstyled. */
+.ch-tabs--primary {
+  /* EQUAL-WIDTH TABS, sized to the widest of them (requested 2026-09-23: the same width for
+     Home and for the section tab beside it).
+
+     A GRID, not flex, because this is the one thing flex cannot do. `.ch-tab` is `flex: 1 1
+     auto`, which grows items from their own content -- so "Home" and "Subscription" end up
+     visibly different sizes, which is what prompted this. `grid-auto-columns: 1fr` with a
+     `fit-content` track sizes EVERY column to the widest item, so the two match whatever the
+     section label happens to be, from "Rooms" to "Subscription", without a hard-coded width
+     that would need revisiting each time a section is added.
+
+     The tab's own metrics are untouched -- padding, font and the 44px minimum target all still
+     come from `.ch-tab` above -- so these read as home-page tabs, just evenly sized. */
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* The grid sizes the track; this centres the label inside it, which flex was doing implicitly
+   before and grid does not. */
+.ch-tabs--primary .ch-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.ch-tabs--primary .md-pillnav__badge {
+  @extend .ch-tab__badge;
+}
+
+/* BREADCRUMB FORM of the strip -- a way back plus the current page, used on the Rooms page.
+   Left-aligned rather than the tab row's stretched split: two items sharing the full width
+   would read as a choice between equals, and one of them is where you already are. The back
+   tab is an <a>, so it needs the anchor colour and underline neutralised to match the buttons
+   beside it, which `.ch-tab` alone does not do. */
+.ch-tabs--breadcrumb {
+  justify-content: flex-start;
+}
+.ch-tabs--breadcrumb .ch-tab {
+  flex: 0 0 auto;
+}
+.ch-tab--back,
+.ch-tab--back:hover,
+.ch-tab--back:focus {
+  text-decoration: none;
+}
+
+.ch-organizations-tabs .ch-tab__meta {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 .ch-tab.is-active {
   background: linear-gradient(160deg, #fff 0%, rgba(255, 255, 255, 0.86) 100%);

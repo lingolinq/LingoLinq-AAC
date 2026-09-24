@@ -19,8 +19,17 @@ import { get as emberGet } from '@ember/object';
 // Modern is the default: unset, missing, or any unrecognized value is modern.
 
 export function is_classic(user) {
-  if(!user || typeof user.get !== 'function') { return false; }
-  return user.get('preferences.board_view_style') === 'classic';
+  if(!user) { return false; }
+  /* emberGet, NOT `user.get(...)`. This used to bail to false for anything without a
+     `.get` method, which silently answered "modern" for a user record held as a PLAIN
+     OBJECT -- and `services/app-state.js:5166-5171` states that `currentUser` IS assigned
+     a plain object in several places, which is why `effective_view_user` resolves with
+     `emberGet` too. A wrong SHAPE became a wrong ANSWER rather than an error, so nothing
+     surfaced: `board_view_route` (utils/board_view.js) decides where a user lands after
+     creating, importing or picking a board, and a Basic user was pushed into the Modern
+     board shell -- the exact outcome the comment at that call site says must not happen.
+     emberGet reads a path through both shapes, so an Ember record behaves as before. */
+  return emberGet(user, 'preferences.board_view_style') === 'classic';
 }
 
 // The style as a string, for writing back or for display.

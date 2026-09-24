@@ -10,14 +10,55 @@
     </div>
   {{/if}}
 
-  {{!-- Sub-navigation pills for people sections --}}
-  <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
-    <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>{{t "Communicators" key="communicators"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
-  </nav>
+  {{!-- Sub-navigation for the people sections, in two forms.
+
+       BASIC VIEW GETS THE `ch-` TAB STRIP (requested 2026-09-23), the same one the Basic home
+       page uses. It carries the classes `ch-tabs` / `ch-tab` rather than a copy of their rules:
+       those classes are already styled for BOTH Basic layouts -- gentle in _classic-home.scss,
+       focused in _focused-view.scss -- so reusing them is what makes this strip match the home
+       page in each layout automatically, and a copied ruleset would have had to duplicate both
+       and would drift from them. `ch-organizations-tabs` is an additional hook, carrying only
+       what is specific to this page: the count under each label.
+
+       EACH TAB CARRIES ITS SECTION'S HEADLINE NUMBER, which is the same figure the section
+       itself prints below -- the managers count, the supervisor count, the user count, and the
+       used/allotted ratios for evals and symbols. Bare numerals need no translation; the words
+       that make them meaningful are added for screen readers with the EXISTING keys those
+       sections already use, so this introduces no new strings in 13 locales.
+
+       Modern keeps its pills below, untouched. --}}
+  {{#if this.isBasicView}}
+    <nav class="ch-tabs ch-organizations-tabs" role="tablist" aria-label={{t "People Sections" key="people_sections"}}>
+      <button type="button" role="tab" aria-selected={{if this.show_managers "true" "false"}} class="ch-tab {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>
+        <span class="ch-tab__label">{{t "Managers" key="managers"}}</span>
+        <span class="ch-tab__meta">{{this.model.total_managers}}<span class="sr-only"> {{t "manager" key="n_managers" count=this.model.total_managers}}</span></span>
+      </button>
+      <button type="button" role="tab" aria-selected={{if this.show_supervisors "true" "false"}} class="ch-tab {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>
+        <span class="ch-tab__label">{{t "Supervisors" key="supervisors"}}</span>
+        <span class="ch-tab__meta">{{this.model.total_supervisors}}<span class="sr-only"> {{t "supervisor" key="n_supervisors_lower" count=this.model.total_supervisors}}</span></span>
+      </button>
+      <button type="button" role="tab" aria-selected={{if this.show_communicators "true" "false"}} class="ch-tab {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>
+        <span class="ch-tab__label">{{t "Communicators" key="communicators"}}</span>
+        <span class="ch-tab__meta">{{this.model.total_users}}<span class="sr-only"> {{t "user" key="n_users" count=this.model.total_users}} {{t "total" key="total"}}</span></span>
+      </button>
+      <button type="button" role="tab" aria-selected={{if this.show_evals "true" "false"}} class="ch-tab {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>
+        <span class="ch-tab__label">{{t "Evals" key="evals"}}</span>
+        <span class="ch-tab__meta">{{this.model.used_evals}} / {{this.model.allotted_eval_licenses}}<span class="sr-only"> {{t "eval accounts used" key="evals_used"}}</span></span>
+      </button>
+      <button type="button" role="tab" aria-selected={{if this.show_extras "true" "false"}} class="ch-tab {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>
+        <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
+        <span class="ch-tab__meta">{{this.model.used_extras}} / {{this.model.allotted_extras}}<span class="sr-only"> {{t "premium symbol accounts used" key="extras_used"}}</span></span>
+      </button>
+    </nav>
+  {{else}}
+    <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
+      <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>{{t "Communicators" key="communicators"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
+    </nav>
+  {{/if}}
 
   {{!-- Managers --}}
   {{#if this.show_managers}}

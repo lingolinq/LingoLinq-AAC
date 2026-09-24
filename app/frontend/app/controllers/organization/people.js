@@ -7,9 +7,11 @@ import i18n from '../../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../../app';
+import { is_classic } from '../../utils/view_style';
 
 export default Controller.extend({
   router: service('router'),
+  app_state: service('app-state'),
   refresh_lists: function() {
     this.set('users', {});
     this.set('evals', {});
@@ -97,6 +99,14 @@ export default Controller.extend({
       }
     }
   ),
+  /* Basic view swaps the section pills for the `ch-` tab strip the Basic home page uses.
+     Read through `utils/view_style#is_classic`, the single reader for this preference, and
+     against `effective_view_user` so a supervisor working on someone else's pages gets the
+     shell that person's view calls for. */
+  isBasicView: computed('app_state.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('app_state.effective_view_user'));
+  }),
+
   show_managers: computed('shown_view', function() {
     return this.get('shown_view') == 'managers';
   }),

@@ -149,6 +149,17 @@
         </li>
         {{/if}}
         <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Boards" key="find_boards_nav"}}</LinkTo></li>
+        {{!-- BASIC VIEW ONLY, directly under Find Boards (requested). The legacy header's
+             identity dropdown (templates/application.hbs) has carried this entry all along;
+             this navbar never did, so in Basic view the only route to Create Board was the
+             button on the Boards page. Same i18n key as the legacy entry so the two menus
+             cannot come to word it differently. Gated on `permissions.delete` to match that
+             entry: someone who cannot edit should not be offered a create. --}}
+        {{#if this.isClassic}}
+          {{#if this.appState.currentUser.permissions.delete}}
+            <li><a href="#" {{on "click" this.onNewBoard}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
+          {{/if}}
+        {{/if}}
         <li><LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><a href="#" {{on "click" this.onOpenSupport}}>{{t "Help" key="help"}}</a></li>
         {{#if this.application.showBetaFeedbackAdminLink}}

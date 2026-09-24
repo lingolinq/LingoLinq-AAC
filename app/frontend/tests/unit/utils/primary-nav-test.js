@@ -38,6 +38,26 @@ module('Unit | Utility | primary_nav', function() {
       'without management responsibility the nav draws no Organizations pill, so the rule names none');
   });
 
+  /* THE ROOMS PAGE IS THE ONE `organization.*` ROUTE IN THIS NAV (2026-09-23). A rooms-only
+     supervisor is offered Rooms in the Organizations slot, so `/organizations/:id/rooms` has to
+     keep the rail and the full nav; a manager is offered Organizations and reaches rooms
+     through it, so for them the same URL is an org sub-page with the org section's own nav.
+     BOTH DIRECTIONS ARE PINNED because the failure is silent either way: unnamed, the page
+     loses its nav for the person whose nav it is; named for a manager, the org strip stands
+     down (templates/organization.hbs) and a page that is not in this nav shows it anyway. */
+  test('the rooms page is a pill only for someone who has the Rooms pill', function(assert) {
+    assert.expect(3);
+    assert.strictEqual(
+      pillForRoute('organization.rooms', '/organizations/1_1/rooms', { canSeeRooms: true }),
+      'rooms', 'a rooms-only supervisor gets the pill');
+    assert.strictEqual(
+      pillForRoute('organization.rooms', '/organizations/1_1/rooms', ALL), null,
+      'a manager reaches rooms through Organizations, so this page is not in their nav');
+    assert.strictEqual(
+      pillForRoute('organization.room', '/organizations/1_1/rooms/1_2', { canSeeRooms: true }),
+      null, 'one room is a detail page and is not in this nav');
+  });
+
   /* The same page answers differently depending on which menu the user arrived through, and
      `?nav=home` is the whole difference. This is the rule R3 rests on. */
   test('the logs page is Updates only when it was reached from this nav', function(assert) {
@@ -73,7 +93,9 @@ module('Unit | Utility | primary_nav', function() {
   test('the account section is not in this nav', function(assert) {
     var outside = ['user.account', 'user.index', 'user.goals', 'user.goal', 'user.badges',
       'user.edit', 'user.recordings', 'user.stats', 'user.preferences', 'user.subscription',
-      'user.supervision', 'user.history', 'user.lessons', 'user.focus', 'user.board-detail'];
+      'user.supervision', 'user.history', 'user.lessons', 'user.focus', 'user.board-detail',
+      'organization.index', 'organization.people', 'organization.reports',
+      'organization.settings'];
     assert.expect(outside.length);
     outside.forEach(function(route) {
       assert.strictEqual(pillForRoute(route, '/someone/whatever', ALL), null,

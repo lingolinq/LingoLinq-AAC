@@ -261,6 +261,13 @@ var PILL_COPY = {
     i18n.t('home_tour_page_orgs_b1', "Manage the organizations you run"),
     i18n.t('home_tour_page_orgs_b2', "Add people and assign supervisors")
   ]) }; },
+  /* ROOMS STANDS IN FOR ORGANIZATIONS for a rooms-only supervisor -- the nav draws one or the
+     other in that slot, never both (components/user-pill-nav.hbs). Without an entry here the
+     tour would simply skip the pill, leaving that user's nav half-described. */
+  rooms: function() { return { title: i18n.t('home_tour_page_rooms_title', "Rooms"), text: tourChecklist([
+    i18n.t('home_tour_page_rooms_b1', "The rooms you supervise, in one list"),
+    i18n.t('home_tour_page_rooms_b2', "Open a room to see its communicators and reports")
+  ]) }; },
   boards: function() { return { title: i18n.t('home_tour_page_boards_title', "Boards"), text: tourChecklist([
     i18n.t('home_tour_page_boards_b1', "Browse & create boards"),
     i18n.t('home_tour_page_boards_b2', "Open any board to view or edit")

@@ -7,40 +7,58 @@
      everywhere else. Both the active <span> and the <LinkTo> carry it, because whichever page
      you start the tour from renders one of the two.
      Keys match utils/tours/home.js#PILL_COPY. --}}
-<nav class="md-pillnav md-pillnav--dashboard {{if this.appState.currentUser.has_management_responsibility "md-pillnav--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+<nav class="{{this.navClass}} {{if this.hasSlotPill "md-pillnav--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
   {{! Home leads the nav for every role. It reads "Dashboard" (requested 2026-09-21), which
       is also what it read for strictly-SLP users before 2026-09-02; the `dashboard` key is
       already translated in all 13 locales and is the same sense the org nav
       (templates/organization.hbs:9) uses it in. The ROUTE is still `user.home` and the rail's
       own row is still "Home Page" -- only this nav's word changed.
-      Caseload follows it below for supporters. }}
+      Caseload follows it for supporters, then the one-of-two Organizations/Rooms slot. }}
   {{#if (is-equal this.activeKey "home")}}
-    <span class="md-pillnav__pill is-active" aria-current="page" data-tour-pill="dashboard">{{t "Dashboard" key="dashboard"}}</span>
+    <span class="{{this.pillClass}} is-active" aria-current="page" data-tour-pill="dashboard">{{t "Dashboard" key="dashboard"}}</span>
   {{else}}
-    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill" data-tour-pill="dashboard">{{t "Dashboard" key="dashboard"}}</LinkTo>
+    <LinkTo @route="user.home" @model={{@userName}} class="{{this.pillClass}}" data-tour-pill="dashboard">{{t "Dashboard" key="dashboard"}}</LinkTo>
   {{/if}}
 
   {{! Caseload — for every supporter, always AFTER Home. }}
   {{#if this.appState.currentUser.supporter_role}}
     {{#if (is-equal this.activeKey "caseload")}}
-      <span class="md-pillnav__pill is-active" aria-current="page" data-tour-pill="caseload">{{t "Caseload" key="caseload_pill"}}</span>
+      <span class="{{this.pillClass}} is-active" aria-current="page" data-tour-pill="caseload">{{t "Caseload" key="caseload_pill"}}</span>
     {{else}}
-      <LinkTo @route="caseload" class="md-pillnav__pill" data-tour-pill="caseload">{{t "Caseload" key="caseload_pill"}}</LinkTo>
+      <LinkTo @route="caseload" class="{{this.pillClass}}" data-tour-pill="caseload">{{t "Caseload" key="caseload_pill"}}</LinkTo>
     {{/if}}
   {{/if}}
 
+  {{!-- ORGANIZATIONS **OR** ROOMS, one slot, right of Caseload (requested 2026-09-23).
+       They are ALTERNATIVES and the {{else if}} is what says so: a manager reaches rooms
+       through the Organizations page, so drawing both would put two doors to the same place
+       in a six-item nav. Someone whose only org access is the rooms they supervise gets
+       Rooms instead, because for them `/organizations` lists organisations they cannot open.
+       BOTH GATES COME FROM ONE PLACE. `has_management_responsibility` is `managed_orgs.length
+       > 0` (models/user.js), and `showRoomsPill` is utils/rooms_nav#showsRoomsPill, which is
+       the same reading utils/primary_nav is handed to decide whether this nav renders on the
+       rooms page at all -- so the pill and the page that lights it cannot disagree.
+       `roomsOrgId` is part of the gate, not a lookup after it: a LinkTo with no model throws
+       rather than degrading. --}}
   {{#if this.appState.currentUser.has_management_responsibility}}
     {{#if (is-equal this.activeKey "organizations")}}
-      <span class="md-pillnav__pill is-active" aria-current="page" data-tour-pill="organizations">{{t "Organizations" key="organizations"}}</span>
+      <span class="{{this.pillClass}} is-active" aria-current="page" data-tour-pill="organizations">{{t "Organizations" key="organizations"}}</span>
     {{else}}
-      <LinkTo @route="organizations" class="md-pillnav__pill" data-tour-pill="organizations">{{t "Organizations" key="organizations"}}</LinkTo>
+      <LinkTo @route="organizations" class="{{this.pillClass}}" data-tour-pill="organizations">{{t "Organizations" key="organizations"}}</LinkTo>
+    {{/if}}
+  {{else if this.showRoomsPill}}
+    {{#if (is-equal this.activeKey "rooms")}}
+      <span class="{{this.pillClass}} is-active" aria-current="page" data-tour-pill="rooms">{{t "Rooms" key="rooms"}}</span>
+    {{else}}
+      <LinkTo @route="organization.rooms" @model={{this.roomsOrgId}} class="{{this.pillClass}}" data-tour-pill="rooms">{{t "Rooms" key="rooms"}}</LinkTo>
     {{/if}}
   {{/if}}
 
+
   {{#if (is-equal this.activeKey "boards")}}
-    <span class="md-pillnav__pill is-active" aria-current="page" data-tour-pill="boards">{{t "Boards" key="boards"}}</span>
+    <span class="{{this.pillClass}} is-active" aria-current="page" data-tour-pill="boards">{{t "Boards" key="boards"}}</span>
   {{else}}
-    <LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav__pill" data-tour-pill="boards">{{t "Boards" key="boards"}}</LinkTo>
+    <LinkTo @route="user.boards" @model={{@userName}} class="{{this.pillClass}}" data-tour-pill="boards">{{t "Boards" key="boards"}}</LinkTo>
   {{/if}}
 
   {{!-- REPORTS IS NOT IN THIS NAV (retired 2026-09-20). It moved to the account rail, which
@@ -54,9 +72,9 @@
        its own note. --}}
 
   {{#if (is-equal this.activeKey "extras")}}
-    <span class="md-pillnav__pill is-active" aria-current="page" data-tour-pill="extras">{{t "Extras" key="extras"}}</span>
+    <span class="{{this.pillClass}} is-active" aria-current="page" data-tour-pill="extras">{{t "Extras" key="extras"}}</span>
   {{else}}
-    <LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav__pill" data-tour-pill="extras">{{t "Extras" key="extras"}}</LinkTo>
+    <LinkTo @route="user.extras" @model={{@userName}} class="{{this.pillClass}}" data-tour-pill="extras">{{t "Extras" key="extras"}}</LinkTo>
   {{/if}}
 
   {{!-- UPDATES — the same item the home dashboard's own nav renders, in the same position,
@@ -69,9 +87,9 @@
            for its own page. The logs page passes `@active="updates"`, so arriving there from
            this pill leaves the nav in place with Updates marked current rather than dropping
            the user onto a page with no nav at all. --}}
-      <span class="md-pillnav__pill md-pillnav__pill--updates is-active" aria-current="page" data-tour-pill="updates">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</span>
+      <span class="{{this.pillClass}} md-pillnav__pill--updates is-active" aria-current="page" data-tour-pill="updates">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</span>
     {{else}}
-      <LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="md-pillnav__pill md-pillnav__pill--updates" data-tour-pill="updates">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo>
+      <LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note" nav="home"}} class="{{this.pillClass}} md-pillnav__pill--updates" data-tour-pill="updates">{{t "Updates" key="updates"}}{{#if this.pendingUpdates}}<span class="md-pillnav__badge" aria-hidden="true">{{#if this.pendingUpdates.count}}{{this.pendingUpdates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span><span class="sr-only">{{t "has new updates" key="pillnav_has_updates"}}</span>{{/if}}</LinkTo>
     {{/if}}
   {{/if}}
 
@@ -93,7 +111,7 @@
      breakpoint comes from `--org-menu` (or its absence) below.
      Mirrors the pill row above one-for-one, including the same role gates — a link that
      is not offered as a pill must not appear here either. --}}
-<details class="md-pillnav-dropdown md-pillnav-dropdown--user {{if this.appState.currentUser.has_management_responsibility "md-pillnav-dropdown--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+<details class="md-pillnav-dropdown md-pillnav-dropdown--user {{if this.hasSlotPill "md-pillnav-dropdown--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
   <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
     <span class="md-pillnav-dropdown__label">{{this.activeLabel}}</span>
     <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -103,8 +121,13 @@
     {{#if this.appState.currentUser.supporter_role}}
       <li><LinkTo @route="caseload" class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "caseload") "is-active"}}">{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
     {{/if}}
+    {{!-- The same one-of-two slot as the pill row above, in the same position and behind the
+         same gates. An option here that the pill row does not offer would be a second, wider
+         nav -- see the note at the top of this dropdown. --}}
     {{#if this.appState.currentUser.has_management_responsibility}}
       <li><LinkTo @route="organizations" class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "organizations") "is-active"}}">{{t "Organizations" key="organizations"}}</LinkTo></li>
+    {{else if this.showRoomsPill}}
+      <li><LinkTo @route="organization.rooms" @model={{this.roomsOrgId}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "rooms") "is-active"}}">{{t "Rooms" key="rooms"}}</LinkTo></li>
     {{/if}}
     <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
     <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>

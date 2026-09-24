@@ -858,6 +858,36 @@ body.ll-layout-focused .md-user-summary {
   }
 }
 
+/* ── FOCUSED: THE ORG DETAIL PAGES ARE THE GENTLE ONES (2026-09-23) ─────────────────────
+   Requested, in two steps: "the rooms content needs to move up on the page by a lot", then
+   "on modern view the focused view rooms should match the modern view rooms styles (for now)".
+
+   SO THE TARGET IS GENTLE'S GEOMETRY, NOT THE FOCUSED DASHBOARD'S. The first pass aimed these
+   pages at the focused dashboard's own offsets (`--topbar-height` on `#content`, 16/32 on the
+   workspace, keeping the shell's 112px nav clearance) and landed the rooms page at y=204
+   against gentle's 174. Close, and still two layouts to keep level. These two declarations
+   instead restate exactly what app.scss's gentle `:has(.ll-appshell)` block sets --
+   `calc(--topbar-height + 1rem)` and a shell clearance of 0 -- so the page computes the same
+   26 + 0 + 40 + 40 = 106 in both layouts and there is one geometry to maintain, not two.
+   The workspace is deliberately absent: the base 40/40 is what gentle uses and what focused
+   already had, so naming it would only be a third copy of a value nobody is changing.
+
+   "(FOR NOW)" IS THE USER'S OWN QUALIFIER, and it is why this is written as a POINTER at the
+   gentle rule rather than as a focused design. When these pages get a real focused treatment,
+   delete this block -- do not edit its numbers, or the two layouts start drifting silently.
+
+   ALL THE ORG DETAIL PAGES, not just rooms: they share one shell and one workspace, and moving
+   rooms alone would leave its siblings 130px lower than a page one click away. The org
+   DIRECTORY (`--org-directory`) is excluded -- different layout, its own spacing, and not what
+   moved. Verified with scripts/rooms-page-spacing-qa.mjs: focused and gentle now report the
+   same switcher/hero/grid run (174 / 244 / 438). */
+body.ll-layout-focused #within_ember #content:has(.md-shell--org:not(.md-shell--org-directory)) {
+  padding-top: calc(var(--topbar-height) + 1rem) !important;
+}
+body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .ll-appshell .md-shell {
+  padding-top: 0 !important;
+}
+
 // -----------------------------------------------------------------------------
 // Standalone Reports page (user/stats) — Focused View
 // -----------------------------------------------------------------------------
@@ -867,6 +897,25 @@ body.ll-layout-focused .md-user-summary {
 // (2026-09-21), not hidden here: that is flash-free, and it removed the `:has()` suppression
 // below that had been keeping the header off every account that renders the Progress and
 // Usage summary. Its styling is the shared account-section header rule in app.scss.
+/* `.md-shell--org` WAS ADDED HERE ON 2026-09-23 AND TAKEN BACK OUT THE SAME DAY (requested:
+   "on modern rooms page, make focused view match gentle view's style"). The org pages wear the
+   Reports page's `.md-stats-main` container, so extending this scope to them looked like the
+   way to give them its focused half too.
+
+   WHAT IT ACTUALLY REACHED, measured against the compiled CSS rather than reasoned about:
+   exactly two of the twelve rules below. `.md-stats-main` on the rooms LIST page, which is a
+   no-op -- the base `.md-stats-main` (app.scss ~64647) is a pure centred wrapper with no paint,
+   so clearing paint changes nothing. And `.report-kpi` on the room DETAIL page, which swapped
+   its six cards onto `$focus-card-surface` with a dusty-denim border. That second one was the
+   whole visible difference between the two layouts on those pages, and it is the one being
+   removed. The other ten name elements no org template renders (`.md-hero--reports-dashboard`,
+   `.md-user-meta`, `.report-trend`, `.report-insights`, `.progress-highlight*`,
+   `.md-stats-filter__compare`) -- verified by grep across `templates/organization*`.
+
+   SO THE ORG PAGES NOW TAKE THE BASE SURFACES IN BOTH LAYOUTS, which is what "match gentle"
+   means here: gentle IS the base. Nothing was added to make them match -- a rule was removed.
+   If a future org page wants the focused Reports treatment, add it back with the same check:
+   which of these rules can reach the elements that page actually renders. */
 body.ll-layout-focused .md-shell--reports-view {
   // Hide the "Reports for <user>" header + subheader.
   .md-hero--reports-dashboard {
@@ -2191,6 +2240,352 @@ body.ll-layout-focused .md-logs {
 }
 
 // -----------------------------------------------------------------------------
+// Create Board page (create-board-new) — wizard nav buttons match focused Boards
+// -----------------------------------------------------------------------------
+// The wizard step footer's Next / Back pair takes the focused Boards page's two button
+// surfaces (requested): Next = the dark "View All Boards" glossy denim that New Board /
+// Show More carry there, Back = the lighter Change Home Board surface. That keeps the
+// SAME primary/secondary split the gentle pair already has, restated in the focused
+// palette, so the footer reads as part of the family of the page the user reached it
+// from rather than as gentle-view chrome left behind on a focused page.
+//
+// NO `!important` anywhere below, unlike most rules in this file: the gentle base rules
+// for these two buttons carry none (`.nb-wizard__next.btn.btn-primary` is (0,3,0) and
+// `.nb-wizard__nav .nb-wizard__back` is (0,2,0), both in app.scss), and every selector
+// here is strictly higher specificity, so each wins on merit — which is what this
+// file's scoping contract asks for.
+// ROWS / COLS NUMBERS take the section-title treatment in Focused (requested), so the
+// stepper discs and the BASICS / BOARD LABELS pills read as one family.
+//
+// COLOUR ONLY — the geometry is deliberately untouched. The base is a 28px circular glass
+// disc sized to fit the 36px stepper (app.scss, `.nb-stepper-mini__input`); turning it
+// into the title's 999px pill would change the control's footprint and break the row.
+// What moves is the palette: the base ramps denim -> VERDIGRIS, and that teal is exactly
+// what the titles no longer carry, so the disc was the last teal object left in the row.
+//
+// The colour ramp below is the SAME THREE STOPS as the title pill at the same
+// densities, so the two cannot drift; the radial specular highlight stays on top of it,
+// which is what keeps the disc reading as a glass bead rather than a flat dot.
+//
+// INK: $la-navy, the titles' ink, in place of the base's $indigo. Contrast is at least
+// the 7.80:1 measured for the title pill — the disc's radial white highlight only
+// lightens the fill further, so navy on it can only improve on that figure.
+//
+// (0,2,1) against the base's (0,1,0), which carries no `!important`.
+body.ll-layout-focused .nb-stepper-mini__input {
+  color: $la-navy;
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba($brand-dusty-denim, 0.18) 35%,
+      rgba($brand-dusty-denim, 0.34) 100%
+    );
+  box-shadow:
+    0 2px 12px rgba($brand-dusty-denim, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -3px 6px rgba($brand-dusty-denim, 0.16);
+}
+
+// GRID SIZE TILES take the home page's caseload button colour in Focused (requested).
+//
+// Same ramp as that button: `radial-gradient(ellipse at center in oklab,
+// $focus-hero-center, $focus-hero-edge)` — lightest in the middle, falling to a dark
+// muted navy at the edges (app.scss ~55710, `.md-card--caseload-focused`). The TOKENS are
+// reused rather than the resolved colours copied, so the tiles cannot drift from the
+// button they are meant to match.
+//
+// THE GLOSS IS KEPT, per the same request that introduced it: the white specular layer
+// still sits over the colour ramp, and the inset light edge / lower shadow line stay, so
+// a selected tile still reads as a piece of glass rather than a flat swatch. Only the
+// colour underneath moves, verdigris out, caseload navy in.
+//
+// INK: none needed — these cells carry no text, so the button's `$focus-on-dark` has no
+// counterpart here and there is no contrast pairing to re-measure. The border takes the
+// button's `rgba($focus-on-dark, 0.14)` so the edge reads the same against the dark fill.
+//
+// (0,2,1) against the base `.nb-grid-picker__cell--on` (0,1,0), which carries no
+// `!important` — so none is needed here.
+body.ll-layout-focused .nb-grid-picker__cell--on {
+  border-color: rgba($focus-on-dark, 0.14);
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.60) 0%,
+      rgba(255, 255, 255, 0.20) 40%,
+      rgba(255, 255, 255, 0) 62%),
+    radial-gradient(ellipse at center in oklab,
+      #{$focus-hero-center} 0%,
+      #{$focus-hero-edge} 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 1px rgba($focus-shadow-ink, 0.30),
+    0 1px 2px rgba($focus-shadow-ink, 0.20);
+}
+
+// GENERATE-WITH-AI BUTTONS go blue in Focused (requested), matching the section title
+// pills above -- the teal was the last verdigris left on the create-board page.
+//
+// BOTH of them: the chooser's "Generate with AI" option and the wizard's "Generate Labels
+// with AI" at the foot of Basics. They are separate rules in app.scss with separate
+// palettes, so a change to one alone would have left the pair disagreeing.
+//
+// HUE ONLY, as with the titles: the same stops at the same alphas, the same geometry,
+// glow and gloss -- verdigris swapped for `$brand-dusty-denim`, the accent this page's
+// other blue surfaces already use. The generate button's ramp ends on the blue it always
+// ended on (`rgba(91, 141, 239, …)`), so replacing its teal START makes it a blue-to-blue
+// gradient rather than a two-hue one.
+//
+// The actionable GLOW is recoloured too, not dropped: it is what marks the button as
+// pressable, and leaving it teal would have been the one teal thing left glowing.
+// Each selector adds `body` + `.ll-layout-focused` to its base, so all of them clear the
+// rule they override without `!important` -- none of the bases use it.
+body.ll-layout-focused .nb-create-chooser__btn--ai {
+  border-color: rgba($brand-dusty-denim, 0.40);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.13) 100%);
+}
+body.ll-layout-focused .nb-create-chooser__btn--ai:hover,
+body.ll-layout-focused .nb-create-chooser__btn--ai:focus-visible {
+  border-color: rgba($brand-dusty-denim, 0.60);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.18) 100%);
+}
+body.ll-layout-focused .nb-ai-generate__btn.btn.btn-primary {
+  border-color: rgba($brand-dusty-denim, 0.18);
+  background: linear-gradient(135deg, rgba($brand-dusty-denim, 0.30), rgba(91, 141, 239, 0.26));
+}
+body.ll-layout-focused .nb-ai-generate__btn.btn.btn-primary:not(:disabled) {
+  box-shadow:
+    0 0 0 5px rgba($brand-dusty-denim, 0.12),
+    0 6px 20px rgba($brand-dusty-denim, 0.30),
+    0 2px 6px rgba(13, 36, 56, 0.10);
+}
+body.ll-layout-focused .nb-ai-generate__btn.btn.btn-primary:not(:disabled):hover {
+  background: linear-gradient(135deg, rgba($brand-dusty-denim, 0.40), rgba(91, 141, 239, 0.34));
+  box-shadow:
+    0 0 0 6px rgba($brand-dusty-denim, 0.18),
+    0 8px 26px rgba($brand-dusty-denim, 0.38),
+    0 2px 8px rgba(13, 36, 56, 0.12);
+}
+
+// SECTION CARDS get real elevation in Focused (requested: more depth, a little darker).
+//
+// DARKER comes from `$focus-section-bg-darkened`, which already exists -- it is the
+// Boards/Folders panel surface at ~10%, shared with the focused Profile page's section
+// cards. Reusing it means these cards join a surface the rest of Focused already uses
+// rather than introducing a third near-white of their own.
+//
+// DEPTH is the bigger change, because the base is not a raised card at all: its shadow is
+// `inset 0 1px 8px rgba(13, 36, 56, 0.18)`, a shadow cast INWARD from the top edge, which
+// reads as a panel pressed INTO the page. Adding outer shadows to that would have fought
+// it -- a card cannot be sunken and raised at once -- so the inset well is replaced, not
+// supplemented, and the interior keeps only a soft accent falloff.
+//
+// Three outer layers rather than one: a tight contact shadow, a mid lift and a broad
+// ambient. That is what separates "has a shadow" from "sits above the page" -- a single
+// blur at any strength reads as a halo. Lit top edge and a dimmer lower edge give the
+// card a light source so the fill is not flat between them.
+//
+// The border firms up to match: at 0.07 alpha the edge disappeared against a darker fill,
+// which would have left the new shadow doing the containment on its own.
+//
+// (0,2,1) over the base (0,1,0), which uses no `!important`. `.nb-section` appears only
+// in create-board-new.hbs and new-board.hbs, so this reaches the board-creation surfaces
+// and nothing else; `.nb-section--advanced` inherits it and stays consistent.
+body.ll-layout-focused .nb-section {
+  /* SILVER, NOT BLUE. The first attempt reused `$focus-section-bg-darkened`, and it read
+     blue for the reason this file already documents at ~line 170: darkening a COOL
+     near-white raises its apparent saturation, because the R-B spread widens as the stop
+     darkens. That note records 20% giving rgb(167, 188, 217) and 15% giving
+     rgb(184, 201, 224) -- "both read BLUE". The same trap caught this card: its top stop
+     resolved to rgb(206, 221, 236), a 30-point R-B spread.
+     So the ramp is authored directly at the lightness wanted instead of being derived by
+     darkening a tinted base, which puts the R-B spread exactly where it is wanted rather
+     than wherever the darkening maths lands it.
+     TUNED IN BOTH DIRECTIONS. The first silver pass landed at 7 / 6 / 3 and read GREY --
+     overcorrected, having come straight from 30 / 27 / 0, which read blue. 16 / 12 / 8 is
+     the middle: enough cool cast to be silver rather than a neutral grey, still less than
+     half the spread that made it look like a blue tile. Values computed, not eyeballed,
+     as the note at ~170 asks. */
+  background: linear-gradient(
+    180deg,
+    rgb(216, 221, 232) 0%,
+    rgb(226, 230, 238) 45%,
+    rgb(235, 238, 243) 100%
+  );
+  /* Neutral ink, not `$focus-accent`. The interior falloff used dusty denim, which was
+     painting blue INSIDE the card on top of the blue gradient -- the two together are
+     what made it read as a blue tile. A plain grey does the same shading work without
+     carrying a hue. */
+  border: 1px solid rgba($focus-shadow-ink, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 10px 20px rgba(120, 125, 132, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.50),
+    0 2px 4px rgba($focus-shadow-ink, 0.08),
+    0 10px 24px rgba($focus-shadow-ink, 0.12),
+    0 20px 48px rgba($focus-shadow-ink, 0.10);
+}
+
+// Section title pills go BLUE in Focused (requested) — the eyebrow pills reading
+// BASICS / BOARD LABELS / ADVANCED OPTIONS on the create-board page.
+//
+// Gated on the LAYOUT axis only, so it lands in Focused + Basic and Focused + Modern
+// alike, and Gentle keeps the verdigris in both views.
+//
+// The construction is untouched: the same gradient stops at the same opacities, the same
+// blur, border and shadow — only the HUE is swapped, teal `rgb(20, 127, 130)` out and the
+// focused accent `$brand-dusty-denim` in, so the pill still reads as the same object.
+// The ink moves from the teal `#0d5c5f` to `$la-navy`, which is the ink every other
+// focused surface already uses, and is the DARKER of the two against this pale wash — so
+// contrast improves rather than regresses.
+//
+// One rule covers the Advanced options header too: its `.nb-advanced-toggle__title`
+// carries `.nb-section__title` as well and deliberately adds no chrome of its own
+// (app.scss ~61464), so it inherits this for free and cannot drift from the others.
+// `.nb-section__title` appears only in create-board-new.hbs and new-board.hbs, so this
+// reaches the board-creation surfaces and nothing else.
+//
+// SPLIT IN TWO ON PURPOSE. The ink applies to every section title; the PILL CHROME must
+// not, because `.nb-section__title--inline` (app.scss ~61709) is the nested sub-heading
+// variant and deliberately resets `background: none` / `box-shadow: none` to drop the
+// eyebrow pill, which "would compete visually with the parent section's primary title".
+// That reset is only (0,1,0), so a single combined rule at (0,2,1) would have re-painted
+// a blue pill onto the one element designed not to have one. Excluding it by selector
+// means the chrome rule never matches it, while the hue change still reaches it.
+//
+// Both beat the base's (0,1,0), which carries no `!important` — so none is needed here.
+body.ll-layout-focused .nb-section__title {
+  color: $la-navy;
+}
+body.ll-layout-focused .nb-section__title:not(.nb-section__title--inline) {
+  /* DARKER than the gentle pill it replaces (requested): the denim roughly doubles at
+     both stops and the white top sheen is pulled back from 0.35 to 0.22, so the wash
+     reads as a filled pill rather than a tint. Same three-stop construction and the same
+     geometry — only the densities move.
+     MEASURED, not estimated. The bottom stop (0.34 denim over the card) resolves to
+     rgb(188, 209, 239) and carries $la-navy at 7.80:1; the midpoint stop (0.18) resolves
+     to rgb(215, 227, 245) at 9.35:1. The bottom of the gradient is therefore the worst
+     case, not an average, and it clears both the 4.5:1 AA floor and AAA's 7:1 for normal
+     text. Deepening much past this starts eating the AAA margin — re-measure before
+     doing so, because the ink is what has to keep up. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba($brand-dusty-denim, 0.18) 35%,
+    rgba($brand-dusty-denim, 0.34) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 12px rgba($brand-dusty-denim, 0.22);
+}
+
+// The Create My Own Board page CARD takes the focused Boards page's frosted surface
+// (requested) — in BOTH Basic and Modern, so this is gated on the layout axis only and
+// carries no `ll-view-basic` / `ll-view-modern` term.
+//
+// It was already 90% there: `app.scss`'s `.md-workspace--create-board-new.new-board--modern`
+// uses the same two gradient layers as `$focus-boards-bg`, but stacks an OPAQUE `#ffffff`
+// underneath them, which is what stopped it reading as frosted glass — there was nothing to
+// see through. Dropping that base and adding the blur is most of the difference; the rest is
+// the boards card's 20px radius in place of the page card's 48px, its hairline border and
+// its five-layer shadow.
+//
+// Reuses `$focus-boards-bg` rather than restating the gradient, so this surface cannot
+// drift from the Boards section and the account hero that already share that token.
+//
+// `!important` throughout because the base declaration uses it on every one of these
+// properties; the (0,3,1) selector already out-ranks its (0,2,0), so the `!important`
+// is only there to meet like with like rather than to win the cascade.
+body.ll-layout-focused .md-workspace--create-board-new.new-board--modern {
+  background: $focus-boards-bg !important;
+  border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 9px 18px rgba($focus-accent, 0.07),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 3px rgba($focus-shadow-ink, 0.05),
+    0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
+  backdrop-filter: blur(14px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+}
+
+body.ll-layout-focused .md-shell--create-board-new {
+  // NEXT — the dark denim gradient taken 10% darker, the exact fill the Boards page's
+  // New Board / Show More group uses. hover and focus reuse it so the button never
+  // flashes back to the gentle teal gradient underneath.
+  .nb-wizard__next.btn.btn-primary,
+  .nb-wizard__next.btn.btn-primary:hover:not(:disabled),
+  .nb-wizard__next.btn.btn-primary:focus-visible {
+    color: $focus-on-dark;
+    border-color: rgba($focus-on-dark, 0.18);
+    background: linear-gradient(160deg in oklab,
+      color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
+      color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 2px rgba($la-navy, 0.12),
+      0 6px 14px rgba($la-navy, 0.22);
+  }
+  // DISABLED HAS TO BE RESTATED HERE, and is not optional: the rest-state selector above
+  // is (0,5,1) while the gentle disabled rule is (0,4,0), so without this the focused
+  // fill would paint straight over the disabled treatment and Next would look pressable
+  // on step 1 with the required field still empty.
+  // It keeps the gentle AA-contrast gray rather than a dimmed denim — on a page where
+  // every other button is dark, inert gray is the clearer "not yet" signal, and
+  // #1f2937 on #e5e7eb is the pairing already measured for the footer CTA.
+  .nb-wizard__next.btn.btn-primary:disabled,
+  .nb-wizard__next.btn.btn-primary[aria-disabled="true"] {
+    background: #e5e7eb;
+    color: #1f2937;
+    border-color: rgba(31, 41, 55, 0.18);
+    box-shadow: none;
+  }
+  // BACK — the Change Home Board surface: the layout toggle's light gradient taken down
+  // 8%, with that control's own navy ink, border and inset highlight. $la-navy measures
+  // 9.51:1 on the light stop and 7.87:1 on the dark stop (recorded where that button is
+  // defined above), so the pairing carries its AA margin over unchanged.
+  .nb-wizard__nav .nb-wizard__back,
+  .nb-wizard__nav .nb-wizard__back:hover,
+  .nb-wizard__nav .nb-wizard__back:focus-visible {
+    background: linear-gradient(135deg,
+      color.scale(#f6f8fa, $lightness: -8%) 0%,
+      color.scale(#dce3ec, $lightness: -8%) 100%);
+    color: $la-navy;
+    border-color: rgba($la-navy, 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 1px 3px rgba($la-navy, 0.14);
+  }
+  // SAVE BOARD takes the SAME dark denim as Next above (requested), so the flow's two
+  // primary actions are one surface. This is the rail's Save Board — since the header
+  // button was removed it is the only Save Board on the standalone page.
+  // `!important` HERE, unlike the Next / Back rules above: the gentle
+  // `.nb-create-rail__submit` (app.scss ~59900) sets every one of these properties with
+  // `!important` of its own, so higher specificity alone cannot beat it. This also
+  // outranks the rail's dark-skin rule — (0,3,1) against its (0,3,0) — so the denim
+  // holds in Focused View whichever skin the rail is wearing.
+  // THE DISABLED STATE IS DELIBERATELY NOT RESTATED. Unlike Next, which signals disabled
+  // by replacing its fill, this button signals it through
+  // `.new-board__submit--invalid { opacity: 0.55; filter: saturate(0.6) }` — different
+  // properties from the fill, so they COMPOSE with the denim rather than being
+  // overridden by it, and the dimmed desaturated button still reads as inert.
+  .nb-create-rail__submit,
+  .nb-create-rail__submit:hover:not(.new-board__submit--invalid),
+  .nb-create-rail__submit:focus-visible {
+    color: $focus-on-dark !important;
+    border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(160deg in oklab,
+      color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
+      color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 2px rgba($la-navy, 0.12),
+      0 6px 14px rgba($la-navy, 0.22) !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Board view, modals, … (added as the overlay rolls out page-by-page)
 // -----------------------------------------------------------------------------
 // Focused View — My Organizations sits ABOVE the utility buttons in the hierarchy
@@ -3237,19 +3632,21 @@ $ch-hero-veil-chip:  0.12;
 // Hue and chroma per card. These four lines are the whole palette.
 $ch-hero-speak-c:   0.128;  $ch-hero-speak-h:   260;   // deep blue indigo  -> dusty periwinkle
 $ch-hero-reports-c: 0.050;  $ch-hero-reports-h: 198;   // deep slate teal   -> muted eucalyptus
-// IDEAS CARRIES ITS OWN LIGHTNESS. At the shared 0.30 with 0.080 chroma the shell rendered
-// #4E1B10 -- read as chocolate/red-black beside its cool neighbours, because the chroma is high
-// for how dark it is. Muted clay is the opposite balance: lighter and LESS saturated, so L goes
-// up and C comes down by a third. Measured: #4E1B10 -> #4B2A22.
+// IDEAS AND EXTRAS SWAPPED THEIR COLOURS (requested 2026-09-23). Ideas had been moved off its
+// muted clay to a neutral slate grey earlier the same day; this then exchanged that slate with
+// Extras' smoky violet, so Ideas now wears the violet and Extras the slate.
 //
-// 0.325 IS A CEILING, NOT A PREFERENCE. The requested direction was #543027-#57352D, and
-// oklch(0.37 0.051 34.5) renders #57362D -- essentially that colour exactly. It is not used
-// because the ink cannot follow: at L 0.37 the description falls to 3.99 and the sub-label to
-// 4.21 against a 4.5 floor, and the sub-label is already WHITE, so there is no lighter ink to
-// rescue it. 0.325 is the last step where every ink still clears (more 4.57, sub 4.74).
-$ch-hero-ideas-l:   0.325;
-$ch-hero-ideas-c:   0.052;  $ch-hero-ideas-h:  34.5;   // muted clay / terracotta
-$ch-hero-extras-c:  0.082;  $ch-hero-extras-h:  315;   // deep slate-violet -> smoky violet-grey
+// THE SWAP IS CONTRAST-NEUTRAL BY CONSTRUCTION, which is why no re-measurement follows it: the
+// two tiles share the shared `$ch-hero-shell-l`, the same ramp construction and the same ink
+// treatment, so each is taking a (chroma, hue) pair already proven on the other at identical
+// lightness. Nothing new is being asked of either ink. This only holds while neither tile
+// carries a bespoke lightness -- Ideas' old 0.325 was removed when it left clay behind, and
+// restoring any per-tile L would break the symmetry this note depends on.
+//
+// Ideas' bespoke 0.325 existed ONLY because a WARM hue at that chroma rendered as chocolate
+// (#4E1B10) beside its cool neighbours; violet is cool, so the shared 0.30 holds for it too.
+$ch-hero-ideas-c:   0.082;  $ch-hero-ideas-h:  315;   // deep slate-violet -> smoky violet-grey
+$ch-hero-extras-c:  0.022;  $ch-hero-extras-h: 250;   // neutral slate grey
 
 // SPEAK joins the system. It used `$focus-hero-center/-edge` directly -- the Modern caseload
 // hero's own tokens -- so Basic Speak matched Modern Speak exactly. The shift is small
@@ -3271,6 +3668,9 @@ $ch-focused-reports-hero-edge:   color-mix(in oklch, $ch-focused-reports-hero-ba
 //
 // Ideas keeps the most headroom of the four after this pass; Reports has the least at 4.63.
 // If the set is ever muted further, that is the one that breaks first.
+// LEFT AS CLAY ON PURPOSE. These two stops are the tile's BASE, which is what Basic+GENTLE
+// renders; the Focused hero below supersedes them (it is `!important` throughout). The slate
+// change requested on 2026-09-23 was for FOCUSED ONLY, so these stay exactly as they were.
 $ch-focused-ideas-start:   #AEA899;   // was #B4AA93
 $ch-focused-ideas-end:     #A09888;   // was #A79A81
 
@@ -3314,8 +3714,14 @@ $ch-focused-ideas-end:     #A09888;   // was #A79A81
 //   C 0.13 -- the gamut edge for this L and hue. 0.15 and above clip a channel to 0, which
 //             shifts the rendered hue away from what is written here.
 //   h 35   -- orange-red. 42 and 49 also pass but read closer to copper.
-// Measured: centre rgb(154,81,62), edge rgb(73,22,10), white 5.80, grey 4.60, chip glyph 3.30.
-$ch-focused-ideas-hero-dark:   ch-hero-shell($ch-hero-ideas-c, $ch-hero-ideas-h, $ch-hero-ideas-l);
+// READ THE BLOCK ABOVE AS HISTORY, NOT AS THIS TILE'S CURRENT COLOUR. Everything above records
+// the clay/terracotta this tile used to wear and the gold that was explored and rejected for
+// it. Since the 2026-09-23 swap Ideas wears the SMOKY VIOLET, and that colour's browser
+// measurements -- centre rgb(110,88,120), edge rgb(45,30,51), white 6.31, grey 5.01, chip glyph
+// 3.46 -- are recorded in the Extras block below, where the value used to live. The rejected
+// alternatives above are kept because they document why those directions are closed, which is
+// still true of the material regardless of which tile is on it.
+$ch-focused-ideas-hero-dark:   ch-hero-shell($ch-hero-ideas-c, $ch-hero-ideas-h);
 // LIGHTENED 6% (requested 2026-09-22) -- see the note on the Reports hero above, including why
 // it is 6% and not the 20% asked for. The 6% is applied to the oklch stop above like any other.
 $ch-focused-ideas-hero-base:   color-mix(in oklch, $ch-focused-ideas-hero-dark, white 6%);
@@ -3348,6 +3754,13 @@ $ch-focused-extras-end:    #8A93A3;
 //             grey rather than a purple tile.
 //   h 315  -- aubergine. 295-305 read as a colder slate-violet, 325 as a dusty mauve.
 // Measured: centre rgb(110,88,120), edge rgb(45,30,51), white 6.31, grey 5.01, chip glyph 3.46.
+//
+// THOSE MEASUREMENTS DESCRIBE THE VIOLET, WHICH IDEAS NOW WEARS. Since the 2026-09-23 swap this
+// tile carries the neutral slate (C 0.022, h 250) instead. They are left here rather than moved
+// because they are what pins the violet's three numbers, and the reasoning above them -- why
+// 295-305 read colder and 325 dustier -- belongs with the value, not with the tile. The slate
+// has no browser measurement of its own and does not need one: see the swap note at
+// `$ch-hero-ideas-c` for why the exchange cannot cost either tile contrast.
 $ch-focused-extras-hero-dark:   ch-hero-shell($ch-hero-extras-c, $ch-hero-extras-h);
 $ch-focused-extras-hero-base:   color-mix(in oklch, $ch-focused-extras-hero-dark, white 6%);
 $ch-focused-extras-hero-center: color-mix(in oklch, $ch-focused-extras-hero-base 84%, white);
@@ -4727,6 +5140,45 @@ body.ll-layout-focused {
   .ch-btn--ghost:focus-visible {
     background: linear-gradient(160deg, #fff 0%, $ch-focused-silver-hi 100%);
     color: $la-navy;
+  }
+
+  // CREATE A NEW BOARD — the classic Boards tab's primary action
+  // (classic-view.hbs:609) takes the create-board wizard's Next button, so the control
+  // that STARTS board creation and the one that advances it are the same object.
+  //
+  // THIS IS THE ELEMENT THAT ACTUALLY RENDERS IN BASIC VIEW. An earlier attempt styled
+  // `.ub-boards-page__new-board-btn`, which is the MODERN boards page's button; Basic
+  // view renders `dashboard/classic-view` instead, so that rule could never match and
+  // has been removed rather than left sitting dead.
+  //
+  // NOT gated on `.ll-view-basic`, deliberately: every `ch-` class here exists only in
+  // classic-view.hbs, which only renders in Basic view, so the element IS the gate. That
+  // also keeps this working without depending on the body class being stamped.
+  //
+  // Beats the `.ch-btn--ghost` silver above by specificity alone, (0,3,1) against its
+  // (0,2,1) — qualified with `.ch-btn` rather than relying on being written later in the
+  // file, since equal specificity would leave this at the mercy of source order.
+  //
+  // `min-height: 44px` from `.ch-btn` is INHERITED ON PURPOSE. Its own comment records
+  // that 44px is the WCAG 2.5.5 target and that 40 would be four short; Next reaches the
+  // same height through padding alone, so matching Next exactly would drop a stated
+  // accessibility floor for no visual gain.
+  .ch-btn.ch-boards__create,
+  .ch-btn.ch-boards__create:hover,
+  .ch-btn.ch-boards__create:focus-visible {
+    padding: 12px 28px;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 850;
+    color: $focus-on-dark;
+    border-color: rgba($focus-on-dark, 0.18);
+    background: linear-gradient(160deg in oklab,
+      color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
+      color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 2px rgba($la-navy, 0.12),
+      0 6px 14px rgba($la-navy, 0.22);
   }
 
   // Navy at the same opacities the white ink used, so only the hue flips: 7.66:1 and 5.75:1.
