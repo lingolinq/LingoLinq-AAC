@@ -854,6 +854,13 @@ class Api::OrganizationsController < ApplicationController
       org_data.delete('org_access')
       org_data.delete('inactivity_timeout')
       org_data.delete('premium')
+      # External auth settings decide which identity provider this org trusts
+      # for sign-in (Organization#generate_defaults, Organization.find_by_saml_issuer),
+      # so only site admins may set or clear them.
+      org_data.delete('saml_metadata_url')
+      org_data.delete('saml_sso_url')
+      org_data.delete('saml_enforced')
+      org_data.delete('external_auth_shortcut')
     end
     if org_data && !org.allows?(@api_user, 'delete')
       org_data.delete('parent_org')
