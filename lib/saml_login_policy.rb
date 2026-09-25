@@ -14,10 +14,31 @@ module SamlLoginPolicy
   # only by the account itself.
   def self.may_link?(org, user, linker)
     return false unless org && user && linker
-    return false unless member_eligible?(org, user)
+    member_eligible?(org, user) && linker_authorized?(org, user, linker)
+  end
+
+  def self.linker_authorized?(org, user, linker)
+    return false unless linker
     return true if linker.id == user.id
     return false unless org_created?(org, user)
     Organization.admin_manager?(linker) || org.manager?(linker)
+  end
+
+  # True when +external_id+ is already linked to a different account for this
+  # org; a link request must not move it.
+  def self.identity_linked_elsewhere?(org, external_id, user)
+    saml_auth_links(org, external_id).any?{|link| link.user_id != user.id }
+  end
+
+  # The org with enforced external auth that password, OAuth and Google
+  # sign-in should defer to, or nil. Accounts SSO can never sign in keep
+  # their other sign-in methods.
+  def self.enforced_org_for(user)
+    user = User.find_by_path(user) if user.is_a?(String)
+    return nil unless user
+    org = Organization.external_auth_for(user)
+    return nil unless org && member_eligible?(org, user)
+    org
   end
 
   def self.record_link!(link, linker)
@@ -31,18 +52,25 @@ module SamlLoginPolicy
   # The account a verified assertion for +external_id+ may sign in, or nil.
   def self.user_for_assertion(org, external_id)
     return nil unless org && external_id.present? && org.settings['saml_metadata_url']
-    record_code = "ext:#{GoSecure.sha512(external_id, 'external_auth_user_id')}"
-    links = UserLink.where(record_code: record_code).select do |link|
-      state = link.data['state']
-      link.data['type'] == 'saml_auth' && state.is_a?(Hash) && state['org_id'] == org.global_id
-    end
+    links = saml_auth_links(org, external_id)
     return nil unless links.length == 1
     state = links[0].data['state']
     return nil unless state['link_method'] == LINK_METHOD && state['linked_by'].present?
     user = links[0].user
     return nil unless user && member_eligible?(org, user)
-    return nil unless state['linked_by'] == user.global_id || org_created?(org, user)
+    # The linker must still be allowed to link this account.
+    linker = User.find_by_global_id(state['linked_by'])
+    return nil unless linker_authorized?(org, user, linker)
     user
+  end
+
+  def self.saml_auth_links(org, external_id)
+    return [] unless org && external_id.present?
+    record_code = "ext:#{GoSecure.sha512(external_id, 'external_auth_user_id')}"
+    UserLink.where(record_code: record_code).select do |link|
+      state = link.data['state']
+      link.data['type'] == 'saml_auth' && state.is_a?(Hash) && state['org_id'] == org.global_id
+    end
   end
 
   # Attached to the org now, and either created by it or attached by a link

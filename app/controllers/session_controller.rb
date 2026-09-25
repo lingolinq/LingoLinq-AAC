@@ -84,7 +84,7 @@ class SessionController < ApplicationController
       user = authorized_user
       stash_coppa_sentry_user(user) if user
       if !user
-        auth_org = Organization.external_auth_for(params['username'])
+        auth_org = SamlLoginPolicy.enforced_org_for(params['username'])
         if auth_org
           # SAML auth required for this user
           redirect_to "/saml/init?org_id=#{auth_org.global_id}&device_id=saml_auth&embed=1&oauth_code=#{params['code']}"
@@ -359,7 +359,9 @@ class SessionController < ApplicationController
     @saml_code = code
 
     request = OneLogin::RubySaml::Authrequest.new
-    settings = saml_settings(org, code)
+    # A link request must prove the identity being linked, not reuse an
+    # existing identity-provider session in this browser.
+    settings = saml_settings(org, code, !!return_params['user_id'])
     redirect_to(request.create(settings, :RelayState => code), allow_other_host: true)
   end
 
@@ -396,6 +398,10 @@ class SessionController < ApplicationController
       existing_user = User.find_by_global_id(config['user_id'])
       if !existing_user || !SamlLoginPolicy.may_link?(org, existing_user, auth_user) || !existing_user.allows?(auth_user, 'link_auth')
         @error = "Mismatched user connection"
+        return render
+      end
+      if SamlLoginPolicy.identity_linked_elsewhere?(org, data[:external_id], existing_user)
+        @error = "This login is already connected to another account"
         return render
       end
       link = org.link_saml_user(existing_user, data)
@@ -511,7 +517,7 @@ class SessionController < ApplicationController
     set_browser_token_header
     if params['grant_type'] == 'password'
       pending_u = User.find_for_login(params['username'], (@domain_overrides || {})['org_id'], params['password'], true)
-      auth_org = Organization.external_auth_for(params['username'])
+      auth_org = SamlLoginPolicy.enforced_org_for(params['username'])
       if auth_org
         return render json: {auth_redirect: "#{request.protocol}#{request.host_with_port}/saml/init?org_id=#{auth_org.global_id}&device_id=#{params['device_id']}"}
       end
@@ -1310,7 +1316,7 @@ class SessionController < ApplicationController
     d.generate_token!(long_token)
   end
 
-  def saml_settings(org=nil, code=nil)
+  def saml_settings(org=nil, code=nil, force_authn=false)
     settings = OneLogin::RubySaml::Settings.new
   
     if org
@@ -1328,6 +1334,7 @@ class SessionController < ApplicationController
       # settings.name_identifier_format         = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
       settings.idp_sso_service_url = org.settings['saml_sso_url'] if org.settings['saml_sso_url']
     end
+    settings.force_authn = true if force_authn
   
     url = "#{request.protocol}#{request.host_with_port}/saml/consume"
     url += "?org_id=#{org.global_id}" if org

@@ -2322,6 +2322,163 @@ describe SessionController, :type => :controller do
         consume(o)
         expect_signed_in(u)
       end
+
+      it "stops signing in through a manager-made link once that manager leaves the org" do
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['authored_organization_id'] = o.global_id
+        u.save
+        m = User.create
+        o.add_manager(m.user_name, true)
+        stub_assertion(o, 'nid-former-manager', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: u.global_id, auth_user_id: m.global_id})
+        expect(response.location).to eq("http://test.host/#{u.user_name}")
+        o.remove_manager(m.user_name)
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "does not move an identity that is already linked to another account" do
+        o = sso_org
+        first = accepted_member(o)
+        deliberate_link(o, first, first, 'nid-taken')
+        second = accepted_member(o)
+        stub_assertion(o, 'nid-taken', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: second.global_id, auth_user_id: second.global_id})
+        expect(assigns[:error]).to_not eq(nil)
+        expect(UserLink.links_for(second.reload).detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+        consume(o)
+        expect_signed_in(first)
+      end
+
+      it "asks the identity provider to authenticate again for a link request" do
+        token_user
+        o = sso_org
+        o.add_user(@user.user_name, false, false)
+        allow_any_instance_of(OneLogin::RubySaml::IdpMetadataParser).to receive(:parse_remote) { OneLogin::RubySaml::Settings.new }
+        forced = {}
+        allow_any_instance_of(OneLogin::RubySaml::Authrequest).to receive(:create) do |req, settings, opts|
+          forced[:value] = settings.force_authn
+          "https://idp.example.com/auth"
+        end
+        get 'saml_start', params: {org_id: o.global_id, user_id: @user.global_id}
+        expect(response.location).to eq("https://idp.example.com/auth")
+        expect(forced[:value]).to eq(true)
+        get 'saml_start', params: {org_id: o.global_id}
+        expect(forced[:value]).to eq(nil)
+      end
+
+      it "does not sign in through a link recorded for a different org" do
+        o = sso_org
+        other = sso_org
+        u = accepted_member(o)
+        other.add_user(u.user_name, false, false)
+        deliberate_link(other, u, u, 'nid-other-org')
+        stub_assertion(o, 'nid-other-org', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "does not let a parent-org manager or an org assistant link an org-created account" do
+        parent = Organization.create
+        o = sso_org
+        o.parent_organization_id = parent.id
+        o.save
+        u = accepted_member(o)
+        u.settings['authored_organization_id'] = o.global_id
+        u.save
+        upstream = User.create
+        parent.add_manager(upstream.user_name, true)
+        assistant = User.create
+        o.add_manager(assistant.user_name, false)
+        stub_assertion(o, 'nid-not-allowed', 'whatever', 'whatever@example.com')
+        [upstream, assistant].each do |linker|
+          consume(o, {user_id: u.global_id, auth_user_id: linker.global_id})
+          expect(assigns[:error]).to_not eq(nil)
+          expect(UserLink.links_for(u.reload).detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+        end
+      end
+
+      it "does not let an account that has not accepted the org link itself" do
+        o = sso_org
+        u = User.create
+        o.add_user(u.user_name, true, false)
+        stub_assertion(o, 'nid-pending-link', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: u.global_id, auth_user_id: u.global_id})
+        expect(assigns[:error]).to_not eq(nil)
+        expect(UserLink.links_for(u.reload).detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+      end
+
+      it "refuses accounts whose parental consent was revoked or declined, or that need a parent email" do
+        [
+          {'parent_consent_revoked_at' => Time.now.iso8601},
+          {'parent_consent_declined_at' => Time.now.iso8601},
+          {'pending_parent_consent' => true, 'needs_parent_email' => true}
+        ].each_with_index do |coppa, idx|
+          o = sso_org
+          u = accepted_member(o)
+          u.settings['coppa'] = coppa
+          u.save
+          deliberate_link(o, u, u, "nid-coppa-#{idx}")
+          stub_assertion(o, "nid-coppa-#{idx}", 'whatever', 'whatever@example.com')
+          consume(o)
+          expect_not_signed_in(u)
+        end
+      end
+    end
+
+    describe "enforced external auth" do
+      def enforced_org
+        o = Organization.create
+        o.settings['saml_metadata_url'] = "https://idp.example.com/#{SecureRandom.hex(6)}/meta"
+        o.settings['saml_enforced'] = true
+        o.save
+        o
+      end
+
+      def password_user(name)
+        u = User.new(:user_name => name)
+        u.generate_password('seashell')
+        u.save
+        u
+      end
+
+      def password_login(u)
+        post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => GoSecure.browser_token, :username => u.user_name, :password => 'seashell'}
+        JSON.parse(response.body)
+      end
+
+      it "does not send a LingoLinq team account to the org's identity provider" do
+        admin_o = Organization.create(:admin => true)
+        o = enforced_org
+        u = password_user("team#{SecureRandom.hex(3)}")
+        o.add_user(u.user_name, false, false)
+        admin_o.add_manager(u.user_name, false)
+        expect(Organization.external_auth_for(u.reload)).to eq(o)
+        json = password_login(u)
+        expect(json['auth_redirect']).to eq(nil)
+        expect(json['access_token']).to_not eq(nil)
+        expect(u.reload.google_sso_blocked?).to eq(false)
+      end
+
+      it "does not send an account with only a manager link to the org's identity provider" do
+        o = enforced_org
+        u = password_user("mgr#{SecureRandom.hex(3)}")
+        o.add_manager(u.user_name, true)
+        expect(Organization.external_auth_for(u.reload)).to eq(o)
+        json = password_login(u)
+        expect(json['auth_redirect']).to eq(nil)
+        expect(json['access_token']).to_not eq(nil)
+      end
+
+      it "still sends an accepted member to the org's identity provider" do
+        o = enforced_org
+        u = password_user("member#{SecureRandom.hex(3)}")
+        o.add_user(u.user_name, false, false)
+        json = password_login(u.reload)
+        expect(json['auth_redirect']).to match(/saml\/init\?org_id=#{o.global_id}/)
+        expect(u.google_sso_blocked?).to eq(true)
+      end
     end
 
     describe "saml_idp_logout_request" do
