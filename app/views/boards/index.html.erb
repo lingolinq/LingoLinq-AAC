@@ -39,52 +39,105 @@
   <%# TEMPORARY boot-error catcher for the iPad Home Screen startup hang (draft PR #1059).
       That hang shows "something may be broken", which only fires when application.js never
       reaches its last line (load_state.js_loaded), so the bundle throws during evaluation.
-      No Mac is available for Safari Web Inspector, so this records every uncaught error and
-      failed script load from the top of <head>, and if js_loaded is still unset after 30s,
-      prints them on screen for a screenshot. Runs on dev.lingolinq.com ONLY; every other
-      host returns before registering anything. Raw strings on purpose: this runs before the
-      bundle and therefore before i18n exists. Remove once the exception is captured. %>
+      No Mac is available for Safari Web Inspector, so this records uncaught errors, unhandled
+      rejections and failed script loads for a screenshot instead.
+
+      Coverage: it registers at the layout's `yield :head`, after the layout's stylesheets and
+      its CDN scripts, and before application.js is inserted at the end of <body>. Errors and
+      failed loads from application.js and later scripts are recorded; anything earlier is not.
+
+      From 30s it shows a panel and refreshes it every 2s until js_loaded is set, then removes
+      it, so a slow but successful boot is not left covered. The bundle is minified with no
+      source maps and dev redeploys on every develop push, so for each error the panel prints
+      the asset URL (its digest names the build) and the source around line:column.
+
+      Rendered only when the request host is dev.lingolinq.com, so staging and production
+      HTML are unchanged. Raw strings on purpose: this runs before the bundle and therefore
+      before i18n exists. Remove once the exception is captured. %>
+  <% if request.host == 'dev.lingolinq.com' %>
   <script>
     (function () {
-      if (window.location.hostname !== 'dev.lingolinq.com') { return; }
       var errors = [];
-      function note(text) { if (errors.length < 20) { errors.push(text); } }
+      var sources = {};
+      var panel = null;
+      var shown = '';
+
+      function sourceFor(file) {
+        if (!file || file.indexOf(window.location.origin + '/') !== 0 || !window.fetch) { return; }
+        if (sources[file] !== undefined) { return; }
+        sources[file] = null;
+        window.fetch(file).then(function (r) { return r.text(); }).then(function (text) {
+          sources[file] = text;
+        }, function (err) {
+          sources[file] = { failed: String(err) };
+        });
+      }
+      function excerpt(e) {
+        var text = sources[e.file];
+        if (text === null || text === undefined) { return '  (source excerpt: loading)'; }
+        if (typeof text !== 'string') { return '  (source excerpt unavailable: ' + text.failed + ')'; }
+        var line = text.split('\n')[e.line - 1];
+        if (line === undefined) { return '  (source excerpt unavailable: no line ' + e.line + ')'; }
+        var at = Math.max(e.col - 1, 0);
+        return '  source: ' + line.slice(Math.max(at - 100, 0), at) + ' <<HERE>> ' + line.slice(at, at + 100);
+      }
+      function note(entry) { if (errors.length < 20) { errors.push(entry); } }
+
       window.addEventListener('error', function (e) {
         var el = e && e.target;
         if (el && el !== window && (el.src || el.href)) {
-          note('Failed to load: ' + (el.src || el.href));
+          note({ text: 'Failed to load: ' + (el.src || el.href) });
           return;
         }
         var err = e && e.error;
-        note((e.message || 'Error') + '\n  at ' + (e.filename || '?') + ':' + e.lineno + ':' + e.colno +
-          (err && err.stack ? '\n' + err.stack : ''));
+        note({
+          text: (e.message || 'Error') + '\n  at ' + (e.filename || '?') + ':' + e.lineno + ':' + e.colno +
+            (err && err.stack ? '\n' + err.stack : ''),
+          file: e.filename, line: e.lineno, col: e.colno
+        });
+        sourceFor(e.filename);
       }, true);
       window.addEventListener('unhandledrejection', function (e) {
         var r = e && e.reason;
-        note('Unhandled rejection: ' + ((r && (r.stack || r.message)) || String(r)));
+        note({ text: 'Unhandled rejection: ' + ((r && (r.stack || r.message)) || String(r)) });
       });
-      setTimeout(function () {
+
+      function render() {
         var state = window.load_state || {};
-        if (state.js_loaded || !document.body) { return; }
-        var panel = document.createElement('pre');
-        panel.id = 'boot_error_catcher';
-        panel.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
-          'max-height:70vh;overflow:auto;margin:0;padding:12px;background:#fff;color:#000;' +
-          'font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-word;' +
-          'border-bottom:3px solid #c00;-webkit-user-select:text;user-select:text;');
-        panel.textContent = [
-          'BOOT ERROR CATCHER (temporary, dev only). Screenshot this for PR #1059.',
-          'Time: ' + new Date().toISOString(),
-          'Standalone: ' + !!(window.navigator && window.navigator.standalone),
-          'User agent: ' + (window.navigator && window.navigator.userAgent),
-          'load_state: ' + JSON.stringify(state),
-          '',
-          errors.length ? ('Errors (' + errors.length + '):\n\n' + errors.join('\n\n')) : 'No uncaught error was recorded.'
-        ].join('\n');
-        document.body.appendChild(panel);
-      }, 30000);
+        if (state.js_loaded) {
+          if (panel && panel.parentNode) { panel.parentNode.removeChild(panel); }
+          return;
+        }
+        if (document.body) {
+          if (!panel) {
+            panel = document.createElement('pre');
+            panel.id = 'boot_error_catcher';
+            panel.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+              'max-height:70vh;overflow:auto;margin:0;padding:12px;background:#fff;color:#000;' +
+              'font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-word;' +
+              'border-bottom:3px solid #c00;-webkit-user-select:text;user-select:text;');
+          }
+          if (!panel.parentNode) { document.body.appendChild(panel); }
+          var text = [
+            'BOOT ERROR CATCHER (temporary, dev only). Screenshot this for PR #1059.',
+            state.js_retrieved ? 'App code downloaded but did not finish starting.' :
+              'INCONCLUSIVE: the app code has not finished downloading yet. Keep waiting.',
+            'Standalone: ' + !!(window.navigator && window.navigator.standalone),
+            'User agent: ' + (window.navigator && window.navigator.userAgent),
+            'load_state: ' + JSON.stringify(state),
+            '',
+            errors.length ? ('Errors (' + errors.length + '):\n\n' + errors.map(function (e) {
+              return e.file ? e.text + '\n' + excerpt(e) : e.text;
+            }).join('\n\n')) : 'No uncaught error has been recorded yet.'
+          ].join('\n');
+          if (text !== shown) { panel.textContent = text; shown = text; }
+        }
+        setTimeout(render, 2000);
+      }
+      setTimeout(render, 30000);
     })();
   </script>
+  <% end %>
 <% end %>
 
 <div id="audio"></div>
