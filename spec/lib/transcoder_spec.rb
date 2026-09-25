@@ -31,6 +31,10 @@ describe Transcoder do
   end
 
   describe "handle_event" do
+    # These get_job responses are OpenStructs, so they accept members the SDK does
+    # not have (output_file_paths is not on a real OutputDetail). Green here does
+    # not mean the read path works; see
+    # docs/task-management/2026-09-18_mediaconvert-sdk-setting-keys.md.
     def eventbridge_message(job_id, status, extra={})
       {
         'detail-type' => 'MediaConvert Job State Change',
@@ -246,7 +250,7 @@ describe Transcoder do
           outputs = job_args[:settings][:output_groups][0][:outputs]
           mp3 = outputs.detect { |o| o.dig(:audio_descriptions, 0, :codec_settings, :codec) == 'MP3' }
           wav = outputs.detect { |o| o.dig(:audio_descriptions, 0, :codec_settings, :codec) == 'WAV' }
-          expect(mp3[:audio_descriptions][0][:codec_settings][:mp3_settings][:bitrate]).to eq(128000)
+          expect(mp3[:audio_descriptions][0][:codec_settings][:mp_3_settings][:bitrate]).to eq(128000)
           expect(wav[:audio_descriptions][0][:codec_settings][:wav_settings]).to eq({
             bit_depth: 16,
             channels: 1,
@@ -312,6 +316,82 @@ describe Transcoder do
         res = Transcoder.convert_video(v.global_id, 'd/e/f', 'qwert')
         expect(res).to eq({job_id: 'asdf'})
       end
+    end
+  end
+
+  describe "SDK parameter validation" do
+    # The specs above hand create_job an OpenStruct, so they only prove the hash
+    # matches itself. A real client with stub_responses runs the SDK's own
+    # ParamValidator (no network), which is what rejects a misspelled member.
+    def stubbed_client
+      client = Aws::MediaConvert::Client.new(region: 'us-west-2', stub_responses: true)
+      client.stub_responses(:create_job, {job: {id: 'stub-job', role: 'arn:aws:iam::123:role/MediaConvert', settings: {}}})
+      client
+    end
+
+    env_wrap({
+      'MEDIACONVERT_ROLE_ARN' => 'arn:aws:iam::123:role/MediaConvert',
+      'MEDIACONVERT_QUEUE_ARN' => 'arn:aws:mediaconvert:us-west-2:123:queues/Default',
+      'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'
+    }) do
+      it "should build an audio job the MediaConvert client accepts" do
+        u = User.create
+        bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c.wav'})
+        expect(Transcoder).to receive(:config).and_return(stubbed_client)
+        res = Transcoder.convert_audio(bs.global_id, 'd/e/f', 'qwert')
+        expect(res).to eq({job_id: 'stub-job'})
+      end
+
+      # Tripwire for the known read-side defect (see the task log). A real
+      # OutputDetail has no output_file_paths, so output_files finds nothing and
+      # handle_event cannot complete a record. The fix must invert this example.
+      it "should find no output files on an SDK-shaped GetJob response" do
+        client = stubbed_client
+        client.stub_responses(:get_job, {job: {
+          id: 'stub-job',
+          role: 'arn:aws:iam::123:role/MediaConvert',
+          settings: {},
+          output_group_details: [{output_details: [{duration_in_ms: 12000}]}]
+        }})
+        job = client.get_job({id: 'stub-job'}).job
+        expect(job.output_group_details[0].output_details[0].respond_to?(:output_file_paths)).to eq(false)
+        expect(Transcoder.output_files(job)).to eq([])
+      end
+
+      it "should build a video job the MediaConvert client accepts" do
+        u = User.create
+        v = UserVideo.create(:user => u, :settings => {'full_filename' => 'a/b/c.mov'})
+        expect(Transcoder).to receive(:config).and_return(stubbed_client)
+        res = Transcoder.convert_video(v.global_id, 'd/e/f', 'qwert')
+        expect(res).to eq({job_id: 'stub-job'})
+      end
+    end
+  end
+
+  describe "audio_job" do
+    # The two audio outputs share one name_modifier and neither set an explicit
+    # extension. AWS's own docs promise a codec-derived default for a RAW
+    # (no-container) output, but confirmed on staging 2026-09-19 against two
+    # real jobs (1789855178463-xw2g13, 1789856386401-7lemzf): MediaConvert
+    # rejected both with errorCode 1040, "Duplicate output paths ... found in
+    # input job." This is an AWS execution-time uniqueness check, not the SDK's
+    # local ParamValidator, so stub_responses cannot reproduce it; the
+    # assertion instead pins the invariant AWS enforces directly on the hash.
+    it "should give the MP3 and WAV outputs distinct file extensions" do
+      u = User.create
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c.wav'})
+      job = Transcoder.audio_job(bs, 'd/e/f', 'qwert')
+      outputs = job[:settings][:output_groups][0][:outputs]
+      mp3 = outputs.detect { |o| o.dig(:audio_descriptions, 0, :codec_settings, :codec) == 'MP3' }
+      wav = outputs.detect { |o| o.dig(:audio_descriptions, 0, :codec_settings, :codec) == 'WAV' }
+      expect(mp3[:extension]).to eq('mp3')
+      expect(wav[:extension]).to eq('wav')
+      # Broader than the two literal checks above: pins the actual invariant AWS
+      # enforces (every output's [name_modifier, extension] pair must be unique
+      # within the group), not just that these two happen to differ today. Would
+      # also catch a third output added later that collides with either.
+      pairs = outputs.map { |o| [o[:name_modifier], o[:extension]] }
+      expect(pairs.uniq.length).to eq(pairs.length)
     end
   end
 

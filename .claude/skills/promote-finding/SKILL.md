@@ -63,8 +63,10 @@ findings; cross-check the register first (Step 2).
 `ruby scripts/citation-check.rb` must be green before you start (do not promote onto a red
 register). Then check whether each candidate already exists: a finding's id is
 `LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`. If it already exists and is `open`,
-promotion just refreshes its `lastSeen` and notes; if it exists and is Scot-closed, promotion
-flags it `regression: true` for your review and Scot's decision (it is NOT reopened automatically).
+promotion just refreshes its `lastSeen` and notes; if it exists at `verified-closed` /
+`accepted-risk` / `superseded` / `remediated-unverified`, or carries a Scot-set disposition,
+promotion flags it `regression: true` for your review and Scot's decision (it is NOT reopened
+automatically).
 
 ## Step 3: Build the promotion input (code/path evidence only)
 

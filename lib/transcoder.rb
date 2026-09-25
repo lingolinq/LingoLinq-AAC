@@ -262,6 +262,7 @@ module Transcoder
   def self.mp3_output(name_modifier)
     {
       name_modifier: name_modifier,
+      extension: 'mp3',
       container_settings: {
         container: 'RAW'
       },
@@ -269,7 +270,7 @@ module Transcoder
         audio_source_name: 'Audio Selector 1',
         codec_settings: {
           codec: 'MP3',
-          mp3_settings: {
+          mp_3_settings: {
             bitrate: 128000,
             channels: 2,
             rate_control_mode: 'CBR',
@@ -283,6 +284,7 @@ module Transcoder
   def self.wav_output(name_modifier)
     {
       name_modifier: name_modifier,
+      extension: 'wav',
       container_settings: {
         container: 'RAW'
       },
@@ -305,7 +307,7 @@ module Transcoder
       name_modifier: name_modifier,
       container_settings: {
         container: 'MP4',
-        mp4_settings: {}
+        mp_4_settings: {}
       },
       video_description: {
         width: 640,

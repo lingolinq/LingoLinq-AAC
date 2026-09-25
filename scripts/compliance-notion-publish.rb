@@ -11,11 +11,13 @@
 #     audit-reports/notion/compliance-audit-page.md
 #
 # That generated file is what a human pushes (one-way, in place) to the single Notion
-# "Compliance & Audit" page in the Master Inbox. This script does NOT call Notion: outward sends
+# "Compliance & Audit Posture" page under Compliance Home, using
+# scripts/compliance-notion-page-publish.rb. This script does NOT call Notion: outward sends
 # from any audit/compliance surface stay human-initiated and human-gated (see notion/README.md).
 #
 # What it publishes and what it must NOT:
-#   * Publishes: headline counts, and an open / remediated-unverified findings table with
+#   * Publishes: headline counts (live = open + remediated-unverified, and open-only), and an
+#     open / remediated-unverified findings table with
 #     id, legacyId, severity, frameworks, title, and the evidence file:line ANCHOR.
 #   * Does NOT publish: evidence snippets, finding notes, closed/accepted/superseded findings,
 #     remediation prose, or the Compliance Posture Report itself (CEO-attested; it is linked
@@ -63,22 +65,31 @@ out = +''
 out << "# Compliance & Audit (generated)\n\n"
 out << "> 🤖 **GENERATED - DO NOT EDIT.** This page is a one-way mirror of the git findings\n"
 out << "> register (`audit-reports/FINDINGS.json`), regenerated after each `/audit-run`. Edits here\n"
-out << "> are overwritten on the next publish and are not the source of truth. Do not auto-file this\n"
-out << "> page out of the Master Inbox and do not delete it; regenerate in place.\n>\n"
+out << "> are overwritten on the next publish and are not the source of truth. Do not move this\n"
+out << "> page out of Compliance Home and do not delete it; regenerate in place.\n>\n"
 out << "> Regenerate: `ruby scripts/compliance-notion-publish.rb`, then push this body to the single\n"
-out << "> Notion \"Compliance & Audit\" page (see `audit-reports/notion/README.md`).\n\n"
+out << "> Notion page with `ruby scripts/compliance-notion-page-publish.rb`\n"
+out << "> (see `audit-reports/notion/README.md`).\n\n"
 
 out << "**Audited commit:** `#{meta['auditedSha']}`  \n"
 out << "**Audited ref:** `#{meta['auditedRef']}`  \n"
 out << "**Run date:** #{meta['auditedDate']}  \n"
 out << "**Page generated:** #{Time.now.utc.iso8601}\n\n"
 
-out << "## Headline - open findings\n\n"
-out << "| Critical | High | Medium | Low |\n|---|---|---|---|\n"
-out << "| **#{crit}** | **#{high}** | #{med} | #{low} |\n\n"
-out << "_Headline is the count of `open` + `remediated-unverified` findings by severity "
-out << "(plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, "
-out << "downgrades severity, or accepts risk._\n\n"
+open_only = active.select { |f| f['status'] == 'open' }
+o_crit = open_only.count { |f| f['severity'] == 'critical' }
+o_high = open_only.count { |f| f['severity'] == 'high' }
+o_med  = open_only.count { |f| f['severity'] == 'medium' }
+o_low  = open_only.count { |f| f['severity'] == 'low' }
+
+out << "## Headline - live findings (open + awaiting verification)\n\n"
+out << "| Count | Critical | High | Medium | Low |\n|---|---|---|---|---|\n"
+out << "| **Live** (`open` + `remediated-unverified`) | **#{crit}** | **#{high}** | #{med} | #{low} |\n"
+out << "| `open` only | #{o_crit} | #{o_high} | #{o_med} | #{o_low} |\n\n"
+out << "_The headline is the LIVE count: `open` + `remediated-unverified` findings by severity "
+out << "(plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` "
+out << "step 6 convention; the difference is findings whose fix has landed but which Scot has not yet "
+out << "verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._\n\n"
 
 out << "## Open findings (open + awaiting verification)\n\n"
 if active_sorted.empty?
@@ -90,7 +101,8 @@ else
     ev = f['evidence'] || {}
     anchor = ev['file'] ? "`#{ev['file']}`#{ev['line'] ? ":#{ev['line']}" : ''}" : '(attestation)'
     fw = (f['frameworks'] || []).join(', ')
-    title = f['title'].to_s.gsub('|', '\\|')
+    # Escape the backslash first, then the pipe, so the page converter can undo both in order.
+    title = f['title'].to_s.gsub('\\', '\\\\').gsub('|', '\\|')
     out << "| #{f['id']} | #{f['legacyId']} | #{f['severity']} | #{fw} | #{title} | #{anchor} |\n"
   end
   out << "\n"
@@ -132,4 +144,4 @@ end
 require 'fileutils'
 FileUtils.mkdir_p(File.dirname(render_path))
 File.write(render_path, out)
-puts "compliance-notion-publish: wrote #{render_path} (#{crit}C/#{high}H/#{med}M/#{low}L open) @ #{meta['auditedSha']}"
+puts "compliance-notion-publish: wrote #{render_path} (live #{crit}C/#{high}H/#{med}M/#{low}L; open-only #{o_crit}C/#{o_high}H/#{o_med}M/#{o_low}L) @ #{meta['auditedSha']}"

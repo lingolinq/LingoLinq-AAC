@@ -66,24 +66,47 @@ everything else in this file.
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,
     and stop.
+14. **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
+    the finding; report it, do not absorb it. Without explicit human approval, never
+    delete, rename or weaken an existing test, add `skip`/`xit`/`pending`/`this.skip()`,
+    loosen an assertion, narrow a `describe`/`context` so the failing case stops running,
+    drop a file from a path filter, matrix or `--filter`, regenerate a lint baseline
+    (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`,
+    `app/frontend/.eslint-todo`), or change a lint or test CONFIG so the rule stops
+    applying (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
+    `spec/spec_helper.rb`, or a `.gitignore` entry that drops the file from the run), or
+    change how CI DECIDES to run the check (a workflow condition or classifier output such
+    as the frontend-scope step in `.github/workflows/ci.yml`, a job dependency,
+    `continue-on-error`, a retry or allowed-failure setting, an environment input, the
+    command an npm script or rake task invokes, or required-check wiring).
+    These are one act under different names, and the list above is examples, not a
+    boundary: anything else whose effect is that a failing check now passes without the
+    defect it detected being fixed is the same act. That includes changing the CODE UNDER
+    TEST to satisfy the assertion rather than fixing the defect, re-running until a flake
+    goes green, and merging with `--admin`. Stop, name the test and the verified reason it
+    fails, and wait. Rewriting a test is legitimate only when the specification it
+    encodes actually changed and the approval you were given says so.
 
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work: `git checkout develop && git pull && git checkout -b <dev>/<type>/<slug>`.
+  regular work: `git checkout develop && git pull && git checkout -b <new-branch>`.
   Prefer an isolated worktree when other sessions share the checkout.
-- **Name:** `<developer>/<type>/<kebab-slug>`, for example `melissa/fix/sidebar-actions`,
-  `scot/chore/staging-slow-queue-capacity`. `<type>` is one of `fix`, `feat`, `chore`,
-  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The older
-  `<type>/<dev>-<slug>` form may finish through merge; do not start new branches in it.
-- **Hotfixes are the one exception:** an urgent production fix branches from `main` as
-  `<dev>/hotfix/<slug>`, opens a PR directly against `main` (Scot approves), and is merged
-  back to `develop` immediately afterwards. See `CONTRIBUTING.md`.
+- **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
+  `refactor`, `test`, `compliance`, `security`). Scot's branches are always
+  `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
+  (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
+  `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
+- **Hotfixes are the one exception:** an urgent production fix branches from `main` with
+  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
+  approves), and is merged back to `develop` immediately afterwards. Hotfix and release
+  branches are made by hand, not by the launcher. See `CONTRIBUTING.md`.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
-- **Flow:** PRs target `develop`; `develop` promotes to `staging`; a release PR goes from
-  `staging` to `main`, which deploys to production after approval.
+- **Flow:** PRs target `develop`; `develop` promotes to `staging` from a freeze branch
+  (`release/develop-into-staging-YYYY-MM-DD`), not from live `develop`; a release PR goes
+  from `staging` to `main`, which deploys to production after approval.
 - Date suffixes are only for time-bound recovery or release branches.
 
 ## Project overview
@@ -175,7 +198,16 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 
 Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
 `/adversary-review` (red team). A Critical or High finding from either blocks the PR.
-Copilot code review runs automatically on every PR to `develop`.
+The senior-dev pass ships the diff to an external model on an account with no BAA, so run
+the PII pre-flight first and match the form to the argument: for a PR number,
+`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`
+(with `set -o pipefail`); for a branch or the working tree,
+`bash ~/ai-company-brain/scripts/codex-review-guard.sh <base-ref>`. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
+the flagged paths rather than sending anything. The `<base-ref>` form run against a PR
+number guards the wrong diff and records a pass it did not earn. That guard lives at a
+LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
+run this pass, so stop and hand it to someone who is rather than proceeding without it.
+Codex-specific invocation detail lives in `AGENTS.md`. Copilot code review runs automatically on every PR to `develop`.
 
 ## Audit and compliance system
 
