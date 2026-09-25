@@ -6038,3 +6038,89 @@ body.ll-layout-focused .md-shell--caseload .md-caseload__list-access:not(.md-cas
   -webkit-backdrop-filter: none;
   text-shadow: none;
 }
+
+/* ── MODERN FOCUSED, ORGANIZATIONS DIRECTORY: NO PAGE HEADER (2026-09-24) ────────────────
+   Requested: "focused organizations hide the title and subtitle on the page and move the
+   content up". Same move Focused already makes on Extras and Reports, and the same one Basic
+   Focused now makes on this page (_classic-home.scss) -- so the two views agree about this
+   page in this layout.
+
+   THE SUBTITLE GOES, THE HEADING STAYS FOR ASSISTIVE TECH. `.md-hero__sub` is decorative prose
+   ("Choose an organization to manage or view...") and is removed outright. The `<h1>` is this
+   page's ONLY heading (templates/organizations.hbs:23); `display: none` on the hero would leave
+   the document with no title at all, which on a product whose users include screen-reader and
+   switch users is a regression rather than a tidy-up. It is taken off screen instead and left
+   in the accessibility tree.
+   WRITTEN OUT, NOT `@include aac-sr-only`: that mixin lives in app.scss, which this partial is
+   `@use`d BY and cannot see -- the include compiles to "Undefined mixin" and takes the whole
+   stylesheet down. Same nine declarations as the mixin (app.scss:28763).
+
+   THE CONTENT RISES BY THE HEADER'S OWN HEIGHT, which is the "move up": the hero box collapses
+   to zero and the cards take its place. It does NOT rise further, and that is deliberate -- the
+   floating pill nav ends at y=146, so the shell's 50px top padding (see the org-directory rule
+   in app.scss) is what keeps the first card clear of it. Removing that too would slide the cards
+   under the nav, trading one collision for another. */
+body.ll-view-modern.ll-layout-focused .md-shell--org-directory .md-hero__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+body.ll-view-modern.ll-layout-focused .md-shell--org-directory .md-hero__sub {
+  display: none;
+}
+body.ll-view-modern.ll-layout-focused .md-shell--org-directory .md-hero--dashboard {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+// ── FOCUSED: THE HIGHLIGHT BANNER, 20% LESS SATURATED (2026-09-24) ──────────────────────
+// Requested against the "Communication was lower this period" card. `saturate(0.8)` keeps 80%
+// of the chroma, which is what "desaturate by 20%" asks for -- not `saturate(20%)`, which would
+// strip four fifths of it.
+//
+// APPLIED TO THE COMPONENT, NOT THE ONE STATE. `.progress-highlight` has positive, neutral and
+// negative variants and they are the same banner in three moods; muting only the negative one
+// would leave the three at different intensities and read as a bug the first time a report came
+// back positive. The variants keep their own hues, just 20% quieter.
+//
+// A FILTER, NOT RETUNED COLOURS: the tints come from several rules (fill, icon well, border),
+// and rewriting each would be four chances to drift. `filter` is also inherited by the icon, so
+// the arrow glyph stays in step with the surface behind it -- which is the whole point of the
+// pairing. Text is unaffected in practice: these inks are near-neutral navy, whose saturation is
+// low enough that scaling it does not move the contrast ratio.
+body.ll-layout-focused .progress-highlight {
+  filter: saturate(0.8);
+}
+
+// ── FOCUSED: THE KPI CARDS TAKE THE LIGHTER SURFACE (2026-09-24) ────────────────────────
+// Requested: "stats page focused view: kpi cards, lighten the bg gradients".
+//
+// `$focus-card-surface-light` ALREADY EXISTS and is exactly this ramp pulled back -- same
+// three-layer recipe, denim 13/22% -> 5/9%, verdigris corner 24% -> 11%, white sheen 0.65 ->
+// 0.78 (_focused-view.scss ~240). Reusing it rather than scaling the original keeps the family
+// to two members instead of three, and a future change to the pair updates these cards too.
+//
+// Its own note says it was written for the LARGE analysis panels, on the reasoning that at the
+// tiles' full strength those panels dominated the page. The tiles have since been rebuilt as
+// compact metrics -- smaller, flatter, one soft shadow -- so the hierarchy that argument
+// protected is now carried by size and weight rather than by saturation, and the tiles can wear
+// the lighter surface without the panels beneath them competing.
+//
+// LIVES IN THIS PARTIAL, NOT _reports.scss, AND THAT IS NOT A PREFERENCE: `$focus-card-surface-light`
+// is declared here, and a partial cannot see another partial's variables -- putting the rule beside
+// the KPI rules in _reports.scss compiled to "Undefined variable" and took the whole stylesheet
+// down (dev server 500). Same shape as the `aac-sr-only` mixin trap earlier the same day.
+//
+// SCOPED PAST THE RULE IT OVERRIDES: `body.ll-layout-focused .md-shell--reports-view .report-kpi`
+// is (0,3,1) WITH `!important`, so the `:not(.room-kpi)` form used elsewhere in this file --
+// also (0,3,1) -- would have come down to emission order between two partials. Matching that
+// rule's own scope and adding the `:not()` makes it (0,4,1), which wins outright.
+body.ll-layout-focused .md-shell--reports-view .report-kpi:not(.room-kpi) {
+  background: $focus-card-surface-light !important;
+}

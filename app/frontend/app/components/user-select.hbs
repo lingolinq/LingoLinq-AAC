@@ -4,8 +4,24 @@
        become full-width rows stacked vertically, reading like a dropdown list.
        Opt-in per call site — switch-communicators passes it; copy-board,
        batch-recording and add-to-sidebar keep the original card grid. --}}
+  {{!-- SEARCH FILTER (requested 2026-09-24). Opt-in per call site via `@filterable`, the same
+       way `@compact` is: this list is also rendered by copy-board, button-suggestions and
+       assessment-settings, and a box on a four-person picker is clutter.
+       `type="search"` rather than `text` so the browser offers its own clear affordance, and a
+       visible <label> rather than a placeholder -- placeholder text disappears the moment
+       someone starts typing, which is exactly when a switch user needs to still see what the
+       field is for. --}}
+  {{#if @filterable}}
+    <div class="user-select-filter">
+      <label class="user-select-filter__label" for="user-select-filter-input">{{t "Search communicators" key="search_communicators"}}</label>
+      <input id="user-select-filter-input" type="search" class="form-control user-select-filter__input"
+        value={{this.user_filter}}
+        autocomplete="off"
+        {{on "input" (set-field this "user_filter")}}>
+    </div>
+  {{/if}}
   <div class="row user-select-grid {{if this.compact "user-select-grid--compact"}}">
-    {{#each this.users as |supervisee|}}
+    {{#each this.filtered_users as |supervisee|}}
       <div class="col-md-3 col-sm-4 col-xs-6">
         <button disabled={{supervisee.disabled}} class={{if supervisee.currently_selected "user_select btn btn-info" "user_select btn btn-default"}} {{on "click" (this.ctrlAction "select" supervisee.id)}} style="width: 100%; padding-top: 10px; padding-bottom: 10px; margin-bottom: 20px;">
           <img src={{supervisee.image}} style="height: 60px; max-width: 100px;"><br>
@@ -21,6 +37,11 @@
         </button>
       </div>
     {{/each}}
+    {{#if this.no_filter_matches}}
+      <div class="col-xs-12 user-select-filter__empty">
+        <em class="text-muted">{{t "No communicators match that search" key="no_communicators_match"}}</em>
+      </div>
+    {{/if}}
     {{!-- "Other User" picker — only render when there is real
          data to show (loading state, error state, or at least one
          extra user). Previously rendered solely on

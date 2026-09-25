@@ -164,20 +164,13 @@
         {{/if}}
 
         {{#if this.hasReportData}}
-          <section class="progress-highlight progress-highlight--{{this.primaryInsight.tone}}" aria-labelledby="progress-highlight-title">
-            <div class="progress-highlight__icon" aria-hidden="true">
-              <Stats::ReportIcon @name={{this.primaryInsightIcon}} />
-            </div>
-
-            <div class="progress-highlight__content">
-              {{!-- No eyebrow here: the compared range is already named in the
-                    description below and stated in full under the KPI row. --}}
-              <h2 id="progress-highlight-title">{{this.primaryInsight.title}}</h2>
-
-              <p class="progress-highlight__description">{{this.primaryInsight.description}}</p>
-            </div>
-          </section>
-
+          {{!-- EVIDENCE BEFORE INTERPRETATION (reordered 2026-09-24, requested: "put the
+                metrics before the insight. Readers should see the evidence before the
+                interpretation."). The three measurements and the basis line come first; the
+                insight that reads them follows as a strip beneath.
+                A DOM MOVE, NOT `order`: a visual-only reorder would leave the reading order and
+                the tab order saying the opposite of the page, which is the same mistake as
+                styling a heading to look like body text. --}}
           <section class="report-kpis" aria-label={{t "Communication summary" key="communication_summary"}}>
             {{#each this.summaryMetrics as |metric|}}
               <article class="report-kpi report-kpi--{{metric.key}}">
@@ -205,6 +198,26 @@
             {{/each}}
           </section>
 
+          <section class="progress-highlight progress-highlight--{{this.primaryInsight.tone}}" aria-labelledby="progress-highlight-title">
+            <div class="progress-highlight__icon" aria-hidden="true">
+              <Stats::ReportIcon @name={{this.primaryInsightIcon}} />
+            </div>
+
+            <div class="progress-highlight__content">
+              {{!-- No eyebrow here: the compared range is already named in the
+                    description below and stated in full under the KPI row. --}}
+              <h2 id="progress-highlight-title">{{this.primaryInsight.title}}</h2>
+
+              <p class="progress-highlight__description">{{this.primaryInsight.description}}</p>
+            </div>
+          </section>
+
+          {{!-- THE BASIS LINE FOLLOWS THE INSIGHT (moved 2026-09-24, requested: "move this below
+                the communication badge"). It sat between the metrics and the insight, which put
+                a two-line explanation of the arithmetic in the middle of the evidence it
+                explains. Reading order is now: the figures, the sentence that interprets them,
+                then the note saying what "change" was measured against -- the detail you go
+                looking for once you have a reason to. --}}
           {{#if this.comparisonBasis}}
             <p class="report-kpis__basis">{{this.comparisonBasis}}</p>
           {{/if}}

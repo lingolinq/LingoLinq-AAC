@@ -1,21 +1,16 @@
 {{#if this.model.permissions.edit}}
-  {{!-- Link to Caseload --}}
-  {{#if this.app_state.currentUser.supporter_role}}
-    <div class="md-org-supervisees-link">
-      <LinkTo @route="caseload" class="md-org-supervisees-link__card">
-        <div class="md-org-supervisees-link__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2A9D8F"/>
-          </svg>
-        </div>
-        <div class="md-org-supervisees-link__text">
-          <span class="md-org-supervisees-link__label">{{t "My Caseload" key="my_caseload"}}</span>
-          <span class="md-org-supervisees-link__desc">{{t "View and manage your communicators" key="view_manage_communicators"}}</span>
-        </div>
-        <svg class="md-org-supervisees-link__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      </LinkTo>
-    </div>
-  {{/if}}
+  {{!-- NO "MY CASELOAD" CARD HERE (removed 2026-09-24, requested: "on the organizations page,
+       remove the my caseload link"). It was a `<LinkTo @route="caseload">` card at the top of
+       this page, behind `permissions.edit` + `supporter_role`.
+       A CLOSED ACCESS POINT, NOT A REMOVED FEATURE: the caseload is a top-level destination,
+       reachable from the primary nav's Caseload pill in Modern and from the rail in Basic, so
+       this was a third door to it -- on the one page that is about an ORGANISATION rather than
+       about your own communicators.
+       The view-only branch further down keeps its own "Go to My Caseload" button. That is not
+       this card: it renders only for someone with no edit rights here, where it is the page's
+       single call to action, and removing it would leave that page a dead end.
+       `.md-org-supervisees-link*` remains in app.scss (8 rules) and is now unused -- left in
+       place because dead CSS is a separate cleanup from a closed access point. --}}
 
   {{#if (or this.model.parent_org this.model.children_orgs.length)}}
     <section class="md-org-section md-org-structure" aria-label={{t "Organization structure" key="org_structure"}}>

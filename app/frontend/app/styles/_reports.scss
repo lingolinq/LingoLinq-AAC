@@ -1411,3 +1411,226 @@ $report-icon-tints: (
     animation-duration: 0.01ms !important;
   }
 }
+
+// -----------------------------------------------------------------------------
+// KPI CARDS AS COMPACT METRICS (restyled 2026-09-24)
+// -----------------------------------------------------------------------------
+// Requested: give the stats page the treatment the org stat cards just got -- "treat these as
+// information at a glance, rather than four prominent action tiles": one pale surface, a small
+// medium-weight label, prominence from WEIGHT rather than bulk, a subtle border with a soft
+// shadow, a smaller radius, equal heights and tighter padding, and the teal kept as a restrained
+// line rather than a filled area.
+//
+// `:not(.room-kpi)` IS THE SCOPE, and it is load-bearing. `.report-kpi` is shared with the
+// ORGANISATION ROOM page (templates/organization/room.hbs), whose cards carry `.room-kpi` and
+// were tuned separately a few days ago -- label floor, 15px value, the hairline divider, two per
+// row under 1200px. Restyling the base class would have silently undone all of that. Excluding
+// the room cards leaves exactly the stats page's, in EVERY view including the compare grids,
+// which live outside `.communication-report` and so cannot be reached by an ancestor scope.
+//
+// Written here rather than in the shared surface rule above, which also paints
+// `.progress-highlight`, `.report-trend`, `.report-insights` and `.report-secondary` -- none of
+// which were asked about.
+.report-kpi:not(.room-kpi) {
+  gap: 12px;
+  // Equal heights without pinning them: 72px matches the org cards, and `height: 100%` lets a
+  // card that needs more take it while the row stays level.
+  min-height: 72px;
+  height: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  // The teal survives as a 3px inset line. In `box-shadow` so it costs no layout and cannot
+  // shift the icon or the text.
+  box-shadow:
+    inset 3px 0 0 rgba(44, 183, 176, 0.55),
+    0 1px 2px rgba($la-navy, 0.06);
+  // The glass is what made these read as raised tiles; with an opaque surface the blur is doing
+  // nothing but costing a compositing layer.
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.report-kpi:not(.room-kpi) .report-kpi__value {
+  // clamp(25px, 2.6vw, 32px)/780 -> 24px/700. The figure keeps its prominence through weight and
+  // through sitting first in the card, not through sheer size.
+  font-size: 24px;
+  font-weight: 700;
+  // -0.045em was tight enough to close up digit pairs at the old size; at 24px it reads cramped.
+  letter-spacing: -0.01em;
+}
+
+.report-kpi:not(.room-kpi) .report-kpi__label {
+  margin: 4px 0 0;
+  // 16px -> 14px, which is the FLOOR and not a step on the way further down: the label is what
+  // says what the figure means, and this product's readers include people at distance and with
+  // low vision. The lighter reading comes from the weight, not from shrinking it again.
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+// The icon is an accent, not a subject: 56px filled circle -> 40px.
+.report-kpi:not(.room-kpi) .report-kpi__icon {
+  width: 40px;
+  height: 40px;
+}
+
+// FOCUSED: THE ACCENT LINE IS THE CASELOAD RAIL'S (requested 2026-09-24: "change the left border
+// kpi color to the same color used on the left border of the communicator cards on focused view
+// caseload page").
+//
+// That rail is `.md-caseload__list-row::before` -- `linear-gradient(180deg, $brand-verdigris,
+// $brand-dusty-denim)` at `opacity: 0.7` (_caseload.scss ~296). It is a GRADIENT, teal into
+// denim, which a `box-shadow` cannot reproduce, so the flat teal inset is dropped here and the
+// same 3px bar is drawn as a pseudo-element with the same two tokens, the same opacity and the
+// same left-corner radius. Tokens rather than copied hex, so the two cannot drift.
+//
+// FOCUSED ONLY: Gentle keeps the flat teal line it was given a moment ago, because it has no
+// caseload rail to agree with.
+body.ll-layout-focused .report-kpi:not(.room-kpi) {
+  position: relative;
+  // Clips the accent bar to the card's own rounded corners -- see the note on `::before`.
+  // Safe here: these cards hold an icon, a value, a label and the trend badge, all inside the
+  // padding box; nothing overflows by design.
+  overflow: hidden;
+  // The teal inset goes; the soft drop stays.
+  box-shadow: 0 1px 2px rgba($la-navy, 0.06);
+}
+body.ll-layout-focused .report-kpi:not(.room-kpi)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  // FULL HEIGHT, ROUNDED TOP-LEFT AND BOTTOM-LEFT (requested). A first pass inset the bar from
+  // the ends and rounded it into a floating pill; the ask is for it to hug the card's left edge
+  // and follow its corners. A `border-radius` on a 3px-wide box cannot do that -- the browser
+  // clamps it to the box's own width and the bar becomes a lens rather than tracing the card's
+  // 12px curve. The card clips it instead (`overflow: hidden` on the card below), which is exact
+  // by construction and stays exact if the card's radius is ever retuned.
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  // SLATE INSTEAD OF THE GREEN STOP (requested). The caseload rail runs
+  // `$brand-verdigris -> $brand-dusty-denim`; this keeps the denim end and swaps the verdigris
+  // for `$brand-slate-blue`, so the bar reads as a quiet slate-into-blue rather than picking up
+  // the teal. The rail on the caseload page itself is unchanged -- only these cards moved.
+  background: linear-gradient(180deg, $brand-slate-blue, $brand-dusty-denim);
+  opacity: 0.7;
+  // Decoration only -- the card behind it stays clickable and hit-testable.
+  pointer-events: none;
+}
+
+// ── FOCUSED: KPI ICON WELLS GO WHITE AND GLASSY ─────────────────────────────────────────
+// Requested: "focused view stats page: change the colored icon bg on the kpi cards with white
+// glassy glossy".
+//
+// The tint comes from the `$report-icon-tints` loop above -- one hue per metric, `rgba($tint,
+// 0.16 -> 0.26)` under a white sheen -- at (0,2,0). This lands at (0,4,1) so it wins on weight
+// without `!important`, and only inside Focused: Gentle keeps the per-metric colour coding,
+// which is the thing that tells the four cards apart at a glance there.
+//
+// GLASSY AND GLOSSY ARE TWO DIFFERENT PROPERTIES and both are needed: the translucency plus the
+// backdrop blur is the GLASS (it samples the focused card surface behind it, so the well picks
+// up that material rather than sitting on it), and the top-down white ramp plus the inset
+// highlight is the GLOSS. A flat white fill would have been neither.
+//
+// The glyph goes navy. It inherited `color` from the tint rule, and a per-metric hue on a white
+// well would be the colour coding this was asked to remove -- on a near-white surface navy also
+// measures far past AA, where the lighter hues would not.
+body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
+  color: $la-navy;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.62) 44%,
+      rgba(255, 255, 255, 0.42) 100%
+    );
+  background-color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 6px rgba(255, 255, 255, 0.5),
+    0 2px 6px rgba($la-navy, 0.10);
+  backdrop-filter: blur(8px) saturate(1.15);
+  -webkit-backdrop-filter: blur(8px) saturate(1.15);
+}
+
+// ── FOCUSED: KPI GLYPHS GO TWO-TONE ─────────────────────────────────────────────────────
+// Requested: "make the icons our two-toned modern icons". The app's idiom is a charcoal
+// (#46505F) primary shape with a verdigris accent on the detail -- the rail rows, the New Board
+// tile and the account rail's home glyph all use it.
+//
+// THE SPLIT IS "FIRST CHILD vs THE REST", which is not arbitrary: every glyph in
+// components/stats/report-icon.hbs draws its outline first and its detail after. Checked on the
+// three that actually render here --
+//   sessions            circle (dial)  + path (hands)
+//   utterances          path (bubble)  + 3 circles (dots)
+//   words-per-utterance path (outline) + path (detail)
+// -- so the outline keeps `currentColor` and everything after it takes the accent.
+//
+// MATCHED BY ATTRIBUTE, NOT BLANKET. A stroke applied to a fill-only circle would outline it,
+// and a fill applied to a stroke-only path would flood it solid, so each property only reaches
+// the elements that already declare it. That is why this is two selectors rather than one.
+//
+// The icons are decorative (`aria-hidden` on every caller, per the component's own note), so
+// the accent is free to be a hue rather than an AA-rated ink.
+body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
+  color: #46505F;
+}
+body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon svg > *:not(:first-child)[stroke] {
+  stroke: $brand-verdigris;
+}
+body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon svg > *[fill="currentColor"] {
+  fill: $brand-verdigris;
+}
+
+// ── THE INSIGHT IS A STRIP, NOT A PANEL (2026-09-24) ────────────────────────────────────
+// Requested: "reduce the insight to a compact strip below the metrics. Its large peach panel
+// currently takes more space than the three measurements combined."
+// It kept a 112px floor and a 24px inset, which is the geometry of a hero -- and it now sits
+// BELOW the evidence it interprets, so it should read as a footnote to the metrics rather than
+// competing with them. Height comes down to the content's own, the inset halves, the icon well
+// drops to the KPI cards' 40px, and the title steps down to the metric labels' scale so the
+// figures above stay the biggest thing on the page.
+.progress-highlight {
+  min-height: 0;
+  padding: 12px 14px;
+  gap: 12px;
+  border-radius: 12px;
+  /* SPACE ABOVE (requested 2026-09-24, "add space above the communication card"). Measured after
+     the reorder, the metrics row ended at y=482 and this strip began at exactly 482 -- the two
+     were touching, because the insight used to sit ABOVE the metrics where nothing needed to
+     separate them. 24px reads as a deliberate break between the evidence and the sentence that
+     interprets it, and is close to the 32px that already falls between this strip and the basis
+     line below it. */
+  margin-top: 24px;
+}
+.progress-highlight .progress-highlight__icon {
+  width: 40px;
+  height: 40px;
+}
+.progress-highlight h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.progress-highlight .progress-highlight__description {
+  margin: 2px 0 0;
+  // 14px is this product's floor for supporting text; the strip gets its compactness from the
+  // box, not from shrinking the words.
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+
+// Sleeker glyphs on the stats KPI cards (requested 2026-09-24: "make the kpi icons more sleek (a
+// bit thinner)"). The set is drawn at `stroke-width="1.8"` in components/stats/report-icon.hbs;
+// 1.4 is a visible step without going wiry at the 40px well.
+// IN CSS, NOT IN THE COMPONENT: that same icon set is rendered by the organisation ROOM page,
+// whose cards were tuned separately -- editing the SVGs would have thinned those too.
+.report-kpi:not(.room-kpi) .report-kpi__icon svg * {
+  stroke-width: 1.4;
+}

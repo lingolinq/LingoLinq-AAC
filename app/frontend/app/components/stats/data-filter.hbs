@@ -15,10 +15,10 @@
                 </div>
                 {{#if this.usage_stats.custom_filter}}
                   {{#unless this.customFilterPendingApply}}
-                    <button type="button" {{on "click" (this.ctrlAction "compare_to")}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
+                    <button type="button" {{on "click" (this.ctrlAction "compare_to")}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare periods" key="compare_periods"}}</button>
                   {{/unless}}
                 {{else}}
-                  <button type="button" {{on "click" (this.ctrlAction "compare_to")}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
+                  <button type="button" {{on "click" (this.ctrlAction "compare_to")}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare periods" key="compare_periods"}}</button>
                 {{/if}}
               </div>
             </div>

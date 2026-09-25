@@ -34571,6 +34571,19 @@ body.md-ds-active .app-navbar__beta-feedback-link {
     margin-top: 2rem !important;
   }
 }
+/* 2rem IS 20px, AND THE ACCOUNT SECTION KEEPS 11 OF IT BELOW 901 (2026-09-24, "move account
+   page content up 64px"). The hero's own padding is 0 here, so this margin IS the title's lead
+   -- the last empty box above the title once the workspace and main insets are gone, and the
+   remainder of the 64 after those two give 55.
+   SCOPED TO `.md-shell--user`, WHICH IS WHY IT IS A NEW RULE RATHER THAN AN EDIT ABOVE: the rule
+   above is shared with the home dashboard's hero, which was not asked to move and must not. The
+   scope is the difference between the two, not a specificity bid on the same one.
+   11 rather than 0 so the heading is not flush against the region above it. */
+@media (max-width: 900px) {
+  .md-shell--user .md-hero.md-hero--dashboard .md-hero__title {
+    margin-top: 11px !important;
+  }
+}
 .md-hero__gradient-text {
   font-style: normal;
   background: $la-highlight-gradient;
@@ -46725,6 +46738,33 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   min-height: 100vh !important;
 }
 
+/* ── EVERY GENTLE MODERN PAGE GETS THE ACCOUNT PAGE'S BACKDROP (2026-09-24) ─────────────
+   Requested: "modern view gentle: make the shell bg the same bg as the account page
+   md-workspace bg".
+
+   THE ACCOUNT WORKSPACE PAINTS NOTHING -- checked before changing anything: at 1280 its
+   background-color is transparent and its background-image is `none`. What is being pointed at
+   is what shows THROUGH it, which is the rule directly above: `#content` carrying
+   `md-page-wash` with `background-attachment: fixed`.
+
+   SO THE TWO SURFACES ALREADY SHARED A MESH, and only one property differed. `.md-shell`
+   includes the same mixin, but the mixin sets no attachment, so the shell's copy defaults to
+   `scroll` -- and a scrolled background is sized to ITS OWN box. The shell is as tall as the
+   page (`min-height: 100vh`, growing with content), so `radial-gradient(... at 90% 15%)` landed
+   at 15% of 1600-odd px there against 15% of the 900px viewport on the account page. Same six
+   layers, same colours, visibly different wash: paler, with the teal pushed down the page.
+   Pinning the shell's copy to the viewport is therefore the whole difference, and it is one
+   declaration rather than a second copy of the palette to keep in step.
+
+   NOT FOLDED INTO THE MIXIN, which would have been tidier, because the mixin also paints
+   Focused (per page, in `_focused-view.scss`) and the `.ll-appshell` band below 901px. The
+   request names gentle Modern, so the scope does too.
+   `!important` matches the mixin's own, which the shorthand carries into every longhand it
+   expands to; the body classes supply the weight to reach past it. */
+body.ll-view-modern:not(.ll-layout-focused) .md-shell {
+  background-attachment: fixed !important;
+}
+
 /* ── THE WASH REACHES THE TOP OF THE PAGE BELOW 901px (2026-09-21) ──────────────────────
    Requested, for Gentle and Focused alike: "the shell bg needs to extend all the way up to
    the top of the page". Measured at 900 and 820: the rail stops being a fixed panel and
@@ -47312,6 +47352,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding-top: calc(var(--bottombar-height, 59px) - 24px) !important;
   padding-bottom: calc(var(--bottombar-height, 59px) - 24px) !important;
 
+}
+/* ...BUT NOT AT 900 AND BELOW (2026-09-24, "move account page content up 64px"). The symmetry
+   above answers a page whose main is the first thing under the chrome; below 901 it is not --
+   the rail has dropped in flow above it, and this 35px became the third empty box in a row
+   between the rail and the title. It is the largest single term in that band, so it gives the
+   largest share of the 64.
+   TOP ONLY: the bottom keeps its 35px. The pair was matched to each other, not to a constraint,
+   and only the top is in the band being closed. */
+@media (max-width: 900px) {
+  .md-shell--user > .md-workspace > .md-main--user {
+    padding-top: 0 !important;
+  }
 }
 .md-user-layout {
   max-width: 1120px !important;
@@ -51712,7 +51764,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-user-summary__focus-title,
 .md-stats-main__focus-title {
   margin: 0;
-  font-size: 2.1rem;
+  /* 26px, set in px on purpose (requested 2026-09-24). This was `2.1rem`, which is 21px at this
+     app's 10px root -- and it was NOT what rendered either: the heading is an `<h2>`, and a bare
+     `h2 { font-size: 25px !important }` in this same file beats any class selector without one.
+     Traced in the browser rather than guessed; the `!important` here is MATCHED to that rule,
+     not added to win a specificity race. An absolute value says what it means and cannot drift
+     with the root size, which is what the rem was buying and what this heading does not want. */
+  font-size: 26px !important;
   font-weight: 900;
   letter-spacing: -0.2px;
   color: var(--md-ink);
@@ -65124,11 +65182,65 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 10px;
+  /* TWO ROWS: the period select, then the compare button beneath it (requested 2026-09-24,
+     "make these show on two separate rows"). `wrap` is only half of it -- the two fit side by
+     side at every width this page is used at, so wrapping alone would never trigger; the break
+     is forced by the button's 100% basis further down.
+     The "Report period:" label is a SIBLING of this container, not a child, so leaving the select
+     on the first line keeps it reading as one phrase ("Report period: Last 2 Months") with the
+     button underneath. Making this a column instead would have dropped the select below the
+     label and stranded the label beside a two-line block. */
+  flex-wrap: wrap;
+  /* 10px all round became a 10px ROW gap the moment these stacked, which reads as a loose pair
+     rather than one control group (requested: "make the gap between these smaller"). The COLUMN
+     gap still separates items sharing a line and is left at 10px; only the row gap shrinks. */
+  gap: 4px 10px;
   width: auto;
   min-width: 0;
   max-width: 100%;
+}
+
+/* THE COMPARE BUTTON SITS LEFT OF THE SELECT, ON ONE ROW (requested 2026-09-24: "move the
+   Compare Periods button to the left of the period selection dropdown").
+   THIS REPLACES A TWO-ROW ARRANGEMENT. The pair was briefly stacked, with a zero-height
+   `::after` spacer forcing the break, because the ask then was for separate rows -- that spacer
+   and the 100%-basis experiment before it are both gone. `order` is all that is left: the button
+   renders AFTER the select in the DOM (components/stats/data-filter.hbs) and is painted before
+   it, which keeps the markup's own reading order -- the control you are choosing a value for
+   comes first in the document.
+   The pair stays right-aligned as a unit; only their order within it changed. */
+.md-stats-filter__period-controls > .md-stats-filter__compare {
+  order: 1;
+}
+.md-stats-filter__period-controls > .md-stats-filter__period-wrap {
+  order: 2;
+  /* Still no grow: alone or paired, this keeps its content width rather than stretching. */
+  flex: 0 1 auto;
+}
+/* THE "REPORT PERIOD:" LABEL IS HIDDEN, NOT DELETED (2026-09-24, requested: "remove the report
+   period: label").
+   IT CARRIES THE SELECT'S ACCESSIBLE NAME. `components/stats/period-select.hbs` sets
+   `aria-labelledby={{this.labelId}}` pointing at `#report-period-filter-label`, and its
+   `aria-label` fallback only applies when that id is ABSENT -- so removing the span from the
+   DOM would leave `aria-labelledby` dangling and the control with no name at all, on a page
+   whose users include screen-reader and switch users. Taking it off screen keeps the
+   association intact and satisfies the request: nothing is visible.
+   `aac-sr-only` is available here because this is app.scss, where it is defined -- the partials
+   cannot see it (see the notes in _classic-home.scss / _focused-view.scss). */
+.md-stats-filter__period-title {
+  @include aac-sr-only;
+}
+
+/* THE TWO CONTROLS SIT RIGHT (requested alongside the label removal). With the label out of
+   flow the row has one in-flow child, so the alignment has to move to the row AND to the
+   controls: the row places the block, `flex-end` inside places the select on the first line
+   against the same edge the compare button already sits on. */
+.md-stats-filter__row--period-actions {
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+.md-stats-filter__period-controls {
+  justify-content: flex-end;
 }
 /* Compare button — sits next to the period select in the controls row.
    Height matched to the select so the two line up. */
@@ -65210,11 +65322,23 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   /* The wrap owns the select's width (the trigger below fills it), so shrinking
      this box actually narrows the control instead of letting it overflow and sit
      on top of the "Report period:" label. 92px is the floor at which the longest
-     period name is still readable. */
-  flex: 1 1 auto;
+     period name is still readable.
+     GROW IS 0 AS OF 2026-09-24. It was `1 1 auto`, which was right while this sat on ONE row
+     beside the compare button and needed to take up the slack. The button now moves to a second
+     row (see `.md-stats-filter__period-controls`), which leaves the select alone on its line --
+     and a grow of 1 stretched it from a 149px pill to the container's full 436px. Edited here
+     rather than overridden nearby: this is the declaration that owns the value, and the earlier
+     attempt to answer it from `.md-stats-filter__period-controls >` lost on source order at
+     equal specificity. Shrink stays on, so it still gives way on a narrow viewport. */
+  flex: 0 1 auto;
   min-width: 92px;
 }
-/* The label, the period select and the compare action stay on ONE row at every
+/* SUPERSEDED IN PART 2026-09-24: the compare action now sits on its OWN row, by request. The
+   label and the period select still share the first line and still read as one phrase
+   ("Report period: Last 2 Months"); it is only the compare button that moved down. The shrink
+   behaviour described below still governs that first line.
+   Original note follows.
+   The label, the period select and the compare action stay on ONE row at every
    width — they read as a single sentence ("Report period: <last 2 months>
    <compare…>"), and splitting them across lines lost that. Nothing stacks them
    at a breakpoint any more; instead the two controls shrink and the compare
@@ -65591,6 +65715,28 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   text-align: center;
 }
 /* Match landing-alt "Why LingoLinq" eyebrow (la-section-eyebrow-badge + #la-features glass) */
+/* THE COMPARE ROW'S PERIOD FIELDS SIZE TO THEIR CONTENT (2026-09-24, requested: "these fields
+   are squished -> they need to stretch in size to fit their content").
+   THE ROW HAD THE SPACE ALL ALONG. Measured at 1280: the row is 970px with 770px of content box,
+   and its three columns came to 656px -- ~98px spare -- yet "Last 2 Months" still wrapped onto
+   two lines inside a 149px trigger. The trigger is `width: 100%` of its wrap, so its max-content
+   contribution comes from the TEXT; with the label free to wrap, max-content collapsed to
+   roughly one word and the column had no reason to grow into the space beside it.
+   `white-space: nowrap` is what makes the intrinsic width the whole label, so the wrap, the
+   column and the field all stretch to fit -- no widths invented here, just the measurement the
+   flexbox was already doing given an honest content size.
+   SCOPED TO THE COMPARE ROW. The same trigger appears in the single-period filter bar, which is
+   laid out differently (`.md-stats-filter__period-bar` sets its own 44px height and floor) and
+   was not reported. */
+.md-stats-compare-row--filter .md-stats-period-select__trigger,
+.md-stats-compare-row--filter .md-stats-period-select__trigger * {
+  white-space: nowrap;
+}
+.md-stats-compare-row--filter .md-stats-filter__period-wrap,
+.md-stats-compare-row--filter .md-stats-period-select {
+  width: auto;
+}
+
 .md-stats-compare-filter-group__badge {
   display: inline-block;
   font-size: $aac-font-size-xs * 1.5;
@@ -65698,6 +65844,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   width: 100%;
   height: auto;
   object-fit: contain;
+  /* 30% LESS SATURATED (requested 2026-09-24). `saturate(0.7)` keeps 70% of the original
+     chroma, which is what "desaturate by 30%" asks for -- not `saturate(30%)`, which would
+     strip 70% of it. The artwork is decorative (alt="" inside an aria-hidden wrapper), and
+     muting it lets the two period controls either side read as the page's subject. A filter
+     rather than a new asset: the source PNG is shared and re-exporting it would change it
+     everywhere it is used. */
+  filter: saturate(0.7);
 }
 
 .md-stats-compare-row--filter > .md-stats-filter:nth-child(3),
@@ -66120,6 +66273,21 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-hero__sub {
     margin-bottom: 0 !important;
 
+  }
+}
+/* HALF THAT BREATHING ROOM AT 900 AND BELOW (2026-09-24, "move stats page content up 64px").
+   The comment above is the reason this is the right box: the padding lives on the hero because
+   the hero's own padding is otherwise 0 and a title margin would collapse through its top edge.
+   Below 901 the rail sits in flow above this hero, so the space it opens is stacked on the
+   rail's own margin rather than separating the title from the chrome. 12 of the 24 completes
+   the 64 the shell's 52 starts, and the title keeps its 16px lead untouched.
+   `.md-shell--stats` NARROWS THE SCOPE: `--reports-view` is also on user.hbs, user/boards.hbs
+   and the dashboard's authenticated view, none of which were asked to move. (The hero class
+   itself is Reports-only, so this is belt and braces -- and it is what makes the selector
+   outweigh the shorthand above, which it must, being the same property.) */
+@media (max-width: 900px) {
+  .md-shell--reports-view.md-shell--stats .md-hero--reports-dashboard {
+    padding-top: 12px !important;
   }
 }
 /* "Switch Communicators", relocated out of the stats body into the hero.
@@ -96543,55 +96711,72 @@ span.md-board-detail-modeling-btn--badge {
 .md-org-stats__grid--system {
   grid-template-columns: minmax(200px, 1fr) minmax(300px, 1.7fr);
 }
+/* ── ORG STAT CARDS: METRICS, NOT BUTTONS (restyled 2026-09-24) ─────────────────────────
+   Requested: "the thick tinted headers, large all caps labels, heavy numbers, and deep shadows
+   make these feel like oversized buttons... treat these as information at a glance".
+   So: one pale surface per card (the teal header band is gone), a small medium-weight label
+   above the value, prominence from WEIGHT rather than bulk, a subtle border with a soft shadow,
+   a smaller radius, equal heights and tighter vertical padding.
+   THE TEAL SURVIVES AS A 3px INSET LEFT LINE rather than a filled band -- "keep the teal as a
+   restrained accent, perhaps a small line". Carried in `box-shadow` so it costs no layout and
+   cannot shift the text; the `--system` variant swaps it for slate, which is how the two
+   categories stay legible now that the header that used to distinguish them is gone. */
 .md-org-stat-card {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba($la-navy, 0.08);
-  border-radius: 18px;
-  /* Layered elevation from the reports metric cards: inset top highlight + two
-     soft navy drops, so the tiles read as solid + raised (not flat-bordered). */
+  /* Equal heights across the row -- the brief asks for it and grid items only stretch while
+     nothing else sets a height. */
+  height: 100%;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 2px 6px rgba($la-navy, 0.07),
-    0 8px 20px rgba($la-navy, 0.08);
+    inset 3px 0 0 rgba(44, 183, 176, 0.55),
+    0 1px 2px rgba($la-navy, 0.06);
 }
 .md-org-stat-card--wide {
   grid-column: span 2;
 }
-/* Tinted header band (verdigris teal, matching the reports primary-row heading)
-   over a hairline rule — carries the label. */
+/* The header is now just the label's slot: no band, no rule, no radius of its own. */
 .md-org-stat-card__head {
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid rgba($brand-blue-black, 0.1);
-  border-radius: 18px 18px 0 0;
-  background: linear-gradient(180deg, rgba(44, 183, 176, 0.26) 0%, rgba(44, 183, 176, 0.14) 100%);
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 2px 4px -1px rgba($brand-blue-black, 0.06);
+  padding: 12px 14px 0;
 }
 .md-org-stat-card__label {
   margin: 0;
+  /* 14px IS A FLOOR AND IS DELIBERATELY NOT REDUCED, though the brief asks for a "small" label.
+     It is the part that says what the figure means, and this product's users include people
+     reading at distance and with low vision -- the same floor the room KPI labels hold. The
+     "smaller" reading is met by dropping the uppercase, the letter-spacing and the weight
+     instead, which is what made it read as a heading. */
   font-size: 14px;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  /* Sentence case as far as CSS can take it: the uppercase transform is gone. The STRINGS are
+     Title Case ("Last Session") and stay that way -- rewording them is an i18n change across 13
+     locales, not a style change, and is worth doing on purpose rather than as a side effect. */
+  text-transform: none;
+  letter-spacing: 0.01em;
   color: var(--md-muted, rgba($la-navy, 0.7));
 }
 .md-org-stat-card__body {
-  padding: 12px 14px 14px;
+  padding: 2px 14px 12px;
 }
 .md-org-stat-card__value {
-  font-size: 20px;
-  font-weight: 800;
+  /* 20px -> 18px, 800 -> 700: "clear prominence through weight rather than sheer bulk". */
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  line-height: 1.25;
+  line-height: 1.3;
   color: $la-navy;
 }
-/* Card variant by PURPOSE (per design ask): activity cards keep the teal header;
-   SYSTEM cards get a neutral gray-blue header so the two categories are legible at
-   a glance without loud color. */
-.md-org-stat-card--system .md-org-stat-card__head {
-  background: linear-gradient(180deg, rgba($la-navy, 0.11) 0%, rgba($la-navy, 0.05) 100%);
+/* Card variant by PURPOSE: activity cards take the teal accent line, SYSTEM cards a slate one,
+   so the two categories stay legible at a glance. This used to be carried by two different
+   header FILLS; with the bands gone it moves to the same 3px inset line, which is the whole
+   point of keeping an accent at all. */
+.md-org-stat-card--system {
+  box-shadow:
+    inset 3px 0 0 rgba($la-navy, 0.28),
+    0 1px 2px rgba($la-navy, 0.06);
 }
 /* Subtle amber "stale" dot on the Last Session value when the org hasn't logged a
    session in > 2 weeks — communicates staleness at a glance (#10). */
@@ -109341,7 +109526,6 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   height: 0;   /* takes no space in #content's flex column */
 }
 .ll-supervising-pill {
-  position: absolute;
   /* Measured from the anchor, which sits at #content's CONTENT-box top — after
      the layout's own top padding. Every layout that shows a header already pads
      #content past it (`#within_ember #content` ~l.1197, and the bento rules
@@ -109351,15 +109535,40 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
      44px drops the pill clear of the page's own top chrome and lines it up with
      the board-picker's pill-nav. px, not rem: bootstrap's `html { font-size:
      10px }` (vendor.css) means 1rem renders at 62.5% of what it reads like. */
-  top: 44px;
-  left: 16px;
-  z-index: 900;   /* above page content, below modals/overlays (1000+) */
+  /* ON THE NAVBAR, UNDER THE BETA FEEDBACK TAB (moved 2026-09-24, requested). It used to sit at
+     `top: 44px; left: 16px` measured from `#content`'s content box, which put it over the
+     ACCOUNT RAIL on every app-shell page -- measured at x=16 y=102, straddling the 208px panel
+     rather than sitting with the page.
+     FIXED, NOT ABSOLUTE, and that is the point of the move: the pill now belongs to the app
+     chrome rather than to the page, so it should stay put while the page scrolls. The old
+     comment below about measuring from the anchor no longer applies; the anchor stays only
+     because it is a harmless zero-height element the component renders.
+     40px clears the beta feedback tab, which hangs from the very top (measured y -1 to 35), and
+     the centring matches that tab's own -- the two read as one stack in the navbar's empty
+     middle, between the View control on the left and Upgrade on the right. */
+  position: fixed;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* ABOVE THE HEADER (raised 2026-09-24 with the move onto the navbar). 900 was right while the
+     pill lived over the PAGE: the header is `position: fixed; z-index: 1000` across y 0-70, so
+     at 900 the pill rendered at the correct place and was painted over by the navbar --
+     `elementFromPoint` at its centre returned `div.app-navbar__inner`, which is how this was
+     confirmed rather than guessed.
+     1005 clears the header and stays UNDER the beta feedback tab (1078), which is the element it
+     is meant to sit beneath, and under the modal layer above that. The pill is
+     `pointer-events: none`, so sitting above the header costs the navbar's own controls
+     nothing. */
+  z-index: 1005;
   pointer-events: none;
   display: inline-flex;
   align-items: center;
   gap: 9px;
   margin: 0;
-  padding: 7px 16px 7px 12px;
+  /* 7px -> 5px top and bottom (requested 2026-09-24, "reduced by 2px each"). The sides are
+     untouched: 16/12 is what keeps the status dot off the left edge and the text off the right
+     curve, and a shorthand rewrite would have quietly reset both. */
+  padding: 5px 16px 5px 12px;
   border-radius: 999px;
   border: 1px solid rgba($brand-verdigris, 0.30);
   background:
@@ -109380,25 +109589,16 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   line-height: 1.3;
   max-width: calc(100vw - 32px);
 }
-/* Wide screens only: the page chrome below the header (the Home/Caseload/Boards
-   pill row and the hero beneath it) sits lower once there is room for it, and
-   the pill was left stranded up against the header. Drop it 32px so it reads as
-   part of that row. At 1024 and below the chrome tightens back up and 44px is
-   right again, so the base value stands there. */
-@media (min-width: 1025px) {
-  .ll-supervising-pill {
-    top: 76px;
-  }
-}
-/* Board picker: that page sets its own top band (workspace padding-top 32 +
-   pill-nav margin-top 24, ~5260), and the brief for it asks that this pill and
-   the Boards/Choose Board step control share a vertical centre. The step
-   control's centre lands at 118 (#content padding) + 32 + 24 + 21 (half the nav
-   band) = 195px; this pill is ~34px tall, so 195 - 17 = 60px from the same
-   anchor. Coupled to those two values — change them and this moves with them. */
-#within_ember:has(.md-shell--board-picker) .ll-supervising-pill {
-  top: 60px;
-}
+/* BOTH PER-PAGE `top` OVERRIDES ARE GONE (2026-09-24), and they had to go with the move above.
+   Each was arithmetic against the OLD anchor -- the pill was absolutely positioned inside
+   `#content`, so its offset had to track that page's own chrome:
+     - wide screens got `top: 76px` to drop it level with the pill row below the header;
+     - the board picker got `top: 60px` to share a vertical centre with its step control
+       (118 + 32 + 24 + 21 - 17, coupled to two values on that page).
+   The pill is now `position: fixed` to the navbar, under the beta feedback tab, so it is in the
+   same place on every page at every width and neither sum means anything -- leaving them would
+   have pushed it 36px and 20px below the tab for no reason. The 76px was in fact still winning
+   and putting the pill at y=76, which is how this was caught. */
 /* Live-session indicator: a dot with an expanding pulse ring. The RING animates,
    never the dot or the pill, so nothing about the element's box changes. */
 .ll-supervising-pill__status {
@@ -111315,6 +111515,37 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
   }
 }
 
+/* ── THE ORGANIZATIONS DIRECTORY CLEARS THE NAV, IN BOTH LAYOUTS (2026-09-24) ───────────
+   Requested as two moves in opposite directions: "gentle organizations - move the content down
+   on the page" and "focused organizations - move the content up on the page (significantly)".
+   They meet in the middle, and the measurement says why.
+
+   MEASURED AT 1280, Modern `/organizations`, as the y of the page hero:
+     gentle  #content 26 + shell   0 + workspace 20/40 -> hero at  86
+     focused #content 46 + shell 112 + workspace 20/40 -> hero at 218
+   The floating pill nav occupies 70-146. So in Gentle the hero was UNDER the nav -- this page's
+   first element is its title, with none of the leading whitespace the dashboard's cards have, so
+   it was the one page where the shell's deliberate nav overlap actually collided with content.
+   In Focused the full 112px clearance plus this page's own insets pushed it 72px past where it
+   needed to be.
+
+   ONE TARGET FOR BOTH: 156, which is 10px under the nav's underside. That is why the two
+   requests resolve to one rule with two values rather than to two independent nudges -- the
+   page wants to sit just below the nav, and each layout was missing it from a different side.
+   The values are the arithmetic, not a taste: gentle needs 156 - 86 = 70, focused needs
+   156 - 106 = 50 (focused's `#content` already carries 20px more than gentle's).
+
+   ON THE SHELL, not the workspace: the workspace's 20/40 is this page's own inner rhythm and is
+   shared with the org DETAIL pages, which were not asked about and do not have this problem.
+   `!important` matched, not added -- the rules being overridden
+   (`.ll-appshell .md-shell`, and the gentle `:has(.ll-appshell)` block above) both carry one. */
+body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--org-directory {
+  padding-top: 70px !important;
+}
+body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
+  padding-top: 50px !important;
+}
+
 /* FOCUSED DASHBOARD: 32px OFF THE TOP BELOW 901px (requested 2026-09-21: "reduce the top
    padding on the dashboard content by 32px"). 112px -> 80px.
    THE SHELL'S CLEARANCE IS THE ONLY TOP PADDING LEFT AT THESE WIDTHS, which is why it is the
@@ -111497,4 +111728,161 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
    is why this one is appended rather than threaded into the middle of a 120k-line stylesheet.) */
 .dropdown-backdrop {
   display: none;
+}
+
+/* ── FOCUSED: "COMPARE REPORT PERIODS" IN DARK BLUE, NOT TEAL (2026-09-24) ───────────────
+   Requested: "on focused view, give the COMPARE REPORT PERIODS a dark blue hue instead of teal".
+   The badge's gentle styling is a teal wash with `#0d5c5f` ink and a teal glow; every teal-bearing
+   property is restated here in navy/denim so nothing is left half-converted -- the fill, the ink,
+   and the shadow that was tinting the area around it.
+   GENTLE IS UNTOUCHED: the base rule keeps its teal, which is the palette the rest of that view
+   uses. */
+body.ll-layout-focused .md-stats-compare-filter-group__badge {
+  color: $la-navy;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba($brand-dusty-denim, 0.10) 35%,
+    rgba($brand-dusty-denim, 0.22) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 12px rgba($la-navy, 0.15);
+}
+
+/* ── COMMUNICATOR PICKER: SEARCH FILTER (2026-09-24) ─────────────────────────────────────
+   The box only renders where a call site asks for it (`@filterable`), which today is the
+   Select User for Reports modal -- see components/user-select.hbs.
+   THE LABEL IS VISIBLE, not a placeholder: placeholder text vanishes the moment someone starts
+   typing, which is when a switch or screen-magnifier user most needs to still see what the
+   field is for. It is small and quiet rather than hidden.
+   14px on the input is the floor this product holds text to, and it also stops iOS Safari
+   zooming the viewport when the field takes focus -- anything under 16px normally would, but
+   the modal is not a form people live in and the zoom is the lesser problem than a label
+   nobody can read. */
+.user-select-filter {
+  margin: 0 0 12px;
+}
+.user-select-filter__label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.72);
+}
+.user-select-filter__input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.05);
+}
+.user-select-filter__input:focus {
+  outline: 2px solid rgba($brand-dusty-denim, 0.55);
+  outline-offset: 1px;
+  border-color: rgba($brand-dusty-denim, 0.5);
+}
+/* Spans the grid so the message sits under the search box rather than in the first card slot. */
+.user-select-filter__empty {
+  padding: 8px 0 16px;
+  text-align: center;
+}
+
+/* ── GENTLE ACCOUNT SECTION: THE CONTENT STARTS WITH THE RAIL (2026-09-24) ───────────────
+   Requested: "modern gentle My Account page, move the page content up considerably".
+   MEASURED at 1280 before this, as the chain down to the first thing on the page:
+     #content 26 + shell 0 + workspace 40 margin + 40 padding = main at 106
+     + main's own 35 padding = hero at 141, + the hero's 28 = the title near 169.
+   Meanwhile the ACCOUNT RAIL beside it starts at y=70, so the page read as though its content
+   had been pushed a third of the way down the panel next to it.
+   THE WORKSPACE'S 80px IS WHAT GOES -- its 40px margin and 40px padding are the two largest
+   terms and the only ones that are pure gap. `.md-main--user`'s 35px and the hero's 28px are the
+   CARD's own inset and the header's own rhythm; cutting those would have tightened the content
+   against its container rather than moving the block up.
+   16px of padding is kept so the card does not start flush against the shell's edge. Result:
+   main at 42, hero at 77 -- level with the rail's 70, which is the alignment the page was
+   missing.
+   GENTLE ONLY, as asked; Focused sets these per page in _focused-view.scss and is untouched.
+   BOUNDED AT 901 for the same reason the 1024 step below it is (read that note): under 901 the
+   rail drops in flow above the content and the shell-wide `@media (max-width: 900px)` rule at
+   the foot of the gentle block takes this box to 0. Leaving the 16px unbounded outweighed that
+   rule and held 16px of the 64 this section was asked to give up at those widths. */
+@media (min-width: 901px) {
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell--user > .md-workspace {
+    margin-top: 0 !important;
+    padding-top: 16px !important;
+  }
+}
+
+/* ...AND 64px FURTHER UP AT 1024 AND BELOW (requested 2026-09-24: "move it up another 64px" /
+   "on 1024px and smaller").
+   THE 64 IS NOT ONE NUMBER, it is two, and measuring is what showed that. At 1280 the account
+   page's title sits at y=105; at 1024 it sits at 149 -- 44px lower for the same page, because
+   the gentle alignment block above gives `.ll-appshell .md-shell` 52px of top padding at this
+   breakpoint that desktop does not have. So the move is that 52px, plus 12 of the workspace's
+   own 16px inset:
+     shell    52 -> 0   (the breakpoint's clearance, which this section does not need: it has no
+                         floating pill nav to clear -- that is what the 52px was reserving)
+     workspace 16 -> 20
+   THEN 16px BACK DOWN, asked for straight after seeing it (net 48 up from 149, title at 101).
+   The two steps are folded into the single workspace value rather than left as a 4px rule plus a
+   16px correction -- one declaration per box, so the next person reads a position rather than an
+   argument. The shell's 52 -> 0 is untouched by that second step.
+   The title clears the fixed header either way; its bottom edge is y=70. */
+@media (max-width: 1024px) {
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--user {
+    padding-top: 0 !important;
+  }
+}
+/* THE WORKSPACE'S 20px STOPS AT 901. Below that the rail is no longer a side column: it drops
+   in flow as a full-width grid ABOVE the content, and the shell-wide rule at the foot of the
+   gentle block (`@media (max-width: 900px) ... .md-workspace { padding-top: 0; margin-top: 0 }`)
+   already says every page in this shell starts flush there. This rule outweighs it (0,4,1 against
+   0,3,1) and was quietly reinstating a gap those six pages had been told to drop, so it is bounded
+   rather than repeated -- one statement per range instead of one rule undoing another.
+   The shell's `padding-top: 0` above is NOT bounded: it stays 0 all the way down, or the narrow
+   widths would take back the 52px push the account section is exempt from. */
+@media (min-width: 901px) and (max-width: 1024px) {
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell--user > .md-workspace {
+    padding-top: 20px !important;
+  }
+}
+
+/* ── 64px UP AT 900 AND BELOW, ACCOUNT SECTION AND REPORTS (2026-09-24) ─────────────────
+   Requested as two lines: "modern gentle on 900px and smaller: move account page content up
+   64px / move stats page content up 64px".
+
+   WHY THIS IS A SEPARATE BREAKPOINT FROM THE 1024 WORK ABOVE. At 901 and up the account rail is
+   a fixed side column and the content begins at the top of the page. Below 901 the rail is in
+   flow: a full-width grid of nine links, 202px tall at 900, sitting ABOVE the content. So what
+   the eye reads as "the page content" starts under the rail, and the gap complained of is the
+   band between the rail's bottom edge and the page title -- measured 95px on the account page
+   and 112px on Reports.
+
+   NOTHING IN THAT BAND PAINTS. Checked before cutting, on both pages at 900:
+   `.ll-appshell__main`, `.md-shell`, `.md-workspace`, `.md-main--user` and `.md-hero` all report
+   a transparent background, no border and no shadow. The band is empty space in four or five
+   stacked boxes, so removing it moves the content up without tightening it against any edge --
+   the reason the cuts below are safe and the rail's own 20px margin-bottom is left alone.
+   THE RAIL IS DELIBERATELY UNTOUCHED, and not only for that: it renders on BOTH pages, so any
+   cut to it would count toward both budgets at once and the two moves could not be sized
+   independently. Each page's 64 comes out of boxes only that page has.
+     account (95 available): workspace 20 -> 0, `.md-main--user` 35 -> 0, title lead 20 -> 11
+     Reports (112 available): shell 52 -> 0, hero 24 -> 12
+   Each cut lives at the rule that owns the box (see `.md-shell--user > .md-workspace >
+   .md-main--user`, `.md-hero.md-hero--dashboard .md-hero__title`, and
+   `.md-shell--reports-view .md-hero--reports-dashboard`); only Reports' shell exception is here,
+   beside the account one it copies.
+
+   REPORTS' 52px IS THE SAME EXEMPTION THE ACCOUNT PAGES ALREADY HAVE. The gentle block's 1024
+   rule pushes every shell page down 52px; the account section was exempted from it above. Reports
+   is one of the nine pages of that section (it is the rail's "Reports" row), so zeroing it here
+   brings Reports back in line with its own section rather than making it an exception. */
+@media (max-width: 900px) {
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--stats {
+    padding-top: 0 !important;
+  }
 }

@@ -512,7 +512,15 @@ export function analyze(stats) {
     // ONE LINE: i18n_generator.rb scans for `i18n.t(` line by line (:96-127), so a
     // wrapped call is invisible to it — this key silently never reached en.json and
     // was therefore never sent for translation.
-    comparisonBasis: comparison.available ? i18n.t('report_comparison_basis', "Every change below compares the later half of the selected period (%{later}) with its earlier half (%{earlier}).", {later: comparison.later_label, earlier: comparison.label}) : '',
+    /* SHORTENED 2026-09-24 (requested: "make this more succinct, conveying the same
+       information"). Was: "Every change below compares the later half of the selected period
+       (%{later}) with its earlier half (%{earlier})." -- two lines of scaffolding around the two
+       dates that carry the meaning. The dates still say which is later, so naming the halves
+       twice was restating the labels in words.
+       A NEW KEY, not a reworded one: `i18n_generator.rb` never refreshes an existing value, so
+       editing the English of `report_comparison_basis` would leave 12 locales showing the long
+       sentence while English showed the short one. The old key stays defined and unused. */
+    comparisonBasis: comparison.available ? i18n.t('report_comparison_basis_short', "Changes compare %{later} with %{earlier}.", {later: comparison.later_label, earlier: comparison.label}) : '',
     primaryInsight: buildPrimaryInsight(stats, comparison),
     summaryMetrics: buildSummaryMetrics(stats, comparison),
     reportInsights: insights,
