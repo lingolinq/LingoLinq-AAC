@@ -84,6 +84,72 @@ describe('extras', function() {
       });
     });
   });
+
+  describe('start_after_device_init', function() {
+    afterEach(function() {
+      lingoLinqExtras.set('ready', false);
+      lingoLinqExtras.set('offline_available', undefined);
+    });
+
+    it('should default to an 8s timeout only when browserless or standalone', function() {
+      var previous = capabilities.browserless;
+      capabilities.browserless = true;
+      expect(lingoLinqExtras.init_timeout_ms()).toEqual(8000);
+      capabilities.browserless = false;
+      expect(lingoLinqExtras.init_timeout_ms()).toEqual(navigator.standalone ? 8000 : 0);
+      expect(lingoLinqExtras.init_timeout_ms({timeout_ms: 20})).toEqual(20);
+      expect(lingoLinqExtras.init_timeout_ms({timeout_ms: 0})).toEqual(0);
+      capabilities.browserless = previous;
+    });
+
+    it('should enable extras after a hung init when a timeout is set', function() {
+      var enabled = false;
+      stub(lingoLinqExtras, 'enable', function() { enabled = true; });
+      lingoLinqExtras.start_after_device_init({
+        timeout_ms: 20,
+        invoke: function() {
+          return new RSVP.Promise(function() { /* never settles */ });
+        }
+      });
+      waitsFor(function() { return enabled; });
+      runs(function() {
+        expect(lingoLinqExtras.get('offline_available')).toEqual(false);
+      });
+    });
+
+    it('should enable extras once when init resolves before the timeout', function() {
+      var count = 0;
+      stub(lingoLinqExtras, 'enable', function() { count++; });
+      lingoLinqExtras.start_after_device_init({
+        timeout_ms: 200,
+        invoke: function() {
+          return RSVP.resolve({});
+        }
+      });
+      waitsFor(function() { return count > 0; });
+      runs(function() {
+        expect(count).toEqual(1);
+        expect(lingoLinqExtras.get('offline_available')).toNotEqual(false);
+      });
+    });
+
+    it('should not enable extras when timeout is 0 and init never settles', function() {
+      var enabled = false;
+      stub(lingoLinqExtras, 'enable', function() { enabled = true; });
+      lingoLinqExtras.start_after_device_init({
+        timeout_ms: 0,
+        invoke: function() {
+          return new RSVP.Promise(function() { /* never settles */ });
+        }
+      });
+      var waited = false;
+      setTimeout(function() { waited = true; }, 40);
+      waitsFor(function() { return waited; });
+      runs(function() {
+        expect(enabled).toEqual(false);
+      });
+    });
+  });
 });
 
 //     track_error: function(message) {

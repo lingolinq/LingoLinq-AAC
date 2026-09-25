@@ -68,6 +68,25 @@ describe MediaObject, :type => :model do
       expect(v.settings['prior_full_filenames']).to_not include(old_thumb)
     end
 
+    it "should recover a MediaConvert 7-digit thumbnail stem when replacing the still" do
+      old_thumb = 'videos/1/2/3/1_5-oldv1723400000.mp4.0000001.jpg'
+      old_stem = 'videos/1/2/3/1_5-oldv1723400000.mp4'
+      v = UserVideo.create(:user => u, :settings => {
+        'full_filename' => 'videos/1/2/3/1_5-oldv1723400000.mp4',
+        'thumbnail_filename' => old_thumb,
+        'transcoding_keys' => ['qwert']
+      })
+      res = v.update_media_object({
+        'filename' => 'videos/1/2/3/1_5-newv1723500000.mp4',
+        'content_type' => 'video/mp4',
+        'transcoding_key' => 'qwert',
+        'thumbnail_filename' => 'videos/1/2/3/1_5-newv1723500000.mp4.0000001.jpg'
+      })
+      expect(res).to eq(true)
+      expect(v.settings['prior_thumbnail_stems']).to eq([old_stem])
+      expect(v.thumbnail_stem(v.settings['thumbnail_filename'])).to eq('videos/1/2/3/1_5-newv1723500000.mp4')
+    end
+
     it "should fall back to preserving the raw value in prior_full_filenames when the outgoing thumbnail_filename doesn't match the expected stem shape" do
       malformed = 'not-a-recognizable-thumbnail-shape'
       v = UserVideo.create(:user => u, :settings => {
@@ -307,7 +326,7 @@ describe MediaObject, :type => :model do
     # regex actually executes against production-shaped keys. secondary_output
     # and prior_full_filenames keys are single-extension and pass the generic
     # rule cleanly; thumbnail_filename passes via the narrow, named
-    # Uploader.elastic_transcoder_thumbnail_key? exception (lib/uploader.rb)
+    # Uploader.transcoded_thumbnail_key? exception (lib/uploader.rb)
     # added specifically for AWS's two-extension-segment thumbnail shape,
     # rather than a broad widening of the shared guard.
     def stub_real_s3_removal(key, bucket)

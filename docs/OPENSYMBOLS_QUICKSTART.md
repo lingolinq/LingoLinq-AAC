@@ -37,7 +37,7 @@ Once you have your shared secret, add it to your environment configuration.
 
 Add the `OPENSYMBOLS_SECRET` environment variable to your production environment using your hosting platform's configuration method:
 
-- **Render** (our production hosting): Add `OPENSYMBOLS_SECRET` as an environment variable on the service in the Render dashboard (Settings → Environment).
+- **GCP Cloud Run** (our production hosting): store the value in Secret Manager as `OPENSYMBOLS_SECRET`, then let `.github/workflows/deploy-cloudrun.yml` mount it by name through `--set-secrets`. A rotated value takes effect when the next revision deploys.
 - **Docker**: Add to your docker-compose.yml or environment file.
 - **Other platforms**: Follow your platform's documentation for setting environment variables.
 

@@ -9,7 +9,7 @@ is kept under 200 lines. Everything else loads on demand:
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
-| `/fix-proposal` skill | before implementing any fix | fact sheet, red test first, proposal review, falsification |
+| `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
 
@@ -39,10 +39,10 @@ everything else in this file.
    override block, or `!important` to win the cascade.
 8. **Log researched work; distill durable lessons.** A task that needs research gets a
    log at `docs/task-management/YYYY-MM-DD_<slug>.md` (underscore after the date; the
-   dash form is gitignored and never reaches a PR). Before starting, read the curated
-   `docs/task-management/LEARNINGS.md` and grep `learnings-archive/` for your surface's
-   keywords. On completion, append durable lessons to `learnings-archive/YYYY-MM.md`;
-   promotion into the curated file is a reviewed edit.
+   dash form is gitignored and never reaches a PR). Before starting, grep the curated
+   `docs/task-management/LEARNINGS.md` and `learnings-archive/` for your surface's
+   keywords and read the matching entries. On completion, append durable lessons to
+   `learnings-archive/YYYY-MM.md`; promotion into the curated file is a reviewed edit.
 9. **Spawn subagents when it makes the task more efficient; do not ask first.** Fan out
    independent slices in one message with explicit file lists and the CONFIRMED versus
    PLAUSIBLE labelling rule. A subagent's report is evidence to verify, not a verified
@@ -54,33 +54,59 @@ everything else in this file.
 11. **A red test run is not a regression until the run COMPLETED and you have a
     baseline.** The mechanics for each suite are in `app/frontend/CLAUDE.md` (Ember) and
     the Testing section below (RSpec).
-12. **Establish the three facts, write the red test first, and review the proposal before
-    editing.** The full discipline is the `/fix-proposal` skill. In one line each: where
-    is the value READ; what are ALL the shapes it can hold; is each cross-file claim TRUE.
-    Label every fact CONFIRMED (`file:line`) or ASSUMED, and let nothing ASSUMED carry a
-    fix. "This one is obvious" is the signal to write the sheet, not to skip it.
+12. **For a bug fix or behaviour change in application code: establish the three facts,
+    write the red test first, and review the proposal before editing.** The full
+    discipline is the `/fix-proposal` skill. In one line each: where is the value READ;
+    what are ALL the shapes it can hold; is each cross-file claim TRUE. Label every fact
+    CONFIRMED (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is
+    obvious" is the signal to write the sheet, not to skip it. Only a change that cannot
+    alter runtime behaviour (docs, agent instructions, comments) skips the sheet; config,
+    entrypoints, workflows and migrations count as application code.
 13. **One coherent change per unit, and stop when the error rate rises.** Two
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,
     and stop.
+14. **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
+    the finding; report it, do not absorb it. Without explicit human approval, never
+    delete, rename or weaken an existing test, add `skip`/`xit`/`pending`/`this.skip()`,
+    loosen an assertion, narrow a `describe`/`context` so the failing case stops running,
+    drop a file from a path filter, matrix or `--filter`, regenerate a lint baseline
+    (`npm run lint:hbs:todo`, `npm run lint:js:todo`, `app/frontend/.lint-todo`,
+    `app/frontend/.eslint-todo`), or change a lint or test CONFIG so the rule stops
+    applying (`app/frontend/.template-lintrc.js`, `app/frontend/.eslintrc.js`, `.rspec`,
+    `spec/spec_helper.rb`, or a `.gitignore` entry that drops the file from the run), or
+    change how CI DECIDES to run the check (a workflow condition or classifier output such
+    as the frontend-scope step in `.github/workflows/ci.yml`, a job dependency,
+    `continue-on-error`, a retry or allowed-failure setting, an environment input, the
+    command an npm script or rake task invokes, or required-check wiring).
+    These are one act under different names, and the list above is examples, not a
+    boundary: anything else whose effect is that a failing check now passes without the
+    defect it detected being fixed is the same act. That includes changing the CODE UNDER
+    TEST to satisfy the assertion rather than fixing the defect, re-running until a flake
+    goes green, and merging with `--admin`. Stop, name the test and the verified reason it
+    fails, and wait. Rewriting a test is legitimate only when the specification it
+    encodes actually changed and the approval you were given says so.
 
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work: `git checkout develop && git pull && git checkout -b <dev>/<type>/<slug>`.
+  regular work: `git checkout develop && git pull && git checkout -b <new-branch>`.
   Prefer an isolated worktree when other sessions share the checkout.
-- **Name:** `<developer>/<type>/<kebab-slug>`, for example `melissa/fix/sidebar-actions`,
-  `scot/chore/staging-slow-queue-capacity`. `<type>` is one of `fix`, `feat`, `chore`,
-  `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The older
-  `<type>/<dev>-<slug>` form may finish through merge; do not start new branches in it.
-- **Hotfixes are the one exception:** an urgent production fix branches from `main` as
-  `<dev>/hotfix/<slug>`, opens a PR directly against `main` (Scot approves), and is merged
-  back to `develop` immediately afterwards. See `CONTRIBUTING.md`.
+- **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
+  `refactor`, `test`, `compliance`, `security`). Scot's branches are always
+  `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
+  (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
+  `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
+- **Hotfixes are the one exception:** an urgent production fix branches from `main` with
+  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
+  approves), and is merged back to `develop` immediately afterwards. Hotfix and release
+  branches are made by hand, not by the launcher. See `CONTRIBUTING.md`.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
-- **Flow:** PRs target `develop`; `develop` promotes to `staging`; a release PR goes from
-  `staging` to `main`, which deploys to production after approval.
+- **Flow:** PRs target `develop`; `develop` promotes to `staging` from a freeze branch
+  (`release/develop-into-staging-YYYY-MM-DD`), not from live `develop`; a release PR goes
+  from `staging` to `main`, which deploys to production after approval.
 - Date suffixes are only for time-bound recovery or release branches.
 
 ## Project overview
@@ -126,7 +152,7 @@ data isolation between district accounts is mandatory.
 PostgreSQL plus Redis (caching, Resque queues `priority`, `default`, `slow`, plus `whenever`,
 which `User#track_boards` and `LogSession#update_board_connections` target under Redis queue
 pressure and `Uploader` targets for every batch upload; the Cloud Run worker entrypoint drains
-only the first three by default, see `docs/INFRASTRUCTURE.md`).
+all four by default with `whenever` last, see `docs/INFRASTRUCTURE.md`).
 
 - **IDs:** custom `global_id` (`#shard#_#dbid#`) instead of raw ids. `find_by_global_id`,
   `find_by_path` (id, board key, or username), `find_all_by_global_id`.
@@ -172,7 +198,16 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 
 Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
 `/adversary-review` (red team). A Critical or High finding from either blocks the PR.
-Copilot code review runs automatically on every PR to `develop`.
+The senior-dev pass ships the diff to an external model on an account with no BAA, so run
+the PII pre-flight first and match the form to the argument: for a PR number,
+`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`
+(with `set -o pipefail`); for a branch or the working tree,
+`bash ~/ai-company-brain/scripts/codex-review-guard.sh <base-ref>`. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
+the flagged paths rather than sending anything. The `<base-ref>` form run against a PR
+number guards the wrong diff and records a pass it did not earn. That guard lives at a
+LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
+run this pass, so stop and hand it to someone who is rather than proceeding without it.
+Codex-specific invocation detail lives in `AGENTS.md`. Copilot code review runs automatically on every PR to `develop`.
 
 ## Audit and compliance system
 

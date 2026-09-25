@@ -543,7 +543,7 @@ var Button = EmberObject.extend({
     }
     if(this.sound_id && this.sound_url && persistence.url_cache && persistence.url_cache[this.sound_url] && (!persistence.url_uncache || !persistence.url_uncache[this.sound_url])) {
     } else if(this.sound_id && !this.get('sound')) {
-      var rec = LingoLinq.store.peekRecord('sound', this.sound_id);
+      var rec = LingoLinq.store.peekRecord('sound', String(this.sound_id));
       if(!rec || !rec.get('isLoaded')) { /* console.log("missing sound for", this.get('label')); */ return false; }
     }
     return true;
@@ -665,7 +665,9 @@ var Button = EmberObject.extend({
   load_sound: function(preference) {
     var _this = this;
     if(!_this.sound_id) { return RSVP.resolve(); }
-    var sound = LingoLinq.store.peekRecord('sound', _this.sound_id);
+    // Ember Data 5 requires string ids; Capacitor/JSON sound_id may be numeric.
+    var soundId = String(_this.sound_id);
+    var sound = LingoLinq.store.peekRecord('sound', soundId);
     if(sound && (!sound.get('isLoaded') || !sound.get('best_url'))) { sound = null; }
     _this.set('sound', sound);
     var check_sound = function(sound) {
@@ -677,11 +679,17 @@ var Button = EmberObject.extend({
     };
     if(!sound) {
       var sound_urls = _this.get('board.sound_urls');
-      if(sound_urls && sound_urls[_this.sound_id] && preference != 'remote') {
+      // Board sound_urls keys are usually strings; sound_id may be numeric.
+      var mapped_sound_url = (_this.sound_url) || (sound_urls && (sound_urls[_this.sound_id] || sound_urls[String(_this.sound_id)]));
+      // Prefer the board URL map for playback. `remote` only means "allow
+      // findRecord when the map has no URL" (button-settings still gets a
+      // full record that way). Skipping the map on remote caused Capacitor
+      // speak-mode to TTS the label whenever findRecord failed.
+      if(mapped_sound_url && preference != 'remote') {
         var snd = LingoLinq.store.createRecord('sound', {
-          url: sound_urls[_this.sound_id]
+          url: mapped_sound_url
         })
-        snd.set('id', _this.sound_id);
+        snd.set('id', soundId);
         snd.set('incomplete', true);
         _this.set('sound', snd);
         return check_sound(snd);
@@ -691,9 +699,21 @@ var Button = EmberObject.extend({
       } else if(preference == 'local') {
         return RSVP.reject('no sound lookups');
       } else {
-        return LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        return LingoLinq.store.findRecord('sound', soundId).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
+        }, function(err) {
+          if(mapped_sound_url) {
+            var fallback = LingoLinq.store.peekRecord('sound', soundId);
+            if(!fallback) {
+              fallback = LingoLinq.store.createRecord('sound', { url: mapped_sound_url });
+              fallback.set('id', soundId);
+              fallback.set('incomplete', true);
+            }
+            _this.set('sound', fallback);
+            return check_sound(fallback);
+          }
+          return RSVP.reject(err);
         });
       }
     } else {
@@ -773,7 +793,8 @@ var Button = EmberObject.extend({
       _this.image_url = (_this.get('board.image_urls') || {})[_this.image_id];
     }
     if(!_this.sound_url && _this.get('board') && _this.sound_id) {
-      _this.sound_url = (_this.get('board.sound_urls') || {})[_this.sound_id];
+      var board_sound_urls = _this.get('board.sound_urls') || {};
+      _this.sound_url = board_sound_urls[_this.sound_id] || board_sound_urls[String(_this.sound_id)];
     }
     return new RSVP.Promise(function(resolve, reject) {
       var promises = [];

@@ -528,6 +528,40 @@
           </div>
         </div>
         <div class="md-bs-or" aria-hidden="true"><span class="md-bs-or-text">{{t "OR" key="or_separator_caps"}}</span></div>
+        <div class="md-bs-link-by-key">
+          <label for="linked_board_url" class="md-bs-field-label">{{t "Board URL or key" key="board_url_or_key"}}</label>
+          <div class="md-bs-link-by-key__row">
+            <input id="linked_board_url" value={{this.linkedBoardName}} class="form-control md-bs-link-by-key__input" placeholder={{t "e.g. lingolinq/vocal-flair-84-questions" key="board_url_or_key_placeholder"}} aria-label={{t "Board URL or key" key="board_url_or_key"}} {{on "input" (set-field this "linkedBoardName")}} {{on "keydown" this.onLinkedBoardKeydown}} />
+            <button type="button" class="md-bs-choice md-bs-link-by-key__submit" {{on "click" (this.ctrlAction "find_board")}}>
+              <span class="md-bs-choice__label">{{t "Link board" key="link_board_by_url"}}</span>
+            </button>
+          </div>
+          <p class="md-bs-card__hint">{{t "Paste a board page URL or an owner/key to link a sub-board that is not in the list." key="board_url_or_key_hint"}}</p>
+          {{#if this.foundBoards}}
+            {{#if this.foundBoards.ready}}
+              {{#if this.foundBoards.results.length}}
+                <ul class="md-board-collection__list md-bs-link-by-key__results">
+                  {{#each this.foundBoards.results as |board|}}
+                    {{#if board.key}}
+                      <li class="md-board-collection__row">
+                        <button type="button" class="md-board-collection__item" {{on "click" (this.ctrlAction "selectFoundBoard" board)}}>
+                          <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" onerror="button_broken_image(this);">
+                          <BoardListItemLabel @board={{board}} @name={{board.name}} />
+                          {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
+                        </button>
+                      </li>
+                    {{/if}}
+                  {{/each}}
+                </ul>
+              {{else}}
+                <p class="md-board-collection__empty">{{t "No board found for that URL or key" key="no_board_for_url_or_key"}}</p>
+              {{/if}}
+            {{else}}
+              <p class="md-board-collection__loading">{{t "Looking up board…" key="looking_up_board"}}</p>
+            {{/if}}
+          {{/if}}
+        </div>
+        <div class="md-bs-or" aria-hidden="true"><span class="md-bs-or-text">{{t "OR" key="or_separator_caps"}}</span></div>
         <button type="button" class="md-bs-choice md-bs-choice--create" {{on "click" (this.ctrlAction "build_board")}}>
           <span class="md-bs-choice__icon" aria-hidden="true"><span class="glyphicon glyphicon-plus"></span></span>
           <span class="md-bs-choice__label">{{t "Create a new board" key="create_a_new_board"}}</span>

@@ -5,18 +5,22 @@ workflow is `.github/workflows/ci.yml`.
 
 ## What CI gates on
 
-Only **two** jobs block a PR (the other two are `continue-on-error: true`
-and never fail the build):
+The workflow defines six jobs. Whether each job blocks a merge is controlled by
+the target branch's GitHub ruleset, not by `.github/workflows/ci.yml` alone.
+Check the PR's **Checks** section for the current required set.
 
-| Job | Blocks PR? | What it runs |
-|-----|-----------|--------------|
-| `build-and-test` | ✅ yes | `npx ember build` then `npx ember test` (Chrome Headless; the test suite also runs ESLint + ember-template-lint as assertions) |
-| `rspec` | ✅ yes | `rails db:create db:schema:load` then `bundle exec rspec` (Postgres 15 + Redis 7, `RAILS_ENV=test`) |
-| `security-scan` | ❌ no | brakeman, bundle-audit, npm audit (`continue-on-error`) |
-| `secret-detection` | ❌ no | gitleaks (`continue-on-error`) |
+| Job | What it runs |
+|-----|--------------|
+| `build-and-test` | For application-relevant PRs and protected-branch pushes: Ember lint, build, and the full Chrome Headless suite. For PRs whose changes are entirely under `docs/**` and/or `audit-reports/**`: reports success after classification without installing Node dependencies, linting, installing Chrome, building Ember, or running browser tests. |
+| `rspec` | `rails db:create db:schema:load`, repository guards, then `bundle exec rspec` (Postgres 15 + Redis 7, `RAILS_ENV=test`) |
+| `audit-artifacts-integrity` | Compliance register, publication, naming, attestation, capability, and consumer-integrity guards |
+| `codex-review-tests` | Codex review envelope, evidence-builder, and chunk-runner unit tests |
+| `security-scan` | Brakeman and npm audit are advisory (`continue-on-error`); bundle-audit is blocking within this job |
+| `secret-detection` | Blocking gitleaks scan of newly introduced commit content |
 
-So: **a green local `ember build`, `ember test`, and `rspec` means CI's
-required checks will pass.**
+A green local `ember build`, `ember test`, and `rspec` covers the two full
+application suites, but it does not replace the repository's compliance,
+review-harness, security, or secret-detection jobs.
 
 ## Local commands
 
@@ -84,5 +88,11 @@ Always re-run the whole `db:schema:load` step after a merge or any
 - Linting is not a separate gating job, but `ember test` will fail on any
   ESLint / ember-template-lint violation — treat lint as required.
 
-- `security-scan` / `secret-detection` are advisory only; do not block on
-  them, but do read gitleaks output for accidental secrets.
+- Within `security-scan`, Brakeman and npm audit are advisory (`continue-on-error`)
+  and only `bundle-audit` can fail the job. Whether that job blocks a merge depends on
+  the branch: it is required on `main` only, not on `develop` or `staging`. Note that
+  `bundle-audit check --update` fetches the advisory database at run time, so a release
+  PR to `main` can turn red overnight with no code change.
+
+- `secret-detection` is required on `main`, `develop` and `staging`. Investigate any
+  hit; never weaken or bypass its gitleaks scan to merge.

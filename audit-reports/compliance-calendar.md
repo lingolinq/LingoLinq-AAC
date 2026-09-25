@@ -10,7 +10,6 @@
 
 | Date | Item | Framework | Cadence |
 |---|---|---|---|
-| 2026-07-14 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 | 2026-07-26 | COPPA data-retention enforcement + parental-consent flow check | COPPA | quarterly |
 | 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | HIPAA | one-time |
 | 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
@@ -19,14 +18,15 @@
 | 2026-09-01 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | SOC2 | event-driven + quarterly |
 | 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
-| 2026-09-14 | Full /audit-run (4 finders, full scope) + adversary verify - all frameworks | SOC2 | quarterly |
+| 2026-10-09 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | SOC2 | one-time |
+| 2026-10-16 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 
 ## Recurring reviews (full set)
 
 | Framework | Review | Cadence | Last done | Next due |
 |---|---|---|---|---|
-| SOC2 | Full /audit-run (4 finders, full scope) + adversary verify - all frameworks | quarterly | 2026-06-14 | 2026-09-14 |
-| SOC2 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | monthly | 2026-06-14 | 2026-07-14 |
+| SOC2 | Full /audit-run (6 finders, full scope) + adversary verify - all frameworks | quarterly | 2026-09-16 | 2026-12-16 |
+| SOC2 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | monthly | 2026-08-18 | 2026-10-16 |
 | FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
 | GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
@@ -39,95 +39,131 @@
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
 | HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
+| SOC2 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | one-time | (none) | 2026-10-09 |
 
 ## Review instructions, regulatory watch, and basis
 
 The following details are part of each recurring review record. They are rendered so missed-cycle
 context, required work, and the source basis remain visible with the schedule.
 
-### Full /audit-run (4 finders, full scope) + adversary verify - all frameworks
+### Full /audit-run (6 finders, full scope) + adversary verify - all frameworks
 
-- **Drafts:** Full fan-out: privacy/infra/api/dependency finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).
-- **Watch:** Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db).
+- **Drafts:** Full fan-out: privacy/infra/api/dependency/accessibility/code-hygiene finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).
+- **Watch:** Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db). Q3 2026 run (2026-09-16) had PARTIAL coverage (finders without checklist skills or read-only guard, no AWS read, no bundle-audit, accessibility static only); its make-up pass is due before the October monthly light run.
 - **Basis:** plan 5.1, 9.1 (decision: quarterly full + monthly light); .claude/skills/audit-run cadence section
+- **Linked findings:** (none recorded)
 
 ### Monthly light /audit-run (diff-since-last-run scope, no full re-scan)
 
 - **Drafts:** Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.
-- **Watch:** Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim.
+- **Watch:** Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).
 - **Basis:** plan 5.1, 9.1; .claude/skills/audit-run cadence section
+- **Linked findings:** (none recorded)
 
 ### FERPA vendor-disclosure + directory-info posture review
 
 - **Drafts:** register hygiene + posture delta for school-district data flows
 - **Watch:** FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly
 - **Basis:** plan 1.3
+- **Linked findings:** (none recorded)
 
 ### HIPAA Security Rule risk assessment + BAA inventory review
 
 - **Drafts:** BAA inventory (AWS BAA on file 2026-02; subprocessor BAAs), minimum-necessary review for hospital data
 - **Watch:** Proposed HIPAA Security Rule update is still an NPRM, not law - build to the current rule, watch
 - **Basis:** plan 1.3; docs/legal/AWS_BAA_ACCEPTED.md
+- **Linked findings:** (none recorded)
 
 ### GDPR DPA + RoPA + data-residency review
 
 - **Drafts:** RoPA refresh, DPA terms review, right-to-deletion path verification for EU clients
 - **Watch:** EU AI Act intersects GDPR for EU clients - see fixed dates
 - **Basis:** plan 1.3
+- **Linked findings:** (none recorded)
 
 ### Subprocessor list review (SUBPROCESSORS.md)
 
 - **Drafts:** updated subprocessor inventory + change notice draft (GDPR Art. 28(2) prior-notice posture)
 - **Watch:** any new third-party data processor added to the stack triggers an off-cycle review. MISSED CYCLE, THEN PERFORMED: lastDone was null and nextDue 2026-09-01 until 2026-08-07, while docs/legal/SUBPROCESSORS.md recorded its last full line-by-line review as 2026-04-20. On a quarterly cadence from 2026-04-20 a cycle fell due 2026-07-20 and was not performed. Re-dating past that gap would have hidden an overdue Article 28 review because, at the time, the renderer surfaced only nextDue and never this field, so the CEO directed on 2026-08-08 that the review be PERFORMED instead. It was: every external host in lib/, app/models/, app/controllers/ and config/ was reconciled against the section 4 table, and it found two active processors absent from the register (Stripe, and iplocate.io, the latter with an ungated call site raised as LL-07f1869d92). Findings are recorded in SUBPROCESSORS.md section 4.1 and its 2026-08-08 change-log entry. lastDone 2026-08-08 reflects that performed review; nextDue 2026-11-08 is one quarter on. Note the many dated amendments in the change log are per-change updates, not the periodic full-register review this item tracks.
 - **Basis:** plan 1.3, 2.5; docs/legal/SUBPROCESSORS.md
+- **Linked findings:** (none recorded)
 
 ### COPPA data-retention enforcement + parental-consent flow check
 
 - **Drafts:** verify enforced deletion of children's data per written retention policy; verify separate verifiable parental consent for any disclosure not integral to the service (incl. AI training)
 - **Watch:** amended COPPA Rule compliance deadline 2026-04-22 PASSED and is enforceable (~$51.7k/incident/day). Watch FTC enforcement actions.
 - **Basis:** plan 1.3, 2.4; docs/legal/COPPA_VERIFICATION_2026-04-26.md; docs/legal/DATA_RETENTION.md
+- **Linked findings:** LL-3e36a18199, LL-cbc8bc4211, LL-933e61efd7
+
+**Acceptance criteria (9).** A review is not complete until every one is met.
+
+1. Consent paths: re-verify the account-activation COPPA gate AND the separate versioned AI-consent mechanism, which DOC-58b3944cad records as having no runtime caller outside user.rb while privacy.hbs:74 promises consent under 16 CFR Part 312 for AI use specifically. Record the resolved gate value with the execution identifier that produced it.
+2. Retention claims re-traced against code rather than copied forward. State separately what held across 2026-07-21 to 2026-09-02 and what holds now. The attested, frozen docs/legal/COPPA_VERIFICATION_2026-04-26.md states the IP redaction job 'runs daily today' and that other jobs run 'daily at 6 AM UTC'; those statements cannot be corrected in place and are addressed here.
+3. Independent sweep state recorded explicitly. OffboardingCoppaExpirationWorker.perform returns 0 in BOTH :disabled and :report by construction, so a bare 0 is ambiguous; always record the logged mode alongside the count. Disabled mode was logged in production 2026-09-04 through 2026-09-14; the 2026-09-03 entry does not identify the mode.
+4. Candidate selection verified in BOTH windows: inside User::OFFBOARDING_SWEEP_LOOKBACK and outside it. A dry-run zero inside the window does not cover consents that started before it.
+5. Export/deletion progression exercised on CONTROLLED NON-ZERO test evidence (staging or a seeded fixture) driven through export, schedule_deletion_at, and flush. A production report-mode zero must never be presented as deletion proof. If no controlled run is available, record the criterion as unmet.
+6. Failures: any task failure in the window, from dispatch abort output and job-execution status, with dates.
+7. Audit coverage: all-time parental_consent_offboarding_started counts and distinct user keys, with the query and window stated. A zero is reported as zero IN THE QUERIED DATASET, never as proof no such event ever occurred.
+8. Interruption impact on COPPA controls specifically, cross-referenced to LL-cbc8bc4211 (the interruption impact assessment, split out 2026-09-18 when LL-3e36a18199 was closed on its liveness element) and to docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md.
+9. Evidence is aggregate counts and dates. global_id values are PSEUDONYMOUS IDENTIFIERS, not non-personal data: pairing one with reason=declined is a COPPA-adjacent inference, which is why the worker caps per-account report lines. Include per-account identifiers only where a criterion cannot otherwise be met, and do not reproduce them in the review record.
+
+> Acceptance criteria added 2026-09-14. lastDone and nextDue are DELIBERATELY UNCHANGED: the review has not been performed. Only Scot records a review as completed.
 
 ### SOC 2 control review (continuous monitoring posture)
 
 - **Drafts:** control-evidence freshness check; map register findings to SOC 2 CC criteria; flag stale evidence before an auditor sees it
 - **Watch:** SOC 2 / ISO 27001 control overlap ~90% - implement once, map to many (plan 1.2)
 - **Basis:** plan 1.2, 1.3
+- **Linked findings:** (none recorded)
 
 ### Accessibility Conformance Report (ACR/VPAT) refresh
 
 - **Drafts:** refresh docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md against current AAC surfaces; re-test the dual render path (index.hbs + button.js fast_html)
 - **Watch:** WCAG 2.1 AA stands; district RFPs flow it down regardless of the extended ADA Title II dates. Also refresh on any major AAC UI change.
 - **Basis:** plan 2.5, 6; audit-reports/wcag-modernized-2026-04-11*.md
+- **Linked findings:** (none recorded)
 
 ### OpenRouter ZDR re-verification (after every key rotation, plus quarterly)
 
 - **Drafts:** confirm the OpenRouter ZDR account toggle is still on after any API-key rotation; PiiScrubber is the real backstop, ZDR is operator-maintained and unenforceable from config
 - **Watch:** ZDR is NOT a BAA. Re-verify the toggle after every key rotation - nothing else checks it (plan 2.4 item 7).
 - **Basis:** plan 1.8, 2.4; ZDR verification SOP (Phase 1)
+- **Linked findings:** (none recorded)
 
 ### Google Gemini API fallback path BAA/DPA verification
 
 - **Drafts:** Confirm Gemini API data-handling terms and whether any Google BAA covers the runtime fallback in lib/ai_word_predictor.rb; document result in AI Governance Memo section 7
 - **Watch:** Until resolved, PiiScrubber remains the controlling backstop for the Gemini path
 - **Basis:** docs/legal/AI_GOVERNANCE_MEMO.md section 7; lib/ai_word_predictor.rb Gemini fallback
+- **Linked findings:** (none recorded)
 
 ### Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3)
 
 - **Drafts:** Build scripts/audit-merge.rb or scripts/citation-check.rb rejector for secret/PII-shaped runtime evidence snippets
 - **Watch:** Instruction-only control on infra-auditor until this ships; tagged HIPAA/FERPA in register
 - **Basis:** audit-reports/self-findings-triage-2026-06-13.md; LL-b5c30235d3
+- **Linked findings:** (none recorded)
 
 ### District DPA / SDPC NDPA renewals + registry listing
 
 - **Drafts:** NDPA v2.2 posture responses; CAIQ pre-fill; SDPC registry listing maintenance
 - **Watch:** SDPC NDPA v2.2 (Nov 2025) is the de facto K-12 vendor contract; registry listing is the highest-leverage sales artifact (plan 1.3). nextDue is null until contracts with renewal dates exist.
 - **Basis:** plan 1.2, 1.3, 2.5
+- **Linked findings:** (none recorded)
 
 ### Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250)
 
 - **Drafts:** The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2.2 (2026-08-02), pending Scot's re-attestation; the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content and is now three revisions behind. Regenerate the branded Google Doc from the v2.2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json. Mirror ONLY from v2.2.2 bytes, and only AFTER Scot re-attests them. Two superseded revisions must NOT be used as the source: v2.2 (hash 0ee1b92e @ commit 456b6735a6 / PR #703) is superseded, and v2.2.1 (hash 2b788387) described Anthropic as the active runtime AI provider and asserted active Bedrock egress, which v2.2.2 retracts (see BREACH_RUNBOOK.md section 13). Mirroring either would republish a known-false claim into a customer-shared Drive doc. CORRECTED 2026-08-02: this item previously targeted v2.2.1; also retracts an earlier fbdf49a1 pin that is not retrievable from merged ancestry.
 - **Watch:** document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequenced AFTER the v2.2.2 re-attestation so the Drive doc is re-branded from the final attested bytes. PR #703 merged 2026-07-29T23:05Z; v2.2.1-interim (2026-07-31) was superseded by v2.2.1 (2026-08-01), then by v2.2.2 on 2026-08-02. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.
 - **Basis:** senior-dev content-integrity review of PR #703 (finding M4); docs/legal/BREACH_RUNBOOK.md; DOCUMENT-REGISTER.json DOC-f576f43250
+- **Linked findings:** (none recorded)
+
+### Q3 2026 /audit-run make-up pass (partial-coverage gaps)
+
+- **Drafts:** Re-run the six finders with checklist skills and the read-only guard verified by a canary; run bundle-audit; take an AWS account-level read; merge into FINDINGS.json and record in runs.jsonl.
+- **Watch:** Approved by Scot on 2026-09-17 as the condition for keeping the Q3 audit pointer with a partial-coverage qualifier. Due before the October monthly light run.
+- **Basis:** Scot decision 2026-09-17; LL-c667ec15e3
+- **Linked findings:** (none recorded)
 
 ## Fixed regulatory dates
 

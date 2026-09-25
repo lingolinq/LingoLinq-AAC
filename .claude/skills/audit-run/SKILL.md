@@ -123,7 +123,12 @@ ruby scripts/audit-merge.rb \
 ```
 
 The merge NEVER sets `verified-closed` and NEVER downgrades an existing finding. New findings
-land as `open`; regressions land as `open` with `regression: true` and a loud note for Scot.
+land as `open`. A regression (an id Scot closed, accepted, superseded or dispositioned that a finder
+re-surfaced) KEEPS its Scot-owned status and disposition: the merge only sets `regression: true` and
+appends a loud note (`scripts/audit-merge.rb`). So a regression still renders as closed in
+`FINDINGS.md`, the Notion page and every headline until Scot reopens it or records accepted risk.
+Surface every regression to Scot explicitly in Step 6 and get that decision before the register PR
+merges.
 
 > **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** This is a
 > whole-tree scan, so the audit pointer legitimately moves to the audited commit (a governance act:
@@ -191,9 +196,10 @@ Regenerate the one-way Notion page body from the register:
 `ruby scripts/compliance-notion-publish.rb` (then `--check`). It renders a PII-free summary
 (headline + open-findings table, file:line anchors only) to
 `audit-reports/notion/compliance-audit-page.md`, stamped with the audited SHA + run date and
-marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit" page in
-the Master Inbox is a **human-initiated one-way step** (no audit/compliance surface auto-sends
-externally) - see `audit-reports/notion/README.md`. The unattested Compliance Posture Report is
+marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit Posture"
+page under Compliance Home is a **human-initiated one-way step** (no audit/compliance surface
+auto-sends externally): a person runs `ruby scripts/compliance-notion-page-publish.rb` with
+`NOTION_TOKEN` set (`--dry-run` first) - see `audit-reports/notion/README.md`. The unattested Compliance Posture Report is
 never published here; it stays DRAFT until Scot signs.
 
 ## Related: promoting PR-time findings

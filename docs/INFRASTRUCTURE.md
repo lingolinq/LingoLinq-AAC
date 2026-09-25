@@ -46,8 +46,7 @@ Cloud Run service lingolinq-web
       +--> Memorystore Redis (lingolinq-prod-redis, TLS / rediss://)
       +--> AWS S3 + CloudFront (uploads and media)
 
-Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow; see the
-                                         `whenever` note under Background jobs)
+Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow, whenever)
 Cloud Run job lingolinq-migrate         (db:migrate before each web rollout)
 Cloud Run job lingolinq-scheduler       (scheduled rake tasks; see below)
 ```
@@ -57,11 +56,75 @@ Cloud Run job lingolinq-scheduler       (scheduled rake tasks; see below)
 | `lingolinq-web` | Cloud Run service | Rails web app behind the load balancer |
 | `lingolinq-worker` | Cloud Run worker pool | Resque workers |
 | `lingolinq-migrate` | Cloud Run job | runs migrations; also the recipe for one-off `rails runner` work (override args, `USER_KEY` required) |
-| `lingolinq-scheduler` | Cloud Run job | scheduled rake tasks. The job is deployed on every release; whether Cloud Scheduler triggers are attached must be verified live (`gcloud scheduler jobs list`) before assuming the tasks run |
+| `lingolinq-scheduler` | Cloud Run job | scheduled rake tasks. The job is deployed on every release; whether Cloud Scheduler triggers are attached must be verified live (`gcloud scheduler jobs list`) before assuming the tasks run. Missed-run detection: see "Scheduler liveness" below |
 | `lingolinq-prod-pg` | Cloud SQL PostgreSQL | private-IP only |
 | `lingolinq-prod-redis` | Memorystore Redis | TLS; app connects with `rediss://` |
 | `lingolinq-lb-ip` | global address | `136.68.41.122` |
 | Google-managed certificate | SSL | `app.lingolinq.com`; recreate a cert stuck in `FAILED_NOT_VISIBLE` before touching DNS |
+
+### Scheduler liveness (missed-run detection)
+
+Production alerting can see a scheduler run that FAILS. Until this was added it could not
+see one that never happened, and those are different events: `PROD Cloud Run job execution
+FAILED` filters on `metric.label.result="failed"`, and a run that does not happen produces
+no execution to count.
+
+That gap was not theoretical. From 2026-07-21 (the day before the GCP cutover, when the
+Render cron was suspended) to 2026-09-02, `scheduler:dispatch` was not run by the scheduler,
+and nothing alerted. The retention, purge, flush and expiry tasks it dispatches, including
+`Flusher.flush_deleted_users` (a GDPR Art. 17 concern), were not run by it either. Whether
+any ran by another route is not established; see
+`docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`. Findings
+`LL-3e36a18199` (closed on this control) and `LL-cbc8bc4211` (the impact assessment).
+
+The detector is a Cloud Monitoring **metric-absence** policy on
+`run.googleapis.com/job/completed_execution_count` for the `lingolinq-scheduler` job in `us-central1`,
+firing after 90 minutes with no completed execution, with a reminder every 24 hours while
+the incident stays open. Across 398 completed executions from 2026-09-02 to 2026-09-19 the
+longest gap between completions was 69.7 minutes, so 90 minutes leaves about 20 minutes of
+headroom. It is not immune to false alarms: the task timeout is 3000s, so one execution
+finishing more than about 30 minutes later than usual can trip it. The window is deliberately
+far shorter than a day, because the 06:00 UTC daily block carries the retention work and has
+no catch-up.
+
+```bash
+scripts/gcp/prod-scheduler-liveness-alert.sh --check   # read-only; exit 0 OK, 1 FAIL, 3 NOT YET ARMED
+scripts/gcp/prod-scheduler-liveness-alert.sh --apply   # create or update it (WRITES to prod)
+```
+
+`--check` compares the live policy with the committed definition in
+`scripts/gcp/prod-scheduler-liveness-alert.json`: condition, channel, runbook text and
+reminders. It requires exactly one policy with that exact name and an enabled channel.
+
+**Limits of metric absence (Google's documented behaviour).**
+
+- **It cannot fire until it has seen a data point after it was installed or last modified.**
+  Re-applying while the scheduler is already stopped leaves it silent. `--check` reports that
+  state as NOT YET ARMED.
+- **Metrics of deleted resources are not considered.** If the `lingolinq-scheduler` job itself
+  is deleted, this alert stays silent, and so does the FAILED policy. A job-independent second
+  control, for example on Cloud Scheduler attempt errors, is an open follow-up.
+
+**Delivery, proven 2026-09-18.** The policy was applied that day
+(`alertPolicies/16889750021495574173`). To prove the email channel it notifies actually
+delivers, a temporary threshold policy on the same channel was created to fire at once on the
+healthy state (a completed execution in the last hour). Scot confirmed the email arrived, and the
+temporary policy was deleted. The Cloud Monitoring API has no "send test notification" method,
+which is why a firing policy was used. All four production policies notify that same channel
+(`notificationChannels/2035727736516782378`), so this proves delivery for each of them at the
+channel level. `--check` fails if the channel has been changed since that proof
+(`DELIVERY_PROVEN_AT` in the script); re-prove delivery the same way, then update it.
+
+**Firing, proven 2026-09-19, without an outage.** A temporary copy of the policy with the same
+filter and aggregation, a 30-minute window and no notification channel was created at
+06:17:57Z. The last completed execution before it was at 06:02:56Z. The copy opened incident
+`0.oct1kkuk1c7n` at 06:42:53Z, while production was healthy and simply between hourly runs, and
+closed it at 06:24 past the next hour (07:06:24Z), after the 07:01:22Z execution completed. The
+temporary policy was then deleted. This shows the absence condition both fires and clears on this
+metric. It also showed that a data point written shortly before a policy change arms it, which is
+the rule `--check` uses. The filter was later scoped to `us-central1`. A read-only
+time-series query showed it selects the same single series with the same points, so the result
+carries over.
 
 Secrets are read from GCP Secret Manager by name (`--set-secrets` in the deploy
 workflow). The list each project must hold is in the workflow header. Authentication
@@ -110,26 +173,37 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
   changes.
 - Prefixes: `images/*`, `sounds/*`, `downloads/*`, `extras*/*`, `imports/*`.
 - CloudFront (`UPLOADS_S3_CDN`) fronts production uploads.
-- Other AWS integrations: SES (email), SNS (notifications), Elastic Transcoder (media),
+- Other AWS integrations: SES (email), SNS (notifications), MediaConvert (media; Elastic Transcoder was discontinued 2025-11-13),
   Bedrock (runtime AI; credentials provisioned separately from developer tooling).
+- MediaConvert (issues #966, #981): `lib/transcoder.rb` submits jobs only when
+  `MEDIACONVERT_ROLE_ARN` and `UPLOADS_S3_BUCKET` are set. `MEDIACONVERT_QUEUE_ARN` is
+  optional in nonprod (omit = account Default queue) and required in production so jobs
+  cannot land on the shared nonprod queue. `MEDIACONVERT_ENDPOINT` is optional. Completion
+  is EventBridge -> SNS -> `POST /api/v1/callback`. Subscription confirmation needs
+  `SNS_ARNS` (one topic ARN per environment; the deploy shape check rejects commas) and
+  `SNS_REGION` on the web service. Those GitHub vars are `APP_SNS_ARNS` and
+  `APP_SNS_REGION` in `deploy-cloudrun.yml`. Applied IAM documents live in
+  `scripts/gcp/iam/`. Staging uses `lingolinq-dev-uploads`; subscribe only the staging
+  host on the nonprod topic (staging and dev share one database). Convert_* still logs
+  and returns false when the Role is unset.
 
 ## Background jobs (Resque)
 
 Queues: `priority` (board downloads/exports, Progress actions, translations), `default`,
-`slow` (transcoding, large imports, button-set updates). Worker start command:
+`slow` (transcoding, large imports, button-set updates), `whenever` (overflow:
+`User#track_boards` under `any_queue_pressure?`, `LogSession#update_board_connections`
+under `queue_pressure?`, LessonPix batch image cache, daily `BoardContent.link_clones`).
+Worker start command:
 
 ```
-env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
+env QUEUES=priority,default,slow,whenever INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
 ```
 
-A fourth queue, `whenever`, exists in code: `app/models/user.rb` (`track_boards`) and
-`app/models/log_session.rb` (`update_board_connections`) enqueue onto it instead of `slow`
-when `RedisInit.queue_pressure?` is true, and `lib/uploader.rb` enqueues onto it for every
-batch upload (`batch ? :whenever : :slow`, no pressure check). The Procfile's `resque_slow`
-process drains it, but the Cloud Run entrypoint (`bin/docker-worker-entrypoint`) defaults
-`QUEUES` to the three above and the deploy workflow does not override it, so on Cloud Run
-nothing is known to drain `whenever`. Unverified live (check the Redis queue length and the
-worker service's `QUEUES` env); if confirmed, that is an operational defect, not a doc one.
+Keep `whenever` last so Resque prefers the other three. The Cloud Run entrypoint
+(`bin/docker-worker-entrypoint`) defaults `QUEUES` to this list; the deploy workflow
+does not override it. Do not set `QUEUES` by hand on the live worker pool: the next
+deploy uses `--set-env-vars`, which replaces the whole set. Local `Procfile`
+`resque_slow` uses the same four queues.
 
 Cloud Run sends SIGTERM with a short grace period; the BoyBand wrapper requeues
 in-flight jobs, so non-idempotent jobs can run twice.

@@ -227,17 +227,11 @@ export default Service.extend({
     if(!this) { return RSVP.resolve({ success: false }); }
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
-    
-    // Safely update tokens on persistence service
-    if(this.persistence && this.persistence.tokens) {
-      this.persistence.tokens[key] = true;
-    } else {
-      // Fallback if tokens object doesn't exist yet (though service assumes it might)
-      if(this.persistence) {
-        this.persistence.tokens = {};
-        this.persistence.tokens[key] = true;
-      }
+
+    if(this.persistence && !this.persistence.tokens) {
+      this.persistence.tokens = {};
     }
+    // Confirmed tokens[key]=true is set only after the server accepts, below.
 
     var access_token = store_data.access_token || "none";
     var url = '/api/v1/token_check?access_token=' + access_token + "&rnd=" + Math.round(Math.random() * 999999);
@@ -297,6 +291,9 @@ export default Service.extend({
         if(store_data.access_token && store_data.access_token !== 'none') {
           _this.set('invalid_token', true);
           _this.set('token_validated', false);
+          if(_this.persistence && _this.persistence.tokens) {
+            _this.persistence.tokens[key] = false;
+          }
           if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: true};
@@ -308,6 +305,9 @@ export default Service.extend({
       } else {
         _this.set('invalid_token', false);
         _this.set('token_validated', true);
+        if(_this.persistence && _this.persistence.tokens) {
+          _this.persistence.tokens[key] = true;
+        }
       }
       if(data.user_name) {
         _this.set('user_name', data.user_name);
@@ -395,7 +395,7 @@ export default Service.extend({
       // Check for token-related errors and handle appropriately
       if(data && data.result) {
         var result = data.result;
-        if(result.invalid_token || result.error === 'Invalid token' || result.error === 'Expired token') {
+        if(result.invalid_token || result.error === 'Invalid token' || result.error === 'Expired token' || result.error === 'Token needs refresh' || result.error === 'Disabled token') {
           if (_vb) {
             console.warn('[check_token] Token is invalid or expired', {
               invalid_token: result.invalid_token,
@@ -408,11 +408,6 @@ export default Service.extend({
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: false, needsReauth: true};
           }
-        } else if(result.error === 'Token needs refresh') {
-          if (_vb) { console.warn('[check_token] Token needs refresh'); }
-          _this.set('invalid_token', true);
-          _this.set('token_validated', false);
-          // Could implement token refresh logic here in the future
         }
       }
       if(data && data.result && data.result.error == "not online") {
@@ -591,7 +586,7 @@ export default Service.extend({
     var onlineForCheck = this.persistence ? this.persistence.get('online') : false;
     var tokens = (this.persistence) ? (this.persistence.tokens || {}) : {};
     
-    if(force_check_for_token || (tokens[key] == null && !isTesting() && onlineForCheck)) {
+    if(force_check_for_token || (tokens[key] !== true && !isTesting() && onlineForCheck)) {
       if(store_data.access_token || force_check_for_token) { 
         this.check_token(true);
       } else {
@@ -642,6 +637,45 @@ export default Service.extend({
     }
   },
 
+  // READ by app-state setup_controller find_user to decide force_logout.
+  // extras.js already calls force_logout when result.invalid_token is set and
+  // speak mode is off; this helper covers the Ember Data reject shapes that
+  // reach find_user without going through that extras branch.
+  is_logout_worthy_auth_error: function(err) {
+    if(!err) { return false; }
+    if(err.invalid_token || (err.result && err.result.invalid_token)) { return true; }
+    var err_msg = err.error || (err.result && err.result.error);
+    if(err.errors && err.errors[0] && !err_msg) {
+      err_msg = err.errors[0].error || err.errors[0].detail || err.errors[0];
+    }
+    var status = err.status || (err.result && err.result.status);
+    if(status != 400) { return false; }
+    return err_msg == 'Not authorized' ||
+           err_msg == 'Invalid token' ||
+           err_msg == 'Expired token' ||
+           err_msg == 'Token needs refresh' ||
+           err_msg == 'Disabled token';
+  },
+
+  // Clear in-memory + persisted auth without reload. Used when the
+  // force-logout modal is already able to open (setup_controller always
+  // calls modal.setup before find_user). Full invalidate() would reload
+  // or SPA-transition and hide that modal.
+  _tear_down_dead_session: function() {
+    this._logout_landing = true;
+    this.set('token_validated', false);
+    this.set('invalid_token', true);
+    this.set('isAuthenticated', false);
+    this.set('access_token', null);
+    this.set('auth_settings_fallback_data', null);
+    if(capabilities) {
+      capabilities.access_token = null;
+    }
+    try {
+      this.persist({});
+    } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }
+  },
+
   force_logout: function(message) {
     var full_invalidate = true;
     if(full_invalidate) {
@@ -650,6 +684,7 @@ export default Service.extend({
         this.invalidate(true);
       } else {
         modal.open('force-logout', {message: message});
+        this._tear_down_dead_session();
       }
     } else {
       var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};

@@ -2495,6 +2495,36 @@ header:has(#normal_mode) #inner_header {
   padding-right: 12px !important;
 }
 
+/* Containing block for the absolutely-positioned board-intro button
+   (`.extra-btn`, templates/application.hbs). That control used to be a CHILD of
+   the sentence bar, which anchors it via `.button_list { ... position: relative }`
+   further down this file. It had to move out of the bar to stop nesting a
+   role="button" inside an <a href> (no-nested-interactive). Without a containing
+   block here the next positioned ancestor is the FIXED header: measured +776px
+   left / +17.5px top on dev, landing it beside the account avatar.
+
+   DELIBERATELY UNPREFIXED. The rest of the speak-bar styling is scoped
+   `#inner_header:has(#speak)`, but this one declaration must not be: an engine
+   without `:has()` support would drop the whole block and take the anchor with
+   it, reproducing the +776px bug, and this repo ships Cordova (Android System
+   WebView) and Electron alongside the browserslist targets in config/targets.js.
+   Before the control was un-nested the bar anchored it without needing `:has()`,
+   so scoping this would make the fix strictly more fragile than what it replaced.
+   The eval header carries the same declaration, also without `:has()`, in
+   `#speak.md-eval-header .speak-bar__button-list-wrap` (added 2026-05-04,
+   0e42a9471, for the quick-assessment layout) -- which is why eval mode never
+   showed this bug. This matches that shape.
+
+   This also matches the wrap in templates/brief.hbs, which has no absolutely
+   positioned descendants, so the rule is inert there.
+
+   Guarded by tests/integration/speak-bar-anchor-test.js: delete this, or re-scope
+   it behind a selector the test does not reproduce, and that test goes red. No
+   other CI gate can see it. */
+.speak-bar__button-list-wrap {
+  position: relative;
+}
+
 /* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap.
    wrap min-height + chip height + image height are driven by CSS
    custom properties so the bar scales with the user's
@@ -13241,7 +13271,7 @@ video.button_image {
   overflow-y: auto;
 }
 
-/* "OR" separator between the three destination methods — mirrors the
+/* "OR" separator between the destination methods — mirrors the
    create-board-new chooser (.nb-create-chooser__or): centered uppercase OR
    with a short rule on each side. */
 #button_settings .md-bs-or {
@@ -13328,6 +13358,27 @@ video.button_image {
 }
 #button_settings .md-bs-choice__label {
   flex: 0 0 auto;
+}
+#button_settings .md-bs-link-by-key {
+  margin-top: 4px;
+}
+#button_settings .md-bs-link-by-key__row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+#button_settings .md-bs-link-by-key__input {
+  flex: 1 1 auto;
+  min-height: 50px;
+}
+#button_settings .md-bs-link-by-key__submit {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 8.5rem;
+  padding: 0 18px;
+}
+#button_settings .md-bs-link-by-key__results {
+  margin-top: 10px;
 }
 
 /* Footer */
@@ -74314,6 +74365,10 @@ span.md-board-detail-modeling-btn--badge {
   color: $indigo;
   line-height: 1.2;
   text-align: center;
+  /* Same trap as prediction labels: the chip is a fixed-height column, the
+     symbol may flex-shrink, and overflow:hidden on a parent zeroes the flex
+     min-size. Do not shrink: the word must stay visible next to its picture. */
+  flex-shrink: 0;
 }
 .md-board-detail-sentence-bar__placeholder {
   opacity: 0.5;
@@ -74697,7 +74752,13 @@ span.md-board-detail-modeling-btn--badge {
      here would silently win and kill the loading cue. */
   width: 100%;
   flex: 1 1 0;
-  min-height: 0;
+  /* Floor, not 0. The label is flex-shrink:0 so the word cannot vanish; with
+     min-height:0 here a dense board (Vocal Flair 94, ~40px tiles) left the
+     symbol no leftover and painted text-only tiles. 16px is a pixel floor so it
+     still resolves when the tile height is indefinite (percentage min-height
+     would be 0 there). flex:1 still grows the glyph on taller tiles. */
+  min-height: 16px;
+  flex-shrink: 0;
   height: auto;
   max-width: 100%;
   /* No dashed frame on the RAIL. The frame is the in-bar placement's "this is a
@@ -74786,6 +74847,7 @@ span.md-board-detail-modeling-btn--badge {
   max-height: 3.45em;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
   min-width: 0;
   /* CONSTRAINING THE BOX is what makes the clip mean anything, and it is load-bearing.
      The tile is a COLUMN flex container with align-items:center, so the label's cross size
@@ -74877,7 +74939,8 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction-img {
   width: 100%;
   flex: 1 1 0;
-  min-height: 0;
+  min-height: 16px;
+  flex-shrink: 0;
   height: auto;
   max-width: 100%;
   /* No dashed frame, for the same reason the rail drops it: the panel's own glass surface is
@@ -74900,6 +74963,7 @@ span.md-board-detail-modeling-btn--badge {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
   font-size: var(--prediction-label-font, clamp(13px, 26cqw, var(--bd-button-text-size, 15px)));
 }
 /* EMPTY STATE — the rail's, rotated. The rail stacks glyph + copy above its ghosts; here they
@@ -75118,6 +75182,10 @@ span.md-board-detail-modeling-btn--badge {
      words track the user's BUTTON text-size preference on every screen size
      and in both prediction surfaces (in-bar tiles + the vertical rail),
      instead of the sentence-bar size class. */
+  /* overflow:hidden on the rail/below-bar copies zeroes the flex min-size, so a
+     flex:1 symbol can shrink this to nothing. Do not shrink: the word must stay
+     visible even when a symbol is present. */
+  flex-shrink: 0;
   font-size: clamp(9px, 1.5vw, var(--bd-button-text-size, 15px));
   font-weight: 500;
   /* Brighter prediction text (was 0.7) so word predictions read
@@ -83113,6 +83181,18 @@ span.md-board-detail-modeling-btn--badge {
    support or image-load timing. The class is only added when btn.hide_label is set. */
 .md-board-detail-symbol-card__label.hide-label {
   display: none;
+}
+/* In-grid word-prediction slots (`vocalization: ':suggestion'`) must always
+   show the current word, matching the rail/below-bar rule that a symbol-only
+   layout must not render blank prediction tiles. hide_label and text-pos-none
+   stay in force for ordinary vocabulary buttons. */
+.md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label,
+.md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label.hide-label {
+  display: -webkit-box;
+}
+.md-board-detail-grid--text-pos-none .md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label,
+.md-board-detail-grid--text-pos-none .md-board-detail-symbol-card--suggestion-slot .md-board-detail-symbol-card__label-input {
+  display: -webkit-box !important;
 }
 /* When "hide the label" is set the picture becomes the button: drop the 4px card
    padding so the symbol grows as large as it can in the space it no longer shares

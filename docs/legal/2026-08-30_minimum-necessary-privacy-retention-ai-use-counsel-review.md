@@ -15,6 +15,16 @@
 **Repository state verified at:** `origin/staging` commit `8afabd1d2cc37fd88013eb738143758096f52c50`
 **Register status:** unattested `draft` row in `audit-reports/DOCUMENT-REGISTER.json`
 **Review cycle:** on receipt of counsel's response
+**Addendum (pointer added 2026-09-18):** gap row 19 of section 14 records `LL-c0b3d59f58` as
+verified closed; that closure was retracted on 2026-09-17. The correction is carried by
+`docs/legal/2026-09-18_counsel-review-addendum-closure-retraction.md` (`DOC-c6f1b9fac6`),
+which accompanies this memorandum and supersedes the 2026-09-17 addendum (`DOC-c9c70f5702`,
+attested 2026-09-18, frozen). That earlier addendum states that this memorandum is not
+edited; that was accurate when it was attested, and this pointer block is the only later
+change, first inserted by PR #1013 and retargeted by PR #1015 on the same day, under decision
+item 7 of the attested 2026-09-17 status snapshot (`DOC-f6365ba893`). This memorandum was
+last substantively revised on 2026-09-15 (PR #969, the cadence corrections in section 4); no
+line other than this entry changed in the 2026-09-18 edits.
 
 ---
 
@@ -170,7 +180,7 @@ counsel to classify this material.
 **IMPLEMENTED.** Sixteen retention or deletion mechanisms were found and read in source. The
 significant ones:
 
-| Mechanism | What it deletes | Window | Scheduled | Evidence |
+| Mechanism | What it deletes | Window | Configured cadence | Evidence |
 |---|---|---|---|---|
 | `DataPolicyEnforcer.enforce_retention!` | `LogSession` rows of type `session`, `note`, `assessment`, `eval`, `journal`, plus S3 payloads and versions | Org-configured; **no default** | Daily | `lib/data_policy_enforcer.rb:20-41`; `lib/tasks/scheduler.rake:136-140` |
 | `AiApiLog.redact_old_ip_addresses!` | Sets `ip_address` to `[REDACTED]` (redaction, not deletion) | 90 days | Daily | `app/models/ai_api_log.rb:225-229` |
@@ -178,8 +188,10 @@ significant ones:
 | `User.flush_old_versions` | PaperTrail change history, above a 300-row threshold | LogSession 1 week, User 1 month, Board 6 months | Daily | `app/models/user.rb:4327-4338`; `lib/tasks/scheduler.rake:127-134` |
 | Account hard delete | User, logs, boards, devices, media, AI logs, versions, with S3 cascade | 36-hour grace after confirmed request | Daily sweep | `lib/flusher.rb:317-323, 363-434`; `app/controllers/api/users_controller.rb:466-481` |
 | Inactivity deletion | Schedules account deletion after three warnings | **12 months** | Daily | `app/models/concerns/subscription.rb:1176-1245` |
-| COPPA export-then-delete | Exports the account, then schedules hard delete | 90-day lookback | Daily | `app/models/user.rb:810-895` |
+| COPPA offboarding expiration sweep | Would export the account, then schedule hard delete | 90-day lookback | Daily **(invoked, but `:disabled` by default; see note below)** | `app/models/user.rb:810-895`; `app/workers/offboarding_coppa_expiration_worker.rb` |
 | `DeletedBoard` purge | Board plus images and sounds | 300 days | Daily | `app/models/deleted_board.rb:63-73` |
+
+> **Cadence note, added 2026-09-14.** The column above states the cadence CONFIGURED in code, not observed execution. The rows marked Daily run inside the `hour == 6` UTC daily block of `rake scheduler:dispatch`, so one dispatch per day reaches them, not twenty-four. The logs-only export is request-initiated and is not scheduler-dispatched at all. Account deletion on user request is also request-INITIATED: the request sets `schedule_deletion_at`, and only the subsequent deletion PROCESSING is scheduler-dispatched, so an interruption delays processing without preventing a user from making the request. Production scheduled dispatch was interrupted from 2026-07-21 to 2026-09-02 (finding `LL-3e36a18199`; open when written, verified-closed 2026-09-18 on its liveness element, with the interruption impact assessment now carried by `LL-cbc8bc4211`); whether any of these ran by another route in that window has not been established. Captures dated 2026-09-14 record one run of the daily block on each of the twelve UTC dates 2026-09-03 through 2026-09-14. Six of the eleven daily tasks were inspected; the remainder were not queried. Each of the six inspected task summaries appeared once per UTC date and reported zero for its stated result. These counts do not establish stored population size or contents, do not verify every daily task, and do not evidence completion of downstream asynchronous work. For the COPPA worker, disabled mode was logged 2026-09-04 through 2026-09-14; the 2026-09-03 entry reports zero scheduled exports and deletions but does not identify the mode, and that entry alone does not establish whether candidate processing occurred on that date. **Three mechanisms must not be conflated. Two of them are represented in the table above, and the third is deliberately excluded from it:** (1) the COPPA offboarding expiration SWEEP, the row above, scheduler-dispatched and `:disabled` by default; (2) account deletion on USER REQUEST, which is request-initiated, with only its deletion PROCESSING scheduler-dispatched (`app/controllers/api/users_controller.rb:466-481`). That processing is the existing "Account hard delete" row above, and the row is NOT exclusive to user request: it is the shared sweep over every account whose `schedule_deletion_at` has passed, and that field is also set by the COPPA paths at `app/models/user.rb:831` and `:916` and by the inactivity path at `app/models/concerns/subscription.rb:1234`, so mechanism (1) terminates in the same row. Finally, (3) is the supervisor-permissioned LOGS-ONLY EXPORT at `app/controllers/api/logs_controller.rb:332-362`, which deletes nothing and is therefore deliberately absent from a table of deletion mechanisms. `lib/exporter.rb:72-97`'s full-account export routine has the offboarding worker as its only caller. An explicitly logged disabled mode indicates invocation without expiration processing. See `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`.
 
 Five observations follow. Each is a statement about code.
 
@@ -229,16 +241,16 @@ Verified by grep at the audited commit:
 | `ApiCall` request-row purge | Code exists at a 2-month window and **has no caller**, while `ApiCall.log` runs on every request (`app/controllers/application_controller.rb:84`). The table grows unbounded. |
 | Account inactivity "2 years" (`DATA_RETENTION.md:28`) | Code implements **12 months**. |
 
-### 4.4 The EU five-year purge is wired, correct, and deletes nothing
+### 4.4 The EU five-year purge is wired and correct, and matched no production row at the last audited read
 
 `AiApiLog.purge_old_eu_logs!` deletes rows where `jurisdiction = 'EU'` and
 `created_at < 5.years.ago` (`app/models/ai_api_log.rb:243-247`), verified end to end by
-`spec/models/ai_api_log_spec.rb:550-586`. It matches no production rows for two independent
+`spec/models/ai_api_log_spec.rb:550-586`. As of the 2026-08-23 audited production read it matched no production row, for two independent
 reasons: the `jurisdiction` column was created 2026-06-21, so no stamped row can be five years
 old before 2031, and the stamp is written only where the resolver confirms an EU user, which as
 of the last audited read was true of no production account.
 
-This is a working control with no eligible data, not a broken control. Whether the five-year
+On that read this was a working control with no eligible data, not a broken control. The stored population has not been re-queried since. Whether the five-year
 window has any legal basis is a separate matter, addressed at section 10. The in-repo comment at
 `lib/tasks/scheduler.rake:147-186` describes this accurately; `DATA_RETENTION.md:33`, which still
 says "enforced" and "now functional," does not.
@@ -315,10 +327,11 @@ narration writes the **full, untruncated clinical narrative** into `response_sum
 (`lib/eval_narrator.rb:219`); nothing truncates it at write time.
 
 A correction to a control we have described elsewhere: the 90-day IP redaction job operates on a
-column **the AI call sites never populate**. `AiApiLog.log_ai_call` accepts an `ip_address`
-parameter (`app/models/ai_api_log.rb:91`), but none of the four in-app call sites passes one. The
-redaction is real and scheduled; it currently has nothing to redact. The same is true of
-`organization_global_id`.
+column that **scoped inspection finds no current AI call site populating**. `AiApiLog.log_ai_call`
+accepts an `ip_address` parameter (`app/models/ai_api_log.rb:91`), and inspection at `4104b657b` of the
+three files that reach it finds no reference to `ip_address` in any of them. Other write paths have not
+been exhaustively inspected. The
+redaction is **implemented and configured for scheduled execution**; see the cadence note above for what it did and did not run. **CORRECTED 2026-09-14:** this passage previously read "it currently has nothing to redact", which the evidence does not support. Scoped inspection at commit `4104b657b` finds that `ip_address` does not appear in any of the three files that reach `AiApiLog.log_ai_call` (`lib/ai_board_generator.rb:679`, `lib/ai_word_predictor.rb:408`, `lib/eval_narrator.rb:314`), together covering the `board_generation`, `focus_word_generation`, `word_prediction` and `eval_narration` request types. Other write paths have not been exhaustively inspected; the model assigns the parameter when supplied (`app/models/ai_api_log.rb:91`) and `AiApiLog.redact_old_ip_addresses!` writes the column directly (`:225-229`). A dated population observation does exist: at the 2026-08-17 live re-verification recorded in `docs/legal/2026-08-25_ai-data-flow-classification.md`, `ip_address` was null on all 64 `AiApiLog` rows then present. The table has not been re-queried since, so the current population is unknown. Separately, on each observed execution 2026-09-03 through 2026-09-14 the update reported zero affected rows, which does not establish whether qualifying rows existed at other times. The same scoping applies to `organization_global_id`.
 
 **On consent, an orphaned control.** A versioned verifiable-consent mechanism exists in full:
 `ai_consent_granted?`, `grant_ai_consent!`, `revoke_ai_consent!`, versioned disclosures, and
@@ -624,7 +637,7 @@ framing), `privacy.hbs:76` (question 19), `privacy.hbs:98` and `en.yml:189` (IP 
 | "Today none of these features send any user content to an AI vendor, because the Bedrock path is inactive" | `app/frontend/app/templates/privacy.hbs:67` (**live, user-facing**) | Correct or remove. No inactive switch exists and production calls are recorded. See question 21. |
 | The "Private Thoughts" guarantee: "we never log your private conversations"; "never logs, collects, or analyzes verbatim transcripts" | `privacy.hbs:24,35` (**live**) | Correct (done in PR #888). False at the audited commit: `lib/ai_word_predictor.rb:165` writes up to 200 characters of the composed sentence to `ai_api_logs` in plaintext (section 4). Its correction discloses a previously undisclosed collection; see question 32. |
 | A separate, second AI data-sharing consent is asked for | `privacy.hbs:76` (**live**) | Resolve with question 19: wire the consent mechanism, or correct the representation. |
-| IP addresses on AI records are redacted after 90 days, presented as in effect | `privacy.hbs:98` (**live**), `en.yml:189` (**live**, `/ai_consent/disclosures/1`) | Correct or build. No call site passes `ip_address` to `AiApiLog.log_ai_call`, so the scheduled redaction has nothing to redact (section 4). |
+| IP addresses on AI records are redacted after 90 days, presented as in effect | `privacy.hbs:98` (**live**), `en.yml:189` (**live**, `/ai_consent/disclosures/1`) | Correct or build. None of the three files reaching `AiApiLog.log_ai_call` references `ip_address`. Other write paths have not been exhaustively inspected. At the 2026-08-17 live re-verification `ip_address` was null on all 64 `AiApiLog` rows then present; the table has not been re-queried since, so the current population is unknown (section 4). |
 | Communication logs have a "3 years default" retention | `DATA_RETENTION.md:29` | Withdraw. No default exists. Replace once the proposed 24-month default is built. |
 | Change history retained 6 years via cold-storage archival | `DATA_RETENTION.md:37` | Withdraw. The job does not exist; the code deletes those versions after weeks. |
 | `ClusterLocation` 90-day nightly trim; children's age-18 sweeper; `LogSnapshot` cascade; "raw events 2 years"; 2-year inactivity | `DATA_RETENTION.md:28, 30, 38, 40, 50` | Withdraw or build. Section 4.3. |
@@ -780,7 +793,7 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 10 | COPPA and EU AI gates pass when the subject user is not resolvable | Gates should fail closed | new |
 | 11 | Article 50(2) marking not persisted onto saved, exported, or shared boards | Marking obligation in force since 2026-08-02; the retrofit grace period for pre-existing generative systems appears to end **2026-12-02** | new, **dated** |
 | 11a | The versioned verifiable-AI-consent mechanism has no runtime caller | A built consent control that nothing invokes; the notice promises consent the gates do not separately collect | new |
-| 11b | No AI call site writes `ip_address` or `organization_global_id`, so the 90-day IP redaction has nothing to redact | Not a privacy exposure, but a control we have described as active that is inert | new |
+| 11b | Inspection of the three files reaching `AiApiLog.log_ai_call` finds no reference to `ip_address` or `organization_global_id`. Other write paths have not been exhaustively inspected. At the 2026-08-17 live re-verification `ip_address` was null on all 64 `AiApiLog` rows then present; the table has not been re-queried since, so the current population is unknown | A control we describe as active may be operating on an empty or unknown population; the question for counsel stands either way | new |
 | 12 | No accounting of disclosure for supervisor and org-manager reads of utterance logs | If an accounting obligation applies, this is where it fails | new |
 | 13 | `PredictionEntry` rows survive account deletion | Erasure incomplete | `LL-e8614c103f` |
 | 13a | `AiFocusWordSet` rows persist after account erasure; scrubbed prompts and seed IDs remain plaintext | Erasure incomplete; retention schedule and account-erasure plans omit a live user-linked store | `LL-8990c53bad` |

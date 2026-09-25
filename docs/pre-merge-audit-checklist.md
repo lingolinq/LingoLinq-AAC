@@ -534,7 +534,7 @@ For each match, you must either justify the removal (the guard is redundant beca
 
 **🟡 WARN — For every external service this code path touches, verify graceful degradation.**
 
-LingoLinq depends on Postgres, Redis, S3 (extra_data, file uploads), SES (email), SNS (notifications), Elastic Transcoder, Stripe, Google APIs (Places, Translate, Maps, TTS), and optionally OpenSymbols. Plus the WebSocket server. Any new code that hits any of these must answer:
+LingoLinq depends on Postgres, Redis, S3 (extra_data, file uploads), SES (email), SNS (notifications), MediaConvert, Stripe, Google APIs (Places, Translate, Maps, TTS), and optionally OpenSymbols. Plus the WebSocket server. Any new code that hits any of these must answer:
 
 | Failure | What should happen | Verify |
 |---|---|---|
@@ -676,19 +676,21 @@ If any of these questions makes you say "I don't know" or "I haven't thought abo
 ### 4.1 Branch name
 
 **🔴 BLOCK** — Per CLAUDE.md "Branching":
-- Type prefix required: `fix/`, `feat/`, `chore/`, `docs/`, `perf/`, `refactor/`, `test/`, `compliance/`, `security/`
+- Type prefix required: `fix/`, `feat/`, `chore/`, `docs/`, `perf/`, `refactor/`, `test/`, `compliance/`, `security/`; plus `hotfix/` for the production hotfix flow and `release/` for a release PR
 - Developer handle: `melissa`, `scot`, `traci`, `dominic`, etc.
-- Form: `<type>/<dev>-<kebab-description>` OR `<dev>/<type>/<kebab-description>`
+- Form: Scot's branches are always `<type>/scot-<kebab-description>`, optionally followed by the launcher's `-<8-hex-token>`. Teammates use `<type>/<dev>-<kebab-description>` or `<dev>/<type>/<kebab-description>`; both pass. Release branches carry no handle (`release/develop-into-staging-<YYYY-MM-DD>`, `release/staging-into-main-<YYYY-MM-DD>`)
+- Never rename an existing branch to fit either shape
 
 ```bash
 git branch --show-current
-# If output doesn't match the pattern, rename before opening PR:
+# Only a NEW branch that has not been pushed or opened as a PR may be renamed:
 # git branch -m <new-name>
+# Never rename a launcher-created branch, a legacy-form branch, or one with an open PR.
 ```
 
 ### 4.2 Target branch
 
-**🔴 BLOCK** — PRs target `develop`, NOT `main` or `staging`. (Promotion PRs from `develop` to `staging`, and release PRs from `staging` to `main`, are separate operations.)
+**🔴 BLOCK** — PRs target `develop`, NOT `main` or `staging`. (Promotion PRs from a `release/develop-into-staging-*` freeze of `develop` to `staging`, and release PRs from `staging` to `main`, are separate operations.)
 
 ### 4.3 PR description matches the actual diff (claims audit)
 
