@@ -4,7 +4,7 @@ import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
-
+import apiErrorMessage from '../../utils/api_error_message';
 export default Controller.extend({
   persistence: service('persistence'),
 
@@ -72,7 +72,7 @@ export default Controller.extend({
 
   categoryOptions: computed('categories.[]', function() {
     var cats = this.get('categories') || [];
-    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', "All categories")}];
+    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', 'All categories')}];
     cats.forEach(function(c) {
       options.push({id: c, label: c});
     });
@@ -84,16 +84,16 @@ export default Controller.extend({
     if (scopeType === 'group') {
       var scopeId = this.get('scopeId');
       if (scopeId === 'canary') {
-        return i18n.t('system_settings_features_hint_canary', "Set which features are granted site-wide to users with the canary flag.");
+        return i18n.t('system_settings_features_hint_canary', 'Set which features are granted site-wide to users with the canary flag.');
       }
       if (scopeId === 'beta') {
-        return i18n.t('system_settings_features_hint_beta', "Set which features are available site-wide for per-user beta opt-in.");
+        return i18n.t('system_settings_features_hint_beta', 'Set which features are available site-wide for per-user beta opt-in.');
       }
     }
     if (scopeType === 'org') {
-      return i18n.t('system_settings_features_hint_org', "Set which features are enabled for users in the selected organization. Per-user beta opt-in can still enable additional features from the beta pool.");
+      return i18n.t('system_settings_features_hint_org', 'Set which features are enabled for users in the selected organization. Per-user beta opt-in can still enable additional features from the beta pool.');
     }
-    return i18n.t('system_settings_features_hint_default', "Set the site-wide default features enabled for all organizations that do not have a custom list.");
+    return i18n.t('system_settings_features_hint_default', 'Set the site-wide default features enabled for all organizations that do not have a custom list.');
   }),
 
   inheritedLabel: computed('inheritedFrom', 'scopeType', function() {
@@ -102,32 +102,32 @@ export default Controller.extend({
       return null;
     }
     if (inherited === 'code_default') {
-      return i18n.t('system_settings_inherited_code_default', "Using code default");
+      return i18n.t('system_settings_inherited_code_default', 'Using code default');
     }
     if (inherited === 'site_default') {
-      return i18n.t('system_settings_inherited_site_default', "Using site default");
+      return i18n.t('system_settings_inherited_site_default', 'Using site default');
     }
     if (inherited === 'site_custom') {
-      return i18n.t('system_settings_inherited_site_custom', "Customized site setting");
+      return i18n.t('system_settings_inherited_site_custom', 'Customized site setting');
     }
     if (inherited === 'org_custom') {
-      return i18n.t('system_settings_inherited_org_custom', "Custom organization override");
+      return i18n.t('system_settings_inherited_org_custom', 'Custom organization override');
     }
     return null;
   }),
 
   resetButtonLabel: computed('scopeType', function() {
     if (this.get('scopeType') === 'org') {
-      return i18n.t('system_settings_reset_site_default', "Reset to site default");
+      return i18n.t('system_settings_reset_site_default', 'Reset to site default');
     }
-    return i18n.t('system_settings_reset_code_default', "Reset to code default");
+    return i18n.t('system_settings_reset_code_default', 'Reset to code default');
   }),
 
   resetConfirmMessage: computed('scopeType', function() {
     if (this.get('scopeType') === 'org') {
-      return i18n.t('system_settings_features_reset_confirm', "Reset feature settings to inherit the site default?");
+      return i18n.t('system_settings_features_reset_confirm', 'Reset feature settings to inherit the site default?');
     }
-    return i18n.t('system_settings_features_reset_code_confirm', "Reset feature settings to the code default?");
+    return i18n.t('system_settings_features_reset_code_confirm', 'Reset feature settings to the code default?');
   }),
 
   getOrgId: function() {
@@ -191,11 +191,11 @@ export default Controller.extend({
         data: {org_id: orgId, enabled_features: enabled}
       }).then(function() {
         _this.set('saving', false);
-        modal.success(i18n.t('system_settings_features_saved', "Feature settings saved."));
+        modal.success(i18n.t('system_settings_features_saved', 'Feature settings saved.'));
         _this.loadFeatures();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', "Could not save settings."));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     },
 
@@ -208,11 +208,11 @@ export default Controller.extend({
       this.set('saving', true);
       this.persistence.ajax('/api/v1/system_features?org_id=' + encodeURIComponent(orgId), {type: 'DELETE'}).then(function() {
         _this.set('saving', false);
-        modal.success(i18n.t('system_settings_features_reset_done', "Feature settings reset."));
+        modal.success(i18n.t('system_settings_features_reset_done', 'Feature settings reset.'));
         _this.loadFeatures();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', "Could not save settings."));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     }
   }
