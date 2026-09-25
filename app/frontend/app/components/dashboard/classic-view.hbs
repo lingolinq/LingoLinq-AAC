@@ -77,8 +77,12 @@
            sorting on the visible text would reshuffle the rail at runtime.
            The identity/avatar button is not in this list; it sits above the rail as
            `.ch-rail__identity` and is deliberately excluded.
-           Subjects, in order: Create a New Board, Home Board, Logging, Organization
-           Management, Organizations, Subscription, Supervisors, Sync.
+           Subjects, in order: Home Page, then Organizations (both pinned ahead of the
+           alphabetical run, out of alphabetical order --
+           requested 2026-09-24), then Create a New Board, Home Board, Logging, Subscription,
+           Supervisors, Sync.
+           (Organization Management was in this list until it was removed on 2026-09-24 -- see
+           the note where it stood.)
            (Rooms was in this list until it was removed later the same day -- see the note
            where it stood.) --}}
 
@@ -99,6 +103,66 @@
            82a5b2dfc:templates/index/authenticated-new.hbs lines 1-310, which contain
            no `known_supervisees` reference. Listing them here too would duplicate
            the tab. --}}
+
+      {{#unless this.onHomePage}}
+        {{!-- HOME PAGE -- FIRST ROW UNDER THE DIVIDER (requested 2026-09-24: "add a Home Page
+             card as the first button under the divider").
+             THE RAIL IS NOT ONLY THE DASHBOARD'S any more. `dashboard/classic-rail` renders it on
+             the Organizations page too, and from there Basic had no labelled way back to the
+             dashboard -- the identity card above goes to the ACCOUNT page, which is a different
+             place. This is the Basic counterpart of the Modern account rail's own Home Page row
+             (components/account-rail.hbs:40), and it takes that row's route, label and two-tone
+             house glyph so the two rails name the same destination the same way.
+             UNGATED, unlike every other row here: every role has a home page.
+             `@route="index"` rather than `user.home` for the same reason the Modern row uses it --
+             `index` resolves to the signed-in user's own dashboard without this rail having to know
+             whose name to put in the URL. --}}
+        <li class="ch-rail__item">
+          <LinkTo @route="index" class="ch-row ch-row--minor">
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg>
+            </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Home" key="home"}}</span>
+            <span class="ch-row__body">
+              <span class="ch-row__title">{{t "Home Page" key="home_page"}}</span>
+            </span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </LinkTo>
+        </li>
+      {{/unless}}
+
+      {{!-- ORGANIZATIONS (added 2026-09-23). The rail already linked to INDIVIDUAL orgs
+           below, but never to the list itself, so someone managing several had no way here
+           to reach the Organizations page — only the org they happened to click. This is the
+           Basic-view counterpart of the Modern pillnav's Organizations pill
+           (components/user-pill-nav.hbs).
+           GATED ON `has_management_responsibility`, the same gate the Modern pillnav uses, so
+           the two views agree about who sees it. It was briefly widened to include supervisors
+           and that was wrong: `/organizations/:id/people` wraps its entire contents in
+           `permissions.edit`, so a supervisor following this row lands on "No information
+           available". Supervisors get the Rooms row below instead, which goes somewhere they
+           can actually use.
+           FIRST IN THE RAIL as of 2026-09-24 (requested: "Position Organizations above Create
+           a new board on the panel"). It is the one exception to the alphabetical ordering
+           described at the top of this list, and deliberately so -- for an org manager this is
+           the rail's primary destination, and alphabetical order buried it in the middle. --}}
+      {{#if this.app_state.currentUser.has_management_responsibility}}
+      <li class="ch-rail__item">
+        <LinkTo @route="organizations" class="ch-row ch-row--minor">
+          <span class="ch-row__icon" aria-hidden="true">
+            {{!-- Same building glyph the per-org rows below use, so the list and its entries
+                 read as one family. --}}
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Orgs" key="classic_short_orgs"}}</span>
+          <span class="ch-row__body">
+            <span class="ch-row__title">{{t "Organizations" key="organizations"}}</span>
+            <span class="ch-row__sub">{{t "Your organizations, and the rooms inside them" key="classic_organizations_sub"}}</span>
+          </span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      {{/if}}
 
       {{!-- Available to every role in the original. --}}
       <li class="ch-rail__item">
@@ -191,70 +255,16 @@
       </li>
 
 
-      {{!-- ORG MANAGER / ADMIN — one chip per managed org when there are several,
-           a single labelled row when there is only one (the original's split). --}}
-      {{#if this.app_state.currentUser.has_management_responsibility}}
-        {{#if this.app_state.currentUser.manages_multiple_orgs}}
-        <li class="ch-rail__item ch-rail__item--wide">
-          <div class="ch-group">
-            <h3 class="ch-group__label">{{t "Organization Management" key="org_management"}}</h3>
-            <div class="ch-chips">
-              {{#each this.app_state.currentUser.managed_orgs as |org|}}
-                <LinkTo @route="organization" @model={{org.id}} class="ch-chip">{{org.name}}</LinkTo>
-              {{/each}}
-            </div>
-          </div>
-        </li>
-        {{else}}
-          {{#each this.app_state.currentUser.managed_orgs as |org|}}
-          <li class="ch-rail__item">
-            <LinkTo @route="organization" @model={{org.id}} class="ch-row ch-row--minor">
-              <span class="ch-row__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
-              </span>
-              <span class="ch-row__short" aria-hidden="true">{{t "Org" key="classic_short_org"}}</span>
-              <span class="ch-row__body">
-                <span class="ch-row__title">{{t "Organization Management" key="org_management"}}</span>
-                <span class="ch-row__sub">{{org.name}}</span>
-              </span>
-              <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
-            </LinkTo>
-          </li>
-          {{/each}}
-        {{/if}}
-      {{/if}}
-
-      {{!-- ORGANIZATIONS (added 2026-09-23). The rail already linked to INDIVIDUAL orgs
-           below, but never to the list itself, so someone managing several had no way here
-           to reach the Organizations page — only the org they happened to click. This is the
-           Basic-view counterpart of the Modern pillnav's Organizations pill
-           (components/user-pill-nav.hbs).
-           GATED ON `has_management_responsibility`, the same gate the Modern pillnav uses, so
-           the two views agree about who sees it. It was briefly widened to include supervisors
-           and that was wrong: `/organizations/:id/people` wraps its entire contents in
-           `permissions.edit`, so a supervisor following this row lands on "No information
-           available". Supervisors get the Rooms row below instead, which goes somewhere they
-           can actually use.
-           The rail is ordered ALPHABETICALLY by subject (see the note at the top of the
-           list), which puts this AFTER "Organization Management" rather than before it. --}}
-      {{#if this.app_state.currentUser.has_management_responsibility}}
-      <li class="ch-rail__item">
-        <LinkTo @route="organizations" class="ch-row ch-row--minor">
-          <span class="ch-row__icon" aria-hidden="true">
-            {{!-- Same building glyph the per-org rows below use, so the list and its entries
-                 read as one family. --}}
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
-          </span>
-          <span class="ch-row__short" aria-hidden="true">{{t "Orgs" key="classic_short_orgs"}}</span>
-          <span class="ch-row__body">
-            <span class="ch-row__title">{{t "Organizations" key="organizations"}}</span>
-            <span class="ch-row__sub">{{t "Your organizations, and the rooms inside them" key="classic_organizations_sub"}}</span>
-          </span>
-          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
-        </LinkTo>
-      </li>
-      {{/if}}
-
+      {{!-- NO ORGANIZATION MANAGEMENT ROW HERE (removed 2026-09-24, requested: "remove
+         organization management from ch-rail, since we already have organizations as a button
+         there").
+         It used to render one chip per managed org, or a single "Organization Management" row
+         when there was only one, both linking to `organization`. The Organizations row further
+         down goes to `organizations`, which lists exactly those orgs and opens any of them -- so
+         this was a second door to the same place, and on a rail whose rows are meant to be one
+         per destination.
+         A CLOSED ACCESS POINT, NOT A REMOVED FEATURE: nothing about org management changed, and
+         the `organization` route is reached in one more click. --}}
       {{!-- ROOMS -- THE SLP-ONLY HALF OF A PAIR (2026-09-23). Rooms and Organizations are
            mutually exclusive on this rail: someone who MANAGES an org gets the Organizations
            row above and reaches their rooms through that page, and someone who only SUPERVISES

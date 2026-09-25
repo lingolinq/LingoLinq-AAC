@@ -881,11 +881,101 @@ body.ll-layout-focused .md-user-summary {
    DIRECTORY (`--org-directory`) is excluded -- different layout, its own spacing, and not what
    moved. Verified with scripts/rooms-page-spacing-qa.mjs: focused and gentle now report the
    same switcher/hero/grid run (174 / 244 / 438). */
+/* ── MODERN FOCUSED, ROOMS PAGE: THE BOARDS CARD'S SURFACE (2026-09-24) ─────────────────
+   Requested: "make this div bg the same bg as the boards page md-workspace on modern focused".
+
+   THE BOARDS PAGE'S `.md-workspace` PAINTS NOTHING -- measured, it computes to
+   `background: none` with a transparent colour. The surface that reads as the boards page in
+   Focused is `.ub-boards-page__boards-section`, and it gets it from `$focus-boards-bg`, the
+   shared frosted-glass token this file already hands to the focused home page's Boards card and
+   to the Extras page for exactly this "match the boards card" purpose (see `.md-extras-page`
+   above). So this reuses the token rather than copying the two gradients out of the inspector,
+   and the four surfaces cannot drift.
+
+   THE BACKDROP FILTER COMES WITH IT, and that is not scope creep: every layer in
+   `$focus-boards-bg` is translucent, so what the panel actually looks like is decided as much by
+   what it blurs behind it as by the gradient itself. `.md-main--org` was on blur(22px)
+   saturate(1.35) against the boards card's blur(14px) saturate(1.3); leaving that alone would
+   have applied the right gradient and still not matched.
+   BORDER, RADIUS AND SHADOW ARE DELIBERATELY LEFT as the org card's own (1px rgba(27,54,93,.1),
+   32px, its existing shadow). The request was the background; the card's shape was not raised,
+   and changing it here would be a second, unasked-for change riding along.
+
+   `!important` because every declaration in the base rule
+   (`.md-shell--org:not(.md-shell--org-directory) .md-main--org`, app.scss ~96294) carries one.
+   At (0,5,1) against that rule's (0,3,0) the weight is there either way.
+   Same `:has(...)` page test as the header rule below -- see its note for why the rooms page has
+   to be named by what it renders. */
+body.ll-view-modern.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-main--org {
+  background: $focus-boards-bg !important;
+  backdrop-filter: blur(14px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+}
+
+/* ── MODERN FOCUSED, ROOMS PAGE: A STILL HEADER AND NO META ROW (2026-09-24) ────────────
+   Requested: "modern focused view - Rooms page - remove the movement from the header and hide
+   the subheader". Basic already reads this way for its whole org section
+   (`body.ll-view-basic .md-hero--org`, _classic-home.scss); this is the same treatment, asked
+   for on one page of one layout, so it is scoped to that page rather than folded in there.
+
+   THE MOTION RULES CANNOT SIMPLY BE SWITCHED OFF -- the same trap the Basic rule records.
+   `.md-hero__title--from-left` (app.scss:34501) sets `opacity: 0` and animates to visible with
+   `forwards`, so the animation is what REVEALS the title, not just what moves it. `animation:
+   none` alone would leave the header permanently invisible, which is why `opacity: 1` comes
+   with it. The divider is static and is deliberately left alone (app.scss:34591).
+
+   ONLY THE TITLE NEEDS THE MOTION RULE. The subheader's own `--from-right` span is inside the
+   `--meta` row being hidden below, so a second animation rule for it would be dead.
+
+   `:has(...)` NAMES THE ROOMS PAGE BY WHAT IT RENDERS, because the hero lives in the PARENT
+   template (templates/organization.hbs) and the page itself has no class to hang this on. The
+   three arguments are that page's three content states: `.md-stats-main` (the supervisor's room
+   list), `.md-org-rooms` and `.md-org-rooms-empty` (the manager's list and its empty state) --
+   verified unique to templates/organization/rooms.hbs. The loading state is deliberately not
+   listed; it is transient and matching it would change nothing a user can see.
+   `.md-hero--org` in the descendant part keeps this off the Reports page, which also carries
+   `.md-stats-main` but has no org hero.
+
+   NO `!important`: at (0,7,1) against the base rules' (0,3,0) this wins on specificity alone,
+   which matters because this partial is `@use`d and so EMITTED BEFORE app.scss -- a tie would
+   have gone to the base rule. */
+body.ll-view-modern.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-hero--org .md-hero__title .md-hero__title--from-left {
+  animation: none;
+  opacity: 1;
+}
+body.ll-view-modern.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-hero--org .md-hero__sub--meta {
+  display: none;
+}
+
 body.ll-layout-focused #within_ember #content:has(.md-shell--org:not(.md-shell--org-directory)) {
   padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
 body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .ll-appshell .md-shell {
   padding-top: 0 !important;
+}
+
+/* ...AND IT STAYS PUT FROM 1024px DOWN (requested 2026-09-24: "Rooms page on 1024px and
+   smaller, the content is shifting up on the page -> prevent that from happening").
+   THE JUMP IS THE BASE WORKSPACE'S TOP MARGIN GOING AWAY. `.md-workspace` is `margin: 40px
+   auto` at desktop widths and 0 at 1024 and below, and its padding steps 40 -> 52 -> 40 across
+   the same range. Measured on this page: the switcher sat at y=174 at 1280 and 1100, then 134
+   at 1024 and 1000, then 146 at 950 -- a 40px jump up and a 12px partial recovery, none of it
+   this page's own doing.
+   The gentle block in app.scss absorbs the same loss for the pages it covers by adding 52px of
+   shell padding at this breakpoint; these pages take the shell's padding to 0, so they had
+   nothing to absorb it with.
+   BOTH VALUES ARE PINNED, not just the margin: restoring only the margin would have left the
+   950px step's 12px of extra padding, so the page would have stopped jumping up and started
+   drifting down instead. With both fixed the sum is 26 + 0 + 40 + 40 = the same y at every
+   width in this band.
+   FLOORED AT 901px on purpose. At 900 and below the account rail stops being a fixed panel and
+   becomes an in-flow band above the page (app.scss), so everything below it moves by design --
+   that is a layout change, not a shift to pin. */
+@media (max-width: 1024px) and (min-width: 901px) {
+  body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .md-workspace {
+    margin-top: 40px !important;
+    padding-top: 40px !important;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -2823,12 +2913,19 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention {
   // Signs flipped rather than values retuned: +55 lifts the middle, -20 sinks the rim, so the
   // card reads as a dished vignette instead of the raised dome it was a moment ago.
   // 25% LIGHTER (requested 2026-09-21: "the communicators need attention div bg gradients need
-  // to be 25% lighter"). Passed as `$lighten` rather than by raising `$centre-shift` /
-  // `$edge-shift`: those two set the card's SHAPE -- the dished vignette and where its ramp
-  // turns -- and moving them to change brightness would have flattened the dish. `$lighten`
-  // scales all three stops equally after the shape is decided, which is the repo's idiom for
-  // "N% lighter" (`color.scale` moves each stop N% of its remaining distance to white).
-  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08, $lighten: 25%,
+  // to be 25% lighter"), THEN 10% LIGHTER AGAIN (requested 2026-09-24). Passed as `$lighten`
+  // rather than by raising `$centre-shift` / `$edge-shift`: those two set the card's SHAPE --
+  // the dished vignette and where its ramp turns -- and moving them to change brightness would
+  // have flattened the dish. `$lighten` scales all three stops equally after the shape is
+  // decided, which is the repo's idiom for "N% lighter" (`color.scale` moves each stop N% of
+  // its remaining distance to white).
+  //
+  // 32.5%, NOT 35%. The idiom composes multiplicatively, not additively: each pass moves a stop
+  // N% of what is LEFT between it and white, so a further 10% on top of 25% is
+  // 1 - (1 - 0.25)(1 - 0.10) = 0.325. Writing 35% here would have over-lightened by a couple of
+  // points per channel and, worse, left the number looking like a running total that can be
+  // added to -- the next "10% lighter" is 39.25%, not 45%.
+  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08, $lighten: 32.5%,
     // Centre pushed DOWN and the vertical radius tightened (requested: "don't start the
     // lighter gradient until you get past the top section"). `at 50% 70%` with a 40% vertical
     // radius means the ramp's outer stop is reached at 30% of the card height — the header
@@ -2942,9 +3039,55 @@ body.ll-layout-focused .md-card--rooms .md-room-card__icon::before {
 // the panel, not a rule after it.
 // Geometry matches the attention card's intent but with this card's own numbers: centre 86%,
 // 26% radius, so the darkening is complete by 60% of the height and the header sits in it.
+/* ── THE SHARED CARD DIVIDER, PER CARD (2026-09-24) ─────────────────────────────────────
+   Requested: the attention card's divider "make it lighter, it fails for contrast", the rooms
+   card's "make darker".
+   ONE BASE RULE, TWO CARDS THAT WENT OPPOSITE WAYS. `.md-card--boards__divider` (app.scss
+   ~54063) draws a single dusty-denim ramp, and it was written when both cards were light
+   panels. The 2026-09-21 experiment turned the attention card into a dark slate dome and left
+   the rooms card light, so the same denim now sits on two very different surfaces -- composited
+   against each panel it measures 1.07:1 on the attention card (invisible, which is the reported
+   failure) and 1.78:1 on the rooms card.
+   Each card therefore gets its own ink, in the direction its surface needs, and the base rule
+   is left alone for the Boards card it was written for. Only the COLOUR changes; the 90deg
+   fade-in/fade-out shape, the height and the margins all stay with the base.
+   Computed after: 3.08:1 and 3.69:1, both clearing the 3:1 WCAG 2.1 asks of a non-text UI
+   boundary. */
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card--boards__divider {
+  /* White, because the panel under it is dark slate. Denim at any alpha cannot reach 3:1 here
+     -- it is darker than the panel's light centre and barely lighter than its rim. */
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.375) 12%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0.375) 88%,
+    transparent 100%);
+  /* The base drop shadow is a denim glow meant to lift the line off a light panel; on this one
+     it is invisible and only muddies the edge. */
+  box-shadow: none;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card--boards__divider {
+  /* Navy rather than denim, and at a higher peak alpha: this panel is light and just lightened
+     again, so the line had to go the other way to stay legible on it. */
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba($la-navy, 0.32) 12%,
+    rgba($la-navy, 0.65) 50%,
+    rgba($la-navy, 0.32) 88%,
+    transparent 100%);
+}
+
 body.ll-layout-focused .md-grid .md-card.md-card--rooms {
-  $rooms-top: color.mix($focus-surface-top, rgb(255, 255, 255), 40%);
-  $rooms-bottom: color.scale(rgb(235, 238, 243), $lightness: -10%);
+  // 10% LIGHTER (requested 2026-09-24). Applied as a `color.scale($lightness: 10%)` pass over
+  // the two stops the card already had, not by retuning them: the pair is a restored copy of
+  // this card's own palette (see the note above), and rewriting the values would lose that
+  // provenance. `color.scale` moves each stop 10% of its remaining distance to white, which is
+  // the repo's idiom for "N% lighter".
+  // ONLY THE PANEL. The navy vignette layered over it is unchanged -- it is the EFFECT that was
+  // asked for on 2026-09-21 ("it was the gradient effect i was looking to copy, not the
+  // colors"), so lightening that too would undo a different request.
+  $rooms-top: color.scale(color.mix($focus-surface-top, rgb(255, 255, 255), 40%), $lightness: 10%);
+  $rooms-bottom: color.scale(color.scale(rgb(235, 238, 243), $lightness: -10%), $lightness: 10%);
   background:
     // Darkened (requested: "too light ... make it a bit darker"). Only the ALPHAS move —
     // 0.07/0.16 -> 0.15/0.30. The geometry is untouched, so the light centre still does not
@@ -3269,15 +3412,33 @@ body.ll-layout-focused #content.boards-page .ub-boards-page--below-dashboard-pil
 // toolbar and carries no background at all.
 @media (max-width: 1300px) {
   body.ll-layout-focused .md-caseload__list-trigger {
+    /* THE TOP SHEEN IS A HINT NOW, NOT A WASH (requested 2026-09-24: "limit the gradient from
+       the top portion of each communicator's card - using the darker color predominantly with
+       only slight lighter gradient").
+       It ran `0.62 -> 0.34 -> 0.10 -> 0` across the top 52% of the trigger, so more than half
+       the header was white-washed and the tile colour underneath only showed near the bottom --
+       which is what read as the top portion having its own gradient.
+       Both the STRENGTH and the REACH come down: peak 0.62 -> 0.16, and the fade completes at
+       28% instead of 52%. That leaves roughly three quarters of the header on the base colour
+       with a soft catch of light along the very top edge, which is the "predominantly darker,
+       slightly lighter" the request asks for.
+       THE BOTTOM LAYER IS UNTOUCHED. It lifts the last 26% from the other direction and belongs
+       to the bottom edge, not the top portion this is about -- cutting it too would have
+       flattened the tile's whole material rather than limiting one gradient. */
     background:
       linear-gradient(180deg,
-        rgba(255, 255, 255, 0.62) 0%,
-        rgba(255, 255, 255, 0.34) 16%,
-        rgba(255, 255, 255, 0.10) 40%,
-        rgba(255, 255, 255, 0) 52%),
+        rgba(255, 255, 255, 0.16) 0%,
+        rgba(255, 255, 255, 0.09) 12%,
+        rgba(255, 255, 255, 0.03) 21%,
+        rgba(255, 255, 255, 0) 28%),
       linear-gradient(0deg,
         rgba(255, 255, 255, 0.20) 0%,
         rgba(255, 255, 255, 0) 26%),
+      /* A teal/denim retint of this base was tried and reverted on 2026-09-24 (asked for as
+         "like the create a board button", then reverted). It was
+         `linear-gradient(145deg, rgba(44,183,176,0.26), rgba(91,141,239,0.22))` -- recorded only
+         so the same swap is not proposed again as if it were untested. The neutral blue-grey
+         below is the value that stands. */
       linear-gradient(145deg,
         #{color.scale($caseload-tile-more-from, $lightness: 15%)},
         #{color.scale($caseload-tile-more-to, $lightness: 15%)});
@@ -5239,8 +5400,25 @@ body.ll-layout-focused {
   // on its darkest point (#7E8797) the old inks measure white 3.64, white-at-0.78 2.87, and
   // the #A8C8F7 link 2.13 — all failing. Every colour on this card flips to dark below, and
   // none of them can be muted (the same no-headroom problem the Actions tiles have).
+  // FLAT, NOT RAMPED (requested 2026-09-24: "Communicator cards: remove the gradient on the
+  // card bgs - just keeping the solid darker color"). The panel fill was
+  // `linear-gradient(155deg, #A8AEB9, #969EAC)`; the solid kept is the DARKER end, `#969EAC`.
+  // THE FILL ARGUMENT WAS NOT ENOUGH, and this is the part worth knowing: passing a solid
+  // colour to `ch-focused-glass-tile` still compiles to a gradient stack, because the mixin
+  // layers a radial white sheen and a top-down white wash OVER whatever fill it is given --
+  // checked in the compiled CSS after the first attempt, which still read
+  // `radial-gradient(...), linear-gradient(...), <fill>`. Those sheen layers ARE the gradient
+  // being complained about. So the mixin still supplies the chrome (border, ring, hover lift,
+  // ink) and the `background` after it replaces every layer with the one flat colour.
+  // `$hover` keeps its default: a communicator card is a control and still lifts.
+  //
+  // THE BOARDS PANEL BELOW STILL RAMPS. Its own note says the two fills are deliberately kept
+  // identical so they cannot drift -- that is now broken, knowingly, because only the cards
+  // were asked about. If the panel should follow, it is one line: give it `$ch-focused-panel-end`
+  // the same way.
   .ch-comm {
-    @include ch-focused-panel;
+    @include ch-focused-glass-tile($ch-focused-panel-end);
+    background: $ch-focused-panel-end;
   }
 
   // THE BOARDS PANEL (requested 2026-09-14). The board tiles used to sit loose on the page
@@ -5685,19 +5863,178 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__
 // near-white and undone the "25% brighter" that was asked for a few steps earlier. Darkening
 // the text needs only 7-15% and leaves each pill's hue and brightness intact.
 // Derived from the tokens rather than pasted as hex so they still track a brand change.
-// Measured after: 4.6-4.7:1 on every family.
+//
+// RE-TUNED 2026-09-24, reported again as failing. The 2026-09-21 figures were real but were
+// taken before the rows were re-glassed and before the card panel was lightened twice; measured
+// off the render again on 2026-09-24 the four families had fallen to 3.08-3.79:1.
+//
+// AND THE FIRST 2026-09-24 MEASUREMENT WAS WRONG IN THE OTHER DIRECTION -- it composited
+// `backgroundColor` up the DOM and reported ~5.6:1, because that walk cannot see a
+// `background-image` and so treated every gradient in the stack as transparent. The numbers
+// here come from actual screenshot pixels (scripts/attention-badge-contrast-qa.mjs, via the
+// dependency-free decoder in scripts/qa-pixels.mjs), sampling a 4px band inside each pill's top
+// edge -- above the glyphs, inside the rounded corners -- and taking the WORST pixel in it,
+// because the fill is a gradient and the label has to hold up at its least favourable point.
+//
+// Each value below is the previous darkening COMPOSED with the extra one measured, not the sum:
+// `color.scale` moves a colour a fraction of the way to black, so -13% then a further -15% is
+// 1 - (0.87 x 0.85) = -26%, not -28%.
+// Targeted 4.7:1 rather than exactly 4.5 so the rows this sample could not reach -- the list
+// scrolls, and a row further down the card's vignette sits on a darker patch -- keep some
+// headroom.
+// Measured after: see the run in the task log; every family clears 4.5:1.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
-  color: color.scale($brand-slate-blue, $lightness: -13%) !important;
+  color: color.scale($brand-slate-blue, $lightness: -26%) !important;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="hourglass"],
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="equalizer"] {
-  color: color.scale(color.adjust($brand-honey-bronze, $lightness: -32%), $lightness: -14%) !important;
+  color: color.scale(color.adjust($brand-honey-bronze, $lightness: -32%), $lightness: -28%) !important;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="phone"],
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="piggy-bank"] {
-  color: color.scale($brand-dusty-denim-aa, $lightness: -7%) !important;
+  color: color.scale($brand-dusty-denim-aa, $lightness: -34%) !important;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="exclamation-sign"] {
-  color: color.scale($brand-verdigris-aa, $lightness: -15%) !important;
+  color: color.scale($brand-verdigris-aa, $lightness: -33%) !important;
 }
 // ===== END EXPERIMENT
+
+/* ── CASELOAD: LESS GLASS, MORE PAPER (2026-09-24) ──────────────────────────────────────
+   Requested, in four parts: "Reduce the glass dramatically on the communicator cards. Make the
+   main body closer to an opaque pearl/off-white surface... Make the card header much less
+   frosted... Flatten the Viewer pill and warning pills. They're metadata, not primary
+   controls... Reduce the large outer container effect by making md-caseload bg transparent
+   with no borders."
+
+   ONE BLOCK, FOUR SURFACES, and they belong together: the page reads as glassy because four
+   translucent layers stack on one another -- tray, card, header, pill -- and flattening any one
+   of them alone just moves the problem. Written as its own block rather than edited into the
+   gentle rules in _caseload.scss, because Gentle is not being changed.
+   FOCUSED + MODERN ONLY: `.md-shell--caseload` is the Modern shell, and `body.ll-layout-focused`
+   is the layout axis, so Basic and Gentle both keep what they have. */
+
+/* 1. THE TRAY STOPS BEING A SURFACE. The base is a 4%-navy fill with a hairline and two inset
+      shadows that read as a recessed well -- a container effect around cards that are already
+      containers. Transparent, no border, no inset: the cards now sit on the page. */
+body.ll-layout-focused .md-shell--caseload .md-caseload {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* 2. THE CARD BODY BECOMES PAPER. The base gradient ends in `rgba(27,54,93,0.02)`, i.e. it is
+      translucent at the bottom and picks up whatever is behind it -- which is what makes it
+      read as glass rather than as a card. An OPAQUE pearl ramp instead, two stops barely apart
+      so it still has a little depth, with the border and shadow kept deliberately faint: the
+      request allowed "a very subtle translucent border and shadow" and those are what stop the
+      card dissolving into the page now that the tray behind it is gone. */
+body.ll-layout-focused .md-shell--caseload .md-caseload__list-row {
+  background: linear-gradient(180deg, #FCFCFD 0%, #F5F6F9 100%);
+  border-color: rgba($la-navy, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba($la-navy, 0.05);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 3. THE HEADER TAKES A FLAT PERIWINKLE TINT. Asked for directly ("a flatter, slightly tinted
+      slate/periwinkle surface with only a very gentle gradient") and it is the part that was
+      reading as a second glass panel. Two stops six points apart is about as gentle as a
+      gradient gets while still being one; no blur, no inset highlight, no shadow -- a header is
+      a band across the card, not a component sitting on it.
+      `--active` keeps its own teal tint, which is state and not decoration, so it is left to
+      the rules that own it. */
+body.ll-layout-focused .md-shell--caseload .md-caseload__list-row:not(.md-caseload__list-row--active) .md-caseload__list-header {
+  /* SOFTENED AGAIN 2026-09-24, second pass: "move it toward a quieter cool slate-gray with less
+     gradient variation -- not necessarily lighter by much, just less 'foggy'. Keep enough tint
+     that the identity area remains clearly separated."
+     Two changes, both small and deliberate. The HUE drops from periwinkle (140,167,206) to a
+     cooler, greyer slate (124,137,158), which is what takes the blue cast out of it. And the
+     RANGE closes from 6 points of alpha to 3 (0.16 -> 0.13): "foggy" is what a visible ramp
+     across a wide band reads as, so the cure is less variation rather than less tint. The floor
+     stays at 0.13 precisely so the band still separates the identity area -- going lighter would
+     have answered a different sentence than the one that was written. */
+  /* TWO LAYERS: a thin slate rule along the bottom, then the tint beneath it (requested
+     2026-09-24: "add a slate bottom border to the bottom of the header gradients ... don't
+     extend it left to cover the left border - make it thin").
+     A REAL `border-bottom` CANNOT DO THIS. A border runs the full width of the box, so it would
+     cross the accent rail at the left -- the exact thing the previous request ruled out. A
+     background layer can be sized and positioned independently, so this one is drawn
+     `calc(100% - 5px)` wide, pinned right, and 1px tall at the bottom edge: same 5px gap the
+     tint already leaves, from the same measurement (4px rail, 5px when hovered or active).
+     Layer order is paint order -- first listed is on top -- so the rule sits over the tint. */
+  background:
+    linear-gradient(rgba(100, 112, 133, 0.45), rgba(100, 112, 133, 0.45)),
+    linear-gradient(180deg, rgba(124, 137, 158, 0.16) 0%, rgba(124, 137, 158, 0.13) 100%);
+  /* AND IT STOPS SHORT OF THE ACCENT RAIL (requested 2026-09-24: "don't extend the gradient on
+     top of the left border - that border should feel like its own element").
+     The rail is `.md-caseload__list-row::before`, a 4px strip at the row's left edge that widens
+     to 5px when the row is hovered, focused or active (_caseload.scss). It carries `z-index: 20`
+     and is still painted over here, because the header sits in a stacking context of its own --
+     so raising the rail further would not have fixed it.
+     SIZING THE BACKGROUND IS WHAT FIXES IT, not a margin or a padding: those would move the
+     avatar and the name as well. The tint is drawn 5px narrower and pinned to the RIGHT edge, so
+     the leftmost 5px of the header is simply never painted and the rail shows through at its own
+     full strength. 5px, not 4, so the widened hover/active state is covered too -- the extra
+     pixel at rest sits under the row's own fill and is invisible. */
+  background-size:
+    calc(100% - 5px) 1px,
+    calc(100% - 5px) 100%;
+  background-position:
+    100% 100%,
+    100% 0;
+  background-repeat: no-repeat;
+  /* AND IT FOLLOWS THE CARD'S CORNERS (requested 2026-09-24: "fix the rounding issue on the
+     communicator cards -- they should be rounded"). Giving the header a fill is what introduced
+     this: before, it painted nothing and the row's own rounded background was all you saw; now a
+     rectangular band sits inside a rounded card and its square corners poke past the curve.
+     `inherit` rather than a literal radius, and rather than `overflow: hidden` on the row -- the
+     base rule refuses that deliberately because it would clip the accent rail
+     (_caseload.scss). Inheriting means the header cannot fall out of step if the row's radius is
+     ever retuned. All four corners, which is correct here because this rule only matches a
+     COLLAPSED row (`:not(--active)`), where the header IS the whole card; an expanded row keeps
+     the square-bottomed header its own rule already gives it. */
+  border-radius: inherit;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* 3b. AND THE TRIGGER'S OWN SHEEN STARTS AFTER THE RAIL (requested 2026-09-24: "i want that
+      part of the element to be shifted right so the border stands on its own with no overlap
+      from it").
+      THE HEADER WAS NOT THE ONLY THING PAINTING THERE. `button.md-caseload__list-trigger` sits
+      inside the header and carries its own white-sheen gradient stack, and its `margin-left:
+      -14px` exactly cancels the header's `padding-left: 14px` -- so both boxes start at the same
+      x (measured: header x=286 w=916, trigger x=286 w=916) and the sheen ran straight over the
+      4px accent rail. Insetting the header's background, done above, could never have reached
+      it.
+      SHIFTED, NOT CLIPPED, because that is what was asked for and it is also the more honest
+      fix: the element's box now begins after the rail instead of being painted around it.
+      THE 5px COMES OFF THE MARGIN AND GOES BACK ON THE PADDING, so the box moves and its
+      CONTENT does not -- the avatar, the name and the pills stay exactly where they were
+      (content edge stays at x=300). Anything else here would have nudged the whole identity row.
+      5px rather than 4 to cover the rail's widened hover/active state (_caseload.scss). */
+body.ll-layout-focused .md-shell--caseload .md-caseload__list-trigger {
+  margin-left: -9px;
+  padding-left: 9px;
+}
+
+/* 4. THE METADATA PILLS GO FLAT -- BUT NOT THE ATTENTION ONE. "Reduce the glass treatment on
+      the Viewer pill. It's metadata, and currently it looks almost as dimensional as an
+      interactive control... The yellow status badge can keep slightly more prominence because
+      it communicates something requiring attention."
+      So the `:not(--attention)` is the whole point of this selector, not a detail: a pill that
+      says what your role is should read as a label, while one that says this person needs
+      following up is the only thing on the card that should still pull the eye. Flattening both
+      would have levelled exactly the distinction that matters.
+      Fill plus a hairline, nothing raised: no gradient, no inset highlight, no drop shadow, no
+      blur. The per-variant COLOURS are untouched; only the dimensional treatment goes. */
+body.ll-layout-focused .md-shell--caseload .md-caseload__list-access:not(.md-caseload__list-access--attention) {
+  background-image: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-shadow: none;
+}

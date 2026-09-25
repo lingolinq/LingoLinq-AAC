@@ -64,7 +64,19 @@ export function set_view_style(user, style) {
   if(user.save) {
     if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
     user.set('preferences.device.updated', true);
-    user.save().then(null, function() { });
+    /* THE REJECTION IS LOGGED, NOT SWALLOWED (2026-09-24). This was `.then(null, function() { })`,
+       and that empty handler is why a real bug hid here for weeks: `save()` was rejecting before
+       it issued any request -- "Converting circular structure to JSON" out of the `supervisees`
+       attribute (see serializers/user.js) -- so the view flipped in memory and silently reverted
+       on the next page that refreshed the record. Two separate reports of "it switched my view"
+       traced back to this one silent catch.
+       Still non-fatal: the in-memory preference has already flipped and the UI is correct for
+       this session either way, which is why the promise is absorbed rather than rethrown. But it
+       says so now, so the next failure of this kind shows up in the console instead of as a
+       mystery. */
+    user.save().then(null, function(err) {
+      console.error('LingoLinq: view style did not persist', err);
+    });
   }
   return true;
 }

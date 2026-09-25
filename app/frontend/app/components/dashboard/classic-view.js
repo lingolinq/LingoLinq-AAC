@@ -5,6 +5,7 @@ import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
+import { pillForRoute } from '../../utils/primary_nav';
 
 /**
  * Classic home page.
@@ -105,6 +106,24 @@ export default AuthenticatedView.extend({
   // registration form (routes/index.js#setupController) — a passed argument
   // overrides a class-defined property, so a computed named `user` here would be
   // silently replaced by that empty record and the rail would render a blank name.
+
+  /* IS THIS ALREADY THE HOME PAGE? -- the gate on the rail's Home Page row (requested
+   * 2026-09-24: "make sure the Home Page button does not show when the user is on their home
+   * page"). A row that navigates to where you already are is dead weight in a short list.
+   *
+   * IT IS A REAL QUESTION, not a constant. `Dashboard::ClassicView` renders on THREE routes --
+   * `index`, `bento` and `user/extras` (grep `Dashboard::ClassicView` in app/templates) -- and
+   * `Dashboard::ClassicRail` renders on the organisation pages, so neither copy of the rail can
+   * assume it is or is not on the dashboard.
+   *
+   * ASKED OF `utils/primary_nav`, which already owns "which routes are the home page" (`index`
+   * and `user.home` both answer 'home'). A third list here is exactly the drift this session
+   * has been removing; the gates are passed empty because only the ungated 'home' answer
+   * matters. */
+  onHomePage: computed('appState.current_route', function() {
+    return pillForRoute(this.appState.get('current_route') || '', null, {}) === 'home';
+  }),
+
   classicUser: computed('appState.currentUser', function() {
     return this.appState.get('currentUser');
   }),

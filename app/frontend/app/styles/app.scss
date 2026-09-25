@@ -65623,6 +65623,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 /* Filter row in compare: each side its own grouped card, close under badge */
 .md-stats-compare-row--filter {
   margin-top: 0;
+  /* THE INSET IS THE SQUEEZE (fixed 2026-09-24). `10rem` is 100px at this app's 10px root, so
+     this row hands 200px of its width to side padding. At 1280 that is fine -- it keeps the two
+     period cards from sprawling across a 970px row. At 1024 the row is only 725px, the padding
+     takes 200 of it and the 320px illustration takes another 320, leaving 110px and 124px for
+     the two PERIOD CARDS -- which is what wrapped "Last 2 Months" onto three lines and was
+     reported as the contents being squished. See the breakpoint below. */
   padding-left: 10rem;
   padding-right: 10rem;
   box-sizing: border-box;
@@ -65631,6 +65637,22 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   justify-content: center;
   gap: 8px;
 }
+/* ...AND THE INSET COMES OFF AT 1024 AND BELOW. A `clamp()` was tried first and is the wrong
+   tool here: percentage and viewport units both measure the VIEWPORT, while this row has already
+   been inset by the app shell and the workspace, so at a 1024px viewport the row is 725px and
+   `8vw` still spent 164px on padding. A breakpoint keyed to the same 1024 the request named is
+   honest about what it does, and leaves every wider width byte-identical.
+   16px matches the workspace's own narrow-width gutter. It gives the row 693px of content, which
+   is enough for both period cards at their natural width plus the full 320px illustration --
+   i.e. at 1024 the row now lays out exactly as it does at 1280, which is what "not squished"
+   means here. */
+@media (max-width: 1024px) {
+  .md-stats-compare-row--filter {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
 /* All three divs on the row: flex with content centered */
 .md-stats-compare-row--filter > * {
   display: flex !important;
@@ -65651,17 +65673,33 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   max-width: none !important;
   float: none !important;
 }
+/* THE DECORATION GIVES WAY BEFORE THE CONTROLS DO (2026-09-24, requested: "when user clicks
+   compare with another period on 1024px and smaller, the period and dropdown contents are
+   squished").
+   IT WAS THE WRONG WAY ROUND. This column was `flex: 0 0 auto` around a 320px illustration, so
+   it never shrank, while the two FILTER groups either side are `flex: 1 1 0; min-width: 0` and
+   absorbed the whole squeeze. Measured at 1024: a 725px row spent 328px on the picture and left
+   the Period pills and their selects 110px and 124px, which is what wrapped "Last 2 Months"
+   onto three lines.
+   `0 1 auto` + `min-width: 0` lets the picture shrink, and `width: 100%` on the img is what
+   makes it follow the column down (with `width: auto` it kept its intrinsic size and simply
+   overflowed). The 320px cap still stops it growing past its natural size on a wide row, so
+   desktop is unchanged -- verified at 1280.
+   The image is `alt=""` inside an `aria-hidden` wrapper (templates/user/stats.hbs), i.e.
+   decorative, which is what makes it the right thing to yield. */
 .md-stats-compare-filter-group__between {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   padding: 0 4px;
 }
 .md-stats-compare-filter-group__between-img {
   max-width: 320px;
   max-height: 192px;
-  width: auto;
+  width: 100%;
   height: auto;
   object-fit: contain;
 }
+
 .md-stats-compare-row--filter > .md-stats-filter:nth-child(3),
 .md-stats-compare-row--filter > [class*='col-']:nth-child(3) {
   border-radius: 12px;
@@ -111424,4 +111462,39 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
     /* The in-flow band it cancelled no longer exists. */
     margin-bottom: 0;
   }
+}
+
+/* ── BOOTSTRAP 3'S TOUCH-ONLY DROPDOWN BACKDROP IS DISABLED (2026-09-24) ─────────────────
+   REPORTED as "when you are on the account page and click the extras dropdown, it disables
+   scrolling", then narrowed by the reporter to "only when i'm in devtools". It is NOT a DevTools
+   bug, and that distinction is the point: DevTools' device toolbar makes Chrome advertise touch
+   support, and Bootstrap 3 inserts `.dropdown-backdrop` ONLY when `'ontouchstart' in
+   document.documentElement`. The device toolbar does not cause the fault -- it reproduces on a
+   desktop what every REAL touch device already has, which for this product means the iPads and
+   touchscreen Chromebooks a large share of users run.
+
+   WHAT IT DOES. The backdrop is a `position: fixed` overlay across the whole viewport at
+   z-index 990. Measured with touch emulation on: `elementFromPoint` at the centre of the page
+   returns `div.dropdown-backdrop`, and a wheel gesture leaves `#content.scrollTop` exactly where
+   it was (277 -> 277). With it gone the same gesture scrolls normally (277 -> 677).
+
+   WHY IT IS SAFE TO DROP. It is a workaround for iOS 5/6 Safari, where a `click` on a
+   non-interactive element did not bubble to `document`, so Bootstrap could not see the tap
+   outside that should close an open menu. Bootstrap's own `clearMenus` handler on `document`
+   does that job in every browser this app supports. Verified, not assumed, with touch emulation
+   and the backdrop suppressed: an outside mouse click closes the menu, and so does a real
+   touchscreen tap.
+
+   `display: none` rather than `pointer-events: none`: the element would still be in the way of
+   anything that hit-tests by walking the tree, and a backdrop that cannot be clicked is not a
+   backdrop.
+
+   AT THE END OF THE FILE ON PURPOSE. This overrides a rule in Bootstrap's own vendor.css, which
+   the app loads BEFORE frontend.css, so equal specificity here is decided by sheet order and
+   this wins without `!important`. It is last in this file so nothing later can tie it.
+   (A first attempt put it beside the other dropdown rules and landed INSIDE the selector on the
+   line above, silently breaking `header #normal_mode #level_dropdown ~ .dropdown-menu` -- which
+   is why this one is appended rather than threaded into the middle of a 120k-line stylesheet.) */
+.dropdown-backdrop {
+  display: none;
 }

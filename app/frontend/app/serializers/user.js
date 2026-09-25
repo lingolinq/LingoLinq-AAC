@@ -39,6 +39,29 @@ import ApplicationSerializer from './application';
 export default ApplicationSerializer.extend({
   // Server sets these on responses; never send on create/update (was defaulting to false and looked like a COPPA bug).
   attrs: {
+    /* `supervisees` MUST NOT BE SERIALIZED, and this is a silent data-loss fix, not a tidy-up
+     * (2026-09-24).
+     *
+     * SYMPTOM: a supporter's view preference would not stick. Switching Basic <-> Modern flipped
+     * the shell, then any page that refreshed the user record put it back -- reported twice, as
+     * "clicked the logo and it converted me" and "click an organization and it switches me".
+     *
+     * CAUSE, traced in the browser: `user.save()` REJECTED before issuing any request, with
+     * "Converting circular structure to JSON ... starting at object with constructor 'Store'".
+     * `supervisees` is `attr('raw')` (models/user.js:183) and its entries carry a materialised
+     * `current_badge`, whose `_secretInit.store` points back at the Ember Data Store --
+     * measured at `supervisees.0.current_badge._secretInit.store`. Serializing the record walks
+     * that and throws. `set_view_style` ends in `.then(null, function() { })`, so the rejection
+     * was swallowed and the preference silently never persisted. `changedAttributes()` confirms
+     * the dirty attribute is `supervisees`, not `preferences` -- every preference save on a
+     * supporter's record was riding on a payload that could not be built.
+     *
+     * WHY DROPPING IT IS SAFE: `supervisees` is server-computed and read-only, and
+     * `User#process_params` is a whitelist with no mass-assignment, so the server already
+     * discards this key. Not sending it cannot lose data; it only stops the serializer choking.
+     * Same reasoning the note above this block applies to `_actual_id`, with the opposite
+     * conclusion because that one IS read back by the offline path and this one is not. */
+    supervisees: { serialize: false },
     coppa_parental_consent_pending: { serialize: false },
     eu_under_16: { serialize: false },
     eu_ai_parental_consent_pending: { serialize: false },

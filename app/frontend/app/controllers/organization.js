@@ -107,7 +107,15 @@ export default Controller.extend({
   currentSectionLabel: computed('router.currentRouteName', 'model.name', function() {
     var route = (this.get('router.currentRouteName') || '').replace(/^organization\./, '');
     var labels = {
-      'index':        i18n.t('dashboard', "Dashboard"),
+      /* "Organizations", NOT "Dashboard" (requested 2026-09-24). This strip reads
+         "< Home | <section>", and on an org's own index page the second item named the page
+         type rather than the section you are in -- so a manager standing on Cedar Valley
+         Therapy saw "Dashboard", which is also what the app's OWN home page is called two
+         items to the left. Naming the section keeps the pair reading as "up one level" and
+         "where you are", and it is the same word the rail and the Modern pill use for this
+         destination. It renders as the active item already, since the current section is a
+         non-link span with `aria-current="page"`. */
+      'index':        i18n.t('organizations', "Organizations"),
       'people':       i18n.t('user', "User"),
       'reports':      i18n.t('reports', "Reports"),
       'telemetry':    i18n.t('telemetry', "Telemetry"),

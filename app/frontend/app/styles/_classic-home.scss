@@ -116,7 +116,14 @@
    side padding every time it only meant to change the top.
 
    The workspace's own 20px top margin is zeroed in this layout so the rail and the content
-   share one top edge, the way `.ch-page`'s two columns do. */
+   share one top edge, the way `.ch-page`'s two columns do -- AND SO IS ITS 40px TOP PADDING
+   (2026-09-24, requested: "move the organizations page content up on the page"). Zeroing the
+   margin alone did not finish the job the sentence above describes: measured at 1280, the rail
+   started at y=126 and the org hero at y=166, because the base `.md-workspace` padding still
+   sat inside the card. With both gone the two share a top edge for real.
+   THE CONTENT KEEPS ITS INSET -- `.md-hero--org` carries its own top padding (20px, and 28px
+   above 1200px where more room was asked for earlier the same week), so removing the
+   workspace's padding moves the block up without pushing the title against the card edge. */
 body.ll-view-basic .md-shell--org-directory {
   flex-direction: row !important;
   align-items: flex-start;
@@ -127,7 +134,61 @@ body.ll-view-basic .md-shell--org-directory > .md-workspace {
   flex: 1 1 auto !important;
   min-width: 0;
   margin-top: 0 !important;
+  padding-top: 0 !important;
 }
+/* NO TOP PADDING ON THE DIRECTORY'S HERO (2026-09-24, requested: "basic view: organizations -
+   remove the top padding from the hero"). The header is `.md-hero.md-hero--dashboard` and takes
+   `padding: 28px 2px 10px` from the base `.md-hero`; with the workspace's own padding now gone
+   (above), that 28px was the last thing holding "My Organizations" below the rail's top edge.
+   `padding-top` ALONE, not the shorthand: the 2px sides and the 10px bottom are the header's own
+   rhythm and were not asked about, and a shorthand here would silently reset both.
+   NOT `.md-hero--org`, which is a DIFFERENT element -- the org DETAIL pages' header, whose top
+   padding was deliberately widened on large screens a few days ago. Scoping to the directory
+   shell keeps that request intact.
+   Below 1024px this is already 0 from `@media (max-width: 1024px) { .md-hero--dashboard }`, so
+   this rule only does work on wider screens.
+   `!important` MATCHED, not added: the base `.md-hero` shorthand carries one (app.scss:47657),
+   and specificity alone does not beat it -- this landed with no visible effect until the flag
+   was added, measured at 28px either way. */
+body.ll-view-basic .md-shell--org-directory .md-hero--dashboard {
+  padding-top: 0 !important;
+}
+
+/* FOCUSED HIDES THE DIRECTORY'S HEADER (2026-09-24, requested: "basic view: focused. Hide the
+   hero and subtitle"). Same move Focused already makes on Extras and Reports, where the page
+   title is carried by the nav you arrived through rather than repeated at the top of the page.
+   THE SUBTITLE GOES, THE HEADING STAYS FOR ASSISTIVE TECH. `.md-hero__sub` is decorative prose
+   ("Choose an organization to manage or view...") and is simply removed. The `<h1>` is this
+   page's ONLY heading (templates/organizations.hbs:23), so `display: none` on the hero would
+   leave the document with no title at all -- on a product whose users include screen-reader and
+   switch users, that is a regression, not a tidy-up. The visually-hidden block below takes it
+   off screen while leaving it in the accessibility tree, which is what "hide" means here.
+   WRITTEN OUT RATHER THAN `@include aac-sr-only`: that mixin is defined in app.scss, which this
+   partial is `@use`d BY and cannot see -- the include compiled to "Undefined mixin" and took the
+   whole stylesheet down (dev server 500). Same declarations as the mixin (app.scss:28763), kept
+   in step by this note rather than by an import this file cannot have.
+   GENTLE IS UNTOUCHED, and so is the hero's padding rule above -- that still governs Gentle,
+   where the header is visible. */
+body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero__sub {
+  display: none;
+}
+/* The header box itself collapses once its children are gone, so it contributes no space. */
+body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero--dashboard {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 @media (max-width: 1024px) {
   body.ll-view-basic .md-shell--org-directory { padding-top: 44px !important; }
 }

@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import modal from '../../utils/modal';
+import { pillForRoute } from '../../utils/primary_nav';
 
 /* The Basic-view rail, as a component any page can render.
  *
@@ -54,6 +55,24 @@ export default Component.extend({
      diff against the copy for no gain. One service, two names onto it. */
   app_state: computed('appState', function() {
     return this.get('appState');
+  }),
+
+
+  /* IS THIS ALREADY THE HOME PAGE? -- the gate on the rail's Home Page row (requested
+   * 2026-09-24: "make sure the Home Page button does not show when the user is on their home
+   * page"). A row that navigates to where you already are is dead weight in a short list.
+   *
+   * IT IS A REAL QUESTION, not a constant. `Dashboard::ClassicView` renders on THREE routes --
+   * `index`, `bento` and `user/extras` (grep `Dashboard::ClassicView` in app/templates) -- and
+   * `Dashboard::ClassicRail` renders on the organisation pages, so neither copy of the rail can
+   * assume it is or is not on the dashboard.
+   *
+   * ASKED OF `utils/primary_nav`, which already owns "which routes are the home page" (`index`
+   * and `user.home` both answer 'home'). A third list here is exactly the drift this session
+   * has been removing; the gates are passed empty because only the ungated 'home' answer
+   * matters. */
+  onHomePage: computed('appState.current_route', function() {
+    return pillForRoute(this.appState.get('current_route') || '', null, {}) === 'home';
   }),
 
   classicUser: computed('user', 'appState.currentUser', function() {
