@@ -35,6 +35,56 @@
       tour start, not first paint. %>
   <link rel="preload" as="image" href="/images/tour-map-dark.png" type="image/png" />
   <link rel="preload" as="image" href="/images/tour-map-light.png" type="image/png" />
+
+  <%# TEMPORARY boot-error catcher for the iPad Home Screen startup hang (draft PR #1059).
+      That hang shows "something may be broken", which only fires when application.js never
+      reaches its last line (load_state.js_loaded), so the bundle throws during evaluation.
+      No Mac is available for Safari Web Inspector, so this records every uncaught error and
+      failed script load from the top of <head>, and if js_loaded is still unset after 30s,
+      prints them on screen for a screenshot. Runs on dev.lingolinq.com ONLY; every other
+      host returns before registering anything. Raw strings on purpose: this runs before the
+      bundle and therefore before i18n exists. Remove once the exception is captured. %>
+  <script>
+    (function () {
+      if (window.location.hostname !== 'dev.lingolinq.com') { return; }
+      var errors = [];
+      function note(text) { if (errors.length < 20) { errors.push(text); } }
+      window.addEventListener('error', function (e) {
+        var el = e && e.target;
+        if (el && el !== window && (el.src || el.href)) {
+          note('Failed to load: ' + (el.src || el.href));
+          return;
+        }
+        var err = e && e.error;
+        note((e.message || 'Error') + '\n  at ' + (e.filename || '?') + ':' + e.lineno + ':' + e.colno +
+          (err && err.stack ? '\n' + err.stack : ''));
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e && e.reason;
+        note('Unhandled rejection: ' + ((r && (r.stack || r.message)) || String(r)));
+      });
+      setTimeout(function () {
+        var state = window.load_state || {};
+        if (state.js_loaded || !document.body) { return; }
+        var panel = document.createElement('pre');
+        panel.id = 'boot_error_catcher';
+        panel.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+          'max-height:70vh;overflow:auto;margin:0;padding:12px;background:#fff;color:#000;' +
+          'font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-word;' +
+          'border-bottom:3px solid #c00;-webkit-user-select:text;user-select:text;');
+        panel.textContent = [
+          'BOOT ERROR CATCHER (temporary, dev only). Screenshot this for PR #1059.',
+          'Time: ' + new Date().toISOString(),
+          'Standalone: ' + !!(window.navigator && window.navigator.standalone),
+          'User agent: ' + (window.navigator && window.navigator.userAgent),
+          'load_state: ' + JSON.stringify(state),
+          '',
+          errors.length ? ('Errors (' + errors.length + '):\n\n' + errors.join('\n\n')) : 'No uncaught error was recorded.'
+        ].join('\n');
+        document.body.appendChild(panel);
+      }, 30000);
+    })();
+  </script>
 <% end %>
 
 <div id="audio"></div>
