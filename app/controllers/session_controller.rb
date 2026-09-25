@@ -391,33 +391,29 @@ class SessionController < ApplicationController
       return render
     end
     if config['user_id']
-      # link the user to the external authentication
+      # link the user to the external authentication; linking never signs anyone in
       auth_user = User.find_by_global_id(config['auth_user_id'])
-      existing_user = User.find_by_global_id(config['user_id']) 
-      if !existing_user || !existing_user.allows?(auth_user, 'link_auth')
-        @error = "Mismatched user connection" 
+      existing_user = User.find_by_global_id(config['user_id'])
+      if !existing_user || !SamlLoginPolicy.may_link?(org, existing_user, auth_user) || !existing_user.allows?(auth_user, 'link_auth')
+        @error = "Mismatched user connection"
         return render
       end
-      org.link_saml_user(existing_user, data)
-      authenticated_user = existing_user
-    else
-      authenticated_user = org.find_saml_user(data[:external_id], email)
-      if !authenticated_user
-        # If user isn't already connected, see if you can auto-connect by user name or email
-        attached = org.attached_users('all')
-        fallback_user = org.find_saml_alias(data[:user_name], data[:email])
-        fallback_user ||= attached.find_by(user_name: user_name)
-        if !fallback_user
-          emails = attached.where(email_hash: User.generate_email_hash(data[:email]))
-          fallback_user = emails[0] if emails.count == 1
-        end
-        if fallback_user
-          org.link_saml_user(fallback_user, data)
-          authenticated_user = fallback_user
-        end
+      link = org.link_saml_user(existing_user, data)
+      if !link
+        @error = "Mismatched user connection"
+        return render
       end
+      SamlLoginPolicy.record_link!(link, auth_user)
+      RedisInit.default.del("saml_#{code}")
+      return redirect_to "/#{existing_user.user_name}"
+    else
+      authenticated_user = SamlLoginPolicy.user_for_assertion(org, data[:external_id])
       if !authenticated_user
-        @error = "User not found in the system, please have your account admin connect your accounts (#{data[:user_name]})" 
+        @error = "User not found in the system, please have your account admin connect your accounts (#{data[:user_name]})"
+        return render
+      end
+      if SamlLoginPolicy.parental_consent_blocked?(authenticated_user)
+        @error = "Parental consent is required before this account can sign in"
         return render
       end
     end
@@ -453,9 +449,6 @@ class SessionController < ApplicationController
         @authenticated_user = authenticated_user
         @no_parent = true
         render
-      elsif config['user_id']
-        # For connection flow, redirect back to the user's profile page, all is done
-        redirect_to "/#{authenticated_user.user_name}"
       else
         device.settings['used_for_saml'] = true
         # For standard flow, redirect to login page with temporary auth token

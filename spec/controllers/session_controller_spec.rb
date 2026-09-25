@@ -1759,7 +1759,7 @@ describe SessionController, :type => :controller do
         expect(assigns[:error]).to eq("User not found in the system, please have your account admin connect your accounts (user_name)")
       end
       
-      it "should link up by user name if possible" do
+      it "should not sign in or link by a matching user name" do
         o = Organization.create
         o.settings['saml_metadata_url'] = 'https://www.example.com/saml/meta'
         o.save
@@ -1790,12 +1790,13 @@ describe SessionController, :type => :controller do
         expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
         post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
         links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
-        expect(response).to be_redirect
-        expect(response.location).to eq("http://test.host/login?auth-#{assigns[:temp_token]}_#{u.user_name}")
+        expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+        expect(response).to_not be_redirect
+        expect(assigns[:temp_token]).to eq(nil)
+        expect(assigns[:error]).to match(/^User not found in the system/)
       end
 
-      it "should link up by email if possible" do
+      it "should not sign in or link by a matching email" do
         o = Organization.create
         o.settings['saml_metadata_url'] = 'https://www.example.com/saml/meta'
         o.save
@@ -1828,9 +1829,10 @@ describe SessionController, :type => :controller do
         expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
         post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
         links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
-        expect(response).to be_redirect
-        expect(response.location).to eq("http://test.host/login?auth-#{assigns[:temp_token]}_#{u.user_name}")
+        expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+        expect(response).to_not be_redirect
+        expect(assigns[:temp_token]).to eq(nil)
+        expect(assigns[:error]).to match(/^User not found in the system/)
       end
 
       it "should error on invalid signature" do
@@ -1871,6 +1873,8 @@ describe SessionController, :type => :controller do
         u.save
         o.add_user(u.user_name, false, false)
         o.reload
+        link = o.link_saml_user(u, {external_id: '123456'})
+        SamlLoginPolicy.record_link!(link, u)
 
         settings = OneLogin::RubySaml::Settings.new
         settings.assertion_consumer_service_url = "http://test.host/saml/consume"
@@ -1891,11 +1895,7 @@ describe SessionController, :type => :controller do
         expect(OneLogin::RubySaml::Response).to receive(:new).with('ressy', :settings => settings).and_return(obj)
 
         RedisInit.default.setex("saml_watermelon", 1.hour.to_i, {org_id: o.global_id, oauth_code: 'abcd'}.to_json)
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
         post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
         expect(assigns[:temp_token]).to_not eq(nil)
         expect(response).to be_redirect
         expect(response.location).to eq("http://test.host/oauth2/token?oauth_code=abcd&tmp_token=#{assigns[:temp_token]}&user_name=#{u.user_name}")
@@ -1910,6 +1910,8 @@ describe SessionController, :type => :controller do
         u.save
         o.add_user(u.user_name, false, false)
         o.reload
+        link = o.link_saml_user(u, {external_id: '123456'})
+        SamlLoginPolicy.record_link!(link, u)
 
         settings = OneLogin::RubySaml::Settings.new
         settings.assertion_consumer_service_url = "http://test.host/saml/consume"
@@ -1930,11 +1932,7 @@ describe SessionController, :type => :controller do
         expect(OneLogin::RubySaml::Response).to receive(:new).with('ressy', :settings => settings).and_return(obj)
 
         RedisInit.default.setex("saml_watermelon", 1.hour.to_i, {org_id: o.global_id, embed: true}.to_json)
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
         post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
         expect(response).to_not be_redirect
         expect(assigns[:authenticated_user]).to eq(u)
         expect(assigns[:saml_data]).to eq({
@@ -1955,6 +1953,8 @@ describe SessionController, :type => :controller do
         u.save
         o.add_user(u.user_name, false, false)
         o.reload
+        link = o.link_saml_user(u, {external_id: '123456'})
+        SamlLoginPolicy.record_link!(link, u)
 
         d = Device.find_or_create_by!(user_id: u.id, developer_key_id: 0, device_key: 'unnamed device')
         d.settings['app'] = true
@@ -2032,6 +2032,8 @@ describe SessionController, :type => :controller do
         u.save
         o.add_user(u.user_name, false, false)
         o.reload
+        link = o.link_saml_user(u, {external_id: '123456'})
+        SamlLoginPolicy.record_link!(link, u)
 
         settings = OneLogin::RubySaml::Settings.new
         settings.assertion_consumer_service_url = "http://test.host/saml/consume"
@@ -2052,11 +2054,7 @@ describe SessionController, :type => :controller do
         expect(OneLogin::RubySaml::Response).to receive(:new).with('ressy', :settings => settings).and_return(obj)
 
         RedisInit.default.setex("saml_watermelon", 1.hour.to_i, {org_id: o.global_id}.to_json)
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
         post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
         expect(response).to be_redirect
         expect(response.location).to eq("http://test.host/login?auth-#{assigns[:temp_token]}_#{u.user_name}")
       end
@@ -2070,6 +2068,8 @@ describe SessionController, :type => :controller do
         u.save
         o.add_user(u.user_name, false, false)
         o.reload
+        link = o.link_saml_user(u, {external_id: '123456'})
+        SamlLoginPolicy.record_link!(link, u)
 
         settings = OneLogin::RubySaml::Settings.new
         settings.assertion_consumer_service_url = "http://test.host/saml/consume"
@@ -2090,11 +2090,7 @@ describe SessionController, :type => :controller do
         expect(OneLogin::RubySaml::Response).to receive(:new).with('ressy', :settings => settings).and_return(obj)
 
         RedisInit.default.setex("saml_watermelon", 1.hour.to_i, {org_id: o.global_id, popout_id: 'a1b2'}.to_json)
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
         post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
-        links = UserLink.links_for(u.reload)
-        expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
         expect(response).to_not be_redirect
         expect(assigns[:authenticated_user]).to eq(u)
         expect(assigns[:no_parent]).to eq(true)
@@ -2110,6 +2106,224 @@ describe SessionController, :type => :controller do
       end
     end
   
+    describe "saml_consume account restrictions" do
+      def sso_org
+        o = Organization.create
+        o.settings['saml_metadata_url'] = "https://idp.example.com/#{SecureRandom.hex(6)}/meta"
+        o.save
+        o
+      end
+
+      def stub_assertion(org, name_id, uid, email)
+        allow_any_instance_of(OneLogin::RubySaml::IdpMetadataParser).to receive(:parse_remote).and_return(OneLogin::RubySaml::Settings.new)
+        attrs = {}
+        allow(attrs).to receive(:fetch).with('email').and_return(email)
+        allow(attrs).to receive(:fetch).with('uid').and_return(uid)
+        allow(attrs).to receive(:multi).with(:role).and_return([])
+        obj = OpenStruct.new({attributes: attrs, name_id: name_id, issuers: [org.settings['saml_metadata_url']]})
+        allow(obj).to receive(:is_valid?).and_return(true)
+        allow(OneLogin::RubySaml::Response).to receive(:new).and_return(obj)
+      end
+
+      def consume(org, config={})
+        code = "c#{SecureRandom.hex(6)}"
+        RedisInit.default.setex("saml_#{code}", 1.hour.to_i, {org_id: org.global_id}.merge(config).to_json)
+        post 'saml_consume', params: {RelayState: code, SAMLResponse: 'ressy'}
+      end
+
+      # The link state the deliberate linking step records.
+      def deliberate_link(org, user, linker, name_id)
+        link = org.link_saml_user(user, {external_id: name_id})
+        link.data['state']['link_method'] = 'deliberate'
+        link.data['state']['linked_by'] = linker.global_id
+        link.data['state']['linked_at'] = Time.now.iso8601
+        link.save!
+        link
+      end
+
+      def accepted_member(org)
+        u = User.create
+        org.add_user(u.user_name, false, false)
+        u.reload
+      end
+
+      def expect_signed_in(user)
+        expect(assigns[:error]).to eq(nil)
+        expect(response).to be_redirect
+        expect(response.location).to eq("http://test.host/login?auth-#{assigns[:temp_token]}_#{user.user_name}")
+      end
+
+      def expect_not_signed_in(user)
+        expect(assigns[:error]).to_not eq(nil)
+        expect(assigns[:temp_token]).to eq(nil)
+        expect(response).to_not be_redirect
+        expect(Device.where(user_id: user.id).count).to eq(0)
+      end
+
+      it "signs in an accepted member through a link the account holder made" do
+        o = sso_org
+        u = accepted_member(o)
+        stub_assertion(o, 'nid-holder', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: u.global_id, auth_user_id: u.global_id})
+        expect(response.location).to eq("http://test.host/#{u.user_name}")
+        consume(o)
+        expect_signed_in(u)
+      end
+
+      it "refuses an account whose user name matches the asserted uid but has no link" do
+        o = sso_org
+        u = accepted_member(o)
+        stub_assertion(o, 'nid-uid-only', u.user_name, 'nobody@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+        expect(UserLink.links_for(u.reload).detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+      end
+
+      it "refuses an account whose email matches the asserted email but has no link" do
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['email'] = 'member@example.com'
+        u.save
+        stub_assertion(o, 'nid-email-only', 'someone-else', 'member@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+        expect(UserLink.links_for(u.reload).detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+      end
+
+      it "refuses a link that was not made through the deliberate linking step" do
+        o = sso_org
+        u = accepted_member(o)
+        o.link_saml_user(u, {external_id: 'nid-unrecorded'})
+        stub_assertion(o, 'nid-unrecorded', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses a match on an org-set alias" do
+        o = sso_org
+        u = accepted_member(o)
+        o.link_saml_alias(u, 'alias-value')
+        stub_assertion(o, 'nid-alias', 'alias-value', 'alias-value')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses a site-admin account" do
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['admin'] = true
+        u.save
+        deliberate_link(o, u, u, 'nid-site-admin')
+        stub_assertion(o, 'nid-site-admin', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses a LingoLinq team account" do
+        admin_o = Organization.create(:admin => true)
+        o = sso_org
+        u = accepted_member(o)
+        admin_o.add_manager(u.user_name, false)
+        deliberate_link(o, u, u, 'nid-team')
+        stub_assertion(o, 'nid-team', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses an account that has not accepted the org" do
+        o = sso_org
+        u = User.create
+        o.add_user(u.user_name, true, false)
+        u.reload
+        deliberate_link(o, u, u, 'nid-pending')
+        stub_assertion(o, 'nid-pending', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses an account attached with no acceptance state" do
+        o = sso_org
+        u = User.create
+        UserLink.generate(u, o, 'org_user', {'sponsored' => true}).save!
+        deliberate_link(o, u, u, 'nid-no-state')
+        stub_assertion(o, 'nid-no-state', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses an org-created account that is no longer attached to the org" do
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['authored_organization_id'] = o.global_id
+        u.save
+        deliberate_link(o, u, u, 'nid-removed')
+        UserLink.remove(u, o, 'org_user')
+        stub_assertion(o, 'nid-removed', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "refuses an account awaiting parental consent" do
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['coppa'] = {'pending_parent_consent' => true}
+        u.save
+        deliberate_link(o, u, u, 'nid-coppa')
+        stub_assertion(o, 'nid-coppa', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect_not_signed_in(u)
+      end
+
+      it "does not let an org manager link an existing member's account, and never signs anyone in" do
+        o = sso_org
+        u = accepted_member(o)
+        m = User.create
+        o.add_manager(m.user_name, true)
+        expect(u.reload.allows?(m.reload, 'link_auth')).to eq(true)
+        stub_assertion(o, 'nid-manager-link', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: u.global_id, auth_user_id: m.global_id, embed: true})
+        expect(assigns[:error]).to_not eq(nil)
+        expect(assigns[:authenticated_user]).to eq(nil)
+        expect(Device.where(user_id: u.id).count).to eq(0)
+        expect(UserLink.links_for(u.reload).detect{|l| l['type'] == 'saml_auth' }).to eq(nil)
+      end
+
+      it "lets a full manager of the creating org link an org-created account without signing anyone in" do
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['authored_organization_id'] = o.global_id
+        u.save
+        m = User.create
+        o.add_manager(m.user_name, true)
+        stub_assertion(o, 'nid-org-created', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: u.global_id, auth_user_id: m.global_id, embed: true})
+        expect(assigns[:authenticated_user]).to eq(nil)
+        expect(assigns[:temp_token]).to eq(nil)
+        expect(response.location).to eq("http://test.host/#{u.user_name}")
+        expect(Device.where(user_id: u.id).count).to eq(0)
+        consume(o)
+        expect_signed_in(u)
+      end
+
+      it "lets a site admin link an org-created account without signing anyone in" do
+        admin_o = Organization.create(:admin => true)
+        o = sso_org
+        u = accepted_member(o)
+        u.settings['authored_organization_id'] = o.global_id
+        u.save
+        a = User.create
+        admin_o.add_manager(a.user_name, true)
+        stub_assertion(o, 'nid-admin-link', 'whatever', 'whatever@example.com')
+        RedisInit.default.del("token_popout_popout-1")
+        consume(o, {user_id: u.global_id, auth_user_id: a.global_id, popout_id: 'popout-1'})
+        expect(assigns[:authenticated_user]).to eq(nil)
+        expect(RedisInit.default.get("token_popout_popout-1")).to eq(nil)
+        expect(response.location).to eq("http://test.host/#{u.user_name}")
+        consume(o)
+        expect_signed_in(u)
+      end
+    end
+
     describe "saml_idp_logout_request" do
       it "should error on invalid signature" do
         get 'saml_idp_logout_request', params: {SAMLRequest: 'abc', RelayState: 'qwer'}
