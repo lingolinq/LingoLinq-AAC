@@ -2425,6 +2425,35 @@ describe SessionController, :type => :controller do
           expect_not_signed_in(u)
         end
       end
+
+      it "refuses when the identity is linked to more than one account in the org" do
+        o = sso_org
+        first = accepted_member(o)
+        second = accepted_member(o)
+        record_code = GoSecure.sha512('nid-duplicate', 'external_auth_user_id')
+        [first, second].each do |u|
+          link = UserLink.generate_external(u, record_code, 'saml_auth', {'org_id' => o.global_id, 'external_id' => 'nid-duplicate'})
+          SamlLoginPolicy.record_link!(link, u)
+        end
+        stub_assertion(o, 'nid-duplicate', 'whatever', 'whatever@example.com')
+        consume(o)
+        expect(assigns[:error]).to_not eq(nil)
+        expect(assigns[:temp_token]).to eq(nil)
+        expect(Device.where(user_id: [first.id, second.id]).count).to eq(0)
+      end
+
+      it "lets an account link an identity whose existing link could not sign anyone in" do
+        o = sso_org
+        stale = accepted_member(o)
+        o.link_saml_user(stale, {external_id: 'nid-stale'})
+        u = accepted_member(o)
+        stub_assertion(o, 'nid-stale', 'whatever', 'whatever@example.com')
+        consume(o, {user_id: u.global_id, auth_user_id: u.global_id})
+        expect(assigns[:error]).to eq(nil)
+        expect(response.location).to eq("http://test.host/#{u.user_name}")
+        consume(o)
+        expect_signed_in(u)
+      end
     end
 
     describe "enforced external auth" do
@@ -2469,6 +2498,18 @@ describe SessionController, :type => :controller do
         json = password_login(u)
         expect(json['auth_redirect']).to eq(nil)
         expect(json['access_token']).to_not eq(nil)
+      end
+
+      it "sends an account to a later enforced org where it is eligible" do
+        first_org = enforced_org
+        later_org = enforced_org
+        expect(first_org.id).to be < later_org.id
+        u = password_user("multi#{SecureRandom.hex(3)}")
+        first_org.add_manager(u.user_name, true)
+        later_org.add_user(u.user_name, false, false)
+        json = password_login(u.reload)
+        expect(json['auth_redirect']).to match(/saml\/init\?org_id=#{later_org.global_id}/)
+        expect(u.google_sso_blocked?).to eq(true)
       end
 
       it "still sends an accepted member to the org's identity provider" do

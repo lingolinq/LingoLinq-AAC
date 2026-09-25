@@ -24,21 +24,24 @@ module SamlLoginPolicy
     Organization.admin_manager?(linker) || org.manager?(linker)
   end
 
-  # True when +external_id+ is already linked to a different account for this
-  # org; a link request must not move it.
+  # True when +external_id+ already signs in a different account for this
+  # org; a link request must not move it. Links that could not sign anyone
+  # in (unrecorded, or no longer eligible) do not block a new link.
   def self.identity_linked_elsewhere?(org, external_id, user)
-    saml_auth_links(org, external_id).any?{|link| link.user_id != user.id }
+    saml_auth_links(org, external_id).any?{|link| link.user_id != user.id && link_user(org, link) }
   end
 
-  # The org with enforced external auth that password, OAuth and Google
-  # sign-in should defer to, or nil. Accounts SSO can never sign in keep
-  # their other sign-in methods.
+  # The first org (lowest id) with enforced external auth where this account
+  # is eligible for SSO, or nil. Password, OAuth and Google sign-in defer to
+  # it; accounts not eligible in any enforced org keep those methods.
   def self.enforced_org_for(user)
     user = User.find_by_path(user) if user.is_a?(String)
     return nil unless user
-    org = Organization.external_auth_for(user)
-    return nil unless org && member_eligible?(org, user)
-    org
+    org_ids = member_links_all(user).map{|link| link['record_code'].split(/:/, 2)[1] }.uniq
+    orgs = Organization.find_all_by_global_id(org_ids).sort_by(&:id)
+    orgs.detect do |org|
+      org.external_auth_key.present? && org.settings['saml_metadata_url'] && org.settings['saml_enforced'] && member_eligible?(org, user)
+    end
   end
 
   def self.record_link!(link, linker)
@@ -54,11 +57,16 @@ module SamlLoginPolicy
     return nil unless org && external_id.present? && org.settings['saml_metadata_url']
     links = saml_auth_links(org, external_id)
     return nil unless links.length == 1
-    state = links[0].data['state']
-    return nil unless state['link_method'] == LINK_METHOD && state['linked_by'].present?
-    user = links[0].user
+    link_user(org, links[0])
+  end
+
+  # The account +link+ may sign in, or nil: recorded by the linking step,
+  # owner still eligible, and linker still allowed to link it.
+  def self.link_user(org, link)
+    state = link.data['state']
+    return nil unless state.is_a?(Hash) && state['link_method'] == LINK_METHOD && state['linked_by'].present?
+    user = link.user
     return nil unless user && member_eligible?(org, user)
-    # The linker must still be allowed to link this account.
     linker = User.find_by_global_id(state['linked_by'])
     return nil unless linker_authorized?(org, user, linker)
     user
@@ -101,7 +109,11 @@ module SamlLoginPolicy
 
   def self.member_links(org, user)
     org_code = Webhook.get_record_code(org)
-    UserLink.links_for(user).select{|link| MEMBER_LINK_TYPES.include?(link['type']) && link['record_code'] == org_code }
+    member_links_all(user).select{|link| link['record_code'] == org_code }
+  end
+
+  def self.member_links_all(user)
+    UserLink.links_for(user).select{|link| MEMBER_LINK_TYPES.include?(link['type']) && link['record_code'].to_s.start_with?('Organization:') }
   end
 
   # Mirrors the parental-consent refusals SessionController#token applies to
