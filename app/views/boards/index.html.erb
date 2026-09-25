@@ -46,10 +46,13 @@
       its CDN scripts, and before application.js is inserted at the end of <body>. Errors and
       failed loads from application.js and later scripts are recorded; anything earlier is not.
 
-      From 30s it shows a panel and refreshes it every 2s until js_loaded is set, then removes
-      it, so a slow but successful boot is not left covered. The bundle is minified with no
-      source maps and dev redeploys on every develop push, so for each error the panel prints
-      the asset URL (its digest names the build) and the source around line:column.
+      From 30s it shows a panel and refreshes it every 2s. If js_loaded is set and nothing was
+      recorded, it removes the panel, so a slow but successful boot is not left covered; once
+      anything is recorded the panel stays. The bundle is minified with no source maps and dev
+      redeploys on every develop push, so for each same-origin error the panel prints the asset
+      URL (its digest names the build) and the source around line:column. That source is fetched
+      only after the panel has drawn the raw error, each excerpt is cut once, and the fetched
+      text is then dropped, so a struggling device holds the extra copy as briefly as possible.
 
       Rendered only when the request host is dev.lingolinq.com, so staging and production
       HTML are unchanged. Raw strings on purpose: this runs before the bundle and therefore
@@ -62,24 +65,33 @@
       var panel = null;
       var shown = '';
 
-      function sourceFor(file) {
-        if (!file || file.indexOf(window.location.origin + '/') !== 0 || !window.fetch) { return; }
-        if (sources[file] !== undefined) { return; }
-        sources[file] = null;
-        window.fetch(file).then(function (r) { return r.text(); }).then(function (text) {
-          sources[file] = text;
-        }, function (err) {
-          sources[file] = { failed: String(err) };
-        });
-      }
-      function excerpt(e) {
-        var text = sources[e.file];
-        if (text === null || text === undefined) { return '  (source excerpt: loading)'; }
-        if (typeof text !== 'string') { return '  (source excerpt unavailable: ' + text.failed + ')'; }
+      function cut(text, e) {
         var line = text.split('\n')[e.line - 1];
-        if (line === undefined) { return '  (source excerpt unavailable: no line ' + e.line + ')'; }
+        if (line === undefined) { return '(source excerpt unavailable: no line ' + e.line + ')'; }
         var at = Math.max(e.col - 1, 0);
-        return '  source: ' + line.slice(Math.max(at - 100, 0), at) + ' <<HERE>> ' + line.slice(at, at + 100);
+        return 'source: ' + line.slice(Math.max(at - 100, 0), at) + ' <<HERE>> ' + line.slice(at, at + 100);
+      }
+      function fetchExcerpts(file) {
+        if (sources[file]) { return; }
+        if (file.indexOf(window.location.origin + '/') !== 0 || !window.fetch) {
+          errors.forEach(function (e) {
+            if (e.file === file && !e.excerpt) { e.excerpt = '(source excerpt unavailable: cross-origin)'; }
+          });
+          return;
+        }
+        sources[file] = true;
+        function settle(fn) {
+          errors.forEach(function (e) { if (e.file === file && !e.excerpt) { e.excerpt = fn(e); } });
+          delete sources[file];
+        }
+        window.fetch(file).then(function (r) {
+          if (!r.ok) { throw new Error('HTTP ' + r.status); }
+          return r.text();
+        }).then(function (text) {
+          settle(function (e) { return cut(text, e); });
+        }, function (err) {
+          settle(function () { return '(source excerpt unavailable: ' + String(err) + ')'; });
+        });
       }
       function note(entry) { if (errors.length < 20) { errors.push(entry); } }
 
@@ -95,7 +107,6 @@
             (err && err.stack ? '\n' + err.stack : ''),
           file: e.filename, line: e.lineno, col: e.colno
         });
-        sourceFor(e.filename);
       }, true);
       window.addEventListener('unhandledrejection', function (e) {
         var r = e && e.reason;
@@ -104,7 +115,7 @@
 
       function render() {
         var state = window.load_state || {};
-        if (state.js_loaded) {
+        if (state.js_loaded && !errors.length) {
           if (panel && panel.parentNode) { panel.parentNode.removeChild(panel); }
           return;
         }
@@ -120,17 +131,20 @@
           if (!panel.parentNode) { document.body.appendChild(panel); }
           var text = [
             'BOOT ERROR CATCHER (temporary, dev only). Screenshot this for PR #1059.',
-            state.js_retrieved ? 'App code downloaded but did not finish starting.' :
+            state.js_loaded ? 'App code finished running, but errors were recorded. Screenshot this.' :
+              state.js_retrieved ? 'App code downloaded but did not finish starting. Screenshot this.' :
+              errors.length ? 'App code did not finish downloading, and errors were recorded. Screenshot this.' :
               'INCONCLUSIVE: the app code has not finished downloading yet. Keep waiting.',
             'Standalone: ' + !!(window.navigator && window.navigator.standalone),
             'User agent: ' + (window.navigator && window.navigator.userAgent),
             'load_state: ' + JSON.stringify(state),
             '',
             errors.length ? ('Errors (' + errors.length + '):\n\n' + errors.map(function (e) {
-              return e.file ? e.text + '\n' + excerpt(e) : e.text;
+              return e.file ? e.text + '\n  ' + (e.excerpt || '(source excerpt: loading)') : e.text;
             }).join('\n\n')) : 'No uncaught error has been recorded yet.'
           ].join('\n');
           if (text !== shown) { panel.textContent = text; shown = text; }
+          errors.forEach(function (e) { if (e.file && !e.excerpt) { fetchExcerpts(e.file); } });
         }
         setTimeout(render, 2000);
       }
