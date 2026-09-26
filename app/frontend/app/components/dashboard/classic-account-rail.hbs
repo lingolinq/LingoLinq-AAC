@@ -1,0 +1,135 @@
+{{!-- THE ACCOUNT SECTION'S NAV, IN BASIC VIEW (2026-09-25).
+     Requested: "on basic view account page we need to add the ch-rail to the account page with
+     these links ... for focused view, use the basic view focused ch-rail styles; for gentle
+     view, use the basic view gentle ch-rail styles".
+
+     WHY A SECOND COMPONENT rather than a mode on dashboard/classic-rail: that rail is the
+     DASHBOARD's (Organizations, Create a New Board, Home Board, Logging, Sync) and its rows are
+     about doing things. This one is a section nav -- nine sibling pages, one per row. They share
+     nothing but their appearance, and appearance is exactly what the `ch-` classes carry, so
+     reusing the classes gives the requested styling in both layouts for free while the two link
+     lists stay independent. No identity card and no collapse toggle here: both belong to the
+     dashboard rail's role as the home page's permanent sidebar.
+
+     THE ICONS AND LABELS ARE THE MODERN RAIL'S (components/account-rail.hbs), row for row, so
+     the same destination is named and drawn the same way in both views. Trainings is the one
+     row Modern's rail does not carry, so its glyph is drawn to the same convention: two-tone,
+     charcoal structure with a teal accent. --}}
+<aside class="ch-rail ch-rail--account {{if this.isCollapsed "ch-rail--collapsed"}}" aria-label={{t "Your account pages" key="classic_account_rail_aria"}}>
+
+  {{!-- THE ACCOUNT BUTTON IS THE HOME PAGE'S IDENTITY CARD (2026-09-25, requested: "replace the
+       Account button with the account button from the home page (and the divider below it)").
+       Markup, classes and helpers are `dashboard/classic-rail.hbs:18-37` unchanged, so the two
+       rails render the same card from the same styles -- including the wrapping-username
+       treatment, whose reasoning is worth reading at that call site.
+       IT REPLACES the "Account" row that stood at the top of the list: the card links to the
+       same route, so keeping both would have put two doors to the same page side by side. --}}
+  <LinkTo @route="user.account" @model={{@user.user_name}} @current-when={{this.accountCurrentWhen}} class="ch-rail__identity">
+    <span class="ch-rail__avatar-wrap">
+      <img src={{@user.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} {{image-fallback-to-rel}} alt="" class="ch-rail__avatar">
+      {{#if @user.online}}
+        <span class="ch-rail__online" title={{t "currently online" key="currently_online"}}></span>
+      {{/if}}
+    </span>
+    <span class="ch-rail__identity-text">
+      <span class="ch-rail__username">{{break-on-separators @user.user_name}}</span>
+      <span class="ch-rail__identity-sub">{{t "View my account" key="classic_view_my_account"}}</span>
+    </span>
+    <span class="ch-rail__arrow" aria-hidden="true">&rarr;</span>
+  </LinkTo>
+
+  {{!-- THE COLLAPSE CONTROL, AND THE DIVIDER, in one element. Same markup and same position as
+       `dashboard/classic-rail.hbs:58-70`: in flow between the card and the first row, so it lands
+       on that seam at any card height, with `.ch-rail__toggle-row`'s negative right margin
+       straddling the rail's border. The hairline under the card is that row's `::before`
+       (_classic-home.scss), so asking for the divider and the control is one piece of markup.
+       The action writes the same stashed key the dashboard rail uses -- see the component. --}}
+  <div class="ch-rail__toggle-row">
+    <button type="button" class="ch-rail__toggle" aria-expanded={{if this.isCollapsed "false" "true"}} {{on "click" (this.ctrlAction "toggle_rail")}}>
+      <svg class="ch-rail__toggle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      <span class="sr-only">
+        {{#if this.isCollapsed}}
+          {{t "Expand menu" key="classic_rail_expand"}}
+        {{else}}
+          {{t "Collapse menu" key="classic_rail_collapse"}}
+        {{/if}}
+      </span>
+    </button>
+  </div>
+
+  <ul class="ch-rail__list">
+    <li class="ch-rail__item">
+      <LinkTo @route="user.stats" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "stats") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Reports" key="classic_short_reports"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "Reports" key="reports"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+    {{!-- GOALS and LOGS take `is-active` from `activeRow`, not from <LinkTo>: their detail
+         routes are siblings in router.js, so the parent row would sit dark on a detail page. --}}
+    <li class="ch-rail__item">
+      <LinkTo @route="user.goals" @model={{@user.user_name}} class="ch-row ch-row--minor {{if (is_equal this.activeRow "goals") "is-active"}}" aria-current={{if (is_equal this.activeRow "goals") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="5" stroke="#46505F"/><circle cx="12" cy="12" r="1.5" fill="#2A9D8F" stroke="none"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Goals" key="classic_short_goals"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "Goals" key="goals"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+    <li class="ch-rail__item">
+      <LinkTo @route="user.lessons" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "lessons") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 4l9 4.5-9 4.5Z" stroke="#46505F"/><path d="M7 11v5c0 1.5 2.2 2.5 5 2.5s5-1 5-2.5v-5" stroke="#2A9D8F"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Training" key="classic_short_trainings"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "Trainings" key="trainings"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+    <li class="ch-rail__item">
+      <LinkTo @route="user.recordings" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "recordings") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#2A9D8F"/><path d="M5 10v2a7 7 0 0 0 14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="22" stroke="#46505F"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Record" key="classic_short_recordings"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "Recordings" key="recordings"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+    {{!-- PROFILE and SETTINGS carry the same `permissions.edit` gate the Modern rail applies to
+         the same two rows, on the same record. A supporter viewing someone else's account has
+         neither page. --}}
+    {{#if @user.permissions.edit}}
+      <li class="ch-rail__item">
+        <LinkTo @route="user.edit" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "edit") "page"}}>
+          <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" stroke="#2A9D8F"/></svg></span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Profile" key="classic_short_profile"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Profile" key="profile_lower"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      <li class="ch-rail__item">
+        <LinkTo @route="user.preferences" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "preferences") "page"}}>
+          <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#46505F"/></svg></span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Settings" key="classic_short_settings"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Settings" key="preferences_lower"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+    {{/if}}
+    <li class="ch-rail__item">
+      <LinkTo @route="user.subscription" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "subscription") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#46505F"/><line x1="2" y1="10" x2="22" y2="10" stroke="#2A9D8F"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Billing" key="classic_short_subscription"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "Subscription" key="my_subscription"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+    <li class="ch-rail__item">
+      <LinkTo @route="user.logs" @model={{@user.user_name}} class="ch-row ch-row--minor {{if (is_equal this.activeRow "logs") "is-active"}}" aria-current={{if (is_equal this.activeRow "logs") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Logs" key="classic_short_logs"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "Logs & Messages" key="logs_and_messages"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+  </ul>
+</aside>

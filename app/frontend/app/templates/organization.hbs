@@ -1,29 +1,88 @@
 <div class="md-shell md-shell--org">
+  {{!-- BASIC VIEW'S ORG NAV (2026-09-25, requested). Selecting an organisation used to REPLACE
+       the rail with the two-item `ch-tabs` strip below, so the section you had just entered was
+       the one place in Basic with no sidebar. The rail renders here too now, in org mode: see
+       `orgSection` in components/dashboard/classic-rail.js for what changes and why.
+       `@org={{this.model}}` is what puts it in that mode -- the directory page mounts the same
+       component with no argument and is unchanged.
+       A DIRECT CHILD OF `.md-shell`, for the two reasons templates/organizations.hbs records at
+       its own mount: `.md-shell` carries the page's gradient, so a rail outside it would sit on
+       bare page; and `.md-shell > .md-workspace` is a DIRECT-CHILD selector that a flex wrapper
+       between the two would silently break. --}}
+  {{#if this.isClassic}}
+    <Dashboard::ClassicRail @org={{this.model}} />
+  {{/if}}
   <div class="md-workspace">
     {{!-- BASIC VIEW REPLACES THE PILL NAV WITH THE `ch-` TAB STRIP (requested 2026-09-23), in
          this exact slot -- the strip used to render further down, inside the page card, which is
          why hiding the pills alone left a gap and the strip in the wrong place.
          It wears `ch-tabs` / `ch-tab`, the Basic home page's own classes, so it takes the gentle
          and focused schemes from there rather than restating either.
-         Two items by design: a way back, and where you are. The current section is a <span>
-         with `aria-current="page"` and nothing to activate, which is what tells a screen reader
-         this is the page you are on. Its label comes from the router (see
-         `currentSectionLabel`), so every org sub-page gets the right word without this template
-         knowing which child is rendering.
-         THE WAY BACK IS ALSO DERIVED, not fixed (2026-09-23): on the room DETAIL page it reads
-         "Back" and returns to the rooms LIST, because that is the page above it; everywhere
-         else it reads "Home" and leaves the org section. `backRoute`/`backModels`/`backLabel`
-         in controllers/organization.js hold that rule so BOTH strips below share it -- the
-         Basic and Modern copies differ only in their class names, and a conditional written
-         into the markup would have had to be written into each. --}}
+
+         THE TWO STRIPS NO LONGER MIRROR EACH OTHER (2026-09-25). They were the same two items in
+         two sets of class names -- a way back, and the section you are on. Basic's has since
+         become the ADMIN AREA'S OWN TABS (Admin plus the five people sections; see the note on
+         that branch), because Basic also gained the rail beside it, which took over both of the
+         jobs that pair was doing. Modern has no such rail, so its strip is unchanged and still
+         reads "< Home | <section>".
+         THAT IS WHY `currentSectionLabel`, `backRoute`, `backModels` and `backLabel`
+         (controllers/organization.js) are now read by the MODERN branch alone. They are still
+         correct and still used; they simply have one consumer instead of two. The rule they
+         carry is worth keeping in mind if Basic's strip ever needs a way back again: on the room
+         DETAIL page the label reads "Back" and returns to the rooms LIST, because that is the
+         page above it, and everywhere else it reads "Home" and leaves the org section. --}}
     {{#if this.isClassic}}
+      {{!-- THE ADMIN AREA'S OWN TABS (2026-09-25, requested: "the ch-tabs need to be: Admin,
+           Managers, Supervisors, Communicators, Evals, Symbols (instead of Home and
+           Organizations)").
+
+           IT REPLACED A "< Home | <section>" PAIR. That pair was a way back plus a label; both
+           jobs now belong to the rail beside it, which carries Home Page, Organizations and the
+           org's five sections and marks the page you are on. Two navs saying "where you are"
+           was the redundancy this removes.
+
+           THE FIVE PEOPLE TABS ARE ONE ROUTE WITH A PARAM, not five routes. Managers,
+           Supervisors, Communicators, Evals and Symbols are sections of `organization.people`
+           (templates/organization/people.hbs), selected until now by a click-only property that
+           a parent template had no way to set -- see the note on `section` in
+           controllers/organization/people.js for why it moved into the URL. SYMBOLS IS
+           `extras`: that is the value its own tab has always used and the name of the API it
+           loads (`/organizations/:id/extras`), so the label and the param differ on purpose.
+
+           ADMIN IS `organization.index`, and it is the tab this strip lights on that page.
+           The five take their highlight from `activePeopleSection`, which asks the people
+           controller what it is showing rather than re-reading the URL, so the strip cannot
+           disagree with the page under it -- including with no param at all, where the page
+           defaults to Managers and so does this.
+
+           NO COUNTS (requested 2026-09-25: "Remove the count from the nav menu"). They were
+           carried up here from the people page's own Basic strip when this replaced it -- the
+           manager/supervisor/user totals and the two used-of-allotted ratios. Each figure is
+           still shown by the section it belongs to, in its own heading ("2 managers",
+           "1 / 10 eval accounts used"), so nothing is lost by taking them out of the nav.
+           `ch-organizations-tabs` GOES WITH THEM: that class exists only to stack a label over
+           a count (`.ch-tab` becomes a flex COLUMN, _classic-home.scss:1366), which a
+           single-line tab does not want. The base `.ch-tab` is the right treatment now.
+           Its rules are left in place, unused -- dead CSS is its own cleanup. --}}
       <nav class="ch-tabs ch-tabs--primary" aria-label={{t "Organization Navigation" key="org_navigation"}}>
-        <LinkTo @route={{this.backRoute}} @models={{this.backModels}} class="ch-tab ch-tab--back">
-          <span class="ch-tab__label"><span aria-hidden="true">&larr;</span> {{this.backLabel}}</span>
+        <LinkTo @route="organization.index" @model={{this.model.id}} class="ch-tab {{if this.adminTabActive "is-active"}}" aria-current={{if this.adminTabActive "page"}}>
+          <span class="ch-tab__label">{{t "Admin" key="admin"}}</span>
         </LinkTo>
-        <span class="ch-tab is-active" aria-current="page">
-          <span class="ch-tab__label">{{this.currentSectionLabel}}</span>
-        </span>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="managers"}} class="ch-tab {{if (is_equal this.activePeopleSection "managers") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "managers") "page"}}>
+          <span class="ch-tab__label">{{t "Managers" key="managers"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="supervisors"}} class="ch-tab {{if (is_equal this.activePeopleSection "supervisors") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "supervisors") "page"}}>
+          <span class="ch-tab__label">{{t "Supervisors" key="supervisors"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="communicators"}} class="ch-tab {{if (is_equal this.activePeopleSection "communicators") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "communicators") "page"}}>
+          <span class="ch-tab__label">{{t "Communicators" key="communicators"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="evals"}} class="ch-tab {{if (is_equal this.activePeopleSection "evals") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "evals") "page"}}>
+          <span class="ch-tab__label">{{t "Evals" key="evals"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="extras"}} class="ch-tab {{if (is_equal this.activePeopleSection "extras") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "extras") "page"}}>
+          <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
+        </LinkTo>
       </nav>
     {{else if this.showSectionPillNav}}
       {{!-- ...AND NOT AT ALL WHERE THE APP SHELL ALREADY DREW ONE (2026-09-23). On the rooms

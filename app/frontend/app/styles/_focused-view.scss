@@ -4743,6 +4743,18 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
     border-radius: 15px;
     background: rgba(255, 255, 255, 0.34);
 
+    // 2px OFF TOP AND BOTTOM AT 1024 AND BELOW (2026-09-25, requested for the rail's buttons;
+    // Gentle takes the same 2px at its own rule in _classic-home.scss).
+    // THE MIN-HEIGHT COMES DOWN WITH IT, or the request would be a no-op here: 42px of icon
+    // chip plus 2x9 is 60, under the 64 above, so this row's height is the min-height and
+    // padding alone moves nothing. 60 is 64 less the 4px asked for, and still clears the 44px
+    // WCAG 2.5.5 target minimum the line above is there to hold.
+    @media (max-width: 1024px) {
+      min-height: 60px;
+      padding-top: 7px;
+      padding-bottom: 7px;
+    }
+
     // A SILVER HAIRLINE, not the white one and not nothing. This was transparent while the
     // veil alone was meant to carry the row; it reads as under-defined on the light pane, so
     // the edge is back — but in $brand-cool-steel, the silver the Gentle rows already use

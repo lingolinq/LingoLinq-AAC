@@ -79,6 +79,25 @@ export default Component.extend({
     return this.get('user') || this.appState.get('currentUser');
   }),
 
+  /* ORG MODE (2026-09-25, requested: "on basic view: on the organizations page, after an
+   * organization has been selected, the contents of the ch-rail need to change").
+   *
+   * Inside an organisation the rail stops being the personal dashboard's sidebar and becomes that
+   * organisation's nav: the rows about YOUR boards, home board, logging, subscription,
+   * supervisors and sync give way to the org's own pages, and Organizations reads as the section
+   * you are standing in rather than as a way out of it.
+   *
+   * KEYED ON BEING GIVEN AN ORG, NOT ON A ROUTE LIST. `templates/organization.hbs` passes
+   * `@org={{this.model}}`; `templates/organizations.hbs` (the directory) passes nothing and gets
+   * the rail exactly as it was. That makes the switch a property of the call site, so there is no
+   * list of `organization.*` route names here to fall out of step with router.js -- the mistake
+   * this session has already had to correct once in `showClassicAccountRail`
+   * (controllers/user.js). It also means the org's id for every row's link comes from the same
+   * object that decided the mode, so the rail cannot be in org mode without an org to link to. */
+  orgSection: computed('org', function() {
+    return !!this.get('org');
+  }),
+
   supervisorCount: computed('appState.currentUser.supervisors', function() {
     return (this.appState.get('currentUser.supervisors') || []).length;
   }),
@@ -119,6 +138,29 @@ export default Component.extend({
     return !!this.stashes.get('classic_rail_collapsed');
   }),
 
+  /* COLLAPSED BY DEFAULT INSIDE AN ORGANISATION (2026-09-25, requested: "when an organization is
+   * selected, make the ch-rail unexpanded by default").
+   *
+   * PRESENTATIONAL, NOT PERSISTED -- the same split `classic-account-rail.js` makes for its
+   * auto-collapse at narrow widths, and for the same reason. `classic_rail_collapsed` is the
+   * user's own choice and is SHARED with the dashboard and account rails, so writing to it here
+   * would silently rewrite a preference they set elsewhere: walk into an org, walk back out, and
+   * the home page's rail would be collapsed too. This state lives on the component and dies with
+   * it, so leaving the org section hands control straight back to the stashed preference.
+   *
+   * THE CONTROL STILL WORKS: `toggle_rail` flips this local flag while in org mode instead of
+   * the stash, so anyone who wants the rail open on an org page can have it, for as long as they
+   * are on one.
+   *
+   * `isCollapsed` IS WHAT THE TEMPLATE READS, not `railCollapsed` -- the class, the
+   * `aria-expanded` and the expand/collapse label all have to agree, and they only do if there is
+   * one answer for them to read. */
+  org_expanded: false,
+  isCollapsed: computed('orgSection', 'org_expanded', 'railCollapsed', function() {
+    if(this.get('orgSection')) { return !this.get('org_expanded'); }
+    return this.get('railCollapsed');
+  }),
+
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
     return !this.appState.get('currentUser.external_device');
   }),
@@ -132,6 +174,12 @@ export default Component.extend({
 
   actions: {
     toggle_rail: function() {
+      /* In org mode the control is a LOCAL override (see `isCollapsed` above); only outside it
+         does it write the preference the other two rails share. */
+      if(this.get('orgSection')) {
+        this.set('org_expanded', !this.get('org_expanded'));
+        return;
+      }
       this.stashes.persist('classic_rail_collapsed', !this.get('railCollapsed'));
     },
     /* The MODAL form, which is what `classic-view.js` overrides its parent with. The parent's

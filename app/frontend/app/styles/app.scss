@@ -51075,6 +51075,54 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     transform: translateX(0);
   }
 }
+
+/* ── THE ACCOUNT-SECTION HEADERS THAT SLIDE IN, IN GENTLE (2026-09-25) ──────────────────
+   Requested: "on user recordings gentle view, add movement to the header, same as the Profile
+   page", then "on gentle, add movement to the Training page as well and the goals page".
+
+   SAME ANIMATION AS PROFILE, to the character: `md-slide-in-from-left`, 0.75s, the same easing
+   (`.md-edit-profile__header` below). Copied rather than invented so the section's headers all
+   arrive the same way; a page that wants this adds its selector to the list here rather than a
+   fifth copy of the declaration.
+
+   GENTLE ONLY, EXPRESSED AS `body:not(.ll-layout-focused)` RATHER THAN AS A BASE RULE PLUS AN
+   OVERRIDE. Profile, Settings and Logs get there the other way -- an unscoped animation here and
+   `animation: none` under `body.ll-layout-focused` in _focused-view.scss -- which takes two
+   edits in two files and breaks silently if someone adds a page to one list and not the other.
+   One scoped rule says the same thing once and cannot fall out of step. (0,2,1) against the base
+   blocks' (0,1,0), so it wins on specificity regardless of where @use places this partial.
+
+   REPORTS IS ABSENT FROM THIS LIST BUT DOES MOVE -- it is fixed elsewhere, and the reason is
+   worth stating because I got it wrong first time. Its Gentle header is a HERO, not an
+   icon+title block, and it has its OWN motion rules: `.md-hero__title--from-left` slides the
+   title in over 1s and `.md-hero__sub--from-right` follows at 0.5s (:34501). I assumed that
+   meant Reports already moved. It did not, in Basic: a rule added 2026-09-23 for the ORG header
+   stilled `body.ll-view-basic .md-hero--dashboard ...`, and the reports hero carries
+   `--dashboard` too, so it was caught as collateral. Checked with `getAnimations()`, which
+   reports what is actually attached rather than what a rule looks like it should do.
+   THE FIX IS IN `_classic-home.scss`, at that rule, by excluding Reports from it -- not here.
+   Giving Reports a slide-in here as well would have put a second animation on a header that
+   already has two of its own.
+
+   `.md-lessons__header` and the shared family: the animation is NOT added to the
+   `.md-billing__header, .md-supervision-page__header, ...` block that Trainings joined earlier
+   today, because that block also styles Subscription, Supervision and the two Focused-only
+   heads -- pages nobody asked to animate. Trainings takes the movement by name, here. */
+body:not(.ll-layout-focused) .md-recordings__header,
+body:not(.ll-layout-focused) .md-lessons__header,
+body:not(.ll-layout-focused) .md-goals__header {
+  animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+/* Movement is a preference, not a decoration. `.md-preferences__header` is guarded the same way
+   (further down this file); `.md-edit-profile__header` is NOT, which is a gap in the page this
+   was copied from rather than a pattern worth copying. Reported, not silently "fixed" here. */
+@media (prefers-reduced-motion: reduce) {
+  body:not(.ll-layout-focused) .md-recordings__header,
+  body:not(.ll-layout-focused) .md-lessons__header,
+  body:not(.ll-layout-focused) .md-goals__header {
+    animation: none;
+  }
+}
 .md-edit-profile__header {
   display: flex;
   align-items: center;
@@ -51731,13 +51779,22 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Supervision pages (supervision joined 2026-09-21, requested — "match the subscription
    header"). Listed together rather than copied so the two cannot drift; a third page wanting
    this header adds its selector here rather than a fourth scale of its own.
+   TRAININGS JOINED 2026-09-25 (requested: "add a Training header and icon just like the Goals
+   page has"). It had a BARE `<h2>` and no icon — the only page in the section with neither.
+   IT JOINED HERE RATHER THAN COPYING `.md-goals__header`, which is a byte-identical copy of the
+   block below made before this family existed. That copy is also why Goals renders a 25px title
+   while everything here renders 26: `.md-goals__title` sets `font-size: 2.1rem` with no
+   `!important`, so it loses outright to `h2 { font-size: 25px !important }` (:4039) and its
+   declared value never applies. Folding Goals in here would fix that and cost it 1px; left
+   alone deliberately, since nobody asked for Goals to change.
    The `> svg` sizing lives here so a consumer does not have to borrow
    `.md-extras-card__svg-icon` from the extras grid to get 28px. Subscription still carries
    that class in its markup and the values are identical, so nothing changes for it. */
 .md-billing__header,
 .md-supervision-page__header,
 .md-user-summary__focus-head,
-.md-stats-main__focus-head {
+.md-stats-main__focus-head,
+.md-lessons__header {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51748,7 +51805,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-billing__header > svg,
 .md-supervision-page__header > svg,
 .md-user-summary__focus-head > svg,
-.md-stats-main__focus-head > svg {
+.md-stats-main__focus-head > svg,
+.md-lessons__header > svg {
   width: 28px;
   height: 28px;
   flex: none;
@@ -51762,7 +51820,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-billing__title,
 .md-supervision-page__title,
 .md-user-summary__focus-title,
-.md-stats-main__focus-title {
+.md-stats-main__focus-title,
+.md-lessons__title {
   margin: 0;
   /* 26px, set in px on purpose (requested 2026-09-24). This was `2.1rem`, which is 21px at this
      app's 10px root -- and it was NOT what rendered either: the heading is an `<h2>`, and a bare
@@ -97713,6 +97772,25 @@ span.md-board-detail-modeling-btn--badge {
   gap: 12px 20px;
   margin-bottom: 24px;
 }
+/* THE REPORT MENU OPENS IN FLOW, NOT OVER THE PAGE (2026-09-25, requested: "...and not cut off
+   (on the right or the bottom)").
+   THE BOTTOM CUT-OFF HAD A DIFFERENT CAUSE FROM THE RIGHT-HAND ONE, which is why this is a
+   second rule. Diagnosed with the ancestor walk docs/styling-recurring-problems.md prescribes
+   rather than guessed at: with the menu open at y=453 and 320px tall, `.md-workspace`
+   (`overflow: hidden auto`) ends at y=567, so it cut the list off ~114px in. It is the nearest
+   ancestor that clips, and no z-index can escape an `overflow` ancestor.
+   `position: static` IS THE DOC'S PREFERRED FIX (#1, "flow-positioned dropdown"): the menu takes
+   real layout space and pushes the divider and results down, so there is no longer anything for
+   an ancestor to clip. `top/left/right` and `z-index` stop applying with it, which is fine --
+   they only ever described where the floating box went.
+   ANCHORED `position: fixed` (the doc's #2) IS RULED OUT HERE, and the same walk says why:
+   `main.md-main--org` carries a transform, which makes it the containing block for fixed
+   descendants, so fixed would not escape the clip either.
+   SCOPED TO THIS STRIP. The per-page/sort/filter menus live in `.md-org-report-filters` and are
+   short lists that were not reported; they keep the floating behaviour. */
+.md-org-report-controls .bound-select__list {
+  position: static;
+}
 .md-org-report-divider {
   border: none;
   height: 1px;
@@ -97753,7 +97831,18 @@ span.md-board-detail-modeling-btn--badge {
   color: var(--md-ink, $brand-blue-black);
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  min-width: 180px;
+  /* 180 -> 420 (2026-09-25, requested: "make the reports for organizations wider and not cut
+     off (on the right...)"). THE RIGHT-HAND CUT-OFF WAS THIS NUMBER, not a clipping ancestor:
+     `.bound-select__list` is `left: 0; right: 0` (:94407), so the menu is exactly as wide as
+     this trigger, and at 180px every long report name ellipsised ("All organization co…").
+     420 IS MEASURED, not chosen: the 19 option labels were rendered into an unconstrained span
+     and the widest ("Button labels that don't have matching parts of speech") came back at
+     388px. 420 clears that plus the list's 6px padding and the option's own inset, so no label
+     truncates. Anything less truncates SOME label, and the list is the one place a user is
+     reading these names to tell them apart.
+     `--sm` IS UNAFFECTED: the per-page/sort/filter selects set `min-width: 0` below and come
+     later in source order, so they keep the compact size they were given. */
+  min-width: 420px;
 }
 .md-org-report-select:hover {
   border-color: rgba($brand-dusty-denim, 0.3);
@@ -98724,6 +98813,14 @@ span.md-board-detail-modeling-btn--badge {
   .md-org-settings-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+  /* The report picker's 420px floor is a wide-screen figure (it exists so the option labels do
+     not truncate); below this breakpoint the controls are a stretched column and that floor
+     would push the card wider than the viewport. Released here so it simply fills the column --
+     labels wrap or ellipsise at this width either way, and a horizontal scrollbar on the page
+     is the worse outcome. */
+  .md-org-report-select {
+    min-width: 0;
   }
   .md-org-settings-card {
     padding: 16px;
@@ -111811,7 +111908,7 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
    the foot of the gentle block takes this box to 0. Leaving the 16px unbounded outweighed that
    rule and held 16px of the 64 this section was asked to give up at those widths. */
 @media (min-width: 901px) {
-  body:not(.ll-layout-focused) #content .ll-appshell .md-shell--user > .md-workspace {
+  body:not(.ll-layout-focused) #content:has(.md-hero--dashboard-user) .ll-appshell .md-shell--user > .md-workspace {
     margin-top: 0 !important;
     padding-top: 16px !important;
   }
@@ -111846,7 +111943,7 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
    The shell's `padding-top: 0` above is NOT bounded: it stays 0 all the way down, or the narrow
    widths would take back the 52px push the account section is exempt from. */
 @media (min-width: 901px) and (max-width: 1024px) {
-  body:not(.ll-layout-focused) #content .ll-appshell .md-shell--user > .md-workspace {
+  body:not(.ll-layout-focused) #content:has(.md-hero--dashboard-user) .ll-appshell .md-shell--user > .md-workspace {
     padding-top: 20px !important;
   }
 }
@@ -111884,5 +111981,77 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
 @media (max-width: 900px) {
   body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--stats {
     padding-top: 0 !important;
+  }
+}
+
+
+/* ── ABOVE 900: THE SEVEN INNER SECTION PAGES SIT WHERE FOCUSED PUTS THEM (2026-09-25) ──
+   Requested: "modern view gentle: on >900px width move the Goals, Logs, Profile, Recordings,
+   Preferences, Subscription, & Supervision page contents down ... position them down the same
+   level they are on focused view".
+
+   WHICH PAGES, AND HOW THEY ARE TOLD APART. All nine account-section pages share
+   `.md-shell--user`, so the class alone cannot separate them. The account page is the one that
+   renders `.md-hero--dashboard-user` (templates/user/index.hbs), so `:has()` on it names the
+   account page and `:not(:has())` names the other seven. Reports is not in either set: it is a
+   bare route with its own `.md-shell--stats` (see the block below).
+   The account page keeps the position it was given on 2026-09-24 ("move the page content up
+   considerably", then another 64px), which is why the two rules that do that now carry the same
+   `:has(.md-hero--dashboard-user)` scope. They were written when the section moved as one; it
+   does not any more, and scoping them is the honest way to say so.
+
+   MEASURED IN THE BROWSER, Modern, `/goals` as the representative (all seven agree to the
+   pixel), as the y of the page title:
+                gentle before   focused   delta
+     1280            77           171      +94
+     1024            81           131      +50
+      950            81           131      +50
+   Focused reaches 171/131 as #content 46 + shell 30 + workspace 40/0 margin + 20 padding +
+   `.md-main--user` 35. Three of those four are simply the values these pages have when the
+   gentle alignment block leaves them alone, so this block restores them rather than inventing
+   numbers: #content to the bare `+ 3rem` those routes get without a page class, and the shell
+   to its own `--ll-nav-clearance`. THE WORKSPACE MARGIN IS DELIBERATELY NOT DECLARED -- the base
+   is already 40 at 1280 and 0 at 1024 and below, which is exactly what Focused has at each
+   width, and writing it out would freeze one width's value across both.
+   Only the padding needs stating, and 20px is the number Focused itself uses.
+
+   GENTLE ONLY and >900 ONLY, as asked. The 900-and-below work of 2026-09-24 (the section moving
+   up 64px when the rail drops in flow) is a different range and is untouched. */
+@media (min-width: 901px) {
+  body:not(.ll-layout-focused) #within_ember #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) {
+    padding-top: calc(var(--topbar-height) + 3rem) !important;
+  }
+  body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) .ll-appshell .md-shell {
+    padding-top: 3rem !important;
+  }
+  body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) .ll-appshell .md-shell--user > .md-workspace {
+    padding-top: 20px !important;
+  }
+}
+
+/* ── ABOVE 900: REPORTS COMES UP TO THE SECTION'S LANDING LINE (2026-09-25) ─────────────
+   Requested: "modern view gentle: On >900px width move the stats page content up on the page".
+
+   IT WAS THE LOWEST PAGE IN THE SECTION, measured as the y of "Activity for <user>": 146 at
+   1280, 158 at 1024, 170 at 950, against the account page's 105/101/101. Two boxes held it
+   there and both are doubled-up gaps rather than anything of the page's own:
+     shell     52 -> 0   the 1024-step push, which the rest of this section is already exempt
+                         from; Reports is in the section and was not
+     workspace 40 margin -> 0, and its padding pinned at 40 rather than the base's 40/40/52
+   That leaves the workspace's own 40px inset, the hero's 24 and the title's 16, and lands the
+   title on y=106 at every width above 900 -- the line the gentle alignment block names as this
+   section's landing line, and within a pixel of the account page's 105.
+
+   SCOPED TO `.md-shell--stats`, not `--reports-view`: the latter is also on user.hbs,
+   user/boards.hbs and the dashboard's authenticated view, none of which were asked to move.
+   >900 ONLY: below 901 Reports has its own 2026-09-24 rules (52 -> 0 and the hero's 24 -> 12),
+   which this must not reach past. */
+@media (min-width: 901px) {
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--stats {
+    padding-top: 0 !important;
+  }
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell--stats > .md-workspace {
+    margin-top: 0 !important;
+    padding-top: 40px !important;
   }
 }

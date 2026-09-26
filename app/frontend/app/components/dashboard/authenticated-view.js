@@ -11,6 +11,7 @@ import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
 import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
+import { badge_snapshot } from '../../utils/badge_display';
 import Log from '../../models/log';
 import session from '../../utils/session';
 import modal from '../../utils/modal';
@@ -664,8 +665,16 @@ export default Component.extend({
             b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id)
           }
         }
-        emberSet(model, 'current_badge', b);
-        emberSet(model, 'earned_badge', eb);
+        /* SNAPSHOTS, NOT RECORDS (2026-09-25). See utils/badge_display.js for the defect: a live
+           Badge record written into a JSON payload takes the Ember Data Store with it and the
+           payload stops being serializable.
+           These two write onto the user RECORD rather than onto `attr('raw')` data, so they were
+           not part of the crash. They are snapshotted anyway because a grep of app/ and tests/
+           found NO reader of `model.current_badge` or `model.earned_badge` -- so there is nothing
+           to break -- and leaving them as records would give one field name two shapes depending
+           on which object carries it, which is the trap the next reader falls into. */
+        emberSet(model, 'current_badge', badge_snapshot(b));
+        emberSet(model, 'earned_badge', badge_snapshot(eb));
       }
       var sups = [];
       // Use known_supervisees from currentUser first (since that's what we check for tab visibility), then sessionUser
@@ -679,10 +688,20 @@ export default Component.extend({
       }
       supervisees_list.forEach(function(sup) {
         if(for_users[emberGet(sup, 'id')] && emberGet(sup, 'premium')) {
+          /* THE CRASH SITE. `sup` is an element of `user.supervisees`, which is `attr('raw')`
+             (models/user.js:183) and is handed to local storage by reference
+             (services/persistence.js:706 -> utils/dbman.js:158 -> JSON.stringify). The value
+             here used to be the live Badge record returned by `Badge.best_next_badge`
+             (models/badge.js:319), whose `.store` closes a circle through
+             `store.notifications.store`, so every write of the user record threw
+             "Converting circular structure to JSON" and the record never reached local storage.
+             Decorating these entries for display is established practice -- `online`
+             (models/user.js:877), `local_avatar_url` below, `goal` -- and every other decoration
+             is a JSON-safe value. These two now are as well. */
           var b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id);
-          emberSet(sup, 'current_badge', b);
+          emberSet(sup, 'current_badge', badge_snapshot(b));
           var eb = _this.earned_badge(for_users[emberGet(sup, 'id')]);
-          emberSet(sup, 'earned_badge', eb);
+          emberSet(sup, 'earned_badge', badge_snapshot(eb));
         }
         if(LingoLinq.remote_url(sup.avatar_url) && !sup.local_avatar_url) {
           _this.persistence.find_url(sup.avatar_url, 'image').then(function(url) {

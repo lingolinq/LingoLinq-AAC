@@ -12,7 +12,11 @@
      `@user` may be passed in to name whose rail this is; the dashboard resolves that from its
      own supervisee context. Left off, it falls back to the session user, which is what
      /organizations wants. Everything else the rail derives itself from services. --}}
-<aside class="ch-rail {{if this.railCollapsed "ch-rail--collapsed"}}" aria-label={{t "Your account" key="classic_rail_aria"}}>
+{{!-- `ch-rail--org` marks the rail's ORG MODE (2026-09-25) -- see `orgSection` in the component.
+     It is what the active-row treatment hangs off in _classic-home.scss, listed there beside
+     `.ch-rail--account`'s, so the two rails say "you are here" the same way. The aria-label
+     changes with it: in org mode this is not "your account" navigation. --}}
+<aside class="ch-rail {{if this.isCollapsed "ch-rail--collapsed"}} {{if this.orgSection "ch-rail--org"}}" aria-label={{if this.orgSection (t "Organization navigation" key="classic_org_rail_aria") (t "Your account" key="classic_rail_aria")}}>
 
   {{!-- Identity — avatar + username, straight through to My Account. --}}
   <LinkTo @route="user.account" @model={{this.classicUser.user_name}} class="ch-rail__identity">
@@ -56,12 +60,12 @@
        Hidden below 901px — see the note on `.ch-rail--collapsed` in _classic-home.scss
        for why collapsing is a wide-screen affordance only. --}}
   <div class="ch-rail__toggle-row">
-    <button type="button" class="ch-rail__toggle" aria-expanded={{if this.railCollapsed "false" "true"}} {{on "click" (this.ctrlAction "toggle_rail")}}>
+    <button type="button" class="ch-rail__toggle" aria-expanded={{if this.isCollapsed "false" "true"}} {{on "click" (this.ctrlAction "toggle_rail")}}>
       <svg class="ch-rail__toggle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
       <span class="sr-only">
-        {{#if this.railCollapsed}}
+        {{#if this.isCollapsed}}
           {{t "Expand menu" key="classic_rail_expand"}}
         {{else}}
           {{t "Collapse menu" key="classic_rail_collapse"}}
@@ -149,6 +153,18 @@
          the rail's primary destination, and alphabetical order buried it in the middle. --}}
     {{#if this.app_state.currentUser.has_management_responsibility}}
     <li class="ch-rail__item">
+      {{!-- NOT HIGHLIGHTED IN ORG MODE (2026-09-25). It was, briefly: the request was "Show
+           Organizations as the active button we are on", so this carried `is-active` whenever
+           `orgSection` was true. On screen that lit TWO adjacent rows -- this one for the
+           section, and the child row for the page you are actually on -- because every org page
+           also lights its own row. Asked which should win, the answer was to keep this row and
+           drop its highlight, so exactly one row is ever lit and it is the page you are on.
+           THE ROW ITSELF STAYS, and that is the point of keeping it: it is the only way back to
+           the org directory from the rail. `backRoute` on the tab strip leaves the org section
+           entirely (to the app home), and the org switcher renders only for someone managing
+           more than one org -- so removing this would have stranded single-org managers.
+           <LinkTo>'s own active class still applies on `/organizations` itself, exactly as
+           before org mode existed. --}}
       <LinkTo @route="organizations" class="ch-row ch-row--minor">
         <span class="ch-row__icon" aria-hidden="true">
           {{!-- Same building glyph the per-org rows below use, so the list and its entries
@@ -164,6 +180,96 @@
       </LinkTo>
     </li>
     {{/if}}
+
+    {{!-- ── THE SELECTED ORGANISATION'S OWN PAGES (2026-09-25, requested) ──────────────────
+         Requested: "Then below the Organizations button add: Admin, Reports (the one for
+         organizations, not the communicator stats page), Rooms, Trainings, Settings (the one for
+         organizations, not the personal preferences)".
+
+         BOTH DISAMBIGUATIONS ARE HONOURED BY THE ROUTE NAMES, which is the only place they can
+         be: `organization.reports` is the org's report page, NOT `user.stats`; and
+         `organization.settings` is the org's own settings, NOT `user.preferences`. Every row
+         here is an `organization.*` route taking the org as its model, so none of them can
+         resolve to a personal page.
+
+         `@model={{this.org.id}}`, not the record: router.js declares this segment as
+         `/organizations/:id` and every other org link in the app passes the id (see
+         `templates/user/lessons.hbs` and the org switcher in `templates/organization.hbs`).
+
+         ADMIN IS `organization.index`, the org's own management page. Stated because it is the
+         one row whose target had to be inferred: there is also an `organization.extras` page
+         whose heading is literally "Admin Actions", but it is gated on `this.model.admin` --
+         the SITE-admin organisation -- so for every ordinary org that row would lead to a blank
+         page. `index` is also the only one of the five that gives a way back to the org's own
+         landing page, which a section nav missing it would not.
+
+         `ch-row--minor` and the same two-tone glyph convention as every other row, so these read
+         as part of the rail rather than as a panel bolted into it. --}}
+    {{#if this.orgSection}}
+      {{!-- NO ADMIN ROW (2026-09-25, requested: "the Admin tab needs to show as active when on
+           the organizations index (so then remove the Admin button from the ch-rails menu)").
+           `organization.index` is now the Admin TAB in the org strip (templates/organization.hbs),
+           so a row here would be a second door to it sitting right beside the first. The four
+           rows below are the org sections that strip does NOT carry. --}}
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.reports" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#2A9D8F"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Reports" key="reports"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Reports" key="reports"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      {{!-- Rooms takes `is-active` from <LinkTo> on the LIST route, and `@current-when` adds the
+           room DETAIL page: `organization.room` is a SIBLING of `organization.rooms` in
+           router.js (`path: '/rooms/:room_id'`), so the path nests but the route name does not
+           and the parent row would otherwise sit dark while you stand on a room. Same trap the
+           account rail documents for Goals and Logs. --}}
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.rooms" @model={{this.org.id}} @activeClass="is-active" @current-when="organization.rooms organization.room" class="ch-row ch-row--minor">
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><path d="M3 10h18" stroke="#46505F"/><path d="M9 20v-6h6v6" stroke="#2A9D8F"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Rooms" key="rooms"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Rooms" key="rooms"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.lessons" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
+          {{!-- The mortarboard the account rail and the Trainings page header both use, so this
+               destination is drawn the same way wherever it is offered. --}}
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 4l9 4.5-9 4.5Z" stroke="#46505F"/><path d="M7 11v5c0 1.5 2.2 2.5 5 2.5s5-1 5-2.5v-5" stroke="#2A9D8F"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Training" key="classic_short_trainings"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Trainings" key="trainings"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.settings" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#46505F"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Settings" key="settings"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Settings" key="settings"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+    {{/if}}
+
+    {{!-- ── THE PERSONAL DASHBOARD ROWS, HIDDEN IN ORG MODE (2026-09-25, requested: "Hide the
+         buttons shown in the attachment") ────────────────────────────────────────────────
+         The attachment named four -- Create a New Board, Home Board, Logging and Sync -- and
+         this `{{#unless}}` spans SIX, because Subscription and Supervisors sit between them in
+         source order and are the same kind of row: your account, not this organisation's. They
+         did not render for the account in the screenshot (both are gated), which is why they
+         were not in it. Leaving them would have stranded two personal rows in the middle of an
+         org nav. Say the word and either comes back -- it is where this `{{#unless}}` starts and
+         stops, nothing else. --}}
+    {{#unless this.orgSection}}
 
     {{!-- Available to every role in the original. --}}
     <li class="ch-rail__item">
@@ -402,6 +508,7 @@
       </button>
     </li>
     {{/if}}
+    {{/unless}}{{!-- ...end of the personal dashboard rows; see the note where this opens --}}
 
   </ul>
 

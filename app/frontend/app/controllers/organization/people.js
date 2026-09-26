@@ -18,7 +18,10 @@ export default Controller.extend({
     this.set('org_extras', {});
     this.set('managers', {});
     this.set('supervisors', {});
-    this.set('selected_view', null);
+    /* `section` is NOT reset here: it is a query param now, so the URL is what says which
+       section to open, and nulling it on arrival would discard the one a link just supplied.
+       Switching orgs does not carry a stale section either -- a link without the param leaves it
+       null, which `shown_view` reads as Managers. */
     this.refresh_users();
     this.refresh_evals();
     this.refresh_extras();
@@ -88,15 +91,36 @@ export default Controller.extend({
       _this.set('supervisors.data', null);
     });
   },
+  /* WHICH PEOPLE SECTION IS SHOWING, AND IT LIVES IN THE URL (2026-09-25).
+   *
+   * It was `selected_view`, a transient property set by the `pick` action and nulled on every
+   * entry to the route. That was enough while the only way to change sections was a button
+   * INSIDE this page. It stopped being enough when the org tab strip
+   * (templates/organization.hbs) started offering the five sections from OUTSIDE it: a parent
+   * template cannot set a child controller's transient state, and a `<LinkTo>` that could only
+   * reach the page's default section would have made four of the five tabs go to the same place.
+   *
+   * A QUERY PARAM IS THE ANSWER THIS CODEBASE ALREADY REACHES FOR -- see the note on
+   * `homeNavContext` in controllers/user.js: state read from the URL survives a reload, the Back
+   * button and a bookmark, where a click-time flag is lost by all three. Sharing a link to an
+   * org's Evals list now works, which it never did.
+   *
+   * NAMED `section`, NOT `view`: this app already uses "view" for the Basic/Modern axis
+   * (`board_view_style`, `effective_view_user`, `utils/view_style`), and a `?view=` on an org
+   * page would read as that.
+   *
+   * ONE SOURCE, NOT TWO. `pick` now writes this param rather than a second property, so the
+   * in-page tabs and the parent strip cannot disagree about which section is open -- and
+   * `refresh_lists` no longer nulls it, which would have discarded the param on arrival and sent
+   * every link to Managers. */
+  queryParams: ['section'],
+  section: null,
+
   shown_view: computed(
-    'selected_view',
+    'section',
     'managers',
     function() {
-      if(this.get('selected_view')) {
-        return this.get('selected_view');
-      } else {
-        return 'managers';
-      }
+      return this.get('section') || 'managers';
     }
   ),
   /* Basic view swaps the section pills for the `ch-` tab strip the Basic home page uses.
@@ -173,7 +197,9 @@ export default Controller.extend({
 
   actions: {
     pick: function(view) {
-      this.set('selected_view', view);
+      /* Writes the QUERY PARAM, so an in-page tab click and a link from the org strip land in the
+         same place and the URL always names the section on screen. */
+      this.set('section', view);
     },
     new_user: function(attr) {
       var _this = this;

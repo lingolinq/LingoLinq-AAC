@@ -101,6 +101,16 @@
   "share": "Share",
   "pause_logging": "Pause Logging",
   "search_communicators": "Search communicators",
+  "classic_account_rail_aria": "Your account pages",
+  "logs_and_messages": "Logs & Messages",
+  "classic_short_reports": "Reports",
+  "classic_short_goals": "Goals",
+  "classic_short_trainings": "Training",
+  "classic_short_recordings": "Record",
+  "classic_short_profile": "Profile",
+  "classic_short_settings": "Settings",
+  "classic_short_subscription": "Billing",
+  "classic_short_logs": "Logs",
   "no_communicators_match": "No communicators match that search",
   "switch_communicators": "Switch Communicators",
   "minimal_1": "Minimal (1px)",
@@ -8794,5 +8804,7 @@
   "classic_organizations_sub": "Your organizations, and the rooms inside them",
   "rooms_nav": "Rooms navigation",
   "no_supervised_rooms": "You do not supervise any rooms in this organization.",
-  "no_supervised_rooms_any": "You do not supervise any rooms yet."
+  "no_supervised_rooms_any": "You do not supervise any rooms yet.",
+  "admin": "Admin",
+  "classic_org_rail_aria": "Organization navigation"
 }

@@ -13,6 +13,18 @@
 {{else}}
 <div class="md-user-layout hide_print">
   <div class="md-shell md-shell--user">
+    {{!-- BASIC VIEW'S SECTION NAV (2026-09-25, requested). Modern's rail is mounted in the app
+         shell; Basic has none, so it is rendered here.
+         A DIRECT CHILD OF `.md-shell`, following templates/organizations.hbs, and for the same
+         two reasons given at that call site: `.md-shell` carries the page's background, so a
+         rail outside it would sit on bare page while the gradient covered only the content
+         column; and `.md-shell > .md-workspace` is a DIRECT-CHILD selector, so a flex wrapper
+         between the two would silently stop it applying and change Modern's layout for a
+         Basic-only feature. `.md-shell` is already `display: flex`; Basic only turns it to a
+         row (_classic-home.scss), and Modern keeps the column, untouched. --}}
+    {{#if this.showClassicAccountRail}}
+      <Dashboard::ClassicAccountRail @user={{this.model}} />
+    {{/if}}
     {{!-- THE ACCOUNT SECTION NAV (2026-09-18). One instance here serves every page in the
          section: it used to live inside templates/user/index.hbs, so only the account page
          had it. `accountRailContext` (controllers/user.js) decides WHICH routes get it, and

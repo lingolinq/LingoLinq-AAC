@@ -1,4 +1,4 @@
-import Controller from '@ember/controller';
+import Controller, { inject as injectController } from '@ember/controller'; // injectController, not `controller`: this file has local `controller` vars (e.g. :342) that would shadow it
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater, scheduleOnce, run } from '@ember/runloop';
@@ -546,5 +546,24 @@ export default Controller.extend({
       var prompt = i18n.t('select_user_for_reports', "Select User for Reports");
       app_state.controller.send('switch_communicators', {stay: true, modeling: true, skip_me: !app_state.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.stats', header: prompt});
     }
-  }
+  },
+
+  /* ── THE BASIC-VIEW SECTION RAIL, ON REPORTS (2026-09-25) ──────────────────────────────
+     Every other page in the account section gets the rail from templates/user.hbs. Reports
+     cannot: `user.stats` is in `BARE_ROUTE_BASES` (controllers/user.js), so user.hbs takes its
+     bare branch here and renders `{{outlet}}` alone, because this page brings its own
+     `.md-shell` (templates/user/stats.hbs:5). Mounting it in that shell is what
+     templates/organizations.hbs already does with the dashboard rail, for the same reason.
+
+     THE FLAG IS ALIASED, NOT RECOMPUTED. `showClassicAccountRail` is one decision -- is this a
+     Basic user, on a page in this section -- and the two mount points must never disagree about
+     it, or Reports is the one page in the section with a rail nobody else has (or the one page
+     without). Re-reading `is_classic` and a route list here would be exactly the second copy that
+     controllers/user.js's own note says to avoid.
+
+     THE TWO MOUNTS CANNOT DOUBLE UP: `user.stats` matches `is_bare_route` on both route sources
+     for the whole time we are on this route, so user.hbs's `{{#if}}` is never reached while this
+     one is live. Verified in the browser (one `.ch-rail--account` on the page, not two). */
+  userController: injectController('user'),
+  showClassicAccountRail: alias('userController.showClassicAccountRail')
 });

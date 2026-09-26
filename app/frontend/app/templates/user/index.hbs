@@ -587,16 +587,31 @@
       </div>
     </div>
     {{/if}}
-    {{!-- `--split` opts this embed into the SAME folders/boards layout the boards page
-         uses: folders beside the grid above 900px, stacked below it. The rules live in
-         app.scss scoped to that class; before it, they were scoped to `#content.boards-page`
-         and this page — which renders the identical <BoardsBrowser> — got the stacked
-         fallback at every width (requested 2026-09-14). --}}
-    <div class="ub-boards-page ub-boards-page--split">
-      <BoardsBrowser @boardsCtrl={{this}} @showNewBoard={{false}} @headingId="available-boards-heading" @filterInputId="account-boards-filter" />
-    </div>
+    {{!-- SUPPORT ACTIONS SITS ABOVE THE BOARDS EMBED (moved 2026-09-25, requested: "on the
+         account page, move the Support actions above the boards div"). It was the last thing on
+         the page, under a boards browser that is as tall as the account has boards -- so on a
+         busy account the tools were a long scroll past the content they act on.
+         MOVED WHOLE, gate and all: the `{{#if this.model.permissions.support_actions}}` wrapper
+         travels with its contents, so who sees this block is exactly who saw it before. --}}
   {{#if this.model.permissions.support_actions}}
-    <div class="row" style="margin-top: 30px;">
+    {{!-- BRACKETED BY THE PAGE'S OWN SEPARATOR (2026-09-25, requested: "use the same
+         separator that we have on the page to separate the Support Actions section from the
+         above and below content"). Same element and same class as the one under the profile
+         header (:177), so there is one divider in this page rather than a second kind.
+         INSIDE THE GATE, both of them: the rules live on the class, so an `<hr>` outside the
+         `{{#if}}` would draw a line across the page for every viewer who does not have this
+         section -- a separator with nothing to separate. --}}
+    <hr class="md-user-summary__page-divider" aria-hidden="true">
+    {{!-- SPACING, measured 2026-09-25 (requested: "make less space above the Support Actions on
+         the account page and more space below the section"). It was 30px above and NOTHING
+         below -- the boards embed began at this row's bottom edge, so the section ran straight
+         into the board grid with no seam. 12 above and 38 below inverts that: the block sits
+         closer to the account details it belongs with, and is clearly separated from the boards
+         browser underneath, which is a different concern entirely. (Both were tried at 16/32
+         first and tightened by request; these are the chosen figures, not a first guess.)
+         Edited on the row's own inline style rather than answered with a rule elsewhere -- this
+         is where the 30px was declared. --}}
+    <div class="row" style="margin-top: 12px; margin-bottom: 38px;">
       <div class="col-sm-12">
         <h4>{{t "Support Actions" key="support_actions"}}</h4>
         {{#if this.password}}
@@ -772,7 +787,17 @@
         {{/if}}
       </div>
     </div>
+    <hr class="md-user-summary__page-divider" aria-hidden="true">
   {{/if}}
+
+    {{!-- `--split` opts this embed into the SAME folders/boards layout the boards page
+         uses: folders beside the grid above 900px, stacked below it. The rules live in
+         app.scss scoped to that class; before it, they were scoped to `#content.boards-page`
+         and this page — which renders the identical <BoardsBrowser> — got the stacked
+         fallback at every width (requested 2026-09-14). --}}
+    <div class="ub-boards-page ub-boards-page--split">
+      <BoardsBrowser @boardsCtrl={{this}} @showNewBoard={{false}} @headingId="available-boards-heading" @filterInputId="account-boards-filter" />
+    </div>
 {{else}}
   {{t "This account is private. Nothing to see here, move along." key="private_account"}}
 {{/if}}

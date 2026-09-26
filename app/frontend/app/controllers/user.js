@@ -1,11 +1,98 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { hasHomeNavParam } from '../utils/primary_nav';
+import { is_classic } from '../utils/view_style';
 import { computed } from '@ember/object';
+
+/* THE PAGES THAT MAKE UP THE ACCOUNT SECTION -- the one list, read by both navs.
+ *
+ * Deliberately a LIST, not a `startsWith('user.')` test: the board routes are
+ * `user.board-detail` / `user.board-alt` and a 208px panel across a communication board is not
+ * acceptable, so a prefix test would have included them silently. `user.boards` starts with
+ * `user.board`, which is the other half of that trap. Any route not named here simply has no nav.
+ *
+ * `user.index` AND `user.account` both appear because both render templates/user/index.hbs
+ * (routes/user/account.js sets `templateName`).
+ *
+ * THE SIX DETAIL PAGES ON THE LAST LINE are the case with teeth. This test is EXACT-MATCH while
+ * `bareUserOutletLayout` below matches base-plus-children, and `user.goal` / `user.log` are
+ * SIBLING routes of `user.goals` / `user.logs`, not children (router.js declares `goal` with path
+ * '/goals/:goal_id', so the PATH nests but the ROUTE NAME does not). They were missing from this
+ * list once already, and clicking a log entry swapped the left rail for a top pill bar
+ * mid-section.
+ *
+ * ADDING A ROUTE HERE MEANS ADDING IT TO `ROW_FOR_ROUTE` in components/account-rail.js and in
+ * components/dashboard/classic-account-rail.js -- a route in this list with no row there renders
+ * a nav that never says where you are. `user.supervision` and `user.focus` are the standing
+ * exceptions in the Basic rail, which has no row for either; see the note on that map.
+ *
+ * DELIBERATELY ABSENT: `user.password_reset` and `user.confirm_registration`. They are
+ * single-task pages reached from an email, and signed out the user fetch still SUCCEEDS
+ * (api/users_controller.rb exempts `show`; User grants 'view_existence' to everyone), so a nav
+ * there would render rows naming a stranger's account that all bounce to login. Both carry their
+ * own exit already and the global header in application.hbs renders signed out. Also absent:
+ * `user.device`, which is declared in the router with no route, controller or template.
+ *
+ * EXTRACTED TO MODULE SCOPE 2026-09-25, when the Basic rail grew from the account page to the
+ * whole section and became the second reader. It was one list with one reader; two readings of
+ * the same route names is the drift utils/primary_nav.js:16 records as the lesson of the
+ * 2026-09-21 rail work ("two lists that must move together will not, unless a test makes them").
+ * `tests/unit/controllers/user-nav-context-test.js` is the test that makes them.
+ *
+ * EXPORTED for tests/unit/components/classic-account-rail-active-row-test.js, which asserts that
+ * every route here resolves to a row in the Basic rail (or is one of the two exceptions named
+ * above). The test importing the REAL list is the whole point: with its own copy it would pass
+ * forever while the rail rendered unlit on a newly added page. Nothing in the app imports this --
+ * the resolver uses the default export.
+ */
+export const ACCOUNT_SECTION_ROUTES = [
+  'user.index', 'user.account', 'user.goals', 'user.logs', 'user.edit',
+  'user.recordings', 'user.stats', 'user.preferences', 'user.subscription',
+  'user.supervision',
+  'user.goal', 'user.log', 'user.badges', 'user.history', 'user.lessons', 'user.focus'
+];
+
+function isAccountSectionRoute(route) {
+  return ACCOUNT_SECTION_ROUTES.indexOf(route) !== -1;
+}
 
 export default Controller.extend({
   app_state: service('app-state'),
   router: service('router'),
+  /* BASIC VIEW GETS A `ch-` RAIL ACROSS THE WHOLE ACCOUNT SECTION (2026-09-25, requested).
+     Modern mounts `AccountRail` in the app shell (templates/application.hbs); Basic has no app
+     shell, so the account section had no nav of its own in that view at all -- the page rendered
+     full width with no way to its eight sibling pages.
+     READ THROUGH `utils/view_style#is_classic`, not `preferences.board_view_style` directly:
+     that module is the single reader for this preference and resolves against
+     `effective_view_user`, so a supervisor modelling for someone gets the shell that person's
+     view calls for. Same call, same reasoning, as controllers/organizations.js.
+
+     IT SHIPPED SCOPED TO THE ACCOUNT PAGE (the three route names that render
+     templates/user/index.hbs) and that was the defect: the rail links to eight pages and every
+     one of them dropped it, measured all eight in the browser. Modern had the identical bug for
+     the identical reason and records it at controllers/application.js:2278 -- "the rail was not
+     rendered on four of the six destinations at all".
+
+     IT DOES NOT TAKE `homeNavContext`, and that asymmetry with `accountRailContext` below is the
+     point rather than an oversight. That gate exists so Modern can put the HOME pill nav on
+     `/logs?nav=home` INSTEAD of the rail. Basic has no pill nav to put there: `showGlobalChrome`
+     returns false for a classic user (controllers/application.js:2309) and the in-page pill row
+     was retired 2026-09-21. Taking the gate here would leave that one route with no nav at all.
+     The param is a declared query param on controllers/user/logs.js:32, so it survives a
+     bookmark, a shared link, the Back button and a Modern-to-Basic view switch made while
+     standing on that URL -- a Basic user really can arrive there, which is what makes this
+     load-bearing rather than theoretical.
+     Pinned by tests/unit/controllers/user-classic-account-rail-test.js. */
+  showClassicAccountRail: computed(
+    'app_state.effective_view_user.preferences.board_view_style',
+    'router.currentRouteName',
+    'app_state.current_route',
+    function() {
+      if(!is_classic(this.get('app_state.effective_view_user'))) { return false; }
+      var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
+      return isAccountSectionRoute(route);
+    }),
   /**
    * Full dashboard or board-alt: render only {{outlet}} (no md-user-layout / User menu).
    * Uses router + URL so user.extras always matches even if current_route leaf name differs.
@@ -59,38 +146,12 @@ export default Controller.extend({
          `activeRow` (components/account-rail.js). */
       if(this.get('homeNavContext')) { return false; }
       var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
-      /* EVERY PAGE THE RAIL LINKS TO (2026-09-18), so the nav is present wherever it can take
-         you rather than only on the page it was built for. Deliberately a list, not a
-         `startsWith('user.')`: the board routes are `user.board-detail` / `user.board-alt`
-         and a 208px panel across a communication board is not acceptable -- a prefix test
-         would have included them silently. Any route not named here simply has no rail.
-         `user.index` and `user.account` both render templates/user/index.hbs (routes/user/
-         account.js sets `templateName`), so both are listed. */
-      /* THE SIX DETAIL PAGES ON THE SECOND LINE BLOCK were added when the account pill row was
-         retired (2026-09-21, templates/user.hbs). They are the section's DETAIL pages, and they
-         were missing here for a mechanical reason worth stating so it is not reintroduced: this
-         test is EXACT-MATCH while `bareUserOutletLayout` below matches base-plus-children, and
-         `user.goal` / `user.log` are SIBLING routes of `user.goals` / `user.logs`, not children
-         (router.js declares `goal` with path '/goals/:goal_id', so the PATH nests but the ROUTE
-         NAME does not). They therefore fell through to the pill row, and clicking a log entry
-         swapped the left rail for a top pill bar mid-section.
-         ADDING A ROUTE HERE MEANS ADDING IT TO ROW_FOR_ROUTE in components/account-rail.js --
-         that invariant is stated there and pinned by
-         tests/unit/components/account-rail-active-row-test.js. A route in this list with no row
-         there renders a nav that never says where you are.
-         DELIBERATELY ABSENT: `user.password_reset` and `user.confirm_registration`. They are
-         single-task pages reached from an email, and signed out the user fetch still SUCCEEDS
-         (api/users_controller.rb exempts `show`; User grants 'view_existence' to everyone), so a
-         rail there would render rows naming a stranger's account that all bounce to login. Both
-         carry their own exit already and the global header in application.hbs renders signed
-         out. Also absent: `user.device`, which is declared in the router with no route,
-         controller or template. */
-      return [
-        'user.index', 'user.account', 'user.goals', 'user.logs', 'user.edit',
-        'user.recordings', 'user.stats', 'user.preferences', 'user.subscription',
-        'user.supervision',
-        'user.goal', 'user.log', 'user.badges', 'user.history', 'user.lessons', 'user.focus'
-      ].indexOf(route) !== -1;
+      /* THE LIST LIVES AT MODULE SCOPE (`ACCOUNT_SECTION_ROUTES`, top of this file), where the
+         reasoning for every name and every deliberate absence is recorded. It moved there
+         2026-09-25 when `showClassicAccountRail` became its second reader; this computed is
+         unchanged in behaviour -- the same names, still behind the `homeNavContext` gate above,
+         which is the ONE thing the Basic reader does not share. */
+      return isAccountSectionRoute(route);
     }
   ),
 

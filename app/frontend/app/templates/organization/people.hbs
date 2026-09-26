@@ -27,30 +27,14 @@
        sections already use, so this introduces no new strings in 13 locales.
 
        Modern keeps its pills below, untouched. --}}
-  {{#if this.isBasicView}}
-    <nav class="ch-tabs ch-organizations-tabs" role="tablist" aria-label={{t "People Sections" key="people_sections"}}>
-      <button type="button" role="tab" aria-selected={{if this.show_managers "true" "false"}} class="ch-tab {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>
-        <span class="ch-tab__label">{{t "Managers" key="managers"}}</span>
-        <span class="ch-tab__meta">{{this.model.total_managers}}<span class="sr-only"> {{t "manager" key="n_managers" count=this.model.total_managers}}</span></span>
-      </button>
-      <button type="button" role="tab" aria-selected={{if this.show_supervisors "true" "false"}} class="ch-tab {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>
-        <span class="ch-tab__label">{{t "Supervisors" key="supervisors"}}</span>
-        <span class="ch-tab__meta">{{this.model.total_supervisors}}<span class="sr-only"> {{t "supervisor" key="n_supervisors_lower" count=this.model.total_supervisors}}</span></span>
-      </button>
-      <button type="button" role="tab" aria-selected={{if this.show_communicators "true" "false"}} class="ch-tab {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>
-        <span class="ch-tab__label">{{t "Communicators" key="communicators"}}</span>
-        <span class="ch-tab__meta">{{this.model.total_users}}<span class="sr-only"> {{t "user" key="n_users" count=this.model.total_users}} {{t "total" key="total"}}</span></span>
-      </button>
-      <button type="button" role="tab" aria-selected={{if this.show_evals "true" "false"}} class="ch-tab {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>
-        <span class="ch-tab__label">{{t "Evals" key="evals"}}</span>
-        <span class="ch-tab__meta">{{this.model.used_evals}} / {{this.model.allotted_eval_licenses}}<span class="sr-only"> {{t "eval accounts used" key="evals_used"}}</span></span>
-      </button>
-      <button type="button" role="tab" aria-selected={{if this.show_extras "true" "false"}} class="ch-tab {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>
-        <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
-        <span class="ch-tab__meta">{{this.model.used_extras}} / {{this.model.allotted_extras}}<span class="sr-only"> {{t "premium symbol accounts used" key="extras_used"}}</span></span>
-      </button>
-    </nav>
-  {{else}}
+  {{!-- THE BASIC TAB STRIP MOVED UP TO templates/organization.hbs (2026-09-25, requested:
+       "the ch-tabs need to be: Admin, Managers, Supervisors, Communicators, Evals, Symbols").
+       It is the SAME five tabs with the same counts, now sitting in the org strip beside an
+       Admin tab, so this page would have rendered a second identical strip under the first.
+       MODERN'S PILLS STAY HERE, untouched: the org strip only replaces the Basic one, and
+       Modern's org nav is a different element with its own reasoning (controllers/organization.js).
+       Both still drive the same `pick` action, which now writes the `section` query param. --}}
+  {{#unless this.isBasicView}}
     <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
       <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
       <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
@@ -58,7 +42,7 @@
       <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
       <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
     </nav>
-  {{/if}}
+  {{/unless}}
 
   {{!-- Managers --}}
   {{#if this.show_managers}}

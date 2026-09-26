@@ -3,6 +3,20 @@
      standalone Boards page (templates/user/boards.hbs), so a rule that must move Reports
      without moving Boards needs a selector only this page carries. --}}
 <div class="md-shell md-shell--reports-view md-shell--stats">
+  {{!-- BASIC VIEW'S SECTION NAV (2026-09-25, requested: the rail must follow every page the
+       account panel links to, and Reports is its first row).
+       WHY HERE AND NOT IN templates/user.hbs LIKE THE OTHER FIFTEEN: `user.stats` is a bare
+       route (`BARE_ROUTE_BASES`, controllers/user.js), so user.hbs renders `{{outlet}}` alone
+       and this page supplies its own `.md-shell`. templates/organizations.hbs mounts the
+       dashboard rail the same way, for the same reason.
+       A DIRECT CHILD OF `.md-shell`, which is what the layout keys on: the Basic rail rules are
+       `body.ll-view-basic .md-shell:has(> .ch-rail--account)` (_classic-home.scss), so the rail
+       has to be the shell's own child or the shell never becomes a row. It also puts the rail
+       inside the element that carries the page background, rather than on bare page beside it.
+       `showClassicAccountRail` is ALIASED from the `user` controller -- see the note there. --}}
+  {{#if this.showClassicAccountRail}}
+    <Dashboard::ClassicAccountRail @user={{this.model}} />
+  {{/if}}
   <div class="md-workspace">
     {{!-- NO PILL-NAV (removed 2026-09-18). This page is reached from the account rail, from
          Extras and from the caseload, each of which keeps its own way back; the pill row was

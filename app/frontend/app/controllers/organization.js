@@ -1,4 +1,4 @@
-import Controller from '@ember/controller';
+import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import modal from '../utils/modal';
@@ -27,6 +27,30 @@ export default Controller.extend({
    * and a second Basic copy of the nav would mean a second copy of those gates. */
   isClassic: computed('app_state.effective_view_user.preferences.board_view_style', function() {
     return is_classic(this.get('app_state.effective_view_user'));
+  }),
+
+  /* ── WHICH TAB OF THE BASIC ORG STRIP IS CURRENT (2026-09-25, requested) ──────────────
+     The strip became Admin + the five people sections ("the ch-tabs need to be: Admin,
+     Managers, Supervisors, Communicators, Evals, Symbols ... and the Admin tab needs to show as
+     active when on the organizations index"). Two different questions decide the highlight, so
+     they are two computeds rather than one string comparison in the template. */
+
+  /* Admin is the org's own index page. Exact match, not a prefix: `organization.people` and the
+     rest are siblings of it, not children, so a `startsWith` would light Admin on all of them. */
+  adminTabActive: computed('router.currentRouteName', function() {
+    return (this.get('router.currentRouteName') || '') === 'organization.index';
+  }),
+
+  /* THE PEOPLE SECTION, ASKED OF THE PAGE THAT OWNS IT rather than re-derived from the URL.
+     `shown_view` (controllers/organization/people.js) already resolves the `?section=` param and
+     its Managers default; reading it here means the strip and the page cannot disagree about
+     which section is open -- including on `/organizations/:id/people` with no param at all,
+     where the page shows Managers and this lights Managers with nothing in the URL to read.
+     Null off the people route, so none of the five lights anywhere else. */
+  peopleController: controller('organization/people'),
+  activePeopleSection: computed('router.currentRouteName', 'peopleController.shown_view', function() {
+    if((this.get('router.currentRouteName') || '') !== 'organization.people') { return null; }
+    return this.get('peopleController.shown_view');
   }),
   /* WHETHER THIS SECTION DRAWS ITS OWN NAV, or stands down for the app shell's (2026-09-23).
    *

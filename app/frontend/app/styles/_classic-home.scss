@@ -1735,9 +1735,22 @@ body.ll-view-modern .md-workspace:has(.ch-org-switcher) .md-hero--org {
    has to come with it. That is the whole reason this is two declarations and not one.
 
    No `!important`: the base rules carry none, and `body.ll-view-basic` ahead of the same
-   selector is (0,4,0) against their (0,3,0), so these win on specificity alone. */
-body.ll-view-basic .md-hero--dashboard .md-hero__title .md-hero__title--from-left,
-body.ll-view-basic .md-hero--dashboard .md-hero__sub .md-hero__sub--from-right {
+   selector is (0,4,0) against their (0,3,0), so these win on specificity alone.
+
+   REPORTS IS EXCLUDED (2026-09-25, requested: "on gentle, add movement to ... the stats page").
+   This rule is scoped to `.md-hero--dashboard`, which the REPORTS hero also carries, so stilling
+   the org header stilled Reports too -- collateral, not intent: everything above talks about the
+   org header and nothing here was ever about the reports dashboard. Excluding it in place, with
+   `:not()`, is what restores that page's own entrance motion in Basic; adding a louder rule
+   somewhere else to switch it back on would have left this one still claiming Reports.
+   ONLY Reports is excluded. Every other Basic hero this reaches -- the org header it was written
+   for, and the user dashboard hero -- keeps the stillness it was given.
+   GENTLE ONLY WITHOUT A LAYOUT TEST: `body.ll-layout-focused .md-shell--reports-view
+   .md-hero--reports-dashboard` is `display: none !important` (_focused-view.scss:1011), so this
+   hero does not exist in Focused and cannot animate there. A `:not(.ll-layout-focused)` here
+   would be a condition that is already guaranteed. */
+body.ll-view-basic .md-hero--dashboard:not(.md-hero--reports-dashboard) .md-hero__title .md-hero__title--from-left,
+body.ll-view-basic .md-hero--dashboard:not(.md-hero--reports-dashboard) .md-hero__sub .md-hero__sub--from-right {
   animation: none;
   opacity: 1;
 }
@@ -3844,6 +3857,18 @@ button.ch-tile--silver:focus-visible {
   // Rail rows tighten from 10px to 8px here. padding-top/bottom rather than the
   // shorthand so the base's 14px side padding is left alone; the 900px block below
   // re-declares the full shorthand and still wins there on source order.
+  //
+  // NEITHER FIGURE IS WHAT RENDERS, and that is worth knowing before editing them.
+  // `_focused-view.scss` carries `.ch-rail { .ch-row { padding: 9px 15px } }` at TOP LEVEL --
+  // it is in that file and commented as the Focused variant, but it is not inside a
+  // `body.ll-layout-focused` block, so it applies in BOTH layouts and (0,2,0) outranks this
+  // (0,1,0) at every width. Every `.ch-row` in the app is inside a `.ch-rail`, so nothing here
+  // reaches the page. Measured, not assumed: the compiled sheet has `.ch-rail .ch-row` carrying
+  // the 9px, and the rows render 9/9 in Gentle.
+  // The 2px the rail's buttons lost at <=1024 on 2026-09-25 therefore lives at THAT rule, which
+  // is also the correctly scoped place for it -- the request was about the rail's buttons.
+  // Left as it was rather than "fixed" to match: giving this the winning scope would change
+  // Gentle's rails everywhere, which is a separate change and not this one.
   .ch-row {
     padding-top: 8px;
     padding-bottom: 8px;
@@ -4094,6 +4119,8 @@ button.ch-tile--silver:focus-visible {
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   }
 
+  // Overridden in practice by `.ch-rail .ch-row` in _focused-view.scss -- see the note in the
+  // 1024 block above. Left as it stands.
   .ch-row {
     gap: 10px;
     padding: 8px 12px;
@@ -4331,4 +4358,227 @@ button.ch-tile--silver:focus-visible {
 .shepherd-element.ch-tour__step .ch-tour__btn:focus-visible {
   outline: 3px solid $brand-smart-blue;
   outline-offset: 3px;
+}
+
+
+/* ── BASIC VIEW: THE ACCOUNT PAGE GETS THE SECTION RAIL BESIDE IT (2026-09-25) ──────────
+   Requested: "on basic view account page we need to add the ch-rail to the account page ...
+   for focused view, use the basic view focused ch-rail styles; for gentle view, use the basic
+   view gentle ch-rail styles".
+
+   THE STYLING IS ALREADY WRITTEN, which is the point of building the rail out of `ch-` classes:
+   `.ch-rail` and `.ch-row` carry the glass panel, the rows and both layouts' treatments, so the
+   new rail picks up gentle and focused exactly as the dashboard's does. Only the LAYOUT is new,
+   and only in Basic -- three declarations, mirroring what `.md-shell--org-directory` does for
+   the organizations page (above), which is the same problem solved the same way.
+
+   `:has(> .ch-rail--account)` SCOPES IT TO THE PAGE THAT HAS ONE, and the shell class is
+   deliberately NOT part of the test. The rail's presence is the condition: a page that never
+   renders it cannot be turned into a row by accident, and a page that gains it needs no new rule.
+   That is how this survived the rail following the whole section (2026-09-25) with the qualifier
+   as its only edit.
+
+   THE QUALIFIER WAS `.md-shell--user` UNTIL 2026-09-25, and widening it to `.md-shell` is what
+   lets Reports in. Reports is the one section page with its OWN shell
+   (`.md-shell--reports-view.md-shell--stats`, templates/user/stats.hbs) because `user.stats` is a
+   bare route, so it never carried `--user` and every rule here missed it. Specificity is
+   unchanged by the swap -- one class out of the compound, one class into the `:has()` argument,
+   whose specificity counts -- so nothing this used to outrank it now loses to.
+
+   `--account` RATHER THAN BARE `.ch-rail` IS LOAD-BEARING now that the shell class is gone.
+   `templates/organizations.hbs` and the Basic home page render `<Dashboard::ClassicRail />` as a
+   direct child of THEIR `.md-shell`, and those rails are plain `.ch-rail`. Testing for the bare
+   class would have applied this account-section layout to the dashboard and the org directory.
+   `ch-rail--account` is rendered in exactly one place in the app
+   (components/dashboard/classic-account-rail.hbs:18), which is what keeps the blast radius at
+   this one rail's two mount points.
+
+   MODERN IS NOT TOUCHED: it never renders `.ch-rail--account` at all -- `showClassicAccountRail`
+   is false for a non-classic user -- so the `:has()` is false there and every shell keeps its
+   column. */
+body.ll-view-basic .md-shell:has(> .ch-rail--account) {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 24px;
+  /* SIDE INSET ONLY. Without it the rail sits flush against the viewport edge -- this shell
+     has no horizontal padding of its own, where `.ch-page` (the Basic home page) carries 28px.
+     28 is that same figure, so the rail starts on the same line as the home page's does.
+     The VERTICAL padding is deliberately left alone: the account page's top spacing in Basic
+     was not part of this request, and the shorthand would have silently reset it. */
+  padding-left: 28px !important;
+  padding-right: 28px !important;
+  /* AND DOWN FROM THE TOP OF THE PAGE (2026-09-25, requested). This shell had only the 30px
+     `--ll-nav-clearance`, which put the rail at y=76 with the fixed header's bottom edge at 70
+     -- six pixels of daylight under the navbar at 1280, and at 1024, where that clearance is 0,
+     the rail started at 46 with its top 24px behind the header.
+     80 / 44 / 48 ARE `.ch-page`'S OWN FIGURES at these three widths, measured on the Basic home
+     page and the organizations directory: both put their rail at y=126 / 90 / 94. Matching them
+     is what makes the three Basic pages that carry this rail start on one line, rather than
+     picking a number that only looks right on the page in front of me.
+     The content moves down with the rail, keeping the 40px offset it already had between them. */
+  padding-top: 80px !important;
+}
+@media (max-width: 1024px) {
+  body.ll-view-basic .md-shell:has(> .ch-rail--account) {
+    padding-top: 44px !important;
+  }
+}
+body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace {
+  flex: 1 1 auto !important;
+  min-width: 0;
+}
+/* THE CONTENT COLUMN STARTS WHERE THE RAIL DOES (2026-09-25, requested: "basic view gentle
+   style: move the accounts page content up on the page").
+   MEASURED at 1280 before the change: rail top 126, workspace top 166 -- the workspace carried a
+   40px top MARGIN and a 40px top PADDING, so the content began 80px below the rail beside it and
+   the two columns read as unrelated. Both go, which is exactly what
+   `.md-shell--org-directory > .md-workspace` above does for the organizations page, for the same
+   reason and with the same result: one top edge across the row.
+   THE CONTENT KEEPS ITS OWN INSET -- `.md-main--user` has 35px of its own (app.scss), so this
+   moves the block up without pushing the card against the shell's edge.
+   GENTLE ONLY, as asked; Focused keeps the spacing it has. */
+body.ll-view-basic:not(.ll-layout-focused) .md-shell:has(> .ch-rail--account) > .md-workspace {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+/* ...AND THE CARD'S OWN INSET GOES TOO (2026-09-25, asked for straight after: "move it up more").
+   With the workspace at 0 the only box left above the content was `.md-main--user`'s 35px
+   (app.scss, `calc(var(--bottombar-height) - 24px)`, matched to its own bottom padding). That
+   put the content 35px below the rail beside it, which is the gap that was still visible.
+   At 0 the card's top edge and the rail's top edge are the same line -- the alignment the
+   organizations directory has, and as far up as this content can go without moving the rail,
+   which was deliberately placed at the home page's inset earlier today.
+   TOP ONLY: the bottom keeps its 35px, as in the Modern narrow-width rule that does the same
+   thing for the same reason. GENTLE ONLY, and only where the rail renders. */
+body.ll-view-basic:not(.ll-layout-focused) .md-shell:has(> .ch-rail--account) > .md-workspace > .md-main--user {
+  padding-top: 0 !important;
+}
+/* STACKS WHERE EVERY OTHER BASIC RAIL STACKS. At 900 and below `.ch-rail` is already
+   `max-width: none; width: 100%` and is built to sit ABOVE the content, not beside it (see the
+   note at the collapse control) -- left as a row it would be a full-width panel squeezing the
+   account card into whatever was left. Same breakpoint and same reason as `.ch-page` and the
+   organizations directory. */
+@media (max-width: 900px) {
+  body.ll-view-basic .md-shell:has(> .ch-rail--account) {
+    flex-direction: column !important;
+    /* AND IT HAS TO CLEAR THE FIXED HEADER. Stacked, the rail is the page's first element and
+       started at y=46 with the header's bottom edge at 70 -- its top 24px were behind the
+       navbar. Measured against the two Basic pages that already carry this rail: both put it
+       at y=94 at this width and at 767, so 48 is their figure, not a new one. */
+    padding-top: 48px !important;
+  }
+}
+/* Sides narrow with `.ch-page`'s at the same width, for the same reason. */
+@media (max-width: 767px) {
+  body.ll-view-basic .md-shell:has(> .ch-rail--account) {
+    padding-left: 22px !important;
+    padding-right: 22px !important;
+  }
+}
+
+/* THE CURRENT PAGE'S ROW, which the dashboard rail never needed. Its rows are actions, so none
+   of them is ever "where you are"; every row here is a page, and one of them always is.
+   BORDER AND WEIGHT, NOT A FILL: the rows sit on a glass panel whose contrast budget is
+   already spent, and darkening one row enough to read as selected against it pushed the label
+   below the section's own contrast floor. A heavier left edge in the brand teal plus the
+   title's weight says "here" without touching the text colour. */
+/* ── THE ACCOUNT RAIL'S ROWS SIT CLOSER AT 1024 AND BELOW (2026-09-25) ──────────────────
+   Requested: "on 1024px basic view reduce the spacing between the buttons on the ch-rail for
+   the account page".
+
+   IT WAS TWO DIFFERENT GAPS, which is why this is two declarations. Measured on the account
+   rail at 1024: Gentle 6px, Focused 12px. The 6 is `.ch-rail__list`'s own `gap`; Focused adds
+   another 6 through `.ch-rail__item + .ch-rail__item { padding-top: 6px }` (_focused-view.scss,
+   in a `min-width: 901px` block), which that rule's note calls "half of the 12px rhythm". So a
+   single `gap` change would have tightened one layout and left the other reading loose.
+   BOTH LAND ON 4px, one number rather than two proportional ones: the rows are 60px tall at
+   this width and the two layouts otherwise sit 6px apart on a spacing nobody can see a reason
+   for. Gentle gives up 2px, Focused 8px, and the rail reads the same density in both.
+
+   SCOPED TO `.ch-rail--account`, as asked -- the dashboard and organizations rails keep the
+   spacing they have. The Focused half is written here rather than beside its rule so the two
+   halves of one change stay together; it is the same selector as that rule plus this rail's
+   class, so it outranks it (0,4,0 against 0,3,0) inside this narrower range.
+   <=1024 INCLUDES the grid layout below 901px, where `gap` governs both axes and the rows sit
+   in columns -- the same 4px applies there and reads consistently. */
+@media (max-width: 1024px) {
+  .ch-rail--account .ch-rail__list {
+    gap: 4px;
+  }
+  body.ll-layout-focused .ch-rail--account .ch-rail__item + .ch-rail__item {
+    padding-top: 0;
+  }
+}
+
+/* THE ORG RAIL SAYS "YOU ARE HERE" THE SAME WAY (2026-09-25, requested: "Show Organizations as
+   the active button we are on"). Listed with the account rail's rather than given its own rule:
+   they are two instances of one idea, and `.ch-row.is-active` unqualified would also reach the
+   Basic dashboard's rail, whose rows are ACTIONS -- none of them is ever a page you are on. */
+.ch-rail--account .ch-row.is-active,
+.ch-rail--org .ch-row.is-active {
+  border-left: 4px solid $brand-verdigris;
+}
+/* BOTH LABELS, because which one is on screen depends on the rail's state. `.ch-row__title`
+   lives inside `.ch-row__body`, and `.ch-row__body` is CLIPPED in the collapsed rail (:446) --
+   so the weight half of this treatment was invisible exactly when the rail is narrowest and the
+   4px edge is the only other signal. `.ch-row__short` is the label that shows there (:471).
+   THIS IS NOT A HYPOTHETICAL STATE: `classic-account-rail.js` auto-collapses the rail at 1024
+   and below, and it shares its stashed collapse state with the dashboard rail, so someone who
+   collapsed that one on the home page walks into this section collapsed.
+   `.ch-row__short`'s own `font-weight: 650` is (0,2,0); this is (0,3,0) and wins. The expanded
+   rail is unaffected -- `.ch-row__short` is `display: none` there (:396). */
+.ch-rail--account .ch-row.is-active .ch-row__title,
+.ch-rail--account .ch-row.is-active .ch-row__short,
+.ch-rail--org .ch-row.is-active .ch-row__title,
+.ch-rail--org .ch-row.is-active .ch-row__short {
+  font-weight: 700;
+}
+
+/* ── BASIC VIEW: THE RAIL BESIDE A SELECTED ORGANISATION (2026-09-25, requested) ────────
+   `templates/organization.hbs` mounts the rail in org mode; this is the layout that puts it
+   beside the page instead of above it, and it is the same three-part shape the account rail and
+   the org DIRECTORY already use: turn the shell into a row, let the workspace take the rest, and
+   inset the pair from the viewport edge.
+
+   `:not(.md-shell--org-directory)` KEEPS THE TWO APART. Both pages carry `.md-shell--org`, and
+   the directory already has its own block further up this file with the SAME row treatment plus
+   two things this page must not take: it zeroes the workspace's top margin AND padding to pull
+   "My Organizations" level with the rail. The org detail pages have a different header
+   (`.md-hero--org`, whose top padding was widened on large screens by an earlier request), so
+   borrowing that would have moved content nobody asked to move. Hence a sibling block rather
+   than adding a selector to theirs -- the layout is shared, the vertical trim is not.
+
+   THE RAIL'S OWN INSET IS THE SAME 80 / 44 / 48 the other two Basic rails use, so all three
+   pages start their rail on one line. */
+body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 24px;
+  padding-left: 28px !important;
+  padding-right: 28px !important;
+  padding-top: 80px !important;
+}
+body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace {
+  flex: 1 1 auto !important;
+  min-width: 0;
+}
+@media (max-width: 1024px) {
+  body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
+    padding-top: 44px !important;
+  }
+}
+/* Stacks where every other Basic rail stacks: at 900 and below `.ch-rail` is already full-width
+   and built to sit ABOVE the content, so left as a row it would squeeze the org page into
+   whatever was left. Same breakpoint and same 48px header clearance as the others. */
+@media (max-width: 900px) {
+  body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
+    flex-direction: column !important;
+    padding-top: 48px !important;
+  }
+}
+@media (max-width: 767px) {
+  body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
+    padding-left: 22px !important;
+    padding-right: 22px !important;
+  }
 }
