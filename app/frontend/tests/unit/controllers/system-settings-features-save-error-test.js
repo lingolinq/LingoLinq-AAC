@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'frontend/tests/helpers';
-import { settled, waitUntil } from '@ember/test-helpers';
+import { waitUntil } from '@ember/test-helpers';
 import $ from 'jquery';
 import modal from 'frontend/utils/modal';
 
@@ -9,6 +9,15 @@ import modal from 'frontend/utils/modal';
 
 module('Unit | Controller | system-settings/features save errors', function(hooks) {
   setupTest(hooks);
+
+  // The stubs below replace page-global state. Restore it in afterEach as well as in the
+  // finally block: if a test times out, QUnit abandons the awaiting function and its finally
+  // never runs, so without this the stubbed modal.error leaked into the rest of the suite,
+  // failing "modal flash - should properly render error flash" in the same CI runs.
+  var restoreStubs = null;
+  hooks.afterEach(function() {
+    if (restoreStubs) { restoreStubs(); }
+  });
 
   // getOrgId() is 'default' here, where a non-site-admin is refused by the site-admin
   // guard (app/controllers/concerns/api/system_settings_access.rb:25). Fail at the
@@ -22,6 +31,13 @@ module('Unit | Controller | system-settings/features save errors', function(hook
     var originalError = modal.error;
     var originalConfirm = window.confirm;
     var shown = [];
+    restoreStubs = function() {
+      restoreStubs = null;
+      $.realAjax = originalRealAjax;
+      modal.error = originalError;
+      window.confirm = originalConfirm;
+      persistence.set('online', originalOnline);
+    };
     persistence.set('online', true);
     $.realAjax = function() {
       var body = { error: message, status: status };
@@ -32,13 +48,15 @@ module('Unit | Controller | system-settings/features save errors', function(hook
     window.confirm = function() { return true; };
     try {
       trigger(controller);
+      // No settled() after this. It waits for the whole app to go idle, so any never-ending
+      // async work another module leaves behind keeps it from resolving (reproduced with a
+      // self-rescheduling runloop timer), and this timed out at 15s in some CI runs. It is
+      // not needed: the controller sets saving to false and calls modal.error in the
+      // same rejection callback (app/controllers/system-settings/features.js:196-198 and
+      // 213-215), so both values are final once the message has been shown.
       await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
-      await settled();
     } finally {
-      $.realAjax = originalRealAjax;
-      modal.error = originalError;
-      window.confirm = originalConfirm;
-      persistence.set('online', originalOnline);
+      if (restoreStubs) { restoreStubs(); }
     }
     return { controller: controller, shown: shown };
   }
