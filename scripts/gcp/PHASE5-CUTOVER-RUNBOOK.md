@@ -68,6 +68,7 @@ preservation).
 >       (DNS TTL lowered, operator quiet window, external writers enumerated and pause-tested,
 >       client 503 re-queue confirmed). The cut having happened does NOT mean those were all
 >       satisfied first; the checklist boxes remain authoritative.
+> - [ ] All items on the private pre-launch checklist are complete, merged and deployed.
 >
 > Treat that list as the launch gate. Once a real district is onboarded, every item on it turns
 > from an operational nicety into a Tier 1 compliance obligation.
