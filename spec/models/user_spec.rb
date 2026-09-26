@@ -5719,4 +5719,128 @@ describe User, :type => :model do
       expect(u.settings['ai_consent']['granted_at']).to be_present
     end
   end
+
+  describe "effective_data_policy with more than one sponsoring organization" do
+    # A communicator may be supported by more than one organization at once. Resolution used to
+    # pick a single organization via managing_organization, which returns the first sponsored
+    # link UserLink.links_for happens to yield, and that query carries no ORDER BY.
+    it "takes the strictest value from every sponsoring organization" do
+      u = User.create
+      hospital = Organization.create(:settings => {'total_licenses' => 1})
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      # Set both policies through the supported API. An earlier version of this example passed
+      # nil as the updater and rescued the resulting NoMethodError into a direct settings write,
+      # which meant update_data_policy was never exercised at all and the example would have
+      # passed even if that method were deleted.
+      hospital_manager = User.create
+      hospital.add_manager(hospital_manager.user_name, true)
+      hospital.reload.update_data_policy({
+        'logging_allowed' => false, 'retention_months' => 1, 'max_logging_cutoff_hours' => 4
+      }, hospital_manager)
+      hospital.save!
+
+      district_manager = User.create
+      district.add_manager(district_manager.user_name, true)
+      district.reload.update_data_policy({
+        'logging_allowed' => true, 'retention_months' => 36, 'max_logging_cutoff_hours' => 720
+      }, district_manager)
+      district.save!
+      License.create!(organization: hospital, seat_type: 'student', status: 'active')
+      License.create!(organization: district, seat_type: 'student', status: 'active')
+
+      hospital.claim_user(u)
+      district.claim_user(u.reload)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id).sort).to eq([hospital.id, district.id].sort)
+
+      # Assert the merge in BOTH orders. UserLink.links_for carries no ORDER BY, so relying on the
+      # natural order makes this a ~50% detector: replacing the merge with `policies.first` passes
+      # whenever the hospital happens to come back first, which presents as a flake rather than a
+      # defect. Stubbing the order takes the nondeterminism out of the test and proves the
+      # intersection rather than the row order.
+      [[hospital, district], [district, hospital]].each do |ordered|
+        fresh = User.find_by(id: u.id)
+        allow(fresh).to receive(:policy_governing_organizations).and_return(ordered)
+        policy = fresh.effective_data_policy
+        expect(policy['logging_allowed']).to eq(false)
+        expect(policy['retention_months']).to eq(1)
+        expect(policy['max_logging_cutoff_hours']).to eq(4)
+        expect(fresh.effective_logging_allowed?).to eq(false)
+      end
+    end
+
+    it "still applies an UNSPONSORED organization's policy floor" do
+      # Organizations attach communicators unsponsored via add_unsponsored_user / add_external_user
+      # and via gift-code redemption. The single-org resolver this replaced fell back to any
+      # non-pending org, so an unsponsored clinic's policy still governed. Filtering on
+      # 'sponsored' returned an empty policy, and an empty policy is PERMISSIVE: LogSession reads
+      # logging_allowed != false.
+      u = User.create
+      clinic = Organization.create(:settings => {'total_licenses' => 1})
+      manager = User.create
+      clinic.add_manager(manager.user_name, true)
+      clinic.reload.update_data_policy({'logging_allowed' => false, 'geo_logging_allowed' => false}, manager)
+      clinic.save!
+
+      # Unsponsored, accepted attachment: sponsored = false.
+      clinic.add_user(u.user_name, false, false, false)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id)).to eq([clinic.id])
+      expect(u.effective_data_policy['logging_allowed']).to eq(false)
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "applies an accepted unsponsored organization alongside the sponsor" do
+      # A sponsored district plus an accepted unsponsored clinic (gift-code redemption attaches
+      # this way). The single-org resolver this replaced applied only the sponsor's policy, so
+      # the clinic's settings were ignored for this student. Both now govern.
+      u = User.create
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      district_manager = User.create
+      district.add_manager(district_manager.user_name, true)
+      district.reload.update_data_policy({'logging_allowed' => true, 'retention_months' => 24}, district_manager)
+      district.save!
+      License.create!(organization: district, seat_type: 'student', status: 'active')
+
+      clinic = Organization.create(:settings => {'total_licenses' => 1})
+      clinic_manager = User.create
+      clinic.add_manager(clinic_manager.user_name, true)
+      clinic.reload.update_data_policy({'logging_allowed' => false, 'retention_months' => 6}, clinic_manager)
+      clinic.save!
+
+      district.claim_user(u)
+      # Unsponsored, accepted attachment: pending = false, sponsored = false.
+      clinic.add_user(u.reload.user_name, false, false, false)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id).sort).to eq([district.id, clinic.id].sort)
+
+      # Both orders, because UserLink.links_for carries no ORDER BY.
+      [[district, clinic], [clinic, district]].each do |ordered|
+        fresh = User.find_by(id: u.id)
+        allow(fresh).to receive(:policy_governing_organizations).and_return(ordered)
+        policy = fresh.effective_data_policy
+        expect(policy['logging_allowed']).to eq(false)
+        expect(policy['retention_months']).to eq(6)
+      end
+    end
+
+    it "is unchanged for a single sponsoring organization" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      org_manager = User.create
+      org.add_manager(org_manager.user_name, true)
+      org.reload.update_data_policy({'logging_allowed' => true, 'retention_months' => 24}, org_manager)
+      org.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      org.claim_user(u)
+      u.reload
+
+      expect(u.effective_data_policy['retention_months']).to eq(24)
+      expect(u.effective_data_policy).to eq(org.reload.effective_data_policy)
+    end
+  end
 end

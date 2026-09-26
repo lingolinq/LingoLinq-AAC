@@ -3410,9 +3410,67 @@ class User < ApplicationRecord
   # request (LogSession save calls this multiple times).
   def effective_data_policy
     @effective_data_policy ||= begin
-      org = self.managing_organization
-      org ? org.effective_data_policy : {}
+      policies = policy_governing_organizations.map(&:effective_data_policy)
+      if policies.empty?
+        {}
+      else
+        # Intersect STRICTEST-WINS across every sponsoring organization rather than picking one.
+        #
+        # This used to read `self.managing_organization`, which returns the first sponsored link
+        # that Organization.attached_orgs happens to yield. UserLink.links_for builds that list
+        # with `self.where(user_id: record.id)` and no ORDER BY, so with two sponsored links the
+        # governing organization was row-order dependent and could differ between requests. A
+        # student supported by a hospital (logging_allowed false, a short retention_months) and
+        # by a permissive district therefore resolved to whichever row came back first, and the
+        # hospital's floor was bypassed intermittently rather than never or always.
+        #
+        # A communicator may legitimately be supported by more than one organization at a time,
+        # so this is a normal configuration, not an edge case. The merge mirrors
+        # Organization#effective_data_policy, which already applies exactly this intersection
+        # against a parent organization: a false on any boolean wins, and the smallest limit
+        # wins. When one organization governs, the result is that organization's own policy.
+        # When a sponsoring organization and an accepted UNSPONSORED one both govern (see
+        # policy_governing_organizations), both now apply; the single-org resolver this replaced
+        # applied only the sponsor's.
+        merged = policies.first.dup
+        policies.drop(1).each do |policy|
+          %w[logging_allowed geo_logging_allowed log_reports_allowed
+             log_publishing_allowed research_opt_in_allowed].each do |key|
+            merged[key] = false if policy[key] == false
+          end
+          %w[max_logging_cutoff_hours retention_months].each do |key|
+            if policy[key] && (merged[key].nil? || policy[key] < merged[key])
+              merged[key] = policy[key]
+            end
+          end
+        end
+        merged
+      end
     end
+  end
+
+  # Every organization whose data policy governs this user as a communicator. Plural by design:
+  # co-existing organizations are supported.
+  #
+  # Deliberately NOT filtered on 'sponsored'. The single-org resolver this replaced,
+  # User#managing_organization, falls back through three detects: sponsored, then any
+  # non-pending, then any at all. Its second detect meant an UNSPONSORED organization's policy
+  # still governed, which matters because organizations attach communicators unsponsored through
+  # `add_unsponsored_user` and `add_external_user` (Organization#process_params calls
+  # add_user(key, true, false, false)) and through gift-code redemption. Requiring 'sponsored'
+  # here returned an empty policy for exactly those users, and an empty policy is PERMISSIVE:
+  # LogSession reads `effective_data_policy['logging_allowed'] != false` and strips geo only on an
+  # explicit false, so a clinic's logging_allowed=false silently stopped applying.
+  #
+  # Accepted links are preferred, with pending ones used only when there are none, mirroring the
+  # old detect-2-then-detect-3 order. A pending invitation from an organization the family has not
+  # accepted therefore cannot tighten the policy of an account another organization already
+  # governs.
+  def policy_governing_organizations
+    links = Organization.attached_orgs(self).select { |o| o['type'] == 'user' }
+    accepted = links.reject { |o| o['pending'] }
+    chosen = accepted.any? ? accepted : links
+    chosen.map { |o| Organization.find_by_global_id(o['id']) }.compact
   end
 
   def clear_effective_data_policy_cache
