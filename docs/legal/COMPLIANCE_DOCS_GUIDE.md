@@ -191,6 +191,19 @@ line says "Internal use only until the CEO attests this file." The five bundles
 above require at least one of them, so each currently resolves to a document that
 is not authorized for external release.
 
+**Updated 2026-09-25 -- the rationale above is no longer how the hold is reached for
+three of the five bundles, but the hold itself still binds.** The retention schedule
+has been superseded twice since this section was written (2026-09-14, then 2026-09-22),
+and the `requiredDocs` bindings for `school-dpa-package`, `soc2-evidence` and `dsar`
+were retargeted onto `docs/legal/2026-09-22_data-retention.md`. None of those three
+requires a `2026-08-09_*` document any more; `security-review` still requires
+`2026-08-09_compliance-program-overview_draft.md`. The hold stands because the
+retention successor they now resolve to is itself `status: draft` carrying the same
+"Internal use only until the CEO attests this file" banner, so the conclusion is
+unchanged and only the route to it has moved. Re-read this section against
+`meta.bundleDefinitions` before lifting the hold rather than relying on the paragraph
+above.
+
 **This is a human hold, not a technical control. Nothing stops you.** Be clear
 about why:
 

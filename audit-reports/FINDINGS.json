@@ -8843,6 +8843,51 @@
         "promotedDate": "2026-09-18"
       },
       "notes": "Promoted from scot-closure-decision review on 2026-09-18. Split out of LL-3e36a18199 on 2026-09-18 by Scot's decision, when that finding was closed on its liveness element (missed-run alert applied and channel delivery confirmed). The interruption record DOC-b7f15a728c (docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md, section 5) names this assessment as outstanding and as a closure condition of LL-3e36a18199; this finding now carries it so the closure drops nothing. The COPPA slice is also covered by calendar item rev-coppa-retention-quarterly (acceptance criterion: state separately what held across 2026-07-21 to 2026-09-02). Evidence line: the daily flush_users task, whose Flusher.flush_deleted_users call was not run by the scheduler in the window (GDPR Art. 17); whether any task ran by another route is not established. COPPA is tagged because the daily block includes the parental-consent expiry task. Related: LL-933e61efd7."
+    },
+    {
+      "id": "LL-7aa646ef87",
+      "ruleKey": "published-branded-retention-render-known-inaccurate",
+      "title": "The branded Drive retention render DOC-52c8c33583 stays status published in customer bundles while recorded as known-inaccurate only in a free-text register note no consumer reads",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "audit-reports/DOCUMENT-REGISTER.json",
+        "line": 2330,
+        "snippet": "KNOWN INACCURATE 2026-09-22, pending re-publication and re-attestation. This branded Drive render carries",
+        "sha": "a659921d088df5794eb55945ae7700612bfd7123"
+      },
+      "firstSeen": "2026-09-25",
+      "lastSeen": "2026-09-25",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "Re-render DOC-52c8c33583 from the corrected successor and re-attest it (Drive write and attestation are CEO-only), or move it out of soc2-evidence and school-dpa-package until it is re-rendered. As an interim, surface the known-inaccurate state on a field the renderers read: notes is not emitted by document-register-render.rb or document-register-notion-sync.rb, so today the warning reaches no rendered artifact, no Notion column and no bundle assembler.",
+        "timeframe": "before the next external release of soc2-evidence, school-dpa-package or dsar"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 1047,
+        "reviewer": "adversary",
+        "promotedDate": "2026-09-25"
+      },
+      "notes": "Promoted from PR #1047 review (adversary) on 2026-09-25. Raised in the adversarial review of PR #1047. The PR records flagging this document as its remediation for a dual-review High, but the flag is inert: grep for KNOWN INACCURATE returns zero in DOCUMENT-REGISTER.md and COMPLIANCE-PUBLICATION-STATUS.md, no script reads the notes field on a document row, and DOCUMENT-REGISTER.md still renders the row as published with no warning. This register row is the machine-readable record that was missing. Filing a finding is explicitly not a Scot-reserved act."
     }
   ]
 }

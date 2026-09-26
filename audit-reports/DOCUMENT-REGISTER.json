@@ -231,8 +231,8 @@
             "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "Incident Log",
@@ -273,8 +273,8 @@
             "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "COPPA Final-Rule Verification",
@@ -327,8 +327,8 @@
             "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
@@ -423,8 +423,8 @@
             "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
           },
           {
-            "title": "Data Retention Schedule (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_data-retention_draft.md"
+            "title": "Data Retention Schedule (2026-09-22 successor)",
+            "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
             "title": "AI Data-Flow Classification (2026-08-17 successor)",
@@ -1011,14 +1011,9 @@
       "nextReviewDue": "2027-04-20",
       "attestation": {},
       "contentHash": "246a4ae192bd7678599c75259485b96f289cd01b13bce2e3d0a8dba93bc42e45",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "bundles": [],
       "mirrors": [],
-      "notes": "Path A successor to DOC-bff9acf51f. Draft pending CEO attestation. Live bundles retargeted here; predecessor remains the frozen attested cut.",
+      "notes": "Path A successor to DOC-bff9acf51f. Draft pending CEO attestation. Live bundles retargeted here; predecessor remains the frozen attested cut. BUNDLES REMOVED 2026-09-22: the four live bundles (soc2-evidence, school-dpa-package, security-review, dsar) required THIS superseded draft by location until now. Their requiredDocs entries were retargeted to DOC-b08fdd2b17 (docs/legal/2026-09-22_data-retention.md) and this row was dropped from the bundles, so a customer package no longer resolves to a superseded draft carrying withdrawn retention claims. Corrected 2026-09-25: an earlier note here said the 2026-09-14 supersession moved the bundles array but not the requiredDocs bindings, and that this is why --check stayed green. That inverts the mechanism. At e64653c59 this superseded row still carried all four bundles and DOC-4dc241c83a was added alongside it, so membership was duplicated rather than moved; leaving this row tagged is what kept --check green over a stale requirement. Emptying the successor's bundles is what trips the bundle-completeness gate, per meta.bundleMatchNote.",
       "supersedes": "DOC-bff9acf51f",
       "retention": {
         "class": "policy-version",
@@ -1727,7 +1722,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "8b0181fd6dfb8a43c6b3fefc2be9d49b64d526e13f51ec61ce11b49731ef33a4",
+      "contentHash": "945cd503747547b9292eb1329e52a38893a15d04729fd9788c07bffebf00c60e",
       "bundles": [],
       "mirrors": [
         {
@@ -1858,7 +1853,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "c8e466f878b5d065f2a30d6b86915885a32c0eed63beabcd81a0d57541f7d508",
+      "contentHash": "e43ea8a1af6e9a0b6489e9ec2944a40d3536e4866db9b761ee07dd86d4ec094a",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a",
@@ -2331,7 +2326,8 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "driveFileId": "1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k"
+      "driveFileId": "1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k",
+      "notes": "KNOWN INACCURATE 2026-09-22, pending re-publication and re-attestation. This branded Drive render carries the pre-correction retention text, including \"automatic purge at age 18 or after 2 years of inactivity\", which docs/legal/2026-09-14_data-retention.md and DOC-b08fdd2b17 have withdrawn as unsupported by code. It remains status published and a member of soc2-evidence and school-dpa-package, so it is the only published retention schedule in those bundles and it is wrong. Do not release it to a customer until it is re-rendered from DOC-b08fdd2b17 and re-attested. Owner: Scot (Drive write plus attestation are CEO-only). Related: the public privacy page carries the same class of claim, filed as issue #1050 and tracked by open finding LL-933e61efd7. Tracked machine-readably 2026-09-25 as open finding LL-7aa646ef87: this note is free text that no renderer or sync emits, so the register row is the record a consumer can act on."
     },
     {
       "title": "Subprocessor Register (branded)",
@@ -3184,7 +3180,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-6d37a68cf4",
       "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). No data was retained longer than a rule permits; this is an enforcement-description defect, not a retention violation. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time. ALIGNED 2026-08-26 after external review: an earlier phrasing here called the control \"structurally dormant\", which overstated it. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver and the purge deletes the row, so the mechanism is verified end to end. Zero production matches reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), not a broken control. What the predecessor got wrong is that it matches EU rows in production today.",
-      "contentHash": "1314e61b29ca47a80aff21bcdef3277f4159f93bb92c735c5e33b3af98f71733"
+      "contentHash": "2643f1f44a76254ce51c012d46992a459cc060ce6ccc23fe39aea8483a8fc7a1"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -4050,7 +4046,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_data-retention.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -4066,14 +4062,9 @@
         "note": "Path A successor to DOC-e62caf7fb9 (2026-08-09_data-retention_draft.md), frozen, and a DRAFT. Scope of this pin: the Render decommission restatements, plus the archive retention correction, which is the most consequential content here and is NOT about customer data. An earlier draft called gs://lingolinq-prod-render-archive immutable and said an Article 17 erasure could not be executed against it. Both were false. The bucket's retentionPolicy has NO isLocked field, re-verified live at attestation 2026-09-16 (retentionPeriod 31557600s, effectiveTime 2026-09-02T17:30:22Z, isLocked absent), so a project admin can remove the policy and then delete. The document states that erasure is a DECISION, not a technical impossibility. This matters for the schedule's accuracy about GCS retention mechanics generally, not because the archive holds customer data: it does not. First attestation in this lineage: the immediate predecessor named above was never attested, so this pin is the first CEO affirmation for this document line. Render closure: the CEO closed the Render account and the workspace was deleted 2026-09-09. No customer, student or patient data ever resided on Render: the platform carried only test accounts during development, and production had no real users at cutover. There is therefore no data-disposal, residual-copy or Article 17 question arising from the decommission itself. Render is no longer a subprocessor."
       },
       "contentHash": "4410639ac6784732c17ae86c94f7d554878193dbe89a407a673a33f232ede5a2",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "bundles": [],
       "mirrors": [],
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO COPIED FORWARD from PR #969, which landed on the predecessor after this branch started: cadence-versus-execution language for LL-3e36a18199. Without that copy-forward this successor would have re-asserted that retention jobs run as of 2026-09-14.",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition. ALSO COPIED FORWARD from PR #969, which landed on the predecessor after this branch started: cadence-versus-execution language for LL-3e36a18199. Without that copy-forward this successor would have re-asserted that retention jobs run as of 2026-09-14. SUPERSEDED 2026-09-22 by DOC-b08fdd2b17 (docs/legal/2026-09-22_data-retention.md), which corrects three doc-versus-code defects this row carried: the user-account inactivity window and outcome, the LogSession \"3 years default\", and the absent AuditEvent row. This row and its 2026-09-16 attestation stay frozen over its own bytes; the live bundles moved to the successor.",
       "supersedes": "DOC-e62caf7fb9",
       "retention": {
         "class": "policy-version",
@@ -4083,7 +4074,44 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-4dc241c83a"
+      "id": "DOC-4dc241c83a",
+      "supersededBy": "DOC-b08fdd2b17"
+    },
+    {
+      "title": "Data Retention Schedule (2026-09-22 successor)",
+      "description": "Path A successor correcting three doc-versus-code defects the predecessor carried: the user-account inactivity row (2 years and soft-delete, where the code is 12 months and permanent destruction), the LogSession row (\"3 years default\", where no default exists in code), and the absence of any AuditEvent row (no retention control; the table grows without bound). Every other row is carried forward from the predecessor; the LogSnapshot mechanism and window cells and the two AiApiLog cells citing LL-3e36a18199 also changed, and the document discloses them.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-09-22_data-retention.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-09-22",
+      "nextReviewDue": "2027-04-20",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-09-22. Each correction was verified by reading the runtime source at origin/develop e64653c59 before the file was written: subscription.rb selects updated_at < 12.months.ago, sends two deletion_warning emails at least 3 weeks apart and then, on the next eligible pass, takes the attempts > 2 branch which sets schedule_deletion_at = 36.hours.from_now and sends account_deleted, after which the daily flush_users step of scheduler:dispatch runs Flusher.flush_deleted_users -> Flusher.flush_user_completely, which calls flush_record and logs an AuditEvent of type user_permanently_destroyed (lib/flusher.rb); lib/data_policy_enforcer.rb iterates only organizations with data_policy_version > 0 and their sponsored_users, purges only RETAINABLE_LOG_TYPES (session, note, assessment, eval, journal), and reaches no standalone account at all; app/models/audit_event.rb defines no purge method and no task in lib/tasks/scheduler.rake references the model. ATTESTER MUST CONFIRM: (1) that 12 months plus the warning cycle is the retention the business intends to promise customers, since it is SHORTER than the 2 years the superseded schedules stated and shorter than some customer expectations may assume; (2) that publishing \"no default LogSession window\" is acceptable, or whether a default should be implemented in code instead of documented away; (3) whether the unbounded AuditEvent table needs a retention rule before this schedule is published externally. This successor does NOT close, downgrade or supersede any finding. The branded Drive render DOC-52c8c33583 still carries pre-correction text and needs re-publication and re-attestation separately. DUAL REVIEW 2026-09-22 (Codex gpt-5.6-terra plus Claude adversary, findings at outputs/docs/2026-09-22-pr1047-dual-review-findings.md in ai-company-brain): five High and six Medium, all applied on this branch before merge. The substantive ones: the LogSession correction was itself wrong about scope; section 3 claimed org-policy inheritance works, which LL-14edf1a801 contradicts; the warning count was off by one; the document asserted LL-3e36a18199 open after Scot closed it on 2026-09-18; the account row omitted the expired-trial and COPPA offboarding destruction paths; and the four bundle requiredDocs still named the 2026-08-09 draft, now retargeted here. The public privacy page carries the same withdrawn claims and is filed as issue #1050 under open finding LL-933e61efd7; it is NOT fixed by this PR.",
+      "supersedes": "DOC-4dc241c83a",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-b08fdd2b17",
+      "contentHash": "e4df2476d7afaea7a9ddec1668ea9921c9c5b88fe5183548277012848dd1ea92"
     },
     {
       "title": "Subprocessor Register (2026-09-14 successor)",

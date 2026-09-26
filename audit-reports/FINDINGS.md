@@ -5,11 +5,11 @@
 
 **Audited:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.` @ `a43867de5aa83d821125892de624fcd1e19f9d81` on 2026-09-16  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 1 Critical / 38 High
+**Headline (open + remediated-unverified):** 1 Critical / 39 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (175)
+## Open (176)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -46,6 +46,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | untriaged | manual | Organization membership authorization weakness in supervisor-key processing (details withheld until remediation is verified) | `app/models/organization.rb`:1470 |
 | LL-1f83f4e778 |  | high | FERPA, SOC2 | untriaged | manual | Lesson access-control defect, fixed in code; residual-access verification pending (details withheld) | `app/models/lesson.rb`:25 |
 | LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, COPPA, SOC2 | untriaged | manual | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
+| LL-7aa646ef87 |  | high | FERPA, GDPR, SOC2 | untriaged | pr-review | The branded Drive retention render DOC-52c8c33583 stays status published in customer bundles while recorded as known-inaccurate only in a free-text register note no consumer reads | `audit-reports/DOCUMENT-REGISTER.json`:2330 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -288,4 +289,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_252 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_253 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

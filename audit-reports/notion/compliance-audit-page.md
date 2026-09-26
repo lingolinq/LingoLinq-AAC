@@ -12,14 +12,14 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-19T18:32:00Z
+**Page generated:** 2026-09-26T01:49:22Z
 
 ## Headline - live findings (open + awaiting verification)
 
 | Count | Critical | High | Medium | Low |
 |---|---|---|---|---|
-| **Live** (`open` + `remediated-unverified`) | **1** | **38** | 94 | 52 |
-| `open` only | 1 | 32 | 91 | 51 |
+| **Live** (`open` + `remediated-unverified`) | **1** | **39** | 94 | 52 |
+| `open` only | 1 | 33 | 91 | 51 |
 
 _The headline is the LIVE count: `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` step 6 convention; the difference is findings whose fix has landed but which Scot has not yet verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -45,6 +45,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-5f0a016e2b |  | high | SOC2, HIPAA | Attested AI Governance Memo states the Bedrock runtime AI path is "not operational since" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic | `docs/legal/AI_GOVERNANCE_MEMO.md`:499 |
 | LL-6af580a23a |  | high | SOC2, HIPAA, FERPA | A Redis RDB persistence snapshot was tracked in git and shipped in every production container image for ~6 months; removed from HEAD (2026-08-14) but the blob remains fully retrievable from public git history at ced829ba1 on both staging and main | (attestation) |
 | LL-705b10bcd7 |  | high | SOC2 | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
+| LL-7aa646ef87 |  | high | FERPA, GDPR, SOC2 | The branded Drive retention render DOC-52c8c33583 stays status published in customer bundles while recorded as known-inaccurate only in a free-text register note no consumer reads | `audit-reports/DOCUMENT-REGISTER.json`:2330 |
 | LL-7bf58a4c53 |  | high | WCAG | Classic (opt-in) speak-view chrome has several icon-only controls with no accessible name (sidebar collapse, edit pencil, speak-mode notification, level +/-), two of them silent to auditory scanning | `app/frontend/app/templates/application.hbs`:1559 |
 | LL-85b32935c2 |  | high | SOC2, FERPA, HIPAA | Device session token strength (details withheld until remediation is verified) | `app/models/device.rb`:156 |
 | LL-89b97af30f |  | high | SOC2 | Lesson usages permission grant lets a viewer self-grant edit: assign is gated on 'view', and assigning the lesson to one's own org adds a usages entry that the permission block then reads as an edit grant | `app/models/lesson.rb`:61 |
