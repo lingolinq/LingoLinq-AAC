@@ -400,16 +400,25 @@ class SessionController < ApplicationController
         @error = "Mismatched user connection"
         return render
       end
-      if SamlLoginPolicy.identity_linked_elsewhere?(org, data[:external_id], existing_user)
+      link = nil
+      linked_elsewhere = false
+      # Hold the org row lock across the check and the write, so two link
+      # requests for the same identity cannot both pass the check.
+      org.with_lock do
+        linked_elsewhere = SamlLoginPolicy.identity_linked_elsewhere?(org, data[:external_id], existing_user)
+        if !linked_elsewhere
+          link = org.link_saml_user(existing_user, data)
+          SamlLoginPolicy.record_link!(link, auth_user) if link
+        end
+      end
+      if linked_elsewhere
         @error = "This login is already connected to another account"
         return render
       end
-      link = org.link_saml_user(existing_user, data)
       if !link
         @error = "Mismatched user connection"
         return render
       end
-      SamlLoginPolicy.record_link!(link, auth_user)
       RedisInit.default.del("saml_#{code}")
       return redirect_to "/#{existing_user.user_name}"
     else

@@ -2442,6 +2442,35 @@ describe SessionController, :type => :controller do
         expect(Device.where(user_id: [first.id, second.id]).count).to eq(0)
       end
 
+      it "checks for an existing link and writes the new one while holding the org lock" do
+        o = sso_org
+        u = accepted_member(o)
+        stub_assertion(o, 'nid-locked', 'whatever', 'whatever@example.com')
+        locked = false
+        seen = {}
+        allow_any_instance_of(Organization).to receive(:with_lock).and_wrap_original do |m, *args, &blk|
+          locked = true
+          begin
+            m.call(*args, &blk)
+          ensure
+            locked = false
+          end
+        end
+        allow(SamlLoginPolicy).to receive(:identity_linked_elsewhere?).and_wrap_original do |m, *args|
+          seen[:check] = locked
+          m.call(*args)
+        end
+        allow_any_instance_of(Organization).to receive(:link_saml_user).and_wrap_original do |m, *args|
+          seen[:write] = locked
+          m.call(*args)
+        end
+        consume(o, {user_id: u.global_id, auth_user_id: u.global_id})
+        expect(response.location).to eq("http://test.host/#{u.user_name}")
+        expect(seen).to eq({check: true, write: true})
+        consume(o)
+        expect_signed_in(u)
+      end
+
       it "lets an account link an identity whose existing link could not sign anyone in" do
         o = sso_org
         stale = accepted_member(o)
