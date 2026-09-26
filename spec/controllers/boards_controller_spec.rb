@@ -71,7 +71,29 @@ describe BoardsController, :type => :controller do
       expect(response.body).not_to include('window.LingoLinqHideBootOverlay =')
     end
   end
-  
+
+  # TEMPORARY, removed with the boot-error catcher (draft PR #1059). The catcher
+  # is gated on the server so staging and production HTML never carry it.
+  describe "boot error catcher" do
+    render_views
+
+    it "should render only for the dev host" do
+      request.host = 'dev.lingolinq.com'
+      get "index"
+      expect(response).to be_successful
+      expect(response.body).to include('boot_error_catcher')
+    end
+
+    it "should not render for any other host" do
+      ['staging.lingolinq.com', 'app.lingolinq.com', 'dev.lingolinq.com.example.com'].each do |host|
+        request.host = host
+        get "index"
+        expect(response).to be_successful
+        expect(response.body).not_to include('boot_error_catcher'), host
+      end
+    end
+  end
+
   describe "about" do
     it "should render" do
       get "about"
