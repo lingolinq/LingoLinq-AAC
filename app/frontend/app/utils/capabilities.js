@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 import stashes from './_stashes';
 import tts_voices from './tts_voices';
 import dbman from './dbman';
+import useStandaloneIdbShim from './standalone_idb_shim';
 // Capacitor: install sqlitePlugin + file_storage shims before setup_database.
 import { installCapacitorAdapters, isNativeCapacitor } from './capacitor_bridge';
 installCapacitorAdapters();
@@ -19,12 +20,7 @@ installCapacitorAdapters();
 
 // iOS8 home screen apps are doing weird things with indexeddb
 var indexedDBSafe = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
-if(navigator.standalone) {
-  if(window.shimIndexedDB) {
-    window.shimIndexedDB.__useShim();
-  }
-  // indexedDBSafe = window.shimIndexedDB;
-}
+useStandaloneIdbShim(window, navigator);
 
 // Define File System API type constants to avoid using deprecated StorageType.PERSISTENT
 // These constants are used by the File System API (requestFileSystem)
