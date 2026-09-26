@@ -61,7 +61,8 @@ is rendered in every deployed environment (`Rails.env.production?`: production, 
 
 **(c) Cross-file claims**
 
-- CONFIRMED: the app's own database never goes through the shim. `capabilities.js` captures
+- CONFIRMED: when native IndexedDB exists (every browser in scope here, including the device), the app's own database
+  never goes through the shim. Without it, `indexedDBSafe` falls back to `window.shimIndexedDB`. `capabilities.js` captures
   `indexedDBSafe = window.indexedDB || …` on the line BEFORE the shim call, and `capabilities.idb = indexedDBSafe`.
   `dbman.js` opens through `capabilities.idb.open` / `deleteDatabase` / `webkitGetDatabaseNames`.
 - CONFIRMED: nothing under `app/frontend/app` or `app/assets/javascripts` reads `window.indexedDB` or
