@@ -254,6 +254,8 @@ describe SessionController, :type => :controller do
       u.save
       o.add_user(u.user_name, false, false)
       o.reload
+      link = o.link_saml_user(u, {external_id: 'nid-oauth-redirect'})
+      SamlLoginPolicy.record_link!(link, u)
       expect(Organization.external_auth_for(u)).to eq(o)
 
       key_with_stash
@@ -2540,15 +2542,29 @@ describe SessionController, :type => :controller do
         u = password_user("multi#{SecureRandom.hex(3)}")
         first_org.add_manager(u.user_name, true)
         later_org.add_user(u.user_name, false, false)
+        link = later_org.link_saml_user(u.reload, {external_id: 'nid-later-org'})
+        SamlLoginPolicy.record_link!(link, u)
         json = password_login(u.reload)
         expect(json['auth_redirect']).to match(/saml\/init\?org_id=#{later_org.global_id}/)
         expect(u.google_sso_blocked?).to eq(true)
       end
 
-      it "still sends an accepted member to the org's identity provider" do
+      it "lets an accepted member who has not linked yet keep password sign-in" do
+        o = enforced_org
+        u = password_user("unlinked#{SecureRandom.hex(3)}")
+        o.add_user(u.user_name, false, false)
+        json = password_login(u.reload)
+        expect(json['auth_redirect']).to eq(nil)
+        expect(json['access_token']).to_not eq(nil)
+        expect(u.google_sso_blocked?).to eq(false)
+      end
+
+      it "still sends a linked member to the org's identity provider" do
         o = enforced_org
         u = password_user("member#{SecureRandom.hex(3)}")
         o.add_user(u.user_name, false, false)
+        link = o.link_saml_user(u.reload, {external_id: 'nid-linked-member'})
+        SamlLoginPolicy.record_link!(link, u)
         json = password_login(u.reload)
         expect(json['auth_redirect']).to match(/saml\/init\?org_id=#{o.global_id}/)
         expect(u.google_sso_blocked?).to eq(true)

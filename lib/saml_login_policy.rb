@@ -32,15 +32,23 @@ module SamlLoginPolicy
   end
 
   # The first org (lowest id) with enforced external auth where this account
-  # is eligible for SSO, or nil. Password, OAuth and Google sign-in defer to
-  # it; accounts not eligible in any enforced org keep those methods.
+  # can already sign in through SSO, or nil. Password, OAuth and Google
+  # sign-in defer to it; accounts without a working link keep those methods,
+  # so they can sign in and link.
   def self.enforced_org_for(user)
     user = User.find_by_path(user) if user.is_a?(String)
     return nil unless user
     org_ids = member_links_all(user).map{|link| link['record_code'].split(/:/, 2)[1] }.uniq
     orgs = Organization.find_all_by_global_id(org_ids).sort_by(&:id)
     orgs.detect do |org|
-      org.external_auth_key.present? && org.settings['saml_metadata_url'] && org.settings['saml_enforced'] && member_eligible?(org, user)
+      org.external_auth_key.present? && org.settings['saml_metadata_url'] && org.settings['saml_enforced'] && working_link?(org, user)
+    end
+  end
+
+  def self.working_link?(org, user)
+    UserLink.where(user_id: user.id).any? do |link|
+      state = link.data['state']
+      link.data['type'] == 'saml_auth' && state.is_a?(Hash) && state['org_id'] == org.global_id && link_user(org, link) == user
     end
   end
 
