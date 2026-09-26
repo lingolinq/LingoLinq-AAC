@@ -274,8 +274,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # fetch-depth: 0 because the disclosure guard compares the register against the
+      # MERGE BASE, not the base branch tip. pull_request.base.sha is the base branch's
+      # head at event time rather than the fork point, so on a branch that has not been
+      # rebased every register row added since the fork looks deleted. Measured on open
+      # PR 909: comparing against develop's tip reported two protected rows as deleted and
+      # failed the run; against the true merge base it passes. The guard fails closed when
+      # it cannot find a merge base, so the history has to be here.
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -350,6 +359,35 @@ jobs:
       # Stdlib-only and git-free, like the checks above, so it is equally low-friction to gate on.
       - name: Verify findings registers are structurally valid
         run: ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json
+
+      # Enforces the security disclosure policy's minimization, which until now was
+      # applied by hand with nothing checking it. This repo is PUBLIC: on 2026-09-22 a
+      # recovered handoff doc restated a minimized Critical finding's mechanism together
+      # with its code path, was pushed, and remained publicly reachable through
+      # refs/pull/<n>/head after the PR was closed and the branch deleted. Reviewers
+      # caught it; no automation did. Fails when a tracked file outside audit-reports/
+      # pairs a protected finding id with a code path.
+      #
+      # --base-ref is load-bearing, not decoration. Reading the register only at the PR
+      # head let one change flip a row to verified-closed and publish its detail in the
+      # same commit: measured as exit 1 becoming exit 0 against a fixture. The protected
+      # set is therefore the union of base and head, the same reason legal-naming-check
+      # above reads its allowlist at the base revision. Reuses the baseline that step
+      # already resolved and fetched, which is the event's exact SHA rather than a branch
+      # name, so the comparison cannot be satisfied by self-comparison.
+      - name: Verify withheld finding detail stays out of the public tree
+        run: ruby scripts/minimized-disclosure-guard.rb --check --base-ref "$NAMING_BASE_SHA"
+
+      # Same reasoning as the naming guard above: a disclosure gate seen only passing on
+      # a clean tree proves the tree is clean, not that the gate fires. This asserts both
+      # directions, including that a bare finding id (published by design) is allowed,
+      # that a change cannot un-protect its own disclosure, and where the guard's window
+      # stops. Invoked directly, like every sibling harness in this job, which requires
+      # the file to carry mode 100755 in the index: this repo is checked out on a
+      # filesystem with core.filemode=false, so a local chmod is never recorded and the
+      # bit has to be set with `git update-index --chmod=+x`.
+      - name: Verify the disclosure guard actually fires
+        run: scripts/tests/minimized-disclosure-guard-test.sh
 
       # Proves the evidence.sha branch of register-lint actually FIRES. register-lint is the
       # only structural gate on findings rows that runs here (citation-check.rb is deliberately
