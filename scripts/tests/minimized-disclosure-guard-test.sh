@@ -204,19 +204,67 @@ rc=$(run_guard)
 [ "$rc" -eq 1 ] && pass "fires across the documented three-line window" \
   || { fail "missed a three-line separation (exit $rc)"; cat "$TMP/out"; }
 
-# 13b. The window's FAR SIDE, asserted rather than left implied. At four lines the guard
-#      does not fire, and pretending otherwise would be the "looks like enforcement"
-#      failure this guard is supposed to avoid. Any wider window was measurable: it was
-#      not adopted because the sharpest real risk is an id and a citation in the same
-#      paragraph, and the pairing has to stay narrow enough to keep false positives at
-#      zero on the tree. Review, not this script, is the gate beyond the window.
+# 13b. REWRITTEN 2026-09-25, because the specification changed: WINDOW moved from 3 to 7.
+#      This case previously ASSERTED that a four-line separation is not detected, which
+#      certified a one-keystroke evasion as correct behaviour. The original criterion was
+#      "widen while false positives stay at zero on the tree"; re-measured, zero holds at
+#      4, 5, 6 and 7, and the nearest real pairing is 8 lines apart. So four lines is now
+#      caught, and the far side is asserted at EIGHT, which is where widening would start
+#      flagging attested docs/legal records that cannot be edited in place.
 reset_repo
 register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
 printf -- '- LL-1111111111 remains open\n\nSome intervening prose.\n\nThe gap is in app/models/widget.rb\n' \
   > "$TMP/repo/docs/task-management/handoff.md"
 rc=$(run_guard)
-[ "$rc" -eq 0 ] && pass "documents its limit: four lines apart is NOT detected" \
+[ "$rc" -eq 1 ] && pass "four lines apart IS detected (window widened to 7)" \
+  || { fail "four-line separation slipped through (exit $rc)"; cat "$TMP/out"; }
+
+# 13c. The NEW far side. Eight lines apart is not detected, and that limit is deliberate:
+#      widening further flags docs/legal records carrying an attestedContentHash, which
+#      policy forbids editing in place, so a pairing there would be unfixable by design.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- '- LL-1111111111 remains open\n\n\n\n\n\n\n\nThe gap is in app/models/widget.rb\n' \
+  > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard)
+[ "$rc" -eq 0 ] && pass "documents its limit: eight lines apart is NOT detected" \
   || { fail "window is wider than documented (exit $rc)"; cat "$TMP/out"; }
+
+# 13d. REGRESSION FIXTURE for the first-match bug. A line naming TWO protected ids was
+#      evaluated against only ONE of them, chosen in register order, so the id-bound
+#      signals of the other were never checked. That mattered because CODE_PATH excludes
+#      .sh by design, leaving the id-bound signal as the only cover for the protected rows
+#      whose evidence is scripts/gcp/*.sh. Register order here puts the DECOY first.
+reset_repo
+cat > "$TMP/repo/audit-reports/FINDINGS.json" <<'JSON'
+{ "findings": [
+  { "id": "LL-0000000000", "status": "open", "severity": "high",
+    "title": "Decoy (details withheld until remediation is verified)",
+    "notes": "Minimized 2026-09-17 under the security disclosure policy.",
+    "evidence": { "file": "app/models/decoy.rb" } },
+  { "id": "LL-1111111111", "status": "open", "severity": "high",
+    "title": "Weakness (details withheld until remediation is verified)",
+    "notes": "Minimized 2026-09-17 under the security disclosure policy.",
+    "evidence": { "file": "scripts/gcp/phase1-setup.sh" } }
+] }
+JSON
+printf -- '- LL-0000000000 and LL-1111111111 remain open\n  the grant is at scripts/gcp/phase1-setup.sh:251\n' \
+  > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard)
+[ "$rc" -eq 1 ] && pass "every protected id on a line is checked, not just the first" \
+  || { fail "first-match shadowing is back (exit $rc)"; cat "$TMP/out"; }
+
+# 13e. REGRESSION FIXTURE: an unparseable register must not read as "nothing to protect".
+#      rows_from used to rescue JSON::ParserError to [], so a truncated register made the
+#      protected set empty and every disclosure passed. Run WITHOUT --base-ref, which is
+#      the guard's own documented Usage line and the shape the companion pre-push hook uses.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- '- LL-1111111111 is in app/models/widget.rb\n' > "$TMP/repo/docs/task-management/handoff.md"
+printf '{ "findings": [ TRUNCATED' > "$TMP/repo/audit-reports/FINDINGS.json"
+rc=$( cd "$TMP/repo" && ruby "$GUARD" --check >"$TMP/out" 2>&1; echo $? )
+[ "$rc" -ne 0 ] && pass "an unreadable register aborts instead of passing" \
+  || { fail "malformed register still reads as an empty protected set (exit $rc)"; cat "$TMP/out"; }
 
 # 14. An extension outside any allowlist. Scanning every tracked text file is what
 #     closes "rename it to .html".

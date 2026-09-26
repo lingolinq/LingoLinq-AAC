@@ -34,6 +34,27 @@
 #     store, so it treats any code path beside a protected id as a violation.
 #   * A change that deletes or conditionalises its own CI step defeats it. That is a
 #     repository-ruleset concern, not something a script can self-enforce.
+#   * CONFIRMED EVASIONS, added 2026-09-25 after an adversarial pass. Each was reproduced
+#     against this script; none is fixable by widening a regex, so they are stated rather
+#     than implied:
+#       - Split across FILES. The window is per-file, so naming the id in one tracked file
+#         and the path in another passes. Handoff documents in this repo routinely ship
+#         with companion logs, which makes this the more natural shape, not the exotic one.
+#       - ruleKey instead of the id. FINDINGS.json publishes ruleKey in the clear and
+#         descriptively, so it identifies a finding at least as well as its id, and nothing
+#         here looks at it.
+#       - Binary-ish documents. A NUL byte in the first SNIFF_BYTES skips the file, so a
+#         .docx, .pdf or screenshot carrying the id and the path is never read. The incident
+#         this guard was written for was a handoff DOCUMENT; that is the likely real format.
+#       - Path forms outside CODE_PATH: .scss, .css, .md, .json, .sql, .haml, anything under
+#         scripts/ or docs/, `file.rb#L42`, a symbol reference such as Foo::Bar#baz, or the
+#         path written in prose. The comment on CODE_PATH names only the widenings that were
+#         measured and rejected; these were simply never in scope.
+#   * The CI step that runs this is preceded in the same job by a `git fetch --depth=1`,
+#     which writes .git/shallow. That grafts the base and can break `git merge-base` even
+#     though the job sets fetch-depth: 0. It does not fire on the pull_request merge ref,
+#     where base.sha is an ancestor of HEAD -- verified green on this PR's own run -- but
+#     if the guard ever reports "no merge base" on a clean tree, that fetch is why.
 #
 # Stdlib-only, no network, no database, no app boot. Uses `git ls-files` for the
 # tracked-file list, so it sees the index rather than the working tree's junk.
@@ -55,7 +76,11 @@ require 'open3'
 require 'optparse'
 require 'set'
 
-DEFAULT_REGISTERS = ['audit-reports/FINDINGS.json'].freeze
+# Both registers, matching the sibling register-lint CI step. FINDINGS-EMBER.json carries no
+# protected row today, so this is latent rather than a live gap -- but a minimized row landing
+# there would otherwise be unguarded with nothing to signal it.
+DEFAULT_REGISTERS = ['audit-reports/FINDINGS.json',
+                     'audit-reports/ember-upgrade/FINDINGS-EMBER.json'].freeze
 
 # Statuses whose detail is still withheld. A verified-closed finding may have had its
 # disclosure approved, so it is not protected here; that is the policy's own boundary
@@ -70,9 +95,22 @@ PROTECTED_STATUSES = %w[open remediated-unverified].freeze
 TITLE_MARKER = /details withheld/i
 NOTES_MARKER = /minimized\b[^.]*under the security disclosure policy/i
 
-# Paths allowed to carry an id beside a path: the register and its generated mirrors.
-# The register is the one place the pairing is intentional and access-controlled by
-# the minimization itself (its own evidence fields are what policy trims).
+# Paths allowed to carry an id beside a path.
+#
+# READ THIS BEFORE TRUSTING A PASS. This is a DIRECTORY PREFIX, and the directory holds far
+# more than the register and its generated mirrors: ~55 tracked files, most of them free-form
+# audit prose under domain-reports/ and run-log/. Everything under it is unscanned. The
+# rationale below covers FINDINGS.json and its mirrors, where the pairing is intentional and
+# is what the minimization itself trims; it does NOT cover the prose, which is exempt only as
+# a side effect of the prefix.
+#
+# KNOWN CONSEQUENCE, not hypothetical: audit-reports/domain-reports/2026-08-12/
+# infra-audit-2026-08-12.md (committed 2026-08-17, a month before the 2026-09-17
+# minimization) carries an open High's id beside its Location and mechanism, and this guard
+# exits 0 over it. Narrowing this list to the generated files is the correct end state and
+# will turn CI red until that report is minimized -- a disclosure decision reserved to Scot,
+# tracked separately. Until then a pass from this guard means "no NEW pairing outside
+# audit-reports/", which is what the OK line now says.
 ALLOWED_PREFIXES = ['audit-reports/'].freeze
 
 # A code path, or a file:line citation. Both are "here is where" signals.
@@ -90,11 +128,19 @@ CODE_PATH = %r{
   \b[\w.-]+\.(?:rb|js|jsx|ts|tsx|hbs|erb|rake):\d+
 }xi
 
-# Lines to look at around the id. Three either side: a markdown table row, a bullet, or
-# a wrapped sentence routinely separates an id from its citation, and one line proved
-# trivially evadable by putting them two apart. Measured at 0 false positives on the
-# tree, same as the one-line window, so the wider window is free.
-WINDOW = 3
+# Lines to look at around the id. A markdown table row, a bullet, or a wrapped sentence
+# routinely separates an id from its citation, and a one-line window proved trivially
+# evadable by putting them two apart.
+#
+# SEVEN, NOT THREE (widened 2026-09-25 after review). The window was 3 on the stated
+# grounds that it measured 0 false positives "same as the one-line window, so the wider
+# window is free". That argument was right and under-applied: re-run over all tracked
+# files outside ALLOWED_PREFIXES, 0 false positives holds at 4, 5, 6 and 7, and the first
+# real pairing in the tree is 8 lines apart. At 3 the guard shipped -- and its own harness
+# asserted -- that pressing Enter twice evades it. 7 is the widest setting the original
+# criterion supports; 8 starts flagging two docs/legal records that carry an
+# attestedContentHash and therefore cannot be edited in place, which would be unfixable.
+WINDOW = 7
 
 # Maximum file size to read. A tracked file larger than this is not a prose disclosure,
 # and reading without a bound lets a tracked symlink to a character device hang CI.
@@ -108,8 +154,14 @@ SNIFF_BYTES = 8192
 def rows_from(json_text)
   raw = JSON.parse(json_text)
   raw.is_a?(Hash) ? (raw['findings'] || []) : raw
-rescue JSON::ParserError
-  []
+rescue JSON::ParserError => e
+  # NOT `[]`. A security control must never read "I cannot parse the register" as "there is
+  # nothing to protect": an empty protected set makes every disclosure pass. Under --check
+  # with --base-ref the demotion check happened to turn this into an exit 1 anyway, but the
+  # guard's own documented Usage line and the companion pre-push hook both run without a base
+  # ref, and there it exited 0 with a message blaming marker drift for a truncated file.
+  abort("minimized-disclosure-guard: register is not valid JSON (#{e.message}). " \
+        'Refusing to treat an unreadable register as an empty one.')
 end
 
 def collect(rows, into, origin)
@@ -295,21 +347,32 @@ def violations(ids)
     lines = text.lines.map(&:chomp)
     lines.each_with_index do |line, index|
       lowered_line = line.downcase
-      key = lowered.keys.find { |id| lowered_line.include?(id) }
-      next unless key
+      # EVERY protected id on the line, not the first one found. `find` returned a single
+      # id in REGISTER order, so the id-bound signals of every other id on the same line
+      # were never evaluated: `LL-aaa and LL-bbb are in scripts/gcp/x.sh` passed whenever
+      # LL-aaa happened to sort first, because CODE_PATH deliberately excludes .sh and only
+      # LL-bbb carries that path as a bound signal. Listing several ids on one line is the
+      # normal shape of this repo's compliance prose, and the id-bound signal is the ONLY
+      # cover for the three protected rows whose evidence is scripts/gcp/*.sh.
+      keys = lowered.keys.select { |id| lowered_line.include?(id) }
+      next if keys.empty?
 
       low = [0, index - WINDOW].max
       window = lines[low..(index + WINDOW)].join("\n")
-      id = lowered[key]
+      lowered_window = window.downcase
 
-      # Two independent signals, checked in order of precision. The id-bound one names
-      # the row's own evidence path, so it is reported as the stronger hit.
-      own = ids[id][:signals].find { |signal| window.downcase.include?(signal) }
-      match = own || window[CODE_PATH]
-      next unless match
+      keys.each do |key|
+        id = lowered[key]
 
-      found << { file: path, line: index + 1, id: id, severity: ids[id][:severity],
-                 origin: ids[id][:origin], path_match: match, own_evidence: !own.nil? }
+        # Two independent signals, checked in order of precision. The id-bound one names
+        # the row's own evidence path, so it is reported as the stronger hit.
+        own = ids[id][:signals].find { |signal| lowered_window.include?(signal) }
+        match = own || window[CODE_PATH]
+        next unless match
+
+        found << { file: path, line: index + 1, id: id, severity: ids[id][:severity],
+                   origin: ids[id][:origin], path_match: match, own_evidence: !own.nil? }
+      end
     end
   end
   found
@@ -390,7 +453,7 @@ def main
 
   found = violations(ids)
   if found.empty?
-    puts "minimized-disclosure-guard: OK - #{ids.size} protected finding id(s), none paired with a code path outside #{ALLOWED_PREFIXES.join(', ')}."
+    puts "minimized-disclosure-guard: OK - #{ids.size} protected finding id(s); no NEW pairing found outside #{ALLOWED_PREFIXES.join(', ')} (that prefix is unscanned, see ALLOWED_PREFIXES)."
     exit 0
   end
 
