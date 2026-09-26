@@ -2464,9 +2464,13 @@ describe SessionController, :type => :controller do
           seen[:write] = locked
           m.call(*args)
         end
+        allow(SamlLoginPolicy).to receive(:record_link!).and_wrap_original do |m, *args|
+          seen[:record] = locked
+          m.call(*args)
+        end
         consume(o, {user_id: u.global_id, auth_user_id: u.global_id})
         expect(response.location).to eq("http://test.host/#{u.user_name}")
-        expect(seen).to eq({check: true, write: true})
+        expect(seen).to eq({check: true, write: true, record: true})
         consume(o)
         expect_signed_in(u)
       end
