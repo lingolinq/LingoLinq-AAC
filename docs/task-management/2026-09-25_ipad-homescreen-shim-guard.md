@@ -87,7 +87,7 @@ for the real reason.
 1. **Guard (chosen by Scot).** Call `__useShim()` only when `typeof win.openDatabase === 'function'` and
    `typeof win.openDatabase.bind === 'function'`. This tests the exact dereference that throws. Shape 1 keeps today's
    behaviour, shape 2 skips the swap (so `window.indexedDB` stays native, which is what `dbman` already uses), and shape 3
-   is unchanged.
+   is functionally unchanged (the shim stub is no longer called, so its one console warning goes away).
 2. **Remove the forced shim.** A larger behaviour change on any device still in shape 1. Declined by Scot.
 3. **Simplest alternative considered: wrap the call in try/catch.** Rejected as the primary fix. The throw happens
    partway through `__useShim` (after `setNonIDBGlobals` is defined but before any global is swapped), so today it would
@@ -105,8 +105,11 @@ for the real reason.
 
 - Whether other current iOS versions show the same shape. The guard covers them either way.
 - Not covered by the guard: the shim's own load-time `__useShim()` (at vendor load, when `!IDB.indexedDB ||
-  poorIndexedDbSupport`) would throw the same way in a WebKit context with no native `indexedDB`. No current context
-  like that is known. A possible follow-up is loading the shim's non-invasive build.
+  poorIndexedDbSupport`) would throw the same way in a WebKit context with no native `indexedDB`. Safari 17+ Lockdown
+  Mode is one ("Disables IndexedDB", WebKit's Safari 17.0 release notes). Users there do not reach it: Lockdown also
+  disables `FileReader`, and the boot page only injects `application.js` when `window.FileReader` exists, so they get
+  the "browser out of date" message first. A possible follow-up, if Lockdown support is ever wanted, is loading the
+  shim's non-invasive build or setting `avoidAutoShim`.
 
 **Test** (`app/frontend/tests/unit/utils/standalone-idb-shim-test.js`). The fake `shimIndexedDB.__useShim` performs
 the shim's own dereference (`if (win.openDatabase !== undefined) win.openDatabase.bind(win)`), so the test fails the
@@ -152,9 +155,26 @@ Verdict: proceed with changes; no Critical or High findings. Applied:
   with the live dev page HTML, in headless Chrome with the iPadOS 26.6.1 UA, `navigator.standalone` true and
   `window.openDatabase = document.all`:
   - Fixed: `js_loaded` true, the Ember root rendered, the loading box hidden, and no script errors (only image and
-    script 404s from the probe server).
+    script 404s from the probe server). Review found this was not a clean boot: the harness's IndexedDB stalls under
+    `--virtual-time-budget` (`capabilities.db_error` "A version change transaction is running"), so Ember rendered via
+    the #983 8s init fallback. The probe proves no crash at module load, not a clean boot. The device check is what
+    proves the boot.
   - Same bundle with only the guard line removed: `TypeError: O.win.openDatabase.bind is not a function`, `load_state`
     stuck at `js_really_still_loading`, loading box shown. That is the device failure.
   - A non-standalone control rendered the same with the fixed bundle, the mutant bundle and the live dev bundle, so
     the control's empty Ember root is a harness artefact, not this change.
 
+
+## PR review (#1068 at `bb32ffc2b`)
+
+Codex (gpt-5.6-terra) and the adversary both approved, with no Critical, High or Medium findings. The Low findings,
+applied:
+
+- **Wiring test.** It proved the import and the absence of a direct call, but not that the guard is called. Deleting
+  the call, or passing `{}` instead of `navigator`, still passed 8 of 8. It now also asserts the compiled call
+  `(…_standalone_idb_shim.default)(window, navigator)`, and both mutations fail test 8.
+- **Code comment.** "The app's database does not go through the swap" is qualified to "when native IndexedDB exists"
+  (`indexedDBSafe` falls back to `window.shimIndexedDB` otherwise).
+- **Lockdown Mode, the probe wording and the shape-3 wording**, corrected above.
+- **PR body.** The base-branch CI comparison is corrected: `develop` at `39137ba50` fails only `boards-layout-toggle:
+  choosing TOP-DOWN persists it to the user` (2745 tests, 1 fail).

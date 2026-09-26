@@ -1,8 +1,9 @@
 // iOS8 home screen apps are doing weird things with indexeddb, so a standalone
 // (Home Screen) launch swaps window.indexedDB for the indexeddbshim WebSQL polyfill.
-// The app's own database does not go through the swap: capabilities.js captures the
-// native factory in indexedDBSafe before calling this, and dbman opens via
-// capabilities.idb.
+// When native IndexedDB exists, the app's own database does not go through the swap:
+// capabilities.js captures the native factory in indexedDBSafe before calling this,
+// and dbman opens via capabilities.idb. (Without native IndexedDB, indexedDBSafe falls
+// back to window.shimIndexedDB itself.)
 //
 // The swap is only forced when WebSQL is really there. indexeddbshim 6.1.0 starts
 // __useShim with "if (CFG.win.openDatabase !== undefined) { ... CFG.win.openDatabase

@@ -88,5 +88,6 @@ module('Unit | Utility | standalone idb shim', function() {
     // old IndexedDBShim build that mentions __useShim.
     var code = entry.callback.toString().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.notOk(/__useShim/.test(code), 'capabilities does not call __useShim directly');
+    assert.ok(/_standalone_idb_shim\.default\)\(\s*window\s*,\s*navigator\s*\)/.test(code), 'capabilities calls the guard with window and navigator');
   });
 });
