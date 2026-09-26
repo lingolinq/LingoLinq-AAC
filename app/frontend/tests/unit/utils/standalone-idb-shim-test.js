@@ -83,7 +83,7 @@ module('Unit | Utility | standalone idb shim', function() {
     // navigator.standalone, so the wiring is checked on the module definition.
     var entry = window.requirejs.entries['frontend/utils/capabilities'];
     assert.ok(entry, 'capabilities module is registered');
-    assert.ok(entry.deps.indexOf('frontend/utils/standalone_idb_shim') !== -1, 'capabilities imports the guard');
+    assert.notStrictEqual(entry.deps.indexOf('frontend/utils/standalone_idb_shim'), -1, 'capabilities imports the guard');
     // Comments are stripped first: capabilities.js keeps a commented-out copy of an
     // old IndexedDBShim build that mentions __useShim.
     var code = entry.callback.toString().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
