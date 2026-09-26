@@ -159,7 +159,7 @@ class License < ApplicationRecord
           expires_at: 2.months.from_now
         )
       end
-      
+
       # 3. Cleanup existing UserLink (Management Rights)
       UserLink.remove(old_user, old_org, 'org_user')
     end

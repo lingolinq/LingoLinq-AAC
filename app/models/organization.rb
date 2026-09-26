@@ -11,7 +11,6 @@ class Organization < ApplicationRecord
   has_many :licenses
   include Replicate
 
-
   # Is this user already attached to us as a communicator? Read from UserLink, which is what
   # Organization#attached_users and Organization.attached_orgs both derive from, so it is the
   # operative grant. Used to keep a repeat claim from re-running the attach routine, which
@@ -41,7 +40,6 @@ class Organization < ApplicationRecord
   def claim_user(user, seat_type='student')
     license = nil
     existing = nil
-
 
     # Another organization already supporting this student is NOT a conflict, and this method
     # deliberately leaves one alone: no seat release, no link removal, no revocation of
@@ -112,8 +110,9 @@ class Organization < ApplicationRecord
       # expires_at holds and performs NO check on expiration_source: it writes
       # seconds_left = max(seconds_left, expires_at - now). A prior organization's claim set
       # expires_at to ITS license expiry, so without this a second organization's claim credits
-      # the family with the first organization's unused seat time, and License#release_user!
-      # later restores it to them as a free subscription. Supporting more than one organization
+      # the family with the first organization's unused seat time, which User#update_subscription
+      # later returns to them as their own time on their next paid purchase or a 'restore'
+      # purchase (License#release_user! does not restore it). Supporting more than one organization
       # at a time makes that a routine path rather than an edge case, so it is cleared here.
       # The predicate is an explicit 'org_license' stamp, NOT the managing-organization column.
       #

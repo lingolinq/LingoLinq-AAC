@@ -27,11 +27,14 @@ module DataPolicyEnforcer
   # sessions recorded before that clinic had any relationship with the student. Flusher
   # destroys the row and purges its PaperTrail versions, so none of it is recoverable.
   #
-  # The lower bound is the earliest point at which this organization's sponsorship can be
-  # established: the org_user link's 'added' stamp, or the earliest granted_at among the seats
-  # it has assigned to that student, whichever is earlier and available. Links created by the
-  # pre-2026-09 claim path carry no 'added' stamp (UserLink.generate was called with only
-  # {sponsored: true}), which is why the license fallback exists rather than being redundant.
+  # The lower bound is the org_user link's 'added' stamp when it is present and well-formed, and
+  # otherwise the earliest granted_at among the seats this organization currently holds for that
+  # student. Links created by the pre-2026-09 claim path carry no 'added' stamp
+  # (UserLink.generate was called with only {sponsored: true}), which is why the license
+  # fallback exists rather than being redundant. Note that 'added' records when the LINK was
+  # created, which can predate sponsorship: update_subscription_organization writes it with ||=,
+  # so a pending invitation or an unsponsored attachment later converted by a claim keeps its
+  # original stamp.
   #
   # When NEITHER can be established the student is skipped and the skip is logged, because on
   # an irreversible deletion an unknown start date must not be read as "since the beginning of
@@ -40,6 +43,7 @@ module DataPolicyEnforcer
   #
   # This iterates per student rather than issuing one query per organization. The job is
   # nightly and the bound is per student, so the extra queries are accepted deliberately.
+
   # Full ISO-8601 date and time. Deliberately stricter than Time.parse, which accepts
   # "01/02/03" and reads it as 2001-02-03. A stamp read EARLIER than the truth widens an
   # irreversible deletion, so an unrecognised format must fall through to the license fallback
@@ -67,7 +71,6 @@ module DataPolicyEnforcer
   end
 
   def self.sponsorship_started_at(org, user, added)
-
     if added.is_a?(String) && added.match?(ISO8601_STAMP)
       parsed = (Time.parse(added) rescue nil)
       return parsed if parsed
@@ -83,9 +86,10 @@ module DataPolicyEnforcer
     # reachable in practice: expire_stale_licenses! sets status before calling release_user!,
     # and scheduled dispatch was interrupted from 2026-07-21 to 2026-09-02 (LL-3e36a18199).
     #
-    # The link stamp is preferred over this rather than taking the earlier of the two. Both are
-    # legitimate readings of when sponsorship began, and on an irreversible deletion the
-    # narrower one is the right default.
+    # The link stamp is preferred over this rather than taking the earlier of the two. On the
+    # ordinary claim path it is the narrower reading, because the link is stamped just after the
+    # seat is granted. It is the WIDER reading when the link predates the claim (see the note on
+    # 'added' above).
     License.where(organization_id: org.id, user_id: user.id, status: 'active')
            .minimum(:granted_at)
   end

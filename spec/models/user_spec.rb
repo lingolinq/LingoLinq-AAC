@@ -5792,6 +5792,41 @@ describe User, :type => :model do
       expect(u.effective_logging_allowed?).to eq(false)
     end
 
+    it "applies an accepted unsponsored organization alongside the sponsor" do
+      # A sponsored district plus an accepted unsponsored clinic (gift-code redemption attaches
+      # this way). The single-org resolver this replaced applied only the sponsor's policy, so
+      # the clinic's settings were ignored for this student. Both now govern.
+      u = User.create
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      district_manager = User.create
+      district.add_manager(district_manager.user_name, true)
+      district.reload.update_data_policy({'logging_allowed' => true, 'retention_months' => 24}, district_manager)
+      district.save!
+      License.create!(organization: district, seat_type: 'student', status: 'active')
+
+      clinic = Organization.create(:settings => {'total_licenses' => 1})
+      clinic_manager = User.create
+      clinic.add_manager(clinic_manager.user_name, true)
+      clinic.reload.update_data_policy({'logging_allowed' => false, 'retention_months' => 6}, clinic_manager)
+      clinic.save!
+
+      district.claim_user(u)
+      # Unsponsored, accepted attachment: pending = false, sponsored = false.
+      clinic.add_user(u.reload.user_name, false, false, false)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id).sort).to eq([district.id, clinic.id].sort)
+
+      # Both orders, because UserLink.links_for carries no ORDER BY.
+      [[district, clinic], [clinic, district]].each do |ordered|
+        fresh = User.find_by(id: u.id)
+        allow(fresh).to receive(:policy_governing_organizations).and_return(ordered)
+        policy = fresh.effective_data_policy
+        expect(policy['logging_allowed']).to eq(false)
+        expect(policy['retention_months']).to eq(6)
+      end
+    end
+
     it "is unchanged for a single sponsoring organization" do
       u = User.create
       org = Organization.create(:settings => {'total_licenses' => 1})

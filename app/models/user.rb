@@ -3428,8 +3428,10 @@ class User < ApplicationRecord
         # so this is a normal configuration, not an edge case. The merge mirrors
         # Organization#effective_data_policy, which already applies exactly this intersection
         # against a parent organization: a false on any boolean wins, and the smallest limit
-        # wins. For a single sponsoring organization the result is that organization's own
-        # policy, so nothing changes for the ordinary case.
+        # wins. When one organization governs, the result is that organization's own policy.
+        # When a sponsoring organization and an accepted UNSPONSORED one both govern (see
+        # policy_governing_organizations), both now apply; the single-org resolver this replaced
+        # applied only the sponsor's.
         merged = policies.first.dup
         policies.drop(1).each do |policy|
           %w[logging_allowed geo_logging_allowed log_reports_allowed
