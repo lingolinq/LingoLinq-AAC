@@ -18,8 +18,8 @@
 #   ruby scripts/citation-check.rb --render [FINDINGS.json]  # (re)generate the sibling FINDINGS.md from the JSON
 #   ruby scripts/citation-check.rb --report OUT.json [FINDINGS.json]  # also write a machine-readable result
 #
-# Exit codes: 0 = all active citations verified (and ids consistent, see withheld_rule_key?);
-# 1 = one or more failures.
+# Exit codes: 0 = all active citations verified and every id check_finding recomputes matches
+# (rows in the withheld form are not recomputed; see withheld_rule_key?); 1 = one or more failures.
 
 require 'json'
 require 'digest'
@@ -70,8 +70,8 @@ end
 
 # Deterministic id, identical to the generator: LL- + sha256(ruleKey|path)[0,10],
 # where path is the evidence file (or the ruleKey when a finding has no file anchor).
-# A row whose ruleKey is the self-referencing withheld form keeps the id it was assigned
-# instead (see withheld_rule_key?).
+# For a row whose ruleKey is the self-referencing withheld form, check_finding does not
+# recompute the id (see withheld_rule_key?).
 def expected_id(finding)
   rule_key = finding['ruleKey'].to_s
   path = (finding['evidence'] && finding['evidence']['file']) || rule_key
@@ -106,7 +106,7 @@ def check_finding(finding)
   type = ev['type']
   result = { id: finding['id'], legacyId: finding['legacyId'], status: finding['status'] }
 
-  # id integrity (applies to every finding regardless of status). A withheld-form row skips
+  # Recompute the id of every other row, regardless of status. A withheld-form row skips
   # only this recomputation; every check below still runs on it.
   unless withheld_rule_key?(finding)
     exp = expected_id(finding)

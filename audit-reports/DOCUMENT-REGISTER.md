@@ -114,7 +114,7 @@
 | Compliance Status Snapshot (2026-09-17 successor) | git | `docs/legal/2026-09-17_compliance-status-snapshot.md` | approved |  | Scot Wahlquist | 2026-09-18 | 2026-11-26 | 2026-09-18 | `572053649fc5` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `4555b3f2dd0f` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `8f775aac2316` |  |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `2fa16153772c` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
@@ -146,17 +146,17 @@
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
-| accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | published | WCAG | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `399a5e0d1a15` |  |
+| accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | published | WCAG | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `9ba80546fdba` |  |
 | Agent config - diff-compliance-check | git | `.claude/agents/diff-compliance-check.md` | published | FERPA, COPPA, HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `3ec5a0034774` |  |
 | Agent config - ember-upgrade-auditor | git | `.claude/agents/ember-upgrade-auditor.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `55a17f7dfa47` |  |
 | Agent config - rails-implementer | git | `.claude/agents/rails-implementer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `967082b092c3` |  |
 | Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `99a8fdf648ef` |  |
-| api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `56be1c5f2524` |  |
-| code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | published |  | Scot Wahlquist | 2026-08-12 | 2027-02-12 | no | `05b5f3598857` |  |
+| api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `36ec97453ced` |  |
+| code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | published |  | Scot Wahlquist | 2026-08-12 | 2027-02-12 | no | `19ccf329ac59` |  |
 | compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `01a1f642b241` |  |
-| dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `4b8af1bb4db6` |  |
-| infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | published | SOC2 | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `8b52e396a5a9` |  |
-| privacy-auditor agent definition | git | `.claude/agents/privacy-auditor.md` | published | GDPR, FERPA, COPPA, HIPAA | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `1db605c4904a` |  |
+| dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `7a8bcfe2fd9c` |  |
+| infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | published | SOC2 | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `ce22bcef0d21` |  |
+| privacy-auditor agent definition | git | `.claude/agents/privacy-auditor.md` | published | GDPR, FERPA, COPPA, HIPAA | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `50c82520ba45` |  |
 
 ## Bundles
 

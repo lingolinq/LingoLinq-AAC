@@ -62,8 +62,8 @@ findings; cross-check the register first (Step 2).
 
 `ruby scripts/citation-check.rb` must be green before you start (do not promote onto a red
 register). Then check whether each candidate already exists: a finding's id is
-`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)` (except a row whose ruleKey is the
-self-referencing withheld form, `minimized-finding-` + its own id, lowercased, which keeps its assigned id).
+`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)` (for a row whose ruleKey is the
+self-referencing withheld form, `minimized-finding-` + its own id, lowercased, citation-check does not recompute the id).
 If it already exists and is `open`,
 promotion just refreshes its `lastSeen` and notes; if it exists at `verified-closed` /
 `accepted-risk` / `superseded` / `remediated-unverified`, or carries a Scot-set disposition,

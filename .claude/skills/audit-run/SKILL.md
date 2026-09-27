@@ -107,8 +107,8 @@ duplicating." Collect each finder's JSON `{domain, auditedSha, findings:[...]}`.
 
 ## Step 3: Reconcile into the register (deterministic)
 Write each finder's output to a temp JSON file, then run the merge helper. It computes the
-stable id (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`; a row whose ruleKey is the
-self-referencing withheld form, `minimized-finding-` + its own id, lowercased, keeps its assigned id; finders are
+stable id (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`; for a row whose ruleKey is the
+self-referencing withheld form, `minimized-finding-` + its own id, lowercased, citation-check does not recompute the id; finders are
 instructed not to emit that form, and register-lint refuses a mismatched one), preserves `firstSeen`,
 `owner`, existing `status`, and `closureEvidence` for known ids, adds new findings as `open`,
 bumps `lastSeen` + the register `auditedSha`/`auditedRef`/`auditedDate`, and FLAGS regressions

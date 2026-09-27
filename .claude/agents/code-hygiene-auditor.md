@@ -71,7 +71,7 @@ this codebase, not to replace verifying each candidate against the live tree at 
 ## Dedup (by id, not by parenting)
 The register id is `LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`, so each
 `(ruleKey, file)` pair is its own independent finding/id. (Except a row whose ruleKey is the
-self-referencing withheld form, `minimized-finding-` + its own id, lowercased, which keeps its assigned id.
+self-referencing withheld form, `minimized-finding-` + its own id, lowercased; for that shape citation-check does not recompute the id.
 Never emit a `minimized-finding-` ruleKey yourself.) Cross-check
 `audit-reports/FINDINGS.json` first: if a finding with the same `(ruleKey, file)` already
 exists, reference its `id` rather than creating a duplicate.

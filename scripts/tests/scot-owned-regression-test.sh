@@ -469,7 +469,8 @@ fi  # FIXTURE_SHA guard
 echo "-- both mergers: a re-find keeps a stored withheld-form ruleKey --"
 
 # A row whose ruleKey is the self-referencing withheld form ("minimized-finding-" + its own id,
-# lowercased) keeps the id it was assigned. A re-find carrying the ruleKey that id derives from
+# lowercased) is one citation-check does not recompute the id for. A re-find carrying the ruleKey
+# the id derives from
 # lands on the row by id; the merger must leave the stored ruleKey as it is and add no row.
 # One open row (reseen path) and one verified-closed row (regression path) per merger.
 

@@ -92,7 +92,7 @@ the sentence box / utterance bar, scanning-mode UI, and the speak-mode launch UI
 ## Dedup (by id, not by parenting)
 The register id is `LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`, so each `(ruleKey, file)`
 pair is its own independent finding/id. (Except a row whose ruleKey is the self-referencing withheld
-form, `minimized-finding-` + its own id, lowercased, which keeps its assigned id. Never emit a
+form, `minimized-finding-` + its own id, lowercased; for that shape citation-check does not recompute the id. Never emit a
 `minimized-finding-` ruleKey yourself.) If the same WCAG rule recurs across N files, emit N separate
 findings (one per file). There is **no parent/child id** in this schema — do not invent one.
 Cross-check `audit-reports/FINDINGS.json` first: if a finding with the same `(ruleKey, file)`
