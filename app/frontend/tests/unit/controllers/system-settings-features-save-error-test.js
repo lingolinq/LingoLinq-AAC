@@ -42,12 +42,14 @@ module('Unit | Controller | system-settings/features save errors', function(hook
     window.confirm = function() { return true; };
     try {
       trigger(controller);
-      // No settled() after this. It waits for the whole app to go idle, so any never-ending
-      // async work another module leaves behind keeps it from resolving (reproduced with a
-      // self-rescheduling runloop timer), and this timed out at 15s in some CI runs. It is
-      // not needed: the controller sets saving to false and calls modal.error in the
-      // same rejection callback (app/controllers/system-settings/features.js:196-198 and
-      // 213-215), so both values are final once the message has been shown.
+      // No settled() after this. It waits for every pending runloop timer, and the
+      // persistence.set('online', true) above can start a 15-minute one: if the app read
+      // offline when the test began, that is a reconnect, so stashes' drain_on_reconnect
+      // calls push_log(), which re-arms its periodic flush (app/services/stashes.js). This
+      // timed out at 15s in CI (#1073). It is not needed: the controller sets saving to
+      // false and calls modal.error in the same rejection callback
+      // (app/controllers/system-settings/features.js:196-198 and 213-215), so both values
+      // are final once the message has been shown.
       await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
     } finally {
       restore();

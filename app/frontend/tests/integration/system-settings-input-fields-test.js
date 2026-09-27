@@ -60,11 +60,12 @@ module('Unit | Controller | system-settings/email-edit handlers', function(hooks
       controller.set('template', { has_i18n_blocks: true });
       controller.set('i18nBlocks', [{ key: 'parental_consent_mailer.intro', value: 'Welcome to %{app_nam}' }]);
       controller.send('saveTemplate');
-      // No settled() after this: it waits for the whole app to go idle, which never-ending
-      // async work from another module can prevent, and the test then times out. Both
-      // asserted values are final once the message shows, because the controller sets
-      // saving to false and calls modal.error in the same rejection callback
-      // (app/controllers/system-settings/email-edit.js:173-174).
+      // No settled() after this: it waits for every pending runloop timer, and setting
+      // online to true above can start stashes' 15-minute push_log flush timer when the
+      // app read offline at the start (see system-settings-features-save-error-test.js,
+      // #1073). Both asserted values are final once the message shows, because the
+      // controller sets saving to false and calls modal.error in the same rejection
+      // callback (app/controllers/system-settings/email-edit.js:173-174).
       await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
     } finally {
       restore();
