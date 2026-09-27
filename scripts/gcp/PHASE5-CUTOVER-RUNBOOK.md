@@ -19,10 +19,10 @@ preservation).
 > holds no real users yet.** Both points are detailed further down this block. The remaining
 > infrastructure actions still gated (not yet run) are Cloud Run ingress and the
 > Cloud Armor preview-to-enforce flip (Render decommission, 9b, is complete). Those are not the full
-> launch-gate list; credential rotation, Cloud SQL deletion protection, and the unchecked
-> pre-cutover checklist items remain open later in this block. After the snapshot paragraph,
-> the 2026-08-09 no-users status, the launch-gate checklist, and the still-gated actions
-> are current.
+> launch-gate list; credential rotation, Cloud SQL deletion protection, the unchecked
+> pre-cutover checklist items, and the private pre-launch checklist remain open later in this
+> block. After the snapshot paragraph, the 2026-08-09 no-users status, the launch-gate checklist,
+> and the still-gated actions are current.
 >
 > The remainder of this paragraph is the 2026-07-15 pre-cutover snapshot, kept for history.
 > Read it as a record of what was true then, not as open work. At that point the GCP stack was stood up and
@@ -52,12 +52,13 @@ preservation).
 > **What that buys, and what it does not.** It means the residual risks below are operational,
 > not FERPA/HIPAA incidents, and it makes this the cheapest possible window to exercise anything
 > risky, including the first run of the automated deploy pipeline. It does NOT make any of them
-> permanently acceptable. Everything in the next block is a hard gate on onboarding the first
-> real district, not a nice-to-have:
+> permanently acceptable. Everything in the next block is a hard gate on the first prod account
+> for someone outside the team (not an internal or test account), not a nice-to-have.
+> Self-signup is public, so that can happen before any district is onboarded:
 >
 > - [ ] Rotate `lingolinq_admin` off the deliberately simple password. Its stated justification
->       ("no real user data") expires the moment a real district exists, and the account will
->       outlive the justification unless this is done deliberately.
+>       ("no real user data") expires the moment someone outside the team has an account, and the
+>       account will outlive the justification unless this is done deliberately.
 > - [ ] Ingress lockdown (`--ingress=internal-and-cloud-load-balancing`). Until then the
 >       `run.app` URL and any revision tag bypass the LB and Cloud Armor entirely. Read the
 >       coupling note in `scripts/gcp/phase5-frontend-lb.sh` first: it breaks the deploy
@@ -68,10 +69,11 @@ preservation).
 >       (DNS TTL lowered, operator quiet window, external writers enumerated and pause-tested,
 >       client 503 re-queue confirmed). The cut having happened does NOT mean those were all
 >       satisfied first; the checklist boxes remain authoritative.
-> - [ ] All items on the private pre-launch checklist are complete, merged and deployed.
+> - [ ] All items on the private pre-launch checklist are complete, and any code changes
+>       merged and deployed to production.
 >
-> Treat that list as the launch gate. Once a real district is onboarded, every item on it turns
-> from an operational nicety into a Tier 1 compliance obligation.
+> Treat that list as the launch gate. Once someone outside the team has a prod account, every item
+> on it turns from an operational nicety into a Tier 1 compliance obligation.
 >
 > **What is still gated and has NOT run:** the ingress lockdown (the web service is still
 > `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely), the WAF
@@ -601,8 +603,8 @@ live 2026-07-15). **DNS IS CUT OVER.** Verified 2026-08-09: `app.lingolinq.com` 
 through the LB. An earlier version of this paragraph said "no real DNS traffic points at the LB
 yet", which was true when written and is now false. Note what this does and does not establish:
 the LB path serves. It does NOT mean prod is launched. Prod has no real users yet (Scot,
-2026-08-09); see the Status block at the top for the gate list that must close before the first
-real district is onboarded. What genuinely remains gated: the ingress lockdown (the web service is still `--ingress=all`, so the
+2026-08-09); see the Status block at the top for the gate list that must close before anyone
+outside the team has a prod account. What genuinely remains gated: the ingress lockdown (the web service is still `--ingress=all`, so the
 `run.app` URL bypasses the LB and Cloud Armor entirely) and the WAF enforce flip (rules 1001-1004
 and 2000 are still `preview=true` / log-only). See the ingress lockdown and the enforce flip in
 step 9c.
