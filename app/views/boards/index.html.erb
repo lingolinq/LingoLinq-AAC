@@ -35,6 +35,123 @@
       tour start, not first paint. %>
   <link rel="preload" as="image" href="/images/tour-map-dark.png" type="image/png" />
   <link rel="preload" as="image" href="/images/tour-map-light.png" type="image/png" />
+
+  <%# TEMPORARY boot-error catcher for the iPad Home Screen startup hang (draft PR #1059).
+      That hang shows "something may be broken", which only fires when application.js never
+      reaches its last line (load_state.js_loaded), so the bundle throws during evaluation.
+      No Mac is available for Safari Web Inspector, so this records uncaught errors, unhandled
+      rejections and failed script loads for a screenshot instead.
+
+      Coverage: it registers at the layout's `yield :head`, after the layout's stylesheets and
+      its CDN scripts, and before application.js is inserted at the end of <body>. Errors and
+      failed loads from application.js and later scripts are recorded; anything earlier is not.
+
+      From 30s it shows a panel and refreshes it every 2s. If js_loaded is set and nothing was
+      recorded, it removes the panel, so a slow but successful boot is not left covered; once
+      anything is recorded the panel stays. The bundle is minified with no source maps and dev
+      redeploys on every develop push, so for each same-origin error the panel prints the asset
+      URL (its digest names the build) and the source around line:column. That source is fetched
+      only after the panel has drawn the raw error, each excerpt is cut once, and the fetched
+      text is then dropped, so a struggling device holds the extra copy as briefly as possible.
+
+      Rendered only when the request host is dev.lingolinq.com, so staging and production
+      HTML are unchanged. Raw strings on purpose: this runs before the bundle and therefore
+      before i18n exists. Remove once the exception is captured. %>
+  <% if request.host == 'dev.lingolinq.com' %>
+  <script>
+    (function () {
+      var errors = [];
+      var sources = {};
+      var panel = null;
+      var shown = '';
+
+      function cut(text, e) {
+        var line = text.split('\n')[e.line - 1];
+        if (line === undefined) { return '(source excerpt unavailable: no line ' + e.line + ')'; }
+        var at = Math.max(e.col - 1, 0);
+        return 'source: ' + line.slice(Math.max(at - 100, 0), at) + ' <<HERE>> ' + line.slice(at, at + 100);
+      }
+      function fetchExcerpts(file) {
+        if (sources[file]) { return; }
+        if (file.indexOf(window.location.origin + '/') !== 0 || !window.fetch) {
+          errors.forEach(function (e) {
+            if (e.file === file && !e.excerpt) { e.excerpt = '(source excerpt unavailable: cross-origin)'; }
+          });
+          return;
+        }
+        sources[file] = true;
+        function settle(fn) {
+          errors.forEach(function (e) { if (e.file === file && !e.excerpt) { e.excerpt = fn(e); } });
+          delete sources[file];
+        }
+        window.fetch(file).then(function (r) {
+          if (!r.ok) { throw new Error('HTTP ' + r.status); }
+          return r.text();
+        }).then(function (text) {
+          settle(function (e) { return cut(text, e); });
+        }, function (err) {
+          settle(function () { return '(source excerpt unavailable: ' + String(err) + ')'; });
+        });
+      }
+      function note(entry) { if (errors.length < 20) { errors.push(entry); } }
+
+      window.addEventListener('error', function (e) {
+        var el = e && e.target;
+        if (el && el !== window && (el.src || el.href)) {
+          note({ text: 'Failed to load: ' + (el.src || el.href) });
+          return;
+        }
+        var err = e && e.error;
+        note({
+          text: (e.message || 'Error') + '\n  at ' + (e.filename || '?') + ':' + e.lineno + ':' + e.colno +
+            (err && err.stack ? '\n' + err.stack : ''),
+          file: e.filename, line: e.lineno, col: e.colno
+        });
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e && e.reason;
+        note({ text: 'Unhandled rejection: ' + ((r && (r.stack || r.message)) || String(r)) });
+      });
+
+      function render() {
+        var state = window.load_state || {};
+        if (state.js_loaded && !errors.length) {
+          if (panel && panel.parentNode) { panel.parentNode.removeChild(panel); }
+          return;
+        }
+        if (document.body) {
+          if (!panel) {
+            panel = document.createElement('pre');
+            panel.id = 'boot_error_catcher';
+            panel.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+              'max-height:70vh;overflow:auto;margin:0;padding:12px;background:#fff;color:#000;' +
+              'font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-word;' +
+              'border-bottom:3px solid #c00;-webkit-user-select:text;user-select:text;');
+          }
+          if (!panel.parentNode) { document.body.appendChild(panel); }
+          var text = [
+            'BOOT ERROR CATCHER (temporary, dev only). Screenshot this for PR #1059.',
+            state.js_loaded ? 'App code finished running, but errors were recorded. Screenshot this.' :
+              state.js_retrieved ? 'App code downloaded but did not finish starting. Screenshot this.' :
+              errors.length ? 'App code did not finish downloading, and errors were recorded. Screenshot this.' :
+              'INCONCLUSIVE: the app code has not finished downloading yet. Keep waiting.',
+            'Standalone: ' + !!(window.navigator && window.navigator.standalone),
+            'User agent: ' + (window.navigator && window.navigator.userAgent),
+            'load_state: ' + JSON.stringify(state),
+            '',
+            errors.length ? ('Errors (' + errors.length + '):\n\n' + errors.map(function (e) {
+              return e.file ? e.text + '\n  ' + (e.excerpt || '(source excerpt: loading)') : e.text;
+            }).join('\n\n')) : 'No uncaught error has been recorded yet.'
+          ].join('\n');
+          if (text !== shown) { panel.textContent = text; shown = text; }
+          errors.forEach(function (e) { if (e.file && !e.excerpt) { fetchExcerpts(e.file); } });
+        }
+        setTimeout(render, 2000);
+      }
+      setTimeout(render, 30000);
+    })();
+  </script>
+  <% end %>
 <% end %>
 
 <div id="audio"></div>
