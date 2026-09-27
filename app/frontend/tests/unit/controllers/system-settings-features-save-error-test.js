@@ -3,21 +3,16 @@ import { setupTest } from 'frontend/tests/helpers';
 import { waitUntil } from '@ember/test-helpers';
 import $ from 'jquery';
 import modal from 'frontend/utils/modal';
+import { setupRestoreOnTeardown } from 'frontend/tests/helpers/restore-on-teardown';
 
 // Follow-up to #1054. A rejected save or reset on the Features settings page must show
 // the server's error text, not the generic "Could not save settings."
 
 module('Unit | Controller | system-settings/features save errors', function(hooks) {
   setupTest(hooks);
-
-  // The stubs below replace page-global state. Restore it in afterEach as well as in the
-  // finally block: if a test times out, QUnit abandons the awaiting function and its finally
-  // never runs, so without this the stubbed modal.error leaked into the rest of the suite,
-  // failing "modal flash - should properly render error flash" in the same CI runs.
-  var restoreStubs = null;
-  hooks.afterEach(function() {
-    if (restoreStubs) { restoreStubs(); }
-  });
+  // The stubs below replace page-global state; see the helper for why finally alone leaked
+  // modal.error into "modal flash - should properly render error flash".
+  var trackRestore = setupRestoreOnTeardown(hooks);
 
   // getOrgId() is 'default' here, where a non-site-admin is refused by the site-admin
   // guard (app/controllers/concerns/api/system_settings_access.rb:25). Fail at the
@@ -31,13 +26,12 @@ module('Unit | Controller | system-settings/features save errors', function(hook
     var originalError = modal.error;
     var originalConfirm = window.confirm;
     var shown = [];
-    restoreStubs = function() {
-      restoreStubs = null;
+    var restore = trackRestore(function() {
       $.realAjax = originalRealAjax;
       modal.error = originalError;
       window.confirm = originalConfirm;
       persistence.set('online', originalOnline);
-    };
+    });
     persistence.set('online', true);
     $.realAjax = function() {
       var body = { error: message, status: status };
@@ -56,7 +50,7 @@ module('Unit | Controller | system-settings/features save errors', function(hook
       // 213-215), so both values are final once the message has been shown.
       await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
     } finally {
-      if (restoreStubs) { restoreStubs(); }
+      restore();
     }
     return { controller: controller, shown: shown };
   }

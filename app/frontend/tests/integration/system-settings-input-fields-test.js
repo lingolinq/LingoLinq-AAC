@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import { setupTest, setupRenderingTest } from 'frontend/tests/helpers';
-import { render, triggerEvent, fillIn, settled, waitUntil } from '@ember/test-helpers';
+import { render, triggerEvent, fillIn, waitUntil } from '@ember/test-helpers';
+import { setupRestoreOnTeardown } from 'frontend/tests/helpers/restore-on-teardown';
 import $ from 'jquery';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
@@ -12,6 +13,7 @@ import appDefaultsTemplate from 'frontend/templates/system-settings/app-defaults
 
 module('Unit | Controller | system-settings/email-edit handlers', function(hooks) {
   setupTest(hooks);
+  var trackRestore = setupRestoreOnTeardown(hooks);
 
   test('a single init defines the handler factories the page uses', function(assert) {
     var controller = this.owner.lookup('controller:system-settings/email-edit');
@@ -39,6 +41,11 @@ module('Unit | Controller | system-settings/email-edit handlers', function(hooks
     var originalError = modal.error;
     var shown = [];
     var message = 'Introduction: %{app_nam} is not a placeholder this field supports. Allowed: %{app_name}, %{consent_age}';
+    var restore = trackRestore(function() {
+      $.realAjax = originalRealAjax;
+      modal.error = originalError;
+      persistence.set('online', originalOnline);
+    });
     persistence.set('online', true);
     // Fail at the transport, so the app's own $.ajax wrapper (utils/extras.js) builds the
     // rejection. The wrapper parses responseText, so the fake jqXHR must carry it.
@@ -53,12 +60,14 @@ module('Unit | Controller | system-settings/email-edit handlers', function(hooks
       controller.set('template', { has_i18n_blocks: true });
       controller.set('i18nBlocks', [{ key: 'parental_consent_mailer.intro', value: 'Welcome to %{app_nam}' }]);
       controller.send('saveTemplate');
+      // No settled() after this: it waits for the whole app to go idle, which never-ending
+      // async work from another module can prevent, and the test then times out. Both
+      // asserted values are final once the message shows, because the controller sets
+      // saving to false and calls modal.error in the same rejection callback
+      // (app/controllers/system-settings/email-edit.js:173-174).
       await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
-      await settled();
     } finally {
-      $.realAjax = originalRealAjax;
-      modal.error = originalError;
-      persistence.set('online', originalOnline);
+      restore();
     }
     assert.deepEqual(shown, [message], 'the admin sees which field and placeholder is wrong');
     assert.false(controller.get('saving'), 'the Save button is re-enabled');
