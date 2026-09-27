@@ -18,7 +18,8 @@
 #   ruby scripts/citation-check.rb --render [FINDINGS.json]  # (re)generate the sibling FINDINGS.md from the JSON
 #   ruby scripts/citation-check.rb --report OUT.json [FINDINGS.json]  # also write a machine-readable result
 #
-# Exit codes: 0 = all active citations verified (and ids consistent); 1 = one or more failures.
+# Exit codes: 0 = all active citations verified and every id check_finding recomputes matches
+# (rows in the withheld form are not recomputed; see withheld_rule_key?); 1 = one or more failures.
 
 require 'json'
 require 'digest'
@@ -69,10 +70,25 @@ end
 
 # Deterministic id, identical to the generator: LL- + sha256(ruleKey|path)[0,10],
 # where path is the evidence file (or the ruleKey when a finding has no file anchor).
+# For a row whose ruleKey is the self-referencing withheld form, check_finding does not
+# recompute the id (see withheld_rule_key?).
 def expected_id(finding)
   rule_key = finding['ruleKey'].to_s
   path = (finding['evidence'] && finding['evidence']['file']) || rule_key
   'LL-' + Digest::SHA256.hexdigest("#{rule_key}|#{path}")[0, 10]
+end
+
+# A row whose ruleKey is withheld under the security disclosure policy carries a neutral
+# self-referencing slug: WITHHELD_RULE_KEY_PREFIX + its own id, lowercased, on an id of the
+# canonical shape. Exact equality only, so the form cannot be copied onto another row.
+# scripts/register-lint.rb enforces the same shape in CI.
+WITHHELD_RULE_KEY_PREFIX = 'minimized-finding-'
+CANONICAL_ID = /\ALL-[0-9a-f]{10}\z/
+
+def withheld_rule_key?(finding)
+  id = finding['id']
+  id.is_a?(String) && id.match?(CANONICAL_ID) &&
+    finding['ruleKey'] == "#{WITHHELD_RULE_KEY_PREFIX}#{id.downcase}"
 end
 
 # Return the file contents at a given git sha, or nil if the path does not exist there.
@@ -90,10 +106,13 @@ def check_finding(finding)
   type = ev['type']
   result = { id: finding['id'], legacyId: finding['legacyId'], status: finding['status'] }
 
-  # id integrity (applies to every finding regardless of status)
-  exp = expected_id(finding)
-  if finding['id'] != exp
-    return result.merge(verdict: 'FAIL', reason: "id mismatch: stored #{finding['id'].inspect}, expected #{exp.inspect}")
+  # Recompute the id of every other row, regardless of status. A withheld-form row skips
+  # only this recomputation; every check below still runs on it.
+  unless withheld_rule_key?(finding)
+    exp = expected_id(finding)
+    if finding['id'] != exp
+      return result.merge(verdict: 'FAIL', reason: "id mismatch: stored #{finding['id'].inspect}, expected #{exp.inspect}")
+    end
   end
 
   unless ACTIVE_STATUSES.include?(finding['status'])

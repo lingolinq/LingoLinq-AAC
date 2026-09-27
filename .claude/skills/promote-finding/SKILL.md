@@ -62,7 +62,9 @@ findings; cross-check the register first (Step 2).
 
 `ruby scripts/citation-check.rb` must be green before you start (do not promote onto a red
 register). Then check whether each candidate already exists: a finding's id is
-`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`. If it already exists and is `open`,
+`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)` (for a row whose ruleKey is the
+self-referencing withheld form, `minimized-finding-` + its own id, lowercased, citation-check does not recompute the id).
+If it already exists and is `open`,
 promotion just refreshes its `lastSeen` and notes; if it exists at `verified-closed` /
 `accepted-risk` / `superseded` / `remediated-unverified`, or carries a Scot-set disposition,
 promotion flags it `regression: true` for your review and Scot's decision (it is NOT reopened
@@ -99,7 +101,12 @@ multi-line snippet is refused). Write a JSON file:
 ```
 
 `ruleKey` is the finding's stable identity; pick a descriptive kebab key and reuse the same key if
-the same issue recurs (recurrence then shows as one id over time, not a duplicate).
+the same issue recurs (recurrence then shows as one id over time, not a duplicate). Never emit a
+`minimized-finding-` ruleKey: that is the register's self-referencing withheld form, not a key a
+finding is derived from. To re-find a row that carries it, use its original key from the private
+evidence store with the row's stored `evidence.file`, and first confirm that `LL-` + first 10 hex of
+`sha256(key + "|" + file)` equals the row's id; if it does not, stop and hand it to Scot rather than
+promoting.
 
 ## Step 4: Promote (deterministic, governed)
 
