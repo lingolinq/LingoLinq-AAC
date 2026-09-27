@@ -68,7 +68,10 @@ Locate the moved template (`find app/frontend/app -name '<same>.hbs'`) and re-ch
 Route templates (`templates/board/index.hbs`, `templates/application.hbs`,
 `templates/utterance.hbs`, `templates/register.hbs`) did not move. When a row's path is stale,
 say so in the reclassification: the row id derives from `sha256(ruleKey + "|" + file)`, so
-repointing `evidence.file` is a new id and Scot's decision, not the auditor's.
+repointing `evidence.file` is a new id and Scot's decision, not the auditor's. A row whose ruleKey
+is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased) keeps its assigned id and
+citation-check does not recompute it, so a repoint there shows no id change; it is still Scot's
+decision.
 
 ## Checklist (organized by POUR; EN 301 549 clauses noted for EU clients)
 
@@ -188,7 +191,8 @@ Rules:
 - The orchestrator computes the stable `id` (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`),
   sets `firstSeen`/`lastSeen`/`owner`, and reconciles against the existing register so a recurring
   issue keeps its id. There is no parent/child id: each `(ruleKey, file)` is its own finding. If a
-  rule recurs across N files, emit N findings (one per file).
+  rule recurs across N files, emit N findings (one per file). A row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased)
+  keeps its assigned id; never emit a `minimized-finding-` ruleKey.
 - **No student/patient data in any field. Snippets are code only** (template/SCSS/JS source). Never
   copy real names, vocabulary, logs, or DB rows into a finding.
 - **No four-part dotted EN 301 549 clause numbers in any field** (see the gotcha above the

@@ -162,4 +162,5 @@ Rules:
   (`scripts/citation-check.rb` enforces this).
 - No student/patient data in any field. Snippets are code only.
 - The orchestrator computes the stable `id` (`LL-` + first 10 hex of `sha256(ruleKey + "|"
-  + file)`) and reconciles against the existing register.
+  + file)`) and reconciles against the existing register. A row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased)
+  keeps its assigned id; never emit a `minimized-finding-` ruleKey.

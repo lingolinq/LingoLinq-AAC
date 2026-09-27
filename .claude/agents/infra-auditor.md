@@ -83,6 +83,9 @@ Cross-check `audit-reports/FINDINGS.json` before raising anything; reference an 
 rather than duplicating.
 
 ## Output
+A row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
+lowercased) keeps its assigned id; never emit a `minimized-finding-` ruleKey yourself.
+
 Return a single JSON object: `{ "domain": "infra", "auditedSha": "<sha you were given>",
 "findings": [ ...register-shaped finding objects... ] }`. Each finding follows the schema in
 the `soc2-security-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `frameworks`
