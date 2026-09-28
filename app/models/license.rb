@@ -48,11 +48,15 @@ class License < ApplicationRecord
       license.update!(status: 'expired')
       if license.user_id
         license.release_user!
+        # Not a hand-back to the family while ANOTHER organization still holds an active seat
+        # for this student: skip offboarding entirely and leave school_authorization as it is.
+        # The last such seat to go runs it. See License.active_seat_elsewhere?, which is
+        # repeated under the user lock inside begin_family_offboarding_consents!. A leftover
+        # seat from this same organization does not count here, although perform_release!'s
+        # survivor query (below) does count it when repointing the column.
+        #
         # Automated seat expiry has no manager age attestation. Stamp family
         # COPPA when school_authorization (or birth on file) indicates a minor.
-        # Not a hand-back to the family while another organization still holds an active seat
-        # for this student: skip offboarding entirely and leave school_authorization as it is.
-        # The last seat to go runs it. See License.active_seat_elsewhere?.
         if old_user && !License.active_seat_elsewhere?(old_user, old_org)
           old_user.reload
           reg = (old_user.settings || {})['registration'] || {}
@@ -179,7 +183,8 @@ class License < ApplicationRecord
         # and the expiry source are left exactly as they are:
         # - the source is recorded and is not 'org_license'. That stamp marks seat-granted
         #   time (Organization#claim_user, step 6), which is the district's, not the family's.
-        #   A bank with no source may predate the stamp, so its origin is unknown.
+        #   A bank with no source was taken while expiration_source was unset, so its origin
+        #   is unknown.
         # - it outlasts the hand-back. restore_banked_seconds_left copies the source onto
         #   whichever expiry wins, so a shorter bank would label the free two months as the
         #   family's own time, and the next claim would bank all of it as theirs.

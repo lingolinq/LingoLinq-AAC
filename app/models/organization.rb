@@ -70,8 +70,9 @@ class Organization < ApplicationRecord
     # Before that, this method gave a supervisor a sponsored org_user link and the managing
     # column, which is communicator treatment too, so there is no supervisor behaviour to
     # restore. Refused before any seat or user write, and an allow-list, so a missing or
-    # unrecognised seat type is refused as well. The API passes params['seat_type'] straight
-    # through (api/organizations_controller.rb, claim_user).
+    # unrecognised seat type is refused as well. The API passes params['seat_type'] through,
+    # defaulting a missing value to 'student' (api/organizations_controller.rb, claim_user), so
+    # the nil case is reachable only from Ruby callers.
     raise "Only student seats can be claimed through this path" unless seat_type.to_s == 'student'
 
     license = nil
@@ -165,9 +166,9 @@ class Organization < ApplicationRecord
       # the family with the first organization's unused seat time, which User#update_subscription
       # later returns to them as their own time on their next paid purchase or a 'restore'
       # purchase. (License#release_user! restores a bank when the last seat goes, but only one
-      # whose recorded source is not 'org_license'; see perform_release!.) Supporting more than
-      # one organization at a time makes that a routine path rather than an edge case, so it is
-      # cleared here.
+      # whose recorded source is present and not 'org_license' and that outlasts the two-month
+      # hand-back; see perform_release!.) Supporting more than one organization at a time makes
+      # that a routine path rather than an edge case, so it is cleared here.
       # The predicate is an explicit 'org_license' stamp, NOT the managing-organization column.
       #
       # An earlier revision keyed this on the column and justified it by claiming step 6 writes
