@@ -235,7 +235,35 @@ describe 'User org offboarding parental consent', type: :model do
     # between that check and this method's lock. The re-check here runs under the user lock,
     # which Organization#claim_user also takes to seat the student. The interleaving itself
     # cannot be reproduced in the transactional suite (one connection); this asserts the
-    # re-check exists and decides under the lock.
+    # re-check exists and decides under the SAME lock as the write that follows it.
+
+    # Number each user-lock entry and record which entry the re-check and each save! ran in, so
+    # a check and a write in two consecutive locks (which reopens the window) can be told apart
+    # from one lock.
+    def spy_on_lock_entries(u)
+      trace = {entries: 0, current: nil, checks: [], saves: []}
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = trace[:current]
+          trace[:current] = (trace[:entries] += 1)
+          begin
+            blk.call
+          ensure
+            trace[:current] = outer
+          end
+        end
+      end
+      allow(License).to receive(:active_seat_elsewhere?).and_wrap_original do |orig, *args|
+        trace[:checks] << trace[:current]
+        orig.call(*args)
+      end
+      allow(u).to receive(:save!).and_wrap_original do |orig, *args|
+        trace[:saves] << trace[:current]
+        orig.call(*args)
+      end
+      trace
+    end
+
     it 'skips offboarding when another organization supports the student' do
       morning = Organization.create(settings: {'total_licenses' => 1})
       afternoon = Organization.create(settings: {'total_licenses' => 1})
@@ -247,25 +275,17 @@ describe 'User org offboarding parental consent', type: :model do
       authorization_before = u.reload.settings['school_authorization']
       b = under13_birth
 
-      locked = false
-      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
-        orig.call(*args) do
-          locked = true
-          blk.call
-        end
-      end
-      checked_under_lock = nil
-      allow(License).to receive(:active_seat_elsewhere?).and_wrap_original do |orig, *args|
-        checked_under_lock = locked
-        orig.call(*args)
-      end
+      trace = spy_on_lock_entries(u)
 
       result = u.begin_family_offboarding_consents!(org: morning, birth_month: b[:month], birth_year: b[:year],
                                                     skip_if_supported_elsewhere: true)
 
+      # The re-check and the attestation write happen in one lock entry.
+      expect(trace[:checks].length).to eq(1)
+      expect(trace[:checks].first).to be_a(Integer)
+      expect(trace[:saves]).to eq([trace[:checks].first])
       u.reload
       expect(result).to eq(false)
-      expect(checked_under_lock).to eq(true)
       expect(u.settings['coppa']).to be_nil
       expect(u.settings['school_authorization']).to eq(authorization_before)
       expect(u.settings['registration']['offboarding_birth_month']).to eq(b[:month])
@@ -275,9 +295,15 @@ describe 'User org offboarding parental consent', type: :model do
       o = Organization.create(settings: {'total_licenses' => 1})
       u = school_authorized_user!(suffix: 'recheck_none')
       b = under13_birth
+      trace = spy_on_lock_entries(u)
 
       expect(u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year],
                                                   skip_if_supported_elsewhere: true)).to eq(true)
+
+      # The re-check and the offboarding write happen in one lock entry.
+      expect(trace[:checks].length).to eq(1)
+      expect(trace[:checks].first).to be_a(Integer)
+      expect(trace[:saves]).to eq([trace[:checks].first])
       expect(u.reload.coppa_parental_consent_pending?).to eq(true)
     end
   end
