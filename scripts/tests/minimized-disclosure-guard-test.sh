@@ -449,6 +449,42 @@ else
   fail "stale branch reported as a deletion (exit $rc)"; cat "$TMP/out"
 fi
 
+# 15k. REGRESSION FIXTURE: a row protected at BOTH revisions whose evidence path CHANGED.
+#      protected_ids collects the base first, and `||=` used to keep that entry whole, so
+#      the head row's evidence path never became a signal. Naming the id beside the NEW
+#      path passed under --base-ref, which is how CI always runs. The .sh paths are chosen
+#      so CODE_PATH cannot match either one: the id-bound signal is the only cover.
+#      Both paths must be caught: the old one is still withheld detail, which is the point
+#      of the union.
+reset_repo
+evidence_register() {
+  cat > "$TMP/repo/audit-reports/FINDINGS.json" <<JSON
+{ "findings": [
+  { "id": "LL-1111111111", "status": "open", "severity": "high",
+    "title": "Weakness (details withheld until remediation is verified)",
+    "notes": "Minimized 2026-09-17 under the security disclosure policy.",
+    "evidence": { "file": "$1" } }
+] }
+JSON
+}
+evidence_register "scripts/example/old-setup.sh"
+BASE=$(commit_base)
+evidence_register "scripts/example/new-setup.sh"
+printf -- '- LL-1111111111 is at scripts/example/new-setup.sh:12\n' > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard --base-ref "$BASE")
+if [ "$rc" -eq 1 ] && grep -q 'its own evidence path' "$TMP/out"; then
+  pass "a changed evidence path is caught under --base-ref (head signals kept)"
+else
+  fail "head evidence path lost to the base row under --base-ref (exit $rc)"; cat "$TMP/out"
+fi
+printf -- '- LL-1111111111 is at scripts/example/old-setup.sh:12\n' > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard --base-ref "$BASE")
+if [ "$rc" -eq 1 ] && grep -q 'its own evidence path' "$TMP/out"; then
+  pass "the base evidence path stays caught after it changes (union, not override)"
+else
+  fail "base evidence path dropped once the head changed it (exit $rc)"; cat "$TMP/out"
+fi
+
 # 16. A binary file with an id-shaped byte sequence is not prose; skipping it is what
 #     makes whole-tree scanning affordable.
 reset_repo

@@ -190,8 +190,13 @@ def collect(rows, into, origin)
       signals << File.basename(file).downcase
     end
 
-    into[row['id']] ||= { severity: row['severity'], status: row['status'], origin: origin,
-                          signals: signals }
+    # MERGE the signals, do not keep the first row whole. Under --base-ref the base is
+    # collected first, so `||=` alone discarded the head row's evidence path whenever it
+    # differed from the base's, and naming the id beside the NEW path passed. Both paths
+    # are withheld detail, so both stay signals.
+    entry = into[row['id']] ||= { severity: row['severity'], status: row['status'], origin: origin,
+                                  signals: [] }
+    entry[:signals] |= signals
   end
 end
 
