@@ -70,6 +70,38 @@ describe DataPolicyEnforcer do
       expect(LogSession.where(id: fresh.id).count).to eq(1)
     end
 
+    it "bounds the purge by the seat grant when the link is older than the seat" do
+      # The link's 'added' stamp is written once, with ||=, so an invitation or an unsponsored
+      # attachment that a later claim converts keeps its original date. Sponsorship began when
+      # the seat was granted, so sessions from before the grant are not this organization's to
+      # purge even though the link is older.
+      o, u = sponsored_org(3, sponsored_since: 3.years.ago)
+      License.create!(organization: o, user_id: u.id, seat_type: 'student', status: 'active',
+                      granted_at: 6.months.ago)
+      before_seat = log(u, 'session', 2.years.ago)
+      during_seat = log(u, 'session', 5.months.ago)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+
+      expect(LogSession.where(id: before_seat.id).count).to eq(1)
+      expect(LogSession.where(id: during_seat.id).count).to eq(0)
+    end
+
+    it "keeps using the link stamp when the seat grant is older" do
+      # The later of the two governs in both directions: a seat granted before a link was
+      # re-stamped does not widen the window past the link.
+      o, u = sponsored_org(3, sponsored_since: 6.months.ago)
+      License.create!(organization: o, user_id: u.id, seat_type: 'student', status: 'active',
+                      granted_at: 3.years.ago)
+      before_link = log(u, 'session', 2.years.ago)
+      during_link = log(u, 'session', 5.months.ago)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+
+      expect(LogSession.where(id: before_link.id).count).to eq(1)
+      expect(LogSession.where(id: during_link.id).count).to eq(0)
+    end
+
     it "skips the purge when no sponsorship start date can be established" do
       # On an irreversible deletion an unknown start date must not be read as "since the
       # beginning of time". Links created by the pre-2026-09 claim path carry no 'added' stamp.

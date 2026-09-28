@@ -27,14 +27,18 @@ module DataPolicyEnforcer
   # sessions recorded before that clinic had any relationship with the student. Flusher
   # destroys the row and purges its PaperTrail versions, so none of it is recoverable.
   #
-  # The lower bound is the org_user link's 'added' stamp when it is present and well-formed, and
-  # otherwise the earliest granted_at among the seats this organization currently holds for that
-  # student. Links created by the pre-2026-09 claim path carry no 'added' stamp
-  # (UserLink.generate was called with only {sponsored: true}), which is why the license
-  # fallback exists rather than being redundant. Note that 'added' records when the LINK was
-  # created, which can predate sponsorship: update_subscription_organization writes it with ||=,
-  # so a pending invitation or an unsponsored attachment later converted by a claim keeps its
-  # original stamp.
+  # The lower bound is the LATER of two readings, taking whichever is available when only one
+  # is: the org_user link's 'added' stamp (when present and well-formed), and the earliest
+  # granted_at among the ACTIVE seats this organization holds for that student. 'added' records
+  # when the LINK was created, which can predate sponsorship: update_subscription_organization
+  # writes it with ||=, so a pending invitation or an unsponsored attachment later converted by
+  # a claim keeps its original stamp, and on its own it would reach back before the seat. Links
+  # created by the pre-2026-09 claim path carry no 'added' stamp (UserLink.generate was called
+  # with only {sponsored: true}), which is why the seat reading is needed on its own as well.
+  # A student sponsored through a link alone (no seat) is bounded by the link stamp; one seated
+  # later is bounded by the seat, so this organization no longer purges the link-only years
+  # before that seat. That is the intended trade: the narrower window, because the purge is
+  # irreversible.
   #
   # When NEITHER can be established the student is skipped and the skip is logged, because on
   # an irreversible deletion an unknown start date must not be read as "since the beginning of
@@ -71,13 +75,12 @@ module DataPolicyEnforcer
   end
 
   def self.sponsorship_started_at(org, user, added)
+    stamp = nil
     if added.is_a?(String) && added.match?(ISO8601_STAMP)
-      parsed = (Time.parse(added) rescue nil)
-      return parsed if parsed
+      stamp = (Time.parse(added) rescue nil)
     end
 
-    # Fallback for links predating the 'added' stamp: the earliest seat this organization
-    # CURRENTLY holds for the student.
+    # The earliest seat this organization CURRENTLY holds for the student.
     #
     # Scoped to status 'active', which the first version of this method omitted. A non-active
     # row that still carries user_id belongs to an ENDED sponsorship episode, so its granted_at
@@ -85,13 +88,12 @@ module DataPolicyEnforcer
     # relationship with the student, and the purge is irreversible. Rows in that state are
     # reachable in practice: expire_stale_licenses! sets status before calling release_user!,
     # and scheduled dispatch was interrupted from 2026-07-21 to 2026-09-02 (LL-3e36a18199).
-    #
-    # The link stamp is preferred over this rather than taking the earlier of the two. On the
-    # ordinary claim path it is the narrower reading, because the link is stamped just after the
-    # seat is granted. It is the WIDER reading when the link predates the claim (see the note on
-    # 'added' above).
-    License.where(organization_id: org.id, user_id: user.id, status: 'active')
-           .minimum(:granted_at)
+    seat = License.where(organization_id: org.id, user_id: user.id, status: 'active')
+                  .minimum(:granted_at)
+
+    # The later of the two, so neither reading can widen the window past the other (see the
+    # header). nil only when neither exists, which the caller treats as "skip".
+    [stamp, seat].compact.max
   end
 
   def self.enforce_retention!
