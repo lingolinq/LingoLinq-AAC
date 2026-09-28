@@ -156,6 +156,128 @@ describe License, :type => :model do
       expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
     end
 
+    it "gives the family back the paid time banked when the seat was claimed" do
+      # The claim banks the family's remaining paid time in seconds_left. When the last seat
+      # goes, that time is theirs again; a flat two-month trial in its place loses it.
+      u = User.create
+      u.expires_at = 3.years.from_now
+      u.settings['subscription'] = (u.settings['subscription'] || {}).merge('expiration_source' => 'purchase')
+      u.save!
+      only_org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: only_org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      only_org.claim_user(u)
+      expect(u.reload.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(3.years.to_i)
+
+      license.reload.release_user!
+
+      u.reload
+      expect(u.expires_at).to be_within(2.days).of(3.years.from_now)
+      expect(u.settings['subscription']['seconds_left']).to be_nil
+      expect(u.settings['subscription']['expiration_source']).to eq('purchase')
+    end
+
+    it "keeps restored paid time safe from the next organization's claim" do
+      # The next claim clears an expiry stamped 'org_license' without banking it. Restored paid
+      # time must not carry that stamp, or the family loses it the moment another district
+      # seats them.
+      u = User.create
+      u.expires_at = 3.years.from_now
+      u.settings['subscription'] = (u.settings['subscription'] || {}).merge('expiration_source' => 'purchase')
+      u.save!
+      first = Organization.create(:settings => {'total_licenses' => 1})
+      second = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: first, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      License.create!(organization: second, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      first.claim_user(u)
+      license.reload.release_user!
+
+      second.claim_user(u.reload)
+
+      expect(u.reload.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(3.years.to_i)
+    end
+
+    it "does not restore banked time of unknown origin" do
+      # A bank with no seconds_left_source may predate the source stamp, when a claim banked
+      # whatever expires_at held, including another organization's seat time. It stays banked
+      # rather than becoming the family's live expiry.
+      u = User.create
+      only_org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: only_org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      only_org.claim_user(u)
+      u.reload
+      sub = u.settings['subscription'].merge('seconds_left' => 400.days.to_i)
+      sub.delete('seconds_left_source')
+      u.settings = u.settings.merge('subscription' => sub)
+      u.save!
+
+      license.reload.release_user!
+
+      u.reload
+      expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
+      expect(u.settings['subscription']['seconds_left']).to eq(400.days.to_i)
+    end
+
+    it "does not restore time banked from a seat" do
+      # Time banked while a seat set expires_at carries the source 'org_license'. That is the
+      # district's time, not the family's.
+      u = User.create
+      only_org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: only_org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      only_org.claim_user(u)
+      u.reload
+      sub = u.settings['subscription'].merge('seconds_left' => 300.days.to_i, 'seconds_left_source' => 'org_license')
+      u.settings = u.settings.merge('subscription' => sub)
+      u.save!
+
+      license.reload.release_user!
+
+      u.reload
+      expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
+      expect(u.settings['subscription']['seconds_left']).to eq(300.days.to_i)
+      expect(u.settings['subscription']['seconds_left_source']).to eq('org_license')
+    end
+
+    it "keeps a short bank in place behind the two-month hand-back" do
+      # When the banked time is shorter than the hand-back, restoring it would label the free
+      # two months with the bank's source, and the next claim would bank all of it as paid.
+      u = User.create
+      u.expires_at = 10.days.from_now
+      u.settings['subscription'] = (u.settings['subscription'] || {}).merge('expiration_source' => 'purchase')
+      u.save!
+      only_org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: only_org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      only_org.claim_user(u)
+      banked = u.reload.settings['subscription']['seconds_left']
+      expect(banked).to be_within(1.day.to_i).of(10.days.to_i)
+
+      license.reload.release_user!
+
+      u.reload
+      expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
+      expect(u.settings['subscription']['seconds_left']).to eq(banked)
+      expect(u.settings['subscription']['expiration_source']).to eq('org_license')
+    end
+
+    it "leaves banked time alone while another organization still holds a seat" do
+      u = User.create
+      u.expires_at = 3.years.from_now
+      u.settings['subscription'] = (u.settings['subscription'] || {}).merge('expiration_source' => 'purchase')
+      u.save!
+      first = Organization.create(:settings => {'total_licenses' => 1})
+      second = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: first, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      License.create!(organization: second, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      first.claim_user(u)
+      second.claim_user(u.reload)
+      banked = u.reload.settings['subscription']['seconds_left']
+
+      license.reload.release_user!
+
+      u.reload
+      expect(u.settings['subscription']['seconds_left']).to eq(banked)
+      expect(u.managing_organization_id).to eq(second.id)
+    end
+
     it "does not disturb another organization that still holds a seat" do
       u = User.create
       morning = Organization.create(:settings => {'total_licenses' => 1})

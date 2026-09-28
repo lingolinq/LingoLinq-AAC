@@ -154,10 +154,28 @@ class License < ApplicationRecord
       else
         # Trigger the User's "Free Trial": puts them back in "their own care", or ready for a
         # new sponsor.
-        old_user.update!(
-          managing_organization_id: nil,
-          expires_at: 2.months.from_now
-        )
+        handback = 2.months.from_now
+        old_user.managing_organization_id = nil
+        old_user.expires_at = handback
+
+        # Give back the family's own time that the claim banked. Organization#claim_user's attach
+        # runs clear_existing_subscription(:track_seconds_left => true), which moves the
+        # remaining expiry into seconds_left and records its source in seconds_left_source
+        # (concerns/subscription.rb). Restored only when all of these hold, otherwise the bank
+        # and the expiry source are left exactly as they are:
+        # - the source is recorded and is not 'org_license'. That stamp marks seat-granted
+        #   time (Organization#claim_user, step 6), which is the district's, not the family's.
+        #   A bank with no source may predate the stamp, so its origin is unknown.
+        # - it outlasts the hand-back. restore_banked_seconds_left copies the source onto
+        #   whichever expiry wins, so a shorter bank would label the free two months as the
+        #   family's own time, and the next claim would bank all of it as theirs.
+        sub = (old_user.settings || {})['subscription'] || {}
+        banked = sub['seconds_left']
+        source = sub['seconds_left_source']
+        if banked.is_a?(Numeric) && source.present? && source != 'org_license' && Time.now + banked > handback
+          old_user.restore_banked_seconds_left
+        end
+        old_user.save!
       end
 
       # 3. Cleanup existing UserLink (Management Rights)

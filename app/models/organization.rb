@@ -164,8 +164,10 @@ class Organization < ApplicationRecord
       # expires_at to ITS license expiry, so without this a second organization's claim credits
       # the family with the first organization's unused seat time, which User#update_subscription
       # later returns to them as their own time on their next paid purchase or a 'restore'
-      # purchase (License#release_user! does not restore it). Supporting more than one organization
-      # at a time makes that a routine path rather than an edge case, so it is cleared here.
+      # purchase. (License#release_user! restores a bank when the last seat goes, but only one
+      # whose recorded source is not 'org_license'; see perform_release!.) Supporting more than
+      # one organization at a time makes that a routine path rather than an edge case, so it is
+      # cleared here.
       # The predicate is an explicit 'org_license' stamp, NOT the managing-organization column.
       #
       # An earlier revision keyed this on the column and justified it by claiming step 6 writes
