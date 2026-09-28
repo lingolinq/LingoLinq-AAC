@@ -70,8 +70,11 @@ end
 
 # Deterministic id, identical to the generator: LL- + sha256(ruleKey|path)[0,10],
 # where path is the evidence file (or the ruleKey when a finding has no file anchor).
-# For a row whose ruleKey is the self-referencing withheld form, check_finding does not
-# recompute the id (see withheld_rule_key?).
+# Two divergences: for an evidence.file of "" this hashes ruleKey|"" while the mergers anchor on
+# the ruleKey, and for false this anchors on the ruleKey while the mergers hash "false".
+# scripts/register-lint.rb refuses a non-null evidence.file that is not a non-empty string, so no
+# such row passes CI. For a row whose ruleKey is the self-referencing withheld form, check_finding
+# does not recompute the id (see withheld_rule_key?).
 def expected_id(finding)
   rule_key = finding['ruleKey'].to_s
   path = (finding['evidence'] && finding['evidence']['file']) || rule_key
@@ -80,8 +83,13 @@ end
 
 # A row whose ruleKey is withheld under the security disclosure policy carries a neutral
 # self-referencing slug: WITHHELD_RULE_KEY_PREFIX + its own id, lowercased, on an id of the
-# canonical shape. Exact equality only, so the form cannot be copied onto another row.
-# scripts/register-lint.rb enforces the same shape in CI.
+# canonical shape. Exact equality only: the ruleKey must name the row's own id. This script does
+# not read the closed list of ids allowed to use the form, so run alone it skips recomputation for
+# any row in the exact form, listed or not. scripts/register-lint.rb, the CI gate, enforces the same
+# shape, refuses the form on a row whose id is not on the closed list
+# (audit-reports/SELF-REFERENCING-RULEKEY-IDS.json beside FINDINGS.json), and recomputes the id of
+# every other row whose id and ruleKey are non-blank strings and whose evidence, if present, is an
+# object, with the same expression as expected_id.
 WITHHELD_RULE_KEY_PREFIX = 'minimized-finding-'
 CANONICAL_ID = /\ALL-[0-9a-f]{10}\z/
 
