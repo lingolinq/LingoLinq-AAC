@@ -50,7 +50,10 @@ class License < ApplicationRecord
         license.release_user!
         # Automated seat expiry has no manager age attestation. Stamp family
         # COPPA when school_authorization (or birth on file) indicates a minor.
-        if old_user
+        # Not a hand-back to the family while another organization still holds an active seat
+        # for this student: skip offboarding entirely and leave school_authorization as it is.
+        # The last seat to go runs it. See License.active_seat_elsewhere?.
+        if old_user && !License.active_seat_elsewhere?(old_user, old_org)
           old_user.reload
           reg = (old_user.settings || {})['registration'] || {}
           compliance = (old_user.settings || {})['compliance'] || {}
@@ -70,6 +73,15 @@ class License < ApplicationRecord
       count += 1
     end
     count
+  end
+
+  # Does an organization OTHER than `org` still hold an active seat for this user? Offboarding
+  # to family care is skipped while one does (License.expire_stale_licenses!,
+  # Organization#remove_user). Only a positive answer skips it: with no survivor, offboarding
+  # runs exactly as before.
+  def self.active_seat_elsewhere?(user, org)
+    return false unless user
+    License.where(user_id: user.id, status: 'active').where.not(organization_id: org&.id).exists?
   end
 
   def release_user!

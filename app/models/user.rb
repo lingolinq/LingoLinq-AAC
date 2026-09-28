@@ -568,11 +568,7 @@ class User < ApplicationRecord
     self.with_lock(requires_new: true) do
       self.settings ||= {}
       if birth_month.present? && birth_year.present?
-        self.settings['registration'] ||= {}
-        self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
-        self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
-        self.settings['registration']['offboarding_attested_at'] = Time.now.utc.iso8601
-        self.settings['registration']['offboarding_org_jurisdiction'] = org_jurisdiction if org_jurisdiction
+        stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
         if !attested_under_16.nil?
           self.settings['registration']['under_16'] = !!attested_under_16
           # Prefer releasing org jurisdiction so school-created users (no country)
@@ -677,6 +673,30 @@ class User < ApplicationRecord
       end
     end
     did_coppa || did_ai
+  end
+
+  # Record a manager's birth month/year attestation WITHOUT starting offboarding. Used by
+  # Organization#remove_user when another organization still holds an active seat for this
+  # student, so offboarding is skipped: License.expire_stale_licenses! reads these fields when
+  # that last seat later expires, and without them treats a school-authorized student with no
+  # birth date on file as under 13. Writes nothing else (no COPPA, no AI reset, no under_16).
+  def record_offboarding_age_attestation!(birth_month: nil, birth_year: nil, org: nil)
+    return false unless birth_month.present? && birth_year.present?
+    org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+      self.save!
+    end
+    true
+  end
+
+  def stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+    self.settings['registration'] ||= {}
+    self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
+    self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
+    self.settings['registration']['offboarding_attested_at'] = Time.now.utc.iso8601
+    self.settings['registration']['offboarding_org_jurisdiction'] = org_jurisdiction if org_jurisdiction
   end
 
   # Login-time (or revoked re-request): stamp parent email + token and send

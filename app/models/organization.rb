@@ -1372,13 +1372,21 @@ class Organization < ApplicationRecord
     
     self.remove_extras_from_user(user.user_name)
     user.reload
-    user.begin_family_offboarding_consents!(
-      org: self,
-      parent_email: parent_email,
-      actor: actor,
-      birth_month: birth_month,
-      birth_year: birth_year
-    )
+    if License.active_seat_elsewhere?(user, self)
+      # Another organization still holds an active seat, so this is not a hand-back to the
+      # family: no offboarding, and school_authorization is left as it is. The manager's age
+      # attestation is still recorded, because License.expire_stale_licenses! reads it when that
+      # last seat expires. The parent email is not kept; it is collected when offboarding runs.
+      user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
+    else
+      user.begin_family_offboarding_consents!(
+        org: self,
+        parent_email: parent_email,
+        actor: actor,
+        birth_month: birth_month,
+        birth_year: birth_year
+      )
+    end
     true
   end
 
