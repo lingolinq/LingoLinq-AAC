@@ -4067,14 +4067,18 @@ describe Organization, :type => :model do
       org = Organization.create(:settings => {'total_licenses' => 1})
       license = License.create!(organization: org, seat_type: 'student', status: 'active')
 
-      depth = 0
+      # Number each lock entry, so the check and the write can be shown to share ONE lock rather
+      # than two consecutive ones, which would reopen the window between them.
+      entries = 0
+      current = nil
       allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
         orig.call(*args) do
-          depth += 1
+          outer = current
+          current = (entries += 1)
           begin
             blk.call
           ensure
-            depth -= 1
+            current = outer
           end
         end
       end
@@ -4082,11 +4086,11 @@ describe Organization, :type => :model do
       # that RSpec cannot stub.
       seat_reads = []
       subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
-        seat_reads << (depth > 0) if payload[:sql] =~ /\ASELECT .* FROM "licenses" WHERE "licenses"\."id" = /
+        seat_reads << current if payload[:sql] =~ /\ASELECT .* FROM "licenses" WHERE "licenses"\."id" = /
       end
       column_writes = []
       allow(u).to receive(:update!).and_wrap_original do |orig, *args|
-        column_writes << (depth > 0) if args.first.is_a?(Hash) && args.first.key?(:managing_organization_id)
+        column_writes << current if args.first.is_a?(Hash) && args.first.key?(:managing_organization_id)
         orig.call(*args)
       end
 
@@ -4096,9 +4100,13 @@ describe Organization, :type => :model do
         ActiveSupport::Notifications.unsubscribe(subscriber)
       end
 
-      # Two reads of the seat row: the one after the compare-and-set, and the final check.
-      expect(seat_reads).to eq([true, true])
-      expect(column_writes).to eq([true])
+      # Two reads of the seat row: the one after the compare-and-set, and the final check. Both
+      # happen under a lock, and the final check shares its lock with the column write.
+      expect(seat_reads.length).to eq(2)
+      expect(seat_reads).to all(be_a(Integer))
+      expect(column_writes.length).to eq(1)
+      expect(column_writes.first).to be_a(Integer)
+      expect(seat_reads.last).to eq(column_writes.first)
       expect(u.reload.managing_organization_id).to eq(org.id)
     end
 
