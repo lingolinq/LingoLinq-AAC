@@ -234,7 +234,7 @@ rc=$(run_guard)
 #      evaluated against only ONE of them, chosen in register order, so the id-bound
 #      signals of the other were never checked. That mattered because CODE_PATH excludes
 #      .sh by design, leaving the id-bound signal as the only cover for the protected rows
-#      whose evidence is scripts/gcp/*.sh. Register order here puts the DECOY first.
+#      whose evidence is a scripts/*.sh file. Register order here puts the DECOY first.
 reset_repo
 cat > "$TMP/repo/audit-reports/FINDINGS.json" <<'JSON'
 { "findings": [
@@ -245,10 +245,10 @@ cat > "$TMP/repo/audit-reports/FINDINGS.json" <<'JSON'
   { "id": "LL-1111111111", "status": "open", "severity": "high",
     "title": "Weakness (details withheld until remediation is verified)",
     "notes": "Minimized 2026-09-17 under the security disclosure policy.",
-    "evidence": { "file": "scripts/gcp/phase1-setup.sh" } }
+    "evidence": { "file": "scripts/demo/example-setup.sh" } }
 ] }
 JSON
-printf -- '- LL-0000000000 and LL-1111111111 remain open\n  the grant is at scripts/gcp/phase1-setup.sh:251\n' \
+printf -- '- LL-0000000000 and LL-1111111111 remain open\n  the gap is at scripts/demo/example-setup.sh:12\n' \
   > "$TMP/repo/docs/task-management/handoff.md"
 rc=$(run_guard)
 [ "$rc" -eq 1 ] && pass "every protected id on a line is checked, not just the first" \

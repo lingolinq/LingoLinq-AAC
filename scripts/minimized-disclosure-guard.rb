@@ -176,13 +176,13 @@ def collect(rows, into, origin)
     file = evidence['file'].to_s
     # Each row's OWN evidence path, and its basename, become id-bound signals. This is
     # what catches a citation the generic regex structurally cannot: one protected row's
-    # evidence lives at scripts/gcp/phase1-setup.sh, and neither `scripts/` nor `.sh` is
+    # evidence lives at scripts/demo/example-setup.sh, and neither `scripts/` nor `.sh` is
     # in the regex, because measuring that widening produced false positives on attested
     # docs/legal records where the "code path" was a citation to another legal document.
     # Measured on the real tree: 13 of 14 rows have a path, and 0 false positives.
     #
-    # It does not REPLACE the regex. The incident document cited organization.rb, the
-    # model, while that row's evidence is organizations_controller.rb: a different file,
+    # It does not REPLACE the regex. The incident document cited widget.rb, the
+    # model, while that row's evidence is widgets_controller.rb: a different file,
     # so only the generic signal catches it. Each covers what the other misses.
     signals = []
     unless file.empty?
@@ -354,11 +354,11 @@ def violations(ids)
       lowered_line = line.downcase
       # EVERY protected id on the line, not the first one found. `find` returned a single
       # id in REGISTER order, so the id-bound signals of every other id on the same line
-      # were never evaluated: `LL-aaa and LL-bbb are in scripts/gcp/x.sh` passed whenever
+      # were never evaluated: `LL-aaa and LL-bbb are in scripts/demo/x.sh` passed whenever
       # LL-aaa happened to sort first, because CODE_PATH deliberately excludes .sh and only
       # LL-bbb carries that path as a bound signal. Listing several ids on one line is the
       # normal shape of this repo's compliance prose, and the id-bound signal is the ONLY
-      # cover for the three protected rows whose evidence is scripts/gcp/*.sh.
+      # cover for the three protected rows whose evidence is a scripts/*.sh file.
       keys = lowered.keys.select { |id| lowered_line.include?(id) }
       next if keys.empty?
 
