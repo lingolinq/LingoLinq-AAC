@@ -225,14 +225,23 @@ class Organization < ApplicationRecord
     # write back the id of an organization whose seat had just been freed and report success.
     # The lock order is user then license, matching release_user!.
     lost_seat = false
+    inactive_status = nil
     user.with_lock do
-      # 5. Confirm we still hold the seat BEFORE writing the managing-organization column.
+      # 5. Confirm we still hold the seat, and that it is still active, BEFORE writing the
+      # managing-organization column.
       #
       # Checked before the write, not after: a claim that lost a concurrent race used to write
       # its own id over the winner's and only then notice, leaving the column pointing at a
-      # district with no seat.
-      if license.reload.user_id != user.id
+      # district with no seat. Status is checked too because License.expire_stale_licenses!
+      # sets it to 'expired' BEFORE it takes this lock and keeps user_id, so user_id alone would
+      # let this claim write sponsorship from a seat that has already expired.
+      license.reload
+      if license.user_id != user.id
         lost_seat = true
+        next
+      end
+      if license.status != 'active'
+        inactive_status = license.status
         next
       end
 
@@ -248,14 +257,18 @@ class Organization < ApplicationRecord
       user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
     end
 
-    if lost_seat
+    if lost_seat || inactive_status
       # Outside the lock. Cleanup is conditional on losing the SEAT, not on whether we attached
       # in this call. Gating it on attached_now left a district that had been invited and had
       # accepted holding an accepted org_user link with no license when it lost the race, and
       # Organization.manager_for? reads that link while ignoring seats: the losing district's
       # managers would keep managing a student it does not pay for. Scoped to self, so it can
-      # never touch the winner's link.
+      # never touch the winner's link. A seat that stopped being active is treated the same way:
+      # this organization no longer holds a live seat for the student.
       UserLink.remove(user, self, 'org_user')
+      if inactive_status
+        raise "Seat #{license.global_id} is no longer active (#{inactive_status}); re-run the claim"
+      end
       raise "Seat claim for #{user.global_id} lost a concurrent race; re-run the claim"
     end
 

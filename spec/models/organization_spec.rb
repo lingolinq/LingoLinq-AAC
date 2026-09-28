@@ -4110,6 +4110,26 @@ describe Organization, :type => :model do
       expect(u.reload.managing_organization_id).to eq(org.id)
     end
 
+    it "does not write sponsorship from a seat that expired during the attach" do
+      # License.expire_stale_licenses! sets status 'expired' before it takes the user lock, and
+      # expiry keeps user_id. The final check under the lock must therefore require the seat to
+      # still be active, or the claim writes the managing column from an expired seat.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET status = 'expired' WHERE id = #{license.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/no longer active \(expired\)/)
+
+      expect(u.reload.managing_organization_id).to_not eq(org.id)
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
     it "reports a seat that disappeared mid-claim without blaming another request" do
       # The compare-and-set fails for more than one reason, and a message naming the wrong one
       # sends a district manager looking for a competing claim that never happened.
