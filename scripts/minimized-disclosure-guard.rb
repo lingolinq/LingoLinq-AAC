@@ -326,13 +326,12 @@ end
 # Whether a tracked file should be scanned at all. Symlinks and other non-regular files
 # are skipped via lstat BEFORE any read: a tracked symlink to /dev/zero would otherwise be
 # read until the runner died. A NUL in the first SNIFF_BYTES marks the file binary.
+# Read errors are NOT a skip; they propagate to file_violations, which fails closed.
 def scannable?(path)
   return false unless File.lstat(path).file?
 
   head = File.open(path, 'rb') { |io| io.read(SNIFF_BYTES) }.to_s
   !head.include?("\x00")
-rescue SystemCallError
-  false
 end
 
 # Yields each line with its trailing newline removed, decoded the same way the whole-file
@@ -404,8 +403,13 @@ def file_violations(path, ids, lowered)
     end
   end
   found
-rescue SystemCallError, ArgumentError
-  []
+rescue SystemCallError, IOError, ArgumentError => e
+  # NOT `[]`. This used to rescue into "no violations", so a tracked file that could not be
+  # read, at open or partway through, passed unscanned and the run printed OK. A file the
+  # guard could not read is a file it did not check, and that is not the same claim as
+  # "the file is clean": fail, naming the file and the error class.
+  abort("minimized-disclosure-guard: FAILED - could not read #{path} (#{e.class}: #{e.message}). " \
+        'Refusing to treat an unscanned file as clean.')
 end
 
 def main

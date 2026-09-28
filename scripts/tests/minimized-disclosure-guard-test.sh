@@ -512,6 +512,30 @@ else
   fail "a text file over 2 MiB passed unscanned (exit $rc, $size bytes)"; cat "$TMP/out"
 fi
 
+# 16c. REGRESSION FIXTURE: a read error is not a reason to pass either. The guard used to
+#      rescue read errors into "skip this file", so an unreadable tracked file printed OK.
+#      The error is induced with a permission bit set AFTER the file is added (git add
+#      cannot read it once it is 000), which is why this case calls the guard directly.
+#      An invalid byte sequence cannot be used instead: the reader scrubs those, by design.
+#      As root the bit is ignored, so the case refuses to count itself as proof there.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- '- LL-1111111111 is in app/models/widget.rb\n' > "$TMP/repo/docs/task-management/locked.md"
+git -C "$TMP/repo" add -A >/dev/null 2>&1
+chmod 000 "$TMP/repo/docs/task-management/locked.md"
+if [ -r "$TMP/repo/docs/task-management/locked.md" ]; then
+  fail "cannot induce a read error here (running as root?), so this case proves nothing"
+else
+  rc=$( cd "$TMP/repo" && ruby "$GUARD" --check >"$TMP/out" 2>&1; echo $? )
+  if [ "$rc" -eq 1 ] && grep -q 'docs/task-management/locked.md' "$TMP/out" \
+     && grep -q 'Errno::EACCES' "$TMP/out"; then
+    pass "an unreadable tracked file fails the guard, naming the file and error class"
+  else
+    fail "an unreadable tracked file passed unscanned (exit $rc)"; cat "$TMP/out"
+  fi
+fi
+chmod 644 "$TMP/repo/docs/task-management/locked.md"
+
 echo ""
 if [ "$fails" -eq 0 ]; then
   echo "minimized-disclosure-guard-test: all branches behaved."
