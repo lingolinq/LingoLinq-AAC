@@ -273,9 +273,10 @@ Admission rule for an entry in this file:
   citation-check later. Cite
   `scripts/audit-merge.rb`. The id half does not hold for a row whose ruleKey is the
   self-referencing withheld form (`minimized-finding-` + its own id, lowercased), which register-lint
-  allows only on a row listed in `audit-reports/SELF-REFERENCING-RULEKEY-IDS.json`: neither script
-  recomputes that id, so an in-place rescope there shows no id mismatch (the snippet check still
-  runs) and needs review instead.
+  allows only on a row listed in `audit-reports/SELF-REFERENCING-RULEKEY-IDS.json`: on a listed row in
+  that form neither script recomputes the id (citation-check skips every row in the form; register-lint
+  skips only a listed one, and refuses an unlisted one anyway), so an in-place rescope there shows no id
+  mismatch (the snippet check still runs) and needs review instead.
 - **Register merges are unions, then regenerate; never `json.dumps` the file.** Keep both sides' unique
   rows and the longer notes trail, and edit prose by exact text replace, since a Python dump escapes
   `§` across every note. Cite `scripts/regenerate-register.sh`.

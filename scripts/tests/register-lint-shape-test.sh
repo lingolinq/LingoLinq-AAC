@@ -30,7 +30,9 @@
 #   citation-check.rb. CI and the default local run leave both unset.
 #
 # Usage: scripts/tests/register-lint-shape-test.sh
-# Exit codes: 0 = every branch behaved; 1 = a rule failed to fire, or fired when it should not.
+# Exit codes: 0 = every exercised branch behaved; 1 = a rule failed to fire, or fired when it should not.
+#   One case cannot be exercised as root (chmod 000 does not stop root); a root run reports it as
+#   "not exercised (running as root)", counted apart from ok and FAIL, and still exits 0.
 
 set -uo pipefail
 
@@ -41,8 +43,12 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 fails=0
+skipped=0
 pass() { printf '  ok   %s\n' "$1"; }
 fail() { printf '  FAIL %s\n' "$1"; fails=$((fails + 1)); }
+# A case that cannot be exercised in this environment: counted separately,
+# never as ok and never as FAIL.
+skip() { printf '  --   %s: not exercised (%s)\n' "$1" "$2"; skipped=$((skipped + 1)); }
 
 DEFAULT_META='{"schemaVersion":"1.1"}'
 
@@ -324,7 +330,11 @@ else pass "withheld form in FINDINGS-EMBER.json is refused"; fi
 # use the self-referencing form. The list must be a readable regular file (not a
 # symlink), valid UTF-8, byte-identical to its canonical form, well-formed and
 # current: every entry names a row of this register that carries exactly the
-# form. A missing, empty or refused list licenses nothing.
+# form. A missing or empty list licenses nothing, nor does one refused as a
+# whole (not a readable regular file, not valid UTF-8 or JSON, not in canonical
+# form, or not an object with an "ids" array). A list refused only for an
+# unexpected key, a non-string description or a bad entry still licenses its
+# valid entries, though the run fails.
 # ---------------------------------------------------------------------------
 echo "  -- closed list for the self-referencing form --"
 
@@ -394,11 +404,14 @@ expect_fail "list path that is a directory is refused even with no row in the fo
 rmdir "$TMP/$LIST"
 
 # A regular file the linter cannot open. chmod 000 does not stop root, so a run
-# as root reports the case as failed rather than passing it unchecked.
+# as root reports the case as not exercised rather than passing it unchecked. A
+# non-root run that still cannot make the file unreadable fails.
 write_list '{"ids":["LL-0000000000"]}'
 chmod 000 "$TMP/$LIST"
-if [ -r "$TMP/$LIST" ]; then
-  fail "list that cannot be read is refused (could not make the list unreadable; running as root?)"
+if [ -r "$TMP/$LIST" ] && [ "$(id -u)" -eq 0 ]; then
+  skip "list that cannot be read is refused" "running as root"
+elif [ -r "$TMP/$LIST" ]; then
+  fail "list that cannot be read is refused (could not make the list unreadable)"
 else
   expect_fail "list that cannot be read is refused" \
     "[$FORM_ROW]" \
@@ -530,12 +543,13 @@ else pass "listed row in the form in FINDINGS-EMBER.json is refused"; fi
 clear_list
 
 # ---------------------------------------------------------------------------
-# Id derivation. register-lint recomputes every id not covered by the closed
-# list, on each row whose id and ruleKey are non-blank strings and whose
-# evidence, if present, is an object: LL- + sha256(ruleKey|evidence.file)[0,10],
-# or ruleKey|ruleKey when the row has no evidence file (the expression in
-# citation-check.rb expected_id). A row with an empty evidence.file is still
-# derived, so it reports an id mismatch as well as the evidence.file rule.
+# Id derivation. register-lint recomputes every id except that of a listed row
+# in the exact self-referencing form, on each row whose id and ruleKey are
+# non-blank strings and whose evidence, if present, is an object: LL- +
+# sha256(ruleKey|evidence.file)[0,10], or ruleKey|ruleKey when the row has no
+# evidence file (the expression in citation-check.rb expected_id). A row with
+# an empty evidence.file is still derived, so it reports an id mismatch as well
+# as the evidence.file rule.
 # citation-check, which is not a CI job, recomputes ids the same way but skips
 # every row in the exact self-referencing form, listed or not; register-lint
 # skips only a listed row in that form. An evidence.file that is present must be
@@ -728,4 +742,8 @@ for reg in "$REPO_ROOT/audit-reports/FINDINGS.json" "$REPO_ROOT/audit-reports/em
 done
 
 if [ "$fails" -ne 0 ]; then printf '\nregister-lint-shape-test: %d failure(s)\n' "$fails"; exit 1; fi
-printf '\nregister-lint-shape-test: all branches behaved\n'
+if [ "$skipped" -ne 0 ]; then
+  printf '\nregister-lint-shape-test: all exercised branches behaved; %d not exercised\n' "$skipped"
+else
+  printf '\nregister-lint-shape-test: all branches behaved\n'
+fi
