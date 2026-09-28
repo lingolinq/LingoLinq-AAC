@@ -308,7 +308,7 @@ rc=$(run_guard --base-ref deadbeefdeadbeefdeadbeefdeadbeefdeadbeef)
 reset_repo
 register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
 BASE=$(commit_base)
-register "open" "Weakness in the organization claim path" "Surfaced by the audit run."
+register "open" "Example finding title" "Surfaced by the audit run."
 printf -- '- nothing disclosed here.\n' > "$TMP/repo/docs/task-management/handoff.md"
 rc=$(run_guard --base-ref "$BASE")
 [ "$rc" -eq 1 ] && pass "blocks stripping the marker while the row stays open" \
@@ -319,7 +319,7 @@ rc=$(run_guard --base-ref "$BASE")
 reset_repo
 register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
 BASE=$(commit_base)
-register "verified-closed" "Weakness in the organization claim path" "Remediated and verified; disclosure approved."
+register "verified-closed" "Example finding title" "Remediated and verified; disclosure approved."
 rc=$(run_guard --base-ref "$BASE")
 [ "$rc" -eq 0 ] && pass "allows the governed close-then-disclose path" \
   || { fail "blocked a governed closure (exit $rc)"; cat "$TMP/out"; }
@@ -493,6 +493,24 @@ printf 'LL-1111111111 app/models/widget.rb\000\001\002binary' > "$TMP/repo/docs/
 rc=$(run_guard)
 [ "$rc" -eq 0 ] && pass "skips binary files" \
   || { fail "flagged a binary file (exit $rc)"; cat "$TMP/out"; }
+
+# 16b. REGRESSION FIXTURE: size is not a reason to pass a TEXT file unscanned. A tracked
+#      file over 2 MiB used to be skipped outright, so padding a disclosure past that size
+#      printed OK. The file is generated here at runtime, never committed, and the pairing
+#      sits at the END so the whole file has to be read to find it.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+ruby -e 'print "ordinary padding prose\n" * 100_000; puts "- LL-1111111111 is in app/models/widget.rb"' \
+  > "$TMP/repo/docs/task-management/large.md"
+size=$(wc -c < "$TMP/repo/docs/task-management/large.md")
+rc=$(run_guard)
+if [ "$size" -le 2097152 ]; then
+  fail "fixture is only $size bytes, not over 2 MiB, so it proves nothing"
+elif [ "$rc" -eq 1 ] && grep -q 'LL-1111111111' "$TMP/out"; then
+  pass "scans a text file over 2 MiB instead of passing it unscanned"
+else
+  fail "a text file over 2 MiB passed unscanned (exit $rc, $size bytes)"; cat "$TMP/out"
+fi
 
 echo ""
 if [ "$fails" -eq 0 ]; then

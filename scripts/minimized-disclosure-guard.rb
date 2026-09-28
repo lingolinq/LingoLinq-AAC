@@ -142,9 +142,11 @@ CODE_PATH = %r{
 # attestedContentHash and therefore cannot be edited in place, which would be unfixable.
 WINDOW = 7
 
-# Maximum file size to read. A tracked file larger than this is not a prose disclosure,
-# and reading without a bound lets a tracked symlink to a character device hang CI.
-MAX_BYTES = 2 * 1024 * 1024
+# There is NO size cap, deliberately. An earlier 2 MiB cap skipped larger files outright,
+# so padding a disclosure past that size printed OK, and six tracked files were already
+# over it. Files are streamed instead (see file_violations), so size costs time, not
+# memory. The cap's other job, not hanging on a symlink to a character device, is done by
+# the lstat check in scannable?, which runs before any read.
 
 # Bytes sniffed for a NUL to classify a file as binary. Scanning every tracked text file
 # rather than an extension allowlist closes the "rename it to .html" evasion; the sniff
@@ -321,20 +323,23 @@ def allowed?(path)
   ALLOWED_PREFIXES.any? { |prefix| path.start_with?(prefix) }
 end
 
-# Returns the file's text, or nil when it should not be scanned. Symlinks and other
-# non-regular files are skipped via lstat BEFORE any read: a tracked symlink to
-# /dev/zero would otherwise be read until the runner died.
-def readable_text(path)
-  stat = File.lstat(path)
-  return nil unless stat.file?
-  return nil if stat.size > MAX_BYTES
+# Whether a tracked file should be scanned at all. Symlinks and other non-regular files
+# are skipped via lstat BEFORE any read: a tracked symlink to /dev/zero would otherwise be
+# read until the runner died. A NUL in the first SNIFF_BYTES marks the file binary.
+def scannable?(path)
+  return false unless File.lstat(path).file?
 
-  raw = File.binread(path)
-  return nil if raw[0, SNIFF_BYTES].to_s.include?("\x00")
+  head = File.open(path, 'rb') { |io| io.read(SNIFF_BYTES) }.to_s
+  !head.include?("\x00")
+rescue SystemCallError
+  false
+end
 
-  raw.force_encoding('UTF-8').scrub('?')
-rescue SystemCallError, ArgumentError
-  nil
+# Yields each line with its trailing newline removed, decoded the same way the whole-file
+# read used to be: UTF-8 with invalid bytes scrubbed. A newline byte can never sit inside a
+# UTF-8 multibyte sequence, so scrubbing per line is equivalent to scrubbing the whole file.
+def each_text_line(path)
+  File.foreach(path, mode: 'rb') { |raw| yield raw.force_encoding('UTF-8').scrub('?').chomp }
 end
 
 def violations(ids)
@@ -343,44 +348,64 @@ def violations(ids)
   tracked_files.each do |path|
     next if allowed?(path)
 
-    text = readable_text(path)
-    next if text.nil?
+    found.concat(file_violations(path, ids, lowered))
+  end
+  found
+end
 
-    haystack = text.downcase
-    next unless lowered.keys.any? { |id| haystack.include?(id) }
+# Two streaming passes, so a file is never held whole in memory and none is skipped for
+# its size. Pass 1 records which lines name a protected id; pass 2 keeps only the lines
+# that fall inside those lines' windows, which is all the signal checks need.
+def file_violations(path, ids, lowered)
+  return [] unless scannable?(path)
 
-    lines = text.lines.map(&:chomp)
-    lines.each_with_index do |line, index|
-      lowered_line = line.downcase
-      # EVERY protected id on the line, not the first one found. `find` returned a single
-      # id in REGISTER order, so the id-bound signals of every other id on the same line
-      # were never evaluated: `LL-aaa and LL-bbb are in scripts/demo/x.sh` passed whenever
-      # LL-aaa happened to sort first, because CODE_PATH deliberately excludes .sh and only
-      # LL-bbb carries that path as a bound signal. Listing several ids on one line is the
-      # normal shape of this repo's compliance prose, and the id-bound signal is the ONLY
-      # cover for the three protected rows whose evidence is a scripts/*.sh file.
-      keys = lowered.keys.select { |id| lowered_line.include?(id) }
-      next if keys.empty?
+  hits = {}
+  index = 0
+  each_text_line(path) do |line|
+    lowered_line = line.downcase
+    # EVERY protected id on the line, not the first one found. `find` returned a single
+    # id in REGISTER order, so the id-bound signals of every other id on the same line
+    # were never evaluated: `LL-aaa and LL-bbb are in scripts/demo/x.sh` passed whenever
+    # LL-aaa happened to sort first, because CODE_PATH deliberately excludes .sh and only
+    # LL-bbb carries that path as a bound signal. Listing several ids on one line is the
+    # normal shape of this repo's compliance prose, and the id-bound signal is the ONLY
+    # cover for the three protected rows whose evidence is a scripts/*.sh file.
+    keys = lowered.keys.select { |id| lowered_line.include?(id) }
+    hits[index] = keys unless keys.empty?
+    index += 1
+  end
+  return [] if hits.empty?
 
-      low = [0, index - WINDOW].max
-      window = lines[low..(index + WINDOW)].join("\n")
-      lowered_window = window.downcase
+  wanted = Set.new
+  hits.each_key { |hit| wanted.merge([0, hit - WINDOW].max..(hit + WINDOW)) }
+  lines = {}
+  index = 0
+  each_text_line(path) do |line|
+    lines[index] = line if wanted.include?(index)
+    index += 1
+  end
 
-      keys.each do |key|
-        id = lowered[key]
+  found = []
+  hits.each do |hit, keys|
+    window = ([0, hit - WINDOW].max..(hit + WINDOW)).filter_map { |n| lines[n] }.join("\n")
+    lowered_window = window.downcase
 
-        # Two independent signals, checked in order of precision. The id-bound one names
-        # the row's own evidence path, so it is reported as the stronger hit.
-        own = ids[id][:signals].find { |signal| lowered_window.include?(signal) }
-        match = own || window[CODE_PATH]
-        next unless match
+    keys.each do |key|
+      id = lowered[key]
 
-        found << { file: path, line: index + 1, id: id, severity: ids[id][:severity],
-                   origin: ids[id][:origin], path_match: match, own_evidence: !own.nil? }
-      end
+      # Two independent signals, checked in order of precision. The id-bound one names
+      # the row's own evidence path, so it is reported as the stronger hit.
+      own = ids[id][:signals].find { |signal| lowered_window.include?(signal) }
+      match = own || window[CODE_PATH]
+      next unless match
+
+      found << { file: path, line: hit + 1, id: id, severity: ids[id][:severity],
+                 origin: ids[id][:origin], path_match: match, own_evidence: !own.nil? }
     end
   end
   found
+rescue SystemCallError, ArgumentError
+  []
 end
 
 def main
