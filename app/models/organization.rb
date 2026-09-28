@@ -28,8 +28,13 @@ class Organization < ApplicationRecord
     # state, the subscription handling and added_org_id were all left unset, and the
     # post-attach verification was skipped too, so it failed silently. Caught by the spec that
     # asserts the new link is sponsored and non-pending.
+    #
+    # An eval link is not a completed attachment either. It is sponsored and accepted, but
+    # attached_users('user') excludes it, so a student seat claimed over it has to run the
+    # attach, which writes the link's eval flag false and clears the subscription's
+    # eval_account. Skipping it left the student counted as an eval while holding a paid seat.
     state = link['state'] || {}
-    !state['pending'] && !!state['sponsored']
+    !state['pending'] && !!state['sponsored'] && !state['eval']
   end
 
   def can_manage_user?(user)

@@ -4157,5 +4157,23 @@ describe Organization, :type => :model do
       end
       expect(License.where(user_id: u.id).count).to eq(0)
     end
+
+    it "converts an accepted eval link into a regular seat when a student seat is claimed" do
+      # An eval link is sponsored and accepted, but attached_users('user') excludes it, so a
+      # student seat claimed over it must still run the attach that clears the eval state.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1, 'total_eval_licenses' => 1})
+      org.add_user(u.user_name, false, true, true)
+      expect(u.reload.settings['subscription']['eval_account']).to eq(true)
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      org.claim_user(u.reload)
+
+      u.reload
+      link = UserLink.links_for(u, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == Webhook.get_record_code(org) }
+      expect(link['state']['eval']).to eq(false)
+      expect(u.settings['subscription']['eval_account']).to be_nil
+      expect(org.attached_users('user').map(&:id)).to include(u.id)
+    end
   end
 end
