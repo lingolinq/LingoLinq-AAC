@@ -3723,6 +3723,28 @@ describe Organization, :type => :model do
       end
     end
 
+    it "accepts recognised true and false values and refuses every other shape for the boolean keys" do
+      # An unrecognised value such as "no" or "off" used to be stored as true, which for an
+      # "allowed" key is the permissive setting. It is refused instead, and the whole request
+      # with it.
+      u = User.create
+      {true => true, 'true' => true, '1' => true, 1 => true,
+       false => false, 'false' => false, '0' => false, 0 => false, nil => nil}.each do |input, stored|
+        o = Organization.create
+        expect(o.update_data_policy({'logging_allowed' => input}, u)).to eq(true), "expected #{input.inspect} accepted"
+        expect(o.data_policy['logging_allowed']).to eq(stored)
+      end
+      ['no', 'off', 'yes', 'on', '', 'False', 2, [], {}].each do |input|
+        Organization::DATA_POLICY_BOOLEAN_KEYS.each do |key|
+          o = Organization.create
+          expect(o.update_data_policy({key => input, 'retention_months' => 6}, u)).to eq(false), "expected #{key}=#{input.inspect} refused"
+          expect(o.processing_errors.join(' ')).to match(/#{key}/)
+          expect(o.data_policy.key?(key)).to eq(false)
+          expect(o.data_policy.key?('retention_months')).to eq(false)
+        end
+      end
+    end
+
     it "refuses a non-numeric retention_months through process_params" do
       o = Organization.create
       u = User.create

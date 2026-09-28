@@ -432,14 +432,20 @@ class Organization < ApplicationRecord
     raise ArgumentError, "#{value.inspect} is not a whole number of 0 or more"
   end
 
-  def self.cast_data_policy_value(key, value)
+  # A boolean data-policy value: nil stays nil, a recognised true or false value is returned as
+  # that boolean, and anything else raises ArgumentError. Unrecognised values used to be stored
+  # as !!value, so "no", "off" or "" became true, the permissive setting for an "allowed" key.
+  def self.data_policy_boolean(value)
     return nil if value.nil?
+    return false if [false, 'false', '0', 0].include?(value)
+    return true if [true, 'true', '1', 1].include?(value)
 
+    raise ArgumentError, "#{value.inspect} is not true or false"
+  end
+
+  def self.cast_data_policy_value(key, value)
     if DATA_POLICY_BOOLEAN_KEYS.include?(key)
-      return false if [false, 'false', '0', 0].include?(value)
-      return true if [true, 'true', '1', 1].include?(value)
-
-      !!value
+      data_policy_boolean(value)
     elsif DATA_POLICY_NUMERIC_KEYS.include?(key)
       data_policy_number(value)
     else
@@ -447,20 +453,32 @@ class Organization < ApplicationRecord
     end
   end
 
-  # Returns true when applied. Returns false, with a processing error per bad key and nothing
-  # changed, when a numeric key is not a whole number of 0 or more.
-  def update_data_policy(policy_params, updater)
-    invalid = DATA_POLICY_NUMERIC_KEYS.select do |key|
-      next false unless policy_params.key?(key)
+  # The processing error for each key in policy_params whose value cannot be stored, or an
+  # empty list when every value is acceptable.
+  def self.data_policy_errors(policy_params)
+    (DATA_POLICY_BOOLEAN_KEYS + DATA_POLICY_NUMERIC_KEYS).filter_map do |key|
+      next unless policy_params.key?(key)
+
       begin
-        Organization.data_policy_number(policy_params[key])
-        false
+        cast_data_policy_value(key, policy_params[key])
+        nil
       rescue ArgumentError
-        true
+        if DATA_POLICY_NUMERIC_KEYS.include?(key)
+          "#{key} must be a whole number of 0 or more"
+        else
+          "#{key} must be true or false"
+        end
       end
     end
-    if invalid.any?
-      invalid.each { |key| add_processing_error("#{key} must be a whole number of 0 or more") }
+  end
+
+  # Returns true when applied. Returns false, with a processing error per bad key and nothing
+  # changed, when a numeric key is not a whole number of 0 or more or a boolean key is not a
+  # recognised true or false value.
+  def update_data_policy(policy_params, updater)
+    errors = Organization.data_policy_errors(policy_params)
+    if errors.any?
+      errors.each { |error| add_processing_error(error) }
       return false
     end
 
