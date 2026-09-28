@@ -59,6 +59,10 @@ audit are fixed (Sentry + CoppaSentryScrub, gated AI predictor). Cross-check
 reference its `id` rather than creating a duplicate.
 
 ## Output
+For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
+lowercased), citation-check does not
+recompute the id; never emit a `minimized-finding-` ruleKey yourself.
+
 Return a single JSON object: `{ "domain": "privacy", "auditedSha": "<sha you were given>",
 "findings": [ ...register-shaped finding objects... ] }`. Each finding follows the schema in
 the `gdpr-ferpa-audit` skill (which mirrors `audit-reports/FINDINGS.json`): `ruleKey`,
