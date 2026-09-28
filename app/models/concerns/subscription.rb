@@ -11,13 +11,7 @@ module Subscription
       end
       self.expires_at = nil
     else
-      if self.settings['subscription']['seconds_left']
-        self.expires_at = [self.expires_at, Time.now + self.settings['subscription']['seconds_left']].compact.max
-        self.settings['subscription'].delete('seconds_left')
-        self.settings['subscription']['expiration_source'] = self.settings['subscription']['seconds_left_source'] if self.settings['subscription']['seconds_left_source']
-        self.settings['subscription']['expiration_source'] = 'grace_period' if self.settings['subscription']['expiration_source'] == 'free_trial'
-        self.settings['subscription'].delete('seconds_left_source')
-      end
+      restore_banked_seconds_left
     end
     
     if self.billing_state('communicator') == :subscribed_communicator
@@ -81,6 +75,19 @@ module Subscription
     true
   end
   
+  # Turn banked seconds_left back into live expiry. Also used by License#release_user! when a
+  # student's last organization seat is released.
+  def restore_banked_seconds_left
+    self.settings['subscription'] ||= {}
+    if self.settings['subscription']['seconds_left']
+      self.expires_at = [self.expires_at, Time.now + self.settings['subscription']['seconds_left']].compact.max
+      self.settings['subscription'].delete('seconds_left')
+      self.settings['subscription']['expiration_source'] = self.settings['subscription']['seconds_left_source'] if self.settings['subscription']['seconds_left_source']
+      self.settings['subscription']['expiration_source'] = 'grace_period' if self.settings['subscription']['expiration_source'] == 'free_trial'
+      self.settings['subscription'].delete('seconds_left_source')
+    end
+  end
+
   def update_subscription_organization(org_id, pending=false, sponsored=true, eval_account=false)
     # used to pause subscription when the user is adopted by an organization, 
     # and possibly to resume the subscription when the user is dropped by an organization.

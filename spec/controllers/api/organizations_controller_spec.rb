@@ -854,6 +854,23 @@ describe Api::OrganizationsController, :type => :controller do
     end
   end
   
+  describe "update_data_policy" do
+    it "returns a validation error for a non-numeric retention_months" do
+      o = Organization.create
+      token_user
+      o.add_manager(@user.user_name, true)
+      o.reload.update_data_policy({'retention_months' => 12}, @user)
+      o.save
+
+      put :update_data_policy, params: {organization_id: o.global_id, data_policy: {retention_months: 'abc'}}
+
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['errors'].join(' ')).to match(/retention_months/)
+      expect(o.reload.data_policy['retention_months']).to eq(12)
+    end
+  end
+
   describe "stats" do
     it "should require api token" do
       get :stats, params: {:organization_id => '1_1234'}
