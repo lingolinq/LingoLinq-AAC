@@ -553,7 +553,13 @@ class User < ApplicationRecord
   # when they re-enable AI in preferences.
   # force_under_13: automated license expiry (no manager attestation) when
   # school_authorization is still on file.
-  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false)
+  # skip_if_supported_elsewhere: re-check, under this method's user lock, that no other
+  # organization still supports the student (License.active_seat_elsewhere?). The callers check
+  # before calling, but a claim can seat the student between that check and this lock;
+  # Organization#claim_user takes the same user lock to seat them, so the answer here is
+  # current. When another organization does support them, only the age attestation is recorded
+  # and nothing else changes; the method returns false.
+  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
     )
@@ -567,6 +573,13 @@ class User < ApplicationRecord
     send_coppa_email = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
+      if skip_if_supported_elsewhere && License.active_seat_elsewhere?(self, org)
+        if birth_month.present? && birth_year.present?
+          stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+          self.save!
+        end
+        next
+      end
       if birth_month.present? && birth_year.present?
         stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
         if !attested_under_16.nil?

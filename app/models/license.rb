@@ -66,7 +66,8 @@ class License < ApplicationRecord
             actor: 'system',
             birth_month: birth_month,
             birth_year: birth_year,
-            force_under_13: force_under_13
+            force_under_13: force_under_13,
+            skip_if_supported_elsewhere: true
           )
         end
       end
@@ -77,8 +78,9 @@ class License < ApplicationRecord
 
   # Does an organization OTHER than `org` still hold an active seat for this user? Offboarding
   # to family care is skipped while one does (License.expire_stale_licenses!,
-  # Organization#remove_user). Only a positive answer skips it: with no survivor, offboarding
-  # runs exactly as before.
+  # Organization#remove_user, and the re-check inside User#begin_family_offboarding_consents!).
+  # Only a positive answer skips it: otherwise offboarding runs as it did before this check
+  # existed.
   def self.active_seat_elsewhere?(user, org)
     return false unless user
     License.where(user_id: user.id, status: 'active').where.not(organization_id: org&.id).exists?

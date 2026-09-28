@@ -1384,7 +1384,8 @@ class Organization < ApplicationRecord
         parent_email: parent_email,
         actor: actor,
         birth_month: birth_month,
-        birth_year: birth_year
+        birth_year: birth_year,
+        skip_if_supported_elsewhere: true
       )
     end
     true
