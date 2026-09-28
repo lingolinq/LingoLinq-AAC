@@ -186,8 +186,18 @@ class Organization < ApplicationRecord
       # survives a claim: nothing resets it, so a pre-claim 'purchase' would wrongly suppress the
       # guard. The value has to be STAMPED by step 6, which is what makes it mean "this expiry
       # was granted by a seat and nothing has replaced it since".
-      if user.expires_at && user.settings.dig('subscription', 'expiration_source') == 'org_license'
-        user.update_columns(expires_at: nil)
+      #
+      # The decision and the clear run inside the user lock, which reloads the row first. Read
+      # from the in-memory copy, a purchase saved after that copy was loaded was wiped here:
+      # update_columns does not check or advance updated_at, so the stale write replaced the
+      # purchased expiry with nil and nothing noticed until the attach raised on the stale row.
+      # Under the lock, a purchase that committed first is seen (its source is no longer
+      # 'org_license', so nothing is cleared), and one that saves later waits for the lock and
+      # then writes its own expiry. The attach itself stays outside the lock (see above).
+      user.with_lock do
+        if user.expires_at && user.settings.dig('subscription', 'expiration_source') == 'org_license'
+          user.update_columns(expires_at: nil)
+        end
       end
 
       begin

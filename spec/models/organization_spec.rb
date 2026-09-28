@@ -3941,6 +3941,72 @@ describe Organization, :type => :model do
       expect(u.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(5.years.to_i)
     end
 
+    it "keeps a purchase that lands just before the seat-time clear" do
+      # The guard below clears an expiry that a seat granted. It used to decide from the
+      # in-memory user, so a purchase saved after that copy was loaded was wiped by
+      # update_columns(expires_at: nil), and update_columns does not advance updated_at, so
+      # nothing noticed until the attach raised on the stale row with the purchase already gone.
+      # The purchase here is saved through a second instance just before the guard runs.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      morning.claim_user(u)
+      u.reload
+      expect(u.settings['subscription']['expiration_source']).to eq('org_license')
+
+      allow(afternoon).to receive(:attached_as_communicator?).and_wrap_original do |orig, *args|
+        other = User.find(u.id)
+        other.expires_at = 5.years.from_now
+        other.settings = other.settings.merge('subscription' => other.settings['subscription'].merge('expiration_source' => 'purchase'))
+        other.save!
+        orig.call(*args)
+      end
+
+      afternoon.claim_user(u)
+
+      expect(u.reload.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(5.years.to_i)
+    end
+
+    it "clears seat-granted time under the user lock" do
+      # Structure behind the example above: the decision and the clear run inside one user lock,
+      # so a purchase either commits before the lock (and is seen) or waits for it (and then
+      # writes its own expiry). The interleaving after the lock is taken cannot be reproduced
+      # in the transactional suite, which runs on one connection.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      morning.claim_user(u)
+      u.reload
+
+      current = nil
+      entries = 0
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = current
+          current = (entries += 1)
+          begin
+            blk.call
+          ensure
+            current = outer
+          end
+        end
+      end
+      clears = []
+      allow(u).to receive(:update_columns).and_wrap_original do |orig, *args|
+        clears << current if args.first.is_a?(Hash) && args.first.key?(:expires_at)
+        orig.call(*args)
+      end
+
+      afternoon.claim_user(u)
+
+      expect(clears.length).to eq(1)
+      expect(clears.first).to be_a(Integer)
+    end
+
     it "does not bank another organization's seat time as the family's credit" do
       # clear_existing_subscription(:track_seconds_left => true) banks whatever expires_at holds
       # and checks nothing about expiration_source, so a second organization's claim would
