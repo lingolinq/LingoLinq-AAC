@@ -17,8 +17,10 @@
 #   they walk a register, and fails the build the moment a row violates one.
 #
 # RELATIONSHIP TO citation-check.rb (complementary, not overlapping)
-#   citation-check validates EVIDENCE: id integrity, that the snippet exists in the cited file at
-#   the cited sha, and line drift. It needs git history, so it is deliberately not a CI gate.
+#   citation-check validates EVIDENCE: id integrity (except the recomputation for a row whose ruleKey
+#   is the self-referencing withheld form, whose shape this script checks instead), that the snippet
+#   exists in the cited file at the cited sha, and line drift. It needs git history, so it is
+#   deliberately not a CI gate.
 #   register-lint validates STRUCTURE: field shapes, enum membership, id uniqueness. It touches no
 #   git and no network, which is exactly what makes it CI-safe alongside the render checks.
 #   Neither subsumes the other; run both.
@@ -66,6 +68,14 @@ CHECKABLE_EVIDENCE_TYPES = %w[code doc].freeze
 # the rest are optional (a pre-1.1 finding legitimately omits them) but must be Hashes when present.
 OBJECT_FIELDS = %w[evidence remediation closureEvidence disposition source].freeze
 REQUIRED_OBJECT_FIELDS = %w[evidence].freeze
+
+# A row whose ruleKey is withheld under the security disclosure policy carries a neutral
+# self-referencing slug: this prefix + its own id, lowercased, on an id of the canonical shape.
+# scripts/citation-check.rb (withheld_rule_key?) skips id recomputation for exactly that shape and
+# is not a CI gate, so the shape is enforced here. The form is not used in the Ember upgrade register.
+WITHHELD_RULE_KEY_PREFIX = 'minimized-finding-'
+CANONICAL_ID = /\ALL-[0-9a-f]{10}\z/
+WITHHELD_FORM_EXCLUDED_REGISTERS = %w[FINDINGS-EMBER.json].freeze
 
 options = { quiet: false }
 OptionParser.new do |o|
@@ -138,6 +148,13 @@ def lint_register(path)
     rule_key = f['ruleKey']
     if !rule_key.is_a?(String) || rule_key.strip.empty?
       errors << "#{where}: ruleKey must be a non-empty string, got #{rule_key.inspect}"
+    elsif rule_key.strip.downcase.start_with?(WITHHELD_RULE_KEY_PREFIX)
+      if WITHHELD_FORM_EXCLUDED_REGISTERS.include?(File.basename(path))
+        errors << "#{where}: the withheld form of ruleKey is not used in this register"
+      elsif !(id.is_a?(String) && id.match?(CANONICAL_ID) && rule_key == "#{WITHHELD_RULE_KEY_PREFIX}#{id.downcase}")
+        errors << "#{where}: a ruleKey in the withheld form must equal \"#{WITHHELD_RULE_KEY_PREFIX}\" + this row's id " \
+                  'lowercased, on an id of the form LL-<10 lowercase hex>'
+      end
     end
 
     unless statuses.include?(f['status'])

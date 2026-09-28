@@ -69,4 +69,5 @@ Rules:
 - The `snippet` must exist verbatim at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
 - `frameworks` is usually `[]`; tag a regulation only if a mismatch leaks regulated data.
 - The orchestrator computes the stable `id`, sets timestamps/owner, and reconciles against the
-  existing register. No data in findings; snippets are code only.
+  existing register. No data in findings; snippets are code only. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
+  lowercased), citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
