@@ -26,8 +26,16 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GUARD="$REPO_ROOT/scripts/minimized-disclosure-guard.rb"
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+# Stop before anything is created or deleted if there is no private temp dir. Without
+# this, a failed mktemp left TMP empty and reset_repo ran `rm -rf /repo`. The ${TMP:?}
+# expansions below are a second stop: every rm names TMP that way, so an empty or unset
+# TMP aborts the command instead of widening it to the filesystem root.
+TMP="$(mktemp -d)" || { echo "minimized-disclosure-guard-test: mktemp failed; refusing to run." >&2; exit 1; }
+if [ -z "$TMP" ] || [ ! -d "$TMP" ]; then
+  echo "minimized-disclosure-guard-test: no usable temp dir ('$TMP'); refusing to run." >&2
+  exit 1
+fi
+trap 'rm -rf "${TMP:?}"' EXIT
 
 fails=0
 pass() { printf '  ok   %s\n' "$1"; }
@@ -53,7 +61,7 @@ JSON
 
 # Fresh throwaway repo. The guard reads the index, so fixtures must be added.
 reset_repo() {
-  rm -rf "$TMP/repo"
+  rm -rf "${TMP:?}/repo"
   mkdir -p "$TMP/repo/audit-reports" "$TMP/repo/docs/task-management"
   git -C "$TMP/repo" init -q
   git -C "$TMP/repo" config user.email test@example.com
@@ -230,6 +238,34 @@ rc=$(run_guard)
 [ "$rc" -eq 0 ] && pass "documents its limit: eight lines apart is NOT detected" \
   || { fail "window is wider than documented (exit $rc)"; cat "$TMP/out"; }
 
+# 13f-13h. THE WINDOW LOOKS BOTH WAYS, and starts at the first line. The streaming scan
+#      builds the window in two places, and every earlier case put the path BELOW the id,
+#      so dropping the backward half passed the whole harness. "Location first, then the
+#      id" is an ordinary way to write a report, so the backward half is pinned on its own.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- 'The gap is in app/models/widget.rb\n\n\n\n\n\n\n- LL-1111111111 remains open\n' \
+  > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard)
+[ "$rc" -eq 1 ] && pass "a path seven lines ABOVE the id is detected" \
+  || { fail "a path above the id slipped through (exit $rc)"; cat "$TMP/out"; }
+
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- 'The gap is in app/models/widget.rb\n\n\n\n\n\n\n\n- LL-1111111111 remains open\n' \
+  > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard)
+[ "$rc" -eq 0 ] && pass "documents its limit above the id too: eight lines above is NOT detected" \
+  || { fail "backward window is wider than documented (exit $rc)"; cat "$TMP/out"; }
+
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- '- LL-1111111111 remains open\n\n\n\n\n\n\nThe gap is in app/models/widget.rb\n\n\nMore prose.\n' \
+  > "$TMP/repo/docs/task-management/handoff.md"
+rc=$(run_guard)
+[ "$rc" -eq 1 ] && pass "an id on the first line reaches the far edge of its window" \
+  || { fail "an id on the first line lost part of its window (exit $rc)"; cat "$TMP/out"; }
+
 # 13d. REGRESSION FIXTURE for the first-match bug. A line naming TWO protected ids was
 #      evaluated against only ONE of them, chosen in register order, so the id-bound
 #      signals of the other were never checked. That mattered because CODE_PATH excludes
@@ -287,6 +323,23 @@ elif [ "$rc" -eq 0 ]; then
   pass "skips a tracked symlink instead of reading it"
 else
   fail "unexpected exit on a tracked symlink (exit $rc)"; cat "$TMP/out"
+fi
+
+# 15a. THE lstat CHECK ITSELF. Case 15 cannot prove it: the NUL sniff already classifies
+#      /dev/zero as binary, so deleting lstat still passed. A FIFO has no bytes to sniff
+#      and open() on it blocks until a writer appears, so only lstat keeps this from
+#      hanging the runner. The FIFO lives outside the repo; only the symlink is tracked.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+mkfifo "$TMP/fifo"
+ln -s "$TMP/fifo" "$TMP/repo/docs/task-management/pipe.md"
+rc=$(timeout 30 bash -c "$(declare -f run_guard); TMP='$TMP' GUARD='$GUARD' run_guard" 2>/dev/null)
+if [ -z "$rc" ]; then
+  fail "guard hung on a tracked symlink to a FIFO (the lstat check is missing)"
+elif [ "$rc" -eq 0 ]; then
+  pass "skips a tracked symlink to a FIFO before opening it"
+else
+  fail "unexpected exit on a tracked symlink to a FIFO (exit $rc)"; cat "$TMP/out"
 fi
 
 # 15b. An unusable --base-ref must FAIL, not quietly fall back to a head-only read.
