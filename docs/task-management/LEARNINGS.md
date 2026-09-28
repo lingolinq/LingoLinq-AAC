@@ -79,10 +79,6 @@ Admission rule for an entry in this file:
 
 ## Ember reactivity and data
 
-- **Ember Data 5.3 relationship and query arrays are native Proxies.** `firstObject` is silently
-  `undefined`, `toArray` is gone (use `Array.from`), `.sortBy`/`.pushObject` throw, and results refuse
-  in-place mutation (`.slice()` first). Only `A()`-wrapped plain arrays take Ember array methods.
-  Symbol: `EXTEND_PROTOTYPES` in `app/frontend/config/environment.js`.
 - **`store.push` does not overwrite a dirty `attr('raw')`, and in-place mutation does not dirty it.**
   Clone the array (and nested objects) before `set`, or the follow-up `save()` is skipped. Symbol:
   `sync_changed` in `app/frontend/app/utils/persistence.js`.
@@ -136,8 +132,6 @@ Admission rule for an entry in this file:
 - **`{{t "text" key="k"}}` renders the locale value when `k` already exists, and `%%` is not
   unescaped.** Reusing a key makes the inline text dead, and a locale value without the leading `*** `
   marker counts as already translated. Cite `app/frontend/app/utils/i18n.js`.
-- **There is no `eq` helper; use `is_equal`.** `(eq ...)` throws at render and aborts the template.
-  Cite `app/frontend/app/helpers/is_equal.js`.
 - **Strict-mode templates resolve bare names as helpers.** Write `this.prop`; template-lint misses
   `no-implicit-this` in several large legacy templates, so grep for bare `{{snake_case}}` too. Cite
   `app/frontend/.template-lintrc.js`.
@@ -162,13 +156,9 @@ Admission rule for an entry in this file:
   `:space`, `:shift` are actions, not words; one localize-then-save pass wiped every keyboard key on a
   board. Reproduce save bugs through the in-app control, not the URL. Symbol:
   `_localized_button_fields` in `app/frontend/app/controllers/user/board-detail.js`.
-- **Speak-bar edits must mutate `rawButtonList`, never only the chip mirror.** The spoken, logged and
-  synced sentence derives from it. Symbol: `set_button_list` in `app/frontend/app/utils/utterance.js`.
 - **Find-a-button on a sub-board must search from the navigation root, and client-built button sets key
   on numeric `global_id`, never the ED `id`.** Symbol: `_resolveSearchRoot` in
   `app/frontend/app/components/find-button.js`.
-- **`store.peekAll('buttonset')` can yield unmaterialized entries.** Guard `bs && bs.get` at every
-  iteration site. Symbol: `load_button_set` in `app/frontend/app/models/buttonset.js`.
 - **Modal scanning needs both `.modal_targets .btn` markup AND `{ scannable: true }`.** Either alone
   strands the switch user; and any new `scanner.find_elem` call in `start()` must be null-guarded
   because the specs stub that seam. Symbol: `scannableTargets` in `app/frontend/app/services/modal.js`.
@@ -176,8 +166,6 @@ Admission rule for an entry in this file:
   empty defeats `next_element`'s zero-box recovery; `escape()` keeps a class allow-list on purpose so the
   switch user always has an exit; `scanner.started` is set in `start()` and never cleared, so a guard
   keyed on it collapses to its other term. Symbol: `escape` in `app/frontend/app/utils/scanner.js`.
-- **`buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress.** It is never
-  nulled in button dwell mode. Symbol: `last_dwell_linger` in `app/frontend/app/utils/raw_events.js`.
 - **A cancellation that resolves lands on the success path.** The prediction cancel resolved `[]`,
   indistinguishable from "no words", and blanked the panel under a live dwell. Keep stale predictions
   visible until the new set arrives; never swap under a dwell. Symbol: `_pending_reject` in
@@ -219,8 +207,6 @@ Admission rule for an entry in this file:
   Classic speak-bar Intro button left its bar (`offsetParent` became `HEADER`) with every gate green. Before moving
   a node, check the old parent's `position` and compare `offsetParent` and the rect before and after; only
   a targeted computed-style test holds it. Symbol: `.speak-bar__button-list-wrap` in `app/frontend/app/styles/app.scss`.
-- **The modern symbol card also carries class `.button`, so every classic `.button` rule leaks onto
-  it.** Symbol: `md-board-detail-symbol-card` in `app/frontend/app/components/board-detail-grid.hbs`.
 - **Sprockets rewrites `url(#id)` fragment refs inside CSS data-URI SVGs in production.** Gradient fills
   go transparent on deploy only; keep gradients out of embedded SVGs. Symbol: `Sprockets` comment in
   `app/frontend/app/styles/app.scss`.
@@ -241,9 +227,6 @@ Admission rule for an entry in this file:
 - **`Worker.scheduled?` flakes repo-wide off BoyBand's 30-second `sizeof/<queue>` cache.** One example
   that pushes a queue past 500 makes every later `scheduled?` a false negative for 30 wall-clock
   seconds; the cache keys are deleted in `before(:each)`. Cite `spec/spec_helper.rb`.
-- **Unscoped global counts fail on rows left by earlier runs.** `AuditEvent.count`, `Board.count` and
-  `LogSession.count` assertions need a file-scoped `delete_all`; "order-dependent" is usually orphaned
-  committed rows in `lingolinq-test`. Cite `spec/models/user_spec.rb`.
 - **Two clock reads are a flake, and there is no Timecop here.** A spec that rebuilds a stamped value
   from a second `Time.now` (or `N.ago.to_i`) fails at any boundary; capture once and reuse. Run
   date-window specs under `TZ=UTC`; `Date.today` is local. Symbol: `decorate_completion` in
@@ -252,14 +235,14 @@ Admission rule for an entry in this file:
   whole file makes stubs inert; a negative assertion passes when its selector matches nothing; a hang
   test must assert on the spawn option, not hang the suite; curated examples miss the byte the author
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
-- **`.eslint-todo` is line-anchored: fix shifted findings where you can; a re-anchor needs approval.** The
-  fingerprint is `file|rule|line|column|severity|messageHash`, so lines inserted above a legacy finding report
-  it as "new". Fixing them is the preferred answer (the frontend CLAUDE.md says so). Otherwise the remedy is
-  `npm run lint:js:todo`, which rewrites every current finding and absorbs a real new one, so it needs
-  explicit approval and its own commit; never reshape code after a red gate just to silence it. Before
-  asking, check the multiset of `file|rule|column|severity|messageHash` and `findings=` are unchanged, then
-  read the added lines: a fix-one, add-one swap of the same shape passes both. Symbol: `fingerprint` in
-  `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.eslint-todo` is line-anchored: fix a shifted finding only if the fix cannot change behaviour.** The fingerprint is
+  `file|rule|line|column|severity|messageHash`, so inserts make old findings "new". Any fix that needs a test to prove it safe changes
+  behaviour (a partial list: `ember/no-runloop` and the inline-function finding on its line, computed dependencies, `_super`, orphaned
+  actions, duplicate keys) and goes in its own tested PR; in tests, rewriting an assertion is a test change needing approval. Placing
+  new code to keep rows still is fine; deleting or compressing old lines is not. `npm run lint:js:todo` absorbs every finding, so it
+  needs approval and its own commit. Read-only evidence: `npm run lint:js:ci` `findings=` plus the findings you cleared equals the base
+  branch's; higher means a real new finding. Pair every "new" row (the gate prints 50; `npx eslint . --ext .js,.mjs --format json`
+  lists all) on the fingerprint minus line; check added lines for a same-shape swap. Cite `app/frontend/scripts/eslint-todo-gate.js`.
 - **`.lint-todo` can fuzzy-match a shifted todo by source hash, and a plain run can append to it.** An exact
   match (rule, range and hash) runs first, then rule plus hash with the range ignored. That is weak where a
   rule hashes only an attribute (`require-context-role` hashes just `role="..."`) or a file has several
@@ -285,8 +268,15 @@ Admission rule for an entry in this file:
   re-validates a dismissed finding as a routine `reseen`. Symbol: `SCOT_OWNED_CLOSED` in
   `scripts/audit-merge.rb`.
 - **A finding id is `SHA256(ruleKey|file)`, and evidence must match per source line.** Rescoping a row's
-  file in place, or a register-adding script with a looser snippet matcher, reddens the local
-  citation-check later. Cite `scripts/audit-merge.rb`.
+  file in place reddens `register-lint.rb` in CI (it recomputes and requires the derived id) and the
+  local citation-check; a register-adding script with a looser snippet matcher reddens the local
+  citation-check later. Cite
+  `scripts/audit-merge.rb`. The id half does not hold for a row whose ruleKey is the
+  self-referencing withheld form (`minimized-finding-` + its own id, lowercased), which register-lint
+  allows only on a row listed in `audit-reports/SELF-REFERENCING-RULEKEY-IDS.json`: on a listed row in
+  that form neither script recomputes the id (citation-check skips every row in the form; register-lint
+  skips only a listed one, and refuses an unlisted one anyway), so an in-place rescope there shows no id
+  mismatch (the snippet check still runs) and needs review instead.
 - **Register merges are unions, then regenerate; never `json.dumps` the file.** Keep both sides' unique
   rows and the longer notes trail, and edit prose by exact text replace, since a Python dump escapes
   `§` across every note. Cite `scripts/regenerate-register.sh`.

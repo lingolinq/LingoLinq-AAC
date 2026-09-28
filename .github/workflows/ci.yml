@@ -355,7 +355,8 @@ jobs:
       # generated markdown to its JSON source; none of them reads the field SHAPES the register's
       # consumers depend on, so a malformed row (observed: `source` written as a bare String
       # instead of an object) merged green here and then hard-crashed promote-finding.rb for the
-      # entire register weeks later. This validates shapes, enum membership, and id uniqueness.
+      # entire register weeks later. This validates shapes, enum membership, id uniqueness, id
+      # derivation, and the closed list of ids allowed to use the self-referencing ruleKey form.
       # Stdlib-only and git-free, like the checks above, so it is equally low-friction to gate on.
       - name: Verify findings registers are structurally valid
         run: ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json
@@ -397,12 +398,12 @@ jobs:
       - name: Verify the register evidence.sha guards actually fire
         run: scripts/tests/register-lint-sha-test.sh
 
-      # Proves the field-shape, enum, and duplicate-id branches of register-lint
-      # actually FIRE. The sha harness above covers evidence.sha; this covers the
-      # rest of the structural contract. A rule that has only ever been observed
-      # passing on the committed registers is evidence that those registers are
-      # clean, not that the rule works. Fixtures are built in a temp dir;
-      # audit-reports/ is never touched.
+      # Proves the field-shape, enum, duplicate-id, id-derivation and closed-list
+      # branches of register-lint actually FIRE. The sha harness above covers
+      # evidence.sha; this covers the rest of the structural contract. A rule that
+      # has only ever been observed passing on the committed registers is evidence
+      # that those registers are clean, not that the rule works. Fixtures are built
+      # in a temp dir; audit-reports/ is never touched.
       - name: Verify the register shape/enum/duplicate-id guards actually fire
         run: scripts/tests/register-lint-shape-test.sh
 
