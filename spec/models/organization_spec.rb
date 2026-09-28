@@ -3906,7 +3906,7 @@ describe Organization, :type => :model do
         orig.call(*args)
       end
 
-      expect { org.claim_user(u) }.to raise_error(/claimed by another request/)
+      expect { org.claim_user(u) }.to raise_error(/no longer active/)
       expect(org.licenses.where(user_id: u.id).count).to eq(0)
     end
 
@@ -4100,6 +4100,27 @@ describe Organization, :type => :model do
       expect(seat_reads).to eq([true, true])
       expect(column_writes).to eq([true])
       expect(u.reload.managing_organization_id).to eq(org.id)
+    end
+
+    it "reports a seat that disappeared mid-claim without blaming another request" do
+      # The compare-and-set fails for more than one reason, and a message naming the wrong one
+      # sends a district manager looking for a competing claim that never happened.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      gone = false
+      allow(License).to receive(:where).and_wrap_original do |orig, *args|
+        if !gone && args.first.is_a?(Hash) && args.first.key?(:id) &&
+           args.first.key?(:user_id) && args.first[:user_id].nil?
+          gone = true
+          ActiveRecord::Base.connection.delete("DELETE FROM licenses WHERE id = #{license.id}")
+        end
+        orig.call(*args)
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/changed before it could be assigned/)
+      expect(License.where(user_id: u.id).count).to eq(0)
     end
   end
 end

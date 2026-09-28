@@ -85,7 +85,19 @@ class Organization < ApplicationRecord
         taken = License.where(id: license.id, organization_id: self.id, seat_type: seat_type,
                               status: 'active', user_id: nil)
                        .update_all(user_id: user.id, granted_at: Time.now, updated_at: Time.now)
-        raise "Seat #{license.global_id} was claimed by another request; re-run the claim" if taken == 0
+        if taken == 0
+          # Name the reason the row no longer matched rather than assuming a competing claim:
+          # License.expire_stale_licenses! and suspension change status on their own schedule.
+          # Every branch raises; only the message differs.
+          current = License.find_by(id: license.id)
+          if current && current.status != 'active'
+            raise "Seat #{license.global_id} is no longer active (#{current.status}); re-run the claim"
+          elsif current && current.user_id
+            raise "Seat #{license.global_id} was claimed by another request; re-run the claim"
+          else
+            raise "Seat #{license.global_id} changed before it could be assigned; re-run the claim"
+          end
+        end
 
         license.reload
       end
