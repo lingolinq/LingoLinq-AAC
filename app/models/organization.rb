@@ -38,6 +38,16 @@ class Organization < ApplicationRecord
   end
 
   def claim_user(user, seat_type='student')
+    # 1. Only student seats are claimed through this method. The attach below is the
+    # COMMUNICATOR routine: it cancels the family's subscription and sets the communicator
+    # role, so running it for a supervisor seat turned a paying supporter into a communicator.
+    # Before that, this method gave a supervisor a sponsored org_user link and the managing
+    # column, which is communicator treatment too, so there is no supervisor behaviour to
+    # restore. Refused before any seat or user write, and an allow-list, so a missing or
+    # unrecognised seat type is refused as well. The API passes params['seat_type'] straight
+    # through (api/organizations_controller.rb, claim_user).
+    raise "Only student seats can be claimed through this path" unless seat_type.to_s == 'student'
+
     license = nil
     existing = nil
 

@@ -4122,5 +4122,40 @@ describe Organization, :type => :model do
       expect { org.claim_user(u) }.to raise_error(/changed before it could be assigned/)
       expect(License.where(user_id: u.id).count).to eq(0)
     end
+
+    it "refuses a supervisor seat and leaves a paying supporter untouched" do
+      # The claim path runs the communicator attach, which cancels the family's subscription and
+      # sets the communicator role. A supervisor seat has no attach routine of its own here, so
+      # the claim is refused before anything is written.
+      u = User.create
+      u.settings['preferences']['role'] = 'supporter'
+      u.expires_at = 3.years.from_now
+      u.settings['subscription'] = {'expiration_source' => 'purchase', 'subscription_id' => 'sub_1', 'customer_id' => 'cus_1', 'started' => 1.month.ago.iso8601, 'plan_id' => 'slp_monthly_5'}
+      u.save!
+      expires_before = u.reload.expires_at
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      seat = License.create!(organization: org, seat_type: 'supervisor', status: 'active')
+
+      expect { org.claim_user(u, 'supervisor') }.to raise_error(/only student seats/i)
+
+      u.reload
+      expect(seat.reload.user_id).to be_nil
+      expect(u.settings['preferences']['role']).to eq('supporter')
+      expect(u.settings['subscription']['subscription_id']).to eq('sub_1')
+      expect(u.settings['subscription']['expiration_source']).to eq('purchase')
+      expect(u.expires_at).to eq(expires_before)
+      expect(u.managing_organization_id).to be_nil
+    end
+
+    it "refuses any seat type that is not a student seat, including a missing one" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      [nil, '', 'Student', 'teacher', 'supervisor'].each do |seat_type|
+        expect { org.claim_user(u, seat_type) }.to raise_error(/only student seats/i)
+      end
+      expect(License.where(user_id: u.id).count).to eq(0)
+    end
   end
 end
