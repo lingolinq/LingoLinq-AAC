@@ -268,11 +268,14 @@ Admission rule for an entry in this file:
   re-validates a dismissed finding as a routine `reseen`. Symbol: `SCOT_OWNED_CLOSED` in
   `scripts/audit-merge.rb`.
 - **A finding id is `SHA256(ruleKey|file)`, and evidence must match per source line.** Rescoping a row's
-  file in place, or a register-adding script with a looser snippet matcher, reddens the local
-  citation-check later. Cite `scripts/audit-merge.rb`. The id half does not hold for a row whose
-  ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased): citation-check
-  does not recompute that id, so an in-place rescope there shows no id mismatch (the snippet check
-  still runs) and needs review instead.
+  file in place reddens `register-lint.rb` in CI (it recomputes and requires the derived id) and the
+  local citation-check; a register-adding script with a looser snippet matcher reddens the local
+  citation-check later. Cite
+  `scripts/audit-merge.rb`. The id half does not hold for a row whose ruleKey is the
+  self-referencing withheld form (`minimized-finding-` + its own id, lowercased), which register-lint
+  allows only on a row listed in `audit-reports/SELF-REFERENCING-RULEKEY-IDS.json`: neither script
+  recomputes that id, so an in-place rescope there shows no id mismatch (the snippet check still
+  runs) and needs review instead.
 - **Register merges are unions, then regenerate; never `json.dumps` the file.** Keep both sides' unique
   rows and the longer notes trail, and edit prose by exact text replace, since a Python dump escapes
   `§` across every note. Cite `scripts/regenerate-register.sh`.
