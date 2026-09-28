@@ -15,6 +15,7 @@ Usage (stdin is passed through to the command):
 Exit status is the command's own, or 124 on timeout.
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -55,6 +56,27 @@ def failure_label(transcript, prompt=""):
     return "unclassified"
 
 
+# The reviewer reads untrusted PR content and can run tools, so it gets only
+# the environment it needs. Removed: every Actions/runner variable (the job's
+# GitHub token, and the paths of the per-step file commands a child could use
+# to change the environment of later steps) and anything named like a
+# credential. CODEX_API_KEY is the one credential kept: it is how `codex exec`
+# authenticates without writing a key file (see codex-review.yml).
+SCRUBBED_ENV_RE = re.compile(
+    r"^(?:GITHUB_|ACTIONS_|RUNNER_|INPUT_|STATE_)|TOKEN|SECRET|PASSWORD|CREDENTIAL|API_KEY|_KEY$",
+    re.I,
+)
+KEPT_CREDENTIALS = frozenset({"CODEX_API_KEY"})
+
+
+def child_environment(environ):
+    return {
+        key: value
+        for key, value in environ.items()
+        if key in KEPT_CREDENTIALS or not SCRUBBED_ENV_RE.search(key)
+    }
+
+
 def run_quiet(command, stdin, timeout=None):
     """Run command with stdin, discarding its output.
 
@@ -73,6 +95,7 @@ def run_quiet(command, stdin, timeout=None):
                 stdout=buffer,
                 stderr=subprocess.STDOUT,
                 timeout=timeout,
+                env=child_environment(os.environ),
             )
         except subprocess.TimeoutExpired:
             return None, "timeout"

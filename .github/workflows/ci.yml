@@ -414,6 +414,18 @@ jobs:
       - name: Run codex-review chunked-scope match tests
         run: python3 scripts/codex-review-chunked-scope.test.py
 
+      # Guards the codex-review.yml isolation hardening: PR checkout in a
+      # subdirectory without persisted credentials, isolated (-I) helpers, no
+      # Codex key file outliving its step, and the step guard that kills
+      # leftover background processes and clears $GITHUB_ENV / $GITHUB_PATH.
+      - name: Run codex-review step-guard and workflow-hardening tests
+        run: python3 scripts/codex-review-step-guard.test.py
+
+      # Guards the reviewer child environment: no GitHub token, credential or
+      # runner file-command path reaches `codex exec`.
+      - name: Run codex-review quiet-exec environment tests
+        run: python3 scripts/codex-review-quiet-exec.test.py
+
   security-scan:
     runs-on: ubuntu-latest
 

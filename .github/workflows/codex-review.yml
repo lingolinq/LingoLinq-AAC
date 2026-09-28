@@ -42,6 +42,9 @@ on:
         required: true
         type: string
 
+# Nothing by default; the one job grants itself exactly what it uses.
+permissions: {}
+
 jobs:
   codex-review:
     runs-on: ubuntu-latest
@@ -70,6 +73,28 @@ jobs:
       # 1's created_at (defeating the watchdog's age clock). `/attempts/<n>` is
       # a real linkable Actions URL, so this costs nothing in usability.
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+      # Arms scripts/codex-review-step-guard.py in the guarded steps (reviewer,
+      # Codex install and auth). It is a no-op without this, so a step's shell
+      # can be run locally or from a unit test without killing anything.
+      CODEX_REVIEW_STEP_GUARD: "1"
+    # Isolation model (hardening, 2026-09-28). The PR head is UNTRUSTED input:
+    #   * It is checked out into ./pr, never the workspace root, and without a
+    #     persisted token (persist-credentials: false), so tools run from the
+    #     root never pick up PR-controlled config (.npmrc, .python-version, ...)
+    #     and nothing in the checkout holds a credential the reviewer could read.
+    #   * Helpers come from the workflow ref (restore step) and every Python one
+    #     runs as `python3 -I`: isolated mode drops the script's directory and the
+    #     working directory from sys.path and ignores PYTHON* variables, so a PR
+    #     that adds e.g. scripts/json.py or pr/json.py cannot hijack an import.
+    #   * No Codex key file outlives the step that needs it: `codex exec` reads
+    #     CODEX_API_KEY from its own step's env, and the auth check logs in to a
+    #     throwaway CODEX_HOME that it deletes on exit.
+    #   * Steps that run third-party code over PR content are wrapped by
+    #     scripts/codex-review-step-guard.py, which kills anything they leave
+    #     running and empties their file commands ($GITHUB_ENV, $GITHUB_PATH,
+    #     outputs, state, summary) before the step ends, so nothing persists
+    #     into the later steps that hold the W2 secrets. The reviewer child also
+    #     gets a scrubbed environment (codex-review-quiet-exec.py).
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -175,19 +200,26 @@ jobs:
           echo "PR head ref: ${PR_HEAD_REF}"
           echo "effective evidence mode: ${effective}"
 
-      - name: Checkout PR head
-        uses: actions/checkout@v6
+      - name: Checkout PR head (untrusted) into ./pr
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ inputs.head_sha }}
+          path: pr
           fetch-depth: 0
+          # The reviewer can read every file in this checkout. A persisted token
+          # would put the job's GITHUB_TOKEN in pr/.git/config.
+          persist-credentials: false
 
       - name: Restore Codex review helpers from workflow ref
         # Older PR heads predate this pipeline, and any PR can modify or
         # delete these helper files. Run the review using the trusted helper
         # versions from the workflow ref that GitHub dispatched, while still
         # reviewing the PR head checkout.
+        working-directory: pr
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
         run: |
-          git checkout "${{ github.workflow_sha }}" -- \
+          git checkout "$WORKFLOW_SHA" -- \
             .github/codex \
             scripts/codex-review-assemble-prompt.py \
             scripts/codex-review-build-evidence.py \
@@ -197,16 +229,19 @@ jobs:
             scripts/codex-review-claude-deep.sh \
             scripts/codex-review-claude-deep-build-request.py \
             scripts/codex-review-claude-deep-extract-response.py \
-            scripts/codex-review-path-classifier.sh
+            scripts/codex-review-path-classifier.sh \
+            scripts/codex-review-step-guard.py
 
       - name: Re-classify paths in CI (fail-safe; n8n's classification is not trusted alone)
         id: classify
+        working-directory: pr
         run: scripts/codex-review-path-classifier.sh "${BASE_SHA}" "${HEAD_SHA}"
         env:
           CODEX_COMPLIANCE_PATHS: ${{ vars.CODEX_COMPLIANCE_PATHS || 'allow' }}
 
       - name: Gather live state
         id: live_state
+        working-directory: pr
         # PR title, body and file list are PR content. They go to files, never
         # to a step output or env var: Actions prints a step's env values in the
         # public job log.
@@ -276,6 +311,7 @@ jobs:
         # PR cannot blow up the prompt; a truncation marker tells the reviewer
         # to treat unseen hunks as unverified.
         id: pr_diff
+        working-directory: pr
         run: |
           MAX_BYTES=60000
           RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
@@ -311,8 +347,9 @@ jobs:
 
       - name: Build chunked PR evidence
         if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
+        working-directory: pr
         run: |
-          python3 scripts/codex-review-build-evidence.py \
+          python3 -I scripts/codex-review-build-evidence.py \
             --base "${BASE_SHA}" \
             --head "${HEAD_SHA}" \
             --out-dir /tmp/codex-review-evidence \
@@ -321,7 +358,8 @@ jobs:
       - name: Assemble prompt
         if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
         id: prompt
-        run: python3 scripts/codex-review-assemble-prompt.py /tmp/prompt.md
+        working-directory: pr
+        run: python3 -I scripts/codex-review-assemble-prompt.py /tmp/prompt.md
         env:
           LIVE_STATE_FILE: /tmp/live_state_prompt.txt
           PR_DIFF_FILE: /tmp/pr_diff.txt
@@ -329,24 +367,53 @@ jobs:
 
       - name: Install Codex CLI
         if: steps.classify.outputs.reviewer_route == 'codex'
-        run: npm install -g @openai/codex
+        # From runner.temp, not a checkout: npm reads a project .npmrc from its
+        # working directory, and a PR-supplied one could point the install at
+        # another registry. Pinned, and --ignore-scripts because the package
+        # ships no install scripts (checked for 0.158.0 with `npm view`).
+        working-directory: ${{ runner.temp }}
+        env:
+          STEP_GUARD: ${{ github.workspace }}/pr/scripts/codex-review-step-guard.py
+        run: | # zizmor: ignore[adhoc-packages] pinned version, no install scripts, trusted cwd
+          GUARD_SINCE="$(python3 -I "$STEP_GUARD" mark)"
+          trap 'rc=$?; python3 -I "$STEP_GUARD" finish "$GUARD_SINCE" || rc=1; exit $rc' EXIT
+          # Third-party code below has no use for the job's GitHub token.
+          unset GH_TOKEN
+          npm install -g --ignore-scripts @openai/codex@0.158.0
 
       - name: Authenticate Codex CLI
         if: steps.classify.outputs.reviewer_route == 'codex'
+        # Keeps an auth failure attributable to THIS step (the evidence
+        # docs/process/deep-pass-admin-exception-policy.md condition 1 relies
+        # on) without leaving a key file behind: the login lands in a throwaway
+        # CODEX_HOME that is deleted when the step exits, on every exit path.
+        # The reviewer steps authenticate from CODEX_API_KEY in their own env.
+        working-directory: ${{ runner.temp }}
         env:
           OPENAI_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
-          CODEX_HOME: ${{ runner.temp }}/codex-home
+          STEP_GUARD: ${{ github.workspace }}/pr/scripts/codex-review-step-guard.py
         run: |
           echo "::add-mask::$OPENAI_API_KEY"
-          mkdir -p "$CODEX_HOME"
+          GUARD_SINCE="$(python3 -I "$STEP_GUARD" mark)"
+          CODEX_HOME="$(mktemp -d)"
+          export CODEX_HOME
+          trap 'rc=$?; rm -rf "$CODEX_HOME"; python3 -I "$STEP_GUARD" finish "$GUARD_SINCE" || rc=1; exit $rc' EXIT
+          unset GH_TOKEN
           printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
 
       - name: Run reviewer (codex exec, converge across runs)
         id: review_codex
         if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked'
+        working-directory: pr
         env:
-          CODEX_HOME: ${{ runner.temp }}/codex-home
+          CODEX_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
         run: |
+          echo "::add-mask::$CODEX_API_KEY"
+          GUARD_SINCE="$(python3 -I scripts/codex-review-step-guard.py mark)"
+          # Session state only; the key is never written here (CODEX_API_KEY).
+          CODEX_HOME="$(mktemp -d)"
+          export CODEX_HOME
+          trap 'rc=$?; rm -rf "$CODEX_HOME"; python3 -I scripts/codex-review-step-guard.py finish "$GUARD_SINCE" || rc=1; exit $rc' EXIT
           run_codex() {
             # $1 = output path for this run's review JSON
             # gpt-5.6-terra per the approved-reviewer registry (CI `codex-review`
@@ -358,7 +425,7 @@ jobs:
             # model output) out of the public job log; on failure it prints
             # only the exit code and a fixed label. --ephemeral stops codex
             # saving the session (the same transcript) under CODEX_HOME.
-            python3 scripts/codex-review-quiet-exec.py -- codex exec \
+            python3 -I scripts/codex-review-quiet-exec.py -- codex exec \
               --ephemeral \
               --sandbox read-only \
               -m gpt-5.6-terra \
@@ -368,10 +435,10 @@ jobs:
             # Fallback per build spec section 6: one retry with a stricter
             # instruction if the model still emitted invalid JSON despite
             # --output-schema.
-            if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
+            if ! python3 -I -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
               echo "Run produced invalid JSON; retrying with stricter instruction." >&2
               { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | python3 scripts/codex-review-quiet-exec.py -- codex exec --ephemeral --sandbox read-only -m gpt-5.6-terra \
+                | python3 -I scripts/codex-review-quiet-exec.py -- codex exec --ephemeral --sandbox read-only -m gpt-5.6-terra \
                     --output-schema .github/codex/review-schema.json \
                     --output-last-message "$1"
             fi
@@ -385,7 +452,7 @@ jobs:
           # converging straight to fail-closed without a wasted third run).
           run_codex /tmp/review-1.json
           run_codex /tmp/review-2.json
-          NEED_THIRD="$(python3 scripts/codex-review-build-envelope.py --need-third --diff /tmp/pr_diff.txt /tmp/review-1.json /tmp/review-2.json)"
+          NEED_THIRD="$(python3 -I scripts/codex-review-build-envelope.py --need-third --diff /tmp/pr_diff.txt /tmp/review-1.json /tmp/review-2.json)"
           echo "convergence: third tiebreaker needed? ${NEED_THIRD}"
           if [ "$NEED_THIRD" = "yes" ]; then
             run_codex /tmp/review-3.json
@@ -394,10 +461,16 @@ jobs:
       - name: Run reviewer (codex exec, chunked evidence)
         id: review_codex_chunked
         if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
+        working-directory: pr
         env:
-          CODEX_HOME: ${{ runner.temp }}/codex-home
+          CODEX_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
         run: |
-          python3 scripts/codex-review-run-chunks.py \
+          echo "::add-mask::$CODEX_API_KEY"
+          GUARD_SINCE="$(python3 -I scripts/codex-review-step-guard.py mark)"
+          CODEX_HOME="$(mktemp -d)"
+          export CODEX_HOME
+          trap 'rc=$?; rm -rf "$CODEX_HOME"; python3 -I scripts/codex-review-step-guard.py finish "$GUARD_SINCE" || rc=1; exit $rc' EXIT
+          python3 -I scripts/codex-review-run-chunks.py \
             --evidence-dir /tmp/codex-review-evidence \
             --live-state-file /tmp/live_state.txt \
             --out-dir /tmp/codex-review-results \
@@ -418,6 +491,11 @@ jobs:
           }
           chunk_model="$(jq -r '.chunk_model // ""' /tmp/codex-review-results/run-summary.json)"
           synthesis_model="$(jq -r '.synthesis_model // ""' /tmp/codex-review-results/run-summary.json)"
+          # Clean up everything the reviewer could have touched FIRST, so the two
+          # lines below are the only file-command writes that survive this step.
+          trap - EXIT
+          rm -rf "$CODEX_HOME"
+          python3 -I scripts/codex-review-step-guard.py finish "$GUARD_SINCE"
           {
             echo "CODEX_CHUNK_MODEL_EFFECTIVE=$(sanitize_model_id "$chunk_model")"
             echo "CODEX_SYNTHESIS_MODEL_EFFECTIVE=$(sanitize_model_id "$synthesis_model")"
@@ -426,10 +504,13 @@ jobs:
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
         if: steps.classify.outputs.reviewer_route == 'claude-deep'
+        working-directory: pr
         env:
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_REVIEW_API_KEY }}
         run: |
           echo "::add-mask::$ANTHROPIC_API_KEY"
+          GUARD_SINCE="$(python3 -I scripts/codex-review-step-guard.py mark)"
+          trap 'rc=$?; python3 -I scripts/codex-review-step-guard.py finish "$GUARD_SINCE" || rc=1; exit $rc' EXIT
           # Single run: the claude-deep route is the compliance-path fallback and
           # is not convergence-looped in this pass. build-envelope treats one
           # review file as a no-op convergence (its outcome passes through), and
@@ -467,6 +548,7 @@ jobs:
         # on, which status to resolve). Wrap it in an envelope of
         # Actions-validated values instead, so W2 routes off CI ground
         # truth, not model output.
+        working-directory: pr
         run: |
           # Pass every review run that was produced (1 for claude-deep/blocked,
           # 2 or 3 for the codex convergence loop). build-envelope applies the
@@ -482,7 +564,7 @@ jobs:
               echo "::error::chunked review did not produce chunk and synthesis review files"
               exit 1
             fi
-            python3 scripts/codex-review-build-envelope.py \
+            python3 -I scripts/codex-review-build-envelope.py \
               --manifest /tmp/codex-review-evidence/manifest.json \
               --evidence-dir /tmp/codex-review-evidence \
               --full-diff /tmp/codex-review-evidence/full.diff \
@@ -490,19 +572,29 @@ jobs:
               --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
               --out /tmp/envelope.json
           else
-            python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
+            python3 -I scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
           fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}
 
       - name: POST result to n8n W2 and resolve status
+        env:
+          W2_WEBHOOK_URL: ${{ secrets.N8N_CODEX_RESULTS_WEBHOOK_URL }}
+          W2_HMAC_SECRET: ${{ secrets.N8N_CODEX_RESULTS_HMAC_SECRET }}
         run: |
           RESULT_JSON="$(cat /tmp/envelope.json)"
+          # Neither secret is expanded into this script or put on a command
+          # line (another process of this uid can read argv from /proc). The
+          # signature is computed in-process from the env var, over exactly the
+          # bytes sent; the URL reaches curl through a config fd written by the
+          # printf builtin.
+          SIGNATURE="$(printf '%s' "$RESULT_JSON" | python3 -I -c 'import hashlib, hmac, os, sys; print(hmac.new(os.environ.get("W2_HMAC_SECRET", "").encode(), sys.stdin.buffer.read(), hashlib.sha256).hexdigest())')"
           HTTP_STATUS="$(curl -sS -o /tmp/w2-response.json -w '%{http_code}' \
-            -X POST "${{ secrets.N8N_CODEX_RESULTS_WEBHOOK_URL }}" \
+            -K <(printf 'url = "%s"\n' "$W2_WEBHOOK_URL") \
+            -X POST \
             -H "Content-Type: application/json" \
-            -H "X-Codex-Signature: $(printf '%s' "$RESULT_JSON" | openssl dgst -sha256 -hmac "${{ secrets.N8N_CODEX_RESULTS_HMAC_SECRET }}" | awk '{print $2}')" \
+            -H "X-Codex-Signature: ${SIGNATURE}" \
             -d "$RESULT_JSON")"
 
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
@@ -512,8 +604,8 @@ jobs:
             exit 1
           fi
 
-          FINAL_STATE="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['state'])")"
-          DESCRIPTION="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['description'])")"
+          FINAL_STATE="$(python3 -I -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['state'])")"
+          DESCRIPTION="$(python3 -I -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['description'])")"
 
           # W2 owns the sticky comment; Actions owns the commit status
           # because this job already has statuses:write and n8n's comment
@@ -536,7 +628,7 @@ jobs:
           for i in $(seq 1 6); do
             sleep 5
             gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
-            STATE="$(python3 -c 'import json, sys; run_url = sys.argv[1]; statuses = json.load(open("/tmp/codex-statuses.json")); print(next((status["state"] for status in statuses if status.get("context") == "codex-review/deep-pass" and status.get("target_url") == run_url), ""))' "$RUN_URL")"
+            STATE="$(python3 -I -c 'import json, sys; run_url = sys.argv[1]; statuses = json.load(open("/tmp/codex-statuses.json")); print(next((status["state"] for status in statuses if status.get("context") == "codex-review/deep-pass" and status.get("target_url") == run_url), ""))' "$RUN_URL")"
             if [ "$STATE" != "pending" ] && [ -n "$STATE" ]; then
               echo "codex-review/deep-pass resolved to: $STATE"
               exit 0

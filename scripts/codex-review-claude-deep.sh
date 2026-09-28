@@ -25,11 +25,16 @@ OUTPUT_FILE="${3:?usage: $0 <prompt-file> <schema-file> <output-file>}"
 
 RESPONSE_FILE="$(mktemp)"
 
+# The key goes to curl through a config file descriptor written by the printf
+# BUILTIN, never on a command line: another process of this uid can read any
+# process's argv from /proc. Helpers run with `python3 -I` so nothing in the
+# PR checkout (the script's own directory, the working directory) or a PYTHON*
+# variable can change what they import.
 curl -sS https://api.anthropic.com/v1/messages \
-  -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+  -K <(printf 'header = "x-api-key: %s"\n' "${ANTHROPIC_API_KEY}") \
   -H "anthropic-version: 2023-06-01" \
   -H "content-type: application/json" \
-  -d @<(python3 scripts/codex-review-claude-deep-build-request.py "$PROMPT_FILE" "$SCHEMA_FILE") \
+  -d @<(python3 -I scripts/codex-review-claude-deep-build-request.py "$PROMPT_FILE" "$SCHEMA_FILE") \
   -o "$RESPONSE_FILE"
 
-python3 scripts/codex-review-claude-deep-extract-response.py "$RESPONSE_FILE" "$OUTPUT_FILE"
+python3 -I scripts/codex-review-claude-deep-extract-response.py "$RESPONSE_FILE" "$OUTPUT_FILE"

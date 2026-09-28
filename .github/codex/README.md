@@ -206,6 +206,44 @@ Raw diff hashes identify the exact Git evidence. Prompt hashes identify the
 defanged bytes sent to the model. `CI_INJECT` markers in diff or model-authored
 chunk findings are defanged before prompt assembly.
 
+## Job isolation (hardening, 2026-09-28)
+
+The PR head is untrusted input, and the reviewer steps run third-party code
+(npm, the Codex CLI, a model's tool calls) over it in a job that later holds the
+W2 webhook URL and HMAC secret. `codex-review.yml` therefore:
+
+- checks the PR head out into `./pr`, pinned `actions/checkout`, with
+  `persist-credentials: false`, so no token sits in `pr/.git/config` and tools run
+  from the workspace root or `runner.temp` never read PR-supplied config (npm
+  reads a project `.npmrc` from its working directory);
+- restores helpers from the workflow ref (as before) and runs every Python one
+  with `python3 -I`, so a PR-added `json.py` beside a helper, in the working
+  directory, or a `PYTHON*` variable cannot change what it imports;
+- leaves no Codex key file behind: the reviewer steps authenticate `codex exec`
+  from `CODEX_API_KEY` in their own step env, and `Authenticate Codex CLI` logs
+  in to a throwaway `CODEX_HOME` deleted on every exit path (the step keeps its
+  name, so an auth failure is still attributable to it for
+  `docs/process/deep-pass-admin-exception-policy.md` condition 1);
+- wraps each step that runs third-party code with
+  `scripts/codex-review-step-guard.py`: on exit it kills every process of the
+  runner's uid that started during the step (found by start time, so `setsid`
+  and double forks do not escape) and empties the step's file commands
+  (`$GITHUB_ENV`, `$GITHUB_PATH`, outputs, state, summary). The chunked step
+  writes its two model-id lines only after that cleanup;
+- gives the reviewer child a scrubbed environment
+  (`codex-review-quiet-exec.py`): no `GH_TOKEN`, no runner/Actions variables
+  (including the file-command paths), nothing named like a credential except
+  `CODEX_API_KEY`;
+- never expands a secret into a `run:` script or puts one on a command line: the
+  W2 signature is computed in-process from env, and the W2 URL and the Anthropic
+  key reach curl through a config descriptor written by the `printf` builtin.
+
+Limits: hosted runners give the job passwordless `sudo`, so code that gains root
+can escape any same-uid control, and a guarded step can still read its own
+credential while it runs. The primary boundary remains that PR code is never
+executed and the reviewer runs with `--sandbox read-only`. Out of scope here:
+the reviewer's own handling of repository instruction files in the checkout.
+
 ## Watchdog and heartbeat
 
 **Watchdog recovery is best-effort. There is no 30-minute SLA.** (Issue #710.)
