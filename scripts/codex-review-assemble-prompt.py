@@ -3,7 +3,9 @@
 prior-loop context into .github/codex/review-prompt.md's placeholder blocks.
 
 Usage: codex-review-assemble-prompt.py <output-file>
-Reads LIVE_STATE and LOOP_N from the environment (set by codex-review.yml).
+Reads LIVE_STATE_FILE, PR_DIFF_FILE and LOOP_N from the environment (set by
+codex-review.yml). The live state and diff are PR content, so they arrive as
+files rather than as env values, which Actions prints in the public job log.
 """
 import os
 import pathlib
@@ -45,13 +47,24 @@ def replace_block(text, marker, replacement_body):
     return text[:start_idx] + start + "\n" + replacement_body + "\n" + end + text[end_idx:]
 
 
+def read_required(env_var):
+    """Read the file named by env_var. Missing or empty input is a hard error:
+    a prompt without its evidence must fail the job, not reach the reviewer."""
+    path = os.environ.get(env_var, "")
+    try:
+        text = pathlib.Path(path).read_text() if path else ""
+    except OSError:
+        text = ""
+    if not text.strip():
+        sys.exit(f"codex-review-assemble-prompt: {env_var} is unset, missing or empty")
+    return text
+
+
 def main():
     output_path = sys.argv[1]
 
-    live_state = os.environ["LIVE_STATE"]
-    # PR_DIFF is optional/defensive: the workflow always sets it, but fall back
-    # gracefully rather than crashing the assemble step if it is ever absent.
-    pr_diff = os.environ.get("PR_DIFF", "").strip() or "(no diff was provided to this review)"
+    live_state = read_required("LIVE_STATE_FILE")
+    pr_diff = read_required("PR_DIFF_FILE").strip()
     memory = MEMORY_PATH.read_text()
     loop_n = int(os.environ["LOOP_N"])
 
