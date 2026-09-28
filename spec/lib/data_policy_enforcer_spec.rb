@@ -102,6 +102,33 @@ describe DataPolicyEnforcer do
       expect(LogSession.where(id: during_link.id).count).to eq(0)
     end
 
+    it "skips an organization whose stored retention_months is not a number" do
+      # Values stored before the write-side check existed can be non-numeric. Read as 0 that
+      # would mean "no retention policy" with nothing logged; it is skipped and logged instead,
+      # naming the organization and the value.
+      o, u = sponsored_org(3)
+      o.settings['data_policy']['retention_months'] = 'abc'
+      o.save!
+      stale = log(u, 'session', 4.months.ago)
+
+      expect(Rails.logger).to receive(:warn).with(/#{Regexp.escape(o.global_id)}.*"abc"/)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
+      expect(LogSession.where(id: stale.id).count).to eq(1)
+    end
+
+    it "reads a stored whole-number string as that number" do
+      o, u = sponsored_org(3)
+      o.settings['data_policy']['retention_months'] = '3'
+      o.save!
+      stale = log(u, 'session', 4.months.ago)
+      fresh = log(u, 'session', 1.month.ago)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+      expect(LogSession.where(id: stale.id).count).to eq(0)
+      expect(LogSession.where(id: fresh.id).count).to eq(1)
+    end
+
     it "skips the purge when no sponsorship start date can be established" do
       # On an irreversible deletion an unknown start date must not be read as "since the
       # beginning of time". Links created by the pre-2026-09 claim path carry no 'added' stamp.

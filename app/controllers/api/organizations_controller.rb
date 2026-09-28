@@ -884,7 +884,9 @@ class Api::OrganizationsController < ApplicationController
     else
       {}
     end
-    @org.update_data_policy(attrs.stringify_keys, @api_user)
+    unless @org.update_data_policy(attrs.stringify_keys, @api_user)
+      return api_error(400, {error: "invalid data policy", errors: @org.processing_errors})
+    end
     if @org.save
       render json: JsonApi::Organization.as_json(@org, :wrapper => true, :permissions => @api_user).to_json
     else

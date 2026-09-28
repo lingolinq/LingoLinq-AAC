@@ -100,7 +100,19 @@ module DataPolicyEnforcer
     count = 0
     Organization.where("data_policy_version > 0").find_each do |org|
       policy = org.effective_data_policy
-      months = policy['retention_months']
+      # A value stored before update_data_policy checked it can be non-numeric. Read as 0 it
+      # would mean "no retention policy" with nothing logged, so it is skipped and logged
+      # instead, like the per-student skips below. A whole-number string is read as its number.
+      raw_months = policy['retention_months']
+      begin
+        months = Organization.data_policy_number(raw_months)
+      rescue ArgumentError
+        Rails.logger.warn(
+          "DataPolicyEnforcer: skipping retention purge for org #{org.global_id}; " \
+          "retention_months #{raw_months.inspect} is not a whole number"
+        )
+        next
+      end
       next unless months && months > 0
 
       cutoff = months.months.ago

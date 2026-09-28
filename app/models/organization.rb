@@ -392,6 +392,22 @@ class Organization < ApplicationRecord
                                 log_publishing_allowed research_opt_in_allowed].freeze
   DATA_POLICY_NUMERIC_KEYS = %w[max_logging_cutoff_hours retention_months].freeze
 
+  # A numeric data-policy value as an Integer: nil stays nil, a whole number of 0 or more (an
+  # Integer, or a String of digits with optional surrounding spaces) is returned, and anything
+  # else raises ArgumentError. Used on write (update_data_policy refuses the request) and on
+  # read (DataPolicyEnforcer skips the organization), so a malformed value is never read as 0.
+  # It used to be coerced with to_i, which turned "abc" into 0, and DataPolicyEnforcer treats 0
+  # retention_months as "no retention policy", so the purge stopped with no error.
+  WHOLE_NUMBER = /\A\s*\d+\s*\z/.freeze
+
+  def self.data_policy_number(value)
+    return nil if value.nil?
+    return value if value.is_a?(Integer) && value >= 0
+    return value.strip.to_i if value.is_a?(String) && value.match?(WHOLE_NUMBER)
+
+    raise ArgumentError, "#{value.inspect} is not a whole number of 0 or more"
+  end
+
   def self.cast_data_policy_value(key, value)
     return nil if value.nil?
 
@@ -401,13 +417,29 @@ class Organization < ApplicationRecord
 
       !!value
     elsif DATA_POLICY_NUMERIC_KEYS.include?(key)
-      value.to_i
+      data_policy_number(value)
     else
       value
     end
   end
 
+  # Returns true when applied. Returns false, with a processing error per bad key and nothing
+  # changed, when a numeric key is not a whole number of 0 or more.
   def update_data_policy(policy_params, updater)
+    invalid = DATA_POLICY_NUMERIC_KEYS.select do |key|
+      next false unless policy_params.key?(key)
+      begin
+        Organization.data_policy_number(policy_params[key])
+        false
+      rescue ArgumentError
+        true
+      end
+    end
+    if invalid.any?
+      invalid.each { |key| add_processing_error("#{key} must be a whole number of 0 or more") }
+      return false
+    end
+
     self.settings ||= {}
     self.settings['data_policy'] ||= {}
     DATA_POLICY_KEYS.each do |key|
@@ -427,6 +459,7 @@ class Organization < ApplicationRecord
       'policy' => self.settings['data_policy'],
       'version' => self.data_policy_version
     })
+    true
   end
 
   def self.admin
@@ -2203,7 +2236,7 @@ class Organization < ApplicationRecord
     end
     if params[:data_policy].is_a?(Hash) || (params[:data_policy].respond_to?(:to_unsafe_h) && params[:data_policy].to_unsafe_h.is_a?(Hash))
       policy_hash = params[:data_policy].respond_to?(:to_unsafe_h) ? params[:data_policy].to_unsafe_h : params[:data_policy]
-      self.update_data_policy(policy_hash.stringify_keys, non_user_params['updater'])
+      return false unless self.update_data_policy(policy_hash.stringify_keys, non_user_params['updater'])
     end
 
     @processed = true

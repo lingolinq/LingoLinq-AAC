@@ -3687,6 +3687,50 @@ describe Organization, :type => :model do
       expect(policy['log_publishing_allowed']).to eq(false)
     end
 
+    it "rejects a non-numeric retention_months and leaves the stored policy unchanged" do
+      # Coerced with to_i, "abc" was stored as 0, which DataPolicyEnforcer reads as "no
+      # retention policy", so the organization's purge stopped without any error. The write is
+      # refused as a whole: no key from the same request is applied.
+      o = Organization.create
+      u = User.create
+      o.update_data_policy({'retention_months' => 12}, u)
+      o.save
+
+      result = o.update_data_policy({'retention_months' => 'abc', 'geo_logging_allowed' => false}, u)
+
+      expect(result).to eq(false)
+      expect(o.processing_errors.join(' ')).to match(/retention_months/)
+      o.save
+      o.reload
+      expect(o.data_policy['retention_months']).to eq(12)
+      expect(o.data_policy['geo_logging_allowed']).to be_nil
+      expect(o.data_policy_version).to eq(1)
+    end
+
+    it "accepts whole-number values and refuses every other shape for the numeric keys" do
+      u = User.create
+      {12 => 12, '12' => 12, ' 12 ' => 12, 0 => 0, nil => nil}.each do |input, stored|
+        o = Organization.create
+        expect(o.update_data_policy({'retention_months' => input}, u)).to eq(true), "expected #{input.inspect} accepted"
+        expect(o.data_policy['retention_months']).to eq(stored)
+      end
+      ['abc', '', '3.5', '-1', -1, 3.5, true, [], {}].each do |input|
+        %w[retention_months max_logging_cutoff_hours].each do |key|
+          o = Organization.create
+          expect(o.update_data_policy({key => input}, u)).to eq(false), "expected #{key}=#{input.inspect} refused"
+          expect(o.data_policy.key?(key)).to eq(false)
+        end
+      end
+    end
+
+    it "refuses a non-numeric retention_months through process_params" do
+      o = Organization.create
+      u = User.create
+      expect(o.process({'data_policy' => {'retention_months' => 'abc'}}, {'updater' => u})).to eq(false)
+      expect(o.processing_errors.join(' ')).to match(/retention_months/)
+      expect(o.data_policy['retention_months']).to be_nil
+    end
+
     it "should accept data_policy through process_params" do
       o = Organization.create
       u = User.create
