@@ -8,6 +8,7 @@ class Organization < ApplicationRecord
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
+  after_save :log_external_auth_change
   has_many :licenses
   include Replicate
 
@@ -1606,6 +1607,7 @@ class Organization < ApplicationRecord
       return false
     end
     raise "updater required" unless non_user_params['updater']
+    external_auth_before = external_auth_snapshot
     if self.admin
       if params[:sale_cutoff_date]
         date = Date.parse(params[:sale_cutoff_date]) rescue nil
@@ -1725,7 +1727,7 @@ class Organization < ApplicationRecord
     end
     self.settings['saml_metadata_url'] = params['saml_metadata_url'] if params['saml_metadata_url'] != nil
     self.settings['saml_sso_url'] = params['saml_sso_url'] if params['saml_sso_url'] != nil
-    self.settings['saml_enforced'] = params['saml_enforced'] if params['saml_enforced'] != nil
+    self.settings['saml_enforced'] = process_boolean(params['saml_enforced']) if params['saml_enforced'] != nil
 
     if params[:host_settings]
       self.settings['host_settings'] ||= {}
@@ -1905,8 +1907,42 @@ class Organization < ApplicationRecord
       policy_hash = params[:data_policy].respond_to?(:to_unsafe_h) ? params[:data_policy].to_unsafe_h : params[:data_policy]
       self.update_data_policy(policy_hash.stringify_keys, non_user_params['updater'])
     end
+    stage_external_auth_change(external_auth_before, non_user_params['updater'])
 
     @processed = true
     true
+  end
+
+  EXTERNAL_AUTH_SETTINGS = ['saml_metadata_url', 'saml_sso_url', 'saml_enforced', 'external_auth_shortcut'].freeze
+
+  private
+
+  def external_auth_snapshot
+    EXTERNAL_AUTH_SETTINGS.map do |key|
+      value = self.settings[key]
+      [key, key == 'saml_enforced' ? !!value : value]
+    end.to_h
+  end
+
+  # Holds which external auth settings changed until the save succeeds, so the
+  # audit row exists only for a persisted change and carries the org id on create.
+  def stage_external_auth_change(before, updater)
+    after = external_auth_snapshot
+    changed = EXTERNAL_AUTH_SETTINGS.select { |key| before[key] != after[key] }
+    @external_auth_change = changed.empty? ? nil : {'updater' => updater, 'changed' => changed}
+  end
+
+  # Records the changed setting names and the resulting enforcement flag, never
+  # the URLs or the shortcut themselves.
+  def log_external_auth_change
+    change = @external_auth_change
+    return unless change
+    @external_auth_change = nil
+    AuditEvent.log_command(change['updater'].global_id, {
+      'type' => 'org_external_auth_update',
+      'organization_id' => self.global_id,
+      'saml_enforced' => !!self.settings['saml_enforced'],
+      'changed' => change['changed']
+    })
   end
 end

@@ -8379,6 +8379,7 @@
   "saml_metadata_url": "SAML metadata URL",
   "sso_url_override": "SSO URL override",
   "require_external_auth": "Require all org users to log in using external authentication",
+  "require_external_auth_linked": "Members who have linked an external login must sign in with it",
   "premium_features": "Premium Features",
   "support_emails": "Support Emails",
   "allow_support_target": "Email a copy of all support tickets from within this organization",

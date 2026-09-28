@@ -64,6 +64,19 @@ describe JsonApi::Organization do
       expect(res['external_ai_processing']).to eq(false)
     end
 
+    it "should include saml_enforced when edit permissions are allowed" do
+      o = Organization.create(settings: {'saml_metadata_url' => 'https://idp.example.com/metadata', 'saml_enforced' => true})
+      u = User.create
+      o.add_manager(u.user_name, true)
+      u.reload
+      res = JsonApi::Organization.build_json(o, :permissions => u)
+      expect(res['saml_enforced']).to eq(true)
+      o.settings['saml_enforced'] = false
+      o.save!
+      res = JsonApi::Organization.build_json(o.reload, :permissions => u)
+      expect(res['saml_enforced']).to eq(false)
+    end
+
     it "should include jurisdiction when edit permissions are allowed" do
       o = Organization.create(settings: {'jurisdiction' => 'EU'})
       u = User.create

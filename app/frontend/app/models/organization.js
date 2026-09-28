@@ -52,6 +52,7 @@ LingoLinq.Organization = BaseModel.extend({
   licenses_expire: attr('string'),
   saml_metadata_url: attr('string'),
   saml_sso_url: attr('string'),
+  saml_enforced: attr('boolean', {allowNull: true}),
   image_url: attr('string'),
   created: attr('date'),
   children_orgs: attr('raw'),

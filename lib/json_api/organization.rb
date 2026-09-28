@@ -43,6 +43,7 @@ module JsonApi::Organization
       end
       json['saml_metadata_url'] = org.settings['saml_metadata_url']
       json['saml_sso_url'] = org.settings['saml_sso_url']
+      json['saml_enforced'] = !!org.settings['saml_enforced']
 
       if org.admin
         json['sale_cutoff_date'] = Setting.get('sale_cutoff_date')

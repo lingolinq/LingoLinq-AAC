@@ -1326,6 +1326,71 @@ describe Organization, :type => :model do
       o.process({'allotted_licenses' => 2}, {'updater' => u})
       expect(o.settings['purchase_events']).to eq(nil)
     end
+
+    it "should store saml_enforced as a boolean" do
+      o = Organization.create
+      u = User.create
+      o.process({'saml_enforced' => 'false'}, {'updater' => u})
+      expect(o.settings['saml_enforced']).to eq(false)
+      o.process({'saml_enforced' => 'true'}, {'updater' => u})
+      expect(o.settings['saml_enforced']).to eq(true)
+    end
+
+    it "should keep saml_enforced when the update sends null" do
+      o = Organization.create(:settings => {'saml_metadata_url' => 'https://idp.example.com/metadata', 'saml_enforced' => true})
+      u = User.create
+      o.process({'saml_enforced' => nil}, {'updater' => u})
+      expect(o.reload.settings['saml_enforced']).to eq(true)
+    end
+
+    it "should log an audit event when external auth settings change" do
+      o = Organization.create
+      u = User.create
+      expect(AuditEvent).to receive(:log_command).with(u.global_id, hash_including(
+        'type' => 'org_external_auth_update',
+        'organization_id' => o.global_id,
+        'saml_enforced' => true,
+        'changed' => ['saml_metadata_url', 'saml_enforced']
+      ))
+      o.process({'saml_metadata_url' => 'https://idp.example.com/metadata', 'saml_enforced' => true}, {'updater' => u})
+    end
+
+    it "should log an audit event when the external auth shortcut changes" do
+      o = Organization.create
+      u = User.create
+      expect(AuditEvent).to receive(:log_command).with(u.global_id, hash_including(
+        'type' => 'org_external_auth_update',
+        'changed' => ['external_auth_shortcut']
+      ))
+      o.process({'external_auth_shortcut' => 'district-login'}, {'updater' => u})
+    end
+
+    it "should include the new org id when external auth is set at creation" do
+      u = User.create
+      logged = []
+      allow(AuditEvent).to receive(:log_command) { |user_key, data| logged << data }
+      o = Organization.process_new({'name' => 'District', 'jurisdiction' => 'US', 'saml_metadata_url' => 'https://idp.example.com/metadata', 'saml_enforced' => true}, {'updater' => u})
+      expect(o.errored?).to eq(false)
+      entry = logged.detect { |data| data['type'] == 'org_external_auth_update' }
+      expect(entry).to_not eq(nil)
+      expect(entry['organization_id']).to eq(o.global_id)
+      expect(entry['organization_id']).to_not eq(nil)
+    end
+
+    it "should not log an audit event when the save fails" do
+      o = Organization.create
+      u = User.create
+      allow(o).to receive(:save).and_return(false)
+      expect(AuditEvent).not_to receive(:log_command).with(anything, hash_including('type' => 'org_external_auth_update'))
+      o.process({'saml_metadata_url' => 'https://idp.example.com/metadata', 'saml_enforced' => true}, {'updater' => u})
+    end
+
+    it "should not log an audit event when external auth settings are unchanged" do
+      o = Organization.create(:settings => {'saml_metadata_url' => 'https://idp.example.com/metadata'})
+      u = User.create
+      expect(AuditEvent).not_to receive(:log_command).with(anything, hash_including('type' => 'org_external_auth_update'))
+      o.process({'saml_metadata_url' => 'https://idp.example.com/metadata', 'saml_enforced' => false}, {'updater' => u})
+    end
   end
   
   describe "subscription management" do

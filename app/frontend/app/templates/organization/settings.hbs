@@ -134,7 +134,7 @@
             <input value={{this.model.saml_sso_url}} class="md-org-settings-input" id="sso_url" placeholder="SSO URL Override (optional)" aria-label={{t "SSO URL override" key="sso_url_override"}} {{on "input" (set-field this "model.saml_sso_url")}} />
             <label class="md-org-settings-toggle">
               <input type="checkbox" checked={{this.model.saml_enforced}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.saml_enforced" "checkbox")}} />
-              <span class="md-org-settings-toggle__label">{{t "Require all org users to log in using external authentication" key="require_external_auth"}}</span>
+              <span class="md-org-settings-toggle__label">{{t "Members who have linked an external login must sign in with it" key="require_external_auth_linked"}}</span>
             </label>
           </div>
         {{/if}}
