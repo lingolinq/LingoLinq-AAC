@@ -290,14 +290,14 @@ class Organization < ApplicationRecord
       #
       # This organization has ONE org_user link per student, so it is shared with any sibling
       # claim by this organization that seated the student on a different seat and succeeded.
-      # The link is removed only when no active seat of this organization still holds the
+      # The link is removed only when no active student seat of this organization still holds the
       # student, and that re-check and the removal run in a fresh user lock: step 2 assigns
       # seats under the same lock, so a sibling's seat is either already visible here or is
       # assigned after the removal, in which case its own attach recreates the link. Removing it
       # unconditionally left a successful claim holding a seat with no link. The raise below
       # stays outside the lock.
       user.with_lock do
-        still_seated = self.licenses.where(user_id: user.id, status: 'active').exists?
+        still_seated = self.licenses.where(user_id: user.id, status: 'active', seat_type: 'student').exists?
         UserLink.remove(user, self, 'org_user') unless still_seated
       end
       if inactive_status

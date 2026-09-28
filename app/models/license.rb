@@ -80,14 +80,16 @@ class License < ApplicationRecord
     count
   end
 
-  # Does an organization OTHER than `org` still hold an active seat for this user? Offboarding
-  # to family care is skipped while one does (License.expire_stale_licenses!,
+  # Does an organization OTHER than `org` still hold an active STUDENT seat for this user?
+  # Offboarding to family care is skipped while one does (License.expire_stale_licenses!,
   # Organization#remove_user, and the re-check inside User#begin_family_offboarding_consents!).
   # Only a positive answer skips it: otherwise offboarding runs as it did before this check
-  # existed.
+  # existed. A supervisor seat is not support for the student as a communicator, so it never
+  # counts.
   def self.active_seat_elsewhere?(user, org)
     return false unless user
-    License.where(user_id: user.id, status: 'active').where.not(organization_id: org&.id).exists?
+    License.where(user_id: user.id, status: 'active', seat_type: 'student')
+           .where.not(organization_id: org&.id).exists?
   end
 
   def release_user!
@@ -154,7 +156,9 @@ class License < ApplicationRecord
       # Read the survivor with an explicit `where.not(id: self.id)` rather than relying on the
       # release above having already nilled our own user_id, so the result does not depend on
       # statement order inside this transaction.
-      survivor = License.where(user_id: old_user.id, status: 'active')
+      # Student seats only: a supervisor seat does not sponsor the student as a communicator,
+      # so the column must not move to it and it must not hold off the hand-back.
+      survivor = License.where(user_id: old_user.id, status: 'active', seat_type: 'student')
                         .where.not(id: self.id)
                         .order(:expires_at)
                         .last

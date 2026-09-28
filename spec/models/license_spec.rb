@@ -156,6 +156,23 @@ describe License, :type => :model do
       expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
     end
 
+    it "hands the account back when the only other active seat is a supervisor seat" do
+      # A supervisor seat does not sponsor the student as a communicator, so it is not a
+      # survivor: the column must not move to it and the family gets the hand-back.
+      u = User.create
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      clinic = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: district, seat_type: 'student', status: 'active')
+      district.claim_user(u)
+      License.create!(organization: clinic, seat_type: 'supervisor', status: 'active', user: u.reload, expires_at: 3.years.from_now)
+
+      license.reload.release_user!
+
+      u.reload
+      expect(u.managing_organization_id).to be_nil
+      expect(u.expires_at).to be_within(1.day).of(2.months.from_now)
+    end
+
     it "gives the family back the paid time banked when the seat was claimed" do
       # The claim banks the family's remaining paid time in seconds_left. When the last seat
       # goes, that time is theirs again; a flat two-month trial in its place loses it.

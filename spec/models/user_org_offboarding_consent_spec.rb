@@ -445,6 +445,22 @@ describe 'User org offboarding parental consent', type: :model do
       expect(afternoon_seat.reload.user_id).to eq(u.id)
     end
 
+    it 'offboards on removal when the only other active seat is a supervisor seat' do
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: 'rmsup')
+      morning.claim_user(u)
+      License.create!(organization: afternoon, seat_type: 'supervisor', status: 'active', user: u.reload)
+      b = under13_birth
+
+      morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['coppa']['offboarding']).to eq(true)
+    end
+
     it 'keeps the age attestation so a 15-year-old is not offboarded later' do
       # Offboarding is skipped while another seat survives, but the manager's age attestation
       # is still recorded. Without it the later expiry of the surviving seat sees
@@ -562,6 +578,26 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.settings['school_authorization']).to eq(authorization_before)
       expect(survivor.reload.user_id).to eq(u.id)
       expect(u.managing_organization_id).to eq(afternoon.id)
+    end
+
+    it 'offboards when the only other active seat is a supervisor seat' do
+      # A supervisor seat is not support for the student as a communicator, so it must not
+      # hold off the hand-back to the family.
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'licsup')
+      lic = License.create!(organization: morning, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      supervisor_seat = License.create!(organization: afternoon, seat_type: 'supervisor', status: 'active', user: u, expires_at: 1.year.from_now)
+      u.update!(managing_organization_id: morning.id)
+
+      expect(License.expire_stale_licenses!).to be >= 1
+
+      u.reload
+      expect(lic.reload.user_id).to eq(nil)
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['school_authorization']).to be_nil
+      expect(u.managing_organization_id).to be_nil
+      expect(supervisor_seat.reload.user_id).to eq(u.id)
     end
 
     it 'offboards once when every seat expires in the same run' do

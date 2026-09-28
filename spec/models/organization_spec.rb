@@ -4354,6 +4354,24 @@ describe Organization, :type => :model do
       expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to_not be_nil
     end
 
+    it "removes the link when the organization's only other seat for the student is a supervisor seat" do
+      # The link this cleanup removes is the communicator link, so only a student seat keeps it.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+      License.create!(organization: org, seat_type: 'supervisor', status: 'active', user: u)
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{license.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/lost a concurrent race/)
+
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
     it "re-checks the organization's seats and removes the link under one user lock" do
       # Structure behind the two examples above: a sibling claim assigns its seat under the user
       # lock, so the losing claim's re-check and removal must share one lock, or the sibling can
