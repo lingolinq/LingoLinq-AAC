@@ -293,7 +293,7 @@ rc=$(run_guard)
 # 13e. REGRESSION FIXTURE: an unparseable register must not read as "nothing to protect".
 #      rows_from used to rescue JSON::ParserError to [], so a truncated register made the
 #      protected set empty and every disclosure passed. Run WITHOUT --base-ref, which is
-#      the guard's own documented Usage line and the shape the companion pre-push hook uses.
+#      the guard's own documented Usage line.
 reset_repo
 register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
 printf -- '- LL-1111111111 is in app/models/widget.rb\n' > "$TMP/repo/docs/task-management/handoff.md"
@@ -588,6 +588,27 @@ else
   fi
 fi
 chmod 644 "$TMP/repo/docs/task-management/locked.md"
+
+# 16d. REGRESSION FIXTURE: the working directory must not shrink what is checked. The
+#      register paths and `git ls-files` were cwd-relative, so a run from a subdirectory
+#      found no register, protected nothing, and exited 0 "nothing to protect". No
+#      --base-ref here, which is the documented Usage shape a manual run takes. Outside a
+#      git work tree there is nothing to anchor to, so that must fail too, not pass.
+#      GIT_CEILING_DIRECTORIES stops git from finding a repo above the temp dir.
+reset_repo
+register "open" "Weakness (details withheld until remediation is verified)" "Minimized 2026-09-17 under the security disclosure policy."
+printf -- '- LL-1111111111 is in app/models/widget.rb\n' > "$TMP/repo/docs/task-management/handoff.md"
+git -C "$TMP/repo" add -A >/dev/null 2>&1
+rc=$( cd "$TMP/repo/docs/task-management" && ruby "$GUARD" --check >"$TMP/out" 2>&1; echo $? )
+if [ "$rc" -eq 1 ] && grep -q 'LL-1111111111' "$TMP/out"; then
+  pass "a run from a subdirectory still scans the whole repository"
+else
+  fail "a run from a subdirectory passed (exit $rc)"; cat "$TMP/out"
+fi
+mkdir -p "$TMP/not-a-repo"
+rc=$( cd "$TMP/not-a-repo" && GIT_CEILING_DIRECTORIES="$TMP" ruby "$GUARD" --check >"$TMP/out" 2>&1; echo $? )
+[ "$rc" -ne 0 ] && pass "a run outside a git work tree fails instead of passing" \
+  || { fail "a run outside a git work tree passed (exit $rc)"; cat "$TMP/out"; }
 
 echo ""
 if [ "$fails" -eq 0 ]; then

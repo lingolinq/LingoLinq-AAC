@@ -28,8 +28,8 @@
 #   * It fires in CI, which is AFTER the push. On a public repo the content is already
 #     world-readable at that point, and stays reachable through refs/pull/<n>/head even
 #     after the PR is closed and the branch deleted. This narrows the window and stops
-#     the merge; it does not prevent the disclosure. A pre-push hook is the companion
-#     control, not an alternative to it.
+#     the merge; it does not prevent the disclosure. Nothing in this repository runs it
+#     before a push today.
 #   * It cannot tell whether a cited path is the SAME path held in the private evidence
 #     store, so it treats any code path beside a protected id as a violation.
 #   * A change that deletes or conditionalises its own CI step defeats it. That is a
@@ -46,6 +46,10 @@
 #       - Binary-ish documents. A NUL byte in the first SNIFF_BYTES skips the file, so a
 #         .docx, .pdf or screenshot carrying the id and the path is never read. The incident
 #         this guard was written for was a handoff DOCUMENT; that is the likely real format.
+#       - Checked-out bytes, not committed bytes. The guard reads the working tree. A
+#         .gitattributes `working-tree-encoding` (UTF-16LE, say) makes the checked-out copy
+#         NUL-bearing, so it is skipped as binary, while the committed blob, which is what
+#         GitHub serves, stays plain UTF-8 text carrying the id and the path.
 #       - Path forms outside CODE_PATH: .scss, .css, .md, .json, .sql, .haml, anything under
 #         scripts/ or docs/, `file.rb#L42`, a symbol reference such as Foo::Bar#baz, or the
 #         path written in prose. The comment on CODE_PATH names only the widenings that were
@@ -69,11 +73,17 @@
 # verified by fixture, exit 1 became exit 0. legal-naming-check.rb reads its allowlist
 # at the base revision for exactly this reason. CI always passes it.
 #
+# Runs from any directory inside the work tree: it anchors itself to the repository root
+# (git rev-parse --show-toplevel), so a run from a subdirectory scans the whole repository.
+# REGISTER arguments are resolved from the directory you run it in. Outside a git work
+# tree it refuses to run.
+#
 # Exit codes: 0 = no protected id sits beside a code path; 1 = one or more violations.
 
 require 'json'
 require 'open3'
 require 'optparse'
+require 'pathname'
 require 'set'
 
 # Both registers, matching the sibling register-lint CI step. FINDINGS-EMBER.json carries no
@@ -104,10 +114,9 @@ NOTES_MARKER = /minimized\b[^.]*under the security disclosure policy/i
 # is what the minimization itself trims; it does NOT cover the prose, which is exempt only as
 # a side effect of the prefix.
 #
-# KNOWN CONSEQUENCE, not hypothetical: audit-reports/domain-reports/2026-08-12/
-# infra-audit-2026-08-12.md (committed 2026-08-17, a month before the 2026-09-17
-# minimization) carries an open High's id beside its Location and mechanism, and this guard
-# exits 0 over it. Narrowing this list to the generated files is the correct end state and
+# KNOWN CONSEQUENCE, not hypothetical: a dated domain report under audit-reports/,
+# committed before the 2026-09-17 minimization, carries an open High's id beside its
+# Location and mechanism, and this guard exits 0 over it. Narrowing this list to the generated files is the correct end state and
 # will turn CI red until that report is minimized -- a disclosure decision reserved to Scot,
 # tracked separately. Until then a pass from this guard means "no NEW pairing outside
 # audit-reports/", which is what the OK line now says.
@@ -160,8 +169,8 @@ rescue JSON::ParserError => e
   # NOT `[]`. A security control must never read "I cannot parse the register" as "there is
   # nothing to protect": an empty protected set makes every disclosure pass. Under --check
   # with --base-ref the demotion check happened to turn this into an exit 1 anyway, but the
-  # guard's own documented Usage line and the companion pre-push hook both run without a base
-  # ref, and there it exited 0 with a message blaming marker drift for a truncated file.
+  # guard's own documented Usage line runs without a base ref, and there it exited 0 with a
+  # message blaming marker drift for a truncated file.
   abort("minimized-disclosure-guard: register is not valid JSON (#{e.message}). " \
         'Refusing to treat an unreadable register as an empty one.')
 end
@@ -412,6 +421,27 @@ rescue SystemCallError, IOError, ArgumentError => e
         'Refusing to treat an unscanned file as clean.')
 end
 
+# The repository root. Register paths and `git ls-files` are both relative to the working
+# directory, so a run from a subdirectory used to find no register, protect nothing, and
+# exit 0 "nothing to protect". Outside a work tree there is no root to anchor to, and that
+# is a refusal, not a pass.
+def repo_root!
+  out, _err, status = Open3.capture3('git', 'rev-parse', '--show-toplevel')
+  root = out.strip
+  return root if status.success? && !root.empty?
+
+  warn 'minimized-disclosure-guard: not inside a git work tree, so there is nothing to'
+  warn 'anchor the register or the tracked-file list to. Refusing rather than passing.'
+  exit 1
+end
+
+# A REGISTER argument as the user meant it (relative to where they ran the command),
+# re-expressed relative to the repository root, which is where the guard runs from and
+# the form `git show REF:path` needs.
+def repo_relative(arg, root)
+  Pathname.new(File.expand_path(arg)).relative_path_from(Pathname.new(root)).to_s
+end
+
 def main
   mode = nil
   base_ref = nil
@@ -430,12 +460,15 @@ def main
     exit 1
   end
 
+  root = repo_root!
+  registers = ARGV.empty? ? DEFAULT_REGISTERS : ARGV.map { |arg| repo_relative(arg, root) }
+  Dir.chdir(root)
+
   unless base_ref.nil?
     verify_base_ref!(base_ref)
     base_ref = effective_base(base_ref)
   end
 
-  registers = ARGV.empty? ? DEFAULT_REGISTERS : ARGV
   ids = protected_ids(registers, base_ref)
 
   if mode == :list
