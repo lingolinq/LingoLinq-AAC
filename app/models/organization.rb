@@ -152,32 +152,45 @@ class Organization < ApplicationRecord
       raise "Seat claim for #{user.global_id} did not complete the organization attach; re-run the claim"
     end
 
-    # 5. Confirm we still hold the seat BEFORE writing the managing-organization column.
-    #
-    # Checked before the write, not after: a claim that lost a concurrent race used to write
-    # its own id over the winner's and only then notice, leaving the column pointing at a
-    # district with no seat. We undo only our own link, never the winner's.
-    if license.reload.user_id != user.id
-      # Cleanup is conditional on losing the SEAT, not on whether we attached in this call.
-      # Gating it on attached_now left a district that had been invited and had accepted
-      # holding an accepted org_user link with no license when it lost the race, and
+    # 5 and 6 run inside ONE lock on the user row, the same lock License#release_user! takes
+    # before it frees a seat and repoints the column (license.rb, release_user!). Checked and
+    # written separately, a release landing between the check and the write let this claim
+    # write back the id of an organization whose seat had just been freed and report success.
+    # The lock order is user then license, matching release_user!.
+    lost_seat = false
+    user.with_lock do
+      # 5. Confirm we still hold the seat BEFORE writing the managing-organization column.
+      #
+      # Checked before the write, not after: a claim that lost a concurrent race used to write
+      # its own id over the winner's and only then notice, leaving the column pointing at a
+      # district with no seat.
+      if license.reload.user_id != user.id
+        lost_seat = true
+        next
+      end
+
+      # 6. Set the managing-organization COLUMN. It is a separate field from the link-derived
+      # User#managing_organization, and several consumers read the column directly
+      # (telemetry_event.rb, user.rb, the word predictor), so the link write does not cover them.
+      # Stamp the expiry's provenance in the same write. The guard above depends on this: it is
+      # the only signal that distinguishes an expiry this method granted from one the family paid
+      # for. Assigned as a new hash rather than mutated in place so dirty tracking sees it through
+      # secure_serialize. Built after with_lock has reloaded the row, so nothing is lost.
+      subscription = (user.settings['subscription'] || {}).merge('expiration_source' => 'org_license')
+      user.settings = (user.settings || {}).merge('subscription' => subscription)
+      user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
+    end
+
+    if lost_seat
+      # Outside the lock. Cleanup is conditional on losing the SEAT, not on whether we attached
+      # in this call. Gating it on attached_now left a district that had been invited and had
+      # accepted holding an accepted org_user link with no license when it lost the race, and
       # Organization.manager_for? reads that link while ignoring seats: the losing district's
       # managers would keep managing a student it does not pay for. Scoped to self, so it can
       # never touch the winner's link.
       UserLink.remove(user, self, 'org_user')
       raise "Seat claim for #{user.global_id} lost a concurrent race; re-run the claim"
     end
-
-    # 6. Set the managing-organization COLUMN. It is a separate field from the link-derived
-    # User#managing_organization, and several consumers read the column directly
-    # (telemetry_event.rb, user.rb, the word predictor), so the link write does not cover them.
-    # Stamp the expiry's provenance in the same write. The guard above depends on this: it is
-    # the only signal that distinguishes an expiry this method granted from one the family paid
-    # for. Assigned as a new hash rather than mutated in place so dirty tracking sees it through
-    # secure_serialize.
-    subscription = (user.settings['subscription'] || {}).merge('expiration_source' => 'org_license')
-    user.settings = (user.settings || {}).merge('subscription' => subscription)
-    user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
 
     # 7. Refresh the student's available boards. update_subscription_organization does not do
     # this, while every other attach and detach path in this model does. A claim changes which

@@ -4056,5 +4056,50 @@ describe Organization, :type => :model do
 
       expect(u).to have_received(:schedule).with(:update_available_boards)
     end
+
+    it "re-reads the seat and writes the sponsor column under the user lock" do
+      # License#release_user! takes the user lock before it frees a seat and repoints the
+      # column. The final seat check and the column write must sit inside that same lock, or a
+      # release landing between them lets this claim write back an organization that no longer
+      # holds a seat. The interleaving itself cannot be reproduced in the transactional suite,
+      # which runs on one connection, so this asserts the structure that prevents it.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      depth = 0
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          depth += 1
+          begin
+            blk.call
+          ensure
+            depth -= 1
+          end
+        end
+      end
+      # Observe the seat reads at the SQL layer: License#reload is defined on a prepended module
+      # that RSpec cannot stub.
+      seat_reads = []
+      subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        seat_reads << (depth > 0) if payload[:sql] =~ /\ASELECT .* FROM "licenses" WHERE "licenses"\."id" = /
+      end
+      column_writes = []
+      allow(u).to receive(:update!).and_wrap_original do |orig, *args|
+        column_writes << (depth > 0) if args.first.is_a?(Hash) && args.first.key?(:managing_organization_id)
+        orig.call(*args)
+      end
+
+      begin
+        org.claim_user(u)
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      # Two reads of the seat row: the one after the compare-and-set, and the final check.
+      expect(seat_reads).to eq([true, true])
+      expect(column_writes).to eq([true])
+      expect(u.reload.managing_organization_id).to eq(org.id)
+    end
   end
 end
