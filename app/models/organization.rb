@@ -151,6 +151,7 @@ class Organization < ApplicationRecord
     # than the defect this method fixes, and add_user never had a transaction here.
     attached_now = false
     prior_link_state = nil
+    attempt_stamp = nil
     unless attached_as_communicator?(user)
       attached_now = true
       # Remember this organization's link as it was, so a failed attach can put it back (see
@@ -200,12 +201,17 @@ class Organization < ApplicationRecord
         end
       end
 
+      stamp_before = user.updated_at
       begin
         user.update_subscription_organization(self, false, true)
       rescue StandardError
         restore_org_user_link_state!(user, prior_link_state)
         raise
       end
+      # The routine saves this user object once, at its end, and nothing before that save
+      # writes the row through it. Rails sets updated_at on the object only when that save
+      # runs, so a new value means this attempt's save happened (checked in step 4).
+      attempt_stamp = user.updated_at unless user.updated_at == stamp_before
     end
 
     user.reload
@@ -224,7 +230,13 @@ class Organization < ApplicationRecord
     # asks for skipped the attach and this check and reported success with the attach still
     # incomplete. Restored rather than deleted, so an invitation or unsponsored link this
     # organization already had is not lost with the failed attach.
-    if attached_now && user.settings.dig('subscription', 'added_org_id') != self.global_id
+    #
+    # added_org_id alone cannot show that THIS attempt applied: detaching never deletes it, so
+    # a student this organization attached before already carries its id, and a re-attach that
+    # hit the stale-record rescue passed the check with nothing saved. The check therefore also
+    # requires that this attempt's save ran (attempt_stamp, set in step 3). This method must not
+    # run inside a transaction (step 3), so a save that ran has been stored.
+    if attached_now && (attempt_stamp.nil? || user.settings.dig('subscription', 'added_org_id') != self.global_id)
       restore_org_user_link_state!(user, prior_link_state)
       raise "Seat claim for #{user.global_id} did not complete the organization attach; re-run the claim"
     end

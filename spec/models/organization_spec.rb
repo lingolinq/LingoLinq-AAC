@@ -4156,6 +4156,38 @@ describe Organization, :type => :model do
       expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
     end
 
+    it "does not accept an attach marker left by an earlier attach of the same organization" do
+      # Detaching never deletes added_org_id, so a student this organization attached before
+      # still carries its id. When the re-attach hits the stale-record rescue, nothing this
+      # attempt wrote is saved, and the old marker must not read as this attempt's success.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      u.settings['subscription'] = {'added_org_id' => org.global_id, 'added_to_organization' => 1.year.ago.iso8601}
+      u.expires_at = 2.years.from_now
+      u.save!
+      expires_before = u.reload.expires_at
+      License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      allow(u).to receive(:assert_current_record!).and_raise(ActiveRecord::StaleObjectError)
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+
+      u.reload
+      expect(u.managing_organization_id).to be_nil
+      expect(u.expires_at).to eq(expires_before)
+    end
+
+    it "does not accept an attach whose save did not run" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      u.settings['subscription'] = {'added_org_id' => org.global_id, 'added_to_organization' => 1.year.ago.iso8601}
+      u.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:save).and_return(false)
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+      expect(u.reload.managing_organization_id).to be_nil
+    end
+
     it "refreshes the student's available boards" do
       u = User.create
       org = Organization.create(:settings => {'total_licenses' => 1})
