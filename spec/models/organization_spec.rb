@@ -4240,6 +4240,98 @@ describe Organization, :type => :model do
       expect(UserLink.links_for(u, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
     end
 
+    it "keeps the link when a concurrent claim by the same organization seated the student" do
+      # The organization has ONE org_user link per student, so a losing claim's cleanup removes
+      # the same link a concurrent claim that succeeded on a different seat relies on. Here the
+      # seat this claim took is released during the attach while a sibling claim seats the
+      # student on the organization's other seat.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      2.times { License.create!(organization: org, seat_type: 'student', status: 'active') }
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        held = License.where(organization_id: org.id, user_id: u.id).first
+        other = License.where(organization_id: org.id).where.not(id: held.id).first
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{held.id}")
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = #{u.id}, granted_at = NOW() WHERE id = #{other.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/lost a concurrent race/)
+
+      code = Webhook.get_record_code(org)
+      link = UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }
+      expect(link).to_not be_nil
+      expect(link['state']['sponsored']).to eq(true)
+    end
+
+    it "keeps the link when its seat expired but another of the organization's seats holds the student" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      2.times { License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now) }
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        held = License.where(organization_id: org.id, user_id: u.id).first
+        other = License.where(organization_id: org.id).where.not(id: held.id).first
+        ActiveRecord::Base.connection.update("UPDATE licenses SET status = 'expired' WHERE id = #{held.id}")
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = #{u.id}, granted_at = NOW() WHERE id = #{other.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/no longer active \(expired\)/)
+
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to_not be_nil
+    end
+
+    it "re-checks the organization's seats and removes the link under one user lock" do
+      # Structure behind the two examples above: a sibling claim assigns its seat under the user
+      # lock, so the losing claim's re-check and removal must share one lock, or the sibling can
+      # seat the student between them. The interleaving itself cannot be reproduced in the
+      # transactional suite, which runs on one connection.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{license.id}")
+        res
+      end
+
+      entries = 0
+      current = nil
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = current
+          current = (entries += 1)
+          begin
+            blk.call
+          ensure
+            current = outer
+          end
+        end
+      end
+      seat_checks = []
+      subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        seat_checks << current if payload[:sql] =~ /\ASELECT 1 AS one FROM "licenses"/
+      end
+      removals = []
+      allow(UserLink).to receive(:remove).and_wrap_original do |orig, *args|
+        removals << current if args[2] == 'org_user'
+        orig.call(*args)
+      end
+
+      begin
+        expect { org.claim_user(u) }.to raise_error(/lost a concurrent race/)
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      expect(removals.length).to eq(1)
+      expect(removals.first).to be_a(Integer)
+      expect(seat_checks.last).to eq(removals.first)
+    end
+
     it "reports a seat that disappeared mid-claim without blaming another request" do
       # The compare-and-set fails for more than one reason, and a message naming the wrong one
       # sends a district manager looking for a competing claim that never happened.

@@ -268,14 +268,26 @@ class Organization < ApplicationRecord
     end
 
     if lost_seat || inactive_status
-      # Outside the lock. Cleanup is conditional on losing the SEAT, not on whether we attached
-      # in this call. Gating it on attached_now left a district that had been invited and had
-      # accepted holding an accepted org_user link with no license when it lost the race, and
+      # Cleanup is conditional on losing the SEAT, not on whether we attached in this call.
+      # Gating it on attached_now left a district that had been invited and had accepted holding
+      # an accepted org_user link with no license when it lost the race, and
       # Organization.manager_for? reads that link while ignoring seats: the losing district's
-      # managers would keep managing a student it does not pay for. Scoped to self, so it can
-      # never touch the winner's link. A seat that stopped being active is treated the same way:
-      # this organization no longer holds a live seat for the student.
-      UserLink.remove(user, self, 'org_user')
+      # managers would keep managing a student it does not pay for. Scoped to self, so it never
+      # touches another organization's link. A seat that stopped being active is treated the
+      # same way: this organization no longer holds a live seat for the student.
+      #
+      # This organization has ONE org_user link per student, so it is shared with any sibling
+      # claim by this organization that seated the student on a different seat and succeeded.
+      # The link is removed only when no active seat of this organization still holds the
+      # student, and that re-check and the removal run in a fresh user lock: step 2 assigns
+      # seats under the same lock, so a sibling's seat is either already visible here or is
+      # assigned after the removal, in which case its own attach recreates the link. Removing it
+      # unconditionally left a successful claim holding a seat with no link. The raise below
+      # stays outside the lock.
+      user.with_lock do
+        still_seated = self.licenses.where(user_id: user.id, status: 'active').exists?
+        UserLink.remove(user, self, 'org_user') unless still_seated
+      end
       if inactive_status
         raise "Seat #{license.global_id} is no longer active (#{inactive_status}); re-run the claim"
       end
