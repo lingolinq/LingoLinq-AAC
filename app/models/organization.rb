@@ -37,6 +37,27 @@ class Organization < ApplicationRecord
     !state['pending'] && !!state['sponsored'] && !state['eval']
   end
 
+  # This organization's org_user link for the user, as {'state' => ...}, or nil when there is
+  # none. Read from the table rather than the links_for cache, because it is compared against
+  # a write made moments later.
+  def org_user_link_state(user)
+    link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(self))
+                   .detect { |l| l.data['type'] == 'org_user' }
+    link && {'state' => (link.data['state'] || {}).deep_dup}
+  end
+
+  # Put this organization's org_user link back to a state captured by org_user_link_state:
+  # removed when there was no link, otherwise its prior state rewritten.
+  def restore_org_user_link_state!(user, prior)
+    if prior.nil?
+      UserLink.remove(user, self, 'org_user')
+    else
+      link = UserLink.generate(user, self, 'org_user')
+      link.data['state'] = prior['state']
+      link.save!
+    end
+  end
+
   def can_manage_user?(user)
     # District can see data ONLY if they have an active license for this user
     self.licenses.where(user_id: user.id, status: 'active').exists?
@@ -128,8 +149,12 @@ class Organization < ApplicationRecord
     # subscription had ALREADY been cancelled, with nothing able to undo it. That is worse
     # than the defect this method fixes, and add_user never had a transaction here.
     attached_now = false
+    prior_link_state = nil
     unless attached_as_communicator?(user)
       attached_now = true
+      # Remember this organization's link as it was, so a failed attach can put it back (see
+      # step 4). The routine saves the link before it saves the user.
+      prior_link_state = org_user_link_state(user)
 
       # Do not let ANOTHER organization's seat time be banked as the family's own credit.
       # update_subscription_organization calls
@@ -162,7 +187,12 @@ class Organization < ApplicationRecord
         user.update_columns(expires_at: nil)
       end
 
-      user.update_subscription_organization(self, false, true)
+      begin
+        user.update_subscription_organization(self, false, true)
+      rescue StandardError
+        restore_org_user_link_state!(user, prior_link_state)
+        raise
+      end
     end
 
     user.reload
@@ -175,7 +205,14 @@ class Organization < ApplicationRecord
     # role, the pending flag and the seconds_left banking all lost. Worse, the rescheduled
     # retry runs later, after the column write below has set expires_at to the licence expiry,
     # so its clear_existing_subscription would bank the DISTRICT's seat time as family credit.
+    #
+    # The link the routine saved is put back the way it was before raising. Left in place, a
+    # sponsored non-pending link satisfies attached_as_communicator?, so the re-run this error
+    # asks for skipped the attach and this check and reported success with the attach still
+    # incomplete. Restored rather than deleted, so an invitation or unsponsored link this
+    # organization already had is not lost with the failed attach.
     if attached_now && user.settings.dig('subscription', 'added_org_id') != self.global_id
+      restore_org_user_link_state!(user, prior_link_state)
       raise "Seat claim for #{user.global_id} did not complete the organization attach; re-run the claim"
     end
 

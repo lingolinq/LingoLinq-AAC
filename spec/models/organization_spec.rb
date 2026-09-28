@@ -4175,5 +4175,68 @@ describe Organization, :type => :model do
       expect(u.settings['subscription']['eval_account']).to be_nil
       expect(org.attached_users('user').map(&:id)).to include(u.id)
     end
+
+    it "undoes a half-applied attach so a re-run completes it" do
+      # update_subscription_organization's stale-record rescue saves the link but not the user's
+      # settings. Left in place, that link reads as a completed attach, so the re-run the error
+      # asks for skipped the attach and its verification and reported success.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization) do |target, *_rest|
+        link = UserLink.generate(u, target, 'org_user')
+        link.data['state']['sponsored'] = true
+        link.data['state']['pending'] = false
+        link.data['state']['added'] = Time.now.iso8601
+        link.save!
+        true
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+
+      allow(u).to receive(:update_subscription_organization).and_call_original
+      org.claim_user(u.reload)
+
+      expect(u.reload.settings['subscription']['added_org_id']).to eq(org.global_id)
+    end
+
+    it "undoes the link when the attach raises" do
+      # The attach routine saves the link before it saves the user, so an error in between
+      # leaves the same half-applied link as the stale-record path.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:save_with_sync).and_raise(ActiveRecord::StatementInvalid.new("boom"))
+
+      expect { org.claim_user(u) }.to raise_error(ActiveRecord::StatementInvalid)
+
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
+    it "puts back an invitation it found when the attach did not complete" do
+      # The undo restores the link's prior state rather than deleting it, so a pending
+      # invitation from this organization is not lost along with the failed attach.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      invite = UserLink.generate(u, org, 'org_user')
+      invite.data['state'] = {'pending' => true, 'sponsored' => true, 'added' => 2.days.ago.iso8601}
+      invite.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization) do |target, *_rest|
+        link = UserLink.generate(u, target, 'org_user')
+        link.data['state']['pending'] = false
+        link.save!
+        true
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+
+      restored = UserLink.find(invite.id)
+      expect(restored.data['state']['pending']).to eq(true)
+      expect(restored.data['state']['added']).to eq(invite.data['state']['added'])
+    end
   end
 end
