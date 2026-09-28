@@ -1941,7 +1941,26 @@ class Organization < ApplicationRecord
     })
   end
 
+  # The data_policy parameter as a Hash with string keys, or nil when it is absent or not a Hash.
+  def data_policy_param(params)
+    raw = params[:data_policy]
+    raw = raw.to_unsafe_h if raw.respond_to?(:to_unsafe_h)
+    raw.is_a?(Hash) ? raw.stringify_keys : nil
+  end
+
   def process_params(params, non_user_params)
+    # Check the data policy before anything else runs. It is applied last, below, and the
+    # management action above that point writes users and links immediately, so a policy
+    # refused there used to leave the rest of the request applied.
+    policy_hash = data_policy_param(params)
+    if policy_hash
+      errors = Organization.data_policy_errors(policy_hash)
+      if errors.any?
+        errors.each { |error| add_processing_error(error) }
+        return false
+      end
+    end
+
     self.settings ||= {}
     self.settings['name'] = process_string(params['name']) if params['name']
     self.settings['premium'] = process_boolean(params['premium']) if params['premium'] != nil
@@ -2276,9 +2295,8 @@ class Organization < ApplicationRecord
         return false
       end
     end
-    if params[:data_policy].is_a?(Hash) || (params[:data_policy].respond_to?(:to_unsafe_h) && params[:data_policy].to_unsafe_h.is_a?(Hash))
-      policy_hash = params[:data_policy].respond_to?(:to_unsafe_h) ? params[:data_policy].to_unsafe_h : params[:data_policy]
-      return false unless self.update_data_policy(policy_hash.stringify_keys, non_user_params['updater'])
+    if policy_hash
+      return false unless self.update_data_policy(policy_hash, non_user_params['updater'])
     end
 
     @processed = true

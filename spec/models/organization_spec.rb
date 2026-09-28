@@ -3753,6 +3753,22 @@ describe Organization, :type => :model do
       expect(o.data_policy['retention_months']).to be_nil
     end
 
+    it "refuses a bad data_policy before a management action in the same request runs" do
+      # The data policy used to be checked last, after the management action had already
+      # attached the user, so a refused request still changed the organization.
+      o = Organization.create(:settings => {'total_licenses' => 1})
+      u = User.create
+      res = o.process({
+        :management_action => "add_user-#{u.user_name}",
+        :data_policy => {'logging_allowed' => 'no'}
+      }, {'updater' => User.create})
+
+      expect(res).to eq(false)
+      expect(o.processing_errors.join(' ')).to match(/logging_allowed/)
+      expect(o.reload.attached_users('user').length).to eq(0)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' }).to be_nil
+    end
+
     it "should accept data_policy through process_params" do
       o = Organization.create
       u = User.create
