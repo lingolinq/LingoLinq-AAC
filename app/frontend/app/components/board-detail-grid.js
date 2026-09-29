@@ -72,9 +72,9 @@ export default Component.extend({
    * have re-introduced the exact bug the strict test exists to prevent: every user who
    * never opted in getting their board regrouped the moment the flag went on.
    *
-   * STILL OUTSTANDING (not this file): `board_category_grouping` is force-enabled for
-   * everyone in `lib/feature_flags.rb:113` and must return to AVAILABLE-only (beta
-   * opt-in per user) before production go-live. Grouping MOVES vocabulary out of cells
+   * IN PROGRESS (2026-09-28): `board_category_grouping` is out of every flag list in
+   * `lib/feature_flags.rb`, so this computed is false for everyone; when the work resumes
+   * it returns as AVAILABLE-only (beta opt-in per user). Grouping MOVES vocabulary out of cells
    * a user has built positional motor memory on -- a clinical change, not a cosmetic
    * one -- so the opt-in default matters more here than for a cosmetic flag. Check the
    * matching marker in `app/models/user.rb` (preference_defaults) at the same time.

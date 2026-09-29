@@ -651,6 +651,13 @@ describe User, :type => :model do
       u.reload.settings['preferences']['board_category_grouping']
     end
 
+    # These rebuild a hash with `enabled` on, which only a user who has the
+    # board_category_grouping flag may store. The guard itself has its own block below.
+    before(:each) do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('board_category_grouping', anything).and_return(true)
+    end
+
     it "defaults show_category_names and vertical_scroll to true" do
       expect(User.preference_defaults['any_user']['board_category_grouping']['show_category_names']).to eq(true)
       expect(User.preference_defaults['any_user']['board_category_grouping']['vertical_scroll']).to eq(true)
@@ -681,6 +688,35 @@ describe User, :type => :model do
     it "still strips unknown category keys from order" do
       g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category', 'people']})
       expect(g['order']).to eq(['people'])
+    end
+  end
+
+  describe "board_category_grouping guard" do
+    def stored_grouping(enabled)
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {'enabled' => enabled, 'vertical_scroll' => false}}}, {})
+      u.save
+      u.reload.settings['preferences']['board_category_grouping']
+    end
+
+    it "stores enabled as off for a user without the flag, whatever truthy shape arrives" do
+      [true, 'true', 1, '1'].each do |value|
+        g = stored_grouping(value)
+        expect(g['enabled']).to eq(false), "#{value.inspect} was stored as #{g['enabled'].inspect}"
+        expect(g['vertical_scroll']).to eq(false)
+      end
+    end
+
+    it "lets a user with the flag turn it on" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('board_category_grouping', anything).and_return(true)
+      expect(stored_grouping(true)['enabled']).to eq(true)
+    end
+
+    it "does not look up the flag when enabled arrives off" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      expect(FeatureFlags).not_to receive(:feature_enabled_for?).with('board_category_grouping', anything)
+      expect(stored_grouping(false)['enabled']).to eq(false)
     end
   end
 

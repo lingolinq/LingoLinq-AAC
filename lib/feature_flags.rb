@@ -44,16 +44,29 @@ module FeatureFlags
               'boards_side_by_side_layout',
               'sentence_bar_editing',
               'text_symbol_fallback',
-              # Board-detail Fitzgerald category grouping: renders a board's buttons
-              # inside per-category panels instead of the uniform grid, with a
-              # user-orderable category sequence. Off by default because it MOVES
-              # vocabulary out of the cells a user has built positional motor memory
-              # on -- that is a clinical change, not a cosmetic one, so it stays
-              # opt-in. Preference: preferences.board_category_grouping
-              # ({enabled, order}); registry: app/frontend/app/utils/board_categories.js.
-              # Only board CONTENT is regrouped; the sidebar and sentence bar are
-              # separate DOM outside the grid component and are never affected.
-              'board_category_grouping',
+              # IN PROGRESS, OFF FOR EVERYONE (2026-09-28): 'board_category_grouping' was
+              # registered here. Board-detail Fitzgerald category grouping renders a board's
+              # buttons inside per-category panels instead of the uniform grid, with a
+              # user-orderable category sequence. It MOVES vocabulary out of the cells a user
+              # has built positional motor memory on, and it is not finished, so it is out of
+              # BOTH lists: membership here is the ceiling that the default Setting, canary,
+              # beta opt-in and org features are all intersected with
+              # (lib/system_feature_settings.rb), so any entry here could switch it on.
+              # With the flag absent the edit page's Categorize button opens a Coming Soon page
+              # (app/frontend/app/components/board-categorize-coming-soon.hbs) and every board
+              # renders the uniform grid, including for users whose saved
+              # preferences.board_category_grouping says enabled. The code, the preference and
+              # its sanitizer are kept for when the work resumes; re-register it here only
+              # (beta opt-in), not in ENABLED. Pinned by spec/lib/feature_flags_spec.rb.
+              # Saved values were reset to off by lib/board_category_grouping_reset.rb, and the
+              # guard in User#sanitize_board_category_grouping! refuses "on" without this flag.
+              # A deploy's old revision can still re-save "on" during cutover, so run
+              # BoardCategoryGroupingReset.run once more before re-registering the flag. Also
+              # note that registering it here alone reaches more than beta opt-in: canary users
+              # get every AVAILABLE flag not in DISABLED_CANARY_FEATURES, and a stored
+              # default/org Setting that still lists it switches it on for everyone
+              # (lib/system_feature_settings.rb:6-30). Add it to DISABLED_CANARY_FEATURES and
+              # check the stored Settings first.
               # Per-user session resume: return a user to the page they were last
               # on when they log back in. Communicator-only accounts are exempt by
               # design (they always land on their board). Read by
@@ -135,7 +148,7 @@ module FeatureFlags
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
-              'board_category_grouping', # TEMPORARY (2026-08-17): forced ON for everyone so Traci can evaluate the Fitzgerald category-panel board layout in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES. NOTE: grouping MOVES vocabulary out of the cells a user has positional motor memory for, so the opt-in default matters more here than for a cosmetic flag. Flip together with the PRE-PRODUCTION markers in app/models/user.rb (preference_defaults) and components/board-detail-grid.js#groupingEnabled.
+              # IN PROGRESS (2026-09-28): 'board_category_grouping' is no longer forced ON; it is off for everyone. See the note in AVAILABLE_FRONTEND_FEATURES above.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'boards_side_by_side_layout'] # TEMPORARY (2026-08-16): forced ON for everyone so the Boards-page layout selector (side-by-side vs top-down) is visible for design comparison without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the selector stops rendering and the page falls back to the TOP-DOWN layout, which is the pre-existing behaviour.
