@@ -189,9 +189,11 @@
         {{!-- CATEGORIZE — opens the full-width category-order panel below. Sits
              ABOVE Board Actions: categorising is a board-shaping decision the
              user makes before reaching for the destructive/one-off actions in the
-             gear menu. Gated on the grouping flag so the rail is unchanged when
-             the feature is off. --}}
-        {{#if this.app_state.feature_flags.board_category_grouping}}
+             gear menu.
+             SHOWN WITHOUT THE FLAG (2026-09-28, requested). Grouping is IN PROGRESS and off
+             for everyone (lib/feature_flags.rb), but the button stays as its teaser: the
+             panel it opens shows <BoardCategorizeComingSoon> in place of the controls
+             whenever the flag is off, which is now always -- see that panel below. --}}
         <div class="md-board-edit-panel__group md-board-edit-panel__group--categorize">
           <button type="button"
             class="md-board-edit-panel__row md-board-edit-panel__row--categorize {{if this.category_order_open 'md-board-edit-panel__row--active'}}"
@@ -208,7 +210,6 @@
             <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
           </button>
         </div>
-        {{/if}}
 
         {{!-- BOARD ACTIONS — sits below Categorize (which was moved above it
              2026-08-23). Expandable, mirrors the Filter by Category control:
@@ -3778,6 +3779,11 @@
        with no Save, Cancel or undo. --}}
   {{#if (and this.edit_mode this.category_order_open)}}
     <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
+      {{!-- IN PROGRESS (2026-09-28): the grouping controls render only with the flag, which is
+           out of every flag list for now (lib/feature_flags.rb), so today the {{else}} always
+           runs and this panel is the Coming Soon pitch. The controls are kept, not deleted,
+           for when the work resumes. Closing uses the same action as the controls' Done. --}}
+      {{#if this.app_state.feature_flags.board_category_grouping}}
       {{!-- HEADER + two option cards, not one horizontal row.
            The row treated the primary switch, two sub-options, an explanatory
            paragraph, an accessibility note and both page-level actions as six peers on
@@ -4071,6 +4077,9 @@
             {{/each}}
           </div>
         </div>
+      {{/if}}
+      {{else}}
+        <BoardCategorizeComingSoon @onDone={{this.ctrlAction "toggle_category_order"}} />
       {{/if}}
     </div>
   {{/if}}

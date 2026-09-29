@@ -246,7 +246,6 @@ describe FeatureFlags do
     #
     # This is an INVENTORY, not an endorsement. Shrinking it is the goal.
     TEMPORARY_FORCED_ON = [
-      'board_category_grouping',
       'customize_menu',
       'dashboard_drag_layout',
       'edit_sidebar',
@@ -300,7 +299,7 @@ describe FeatureFlags do
   end
 
   describe "home_tour" do
-    # INVERTED TRIPWIRE. board_category_grouping below is pinned so that REMOVING it from
+    # INVERTED TRIPWIRE. The rollout tripwires elsewhere in this file pin a flag so that REMOVING it from
     # ENABLED fails and reminds you to gate the rollout.
     # This one is the opposite: the guided tour is the ONBOARDING PATH now, so removing it
     # from ENABLED is the breaking change.
@@ -367,17 +366,28 @@ describe FeatureFlags do
   end
 
   describe "board_category_grouping" do
-    # TRIPWIRE, and this is the flag that actually needs one: turning grouping on MOVES
-    # vocabulary out of the cells a user has built positional motor memory on. It previously
-    # had no spec at all, which is how a default of `enabled => true` reached the branch
-    # unnoticed. (boards_side_by_side_layout used to carry the same shape; it was retired
-    # on 2026-09-18 rather than gated, so its block above asserts absence instead.)
-    it "is registered as available" do
-      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('board_category_grouping')
+    # IN PROGRESS, AND OFF FOR EVERYONE (2026-09-28, Traci). Turning grouping on MOVES
+    # vocabulary out of the cells a user has built positional motor memory on, and the feature
+    # is not finished, so no account may reach it. Taking it out of ENABLED alone would not do
+    # that: the production default Setting, canary users, beta opt-in and org features can
+    # each switch on any flag in AVAILABLE (lib/system_feature_settings.rb), so the flag is
+    # absent from BOTH lists.
+    # The edit page keeps its Categorize button, which opens a Coming Soon page instead of the
+    # controls (components/board-categorize-coming-soon.hbs). When the work resumes, register
+    # the flag in AVAILABLE only (beta opt-in) and rewrite these two examples.
+    it "is not registered as available, so no setting, org, canary or beta route can enable it" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).not_to include('board_category_grouping')
     end
 
-    it "is currently forced ON for everyone — remove from ENABLED before go-live" do
-      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('board_category_grouping')
+    it "is not forced ON for everyone" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('board_category_grouping')
+    end
+
+    it "resolves OFF for a user even when a stored default Setting still lists it" do
+      u = User.create
+      allow(Setting).to receive(:get).and_call_original
+      allow(Setting).to receive(:get).with(SystemFeatureSettings::DEFAULT_KEY).and_return(['board_category_grouping'])
+      expect(FeatureFlags.feature_enabled_for?('board_category_grouping', u)).to eq(false)
     end
 
     # The clinical guarantee. `generate_defaults` backfills preference_defaults onto EVERY
