@@ -49101,7 +49101,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center !important;
   gap: 14px !important;
   border-bottom: none !important;
-  padding-bottom: 0 !important;
+  /* 0 unless Compressed View sets --dn-attention-head-pad-y (_compressed-view.scss). */
+  padding-top: var(--dn-attention-head-pad-y, 0) !important;
+  padding-bottom: var(--dn-attention-head-pad-y, 0) !important;
 }
 /* ≤460px: stack the Rooms / My Organizations / Communicators-Need-Attention /
    My Caseload header content vertically and center it — icon on top (it's the
