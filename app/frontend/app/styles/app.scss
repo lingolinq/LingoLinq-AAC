@@ -48782,6 +48782,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-card--rooms .md-card--rooms__top {
   padding-top: var(--dn-card-head-pad-y, 0);
   padding-bottom: var(--dn-card-head-pad-y, 0);
+  /* 8px in from the card's content edge (requested 2026-09-29), matched on the Need Attention
+     header. */
+  padding-left: 8px;
 }
 /* Top row: header/subheader on the left, the "View all rooms" button on the right. */
 .md-card--rooms__top {
@@ -49116,6 +49119,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   /* 0 unless Compressed View sets --dn-card-head-pad-y (_compressed-view.scss). */
   padding-top: var(--dn-card-head-pad-y, 0) !important;
   padding-bottom: var(--dn-card-head-pad-y, 0) !important;
+  /* 8px in from the card's content edge (requested 2026-09-29), matched on the Rooms header. */
+  padding-left: 8px !important;
 }
 /* ≤460px: stack the Rooms / My Organizations / Communicators-Need-Attention /
    My Caseload header content vertically and center it — icon on top (it's the
