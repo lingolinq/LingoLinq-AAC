@@ -48843,6 +48843,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Added to this existing selector list rather than as a new block, so the three surfaces keep
    one definition of the card. */
 .md-grid .md-card.md-card--rooms .md-room-card,
+.md-grid .md-card.md-card--attention .md-attention-item,
 .md-grid .md-card.md-card--org-management .md-room-card,
 .md-shell--org .md-rooms__grid .md-room-card,
 /* `.md-shell--org .md-rooms__grid` added 2026-09-23 -- see the note on the shared base rule
@@ -48880,6 +48881,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Hover = the My Account card's lift: stronger raised shadow + denim glow + a 1px rise. */
 .md-grid .md-card.md-card--rooms .md-room-card:hover,
 .md-grid .md-card.md-card--rooms .md-room-card:focus-visible,
+.md-grid .md-card.md-card--attention .md-attention-item:hover,
+.md-grid .md-card.md-card--attention .md-attention-item:focus-visible,
 .md-grid .md-card.md-card--org-management .md-room-card:hover,
 .md-grid .md-card.md-card--org-management .md-room-card:focus-visible,
 .md-shell--org .md-rooms__grid .md-room-card:hover,
@@ -48940,7 +48943,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    is just the room name (no "· role" second piece like the org tiles), so a
    smaller icon + tighter vertical padding reads less empty. Rooms-scoped; org
    tiles keep the full size. (0,4,0) beats the shared .md-room-card padding. */
-.md-grid .md-card.md-card--rooms .md-rooms__grid .md-room-card {
+.md-grid .md-card.md-card--rooms .md-rooms__grid .md-room-card,
+.md-grid .md-card.md-card--attention .md-attention__list .md-attention-item {
   padding-top: var(--dn-room-pad-y, 10px);
   padding-bottom: var(--dn-room-pad-y, 10px);
 }
@@ -49229,50 +49233,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column;
   gap: var(--dn-list-gap, 8px);
 }
+/* COMMUNICATOR ROWS WEAR THE ROOM CARD (requested 2026-09-29: "the same styles as the rooms
+   cards"): they are in the room card's own rules above (base, hover and the dashboard padding), in
+   Gentle and in Focused (_focused-view.scss), so the two cannot drift. What stays here is the
+   HEIGHT: a room card's height comes from its icon, which the rows do not have, so the row takes
+   the same total from the same tokens (icon + top and bottom padding + the 1px borders). */
 .md-grid .md-card.md-card--attention .md-attention-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: var(--dn-row-pad, 10px 14px);
-  border-radius: 12px;
-  /* Surface + highlight match the Speak Mode card (.md-card--speak-as-button, ~48246):
-     the same cool-white→warm-gray base with the teal/denim atmospheric radials, the
-     layered navy depth shadow, and the verdigris showcase halo. The GPU layer holds the
-     backdrop blur across scroll so it doesn't flash (same fix as the Speak card). */
-  background:
-    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
-    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
-    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
-    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%);
-  backdrop-filter: var(--dn-row-blur, blur(12px) saturate(115%));
-  -webkit-backdrop-filter: var(--dn-row-blur, blur(12px) saturate(115%));
-  will-change: transform;
-  transform: translateZ(0);
-  box-shadow: var(--dn-row-shadow,
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba($la-navy, 0.06),
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 10px rgba($la-navy, 0.08),
-    0 12px 28px rgba($la-navy, 0.10),
-    0 0 36px rgba($brand-slate-blue, 0.09));
-  color: $la-navy;
-  text-decoration: none;
-  transition: box-shadow 180ms ease-out, transform 140ms ease-out;
+  min-height: calc(var(--dn-room-icon, 46px) + 2 * var(--dn-room-pad-y, 10px) + 2px);
 }
 /* Hover = lift: the Speak card's intensified shadow stack + verdigris halo + 1px rise. */
-.md-grid .md-card.md-card--attention .md-attention-item:hover,
-.md-grid .md-card.md-card--attention .md-attention-item:focus-visible {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba($la-navy, 0.07),
-    0 2px 4px rgba($la-navy, 0.06),
-    0 8px 18px rgba($la-navy, 0.10),
-    0 20px 44px rgba($la-navy, 0.14),
-    0 0 48px rgba($brand-slate-blue, 0.15);
-  transform: translateY(-1px);
-  outline: none;
-}
 .md-attention-item__avatar {
   flex: 0 0 auto;
   width: var(--dn-avatar, 40px);

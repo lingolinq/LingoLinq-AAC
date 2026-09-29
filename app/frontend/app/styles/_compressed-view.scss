@@ -55,15 +55,10 @@ body.ll-density-compressed .md-shell--home {
   // its title than Need Attention's (measured at 1440x900 in both styles: 25px/24px against
   // 13px/12px).
   --dn-attention-head-pad-y: 12px;
-  // Attention rows: shorter, and flat inside the card. The strong glass stays on the shell and
-  // the cards; nested blur and deep shadows on every row are what made the list heavy.
+  // Attention rows wear the room card (app.scss / _focused-view.scss), so their padding and height
+  // follow the room tokens below; only the list gap and the avatar are their own.
   --dn-list-gap: 4px;
-  --dn-row-pad: 6px 12px;
   --dn-avatar: 32px;
-  --dn-row-blur: none;
-  --dn-row-blur-focused: none;
-  --dn-row-shadow: inset 0 -1px 0 rgba(27, 54, 93, 0.06), 0 1px 2px rgba(27, 54, 93, 0.06);
-  --dn-row-shadow-focused: 0 1px 3px rgba(0, 0, 0, 0.14);
   // Room tiles.
   --dn-room-gap: 8px;
   --dn-room-pad-y: 6px;

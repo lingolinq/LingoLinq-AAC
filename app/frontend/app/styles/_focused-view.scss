@@ -5749,70 +5749,12 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__sub::befor
 }
 // ===== END EXPERIMENT
 
-// ===== EXPERIMENT 2026-09-21 — glassy-glossy attention rows. DELETE WHOLE BLOCK ON REVERT.
-// Requested once the card behind them went dark. The base rows (app.scss ~48735) are a
-// near-OPAQUE white stack (alphas .94/.90/.88) with a blur behind it — which means the blur
-// is doing almost nothing, because there is no transparency for it to work through. Glass
-// needs all three: something to see through, a blur, and a specular highlight on top.
-//
-// Alphas .86/.80/.75 (lifted from .74/.66/.60, requested 2026-09-21: "a bit lighter in
-// focused view"). Direction of travel matters here: the row text is $la-navy on a dark card,
-// so every point of TRANSPARENCY drags the text's background down and costs contrast, while
-// every point of OPACITY buys it back. Lightening is therefore free on the accessibility
-// side — it was the earlier darkening that had a floor, not this. Still well short of the
-// base rule's near-opaque .94/.90/.88, so there is real transparency for the blur to work
-// through and the card still reads behind them.
-//
-// The gloss is the second radial plus the brighter top rim: a highlight off the top-left so
-// the row reads as lit from one side, the way the slate tiles do, instead of uniformly
-// frosted. Blur raised 12px -> 16px now that there is genuinely something behind it.
+// ===== EXPERIMENT 2026-09-21 — attention rows (their own glassy surface until 2026-09-29, now the
+// room card's). DELETE WHOLE BLOCK ON REVERT.
+// The communicator rows take the Focused room card's surface (listed with that rule below) and
+// the Focused room card's height, which its 69px icon sets (--dn-room-icon-focused).
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
-  // THE RAIL'S HOME BOARD BUTTON GRADIENT (requested 2026-09-21), copied from
-  // `.md-acct-rail__row--board:not(.is-active)` (app.scss ~49984) rather than re-derived:
-  //   linear-gradient(155deg, #fff 0%, rgba($brand-dusty-denim, 0.12) 100%)
-  // Its matching border colour and lit inner rim come with it below, because that button's
-  // look is the gradient PLUS that edge — taking the fill alone reads as a different control.
-  // The specular sweep is kept on top so these still read glassy, which is what they were
-  // asked to be a step earlier; it sits ABOVE the gradient so it lifts the top-left without
-  // altering the denim fall.
-  background:
-    radial-gradient(120% 140% at 14% 0%,
-      rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0.12) 34%,
-      transparent 60%),
-    // THE DARK FALL, RESTORED — and made OPAQUE so it no longer depends on the card behind.
-    //
-    // History, because this stop has now been wrong in two opposite directions:
-    // Copying `rgba($brand-dusty-denim, 0.12)` verbatim from the rail button did not
-    // transplant its look. The rail sits on a LIGHT page where that reads as a pale wash;
-    // here the card is DARK, so the same value is ~90% transparent and the row faded into
-    // the card. That accident is what produced the strong light-to-dark fall Traci liked.
-    // Replacing it with the rail's true composite (#EEF4FB) fixed the invisible arrows but
-    // flattened the row to almost nothing — measured #FEFEFF -> #F0F5FC across its width,
-    // against the #F0F1F3 -> #4F5D72 it had before.
-    // So the fall is now stated DELIBERATELY as two solid stops reproducing the measured
-    // values, rather than being a side effect of transparency over whatever is underneath.
-    // End stop lifted #4F5D72 -> #66738A (requested: "a bit less transparent"). It is already
-    // opaque, so what reads as transparency is simply how DARK it is against the light start;
-    // lifting it is the same move.
-    // THERE IS A LIMIT HERE, worth knowing before tuning it again. The arrow sits on this
-    // stop, and measured against it: a light arrow clears 3:1 up to about #717E94, while a
-    // slate arrow only clears it below about #A0ACC0. Between roughly #7C89A0 and #A0ACC0
-    // NEITHER colour reaches 3:1 — a dead zone. #66738A sits safely on the dark side of it
-    // (light arrow 3.66:1); going much lighter means switching the arrow back to slate and
-    // jumping the gap, not easing through it.
-    // 2026-09-29 (requested: a lighter right-hand end, dark arrows): end stop #66738A -> #D2D9E4,
-    // the Rooms rows' stop, jumping the dead zone as described above; the arrow is now
-    // $la-navy (8.54:1 on #D2D9E4; slate would be 3.86:1).
-    linear-gradient(155deg, #F2F3F5 0%, #D2D9E4 100%) !important;
-  backdrop-filter: var(--dn-row-blur-focused, blur(16px) saturate(125%)) !important;
-  -webkit-backdrop-filter: var(--dn-row-blur-focused, blur(16px) saturate(125%)) !important;
-  box-shadow: var(--dn-row-shadow-focused,
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),      /* bright top rim — the gloss edge */
-    inset 0 -1px 0 rgba($la-navy, 0.10),
-    0 2px 6px rgba(0, 0, 0, 0.16),
-    0 10px 24px rgba(0, 0, 0, 0.18)) !important;
-  border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
+  min-height: calc(var(--dn-room-icon-focused, 69px) + 2 * var(--dn-room-pad-y, 10px) + 2px);
 }
 
 // COMPRESSED VIEW: the Need Attention card takes the Focused caseload hero's surface (requested
@@ -5881,8 +5823,11 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub::before {
 // attention rows just took, so the two cards' inner controls read as one family.
 // `.md-room-card` is SHARED with the org-management card (see the scoped rule earlier in
 // this file), so this is pinned to `.md-card--rooms` and cannot leak there.
-body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card {
-  // LIGHTER FALL THAN THE ATTENTION ROWS, and deliberately not shared with them any more.
+// The Need Attention communicator rows share this surface (requested 2026-09-29: the same styles
+// as the room cards), so they are listed with it.
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card,
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list .md-attention-item {
+  // LIGHTER FALL THAN THE ATTENTION ROWS HAD, and (until 2026-09-29) not shared with them.
   // These sit on the RESTORED LIGHT rooms panel, not on a dark card, so the #66738A end the
   // rows use read as a heavy slab here — and measured, the room card's own dark label was
   // only 2.53:1 against it.
