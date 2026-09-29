@@ -8888,6 +8888,156 @@
         "promotedDate": "2026-09-25"
       },
       "notes": "Promoted from PR #1047 review (adversary) on 2026-09-25. Raised in the adversarial review of PR #1047. The PR records flagging this document as its remediation for a dual-review High, but the flag is inert: grep for KNOWN INACCURATE returns zero in DOCUMENT-REGISTER.md and COMPLIANCE-PUBLICATION-STATUS.md, no script reads the notes field on a document row, and DOCUMENT-REGISTER.md still renders the row as published with no warning. This register row is the machine-readable record that was missing. Filing a finding is explicitly not a Scot-reserved act."
+    },
+    {
+      "id": "LL-e0175e4711",
+      "ruleKey": "state-report-2026-09-28-l03",
+      "title": "Compliance finding (details withheld until remediation is verified)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/filter_parameter_logging.rb",
+        "line": 1,
+        "snippet": "# Be sure to restart your server when you modify this file.",
+        "sha": "e508ae591d13b6066e176ac5d30625e664718d58"
+      },
+      "firstSeen": "2026-09-28",
+      "lastSeen": "2026-09-28",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "platform-state-report-2026-09-28",
+        "promotedDate": "2026-09-28"
+      },
+      "notes": "Surfaced by platform-state-report-2026-09-28 finder on 2026-09-28. Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Minimized 2026-09-28 under the security disclosure policy. Filed from the 2026-09-28 platform state report after independent confirmation and re-verification at develop e508ae591. Severity Medium approved by Scot Wahlquist 2026-09-28."
+    },
+    {
+      "id": "LL-8f906ab30b",
+      "ruleKey": "state-report-2026-09-28-l05",
+      "title": "Compliance finding (details withheld until remediation is verified)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/utterance.rb",
+        "line": 1,
+        "snippet": "class Utterance < ApplicationRecord",
+        "sha": "e508ae591d13b6066e176ac5d30625e664718d58"
+      },
+      "firstSeen": "2026-09-28",
+      "lastSeen": "2026-09-28",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "platform-state-report-2026-09-28",
+        "promotedDate": "2026-09-28"
+      },
+      "notes": "Surfaced by platform-state-report-2026-09-28 finder on 2026-09-28. Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Minimized 2026-09-28 under the security disclosure policy. Filed from the 2026-09-28 platform state report after independent confirmation and re-verification at develop e508ae591. Severity Medium approved by Scot Wahlquist 2026-09-28."
+    },
+    {
+      "id": "LL-83b6476f45",
+      "ruleKey": "state-report-2026-09-28-l14",
+      "title": "Compliance finding (details withheld until remediation is verified)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/compliance/digital_consent_age.rb",
+        "line": 3,
+        "snippet": "module Compliance",
+        "sha": "e508ae591d13b6066e176ac5d30625e664718d58"
+      },
+      "firstSeen": "2026-09-28",
+      "lastSeen": "2026-09-28",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "platform-state-report-2026-09-28",
+        "promotedDate": "2026-09-28"
+      },
+      "notes": "Surfaced by platform-state-report-2026-09-28 finder on 2026-09-28. Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Minimized 2026-09-28 under the security disclosure policy. Filed from the 2026-09-28 platform state report after independent confirmation and re-verification at develop e508ae591. Severity Medium approved by Scot Wahlquist 2026-09-28."
+    },
+    {
+      "id": "LL-a8d09a991c",
+      "ruleKey": "state-report-2026-09-28-l15",
+      "title": "Compliance finding (details withheld until remediation is verified)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/user.rb",
+        "line": 1,
+        "snippet": "class User < ApplicationRecord",
+        "sha": "e508ae591d13b6066e176ac5d30625e664718d58"
+      },
+      "firstSeen": "2026-09-28",
+      "lastSeen": "2026-09-28",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "platform-state-report-2026-09-28",
+        "promotedDate": "2026-09-28"
+      },
+      "notes": "Surfaced by platform-state-report-2026-09-28 finder on 2026-09-28. Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Minimized 2026-09-28 under the security disclosure policy. Filed from the 2026-09-28 platform state report after independent confirmation and re-verification at develop e508ae591. Severity Medium approved by Scot Wahlquist 2026-09-28."
     }
   ]
 }
