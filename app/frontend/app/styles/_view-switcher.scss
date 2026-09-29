@@ -194,6 +194,23 @@
   color: rgba($la-navy, 0.72);
 }
 
+// The Compressed View switch row: text on the left, the on/off switch on the right. It is a
+// checkbox, not a radio, so there is no tick gutter; its state is the switch
+// (`nb-toggle__switch`, app.scss) and `aria-checked` on the button.
+.ll-viewswitch__item--switch {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.ll-viewswitch__item--switch::before {
+  content: none;
+}
+
+.ll-viewswitch__item-text {
+  display: grid;
+  row-gap: 2px;
+}
+
 .ll-viewswitch__item:hover,
 .ll-viewswitch__item:focus-visible {
   background: rgba($brand-dusty-denim, 0.12);

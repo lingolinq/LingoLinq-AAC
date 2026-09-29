@@ -112,7 +112,14 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent', 'updates_pill']
+              'sms_recipient_consent', 'updates_pill',
+              # Compressed View: a per-user density preference (preferences.compressed_view),
+              # toggled from the View menu (components/view-switcher.hbs). With it on, the
+              # app shell and the Modern home page use tighter spacing and a shorter layout
+              # (body.ll-density-compressed). Board pages (board-detail, board-alt) are
+              # never compressed. The flag gates the toggle AND the class, so turning the
+              # flag off un-compresses everyone. See utils/compressed_view_state.js.
+              'compressed_view']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -136,6 +143,7 @@ module FeatureFlags
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
               'board_category_grouping', # TEMPORARY (2026-08-17): forced ON for everyone so Traci can evaluate the Fitzgerald category-panel board layout in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES. NOTE: grouping MOVES vocabulary out of the cells a user has positional motor memory for, so the opt-in default matters more here than for a cosmetic flag. Flip together with the PRE-PRODUCTION markers in app/models/user.rb (preference_defaults) and components/board-detail-grid.js#groupingEnabled.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'compressed_view', # TEMPORARY (2026-09-29): forced ON for everyone so Traci can evaluate the Compressed View toggle in the browser. The preference itself defaults OFF, so nobody's page changes until they flip it. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'updates_pill'] # TEMPORARY (2026-09-14): forced ON for everyone so the Card-view Updates pill (primary nav -> the user's notes log, with the unread counter classic already shows on its Updates tab) is visible without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the pill stops rendering in both navs and the nav returns to its current item set, which is the pre-existing behaviour. Read by components/dashboard/authenticated-view.hbs and components/user-pill-nav.hbs.
   DISABLED_CANARY_FEATURES = []

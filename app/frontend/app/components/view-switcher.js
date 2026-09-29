@@ -128,6 +128,18 @@ export default Component.extend({
     return this.appState.get('sessionUser.preferences.dashboard_layout') === 'focused';
   }),
 
+  // Compressed View (flag `compressed_view`). Offered only with the flag; reads and writes the
+  // SESSION user for the same reason as `isFocused`: `sync_density_scope` in
+  // services/app-state.js watches that record. Only an exact `true` is on
+  // (utils/compressed_view_state.js), matching the server's coercion.
+  compressedAvailable: computed('appState.feature_flags.compressed_view', function() {
+    return this.appState.get('feature_flags.compressed_view') === true;
+  }),
+
+  isCompressed: computed('appState.sessionUser.preferences.compressed_view', function() {
+    return this.appState.get('sessionUser.preferences.compressed_view') === true;
+  }),
+
   actions: {
     toggleMenu: function() {
       this.toggleProperty('menu_open');
@@ -159,6 +171,19 @@ export default Component.extend({
       // poked or the PUT can be skipped and the choice would not survive a reload.
       // CREATE the container first: `set('preferences.device.updated')` THROWS on a
       // record whose preferences carry no `device` key (components/boards-layout-toggle.js:166-172).
+      if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
+      user.set('preferences.device.updated', true);
+      if(user.save) { user.save().then(null, function() { }); }
+    },
+
+    // Flip Compressed View. Unlike the radio groups this leaves the menu OPEN: it is a switch,
+    // and closing the menu would hide the state it just changed. Same save shape as
+    // select_layout (create the device container, mark it dirty, save).
+    toggle_compressed: function() {
+      if(!this.get('compressedAvailable')) { return; }
+      var user = this.appState.get('sessionUser');
+      if(!user || !user.set) { return; }
+      user.set('preferences.compressed_view', !this.get('isCompressed'));
       if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
       user.set('preferences.device.updated', true);
       if(user.save) { user.save().then(null, function() { }); }

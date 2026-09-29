@@ -1,5 +1,5 @@
-{{!-- The app-wide View switch. One trigger, one item: whichever style you are
-     NOT currently on. Same disclosure contract as the modern pill-nav dropdown
+{{!-- The app-wide View menu: Layout and Style radio groups, plus the Compressed View switch
+     when its flag is on. Same disclosure contract as the modern pill-nav dropdown
      (button + aria-expanded + aria-haspopup over a role="menu" list, driven by
      component state) so it needs no Bootstrap JS and works in both the modern
      navbar and the legacy classic header. --}}
@@ -100,6 +100,26 @@
         <span class="ll-viewswitch__item-desc">{{t "Softer colors and lighter emphasis." key="view_desc_gentle"}}</span>
       </button>
     </li>
+    {{!-- COMPRESSED VIEW: an on/off setting, so a `menuitemcheckbox` rather than a radio, with
+         `aria-checked` carrying the state. The switch drawn beside the text reuses the app's
+         `nb-toggle__switch` visual and is `aria-hidden`: the menu item is the control. It is
+         independent of Layout and Style, so it gets its own group. --}}
+    {{#if this.compressedAvailable}}
+      <li role="separator" class="ll-viewswitch__sep"></li>
+      <li role="none" class="ll-viewswitch__group">{{t "Density" key="view_group_density"}}</li>
+      <li role="none">
+        <button type="button" role="menuitemcheckbox"
+                aria-checked={{if this.isCompressed "true" "false"}}
+                class="ll-viewswitch__item ll-viewswitch__item--switch"
+                {{on "click" (this.ctrlAction "toggle_compressed")}}>
+          <span class="ll-viewswitch__item-text">
+            <span class="ll-viewswitch__item-label">{{t "Compressed View" key="view_compressed"}}</span>
+            <span class="ll-viewswitch__item-desc">{{t "Tighter spacing so more fits on each screen." key="view_desc_compressed"}}</span>
+          </span>
+          <span class="nb-toggle__switch {{if this.isCompressed "nb-toggle__switch--on"}}" aria-hidden="true"><span class="nb-toggle__thumb"></span></span>
+        </button>
+      </li>
+    {{/if}}
   </ul>
 </div>
 {{/if}}
