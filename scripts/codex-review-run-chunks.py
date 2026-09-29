@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """Run chunked codex-review prompts with convergence, retries, synthesis, and heartbeats."""
 import argparse
+import importlib.util
 import json
 import os
 import pathlib
 import re
 import subprocess
 import sys
+
+
+# Model calls go through the quiet runner so the `codex exec` transcript (the
+# prompt with the PR diff, and the model's answer) never reaches the job log.
+_QUIET_EXEC_SPEC = importlib.util.spec_from_file_location(
+    "codex_review_quiet_exec", pathlib.Path(__file__).with_name("codex-review-quiet-exec.py")
+)
+quiet_exec = importlib.util.module_from_spec(_QUIET_EXEC_SPEC)
+_QUIET_EXEC_SPEC.loader.exec_module(quiet_exec)
 
 
 CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
@@ -167,6 +177,8 @@ def run_model(args, prompt_path, schema_path, output_path, heartbeat_description
     command = [
         "codex",
         "exec",
+        # Do not save the session (prompt and model output) under CODEX_HOME.
+        "--ephemeral",
         "--sandbox",
         "read-only",
         "-m",
@@ -197,12 +209,19 @@ def run_model(args, prompt_path, schema_path, output_path, heartbeat_description
 MODEL_CALL_TIMEOUT_SECONDS = int(os.environ.get("CODEX_REVIEW_MODEL_CALL_TIMEOUT", "1500"))
 
 
+class _CallResult:
+    def __init__(self, returncode):
+        self.returncode = returncode
+
+
 def run_with_timeout(command, stdin):
-    try:
-        return subprocess.run(command, stdin=stdin, timeout=MODEL_CALL_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
+    returncode, label = quiet_exec.run_quiet(command, stdin, timeout=MODEL_CALL_TIMEOUT_SECONDS)
+    if returncode is None:
         print(f"model call exceeded {MODEL_CALL_TIMEOUT_SECONDS}s and was killed", file=sys.stderr)
         return None
+    if returncode != 0:
+        print(f"model call failed: exit={returncode} label={label}", file=sys.stderr)
+    return _CallResult(returncode)
 
 
 def write_invalid_review(path, head_sha, chunk=None, reason="model call failed or emitted invalid JSON"):
@@ -311,6 +330,7 @@ def main():
     chunk_result_paths = []
     canonical_chunk_result_paths = []
     chunk_result_groups = []
+    chunk_log = []
     for index, chunk in enumerate(manifest["chunks"], 1):
         prompt_path = out_dir / f"{chunk['id']}-prompt.md"
         build_chunk_prompt(chunk_template, live_state, manifest_md, prior_loop, chunk, evidence_dir, prompt_path)
@@ -354,7 +374,17 @@ def main():
                 run_paths.append(third_output)
         chunk_result_paths.extend(run_paths)
         canonical_chunk_result_paths.append(choose_decisive_path(run_paths))
-        chunk_result_groups.append(chunk_result_group(run_paths))
+        group = chunk_result_group(run_paths)
+        chunk_result_groups.append(group)
+        # The id comes from the CI-built manifest, not from the model's review.
+        chunk_log.append(
+            {
+                "chunk_id": chunk["id"],
+                "final_kind": group["convergence"]["final_kind"],
+                "reason": group["convergence"]["reason"],
+                "run_count": group["convergence"]["run_count"],
+            }
+        )
 
     synthesis_prompt = out_dir / "synthesis-prompt.md"
     build_synthesis_prompt(synthesis_template, live_state, manifest_md, prior_loop, chunk_result_groups, synthesis_prompt)
@@ -385,7 +415,18 @@ def main():
         "synthesis_reviews": [str(path) for path in synthesis_paths],
     }
     (out_dir / "run-summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
-    print(json.dumps(summary))
+    # The full summary embeds every model review, so the log gets only the
+    # CI-owned fields: manifest chunk ids, fixed verdict kinds and reasons, counts.
+    print(
+        json.dumps(
+            {
+                "chunk_model": CHUNK_MODEL,
+                "synthesis_model": SYNTHESIS_MODEL,
+                "chunks": chunk_log,
+                "synthesis_runs": len(synthesis_paths),
+            }
+        )
+    )
 
 
 if __name__ == "__main__":
