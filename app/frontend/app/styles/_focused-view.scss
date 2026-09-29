@@ -2969,8 +2969,8 @@ body.ll-layout-focused .md-card--rooms .md-room-card__icon {
   // tallest thing in it. Checked before relying on it: the only height declarations in this
   // subtree are the icon's own. The card's 10px top/bottom padding is left as-is, so the extra
   // height is exactly the extra icon.
-  width: 69px;
-  height: 69px;
+  width: var(--dn-room-icon-focused, 69px);
+  height: var(--dn-room-icon-focused, 69px);
   // Radius scaled with the tile so the corner keeps its proportion
   // (12px on 46 -> 24px on 92 -> 18px on 69).
   border-radius: 18px;
@@ -5787,13 +5787,13 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
     // (light arrow 3.66:1); going much lighter means switching the arrow back to slate and
     // jumping the gap, not easing through it.
     linear-gradient(155deg, #F2F3F5 0%, #66738A 100%) !important;
-  backdrop-filter: blur(16px) saturate(125%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(125%) !important;
-  box-shadow:
+  backdrop-filter: var(--dn-row-blur-focused, blur(16px) saturate(125%)) !important;
+  -webkit-backdrop-filter: var(--dn-row-blur-focused, blur(16px) saturate(125%)) !important;
+  box-shadow: var(--dn-row-shadow-focused,
     inset 0 1px 0 rgba(255, 255, 255, 0.95),      /* bright top rim — the gloss edge */
     inset 0 -1px 0 rgba($la-navy, 0.10),
     0 2px 6px rgba(0, 0, 0, 0.16),
-    0 10px 24px rgba(0, 0, 0, 0.18) !important;
+    0 10px 24px rgba(0, 0, 0, 0.18)) !important;
   border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
 }
 

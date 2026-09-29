@@ -144,14 +144,14 @@ export default Component.extend({
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
     'appState.currentUser.managing_supervision_orgs',
-    'appState.currentUser.supervisees',
+    'appState.currentUser.supervisees', 'appState.compressed_view_active',
     function() {
       // Derived by the shared layout description, which the two preview surfaces
       // also call — so a section the previews hide is a section this page hides.
       // (That includes Focused View's forced-off Extras: Speak takes the focal
       // full-width hero slot, and a visible-but-unplaced card would land in an
       // implicit grid row of its own.)
-      return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis;
+      return this._compressVisibility(layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis);
     }
   ),
 
@@ -262,9 +262,9 @@ export default Component.extend({
   // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
   // GREETING hero — on the Extras tab the same <header> is the page header, which
   // the toggle must never hide.
-  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', function() {
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', 'compressedHome', function() {
     if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
-    return sectionHidden(this.get('appState.currentUser'), 'hero') ? htmlSafe('display: none !important;') : htmlSafe('');
+    return (this.get('compressedHome') || sectionHidden(this.get('appState.currentUser'), 'hero')) ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
@@ -1851,5 +1851,38 @@ export default Component.extend({
     home_board: function(key) {
       this.get('router').transitionTo('board', key);
     }
-  }
+  },
+
+  /* COMPRESSED VIEW (services/app-state.js#compressed_view_active). Kept at the end of the
+     component so no line of the line-anchored ESLint baseline shifts.
+
+     On the home tab the greeting hero, the My Caseload card and the Create a Board / Edit
+     Dashboard cards give way to one heading row with those actions as a toolbar
+     (authenticated-view.hbs, `md-compact-head`). The three cards are removed from the grid
+     through the same visibility map the Dashboard Design preferences use, so the shared layout
+     engine reflows the rest (Need Attention, then Rooms) exactly as if the user had hidden them;
+     they stay in the DOM, hidden, like any turned-off card. */
+  compressedHome: computed('appState.compressed_view_active', 'activeTab', function() {
+    return this.get('appState.compressed_view_active') === true && this.get('activeTab') === 'home';
+  }),
+
+  _compressVisibility: function(vis) {
+    if (!this.get('appState.compressed_view_active') || !vis) { return vis; }
+    var out = Object.assign({}, vis);
+    ['caseload', 'createboard', 'editdashboard'].forEach(function(k) { out[k] = false; });
+    return out;
+  },
+
+  /* The Need Attention card lists a few communicators and links to the full caseload, rather
+     than every flagged one. */
+  attentionShown: computed('attentionCommunicators.[]', 'compressedHome', function() {
+    var all = this.get('attentionCommunicators') || [];
+    return this.get('compressedHome') ? all.slice(0, COMPRESSED_ATTENTION_ROWS) : all;
+  }),
+  attentionOverflow: computed('attentionCommunicators.[]', 'attentionShown.[]', function() {
+    return (this.get('attentionCommunicators') || []).length > (this.get('attentionShown') || []).length;
+  })
 });
+
+// Rows the compressed Need Attention card shows before "View all communicators".
+const COMPRESSED_ATTENTION_ROWS = 4;

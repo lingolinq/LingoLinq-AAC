@@ -8152,6 +8152,7 @@
   "slp_communicators": "0 comunicadores || 1 comunicador || %{n} comunicadores [[ 0 communicators || 1 communicator || %{n} communicators",
   "rooms_card_sub": "Entra a una sala [[ Jump into a room",
   "view_all_rooms": "Ver todas las salas → [[ View all rooms →",
+  "view_all_communicators": "*** View all communicators →",
   "communicators_need_attention": "Comunicadores que necesitan atención [[ Communicators Need Attention",
   "attention_card_sub": "Haz seguimiento de estos comunicadores [[ Follow up on these communicators",
   "view_all_organizations": "Ver todas las organizaciones → [[ View all organizations →",

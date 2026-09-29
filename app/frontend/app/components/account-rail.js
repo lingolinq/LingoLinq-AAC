@@ -103,6 +103,12 @@ export default Component.extend({
   app_state: service('app-state'),
   stashes: service('stashes'),
 
+  // Compressed View is on (services/app-state.js#compressed_view_active): drops the Home Page
+  // row, which duplicates the top tabs' Dashboard pill.
+  compressed: computed('app_state.compressed_view_active', function() {
+    return this.get('app_state.compressed_view_active') === true;
+  }),
+
   /* ON THE HOME PAGE ITSELF, under either of its route names -- not the wider Home section that
      `activeRow` lights for the pill nav's destinations. Same route reads as `activeRow`. */
   onHomePage: computed('router.currentRouteName', 'app_state.current_route', function() {

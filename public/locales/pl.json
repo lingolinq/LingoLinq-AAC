@@ -8144,6 +8144,7 @@
   "slp_communicators": "0 komunikatorów || 1 komunikator || %{n} komunikatorów [[ 0 communicators || 1 communicator || %{n} communicators",
   "rooms_card_sub": "Wskocz do pokoju [[ Jump into a room",
   "view_all_rooms": "Zobacz wszystkie pokoje → [[ View all rooms →",
+  "view_all_communicators": "*** View all communicators →",
   "communicators_need_attention": "Komunikatorzy potrzebują uwagi [[ Communicators Need Attention",
   "attention_card_sub": "Śledź tych komunikatorów [[ Follow up on these communicators",
   "view_all_organizations": "Zobacz wszystkie organizacje → [[ View all organizations →",

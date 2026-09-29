@@ -6,6 +6,7 @@
 @use "focus" as *;
 @use "eval_quick";
 @use "focused-view";
+@use "compressed-view";
 @use "caseload";
 @use "modern_pages";
 @use "badges";
@@ -47697,7 +47698,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   margin: 0 auto !important;
 
-  padding: 18px 16px 24px !important;
+  padding: var(--dn-main-pad-top, 18px) 16px var(--dn-main-pad-bottom, 24px) !important;
 
 }
 .md-main--home-boards {
@@ -48084,7 +48085,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid {
   display: grid !important;
 
-  gap: 28px !important;
+  gap: var(--dn-grid-gap, 28px) !important;
 
   grid-template-columns: 50fr 50fr !important;
 
@@ -48674,7 +48675,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Rooms title — its own authoritative size + line-height (not shared with the
    caseload 28px rule; per Rule #0.7 one rule governs this element). */
 .md-grid .md-card.md-card--rooms .md-card__title {
-  font-size: 22px !important;
+  font-size: var(--dn-card-title, 22px) !important;
   line-height: 1.15 !important;
 }
 /* Divider below the title — same brand highlight gradient + right-fade mask. */
@@ -48750,7 +48751,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 8px !important;
-  padding: 20px 24px !important;
+  padding: var(--dn-card-pad, 20px 24px) !important;
   border-radius: var(--md-r-lg) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
   border: 1.5px solid rgba($la-navy, 0.10) !important;
@@ -48805,7 +48806,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      instead of overflowing past the card edge (the classic minmax(fixed,1fr)
      overflow). */
   grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
-  gap: 12px;
+  gap: var(--dn-room-gap, 12px);
 }
 /* Organizations directory "Available Organizations": a lone org tile spans the
    full grid width instead of sitting at ~360px with empty auto-fill tracks beside
@@ -48933,12 +48934,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    smaller icon + tighter vertical padding reads less empty. Rooms-scoped; org
    tiles keep the full size. (0,4,0) beats the shared .md-room-card padding. */
 .md-grid .md-card.md-card--rooms .md-rooms__grid .md-room-card {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: var(--dn-room-pad-y, 10px);
+  padding-bottom: var(--dn-room-pad-y, 10px);
 }
 .md-card--rooms .md-room-card__icon {
-  width: 46px;
-  height: 46px;
+  width: var(--dn-room-icon, 46px);
+  height: var(--dn-room-icon, 46px);
 }
 /* Org tiles reuse .md-room-card chrome but swap the room door for the single
    organization illustration (the header keeps the plural organizations.png). */
@@ -49081,7 +49082,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 8px !important;
-  padding: 20px 24px !important;
+  padding: var(--dn-card-pad, 20px 24px) !important;
   border-radius: var(--md-r-lg) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
   border: 1.5px solid rgba($la-navy, 0.10) !important;
@@ -49129,7 +49130,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Title matches the Rooms/Caseload header size for consistency down the column.
    Tight line-height so the header block (title + subtitle) reads compactly. */
 .md-grid .md-card.md-card--attention .md-card__title {
-  font-size: 22px !important;
+  font-size: var(--dn-card-title, 22px) !important;
   line-height: 1.15 !important;
 }
 .md-grid .md-card.md-card--attention .md-card--boards__divider {
@@ -49180,13 +49181,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-attention__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dn-list-gap, 8px);
 }
 .md-grid .md-card.md-card--attention .md-attention-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: var(--dn-row-pad, 10px 14px);
   border-radius: 12px;
   /* Surface + highlight match the Speak Mode card (.md-card--speak-as-button, ~48246):
      the same cool-white→warm-gray base with the teal/denim atmospheric radials, the
@@ -49198,17 +49199,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
     linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%);
-  backdrop-filter: blur(12px) saturate(115%);
-  -webkit-backdrop-filter: blur(12px) saturate(115%);
+  backdrop-filter: var(--dn-row-blur, blur(12px) saturate(115%));
+  -webkit-backdrop-filter: var(--dn-row-blur, blur(12px) saturate(115%));
   will-change: transform;
   transform: translateZ(0);
-  box-shadow:
+  box-shadow: var(--dn-row-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
     inset 0 -1px 0 rgba($la-navy, 0.06),
     0 1px 2px rgba($la-navy, 0.05),
     0 4px 10px rgba($la-navy, 0.08),
     0 12px 28px rgba($la-navy, 0.10),
-    0 0 36px rgba($brand-slate-blue, 0.09);
+    0 0 36px rgba($brand-slate-blue, 0.09));
   color: $la-navy;
   text-decoration: none;
   transition: box-shadow 180ms ease-out, transform 140ms ease-out;
@@ -49228,8 +49229,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-attention-item__avatar {
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
+  width: var(--dn-avatar, 40px);
+  height: var(--dn-avatar, 40px);
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--md-line);
@@ -50225,7 +50226,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      this page has been checked at (729px) it has ~659px. Nine 48.125px rows plus 34px of
      panel padding is ~467px, which leaves ~192px for eight gaps -- a ~24px ceiling. 12px
      spends half of that, so the panel still does not need to scroll. */
-  gap: 12px;
+  gap: var(--dn-rail-gap, 12px);
   box-sizing: border-box;
   /* THE PANEL (requested 2026-09-14). The nav element IS the panel — no wrapper div was
      added, because a background, a border and padding are all it takes and the element was
@@ -50675,8 +50676,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    859px tall the panel uses base spacing and does not scroll. */
 @media (min-width: 1201px) and (min-height: 860px) {
   .md-acct-rail {
-    padding-top: 40px;
-    gap: 18px;
+    padding-top: var(--dn-rail-pad-top-tall, 40px);
+    gap: var(--dn-rail-gap-tall, 18px);
   }
 }
 
@@ -57390,7 +57391,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      longer labels ("Create a Board", "Edit Dashboard") ran out of room and
      orphaned the arrow onto a second line, so the four headers sat at different
      heights. Matches the 16px the <=1024px flex fallback already uses. */
-  gap: 14px !important;
+  gap: var(--dn-grid-gap-focused, 14px) !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   min-height: 0 !important;
@@ -111593,13 +111594,13 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
    `.ll-appshell.ll-appshell--no-nav` deliberately carries both classes: that beats the base
    `.ll-appshell` on specificity, so the two values do not depend on which is written first. */
 .ll-appshell {
-  --ll-nav-clearance: 112px;
+  --ll-nav-clearance: var(--dn-nav-clearance, 112px);
   /* THE RAIL'S WIDTH, stated once (2026-09-28). Read by `.md-acct-rail` (its width),
      `.ll-appshell__main` (margin-left) and the fixed `.ll-appshell__navbar` (left), which were
      three separate 208px literals until the rail became collapsible and had to be able to
      change all three at once. The collapsed value is set in the collapsed-rail block near
      `.md-acct-rail__pager`. */
-  --ll-rail-width: 208px;
+  --ll-rail-width: var(--dn-rail-width, 208px);
 }
 .ll-appshell.ll-appshell--no-nav {
   /* The value the base `.md-shell` rule gives a shell with no nav floating over it -- 3rem,
@@ -111883,9 +111884,9 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
        BAND now starts at the navbar's underside while the pills inside it stay exactly where
        they were at y=86. Changing `top` alone would have moved the pills with it. */
     top: max(var(--topbar-height, 70px), 70px);
-    padding-top: 16px;
+    padding-top: var(--dn-nav-pad-top, 16px);
     /* 6px base + the 12px asked for. */
-    padding-bottom: 18px;
+    padding-bottom: var(--dn-nav-pad-bottom, 18px);
     left: var(--ll-rail-width);
     right: 0;
     /* The in-flow band it cancelled no longer exists. */

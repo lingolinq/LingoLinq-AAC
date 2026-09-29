@@ -50,6 +50,37 @@ Verification: RSpec 4 (preference) + 41 (flags) green, red first. Ember: 15 acro
 and app-state density tests; falsified (flag ignored in the util, menu closed on toggle, flag
 dependency dropped from the observer, flag ignored in the observer) each red, restored.
 
-## Next
-- Piece 2: shell/navigation (narrower rail, no duplicate Home Page row, lighter glass).
-- Piece 3: Modern home page structure and density tokens.
+## Pieces 2 and 3: structure and density (done)
+
+Structure (template/JS, all driven by `app-state#compressed_view_active`):
+- Rail: the Home Page row is not rendered (it duplicates the Dashboard pill).
+- Home tab: a `md-compact-head` row (Dashboard title, communicator count, Open My Caseload, and
+  Create a Board / Edit Dashboard as toolbar buttons) replaces the greeting hero; the Caseload,
+  Create a Board and Edit Dashboard cards leave the grid through `_compressVisibility` on the
+  visibility map, so the shared layout engine reflows the rest; Need Attention shows 4 rows and
+  "View all communicators"; the Need Attention and Rooms illustrations are not rendered.
+
+Styles (Rule #0.7): the ORIGINAL rules now read density tokens with today's value as the fallback
+(`var(--dn-*, <old>)`, 33 lines in app.scss and _focused-view.scss, line-for-line, `!important`
+kept where it was). `_compressed-view.scss` only sets the tokens: shell tokens on
+`body.ll-density-compressed` (rail row gaps, pill-nav band padding), home tokens on
+`.md-shell--home` only (main padding, grid gap, card padding and 18px titles, attention rows with
+no nested blur and a light shadow, 32px avatars, room tiles). Governing-rule map (Gentle and
+Focused, per property) from an Explore pass; every edited line was asserted before the edit.
+
+Browser check (Puppeteer, dev `example` account switched to Modern and restored to Basic; 1440x900):
+- The switch works end to end (body class, `aria-checked`, off restores everything).
+- Tried and reverted after measuring: a 184px rail wrapped "Subscription" and the Home Board row
+  mid-word (kept 208px); a reduced `--ll-nav-clearance` did nothing on home (it pads
+  `.ll-appshell__content`, which is 0 there) and the heading row sat 16px under the fixed pill band.
+  Fixed with `--dn-main-pad-top: 36px` (band ends at y=130, heading at y=142; Focused at y=176).
+- NOT verified in a browser: Need Attention and Rooms (the dev account has neither).
+
+Open question for Traci: in Focused, an ADMIN's Speak card is shown only as a pair with My
+Caseload (`dashboard_sections.js:545-546`, orgPair). Compressed View removes the Caseload card, so
+Speak drops too, the same as today when an admin hides My Caseload in Edit Dashboard.
+
+Verification: Ember 115/115 on the dashboard/layout/rail/switcher/compressed filter; new
+`dashboard-compressed-home-test.js` falsified (caseload-only hide, 99-row cap) red, restored.
+ESLint gate new=73 (the branch's pre-existing count, unchanged); template lint clean; build OK and
+the compiled `var()` fallbacks match the old values.

@@ -37,10 +37,14 @@
        highlight and the announcement disagreeing — the silent 2026-09-21 defect recorded in
        learnings-archive/2026-09.md. <LinkTo> still adds its own default `active` class; nothing
        styles it (only `.md-acct-rail__row.is-active` is), so it is inert. --}}
+  {{!-- COMPRESSED VIEW drops this row: it goes where the top tabs' Dashboard pill goes, and the
+       tabs already mark which area you are in, so the rail keeps only account and tools. --}}
+  {{#unless this.compressed}}
   <LinkTo @route="index" class="md-acct-rail__row md-acct-rail__row--home {{if (is_equal this.activeRow "home") "is-active"}}" aria-current={{if (is_equal this.activeRow "home") "page"}}>
   <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
   <span class="md-acct-rail__label">{{t "Home Page" key="home_page"}}</span>
   </LinkTo>
+  {{/unless}}
   {{!-- WHICH ROW IS LIT is <LinkTo>'s own job, via `@activeClass` -- it already knows which
      route is current and recomputes on every transition. This row used to carry a literal
      `is-active` and a hardcoded `aria-current="page"`, which was harmless while the rail

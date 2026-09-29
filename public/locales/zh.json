@@ -8149,6 +8149,7 @@
   "slp_communicators": "0 个通讯器 || 1 个通讯器 || %{n} 通讯器 [[ 0 communicators || 1 communicator || %{n} communicators",
   "rooms_card_sub": "跳进房间 [[ Jump into a room",
   "view_all_rooms": "查看所有房间 → [[ View all rooms →",
+  "view_all_communicators": "*** View all communicators →",
   "communicators_need_attention": "沟通者需要关注 [[ Communicators Need Attention",
   "attention_card_sub": "跟进这些沟通者 [[ Follow up on these communicators",
   "view_all_organizations": "查看所有组织 → [[ View all organizations →",

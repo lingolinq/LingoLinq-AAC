@@ -5464,6 +5464,13 @@ export default Service.extend({
     if(window.LingoLinq && window.LingoLinq.set_density_scope) {
       window.LingoLinq.set_density_scope(on);
     }
+  }),
+
+  /* The same answer for templates and components that change STRUCTURE in Compressed View
+     (the account rail, the Modern home page), so they and the body class cannot disagree. */
+  compressed_view_active: computed('sessionUser', 'sessionUser.preferences.compressed_view', 'feature_flags.compressed_view', function() {
+    return !!this.get('sessionUser') &&
+           compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
   })
 });
 
