@@ -5751,10 +5751,42 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__sub::befor
 
 // ===== EXPERIMENT 2026-09-21 — attention rows (their own glassy surface until 2026-09-29, now the
 // room card's). DELETE WHOLE BLOCK ON REVERT.
-// The communicator rows take the Focused room card's surface (listed with that rule below) and
-// the Focused room card's height, which its 69px icon sets (--dn-room-icon-focused).
+// FOCUSED COMMUNICATOR ROWS: GLASS, DEPTH AND STRUCTURE (requested 2026-09-29, after they took the
+// room card's look: "more glassmorphism, a bit more depth and structure", because the rows are
+// wide and mostly empty on large screens). They keep the room card's padding, radius and HEIGHT
+// (its 69px icon, --dn-room-icon-focused) from the shared rules, and wear their own surface:
+//  - glass: translucent white (0.82 -> 0.64) over a backdrop blur, with a specular highlight off
+//    the top-left, so the card shows through;
+//  - depth: a lit top rim, a darker lower lip and a two-layer drop shadow, lifting on hover;
+//  - structure: a 3px dusty-denim accent on the left edge that anchors each wide row.
+// $la-navy text on the most transparent stop over the darkest card behind it (the Compressed
+// View navy, ~#1A2340) measures 5.29:1; over the slate card, 8.4:1.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
   min-height: calc(var(--dn-room-icon-focused, 69px) + 2 * var(--dn-room-pad-y, 10px) + 2px);
+  background:
+    radial-gradient(120% 160% at 10% 0%,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.14) 36%,
+      transparent 62%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0%, rgba(240, 244, 250, 0.64) 100%) !important;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.62) !important;
+  box-shadow:
+    inset 3px 0 0 rgba($brand-dusty-denim, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 4px rgba($la-navy, 0.10),
+    0 2px 5px rgba($la-navy, 0.12),
+    0 10px 24px rgba($la-navy, 0.16) !important;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:hover,
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:focus-visible {
+  box-shadow:
+    inset 3px 0 0 rgba($brand-dusty-denim, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 4px rgba($la-navy, 0.10),
+    0 4px 10px rgba($la-navy, 0.16),
+    0 16px 34px rgba($la-navy, 0.22) !important;
 }
 
 // COMPRESSED VIEW: the Need Attention card takes the Focused caseload hero's surface (requested
@@ -5823,11 +5855,8 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub::before {
 // attention rows just took, so the two cards' inner controls read as one family.
 // `.md-room-card` is SHARED with the org-management card (see the scoped rule earlier in
 // this file), so this is pinned to `.md-card--rooms` and cannot leak there.
-// The Need Attention communicator rows share this surface (requested 2026-09-29: the same styles
-// as the room cards), so they are listed with it.
-body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card,
-body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list .md-attention-item {
-  // LIGHTER FALL THAN THE ATTENTION ROWS HAD, and (until 2026-09-29) not shared with them.
+body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card {
+  // LIGHTER FALL THAN THE ATTENTION ROWS, which have their own glass surface in Focused.
   // These sit on the RESTORED LIGHT rooms panel, not on a dark card, so the #66738A end the
   // rows use read as a heavy slab here — and measured, the room card's own dark label was
   // only 2.53:1 against it.
