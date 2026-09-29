@@ -8892,7 +8892,7 @@
     {
       "id": "LL-e0175e4711",
       "ruleKey": "state-report-2026-09-28-l03",
-      "title": "Request parameter log filtering coverage (details withheld until remediation is verified)",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -8930,7 +8930,7 @@
     {
       "id": "LL-8f906ab30b",
       "ruleKey": "state-report-2026-09-28-l05",
-      "title": "Message-sharing recipient consent control (details withheld until remediation is verified)",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -8967,7 +8967,7 @@
     {
       "id": "LL-83b6476f45",
       "ruleKey": "state-report-2026-09-28-l14",
-      "title": "Digital consent-age resolution (details withheld until remediation is verified)",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9005,7 +9005,7 @@
     {
       "id": "LL-a8d09a991c",
       "ruleKey": "state-report-2026-09-28-l15",
-      "title": "EU under-16 status determination (details withheld until remediation is verified)",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [

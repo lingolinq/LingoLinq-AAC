@@ -12,7 +12,7 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-29T05:31:54Z
+**Page generated:** 2026-09-29T15:32:56Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -118,19 +118,19 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-78d380b5a9 |  | medium | WCAG | Focus Words modal remove-set button is glyph-only with no accessible name | `app/frontend/app/components/focus-words.hbs`:180 |
 | LL-7d50b089c9 |  | medium |  | BoardVersion/UserVersion history payloads use raw PaperTrail `version.id` instead of the repo's `global_id` string convention | `lib/json_api/board_version.rb`:10 |
 | LL-83a5c576af |  | medium | SOC2, HIPAA | Production load balancer TLS policy does not match the attested in-transit encryption statement (details withheld) | `scripts/gcp/phase5-frontend-lb.sh`:267 |
-| LL-83b6476f45 |  | medium | GDPR, COPPA | Digital consent-age resolution (details withheld until remediation is verified) | `lib/compliance/digital_consent_age.rb`:3 |
+| LL-83b6476f45 |  | medium | GDPR, COPPA | Compliance finding (details withheld until remediation is verified) | `lib/compliance/digital_consent_age.rb`:3 |
 | LL-83f6a3864b |  | medium | WCAG | Shared BoundSelect dropdown renders role=listbox with no accessible name | `app/frontend/app/components/bound-select.hbs`:13 |
 | LL-84c67d758d |  | medium | WCAG | The terms-agree modal invokes ModalDialog without labelledBy, so the dialog ships with role dialog and aria-modal but no accessible name, and the title id added for that purpose is orphaned | `app/frontend/app/components/terms-agree.hbs`:1 |
 | LL-870ef62cd9 |  | medium | WCAG | Badge Image modal close button has only a non-descriptive name (the times glyph) | `app/frontend/app/components/badge-image.hbs`:3 |
 | LL-8990c53bad |  | medium | GDPR, COPPA | AiFocusWordSet retains seed_user_global_id and prompt text after the seeding user's account is erased | `app/models/ai_focus_word_set.rb`:75 |
-| LL-8f906ab30b |  | medium | GDPR | Message-sharing recipient consent control (details withheld until remediation is verified) | `app/models/utterance.rb`:1 |
+| LL-8f906ab30b |  | medium | GDPR | Compliance finding (details withheld until remediation is verified) | `app/models/utterance.rb`:1 |
 | LL-8fab55372e |  | medium | WCAG | Speak-bar remote-modeling (#reply_icon) button has no accessible name | `app/frontend/app/templates/application.hbs`:148 |
 | LL-92ae18cc4e |  | medium | FERPA, COPPA, HIPAA | anonymous_logs export job writes each publishing user's username to stdout, bypassing the PII-scrubbing log formatter | `app/models/log_session.rb`:2111 |
 | LL-959d76ecfc |  | medium | WCAG | Authenticated Home landing jumps from h1 straight to h3 with no h2 | `app/frontend/app/components/dashboard/authenticated-view.hbs`:187 |
 | LL-96f552d34d |  | medium |  | The entire onboarding setup wizard (controllers/setup.js, templates/setup.hbs, templates/setup-footer.hbs, and all 38 files under app/frontend/app/components/setup/) has had zero reachable UI entry point since routes/setup.js's 2026-08-15 blanket redirect -- broader and more current than the allowlist-based reasoning in LL-c95c637f00 | `app/frontend/app/controllers/setup.js`:30 |
 | LL-a1061c1814 |  | medium | WCAG | Modern speak view Recent Phrases items speak on click but are not focusable or keyboard-operable | `app/frontend/app/templates/user/board-detail.hbs`:3611 |
 | LL-a167848115 |  | medium | GDPR, COPPA, FERPA | Text-to-speech posts raw user text to subprocessors absent from the register (Abair has no DPA; Google TTS flow unrowed) (GDPR Art. 28/44) | `lib/tts.rb`:30 |
-| LL-a8d09a991c |  | medium | GDPR | EU under-16 status determination (details withheld until remediation is verified) | `app/models/user.rb`:1 |
+| LL-a8d09a991c |  | medium | GDPR | Compliance finding (details withheld until remediation is verified) | `app/models/user.rb`:1 |
 | LL-ab88513735 |  | medium |  | User model declares is_admin attribute but Rails JSON builder never emits it | `app/frontend/app/models/user.js`:40 |
 | LL-ac1d12bf3f |  | medium | COPPA, GDPR | User::PRIVACY_POLICY_VERSION is written into consent records but never compared against them, so a material privacy-policy change re-prompts nobody | `app/models/user.rb`:29 |
 | LL-ad67eecb9c |  | medium | GDPR | Attested AI Governance Memo describes the deliverable as the "EU-gated" disclosure modal; the gate is fail-safe OPEN, so non-EU and unknown-jurisdiction users are also in scope | `docs/legal/AI_GOVERNANCE_MEMO.md`:260 |
@@ -148,7 +148,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-d033b27acd |  | medium | SOC2 | The document register anchors its overdue-for-review window to meta.generatedDate rather than the current date, so the rendered register printed none overdue while two records were genuinely past their review dates | `scripts/document-register-render.rb`:154 |
 | LL-d3f41e7a67 |  | medium | SOC2, HIPAA, FERPA | Production Cloud SQL instance has deletion protection disabled and is provisioned without it, while automated deploys apply migrations with no pre-migration backup step | `scripts/gcp/phase3-data-layer.sh`:255 |
 | LL-db6bc3e568 |  | medium | GDPR | Attested Data Retention Schedule states the EU AiApiLog purge "matches EU rows wherever Phase 4 is deployed"; in production it matches none | `docs/legal/DATA_RETENTION.md`:33 |
-| LL-e0175e4711 |  | medium | SOC2, HIPAA | Request parameter log filtering coverage (details withheld until remediation is verified) | `config/initializers/filter_parameter_logging.rb`:1 |
+| LL-e0175e4711 |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | `config/initializers/filter_parameter_logging.rb`:1 |
 | LL-e08bd45a9f |  | medium | WCAG | Sentence box / utterance bar vocalize control is an anchor with no button role or accessible name | `app/frontend/app/templates/application.hbs`:86 |
 | LL-e0ea356243 |  | medium |  | Four Ember stats components (stats/num-rows1..4.js) have no template and zero references anywhere | `app/frontend/app/components/stats/num-rows1.js`:7 |
 | LL-e2301adc02 |  | medium | WCAG | Classic speak view word-prediction symbol images have no alt attribute | `app/frontend/app/templates/user/board-alt/index.hbs`:59 |
