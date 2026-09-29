@@ -5797,6 +5797,13 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
   border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
 }
 
+// Compressed View's "View all communicators" (_compressed-view.scss) takes the LIGHT stop of the
+// row gradient above (#F2F3F5 -> #66738A), so it reads as part of the same list.
+body.ll-layout-focused .md-attention__all {
+  background: #F2F3F5;
+  border-color: rgba($brand-dusty-denim, 0.38);
+}
+
 // Arrows. Slate was asked for and slate is what these were — but the arrow is pinned to the
 // far RIGHT of the row (`margin-left: auto`, app.scss:48583), which is exactly where the
 // restored fall is darkest (#4F5D72). Slate on slate measured 1.00:1. So the arrow takes the

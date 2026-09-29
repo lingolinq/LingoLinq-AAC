@@ -297,7 +297,7 @@
         {{!-- Compressed View shows only the first few (attentionShown); the rest are on the
              caseload page. --}}
         {{#if this.attentionOverflow}}
-          <LinkTo @route="caseload" class="md-btn md-btn--primary md-attention__all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
+          <LinkTo @route="caseload" class="md-attention__all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
         {{/if}}
       </section>
       {{/if}}
