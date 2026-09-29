@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (181)
+## Open (180)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -139,7 +139,6 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-8f906ab30b |  | medium | GDPR | untriaged | manual | Message-sharing recipient consent control (details withheld until remediation is verified) | `app/models/utterance.rb`:1 |
 | LL-83b6476f45 |  | medium | GDPR, COPPA | untriaged | manual | Digital consent-age resolution (details withheld until remediation is verified) | `lib/compliance/digital_consent_age.rb`:3 |
 | LL-a8d09a991c |  | medium | GDPR | untriaged | manual | EU under-16 status determination (details withheld until remediation is verified) | `app/models/user.rb`:1 |
-| LL-3929d6d2a9 |  | medium | SOC2, FERPA | untriaged | manual | Administrative endpoint authorization (details withheld until remediation is verified) | `app/controllers/concerns/api/system_settings_access.rb`:1 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -294,4 +293,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_258 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_257 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

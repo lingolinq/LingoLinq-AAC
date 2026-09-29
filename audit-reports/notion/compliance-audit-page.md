@@ -12,14 +12,14 @@
 **Audited commit:** `a43867de5aa83d821125892de624fcd1e19f9d81`  
 **Audited ref:** `compliance/scot-q3-audit-run-951d9465 (== origin/develop tip a43867de5 at run start, 2026-09-16). PARTIAL COVERAGE, Scot-approved 2026-09-17: finders ran without their checklist skills or read-only guard (LL-c667ec15e3); no AWS account-level read; no bundle-audit; accessibility static only; code-hygiene, api and privacy sampled parts of their scope. Make-up pass due before the October light run.`  
 **Run date:** 2026-09-16  
-**Page generated:** 2026-09-29T04:27:50Z
+**Page generated:** 2026-09-29T05:31:54Z
 
 ## Headline - live findings (open + awaiting verification)
 
 | Count | Critical | High | Medium | Low |
 |---|---|---|---|---|
-| **Live** (`open` + `remediated-unverified`) | **1** | **39** | 99 | 52 |
-| `open` only | 1 | 33 | 96 | 51 |
+| **Live** (`open` + `remediated-unverified`) | **1** | **39** | 98 | 52 |
+| `open` only | 1 | 33 | 95 | 51 |
 
 _The headline is the LIVE count: `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` step 6 convention; the difference is findings whose fix has landed but which Scot has not yet verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -92,7 +92,6 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-33d756b764 |  | medium | SOC2 | The blocking secret-detection gate downloads and executes an unpinned, unverified gitleaks binary resolved at runtime from the GitHub releases API | `.github/workflows/ci.yml`:266 |
 | LL-35e6b7a3d6 |  | medium | WCAG | Dashboard search overlay text input has no programmatic label (placeholder only) | `app/frontend/app/templates/components/dashboard/authenticated-view.hbs`:588 |
 | LL-37860cbcfa |  | medium | SOC2 | No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission | `.github/workflows/deploy-cloudrun.yml`:309 |
-| LL-3929d6d2a9 |  | medium | SOC2, FERPA | Administrative endpoint authorization (details withheld until remediation is verified) | `app/controllers/concerns/api/system_settings_access.rb`:1 |
 | LL-3bb2e2eaad |  | medium | GDPR, HIPAA | Retention purge deletes the LogSession's PaperTrail destroy-version and writes no disposal AuditEvent | `lib/flusher.rb`:45 |
 | LL-3cfa7fd806 |  | medium | WCAG | Board Ideas (button suggestions) back button is svg-only with no accessible name | `app/frontend/app/components/button-suggestions.hbs`:81 |
 | LL-40ab0aa041 |  | medium | WCAG | Batch Recording modal back buttons are svg-only with no accessible name | `app/frontend/app/components/batch-recording.hbs`:27 |

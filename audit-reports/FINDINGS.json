@@ -8912,7 +8912,7 @@
       "owner": "unassigned",
       "remediation": {
         "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
-        "timeframe": "before the first non-team account is created"
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
       },
       "closureEvidence": {
         "sha": "",
@@ -8949,7 +8949,7 @@
       "owner": "unassigned",
       "remediation": {
         "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
-        "timeframe": "before the first non-team account is created"
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
       },
       "closureEvidence": {
         "sha": "",
@@ -8987,7 +8987,7 @@
       "owner": "unassigned",
       "remediation": {
         "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
-        "timeframe": "before the first non-team account is created"
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
       },
       "closureEvidence": {
         "sha": "",
@@ -9024,45 +9024,7 @@
       "owner": "unassigned",
       "remediation": {
         "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
-        "timeframe": "before the first non-team account is created"
-      },
-      "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
-      },
-      "source": {
-        "kind": "manual",
-        "pr": null,
-        "reviewer": "platform-state-report-2026-09-28",
-        "promotedDate": "2026-09-28"
-      },
-      "notes": "Surfaced by platform-state-report-2026-09-28 finder on 2026-09-28. Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Minimized 2026-09-28 under the security disclosure policy. Filed from the 2026-09-28 platform state report after independent confirmation and re-verification at develop e508ae591. Severity Medium approved by Scot Wahlquist 2026-09-28."
-    },
-    {
-      "id": "LL-3929d6d2a9",
-      "ruleKey": "state-report-2026-09-28-l16",
-      "title": "Administrative endpoint authorization (details withheld until remediation is verified)",
-      "severity": "medium",
-      "confidence": "high",
-      "frameworks": [
-        "SOC2",
-        "FERPA"
-      ],
-      "status": "open",
-      "evidence": {
-        "type": "code",
-        "file": "app/controllers/concerns/api/system_settings_access.rb",
-        "line": 1,
-        "snippet": "module Api::SystemSettingsAccess",
-        "sha": "e508ae591d13b6066e176ac5d30625e664718d58"
-      },
-      "firstSeen": "2026-09-28",
-      "lastSeen": "2026-09-28",
-      "owner": "unassigned",
-      "remediation": {
-        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
-        "timeframe": "before the first non-team account is created"
+        "timeframe": "60 days or before the first non-team account, whichever comes first"
       },
       "closureEvidence": {
         "sha": "",
