@@ -258,6 +258,19 @@ export default Component.extend({
     });
   }),
 
+  /* Compressed View's Create Board row. Same flow as the home page's Create a Board card
+     (dashboard/authenticated-view.js#openNewBoardOnBoards): the purchase check, then the new-board
+     page whether or not it resolves. */
+  createBoard: action(function() {
+    var router = this.get('router');
+    var go = function() { router.transitionTo('create-board-new'); };
+    if(this.app_state.check_for_needing_purchase) {
+      this.app_state.check_for_needing_purchase().then(go, go);
+    } else {
+      go();
+    }
+  }),
+
   /* A PAGE, not a nudge: 80% of the visible height, so successive activations always leave a
      row of overlap and nothing is skipped between presses. */
   scrollRail: action(function(direction) {

@@ -46,6 +46,10 @@ body.ll-density-compressed .md-shell--home {
   // Need Attention and Rooms cards.
   --dn-card-pad: 12px 16px;
   --dn-card-title: 18px;
+  // Need Attention card, Gentle: the My Caseload card-as-button's glass surface (requested
+  // 2026-09-29). Focused takes its own caseload hero surface instead (_focused-view.scss,
+  // --dn-attention-bg-focused).
+  --dn-attention-bg: var(--md-caseload-glass-bg);
   // Attention rows: shorter, and flat inside the card. The strong glass stays on the shell and
   // the cards; nested blur and deep shadows on every row are what made the list heavy.
   --dn-list-gap: 4px;
@@ -62,8 +66,8 @@ body.ll-density-compressed .md-shell--home {
   --dn-room-icon-focused: 40px;
 }
 
-// The heading row that replaces the greeting hero, the My Caseload card and the Create a Board /
-// Edit Dashboard cards (components/dashboard/authenticated-view.hbs, rendered only in Compressed
+// The heading row (title and caseload count) that replaces the greeting hero, the My Caseload card
+// and the Create a Board / Edit Dashboard cards (components/dashboard/authenticated-view.hbs, rendered only in Compressed
 // View). Colours are inherited, like the hero title's, so it reads on both the Gentle and the
 // Focused page background.
 .md-compact-head {
@@ -94,13 +98,27 @@ body.ll-density-compressed .md-shell--home {
   font-weight: 600;
 }
 
-.md-compact-head__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+// Open My Caseload in the heading row, dressed as the Gentle My Caseload card-as-button: the same
+// glass surface and shadow (:root --md-caseload-glass-bg / --md-caseload-glass-shadow in app.scss).
+// Not an `.md-btn`, whose !important surface would have to be overridden. Focused wears the
+// caseload hero material instead (_focused-view.scss).
+.md-compact-head__caseload {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: var(--md-caseload-glass-bg);
+  box-shadow: var(--md-caseload-glass-shadow);
+  color: #1b365d;
+  font-size: 16px;
+  font-weight: 750;
+  text-decoration: none;
 }
 
-.md-compact-head__link,
-.md-compact-head__action {
-  min-height: 44px;
+.md-compact-head__caseload:hover,
+.md-compact-head__caseload:focus-visible {
+  color: #1b365d;
+  text-decoration: none;
 }

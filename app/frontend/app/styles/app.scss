@@ -46640,6 +46640,23 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   --md-shadow: 0 18px 50px #{rgba($brand-blue-black, 0.12)};
   --md-shadow-2: 0 12px 28px #{rgba($brand-blue-black, 0.10)};
 
+  /* The My Caseload card-as-button's glass surface, named once so other cards can wear it:
+     Compressed View gives it to the Need Attention card (_compressed-view.scss). */
+  --md-caseload-glass-bg:
+    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
+    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
+    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
+    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%);
+  /* ...and its raised-glass shadow with the verdigris showcase halo (the card's rest state). */
+  --md-caseload-glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 #{rgba($la-navy, 0.06)},
+    0 1px 2px #{rgba($la-navy, 0.05)},
+    0 4px 10px #{rgba($la-navy, 0.08)},
+    0 12px 28px #{rgba($la-navy, 0.10)},
+    0 0 38px #{rgba($brand-verdigris, 0.32)};
+
   --md-r-lg: 28px;
   --md-r-md: 20px;
   --md-r-sm: 14px;
@@ -48460,14 +48477,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      A single combined shadow declaration so the cascade-merge stays
      atomic — hover/active just swap the whole stack. The final layer is the
      verdigris showcase halo so My Caseload reads as a primary action exactly
-     like the Speak Mode card-as-button. */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba($la-navy, 0.06),
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 10px rgba($la-navy, 0.08),
-    0 12px 28px rgba($la-navy, 0.10),
-    0 0 38px rgba($brand-verdigris, 0.32) !important;
+     like the Speak Mode card-as-button. The stack is :root --md-caseload-glass-shadow. */
+  box-shadow: var(--md-caseload-glass-shadow) !important;
   transition: box-shadow 180ms ease-out, transform 140ms ease-out !important;
   -webkit-tap-highlight-color: transparent;
 }
@@ -48633,14 +48644,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    base/hover rules above.) Mirrors the .md-card--speak-as-button refinements. */
 .md-grid .md-card.md-card--caseload-as-button {
   min-height: 160px;
-  background:
-    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
-    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
-    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
-    /* Ultra-soft horizontal "flow" connecting the left content cluster to the
-       right side — same gentle communication airflow as the Speak Mode card. */
-    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%) !important;
+  /* Showcase atmosphere + surface (:root --md-caseload-glass-bg): three soft teal/blue glows, an
+     ultra-soft horizontal "flow" connecting the left content cluster to the right side (same
+     gentle communication airflow as the Speak Mode card), over a near-white glass base. */
+  background: var(--md-caseload-glass-bg) !important;
   backdrop-filter: blur(12px) saturate(115%);
   -webkit-backdrop-filter: blur(12px) saturate(115%);
   /* Promote to its own GPU layer so the backdrop-filter result is rasterized and held
@@ -49084,7 +49091,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 8px !important;
   padding: var(--dn-card-pad, 20px 24px) !important;
   border-radius: var(--md-r-lg) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
+  background: var(--dn-attention-bg, linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95))) !important;
   border: 1.5px solid rgba($la-navy, 0.10) !important;
   border-bottom: 2.5px solid rgba($la-navy, 0.12) !important;
 }
@@ -49148,26 +49155,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid .md-card.md-card--attention .md-card__icon--attention > svg {
   display: none !important;
 }
-/* Count pill beside the title — shared by Communicators Need Attention and the
-   Rooms card so the two stay identical (one authoritative rule, no drift). */
+/* Count chip beside the title — shared by Communicators Need Attention, Rooms and My
+   Organizations so they stay identical (one authoritative rule, no drift), in every view.
+   2026-09-29 (requested: "sleek and modern", not "bulky and juvenile"): a slim tinted chip
+   instead of a solid 26px verdigris pill with a glow. The verdigris stays as the tint and hairline
+   so it still reads as a count; the digits are $la-navy because verdigris-dark text drops to
+   3.92:1 on Focused's #AEB9C9 header band, while navy on the tinted chip measures 5.65:1 there and
+   10.41:1 on a white card. 14px is the AAC token floor; tabular figures keep 9 and 10 the same
+   width. */
 .md-attention__count,
 .md-rooms__count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  min-width: 26px;
-  height: 26px;
-  margin-left: 12px;
-  padding: 0 8px;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 10px;
+  padding: 0 7px;
   border-radius: 999px;
-  /* Solid verdigris fill + white text — high contrast so the count reads as an
-     actionable indicator rather than a decorative tint. */
-  background: $brand-verdigris;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba($brand-verdigris, 0.45);
+  border: 1px solid rgba($brand-verdigris, 0.38);
+  background: rgba($brand-verdigris, 0.14);
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
 }
 /* ≤640px: drop the count badge's 12px left margin on the My Organizations and
    Communicators Need Attention counts (Rooms keeps its margin — not requested).

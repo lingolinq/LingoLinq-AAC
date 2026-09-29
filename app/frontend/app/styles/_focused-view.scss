@@ -108,10 +108,13 @@
    centre/edge shifts, so a caller can say "this card, N% lighter" without retuning the shifts
    that give it its shape. Defaults to 0%, which `color.scale` treats as no change, so every
    existing caller renders byte-identically. */
-@mixin focus-glass-slate-card($lightness: 20%, $centre-shift: 0%, $edge-shift: 0%, $raised: true, $shape: circle at 50% 46%, $gloss: 0.30, $lighten: 0%) {
-  background:
-    /* Specular highlight — the gloss. Off-centre to the top-left so the card reads as lit from
-       one side rather than uniformly washed. */
+// `$bg-token` (default null, so every existing caller is byte-identical) names a custom property
+// the background is read through, with the ramp below as its fallback: a caller that passes
+// `--dn-attention-bg` lets Compressed View swap the whole surface without a competing rule.
+@mixin focus-glass-slate-card($lightness: 20%, $centre-shift: 0%, $edge-shift: 0%, $raised: true, $shape: circle at 50% 46%, $gloss: 0.30, $lighten: 0%, $bg-token: null) {
+  // Specular highlight (the gloss), off-centre to the top-left so the card reads as lit from one
+  // side rather than uniformly washed; then the slate ramp.
+  $slate-layers:
     radial-gradient(120% 90% at 28% 12%,
       rgba(255, 255, 255, $gloss) 0%,
       rgba(255, 255, 255, $gloss * 0.3) 38%,
@@ -119,7 +122,12 @@
     radial-gradient(#{$shape},
       color.scale(color.scale(color.scale(#262d3a, $lightness: $lightness), $lightness: $centre-shift), $lightness: $lighten) 0%,
       color.scale(color.scale(color.scale(#333c4a, $lightness: $lightness), $lightness: 0.5 * $centre-shift), $lightness: $lighten) 48%,
-      color.scale(color.scale(color.scale(#515d70, $lightness: $lightness), $lightness: $edge-shift), $lightness: $lighten) 100%) !important;
+      color.scale(color.scale(color.scale(#515d70, $lightness: $lightness), $lightness: $edge-shift), $lightness: $lighten) 100%);
+  @if $bg-token {
+    background: var(#{$bg-token}, #{$slate-layers}) !important;
+  } @else {
+    background: $slate-layers !important;
+  }
   /* Callers sit on a base rule that sets `border: none` and `box-shadow: none` `!important`
      ("the image IS the icon"), so anything wanted here has to be restated or the tile has no
      edge at all. */
@@ -2925,7 +2933,7 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention {
   // 1 - (1 - 0.25)(1 - 0.10) = 0.325. Writing 35% here would have over-lightened by a couple of
   // points per channel and, worse, left the number looking like a running total that can be
   // added to -- the next "10% lighter" is 39.25%, not 45%.
-  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08, $lighten: 32.5%,
+  @include focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $raised: false, $gloss: 0.08, $lighten: 32.5%, $bg-token: --dn-attention-bg-focused,
     // Centre pushed DOWN and the vertical radius tightened (requested: "don't start the
     // lighter gradient until you get past the top section"). `at 50% 70%` with a 40% vertical
     // radius means the ramp's outer stop is reached at 30% of the card height — the header
@@ -4109,6 +4117,13 @@ $ch-focused-hero-more-ink: #E5E5E5;
   }
 }
 
+
+// Compressed View's Open My Caseload (_compressed-view.scss) in Focused: the caseload hero's
+// material at button scale, through the same mixin and the hero's own tokens, so it matches the
+// My Caseload hero exactly and cannot drift from it.
+body.ll-layout-focused .md-compact-head__caseload {
+  @include ch-focused-hero-tile($focus-hero-center, $focus-hero-edge);
+}
 
 @mixin ch-focused-tile($start, $end) {
   background: linear-gradient(155deg, $start 0%, $end 100%);
@@ -5798,6 +5813,26 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
     0 2px 6px rgba(0, 0, 0, 0.16),
     0 10px 24px rgba(0, 0, 0, 0.18)) !important;
   border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
+}
+
+// COMPRESSED VIEW: the Need Attention card takes the Focused caseload hero's surface (requested
+// 2026-09-29), the oklab navy radial of `.md-card--caseload-focused` (app.scss), built from the
+// same $focus-hero-* tokens so the two cannot drift. Read by the card's `$bg-token` above; the
+// card's light title ink already suits it. Gentle's value is set in _compressed-view.scss.
+body.ll-layout-focused.ll-density-compressed .md-shell--home {
+  --dn-attention-bg-focused: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+}
+
+// Count chips (app.scss `.md-attention__count, .md-rooms__count`). The base 14% verdigris tint mixes
+// to a murky grey-teal over Focused's grey-blue cards; here the chip is near-white instead
+// (requested 2026-09-29: "much lighter"), keeping the verdigris hairline. $la-navy digits on it
+// measure about 11:1.
+body.ll-layout-focused .md-attention__count,
+body.ll-layout-focused .md-rooms__count {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba($brand-verdigris, 0.32);
 }
 
 // "View all communicators" (app.scss `.md-attention__all`) takes the LIGHT stop of the row

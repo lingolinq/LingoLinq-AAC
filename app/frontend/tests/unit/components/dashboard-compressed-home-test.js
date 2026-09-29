@@ -85,4 +85,32 @@ module('Unit | Component | dashboard compressed home', function(hooks) {
     stub(this, false);
     assert.false(this.owner.factoryFor('component:account-rail').create().get('compressed'), 'not compressed');
   });
+
+  // Compressed View moves Create a Board into the rail as "Create Board": the same purchase
+  // check, then the new-board page, whether the check resolves or rejects.
+  test('the rail Create Board row opens the new-board page after the purchase check', async function(assert) {
+    var calls = [];
+    var outcome = 'resolve';
+    this.owner.unregister('service:app-state');
+    this.owner.register('service:app-state', Service.extend({
+      compressed_view_active: true,
+      check_for_needing_purchase: function() {
+        calls.push('check');
+        return outcome === 'resolve' ? Promise.resolve() : Promise.reject();
+      }
+    }));
+    this.owner.unregister('service:router');
+    this.owner.register('service:router', Service.extend({
+      transitionTo: function(route) { calls.push(route); }
+    }));
+    var rail = this.owner.factoryFor('component:account-rail').create();
+    rail.createBoard();
+    await Promise.resolve(); await Promise.resolve();
+    assert.deepEqual(calls, ['check', 'create-board-new'], 'checked, then opened');
+    calls = [];
+    outcome = 'reject';
+    rail.createBoard();
+    await Promise.resolve(); await Promise.resolve();
+    assert.deepEqual(calls, ['check', 'create-board-new'], 'opened even when the check rejects');
+  });
 });

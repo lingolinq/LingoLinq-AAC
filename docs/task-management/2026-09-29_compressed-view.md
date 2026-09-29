@@ -91,3 +91,19 @@ Compressed View, and no other entry point is added: "in compressed view, they wo
 rearrange their home page". Compressed View has a fixed home layout by design; this is not a gap.
 The DisplayStyle component stays mounted (`@triggerless`) only so its opener keeps working for
 callers outside Compressed View.
+
+## Later requests (2026-09-29), all browser-checked in Gentle and Focused
+- Count chips (Need Attention, Rooms, My Organizations, every view): slim tinted chip, navy digits
+  (5.65:1 on Focused's #AEB9C9 band, 10.41:1 on white); Focused near-white (~11:1).
+- Need Attention card in Compressed View: Gentle takes the My Caseload card-as-button glass
+  (`:root --md-caseload-glass-bg`, now also read by that card); Focused takes the caseload hero's
+  oklab navy radial (`--dn-attention-bg-focused`, from the $focus-hero-* tokens). The slate mixin
+  gained an optional `$bg-token` (null by default; compiled CSS diffed, other callers identical).
+  First attempt gave Focused the Gentle glass; corrected at Traci's request.
+- Create a Board moved from the heading row to the top of the account rail as "Create Board"
+  (Compressed View only; `createBoard` in account-rail.js, purchase check then create-board-new).
+- Open My Caseload: removed, then restored at Traci's request, dressed as each view's caseload
+  button: Gentle glass + halo (`--md-caseload-glass-shadow`, now also read by the card), Focused
+  the hero material via `ch-focused-hero-tile($focus-hero-center, $focus-hero-edge)`.
+- Need Attention rows are visible in the browser only by injecting fake flagged supervisees
+  client-side (never saved); no dev account has real ones.
