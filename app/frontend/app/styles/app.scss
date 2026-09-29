@@ -48775,6 +48775,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-bottom: none !important;
   padding-bottom: 0 !important;
 }
+/* The Rooms header row's top and bottom padding: 0 unless Compressed View sets
+   --dn-card-head-pad-y, where "View all rooms" has moved to the bottom of the card and this row
+   keeps the spacing it had with the button in it. Rooms only: `.md-card--rooms__top` is shared
+   with My Organizations. */
+.md-card--rooms .md-card--rooms__top {
+  padding-top: var(--dn-card-head-pad-y, 0);
+  padding-bottom: var(--dn-card-head-pad-y, 0);
+}
 /* Top row: header/subheader on the left, the "View all rooms" button on the right. */
 .md-card--rooms__top {
   display: flex;
@@ -49105,9 +49113,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center !important;
   gap: 14px !important;
   border-bottom: none !important;
-  /* 0 unless Compressed View sets --dn-attention-head-pad-y (_compressed-view.scss). */
-  padding-top: var(--dn-attention-head-pad-y, 0) !important;
-  padding-bottom: var(--dn-attention-head-pad-y, 0) !important;
+  /* 0 unless Compressed View sets --dn-card-head-pad-y (_compressed-view.scss). */
+  padding-top: var(--dn-card-head-pad-y, 0) !important;
+  padding-bottom: var(--dn-card-head-pad-y, 0) !important;
 }
 /* ≤460px: stack the Rooms / My Organizations / Communicators-Need-Attention /
    My Caseload header content vertically and center it — icon on top (it's the
@@ -49199,13 +49207,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     margin-left: 0;
   }
 }
-// "View all communicators" under the Need Attention list (shown when more than 3 are flagged; see
-// attentionShown in components/dashboard/authenticated-view.js): a slim 28px button, right-aligned
+// "View all" at the bottom right of a home card: "View all communicators" under the Need Attention
+// list (shown when more than 3 are flagged; see attentionShown in components/dashboard/
+// authenticated-view.js), and in Compressed View "View all rooms" under the Rooms tiles: a slim 28px button, right-aligned
 // (the card is a flex column), in the LIGHT colour of the communicator rows' gradient. Gentle: the
 // rows' lightest layer, white at 0.94 (`.md-attention-item` above); Focused: _focused-view.scss. Not an `.md-btn`:
 // that class forces a 44px height and 14px/20px padding with !important. 28px still clears the
 // WCAG 2.5.8 (AA) 24px target minimum, not the 2.5.5 (AAA) 44px one.
-.md-attention__all {
+.md-card__view-all {
   align-self: flex-end;
   display: inline-flex;
   align-items: center;
@@ -49222,8 +49231,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-decoration: none;
 }
 
-.md-attention__all:hover,
-.md-attention__all:focus-visible {
+.md-card__view-all:hover,
+.md-card__view-all:focus-visible {
   border-color: rgba(27, 54, 93, 0.24);
   text-decoration: none;
 }

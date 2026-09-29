@@ -233,7 +233,7 @@
               {{#unless this.compressedHome}}<div class="md-card__sub">{{t "Jump into a room" key="rooms_card_sub"}}</div>{{/unless}}
             </div>
           </div>
-          {{#if (and this.roomsAllOrgId this.roomsOverflowCount)}}
+          {{#if (and this.roomsAllOrgId this.roomsOverflowCount (not this.compressedHome))}}
             <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-btn md-btn--primary md-rooms__all">
               {{t "View all rooms →" key="view_all_rooms"}}
             </LinkTo>
@@ -251,6 +251,11 @@
             </LinkTo>
           {{/each}}
         </div>
+        {{!-- Compressed View puts "View all rooms" at the bottom right, in the same style as "View
+             all communicators" (requested 2026-09-29); otherwise it stays in the header above. --}}
+        {{#if (and this.roomsAllOrgId this.roomsOverflowCount this.compressedHome)}}
+          <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-card__view-all">{{t "View all rooms →" key="view_all_rooms"}}</LinkTo>
+        {{/if}}
       </section>
       {{/if}}
       {{!-- Communicators Need Attention — supervisees whose org_status is flagged
@@ -294,7 +299,7 @@
         </div>
         {{!-- Only the first few are listed (attentionShown); the rest are on the caseload page. --}}
         {{#if this.attentionOverflow}}
-          <LinkTo @route="caseload" class="md-attention__all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
+          <LinkTo @route="caseload" class="md-card__view-all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
         {{/if}}
       </section>
       {{/if}}

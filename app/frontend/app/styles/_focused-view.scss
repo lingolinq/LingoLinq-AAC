@@ -5777,9 +5777,9 @@ body.ll-layout-focused .md-rooms__count {
   border-color: rgba($brand-verdigris, 0.32);
 }
 
-// "View all communicators" (app.scss `.md-attention__all`) takes the LIGHT stop of the row
+// "View all" (app.scss `.md-card__view-all`: communicators, and rooms in Compressed View) takes the LIGHT stop of the row
 // gradient above (#F2F3F5 -> #D2D9E4), so it reads as part of the same list.
-body.ll-layout-focused .md-attention__all {
+body.ll-layout-focused .md-card__view-all {
   background: #F2F3F5;
   border-color: rgba($brand-dusty-denim, 0.38);
 }

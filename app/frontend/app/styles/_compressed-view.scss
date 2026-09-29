@@ -50,11 +50,11 @@ body.ll-density-compressed .md-shell--home {
   // 2026-09-29). Focused takes its own caseload hero surface instead (_focused-view.scss,
   // --dn-attention-bg-focused).
   --dn-attention-bg: var(--md-caseload-glass-bg);
-  // Its header row gets the Rooms header's top and bottom spacing (requested 2026-09-29). That
-  // row is 50px because it also holds "View all rooms", which leaves 12px more above and below
-  // its title than Need Attention's (measured at 1440x900 in both styles: 25px/24px against
-  // 13px/12px).
-  --dn-attention-head-pad-y: 12px;
+  // Need Attention and Rooms header rows: 12px top and bottom (requested 2026-09-29), the spacing
+  // the Rooms header had while "View all rooms" sat in it (measured at 1440x900: 25px/24px from the
+  // card top to the title and from the title to the divider). The button now sits at the bottom
+  // of the Rooms card, so both rows take the padding explicitly.
+  --dn-card-head-pad-y: 12px;
   // Attention rows wear the room card (app.scss / _focused-view.scss), so their padding and height
   // follow the room tokens below; only the list gap and the avatar are their own.
   --dn-list-gap: 4px;
