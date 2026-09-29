@@ -15,22 +15,49 @@
  * people off pages that were working perfectly well in both views.
  */
 
-/* `index_nav` NAMES A TAB ON THE BASIC HOME PAGE, and only three values exist:
-   `set_index_nav` (components/dashboard/authenticated-view.js:1639) persists 'main',
-   'supervisees' and 'supervisors' and silently drops anything else. 'supervisees' is the
-   Communicators tab (components/dashboard/classic-view.hbs:431).
-   It has to be part of the landing rather than left to the destination, because the Basic home
-   page opens on whatever `preferences.device.last_index_nav` says (authenticated-view.js:805) --
-   arriving without setting it would land on the Actions tab, not on the people the caseload was
-   showing a moment earlier. */
+import { hasHomeNavParam } from './primary_nav';
+
+/* `index_nav` NAMES A TAB ON THE BASIC HOME PAGE (components/dashboard/classic-view.hbs
+   `ch-tabs`): 'main' (Actions), 'supervisees' (Communicators), 'boards', 'updates'.
+   It has to be part of the landing rather than left to the destination, because arriving on the
+   home page with no tab named opens the Actions tab, not the page the user was just on.
+   It travels by the HANDOFF below, not by writing `preferences.device.last_index_nav`: only
+   three tabs are ever saved (`set_index_nav`, authenticated-view.js), so Boards and Updates
+   could not ride on the preference at all. The dashboard applies it through `set_index_nav`,
+   the action a tab click sends, so every tab gets exactly its click behaviour -- Communicators
+   is still saved, Updates still marks notifications read, Boards still collapses the rail. */
 const LANDINGS = {
   // Requested 2026-09-24: "map caseload -> home page Communicators".
-  'caseload': { route: 'index', index_nav: 'supervisees' }
+  'caseload': { route: 'index', index_nav: 'supervisees' },
+  // Requested 2026-09-28: "boards page -> basic view home page with boards active".
+  'user.boards': { route: 'index', index_nav: 'boards' }
 };
 
-export function basic_landing_for(route) {
+/* Requested 2026-09-28: "updates page (logs) -> basic view home page with Updates active".
+   Updates is not a route of its own but an ARRIVAL: `user.logs` (and a single update,
+   `user.log`) reached from the pill nav, marked by `?nav=home` -- the same test the nav uses to
+   light its Updates pill (utils/primary_nav.js). Reached from the account rail's Logs row, the
+   same route is Basic's own Logs page, which Basic renders, so that one stays put. */
+const UPDATES_LANDING = { route: 'index', index_nav: 'updates' };
+
+export function basic_landing_for(route, url) {
   if(!route) { return null; }
+  if((route === 'user.logs' || route === 'user.log') && hasHomeNavParam(url)) { return UPDATES_LANDING; }
   return LANDINGS[route] || null;
+}
+
+/* THE HANDOFF, both halves in one place. The switcher leaves the tab in app state before it
+   transitions (components/view-switcher.js#_apply_view) and the Basic home page takes it when
+   it renders (components/dashboard/classic-view.js). TAKEN ONCE: a value left behind would
+   reopen that tab on some later, ordinary visit to the home page. */
+export function hand_off_index_nav(appState, nav) {
+  appState.set('pending_index_nav', nav || null);
+}
+
+export function take_pending_index_nav(appState) {
+  var nav = appState.get('pending_index_nav') || null;
+  if(nav) { appState.set('pending_index_nav', null); }
+  return nav;
 }
 
 export default basic_landing_for;

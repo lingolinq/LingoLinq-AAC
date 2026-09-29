@@ -1,4 +1,4 @@
-<nav class="md-acct-rail" aria-label={{t "Account menu" key="account_menu"}} {{on-insert this.railMounted}}>
+<nav id="acct_rail_nav" class="md-acct-rail {{if this.railCollapsed "md-acct-rail--collapsed"}}" aria-label={{t "Account menu" key="account_menu"}} {{on-insert this.railMounted}}>
   {{!-- SCROLL PAGER, only when the panel actually overflows. On a short viewport the eleven
        rows do not fit, and a wheel or a Tab key is not available to everyone: an eye-gaze or
        switch user can only activate what is on screen, so without these the rows below the
@@ -14,12 +14,12 @@
       <button type="button" class="md-acct-rail__pager-btn" id="acct_rail_scroll_up_button"
               disabled={{this.rail_at_top}} {{on "click" (fn this.scrollRail "up")}}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
-        {{t "Up" key="up"}}
+        <span class="md-acct-rail__pager-label">{{t "Up" key="up"}}</span>
       </button>
       <button type="button" class="md-acct-rail__pager-btn" id="acct_rail_scroll_down_button"
               disabled={{this.rail_at_bottom}} {{on "click" (fn this.scrollRail "down")}}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        {{t "Down" key="down"}}
+        <span class="md-acct-rail__pager-label">{{t "Down" key="down"}}</span>
       </button>
     </div>
   {{/if}}
@@ -130,3 +130,25 @@
   </LinkTo>
   {{/if}}
 </nav>
+{{!-- THE COLLAPSE CONTROL (requested 2026-09-28), a SIBLING of the <nav>, not a row in it.
+     Inside the panel it would cost ~44px of height, and at 1024x768 the menu has ~31px to spare
+     with the Up/Down pager deliberately hidden (app.scss, `.md-acct-rail__pager` display:none
+     block), so Home Board would fall out of reach for switch and eye-gaze users. Out here it is
+     fixed to the app frame and straddles the panel's right border, the same look as Basic's
+     `.ch-rail__toggle` (whose classes it reuses), and it never scrolls away with the rows.
+     `tagName: ''` on the component is what lets the template have two root elements.
+     A disclosure button: `aria-expanded` carries the state, `aria-controls` names the panel, and
+     the sr-only label says the action, matching Basic's control and reusing its i18n keys.
+     Hidden at 900px and below, where the rail is an in-flow grid and collapsing means nothing. --}}
+<button type="button" class="ch-rail__toggle md-acct-rail__toggle" aria-controls="acct_rail_nav" aria-expanded={{if this.railCollapsed "false" "true"}} {{on "click" this.toggleRail}}>
+  <svg class="ch-rail__toggle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+  <span class="sr-only">
+    {{#if this.railCollapsed}}
+      {{t "Expand menu" key="classic_rail_expand"}}
+    {{else}}
+      {{t "Collapse menu" key="classic_rail_collapse"}}
+    {{/if}}
+  </span>
+</button>

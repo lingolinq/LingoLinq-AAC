@@ -4562,6 +4562,22 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   flex: 1 1 auto !important;
   min-width: 0;
 }
+/* ROOMS, FOCUSED, FULL-SIZED SCREEN: NO TOP GAP (2026-09-28, requested: "remove the top margin
+   and top padding" from the workspace). Both come from the base `.md-workspace`
+   (`margin: 40px auto; padding: 40px ...`, both `!important`, app.scss), which is why this
+   matches them with `!important` -- the same arrangement the org directory's block above uses
+   for the same two boxes. The rail and the Rooms card then share one top edge.
+   SCOPED THREE WAYS, each as asked: the Rooms list only (`md-shell--org-rooms`, set from the
+   route by controllers/organization.js#roomsPageActive, so the other org pages keep their
+   spacing); Focused only; and above 1024px, the "full-sized screen" -- at 1024 and below the
+   shell's own top padding and the stacked rail change the geometry, and nobody asked for those
+   widths to move. `margin-top` / `padding-top` longhands, so the sides and bottom are untouched. */
+@media (min-width: 1025px) {
+  body.ll-view-basic.ll-layout-focused .md-shell--org-rooms:not(.md-shell--org-directory) > .md-workspace {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+}
 @media (max-width: 1024px) {
   body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
     padding-top: 44px !important;

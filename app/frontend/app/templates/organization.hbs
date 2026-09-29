@@ -1,4 +1,4 @@
-<div class="md-shell md-shell--org">
+<div class="md-shell md-shell--org {{if this.roomsPageActive "md-shell--org-rooms"}}">
   {{!-- BASIC VIEW'S ORG NAV (2026-09-25, requested). Selecting an organisation used to REPLACE
        the rail with the two-item `ch-tabs` strip below, so the section you had just entered was
        the one place in Basic with no sidebar. The rail renders here too now, in org mode: see
@@ -64,6 +64,11 @@
            a count (`.ch-tab` becomes a flex COLUMN, _classic-home.scss:1366), which a
            single-line tab does not want. The base `.ch-tab` is the right treatment now.
            Its rules are left in place, unused -- dead CSS is its own cleanup. --}}
+      {{!-- NOT FOR A VIEW-ONLY VISITOR ON THE ROOMS LIST (2026-09-28): see `showBasicOrgTabs`.
+           NESTED inside the Basic branch rather than added to its `{{#if}}`: a false there would
+           fall through to the `{{else if this.showSectionPillNav}}` below and draw Modern's strip
+           in Basic view. --}}
+      {{#if this.showBasicOrgTabs}}
       <nav class="ch-tabs ch-tabs--primary" aria-label={{t "Organization Navigation" key="org_navigation"}}>
         <LinkTo @route="organization.index" @model={{this.model.id}} class="ch-tab {{if this.adminTabActive "is-active"}}" aria-current={{if this.adminTabActive "page"}}>
           <span class="ch-tab__label">{{t "Admin" key="admin"}}</span>
@@ -84,6 +89,7 @@
           <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
         </LinkTo>
       </nav>
+      {{/if}}
     {{else if this.showSectionPillNav}}
       {{!-- ...AND NOT AT ALL WHERE THE APP SHELL ALREADY DREW ONE (2026-09-23). On the rooms
            page a rooms-only supervisor gets the FULL primary nav from the app shell, with

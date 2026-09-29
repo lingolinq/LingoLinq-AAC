@@ -50205,8 +50205,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      208px keeps more slack than the arithmetic below claims. The row spends
      32 (icon) + 10 (gap) + 20 (row padding) + 20 (panel padding) + 2 (borders) = 84px around
      it, so 208 leaves ~124px of label — the longest fits on one line with slack. Below about
-     200 it would wrap and the rows would grow taller, which is the opposite of the ask. */
-  width: 208px;
+     200 it would wrap and the rows would grow taller, which is the opposite of the ask.
+     READ FROM `--ll-rail-width` (2026-09-28) so the panel, the main column's offset and the
+     fixed pill nav's `left` share one number and move together when the rail collapses --
+     see that property on `.ll-appshell`. The fallback keeps 208px if the rail ever renders
+     outside the shell. */
+  width: var(--ll-rail-width, 208px);
   display: flex;
   flex-direction: column;
   /* One list, one gap. This was 14px to separate two `__group` wrappers; those are gone
@@ -50766,9 +50770,100 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    something ever does overflow at this size the rows stay reachable by wheel, trackpad and
    keyboard. What would be lost is the switch/gaze route -- which is exactly the tradeoff
    worth knowing about if a row is ever added. Below either threshold the pager returns. */
+/* EXPANDED RAIL ONLY (2026-09-28). The budget above is the expanded menu's. Collapsed, each
+   row stacks its label under the icon and grows from 44px to ~64px, so eleven rows need ~220px
+   more and DO overflow at this size -- hiding the pager there would strand the bottom rows for
+   exactly the switch and eye-gaze users it exists for. */
 @media (min-width: 1024px) and (min-height: 768px) {
-  .md-acct-rail__pager {
+  .md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__pager {
     display: none;
+  }
+}
+
+/* ── THE COLLAPSED RAIL (requested 2026-09-28) ──────────────────────────────────────────
+   Icon over a short label, the way Basic's collapsed rail reads (_classic-home.scss, the
+   `.ch-rail--collapsed` block), toggled by `.md-acct-rail__toggle` (components/account-rail.hbs)
+   and stashed as `modern_rail_collapsed`.
+   WIDE-SCREEN ONLY, for the reason Basic learned the hard way (_classic-home.scss, "EVERYTHING
+   BELOW IS THE COLLAPSED RAIL, AND IT IS WIDE-SCREEN ONLY"): at 900px and below the rail is an
+   in-flow grid across the top, so nothing here is emitted there and the toggle is hidden, and a
+   collapse made on a laptop cannot leave a phone layout half-collapsed with no way back.
+   124px: the label box is 124 - 1 (panel border) - 20 (panel padding) - 8 (row padding)
+   - 2 (row borders) = 93px, which holds "Subscription", the longest English label, at 14px/650.
+   A longer translation ellipsises; the full text stays the link's accessible name. */
+.md-acct-rail__toggle {
+  display: none;
+}
+@media (min-width: 901px) {
+  /* `:has()` so the rail's own class drives the shell: one piece of state, no second reader in
+     controllers/application.js. (0,2,0), so it beats the base `.ll-appshell` value on
+     specificity rather than source order -- the same arrangement as `--ll-nav-clearance`. */
+  .ll-appshell:has(> .md-acct-rail--collapsed) {
+    --ll-rail-width: 124px;
+  }
+
+  /* STRADDLES THE PANEL'S RIGHT BORDER, fixed to the app frame. `.ch-rail__toggle` (reused from
+     Basic) supplies the round chevron look and its 44px hit area; this places it. The panel is
+     `overflow-y: auto`, which clips on both axes, so the button cannot live inside it and still
+     straddle. z-index 61 clears the fixed pill nav (60) whose band starts at the same edge. */
+  .md-acct-rail__toggle {
+    display: inline-flex;
+    position: fixed;
+    top: calc(max(var(--topbar-height, 70px), 70px) + 16px);
+    left: calc(var(--ll-rail-width) - 16px);
+    z-index: 61;
+  }
+  /* The chevron points left to collapse and right to expand, keyed on the attribute that
+     states the state, so the icon cannot disagree with what a screen reader hears. */
+  .md-acct-rail__toggle[aria-expanded="false"] .ch-rail__toggle-icon {
+    transform: rotate(180deg);
+  }
+
+  .md-acct-rail--collapsed .md-acct-rail__row {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    /* 10 -> 4px sides: the label's width comes from here, not from a wider rail. */
+    padding-left: 4px;
+    padding-right: 4px;
+    /* The 48.125px cap is the one-line row's; this row is two lines. */
+    max-height: none;
+  }
+  .md-acct-rail--collapsed .md-acct-rail__label {
+    max-width: 100%;
+    font-size: 14px;
+    line-height: 1.2;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Visually hidden, still announced: Home Board's board name and the pager's "Up" / "Down".
+     The same clip pattern Basic's collapsed rail uses (and Bootstrap's `.sr-only`). */
+  .md-acct-rail--collapsed .md-acct-rail__sublabel,
+  .md-acct-rail--collapsed .md-acct-rail__pager-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+/* MOTION IS OPT-IN, as on Basic's rail. Everything that reads `--ll-rail-width` moves together. */
+@media (prefers-reduced-motion: no-preference) {
+  .md-acct-rail {
+    transition: width 0.22s ease;
+  }
+  .ll-appshell__main {
+    transition: margin-left 0.22s ease;
+  }
+  .ll-appshell__navbar,
+  .md-acct-rail__toggle {
+    transition: left 0.22s ease;
   }
 }
 
@@ -111437,7 +111532,7 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
    with the shell's own left offset, while `sticky` resolves against the scroller it
    lives in. It needs an opaque background or the content scrolls visibly underneath it. */
 .ll-appshell__main {
-  margin-left: 208px;
+  margin-left: var(--ll-rail-width);
   min-width: 0;   /* a flex/grid child with long content would otherwise force the page wider */
 }
 .ll-appshell__main {
@@ -111499,6 +111594,12 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
    `.ll-appshell` on specificity, so the two values do not depend on which is written first. */
 .ll-appshell {
   --ll-nav-clearance: 112px;
+  /* THE RAIL'S WIDTH, stated once (2026-09-28). Read by `.md-acct-rail` (its width),
+     `.ll-appshell__main` (margin-left) and the fixed `.ll-appshell__navbar` (left), which were
+     three separate 208px literals until the rail became collapsible and had to be able to
+     change all three at once. The collapsed value is set in the collapsed-rail block near
+     `.md-acct-rail__pager`. */
+  --ll-rail-width: 208px;
 }
 .ll-appshell.ll-appshell--no-nav {
   /* The value the base `.md-shell` rule gives a shell with no nav floating over it -- 3rem,
@@ -111785,7 +111886,7 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
     padding-top: 16px;
     /* 6px base + the 12px asked for. */
     padding-bottom: 18px;
-    left: 208px;
+    left: var(--ll-rail-width);
     right: 0;
     /* The in-flow band it cancelled no longer exists. */
     margin-bottom: 0;

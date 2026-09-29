@@ -6,6 +6,7 @@ import i18n from '../../utils/i18n';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
+import { take_pending_index_nav } from '../../utils/basic_landing';
 
 /**
  * Classic home page.
@@ -71,6 +72,26 @@ export default AuthenticatedView.extend({
       var v = event && event.target && event.target.value;
       if(v) { self.send('set_index_nav', v); }
     };
+    /* ARRIVING FROM A VIEW SWITCH (2026-09-28): the tab the Modern page maps to
+       (utils/basic_landing.js). Taken here, before the first render, and shown at once through
+       `index_nav_state` so the Actions tab never flashes; its click behaviour runs on insert
+       (below), because it saves the user record and must not do that mid-render.
+       ONLY A TAB THIS PAGE RENDERS: Updates and Communicators are hidden for a modeling-only
+       account, and Communicators for a non-supporter (classic-view.hbs `ch-tabs`), so a handoff
+       naming one of those is dropped rather than opening a panel with no tab lit. */
+    var pending = take_pending_index_nav(this.appState);
+    if(pending && this._tabShown(pending)) {
+      this.set('index_nav_state', pending);
+      this._pending_index_nav = pending;
+    }
+  },
+
+  _tabShown(nav) {
+    var me = this.appState.get('currentUser');
+    var modelingOnly = !!(me && me.get('modeling_only'));
+    if(nav === 'updates') { return !modelingOnly; }
+    if(nav === 'supervisees') { return !modelingOnly && !!(me && me.get('supporter_role')); }
+    return true;
   },
 
   // The parent defines `update_selected` and `checkForBlankSlate` as OBSERVERS
@@ -99,6 +120,11 @@ export default AuthenticatedView.extend({
     try { this.update_selected(); } catch (e) { /* board list stays empty */ }
     try { this.checkForBlankSlate(); } catch (e) { /* offline list stays empty */ }
     try { this.reload_logs(); } catch (e) { /* sessions + badges stay empty */ }
+    if(this._pending_index_nav) {
+      var nav = this._pending_index_nav;
+      this._pending_index_nav = null;
+      this.send('set_index_nav', nav);
+    }
   },
 
   // NOTE: deliberately NOT named `user`. index.hbs passes `@user={{this.user}}`,

@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { basic_landing_for } from 'frontend/utils/basic_landing';
+import { basic_landing_for, hand_off_index_nav, take_pending_index_nav } from 'frontend/utils/basic_landing';
 
 /* WHERE A MODERN-ONLY PAGE SENDS YOU WHEN YOU SWITCH TO BASIC.
  *
@@ -27,13 +27,36 @@ module('Unit | Utility | basic_landing', function() {
       'and the tab that shows the same people the caseload did');
   });
 
-  /* `last_index_nav` is written straight to the user record, and `set_index_nav`
-     (authenticated-view.js:1639) accepts only these three. A landing naming anything else would
-     persist a value the tab reader cannot match, leaving the page on its default with a junk
-     preference saved against the account. */
+  /* Requested 2026-09-28: "boards page -> basic view home page with boards active". */
+  test('the Boards page lands on the Basic home page, Boards tab', function(assert) {
+    assert.expect(2);
+    var landing = basic_landing_for('user.boards');
+    assert.strictEqual(landing.route, 'index');
+    assert.strictEqual(landing.index_nav, 'boards');
+  });
+
+  /* Requested 2026-09-28: "updates page (logs) -> basic view home page with Updates active".
+     UPDATES IS AN ARRIVAL, NOT A ROUTE: it is `user.logs` reached from the pill nav, told apart
+     by `?nav=home` (utils/primary_nav.js#hasHomeNavParam). The same route opened from the
+     account rail's Logs row is Basic's own Logs page, which Basic renders, so it stays put. */
+  test('the Updates page lands on the Basic home page, Updates tab; plain Logs stays put', function(assert) {
+    assert.expect(5);
+    var landing = basic_landing_for('user.logs', '/ada/logs?nav=home');
+    assert.strictEqual(landing.route, 'index');
+    assert.strictEqual(landing.index_nav, 'updates');
+    assert.strictEqual(basic_landing_for('user.log', '/ada/logs/1_2?nav=home').index_nav, 'updates',
+      'an update opened from the Updates page');
+    assert.strictEqual(basic_landing_for('user.logs', '/ada/logs'), null, 'the rail Logs row');
+    assert.strictEqual(basic_landing_for('user.logs'), null, 'no URL known');
+  });
+
+  /* The tab is applied through `set_index_nav` (authenticated-view.js), the action a tab click
+     sends, so a landing must name a tab the Basic home page actually has
+     (components/dashboard/classic-view.hbs `ch-tabs`). Anything else would leave the page on its
+     default with nothing active. */
   test('every landing names a tab the dashboard will actually accept', function(assert) {
-    var allowed = ['main', 'supervisees', 'supervisors'];
-    var routes = ['caseload'];
+    var allowed = ['main', 'supervisees', 'supervisors', 'boards', 'updates'];
+    var routes = ['caseload', 'user.boards'];
     assert.expect(routes.length);
     routes.forEach(function(route) {
       var landing = basic_landing_for(route);
@@ -51,7 +74,7 @@ module('Unit | Utility | basic_landing', function() {
      map that guessed a destination would move people off pages that were working. Null is what
      tells the switcher to do what it has always done: re-render in place. */
   test('a page both views render answers null, so the switch stays put', function(assert) {
-    var shared = ['index', 'user.home', 'user.boards', 'user.extras', 'organizations',
+    var shared = ['index', 'user.home', 'user.extras', 'organizations',
       'user.stats', 'user.logs', 'organization.rooms', 'user.account'];
     assert.expect(shared.length + 2);
     shared.forEach(function(route) {
@@ -59,5 +82,16 @@ module('Unit | Utility | basic_landing', function() {
     });
     assert.strictEqual(basic_landing_for(''), null, 'no route at all');
     assert.strictEqual(basic_landing_for(undefined), null, 'undefined, before a transition settles');
+  });
+
+  /* THE HANDOFF. The Basic home page opens on `index_nav_state` or the saved
+     `last_index_nav`, and only three tabs are ever saved -- Boards and Updates never are -- so
+     the tab rides to the new page in app state, once. It must be consumed exactly once, or a
+     later ordinary visit to the home page would reopen a tab nobody asked for. */
+  test('a handed-off tab is taken once, then gone', function(assert) {
+    var state = { pending_index_nav: null, set(k, v) { this[k] = v; }, get(k) { return this[k]; } };
+    hand_off_index_nav(state, 'boards');
+    assert.strictEqual(take_pending_index_nav(state), 'boards');
+    assert.strictEqual(take_pending_index_nav(state), null, 'the second read finds nothing');
   });
 });

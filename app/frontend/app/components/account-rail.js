@@ -101,6 +101,43 @@ export default Component.extend({
 
   router: service('router'),
   app_state: service('app-state'),
+  stashes: service('stashes'),
+
+  /* ON THE HOME PAGE ITSELF, under either of its route names -- not the wider Home section that
+     `activeRow` lights for the pill nav's destinations. Same route reads as `activeRow`. */
+  onHomePage: computed('router.currentRouteName', 'app_state.current_route', function() {
+    var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
+    return HOME_ROUTES.split(' ').indexOf(route) !== -1;
+  }),
+
+  /* COLLAPSED TO ICONS AND SHORT LABELS (requested 2026-09-28). Stashed rather than local so
+     the choice survives the transition to the next chrome page, the same reason Basic's rail
+     gives (dashboard/classic-rail.js:116-120).
+     THE DEFAULT DEPENDS ON THE PAGE (requested the same day): expanded on the home page,
+     collapsed everywhere else. Each context remembers its own choice under its own key, so
+     expanding the rail on Reports keeps it open on the other non-home pages without changing
+     the home page, and the reverse. An absent away key means the collapsed default.
+     NEITHER KEY IS Basic's `classic_rail_collapsed`: the two rails are different designs at
+     different widths, and a choice made in one view should not silently rearrange the other.
+     Only the rail's own classes read this; the shell's column offset follows through
+     `.ll-appshell:has(> .md-acct-rail--collapsed)` in app.scss, so there is one source. */
+  railCollapsed: computed('onHomePage', 'stashes.modern_rail_collapsed', 'stashes.modern_rail_collapsed_away', function() {
+    if(this.get('onHomePage')) { return !!this.stashes.get('modern_rail_collapsed'); }
+    var away = this.stashes.get('modern_rail_collapsed_away');
+    return (away === undefined || away === null) ? true : !!away;
+  }),
+
+  toggleRail: action(function() {
+    var key = this.get('onHomePage') ? 'modern_rail_collapsed' : 'modern_rail_collapsed_away';
+    this.stashes.persist(key, !this.get('railCollapsed'));
+    /* The collapsed rows are taller (label under the icon), so whether the panel overflows can
+       change with the state; re-measure once the new layout exists. The width transition's own
+       `transitionend` (railMounted) catches the settled size. */
+    var _this = this;
+    if(typeof window !== 'undefined' && window.requestAnimationFrame) {
+      window.requestAnimationFrame(function() { _this.updateRailScroll(); });
+    }
+  }),
 
   /* Bound into the Account row's `@current-when` so its alias list lives in one place.
      THE HOME ROW NO LONGER USES ONE (2026-09-21). It cannot: the row must now also light on
@@ -183,7 +220,10 @@ export default Component.extend({
   teardownRailScroll() {
     if(this._railScrollHandler) {
       window.removeEventListener('resize', this._railScrollHandler);
-      if(this._railEl) { this._railEl.removeEventListener('scroll', this._railScrollHandler); }
+      if(this._railEl) {
+        this._railEl.removeEventListener('scroll', this._railScrollHandler);
+        this._railEl.removeEventListener('transitionend', this._railScrollHandler);
+      }
       this._railScrollHandler = null;
       this._railEl = null;
     }
@@ -204,6 +244,8 @@ export default Component.extend({
         if(rail && _this._railScrollHandler) {
           _this._railEl = rail;
           rail.addEventListener('scroll', _this._railScrollHandler);
+          /* The collapse animates the panel's width; measure again once it has settled. */
+          rail.addEventListener('transitionend', _this._railScrollHandler);
         }
         _this.updateRailScroll();
       });

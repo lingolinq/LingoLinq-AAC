@@ -41,6 +41,24 @@ export default Controller.extend({
     return (this.get('router.currentRouteName') || '') === 'organization.index';
   }),
 
+  /* THE ROOMS LIST, for the `md-shell--org-rooms` modifier on this section's shell
+     (templates/organization.hbs), which the Basic + Focused spacing rule keys on
+     (_classic-home.scss). Exact match for the same reason as Admin above; the router first and
+     `app_state.current_route` as the fallback, the pair `showSectionPillNav` reads below. */
+  roomsPageActive: computed('router.currentRouteName', 'appState.current_route', function() {
+    var route = this.get('router.currentRouteName') || this.get('appState.current_route') || '';
+    return route === 'organization.rooms';
+  }),
+
+  /* BASIC'S ADMIN TABS (Admin, Managers ... Symbols) ARE HIDDEN ON THE ROOMS LIST FOR A
+     VIEW-ONLY VISITOR (requested 2026-09-28). `permissions.edit` is what a manager or assistant
+     has and a supervisor, a public viewer or a manager with org access switched off does not
+     (app/models/organization.rb add_permissions); the tabs lead to admin sections that visitor
+     cannot use. Everywhere else, and for anyone who can edit, the strip is unchanged. */
+  showBasicOrgTabs: computed('roomsPageActive', 'model.permissions.edit', function() {
+    return !(this.get('roomsPageActive') && !this.get('model.permissions.edit'));
+  }),
+
   /* THE PEOPLE SECTION, ASKED OF THE PAGE THAT OWNS IT rather than re-derived from the URL.
      `shown_view` (controllers/organization/people.js) already resolves the `?section=` param and
      its Managers default; reading it here means the strip and the page cannot disagree about

@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { is_classic, view_style, set_view_style, confirm_view_style_change } from '../utils/view_style';
 import { board_view_route } from '../utils/board_view';
-import { basic_landing_for } from '../utils/basic_landing';
+import { basic_landing_for, hand_off_index_nav } from '../utils/basic_landing';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 /**
@@ -205,28 +205,17 @@ export default Component.extend({
          on the answer.
          ONLY ON THE WAY TO BASIC: every Modern route exists, so there is no equivalent problem
          in the other direction, and testing `next` keeps this from firing on a switch back.
-         THE TAB IS PERSISTED, NOT PASSED. The Basic home page chooses its tab from
-         `preferences.device.last_index_nav` (components/dashboard/authenticated-view.js:805),
-         so landing on Communicators means writing that preference -- there is no query param or
-         transition argument for it. Written to `currentUser` rather than to `user`, because
-         `currentUser` is what that computed reads; on the caseload the two are the same account
-         (it is a supporter's own page, with no modelling in play), so this is the same record
-         under the name the reader uses.
-         Mirrors `set_index_nav`'s own write, including creating the nested objects first: a
-         record whose preferences carry no `device` key is a real case
-         (components/boards-layout-toggle.js:166-172). */
+         THE TAB IS HANDED OFF, NOT PERSISTED (2026-09-28). The Basic home page applies it on
+         arrival through the action a tab click sends (utils/basic_landing.js, where both halves
+         of the handoff live). Until then the switcher wrote `preferences.device.last_index_nav`
+         itself, which could only ever carry the three tabs that preference saves -- not Boards
+         or Updates. Communicators is still saved, now by `set_index_nav` rather than here.
+         THE URL IS PASSED because Updates is an arrival, not a route: `user.logs` counts only
+         when it was reached from the pill nav (`?nav=home`). */
       if(next === 'classic') {
-        var landing = basic_landing_for(this.appState.get('current_route') || '');
+        var landing = basic_landing_for(this.appState.get('current_route') || '', this.get('router.currentURL'));
         if(landing) {
-          var me = this.appState.get('currentUser');
-          if(landing.index_nav && me) {
-            var preferences = me.get('preferences') || {};
-            var device = preferences.device || {};
-            me.set('preferences', preferences);
-            me.set('preferences.device', device);
-            me.set('preferences.device.last_index_nav', landing.index_nav);
-            if(me.save) { me.save().then(null, function() { }); }
-          }
+          if(landing.index_nav) { hand_off_index_nav(this.appState, landing.index_nav); }
           this.get('router').transitionTo(landing.route);
           return;
         }
