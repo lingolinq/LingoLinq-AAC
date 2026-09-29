@@ -113,7 +113,13 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent']
+              'sms_recipient_consent',
+              # Multilingual Language Layer: schema-2 language data generated from
+              # pinned OpenAAC inputs (db/language/, lib/language/schema2_generator.rb).
+              # AVAILABLE-only => OFF by default. RESERVED: nothing reads this flag or
+              # the generated files yet, so turning it on changes nothing today. The
+              # first reader must gate on it and keep English unchanged when it is off.
+              'multilingual_grammar']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
