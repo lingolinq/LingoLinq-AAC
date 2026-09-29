@@ -52,7 +52,9 @@ describe Language::Schema2Generator do
       notice = File.read(File.join(vendor_dir, 'NOTICE.md'))
       expect(notice).to include(gen::UPSTREAM['commit'])
       expect(notice).to include("https://github.com/#{gen::UPSTREAM['repo']}")
-      expect(notice).to include('MIT License')
+      expect(notice).to include('CC BY 4.0')
+      expect(notice).to include(gen::ATTRIBUTION['license_url'])
+      expect(notice).not_to include('MIT License')
       gen::INPUTS.each do |name, input|
         expect(notice).to include(input['path'])
         expect(notice).to include("#{name}: #{input['sha256']}")
@@ -80,6 +82,35 @@ describe Language::Schema2Generator do
         Dir.children(first).each do |name|
           expect(File.binread(File.join(first, name))).to eq(File.binread(File.join(second, name)))
         end
+      end
+    end
+  end
+
+  describe '.generate! output pairing' do
+    def seed_out(tmp)
+      out = File.join(tmp, 'out')
+      FileUtils.mkdir_p(out)
+      File.write(File.join(out, 'rules-en.json'), 'old rules')
+      out
+    end
+
+    it 'leaves the rules file unchanged and no .tmp behind when the words path is a directory' do
+      Dir.mktmpdir do |tmp|
+        out = seed_out(tmp)
+        FileUtils.mkdir_p(File.join(out, 'words-en.json'))
+        expect { gen.generate!(out_dir: out) }.to raise_error(gen::Error, /words-en\.json: exists and is not a regular file/)
+        expect(File.read(File.join(out, 'rules-en.json'))).to eq('old rules')
+        expect(Dir.children(out).sort).to eq(%w[rules-en.json words-en.json])
+      end
+    end
+
+    it 'removes its .tmp files and leaves the rules file unchanged when staging a write fails' do
+      Dir.mktmpdir do |tmp|
+        out = seed_out(tmp)
+        FileUtils.mkdir_p(File.join(out, 'words-en.json.tmp'))
+        expect { gen.generate!(out_dir: out) }.to raise_error(SystemCallError)
+        expect(File.read(File.join(out, 'rules-en.json'))).to eq('old rules')
+        expect(Dir.children(out).sort).to eq(%w[rules-en.json words-en.json.tmp])
       end
     end
   end
@@ -146,8 +177,14 @@ describe Language::Schema2Generator do
       out = gen.build_words(words_json('go' => {'types' => ['verb'], 'inflections' => {'base' => 'go'}}), pin)
       expect(out.keys).to eq(%w[_license _locale _schema _source _type _version words])
       expect(out['_schema']).to eq(2)
-      expect(out['_license']).to eq('MIT')
-      expect(out['_source']).to eq(gen::UPSTREAM.merge('path' => 'spec/x.json', 'sha256' => 'f' * 64, 'upstream_version' => '0.1'))
+      expect(out['_license']).to eq('CC-BY-4.0')
+      expect(out['_source']).to eq(gen::UPSTREAM.merge(
+        'attribution' => 'OpenAAC',
+        'license_url' => 'https://creativecommons.org/licenses/by/4.0/',
+        'modified' => 'Transformed by LingoLinq from the pinned upstream files',
+        'path' => 'spec/x.json', 'sha256' => 'f' * 64,
+        'upstream_license' => 'test', 'upstream_version' => '0.1'
+      ))
     end
 
     it 'sorts lexemes by surface form' do
@@ -169,6 +206,14 @@ describe Language::Schema2Generator do
 
     it 'rejects a top level that is not an object' do
       expect { gen.build_words([], pin) }.to raise_error(gen::Error, /top level is not an object/)
+    end
+
+    it 'rejects a _version that is not a string' do
+      expect { gen.build_words(words_json({}, '_version' => 1), pin) }.to raise_error(gen::Error, /_version is not a string/)
+    end
+
+    it 'rejects a _license that is not a string' do
+      expect { gen.build_words(words_json({}, '_license' => nil), pin) }.to raise_error(gen::Error, /_license is not a string/)
     end
   end
 
@@ -296,6 +341,89 @@ describe Language::Schema2Generator do
       expect { gen.build_rules(rules_json('tests' => [['i', 'is']]), pin) }.to raise_error(gen::Error, /tests\[0\]/)
       expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', 'r1']]), pin) }.to raise_error(gen::Error, /tests\[0\]/)
     end
+
+    context 'value checks' do
+      let(:pos_rule) { {'id' => 'r2', 'type' => 'verb', 'inflection' => 'infinitive', 'location' => 'e', 'lookback' => [{'words' => ['want']}]} }
+      let(:location) { {'location' => 'n', 'inflection' => 'plural'} }
+
+      def with_rule(changes)
+        rules_json('rules' => [pos_rule.merge(changes)])
+      end
+
+      def with_location(changes)
+        rules_json('inflection_locations' => {'noun' => [location.merge(changes)]})
+      end
+
+      it 'accepts a part-of-speech rule with a known inflection and location' do
+        expect(gen.build_rules(rules_json('rules' => [pos_rule]), pin)['rules']).to eq([pos_rule])
+      end
+
+      it 'rejects rules that are not a list' do
+        expect { gen.build_rules(rules_json('rules' => {'id' => 'r1'}), pin) }.to raise_error(gen::Error, /rules is not a list/)
+      end
+
+      it 'rejects an empty rules list' do
+        expect { gen.build_rules(rules_json('rules' => []), pin) }.to raise_error(gen::Error, /rules is empty/)
+      end
+
+      it 'rejects a rule id that is not a string' do
+        expect { gen.build_rules(rules_json('rules' => [pos_rule.merge('id' => 7)]), pin) }.to raise_error(gen::Error, /a rule has no string id/)
+      end
+
+      it 'rejects a rule type that is neither a known part of speech nor override' do
+        expect { gen.build_rules(with_rule('type' => 'verbish'), pin) }.to raise_error(gen::Error, /type "verbish" is not a known part of speech or "override"/)
+      end
+
+      it 'rejects a rule inflection that is not a known inflection name' do
+        expect { gen.build_rules(with_rule('inflection' => 'dual'), pin) }.to raise_error(gen::Error, /rule "r2": unknown inflection "dual"/)
+      end
+
+      it 'rejects override values that are not strings' do
+        rule = {'id' => 'r1', 'type' => 'override', 'lookback' => [], 'overrides' => {'is' => 1}}
+        expect { gen.build_rules(rules_json('rules' => [rule]), pin) }.to raise_error(gen::Error, /rule "r1": overrides must be a non-empty object of strings/)
+      end
+
+      it 'rejects a rule location that is not a grid direction' do
+        expect { gen.build_rules(with_rule('location' => 'up'), pin) }.to raise_error(gen::Error, /rule "r2": location "up" is not one of/)
+      end
+
+      it 'rejects inflection_locations that are not an object' do
+        expect { gen.build_rules(rules_json('inflection_locations' => [location]), pin) }.to raise_error(gen::Error, /inflection_locations is not an object/)
+      end
+
+      it 'rejects empty inflection_locations' do
+        expect { gen.build_rules(rules_json('inflection_locations' => {}), pin) }.to raise_error(gen::Error, /inflection_locations is empty/)
+        expect { gen.build_rules(rules_json('inflection_locations' => {'noun' => []}), pin) }.to raise_error(gen::Error, /inflection_locations\["noun"\] is empty/)
+      end
+
+      it 'rejects an unknown part of speech in inflection_locations' do
+        expect { gen.build_rules(rules_json('inflection_locations' => {'nouns' => [location]}), pin) }.to raise_error(gen::Error, /inflection_locations\["nouns"\]: unknown part of speech/)
+        expect { gen.build_rules(with_location('type' => 'nouns'), pin) }.to raise_error(gen::Error, /inflection_locations\["noun"\]: type "nouns" is not a known part of speech/)
+      end
+
+      it 'rejects a location or override_if_same that is not a grid direction' do
+        expect { gen.build_rules(with_location('location' => 'north'), pin) }.to raise_error(gen::Error, /inflection_locations\["noun"\]: location "north" is not one of/)
+        expect { gen.build_rules(with_location('override_if_same' => 'x'), pin) }.to raise_error(gen::Error, /inflection_locations\["noun"\]: override_if_same "x" is not one of/)
+      end
+
+      it 'rejects an unknown inflection name in inflection_locations' do
+        expect { gen.build_rules(with_location('inflection' => 'dual'), pin) }.to raise_error(gen::Error, /inflection_locations\["noun"\]: unknown inflection "dual"/)
+      end
+
+      it 'rejects tests that are not a list' do
+        expect { gen.build_rules(rules_json('tests' => {'t' => ['i', 'is', 'i am']}), pin) }.to raise_error(gen::Error, /tests is not a list/)
+      end
+
+      it 'rejects an empty tests list' do
+        expect { gen.build_rules(rules_json('tests' => []), pin) }.to raise_error(gen::Error, /tests is empty/)
+      end
+
+      it 'rejects test options with an unknown key or a non-string value' do
+        expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'rule_id' => 1}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: option "rule_id" must be a string/)
+        expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'inflection' => ['past']}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: option "inflection" must be a string/)
+        expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'weight' => 'x'}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: unknown options \["weight"\]/)
+      end
+    end
   end
 
   describe 'fidelity to the pinned upstream files' do
@@ -327,6 +455,25 @@ describe Language::Schema2Generator do
         expect(rules_out[key]).to eq(rules_in[key]), "#{key} changed"
       end
       expect(rules_out['tests'].length).to eq(195)
+    end
+
+    it 'keeps the upstream license marker and credits OpenAAC under CC BY 4.0' do
+      [[words_out, upstream('words-en.json')], [rules_out, rules_in]].each do |out, input|
+        expect(out['_license']).to eq('CC-BY-4.0')
+        expect(out['_source']['upstream_license']).to eq(input['_license'])
+        expect(out['_source']['attribution']).to eq('OpenAAC')
+        expect(out['_source']['license_url']).to eq('https://creativecommons.org/licenses/by/4.0/')
+      end
+      expect(rules_in['_license']).to eq('CC By, OpenAAC')
+    end
+  end
+
+  describe 'json gem entry points' do
+    # The generator calls these directly because Oj.mimic_JSON replaces JSON.parse
+    # under Rails. They are only defined when json loads before Oj.mimic_JSON runs;
+    # see the Oj entry in docs/task-management/learnings-archive/2026-09.md.
+    it 'are still defined with Oj loaded' do
+      expect(JSON::Ext::Parser.respond_to?(:parse)).to eq(true)
     end
   end
 

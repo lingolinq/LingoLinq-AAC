@@ -8,9 +8,17 @@ read from a database never does.
 ## Layout
 
 - `vendor/openaac-demo-tools-0977e83f/`: pinned upstream OpenAAC inputs, byte-identical to
-  the upstream commit. `NOTICE.md` records the source, license, paths and SHA-256 of each.
+  the upstream commit. `NOTICE.md` records the source, license, paths and SHA-256 of each,
+  and the CC BY 4.0 attribution.
 - `en/words-en.json`, `en/rules-en.json`: generated English schema-2 files. Never edit
   them by hand.
+
+## License
+
+The OpenAAC inflection data, and the files generated from it, are licensed CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/), not MIT: the upstream repository's MIT
+license covers its code, which LingoLinq does not use. Each generated file carries the
+attribution, the upstream license marker and the license link in its `_source` field.
 
 ## Regenerating
 
@@ -34,7 +42,10 @@ schema-1 shape.
 1. Download the new upstream files from a commit URL, not a mirror.
 2. Replace the vendor directory (name it after the new commit), update the pins in the
    generator and in `NOTICE.md`, and update the spec's closed list.
-3. Run the rake task. The generator raises on any entry field, part of speech,
-   inflection name or rules shape it does not recognise; extend its lists deliberately
-   rather than loosening the check.
+3. Run the rake task. The generator raises on any words entry field, part of speech or
+   inflection name it does not recognise, and on any unknown rules section or key, empty
+   rules, `inflection_locations` or tests list, unknown rule type, inflection name, grid location or test option, or
+   non-string override or test option value. Lookback item values and the `required`
+   and `if_empty` values in `inflection_locations` are checked for key names only, so
+   review those in the diff. Extend the lists deliberately rather than loosening a check.
 4. Review the regenerated diff and commit inputs, pins and output together.

@@ -28,8 +28,10 @@ another checkout's install).
 2. The rules resolver, its 195-fixture parity spec and a frontend parity harness are
    deferred to the PR that wires the first reader. With no reader here they would be dead
    code.
-3. License: the OpenAAC inflection data is used under MIT; `NOTICE.md` beside the inputs
-   records source, repository, commit, paths and SHA-256.
+3. License (corrected 2026-09-29, approved by Scot): the OpenAAC data files are CC BY 4.0
+   (their own `_license` marker, version per OpenAAC's maintainer); the upstream MIT
+   license covers the repository's code, which is not used. `NOTICE.md` beside the inputs
+   records source, repository, commit, paths, SHA-256 and the CC BY 4.0 attribution.
 
 ## Seams traced
 
@@ -53,8 +55,24 @@ another checkout's install).
 Recorded in the PR body: tamper test, fail-closed table, red-then-green runs for every new
 spec, full RSpec and Ember suites against the CI baseline for the base commit.
 
+## Dual-review fixes (2026-09-29)
+
+- License: generated files say `_license: "CC-BY-4.0"`; `_source` adds
+  `upstream_license`, `attribution`, `license_url` and `modified`. NOTICE.md holds a
+  CC BY 4.0 attribution block in place of the MIT text. The regenerated output differs
+  from the previous commit only in those fields.
+- Rules values: the generator now also checks rule types, inflection names, grid
+  locations, override and test option values, and parts of speech in
+  `inflection_locations`, and rejects empty rules, `inflection_locations` and tests
+  lists. The class comment and both READMEs state exactly what is and is not checked.
+- `generate!` stages both files before renaming either, refuses an output path that is
+  not a regular file, and removes its `.tmp` files on failure.
+- Negative specs added for each existing metadata and container check that had none.
+- The Oj learning notes the load-order dependency; a spec asserts the json gem entry
+  point exists.
+- The flag comment mentions canary users (same line, so ledger anchors hold).
+
 ## Open items
 
 - Scheduled (not per-PR) re-verification of the pin against the upstream commit URL.
-- `WordData.ingest` has no `_locale` guard, and the upstream Spanish files declare
-  `"_locale": "en"`. Out of scope here; needs its own fix proposal.
+- These files are not an input to `WordData.ingest`.

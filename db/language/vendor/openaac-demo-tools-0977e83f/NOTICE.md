@@ -8,7 +8,8 @@ either file's SHA-256 differs from the value recorded below and in the generator
 - Upstream repository: https://github.com/open-aac/demo-tools
 - Pinned commit: 0977e83f9a773fc215d4edbdec8bdd821a99bc24 (committed 2024-09-24)
 - Retrieved: 2026-09-28, from `https://raw.githubusercontent.com/open-aac/demo-tools/<commit>/<path>`
-- License: MIT (the upstream repository README states "License: MIT")
+- License: Creative Commons Attribution 4.0 International (CC BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/
 
 ## Files
 
@@ -23,28 +24,23 @@ either file's SHA-256 differs from the value recorded below and in the generator
   - SHA-256 rules-en.json: df71e0c893fac417bf7aea12742642d7a1b5cddd924532cdd2bb2c1803bfcf0b
   - Git blob: 68a9d91af949d809e1373a5e62936800c9d0941d
 
-The `_license` field inside both upstream JSON files reads "CC By, OpenAAC". The
-upstream repository is licensed MIT, and LingoLinq uses these files under the MIT
-terms below.
+## License and attribution
 
-## MIT License
+The inflection data in `words-en.json` and `rules-en.json` is by OpenAAC
+(https://github.com/open-aac/demo-tools, commit 0977e83f9a773fc215d4edbdec8bdd821a99bc24)
+and is used under the Creative Commons Attribution 4.0 International license (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
 
-Copyright (c) OpenAAC
+- The `_license` field inside both upstream files reads "CC By, OpenAAC". That marker
+  names no version; the version, 4.0, is per OpenAAC's maintainer.
+- The upstream repository README states "License: MIT". That covers the repository's
+  code. LingoLinq uses only these two data files, not the code.
+- Upstream states no copyright line for the data, so none is given here.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Changes: the two files in this directory are unmodified. LingoLinq transforms them with
+`lib/language/schema2_generator.rb` into `db/language/en/words-en.json` and
+`db/language/en/rules-en.json`. Each upstream words entry becomes one schema-2 lexeme
+(values that mean "no form" are dropped), the rules sections are carried unchanged with a
+language profile added, and the metadata is rewritten. Each generated file credits OpenAAC
+in its `_source` field, with the upstream license marker, this license link, the pinned
+commit and each input's SHA-256.

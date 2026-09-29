@@ -1,4 +1,5 @@
 require 'digest'
+require 'fileutils'
 require 'json'
 
 module Language
@@ -8,10 +9,19 @@ module Language
   # same output bytes. spec/lib/language/schema2_generator_spec.rb regenerates the
   # output and byte-compares it with the committed files.
   #
-  # Fails closed: an input whose SHA-256 differs from its pin, a missing input,
-  # unparseable JSON, a duplicate key, or any key or value shape the generator does
-  # not recognise raises Language::Schema2Generator::Error before anything is
-  # written.
+  # Fails closed: each of these raises Language::Schema2Generator::Error before
+  # anything is written:
+  # - an input whose SHA-256 differs from its pin, a missing input, unparseable JSON
+  #   or a duplicate key;
+  # - words: an unknown metadata key, entry field, part of speech or inflection name,
+  #   or a non-string value;
+  # - rules: an unknown section or key, an empty rules, inflection_locations or tests
+  #   list, a rule type that is not a known part of speech or "override", an unknown
+  #   inflection name, a non-string override value, a location that is not a grid
+  #   direction, an unknown part of speech in inflection_locations, or a test option
+  #   that is unknown or not a string.
+  # Lookback item values and the required and if_empty values in
+  # inflection_locations are checked for their key names only.
   #
   # Nothing at runtime reads the output yet. The multilingual_grammar flag
   # (lib/feature_flags.rb) is reserved for the first reader.
@@ -51,7 +61,15 @@ module Language
 
     SCHEMA = 2
     VERSION = '2.0.0-en.1'
-    LICENSE = 'MIT'
+    # The data files are CC BY (upstream marker "CC By, OpenAAC", carried in _source as
+    # upstream_license); the version, 4.0, is per OpenAAC's maintainer. See NOTICE.md
+    # in VENDOR_DIR.
+    LICENSE = 'CC-BY-4.0'
+    ATTRIBUTION = {
+      'attribution' => 'OpenAAC',
+      'license_url' => 'https://creativecommons.org/licenses/by/4.0/',
+      'modified' => 'Transformed by LingoLinq from the pinned upstream files'
+    }.freeze
 
     META_KEYS = %w[_license _locale _type _version].freeze
 
@@ -79,6 +97,12 @@ module Language
     LOOKBACK_KEYS = %w[condense match non_match optional type words].freeze
     LOCATION_KEYS = %w[if_empty inflection location override_if_same required type].freeze
     SUBSTITUTION_KEYS = %w[contractions default_contractions].freeze
+    TEST_OPTION_KEYS = %w[inflection rule_id].freeze
+    # FORM_NAMES plus the names the upstream slot grid places but no words entry
+    # carries.
+    RULE_INFLECTION_NAMES = (FORM_NAMES + %w[antonym personal_present subjective]).sort.freeze
+    # The button grid: the eight compass points plus the centre.
+    GRID_LOCATIONS = %w[c e n ne nw s se sw w].freeze
 
     # Facts about how English is handled today, not reviewed linguistic choices.
     # Morphology, feature inventories, feature-bundle aliases and slot layouts are
@@ -89,16 +113,23 @@ module Language
       'utterance' => {'contractions_apply' => true, 'tokenizer' => 'space'}
     }.freeze
 
-    # Writes both output files, or nothing if any input fails a check.
+    # Builds both files, stages both as .tmp, then renames both into place. An input
+    # check failure, an output path that exists but is not a regular file, or a failed
+    # staging write leaves the existing output unchanged, and no .tmp file is left
+    # behind. The two renames are separate steps, not one atomic swap.
     def self.generate!(vendor_dir: VENDOR_DIR, out_dir: OUTPUT_DIR, inputs: INPUTS)
       files = build(vendor_dir: vendor_dir, inputs: inputs)
-      files.map do |name, body|
-        path = File.join(out_dir, name)
-        tmp = "#{path}.tmp"
-        File.binwrite(tmp, body)
-        File.rename(tmp, path)
-        path
+      paths = files.keys.map { |name| File.join(out_dir, name) }
+      paths.each do |path|
+        raise Error, "#{path}: exists and is not a regular file" if File.exist?(path) && !File.file?(path)
       end
+      begin
+        files.values.zip(paths) { |body, path| File.binwrite("#{path}.tmp", body) }
+        paths.each { |path| File.rename("#{path}.tmp", path) }
+      ensure
+        paths.each { |path| FileUtils.rm_f("#{path}.tmp") }
+      end
+      paths
     end
 
     # Returns {output file name => exact bytes}.
@@ -138,7 +169,7 @@ module Language
         '_license' => LICENSE,
         '_locale' => 'en',
         '_schema' => SCHEMA,
-        '_source' => source(pin, json['_version']),
+        '_source' => source(pin, json),
         '_type' => 'words',
         '_version' => VERSION,
         'words' => entries.keys.sort.map { |surface| lexeme(surface, entries[surface]) }
@@ -205,7 +236,7 @@ module Language
         '_license' => LICENSE,
         '_locale' => 'en',
         '_schema' => SCHEMA,
-        '_source' => source(pin, json['_version']),
+        '_source' => source(pin, json),
         '_type' => 'rules',
         '_version' => VERSION,
         'inflection_locations' => json['inflection_locations'],
@@ -235,6 +266,7 @@ module Language
 
     def self.check_rules!(rules)
       raise Error, 'rules: rules is not a list' unless rules.is_a?(Array)
+      raise Error, 'rules: rules is empty' if rules.empty?
       ids = rules.map do |rule|
         raise Error, 'rules: a rule is not an object' unless rule.is_a?(Hash)
         unknown = rule.keys - RULE_KEYS
@@ -244,19 +276,64 @@ module Language
         unless lookback.is_a?(Array) && lookback.all? { |item| item.is_a?(Hash) && (item.keys - LOOKBACK_KEYS).empty? }
           raise Error, "rules: rule #{rule['id'].inspect} has an unrecognised lookback"
         end
+        check_rule_values!(rule)
         rule['id']
       end
       dupes = ids.tally.select { |_, count| count > 1 }.keys
       raise Error, "rules: duplicate rule ids #{dupes.inspect}" if dupes.any?
     end
 
-    def self.check_locations!(locations)
-      raise Error, 'rules: inflection_locations is not an object' unless locations.is_a?(Hash)
-      locations.each do |pos, list|
-        unless list.is_a?(Array) && list.all? { |item| item.is_a?(Hash) && (item.keys - LOCATION_KEYS).empty? }
-          raise Error, "rules: inflection_locations[#{pos.inspect}] has an unrecognised shape"
+    # An "override" rule replaces words with its overrides; any other rule is a part
+    # of speech and places an inflection at a grid location.
+    def self.check_rule_values!(rule)
+      where = "rules: rule #{rule['id'].inspect}"
+      type = rule['type']
+      unless type == 'override' || KNOWN_POS.include?(type)
+        raise Error, "#{where}: type #{type.inspect} is not a known part of speech or \"override\""
+      end
+      if type == 'override' || rule.key?('overrides')
+        overrides = rule['overrides']
+        unless overrides.is_a?(Hash) && overrides.any? && overrides.values.all? { |value| value.is_a?(String) }
+          raise Error, "#{where}: overrides must be a non-empty object of strings"
         end
       end
+      if type != 'override' || rule.key?('inflection')
+        check_inflection_name!(where, rule['inflection'])
+      end
+      if type != 'override' || rule.key?('location')
+        check_grid_location!(where, 'location', rule['location'])
+      end
+    end
+
+    def self.check_locations!(locations)
+      raise Error, 'rules: inflection_locations is not an object' unless locations.is_a?(Hash)
+      raise Error, 'rules: inflection_locations is empty' if locations.empty?
+      locations.each do |pos, list|
+        where = "rules: inflection_locations[#{pos.inspect}]"
+        unless list.is_a?(Array) && list.all? { |item| item.is_a?(Hash) && (item.keys - LOCATION_KEYS).empty? }
+          raise Error, "#{where} has an unrecognised shape"
+        end
+        raise Error, "#{where} is empty" if list.empty?
+        raise Error, "#{where}: unknown part of speech" unless KNOWN_POS.include?(pos)
+        list.each do |item|
+          check_inflection_name!(where, item['inflection']) if item.key?('inflection')
+          %w[location override_if_same].each do |key|
+            check_grid_location!(where, key, item[key]) if item.key?(key)
+          end
+          if item.key?('type') && !KNOWN_POS.include?(item['type'])
+            raise Error, "#{where}: type #{item['type'].inspect} is not a known part of speech"
+          end
+        end
+      end
+    end
+
+    def self.check_inflection_name!(where, name)
+      raise Error, "#{where}: unknown inflection #{name.inspect}" unless RULE_INFLECTION_NAMES.include?(name)
+    end
+
+    def self.check_grid_location!(where, key, value)
+      return if GRID_LOCATIONS.include?(value)
+      raise Error, "#{where}: #{key} #{value.inspect} is not one of #{GRID_LOCATIONS.inspect}"
     end
 
     def self.check_substitutions!(subs)
@@ -272,19 +349,27 @@ module Language
 
     def self.check_tests!(tests)
       raise Error, 'rules: tests is not a list' unless tests.is_a?(Array)
+      raise Error, 'rules: tests is empty' if tests.empty?
       tests.each_with_index do |test, idx|
         ok = test.is_a?(Array) && [3, 4].include?(test.length) &&
              test[0, 3].all? { |part| part.is_a?(String) } &&
              (test.length == 3 || test[3].is_a?(Hash))
         raise Error, "rules: tests[#{idx}] is not [prior, word, expected, {options}]" unless ok
+        next if test.length == 3
+        unknown = test[3].keys - TEST_OPTION_KEYS
+        raise Error, "rules: tests[#{idx}]: unknown options #{unknown.inspect}" if unknown.any?
+        test[3].each do |key, value|
+          raise Error, "rules: tests[#{idx}]: option #{key.inspect} must be a string" unless value.is_a?(String)
+        end
       end
     end
 
-    def self.source(pin, upstream_version)
-      UPSTREAM.merge(
+    def self.source(pin, upstream)
+      UPSTREAM.merge(ATTRIBUTION).merge(
         'path' => pin['path'],
         'sha256' => pin['sha256'],
-        'upstream_version' => upstream_version
+        'upstream_license' => upstream['_license'],
+        'upstream_version' => upstream['_version']
       ).sort.to_h
     end
 

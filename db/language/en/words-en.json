@@ -1,13 +1,17 @@
 {
-  "_license": "MIT",
+  "_license": "CC-BY-4.0",
   "_locale": "en",
   "_schema": 2,
   "_source": {
+    "attribution": "OpenAAC",
     "commit": "0977e83f9a773fc215d4edbdec8bdd821a99bc24",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "modified": "Transformed by LingoLinq from the pinned upstream files",
     "name": "OpenAAC",
     "path": "public/inflections/words-en.json",
     "repo": "open-aac/demo-tools",
     "sha256": "e042e8b2ce9dda264ca567cbdbb914bd5ea243fa13a9a56e82337efaeb7747d0",
+    "upstream_license": "CC By, OpenAAC",
     "upstream_version": "0.1"
   },
   "_type": "words",

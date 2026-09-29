@@ -113,7 +113,7 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent', 'multilingual_grammar'] # multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default. Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it and keep English unchanged when it is off. Kept on this line so later lines keep the numbers the capability ledger cites.
+              'sms_recipient_consent', 'multilingual_grammar'] # multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',

@@ -524,11 +524,19 @@ yet.
 - **Inputs:** the public OpenAAC files `words-en.json` and `rules-en.json`, pinned at
   `open-aac/demo-tools@0977e83f9a773fc215d4edbdec8bdd821a99bc24` and vendored unmodified
   under `db/language/vendor/openaac-demo-tools-0977e83f/`, with `NOTICE.md` recording
-  source, license (MIT), paths and SHA-256. No database data is used.
+  source, license (CC BY 4.0), paths and SHA-256. No database data is used.
 - **Generator:** `lib/language/schema2_generator.rb`, run by
   `bundle exec rake language:schema2`, writes `db/language/en/{words,rules}-en.json`. It
-  refuses to run when an input's SHA-256 differs from its pin, and raises on any field,
-  part of speech, inflection name or rules shape it does not recognise.
+  refuses to run when an input's SHA-256 differs from its pin. It raises on any words
+  field, part of speech or inflection name it does not recognise, and on any unknown
+  rules section or key, empty rules, `inflection_locations` or tests list, unknown rule type, inflection name, grid
+  location or test option, or non-string override or test option value. Lookback item
+  values and the `required` and `if_empty` values in `inflection_locations` are checked
+  for key names only.
+- **License:** the OpenAAC data files are CC BY 4.0 (upstream marker "CC By, OpenAAC";
+  version per OpenAAC's maintainer). Each generated file credits OpenAAC and carries the
+  upstream marker and license link in `_source`. The upstream repository's MIT license
+  covers its code, which is not used.
 - **CI check:** `spec/lib/language/schema2_generator_spec.rb` rebuilds the output and
   byte-compares it with the committed files, and keeps `db/language/` to a closed file
   list.
@@ -561,6 +569,5 @@ yet.
    (which cases/forms matter for emergent communicators in each language).
 5. Dataset authoring pipeline: hand-authored vs bootstrapped from UniMorph/
    Wiktionary extracts with human review (license check required: UniMorph is
-   CC BY-SA per language source; the OpenAAC inflection files are used under the
-   upstream repository's MIT license, see
+   CC BY-SA per language source; the OpenAAC inflection data files are CC BY 4.0, see
    `db/language/vendor/openaac-demo-tools-0977e83f/NOTICE.md`).
