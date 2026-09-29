@@ -36,7 +36,8 @@
     {{!-- COMPRESSED VIEW heading row (compressedHome in authenticated-view.js). Takes the place
          of the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard cards,
          which are hidden while it shows: a dashboard title with the caseload count and its link,
-         and the two actions as a toolbar, Create a Board primary. Same actions as those cards. --}}
+         and Create a Board. Edit Dashboard is not offered in Compressed View (requested
+         2026-09-29), here or as the navbar's Display Style disc. --}}
     {{#if this.compressedHome}}
       <header class="md-compact-head">
         <div class="md-compact-head__titles">
@@ -48,7 +49,6 @@
         </div>
         <div class="md-compact-head__actions">
           <button type="button" class="md-btn md-btn--primary md-compact-head__action" {{on "click" this.onOpenNewBoardOnBoards}}>{{t "Create a Board" key="create_a_board"}}</button>
-          <button type="button" class="md-btn md-btn--ghost md-compact-head__action" {{on "click" this.onEditDashboard}}>{{t "Edit Dashboard" key="edit_dashboard"}}</button>
         </div>
       </header>
     {{/if}}
