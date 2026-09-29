@@ -1873,16 +1873,15 @@ export default Component.extend({
     return out;
   },
 
-  /* The Need Attention card lists a few communicators and links to the full caseload, rather
-     than every flagged one. */
-  attentionShown: computed('attentionCommunicators.[]', 'compressedHome', function() {
-    var all = this.get('attentionCommunicators') || [];
-    return this.get('compressedHome') ? all.slice(0, COMPRESSED_ATTENTION_ROWS) : all;
+  /* The Need Attention card lists the first few flagged communicators, in Compressed View or not
+     (requested 2026-09-29), and "View all communicators" links to the caseload for the rest. */
+  attentionShown: computed('attentionCommunicators.[]', function() {
+    return (this.get('attentionCommunicators') || []).slice(0, ATTENTION_ROWS);
   }),
   attentionOverflow: computed('attentionCommunicators.[]', 'attentionShown.[]', function() {
     return (this.get('attentionCommunicators') || []).length > (this.get('attentionShown') || []).length;
   })
 });
 
-// Rows the compressed Need Attention card shows before "View all communicators".
-const COMPRESSED_ATTENTION_ROWS = 4;
+// Rows the Need Attention card shows before "View all communicators".
+const ATTENTION_ROWS = 3;

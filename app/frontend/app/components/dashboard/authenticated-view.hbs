@@ -232,7 +232,7 @@
             {{/unless}}
             <div class="md-card__titles">
               <h3 class="md-card__title">{{t "Rooms" key="rooms"}} <span class="md-rooms__count">{{this.sortedRooms.length}}</span></h3>
-              <div class="md-card__sub">{{t "Jump into a room" key="rooms_card_sub"}}</div>
+              {{#unless this.compressedHome}}<div class="md-card__sub">{{t "Jump into a room" key="rooms_card_sub"}}</div>{{/unless}}
             </div>
           </div>
           {{#if (and this.roomsAllOrgId this.roomsOverflowCount)}}
@@ -270,7 +270,7 @@
           {{/unless}}
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "Communicators Need Attention" key="communicators_need_attention"}} <span class="md-attention__count">{{this.attentionCommunicators.length}}</span></h3>
-            <div class="md-card__sub">{{t "Follow up on these communicators" key="attention_card_sub"}}</div>
+            {{#unless this.compressedHome}}<div class="md-card__sub">{{t "Follow up on these communicators" key="attention_card_sub"}}</div>{{/unless}}
           </div>
         </div>
         <div class="md-card--boards__divider" aria-hidden="true"></div>
@@ -294,8 +294,7 @@
             </LinkTo>
           {{/each}}
         </div>
-        {{!-- Compressed View shows only the first few (attentionShown); the rest are on the
-             caseload page. --}}
+        {{!-- Only the first few are listed (attentionShown); the rest are on the caseload page. --}}
         {{#if this.attentionOverflow}}
           <LinkTo @route="caseload" class="md-attention__all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
         {{/if}}

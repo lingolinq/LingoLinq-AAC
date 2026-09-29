@@ -5786,7 +5786,10 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
     // NEITHER colour reaches 3:1 — a dead zone. #66738A sits safely on the dark side of it
     // (light arrow 3.66:1); going much lighter means switching the arrow back to slate and
     // jumping the gap, not easing through it.
-    linear-gradient(155deg, #F2F3F5 0%, #66738A 100%) !important;
+    // 2026-09-29 (requested: a lighter right-hand end, dark arrows): end stop #66738A -> #D2D9E4,
+    // the Rooms rows' stop, jumping the dead zone as described above; the arrow is now
+    // $la-navy (8.54:1 on #D2D9E4; slate would be 3.86:1).
+    linear-gradient(155deg, #F2F3F5 0%, #D2D9E4 100%) !important;
   backdrop-filter: var(--dn-row-blur-focused, blur(16px) saturate(125%)) !important;
   -webkit-backdrop-filter: var(--dn-row-blur-focused, blur(16px) saturate(125%)) !important;
   box-shadow: var(--dn-row-shadow-focused,
@@ -5797,8 +5800,8 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
   border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
 }
 
-// Compressed View's "View all communicators" (_compressed-view.scss) takes the LIGHT stop of the
-// row gradient above (#F2F3F5 -> #66738A), so it reads as part of the same list.
+// "View all communicators" (app.scss `.md-attention__all`) takes the LIGHT stop of the row
+// gradient above (#F2F3F5 -> #D2D9E4), so it reads as part of the same list.
 body.ll-layout-focused .md-attention__all {
   background: #F2F3F5;
   border-color: rgba($brand-dusty-denim, 0.38);
@@ -5812,8 +5815,10 @@ body.ll-layout-focused .md-attention__all {
 // The two cards now need OPPOSITE arrows, because their right-hand stops ended up on opposite
 // sides of the dead zone. Attention falls to #66738A (dark) so its arrow must be light;
 // rooms falls to #D2D9E4 (light) so its arrow can be the slate that was asked for.
+// 2026-09-29: the attention fall now ends light too (#D2D9E4), so its arrow is dark: $la-navy,
+// 8.54:1 on that stop.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-room-card__arrow {
-  color: #D8E2F0 !important;
+  color: $la-navy !important;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card__arrow {
   color: $brand-slate-blue !important;

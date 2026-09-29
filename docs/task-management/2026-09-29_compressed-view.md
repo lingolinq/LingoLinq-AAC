@@ -84,3 +84,10 @@ Verification: Ember 115/115 on the dashboard/layout/rail/switcher/compressed fil
 `dashboard-compressed-home-test.js` falsified (caseload-only hide, 99-row cap) red, restored.
 ESLint gate new=73 (the branch's pre-existing count, unchanged); template lint clean; build OK and
 the compiled `var()` fallbacks match the old values.
+
+## Decision (Traci, 2026-09-29): no Dashboard Design in Compressed View
+Edit Dashboard (heading row) and the navbar's Display Style disc and drawer item are not shown in
+Compressed View, and no other entry point is added: "in compressed view, they won't need to
+rearrange their home page". Compressed View has a fixed home layout by design; this is not a gap.
+The DisplayStyle component stays mounted (`@triggerless`) only so its opener keeps working for
+callers outside Compressed View.

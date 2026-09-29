@@ -5,8 +5,8 @@ import { setupTest } from '../../helpers';
 
 /* Compressed View on the Modern home page (components/dashboard/authenticated-view.js):
  * the greeting hero and the My Caseload / Create a Board / Edit Dashboard cards give way to a
- * heading row, so those three leave the grid through the visibility map; the Need Attention
- * card lists a few rows and links to the rest. The account rail drops its Home Page row.
+ * heading row, so those three leave the grid through the visibility map. The Need Attention
+ * card lists three rows and links to the rest, in either mode. The account rail drops its Home Page row.
  *
  * app-state is stubbed with only what these computeds read, and re-registered for each case (a bare
  * `register` over an existing service is ignored, as the view-switcher availability module notes). */
@@ -56,23 +56,27 @@ module('Unit | Component | dashboard compressed home', function(hooks) {
     assert.strictEqual(home(this)._compressVisibility(vis), vis, 'without Compressed View the map passes through');
   });
 
-  test('Need Attention shows four and links to the rest when compressed', function(assert) {
-    stub(this, true, 6);
-    var c = home(this);
-    assert.strictEqual(c.get('attentionCommunicators.length'), 6, 'six flagged');
-    assert.strictEqual(c.get('attentionShown.length'), 4, 'four rows');
-    assert.true(c.get('attentionOverflow'), 'a View all link');
-    stub(this, true, 3);
-    c = home(this);
-    assert.strictEqual(c.get('attentionShown.length'), 3, 'all three when there are only three');
-    assert.false(c.get('attentionOverflow'), 'no View all link');
-  });
+  // Spec changed 2026-09-29 (Traci): three rows in BOTH modes, and "View all communicators"
+  // whenever more than three are flagged.
+  [true, false].forEach(function(compressed) {
+    var mode = compressed ? 'compressed' : 'not compressed';
 
-  test('Need Attention lists everyone when not compressed', function(assert) {
-    stub(this, false, 6);
-    var c = home(this);
-    assert.strictEqual(c.get('attentionShown.length'), 6, 'every flagged communicator');
-    assert.false(c.get('attentionOverflow'), 'no View all link');
+    test('Need Attention lists three and links to the rest (' + mode + ')', function(assert) {
+      stub(this, compressed, 6);
+      var c = home(this);
+      assert.strictEqual(c.get('attentionCommunicators.length'), 6, 'six flagged');
+      assert.strictEqual(c.get('attentionShown.length'), 3, 'three rows');
+      assert.true(c.get('attentionOverflow'), 'a View all link');
+    });
+
+    test('Need Attention with three or fewer shows them all and no link (' + mode + ')', function(assert) {
+      stub(this, compressed, 3);
+      var c = home(this);
+      assert.strictEqual(c.get('attentionShown.length'), 3, 'all three');
+      assert.false(c.get('attentionOverflow'), 'no View all link at exactly three');
+      stub(this, compressed, 2);
+      assert.strictEqual(home(this).get('attentionShown.length'), 2, 'both of two');
+    });
   });
 
   test('the account rail knows when to drop its Home Page row', function(assert) {

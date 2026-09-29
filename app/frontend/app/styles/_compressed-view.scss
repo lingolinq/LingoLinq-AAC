@@ -104,32 +104,3 @@ body.ll-density-compressed .md-shell--home {
 .md-compact-head__action {
   min-height: 44px;
 }
-
-// "View all communicators" under the capped Need Attention list: a slim 28px button, right-aligned
-// (the card is a flex column, app.scss `.md-card--attention`), in the LIGHT colour of the
-// communicator rows' gradient. Gentle: the rows' lightest layer, white at 0.94 (app.scss
-// `.md-attention-item` background); the Focused colour is in _focused-view.scss. Not an `.md-btn`:
-// that class forces a 44px height and 14px/20px padding with !important. 28px still clears the
-// WCAG 2.5.8 (AA) 24px target minimum, not the 2.5.5 (AAA) 44px one.
-.md-attention__all {
-  align-self: flex-end;
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(27, 54, 93, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  color: #1b365d;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
-  text-decoration: none;
-}
-
-.md-attention__all:hover,
-.md-attention__all:focus-visible {
-  border-color: rgba(27, 54, 93, 0.24);
-  text-decoration: none;
-}
