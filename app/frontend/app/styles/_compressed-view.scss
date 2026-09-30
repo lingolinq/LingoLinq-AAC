@@ -23,65 +23,42 @@
 
 body.ll-density-compressed {
   // Rail: the same 208px width (184px was tried and wrapped "Subscription" and the Home Board
-  // row mid-word), with less space between rows (app.scss `.md-acct-rail`). On the home page it
-  // starts COLLAPSED (components/account-rail.js#railCollapsed: icons and short labels, the
-  // narrower 124px column, with the toggle still showing and changing the state). Its Home Page
-  // row is removed in components/account-rail.hbs.
-  // 140px when collapsed rather than 124px: at 124 the collapsed labels truncated ("Subscript…",
-  // "Supervisi…"); 140 fits the longest at their 14px size.
-  --dn-rail-width-collapsed: 140px;
+  // row mid-word), with less space between rows (app.scss `.md-acct-rail`). Its Home Page row is
+  // removed in components/account-rail.hbs.
   --dn-rail-gap: 4px;
   --dn-rail-gap-tall: 6px;
   --dn-rail-pad-top-tall: 16px;
-  // <=900px the rail is a grid of tiles ABOVE the page (app.scss `@media (max-width: 900px)
-  // .md-acct-rail`); tighter side and bottom insets and 170px columns (four across on a portrait
-  // iPad) make it shorter so the dashboard starts sooner. The TOP spacing (22px margin + 44px
-  // padding) is kept: it is what clears the fixed 70px header, and trimming it hid the first row
-  // of tiles under the header (browser-checked).
-  --dn-rail-grid-margin: 22px 0 8px;
-  --dn-rail-grid-pad: 44px 16px 6px;
-  --dn-rail-grid-col: 170px;
-  --dn-rail-grid-gap: 6px;
-  // Pill-nav band: 8px off its top and bottom padding (its bottom moves from y=146 to y=130).
-  // --dn-nav-clearance is left alone: it pads `.ll-appshell__content` on other pages.
+  // Pill-nav band: 8px off its top and bottom padding (its bottom moves from y=146 to y=130 at
+  // 1440x900). --dn-nav-clearance is left alone: it pads `.ll-appshell__content` on other pages
+  // and does not place the home page, whose content starts under the band.
   --dn-nav-pad-top: 8px;
   --dn-nav-pad-bottom: 10px;
 }
 
 body.ll-density-compressed .md-shell--home {
-  // Space under the fixed pill-nav band: the toolbar sits 12px below the band's bottom edge
-  // (y=130) in both styles. Gentle: 36px of `.md-main` top padding above 1024px, 24px at or below,
-  // where the shell starts 12px lower (measured: toolbar at y=142 at 1180, 1024 and 1440 wide).
-  // Focused: `.md-main` has no top padding (_focused-view.scss); the gap came from the workspace's
-  // 16px top margin + 32px top padding (app.scss `.md-shell--layout-focused > .md-workspace`),
-  // which put the toolbar 46px under the band. 0 + 14px lands it at y=142 too.
+  // Page and grid spacing. The home content starts under the fixed pill-nav band (the greeting
+  // hero's own top whitespace used to absorb that); 36px puts the heading row 12px below the
+  // band's bottom edge at 1440x900 (measured: band ends at y=130, row starts at y=142).
   --dn-main-pad-top: 36px;
   --dn-main-pad-bottom: 16px;
-  --dn-ws-margin-top-focused: 0px;
-  --dn-ws-pad-top-focused: 14px;
   --dn-grid-gap: 14px;
   --dn-grid-gap-focused: 10px;
-  // Need Attention and Rooms cards: a little less top and bottom padding than before (the navy
-  // Focused panel read as padded out), 18px titles.
-  --dn-card-pad: 10px 16px;
+  // Need Attention and Rooms cards.
+  --dn-card-pad: 12px 16px;
   --dn-card-title: 18px;
-  // Need Attention card, Gentle: the My Caseload card-as-button's glass surface. Focused takes its
-  // own caseload hero surface instead (_focused-view.scss, --dn-attention-bg-focused).
+  // Need Attention card, Gentle: the My Caseload card-as-button's glass surface (requested
+  // 2026-09-29). Focused takes its own caseload hero surface instead (_focused-view.scss,
+  // --dn-attention-bg-focused).
   --dn-attention-bg: var(--md-caseload-glass-bg);
-  // ONE INTERNAL GRID for both cards: the header row's text starts where the rows' text starts
-  // (row padding-left 16px + its 1px border), and "View all" ends where the rows end (the card's
-  // content edge). Header rows 8px top and bottom.
-  --dn-card-head-pad-x: 17px;
-  --dn-card-head-pad-y: 8px;
-  // Rows (room tiles, and Gentle's communicator rows, which wear the room card): one gradient and
-  // a light shadow, so three rows read as a list rather than three floating cards. Focused keeps
-  // the communicator rows' glass but with a lighter drop, and plainer room tiles.
+  // Need Attention and Rooms header rows: 12px top and bottom (requested 2026-09-29), the spacing
+  // the Rooms header had while "View all rooms" sat in it (measured at 1440x900: 25px/24px from the
+  // card top to the title and from the title to the divider). The button now sits at the bottom
+  // of the Rooms card, so both rows take the padding explicitly.
+  --dn-card-head-pad-y: 12px;
+  // Attention rows wear the room card (app.scss / _focused-view.scss), so their padding and height
+  // follow the room tokens below; only the list gap and the avatar are their own.
   --dn-list-gap: 4px;
   --dn-avatar: 32px;
-  --dn-list-row-bg: linear-gradient(140deg, #ffffff 0%, #eef1f5 100%);
-  --dn-list-row-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(15, 23, 42, 0.07);
-  --dn-list-row-bg-focused: linear-gradient(155deg, #FDFDFE 0%, #D9DFE8 100%);
-  --dn-att-row-shadow-focused: inset 3px 0 0 rgba(76, 134, 216, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(27, 54, 93, 0.14);
   // Room tiles.
   --dn-room-gap: 8px;
   --dn-room-pad-y: 6px;
@@ -89,68 +66,47 @@ body.ll-density-compressed .md-shell--home {
   --dn-room-icon-focused: 40px;
 }
 
-@media (max-width: 1024px) {
-  body.ll-density-compressed .md-shell--home {
-    --dn-main-pad-top: 24px;
-  }
-}
-
-// At or below 900px the pill-nav band is in the page flow (not fixed), so the landscape spacing
-// over-shot: the toolbar sat 28px (Gentle) / 32px (Focused) under the tabs on a portrait iPad.
-// Gentle: `.md-main` top padding 8px. Focused: the Home shell's 80px top padding at this width
-// (app.scss, `body.ll-layout-focused #content.home-page .ll-appshell .md-shell`) less 20px.
-// Both land the toolbar 12px under the tabs, as in landscape.
-@media (max-width: 900px) {
-  body.ll-density-compressed .md-shell--home {
-    --dn-main-pad-top: 8px;
-    --dn-shell-pad-top-focused-narrow: 60px;
-  }
-}
-
-// DASHBOARD TOOLBAR (components/dashboard/authenticated-view.hbs, Compressed View only): the title
-// and Open My Caseload (with the communicator count) on the left, Create a Board and the More menu
-// on the right. One row while it fits; the actions wrap onto a second line rather than squeezing
-// any text. Colours are inherited, like the hero title's, so it reads on both page backgrounds.
-// `space-between` rather than `margin-left: auto` on the actions: on one line the actions sit at
-// the right; when they wrap, a line with a single item starts at the left, so the actions line
-// up under the title instead of hanging off the right edge on their own.
+// The heading row (title and caseload count) that replaces the greeting hero, the My Caseload card
+// and the Create a Board / Edit Dashboard cards (components/dashboard/authenticated-view.hbs, rendered only in Compressed
+// View). Colours are inherited, like the hero title's, so it reads on both the Gentle and the
+// Focused page background.
 .md-compact-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: 10px 16px;
   margin: 0 0 12px;
 }
 
-.md-compact-head__lead {
+.md-compact-head__titles {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
-  min-width: 0;
+  gap: 8px 14px;
 }
 
-// `height: auto`: a legacy global `h1 { display: inline-block; height: 60px }` would otherwise give
-// the title a 60px box with its text at the top, so it sat above the row's centre line.
 .md-compact-head__title {
-  height: auto;
   margin: 0;
   font-size: 24px;
   font-weight: 700;
   line-height: 1.2;
 }
 
-// Open My Caseload, dressed as the Gentle My Caseload card-as-button: the same glass surface and
-// shadow (:root --md-caseload-glass-bg / --md-caseload-glass-shadow in app.scss). Not an `.md-btn`,
-// whose !important surface would have to be overridden. Focused wears the caseload hero material
-// instead (_focused-view.scss). The count chip inside it is the shared count chip
-// (app.scss `.md-attention__count, .md-rooms__count, .md-compact-head__count`).
+.md-compact-head__meta {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+// Open My Caseload in the heading row, dressed as the Gentle My Caseload card-as-button: the same
+// glass surface and shadow (:root --md-caseload-glass-bg / --md-caseload-glass-shadow in app.scss).
+// Not an `.md-btn`, whose !important surface would have to be overridden. Focused wears the
+// caseload hero material instead (_focused-view.scss).
 .md-compact-head__caseload {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 12px 0 18px;
+  padding: 0 18px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.8);
   background: var(--md-caseload-glass-bg);
@@ -159,87 +115,10 @@ body.ll-density-compressed .md-shell--home {
   font-size: 16px;
   font-weight: 750;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .md-compact-head__caseload:hover,
 .md-compact-head__caseload:focus-visible {
   color: #1b365d;
   text-decoration: none;
-}
-
-.md-compact-head__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.md-compact-head__create,
-.md-compact-head__more-trigger {
-  white-space: nowrap;
-}
-
-// The More menu (components/dashboard/compact-more-menu). Per
-// docs/styling-recurring-problems.md: not inside an `overflow: hidden` card (§1), stacked below
-// the topbar (§2, z-index 150 < $aac-z-topbar 400), and anchored on the side its trigger is
-// nearest, the right end of the toolbar (§14).
-.md-compact-head__more {
-  position: relative;
-}
-
-.md-compact-head__more-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.md-compact-head__more-trigger::after {
-  content: '';
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid currentColor;
-  transition: transform 0.15s ease;
-}
-
-.md-compact-head__more.is-open > .md-compact-head__more-trigger::after {
-  transform: rotate(180deg);
-}
-
-.md-compact-head__more-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 150;
-  min-width: 200px;
-  padding: 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(27, 54, 93, 0.14);
-  background: #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
-}
-
-.md-compact-head__more-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: #1b365d;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 650;
-  text-align: left;
-  cursor: pointer;
-}
-
-.md-compact-head__more-item:hover,
-.md-compact-head__more-item:focus-visible {
-  background: rgba(76, 134, 216, 0.12);
 }

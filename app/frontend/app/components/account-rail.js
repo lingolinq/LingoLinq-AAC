@@ -127,14 +127,8 @@ export default Component.extend({
      different widths, and a choice made in one view should not silently rearrange the other.
      Only the rail's own classes read this; the shell's column offset follows through
      `.ll-appshell:has(> .md-acct-rail--collapsed)` in app.scss, so there is one source. */
-  railCollapsed: computed('onHomePage', 'compressed', 'stashes.modern_rail_collapsed', 'stashes.modern_rail_collapsed_away', function() {
-    if(this.get('onHomePage')) {
-      /* COMPRESSED VIEW starts the home rail collapsed (icons and short labels, the narrower
-         column) until the person picks a state with the toggle; an explicit choice still wins. */
-      var home = this.stashes.get('modern_rail_collapsed');
-      if(home === undefined || home === null) { return !!this.get('compressed'); }
-      return !!home;
-    }
+  railCollapsed: computed('onHomePage', 'stashes.modern_rail_collapsed', 'stashes.modern_rail_collapsed_away', function() {
+    if(this.get('onHomePage')) { return !!this.stashes.get('modern_rail_collapsed'); }
     var away = this.stashes.get('modern_rail_collapsed_away');
     return (away === undefined || away === null) ? true : !!away;
   }),
@@ -262,6 +256,19 @@ export default Component.extend({
         _this.updateRailScroll();
       });
     });
+  }),
+
+  /* Compressed View's Create Board row. Same flow as the home page's Create a Board card
+     (dashboard/authenticated-view.js#openNewBoardOnBoards): the purchase check, then the new-board
+     page whether or not it resolves. */
+  createBoard: action(function() {
+    var router = this.get('router');
+    var go = function() { router.transitionTo('create-board-new'); };
+    if(this.app_state.check_for_needing_purchase) {
+      this.app_state.check_for_needing_purchase().then(go, go);
+    } else {
+      go();
+    }
   }),
 
   /* A PAGE, not a nudge: 80% of the visible height, so successive activations always leave a

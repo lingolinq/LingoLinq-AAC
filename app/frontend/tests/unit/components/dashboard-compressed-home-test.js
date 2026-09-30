@@ -86,36 +86,31 @@ module('Unit | Component | dashboard compressed home', function(hooks) {
     assert.false(this.owner.factoryFor('component:account-rail').create().get('compressed'), 'not compressed');
   });
 
-  // Compact starts the home rail collapsed (the narrower column) until the person chooses a state
-  // with the toggle; an explicit choice wins, and Comfortable keeps its expanded default.
-  function rail(context, compressed, stashed) {
-    context.owner.unregister('service:app-state');
-    context.owner.register('service:app-state', Service.extend({ compressed_view_active: compressed }));
-    context.owner.unregister('service:router');
-    context.owner.register('service:router', Service.extend({ currentRouteName: 'index' }));
-    context.owner.unregister('service:stashes');
-    context.owner.register('service:stashes', Service.extend({
-      get: function(key) { return key === 'modern_rail_collapsed' ? stashed : undefined; },
-      persist: function() { }
+  // Compressed View moves Create a Board into the rail as "Create Board": the same purchase
+  // check, then the new-board page, whether the check resolves or rejects.
+  test('the rail Create Board row opens the new-board page after the purchase check', async function(assert) {
+    var calls = [];
+    var outcome = 'resolve';
+    this.owner.unregister('service:app-state');
+    this.owner.register('service:app-state', Service.extend({
+      compressed_view_active: true,
+      check_for_needing_purchase: function() {
+        calls.push('check');
+        return outcome === 'resolve' ? Promise.resolve() : Promise.reject();
+      }
     }));
-    return context.owner.factoryFor('component:account-rail').create();
-  }
-
-  test('the home rail starts collapsed in Compact and expanded otherwise', function(assert) {
-    assert.true(rail(this, true, undefined).get('railCollapsed'), 'Compact, no choice yet: collapsed');
-    assert.false(rail(this, false, undefined).get('railCollapsed'), 'Comfortable, no choice yet: expanded');
-    assert.false(rail(this, true, false).get('railCollapsed'), 'Compact, expanded by the person: stays expanded');
-    assert.true(rail(this, false, true).get('railCollapsed'), 'Comfortable, collapsed by the person: stays collapsed');
-  });
-
-  test('the toolbar More item closes its menu and runs Edit Dashboard', function(assert) {
-    stub(this, true);
-    var c = home(this);
-    var sent = [];
-    c.send = function(name) { sent.push(name); };
-    var closed = 0;
-    c.get('onCompactEditDashboard')(function() { closed++; });
-    assert.strictEqual(closed, 1, 'the More menu closed');
-    assert.deepEqual(sent, ['editDashboard'], 'the Edit Dashboard action ran');
+    this.owner.unregister('service:router');
+    this.owner.register('service:router', Service.extend({
+      transitionTo: function(route) { calls.push(route); }
+    }));
+    var rail = this.owner.factoryFor('component:account-rail').create();
+    rail.createBoard();
+    await Promise.resolve(); await Promise.resolve();
+    assert.deepEqual(calls, ['check', 'create-board-new'], 'checked, then opened');
+    calls = [];
+    outcome = 'reject';
+    rail.createBoard();
+    await Promise.resolve(); await Promise.resolve();
+    assert.deepEqual(calls, ['check', 'create-board-new'], 'opened even when the check rejects');
   });
 });

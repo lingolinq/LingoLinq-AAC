@@ -1880,20 +1880,6 @@ export default Component.extend({
   }),
   attentionOverflow: computed('attentionCommunicators.[]', 'attentionShown.[]', function() {
     return (this.get('attentionCommunicators') || []).length > (this.get('attentionShown') || []).length;
-  }),
-
-  /* The Compressed View toolbar's More > Edit Dashboard: close the menu (the `close` that
-     Dashboard::CompactMoreMenu yields), then run the same Edit Dashboard action the Edit Dashboard
-     card uses. Closing first keeps the menu from sitting open behind the Dashboard Design modal.
-     A computed returning a bound handler, the same idea as the handlers bound in init(), so this
-     file needs no new import (an import at the top would shift every line of the line-anchored
-     ESLint baseline). */
-  onCompactEditDashboard: computed(function() {
-    var _this = this;
-    return function(close) {
-      if (typeof close === 'function') { close(); }
-      _this.send('editDashboard');
-    };
   })
 });
 
