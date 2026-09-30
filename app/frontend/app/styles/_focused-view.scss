@@ -2173,7 +2173,8 @@ body.ll-layout-focused {
   // one place; a third page joining adds a selector here.
   .md-logs__header,
   .md-preferences__header,
-  .md-edit-profile__header {
+  .md-edit-profile__header,
+  .md-compact-head {
     animation: none;
   }
 
@@ -4118,12 +4119,6 @@ $ch-focused-hero-more-ink: #E5E5E5;
 }
 
 
-// Compressed View's Open My Caseload (_compressed-view.scss) in Focused: the caseload hero's
-// material at button scale, through the same mixin and the hero's own tokens, so it matches the
-// My Caseload hero exactly and cannot drift from it.
-body.ll-layout-focused .md-compact-head__caseload {
-  @include ch-focused-hero-tile($focus-hero-center, $focus-hero-edge);
-}
 
 @mixin ch-focused-tile($start, $end) {
   background: linear-gradient(155deg, $start 0%, $end 100%);

@@ -33,22 +33,20 @@
   </main>
   {{else}}
   <main class="md-main">
-    {{!-- COMPRESSED VIEW heading row (compressedHome in authenticated-view.js). Takes the place
-         of the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard cards,
-         which are hidden while it shows: the dashboard title on the left and Open My Caseload,
-         styled as each view's own caseload button, right-aligned (`.md-compact-head` is
-         `justify-content: space-between`). No communicator count (requested 2026-09-29).
-         Create a Board is in the account rail ("Create Board"); Edit Dashboard is not offered in
-         Compressed View at all, here or as the navbar's Display Style disc. --}}
+    {{!-- COMPRESSED VIEW page label (compressedHome in authenticated-view.js). Takes the place of
+         the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard cards,
+         which are hidden while it shows. It is the same page label the other pages carry (Profile,
+         Settings: a two-toned icon, then the title as an <h2>, over a rule), sharing their styles
+         (app.scss `.md-edit-profile__header` / `__title`); the icon uses their two stroke colours,
+         so Focused's lift of the gray strokes (`.md-extras-card__svg-icon`) applies to it too.
+         Requested 2026-09-29: no communicator count and no Open My Caseload button (the Caseload
+         tab reaches it). Create a Board is in the account rail ("Create Board"); Edit Dashboard is
+         not offered in Compressed View, here or as the navbar's Display Style disc. --}}
     {{#if this.compressedHome}}
-      <header class="md-compact-head">
-        <div class="md-compact-head__titles">
-          <h1 class="md-compact-head__title">{{t "Dashboard" key="dashboard"}}</h1>
-        </div>
-        {{#if this.sectionAvailable.caseload}}
-          <LinkTo @route="caseload" class="md-compact-head__caseload">{{t "Open My Caseload" key="focused_home_caseload_sub"}}</LinkTo>
-        {{/if}}
-      </header>
+      <div class="md-compact-head">
+        <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5" stroke="#2A9D8F"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="#46505F"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="#46505F"/></svg>
+        <h2 class="md-compact-head__title">{{t "Dashboard" key="dashboard"}}</h2>
+      </div>
     {{/if}}
     <header class="md-hero md-hero--dashboard" style={{this.heroHideStyle}}>
       {{#if (is-equal this.activeTab "extras")}}

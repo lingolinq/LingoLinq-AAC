@@ -51242,7 +51242,8 @@ body:not(.ll-layout-focused) .md-goals__header {
     animation: none;
   }
 }
-.md-edit-profile__header {
+.md-edit-profile__header,
+.md-compact-head {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51251,7 +51252,8 @@ body:not(.ll-layout-focused) .md-goals__header {
   border-bottom: 1.5px solid rgba($brand-blue-black, 0.12);
   animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
-.md-edit-profile__title {
+.md-edit-profile__title,
+.md-compact-head__title {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 900;
