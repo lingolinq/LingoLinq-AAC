@@ -231,6 +231,17 @@
   color: #ffffff;
 }
 
+// Model takes the Focused home page's caseload card surface (requested 2026-09-30): the same
+// oklab navy radial as `.md-card--caseload-focused`, from the shared $focus-hero-* tokens, so the
+// two cannot drift. Choose Board, which takes this slot when there is no home board, stays navy.
+.md-cl-btn--model,
+.md-cl-btn--model:hover,
+.md-cl-btn--model:focus-visible {
+  border-color: $focus-hero-edge;
+  background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%);
+  color: #ffffff;
+}
+
 // Speak: the brand slate blue with light text, one step quieter than the navy primary (white on
 // $brand-slate-blue is about 5.6:1; hover takes $brand-charcoal-blue, darker still).
 .md-cl-btn--speak {
@@ -277,14 +288,59 @@
 
 
 // ---- Expanded panel: every other action ------------------------------------------------------
-// A grid of icon chips, set down from the row by a hairline divider and a top margin.
+// The actions in three purpose groups (Insights, Profile & Notes, Evaluation), set down from the
+// row by a hairline divider and a top margin. The groups wrap: Evaluation (four actions) takes two
+// shares of a row, the others one, and falls to its own line when the card is narrow.
 .md-cl-more {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
   margin: 12px 14px 0 20px;
   padding: 14px 0 16px;
   border-top: 1px solid rgba(27, 54, 93, 0.08);
+}
+
+// One group: a soft panel faintly tinted with its colour family (the same families as its chips),
+// its label in the family's darker ink (at least 5.7:1 on the panel).
+.md-cl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 209px;
+  min-width: 0;
+  padding: 10px 10px 12px;
+  border: 1px solid rgba(var(--cl-group-tint), 0.14);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(var(--cl-group-tint), 0.06), rgba(var(--cl-group-tint), 0.025));
+}
+
+// Bases from the measured one-line chip widths: "Modeling Ideas" needs a 187px chip (a 209px
+// group), "Quick Screen Eval" 209px (two a row: a 448px group). All three share a row only on a
+// panel of ~890px or more; below that (the 835px panel at 1180 wide, 820, half-width cards)
+// Evaluation takes its own row under the other two, and no label wraps.
+.md-cl-group--evaluation {
+  flex: 2 1 448px;
+}
+
+.md-cl-group--insights   { --cl-group-tint: 64, 112, 178;  --cl-group-ink: 38, 78, 138; }
+.md-cl-group--profile    { --cl-group-tint: 128, 134, 144; --cl-group-ink: 71, 85, 105; }
+.md-cl-group--evaluation { --cl-group-tint: 42, 157, 143;  --cl-group-ink: 23, 110, 100; }
+
+.md-cl-group__label {
+  padding: 0 4px;
+  color: rgb(var(--cl-group-ink));
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+// The group's chips: one column in a narrow group, and at most two, so Evaluation's four sit 2x2
+// rather than 3 + 1 on a wide panel. 210px keeps every label on one line.
+.md-cl-group__chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(min(100%, 210px), calc((100% - 8px) / 2)), 1fr));
+  gap: 8px;
 }
 
 // One action: a soft glass tile with a two-tone icon and a left-aligned label.
