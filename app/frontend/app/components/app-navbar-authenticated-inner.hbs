@@ -39,8 +39,12 @@
              registers `appState.dashboard_design_opener`, which the ≤640px drawer
              button below depends on — keep the two route lists in sync. --}}
         {{!-- Compressed View drops the disc (requested 2026-09-29) but keeps the component mounted
-             for the opener; see display-style.hbs. --}}
-        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle @triggerless={{this.appState.compressed_view_active}} />{{/if}}{{/unless}}
+             for the opener; see display-style.hbs. It also mounts it on `index` (the bare `/`,
+             which renders the same dashboard): the Compressed toolbar's More > Edit Dashboard
+             opens Dashboard Design through that opener, and without a mount on `/` it did
+             nothing (browser-checked). Comfortable view keeps its original two routes, so no
+             disc appears on `/` there. --}}
+        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload") (and this.appState.compressed_view_active (is-equal this.appState.current_route "index")))}}<DisplayStyle @triggerless={{this.appState.compressed_view_active}} />{{/if}}{{/unless}}
       </span>
     {{/if}}
     {{!-- App-wide Classic/Modern switch. Sits AFTER the home-actions cluster so it

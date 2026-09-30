@@ -5772,12 +5772,12 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.62) !important;
-  box-shadow:
+  box-shadow: var(--dn-att-row-shadow-focused,
     inset 3px 0 0 rgba($brand-dusty-denim, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -2px 4px rgba($la-navy, 0.10),
     0 2px 5px rgba($la-navy, 0.12),
-    0 10px 24px rgba($la-navy, 0.16) !important;
+    0 10px 24px rgba($la-navy, 0.16)) !important;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:hover,
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:focus-visible {
@@ -5804,7 +5804,8 @@ body.ll-layout-focused.ll-density-compressed .md-shell--home {
 // (requested 2026-09-29: "much lighter"), keeping the verdigris hairline. $la-navy digits on it
 // measure about 11:1.
 body.ll-layout-focused .md-attention__count,
-body.ll-layout-focused .md-rooms__count {
+body.ll-layout-focused .md-rooms__count,
+body.ll-layout-focused .md-compact-head__count {
   background: rgba(255, 255, 255, 0.88);
   border-color: rgba($brand-verdigris, 0.32);
 }
@@ -5863,12 +5864,12 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card {
   // #D2D9E4 clears BOTH: label 8.54:1, and it is past the dead zone described on the rows,
   // so the arrow goes back to slate (3.86:1) — which is what was asked for originally and
   // only ever failed because that end was too dark to take it.
-  background:
+  background: var(--dn-list-row-bg-focused,
     radial-gradient(120% 140% at 14% 0%,
       rgba(255, 255, 255, 0.55) 0%,
       rgba(255, 255, 255, 0.16) 34%,
       transparent 60%),
-    linear-gradient(155deg, #FDFDFE 0%, #D2D9E4 100%) !important;
+    linear-gradient(155deg, #FDFDFE 0%, #D2D9E4 100%)) !important;
   border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
 }
 

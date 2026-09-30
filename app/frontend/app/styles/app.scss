@@ -48783,8 +48783,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding-top: var(--dn-card-head-pad-y, 0);
   padding-bottom: var(--dn-card-head-pad-y, 0);
   /* 8px in from the card's content edge (requested 2026-09-29), matched on the Need Attention
-     header. */
-  padding-left: 8px;
+     header; Compressed View lines it up with the rows' text instead (--dn-card-head-pad-x). */
+  padding-left: var(--dn-card-head-pad-x, 8px);
 }
 /* Top row: header/subheader on the left, the "View all rooms" button on the right. */
 .md-card--rooms__top {
@@ -48874,15 +48874,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   /* Match the My Account icon exactly: white→denim gradient + top-left radial highlight,
      a soft denim outline, and the icon's raised "lift" shadow (inset highlight + soft drop
      + denim glow). */
-  background:
+  background: var(--dn-list-row-bg,
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
-    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
+    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%));
   border: 1px solid rgba(76, 134, 216, 0.20);
-  box-shadow:
+  box-shadow: var(--dn-list-row-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -3px 5px rgba(76, 134, 216, 0.10),
     0 3px 9px rgba(15, 23, 42, 0.08),
-    0 0 16px rgba(76, 134, 216, 0.16);
+    0 0 16px rgba(76, 134, 216, 0.16));
   color: $la-navy;
   text-decoration: none;
   font-weight: 700;
@@ -49119,8 +49119,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   /* 0 unless Compressed View sets --dn-card-head-pad-y (_compressed-view.scss). */
   padding-top: var(--dn-card-head-pad-y, 0) !important;
   padding-bottom: var(--dn-card-head-pad-y, 0) !important;
-  /* 8px in from the card's content edge (requested 2026-09-29), matched on the Rooms header. */
-  padding-left: 8px !important;
+  /* 8px in from the card's content edge (requested 2026-09-29), matched on the Rooms header;
+     Compressed View lines it up with the rows' text instead (--dn-card-head-pad-x). */
+  padding-left: var(--dn-card-head-pad-x, 8px) !important;
 }
 /* ≤460px: stack the Rooms / My Organizations / Communicators-Need-Attention /
    My Caseload header content vertically and center it — icon on top (it's the
@@ -49183,7 +49184,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    10.41:1 on a white card. 14px is the AAC token floor; tabular figures keep 9 and 10 the same
    width. */
 .md-attention__count,
-.md-rooms__count {
+.md-rooms__count,
+.md-compact-head__count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -50829,7 +50831,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      controllers/application.js. (0,2,0), so it beats the base `.ll-appshell` value on
      specificity rather than source order -- the same arrangement as `--ll-nav-clearance`. */
   .ll-appshell:has(> .md-acct-rail--collapsed) {
-    --ll-rail-width: 124px;
+    --ll-rail-width: var(--dn-rail-width-collapsed, 124px);
   }
 
   /* STRADDLES THE PANEL'S RIGHT BORDER, fixed to the app frame. `.ch-rail__toggle` (reused from
@@ -50942,7 +50944,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
        whatever sits above it, and the fixed panel's own breathing room came from `top`, which
        is reset to `auto` just above. The bottom 20px was already here and is unchanged --
        this sets the leading edge to match. */
-    margin: 22px 0 20px;
+    margin: var(--dn-rail-grid-margin, 22px 0 20px);
     /* PADDING (requested 2026-09-20): +32px on top, and sides set to ALIGN WITH THE WORKSPACE.
        Top was 12px here -- set by the `max-width: 1024px` block above, which this later,
        narrower query overrides at equal specificity -- so +32 lands at 44.
@@ -50973,10 +50975,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
        height and `overflow-y: visible`, so `scrollHeight === clientHeight` and
        `rail_scrollable` (components/account-rail.js) is never true. If that ever changes, the
        pager needs -16px sides to match. */
-    padding: 44px 52px 10px;
+    padding: var(--dn-rail-grid-pad, 44px 52px 10px);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(var(--dn-rail-grid-col, 190px), 1fr));
+    gap: var(--dn-rail-grid-gap, 8px);
   }
   /* THE BOOKENDS BECOME ORDINARY CELLS HERE. Home Page and Home Board are set apart in the
      side panel by a dashed rule and 20px of extra margin, because there the nav is a vertical
@@ -56445,8 +56447,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    40px at base and 0 at ≤950px; the focused 16px is preserved as 0 at ≤950px via
    the responsive rule near the bottom of the file.) */
 .md-shell--layout-focused > .md-workspace {
-  padding-top: 32px !important;
-  margin-top: 16px !important;
+  padding-top: var(--dn-ws-pad-top-focused, 32px) !important;
+  margin-top: var(--dn-ws-margin-top-focused, 16px) !important;
 }
 /* Focused View — dark treatment for the four action buttons (Account / Create a
    Board / Reports / Edit Dashboard) lives AFTER the .md-card--badge-action text
@@ -111788,7 +111790,7 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
 @media (max-width: 900px) {
   body.ll-layout-focused #content.home-page .ll-appshell .md-shell,
   body.ll-layout-focused #content.index:not(.extras-page) .ll-appshell .md-shell {
-    padding-top: 80px !important;
+    padding-top: var(--dn-shell-pad-top-focused-narrow, 80px) !important;
   }
 }
 

@@ -107,3 +107,40 @@ callers outside Compressed View.
   the hero material via `ch-focused-hero-tile($focus-hero-center, $focus-hero-edge)`.
 - Need Attention rows are visible in the browser only by injecting fake flagged supervisees
   client-side (never saved); no dev account has real ones.
+
+## Compact SLP dashboard pass (2026-09-29): iPad widths
+Request: tighten the shell at iPad widths, a coherent toolbar, refined Attention/Rooms, verified at
+the iPad viewport and a narrower width; Comfortable view, routes, actions and data unchanged. No
+screenshot arrived with the request, so it was checked at 1180x820 and 1024x768 (landscape) and
+820x1180 (portrait), in Gentle and Focused, with client-side fake supervisees/rooms and the admin
+account's My Organizations card hidden to match an SLP's page (probe: scratchpad ipad-probe.mjs).
+
+Diagnosed (browser, Chrome CDP matched rules) before editing:
+- Focused toolbar 46px under the tabs: `.md-shell--layout-focused > .md-workspace` 16px top margin +
+  32px top padding; portrait: the home shell's `padding-top: 80px` at <=900px.
+- Gentle: `.md-main` top padding, with the shell starting 12px lower at <=1024px.
+- The title's 60px box: a legacy global `h1 { display: inline-block; height: 60px }`.
+- Edit Dashboard did nothing on `/` (route `index`): the opener's component was only mounted on
+  user.home and caseload. Now also on index in Compressed View only (no disc appears in Comfortable).
+- Collapsed rail labels truncated at 124px ("Subscript…"): 140px in Compact.
+- A native <details> More menu failed template-lint no-nested-interactive; role="menu" failed
+  require-context-role with yielded items. Now Dashboard::CompactMoreMenu, a button disclosure.
+
+Changes (Compact only; every original rule reads a token that falls back to today's value):
+- Toolbar 12px under the tabs at all six style x width combinations; rail starts collapsed in
+  Compact on the home page (140px, labels in full, toggle still shows/changes the state); <=900px
+  rail grid tighter at the sides and bottom (top kept: it clears the fixed 70px header; trimming it
+  hid the first row, caught in the browser and restored).
+- Toolbar: Dashboard, Open My Caseload with the count as a chip, Create a Board (primary; removed
+  from the rail so there is one place for it), More > Edit Dashboard. Wraps cleanly; no text shrinks.
+- Attention/Rooms: 10px card padding, 8px header padding, header text on the rows' text line (17px),
+  View all on the rows' right edge; single-gradient, light-shadow rows (Focused glass rows lighter).
+- Tests: rail default-collapsed unit test, More item unit test, CompactMoreMenu integration test
+  (native events: the test-helpers' settled() waits several seconds per click here, the #1073
+  behaviour); the rail Create Board test was removed with the feature (moved to the toolbar at
+  Traci's request). Each new test falsified.
+
+Result: no horizontal scroll, no truncated rail labels, More menu on screen and on top and opening
+Dashboard Design on `/` and `/example/home`, first room row inside the first screen at every size
+(628-701px of 768-820 landscape; 863-882px of 1180 portrait).
+Not changed: the communicator board grid and Speak. Room icons keep their own raised tiles.

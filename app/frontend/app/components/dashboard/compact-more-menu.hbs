@@ -1,0 +1,13 @@
+<div class="md-compact-head__more {{if this.open "is-open"}}">
+  <button type="button"
+          class="md-btn md-btn--ghost md-compact-head__more-trigger"
+          aria-haspopup="true"
+          aria-expanded={{if this.open "true" "false"}}
+          {{on "click" this.toggle}}
+          {{on "keydown" this.onKeydown}}>{{@label}}</button>
+  {{#if this.open}}
+    <div class="md-compact-head__more-menu">
+      {{yield (hash close=this.close onKeydown=this.onKeydown)}}
+    </div>
+  {{/if}}
+</div>

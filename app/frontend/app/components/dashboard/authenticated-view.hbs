@@ -33,20 +33,34 @@
   </main>
   {{else}}
   <main class="md-main">
-    {{!-- COMPRESSED VIEW heading row (compressedHome in authenticated-view.js). Takes the place
-         of the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard cards,
-         which are hidden while it shows: the dashboard title, the caseload count and Open My
-         Caseload, styled as each view's own caseload button. Requested 2026-09-29: Create a Board
-         moved to the account rail ("Create Board"); Edit Dashboard is not offered in Compressed
-         View at all, here or as the navbar's Display Style disc. --}}
+    {{!-- COMPRESSED VIEW dashboard toolbar (compressedHome in authenticated-view.js). Takes the
+         place of the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard
+         cards, which are hidden while it shows. One row, wrapping onto a second line when narrow:
+           left   the title, then Open My Caseload carrying the communicator count as a chip,
+                  so the count reads as part of Caseload rather than a heading of its own;
+           right  Create a Board (primary) and a labelled More menu holding Edit Dashboard.
+         Same actions as the cards it replaces. Create a Board is offered HERE, not in the rail
+         too (one place per destination). The More menu is Dashboard::CompactMoreMenu (a button +
+         aria-expanded disclosure, no hover; closes on Escape, outside click, or when its item runs).
+         Edit Dashboard opens through appState.dashboard_design_opener, which the navbar's
+         (triggerless) Display Style component registers on user.home, caseload and, in Compressed
+         View, index. --}}
     {{#if this.compressedHome}}
       <header class="md-compact-head">
-        <div class="md-compact-head__titles">
+        <div class="md-compact-head__lead">
           <h1 class="md-compact-head__title">{{t "Dashboard" key="dashboard"}}</h1>
           {{#if this.sectionAvailable.caseload}}
-            <span class="md-compact-head__meta">{{t "communicator" count=this.slpCommunicatorCount key="slp_communicators"}}</span>
-            <LinkTo @route="caseload" class="md-compact-head__caseload">{{t "Open My Caseload" key="focused_home_caseload_sub"}}</LinkTo>
+            <LinkTo @route="caseload" class="md-compact-head__caseload">
+              <span>{{t "Open My Caseload" key="focused_home_caseload_sub"}}</span>
+              <span class="md-compact-head__count">{{t "communicator" count=this.slpCommunicatorCount key="slp_communicators"}}</span>
+            </LinkTo>
           {{/if}}
+        </div>
+        <div class="md-compact-head__actions">
+          <button type="button" class="md-btn md-btn--primary md-compact-head__create" {{on "click" this.onOpenNewBoardOnBoards}}>{{t "Create a Board" key="create_a_board"}}</button>
+          <Dashboard::CompactMoreMenu @label={{t "More" key="more"}} as |menu|>
+            <button type="button" class="md-compact-head__more-item" {{on "click" (fn this.onCompactEditDashboard menu.close)}} {{on "keydown" menu.onKeydown}}>{{t "Edit Dashboard" key="edit_dashboard"}}</button>
+          </Dashboard::CompactMoreMenu>
         </div>
       </header>
     {{/if}}
