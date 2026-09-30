@@ -759,6 +759,40 @@ describe User, :type => :model do
       allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
       expect(FeatureFlags).not_to receive(:feature_enabled_for?).with('board_category_grouping', anything)
       expect(stored_grouping(false)['enabled']).to eq(false)
+      end
+    end
+
+  describe "compressed_view preference" do
+    # Compressed View is a per-user display choice read with `=== true` on the client
+    # (utils/compressed_view_state.js). Stored only as a real boolean, so a string or number
+    # sent by an old or hand-built client can never compress someone's page.
+    def stored_compressed(value)
+      u = User.create
+      u.process({'preferences' => {'compressed_view' => value}}, {})
+      u.save
+      u.reload.settings['preferences']['compressed_view']
+    end
+
+    it "is an accepted preference" do
+      expect(User::PREFERENCE_PARAMS).to include('compressed_view')
+    end
+
+    it "stores true and false as booleans, including their string forms" do
+      expect(stored_compressed(true)).to eq(true)
+      expect(stored_compressed('true')).to eq(true)
+      expect(stored_compressed(false)).to eq(false)
+      expect(stored_compressed('false')).to eq(false)
+    end
+
+    it "stores anything else as off" do
+      expect(stored_compressed(1)).to eq(false)
+      expect(stored_compressed('yes')).to eq(false)
+      expect(stored_compressed({'a' => 1})).to eq(false)
+    end
+
+    it "has no server default, so existing users are not backfilled" do
+      expect(User.preference_defaults['any_user']).not_to have_key('compressed_view')
+      expect(User.create.settings['preferences']).not_to have_key('compressed_view')
     end
   end
 

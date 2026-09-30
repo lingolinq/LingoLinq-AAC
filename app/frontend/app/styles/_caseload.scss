@@ -236,8 +236,12 @@
   list-style: none;
   margin: 0 0 20px;
   padding: 0;
-  display: flex;
+  /* Compact Caseload lays the rows out two across on wide screens by setting these tokens
+     (_caseload-compact.scss); the fallbacks are the single column every other view uses. */
+  display: var(--dn-cl-list-display, flex);
   flex-direction: column;
+  grid-template-columns: var(--dn-cl-list-cols, none);
+  align-items: var(--dn-cl-list-align, normal);
   gap: 8px;
 }
 .md-caseload__list-row {
@@ -498,6 +502,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Focused centres a row with no status on the avatar by spanning both of its rows (the
+     --dn-cl-identity-* tokens, _focused-view.scss); the fallbacks are the natural placement. */
+  grid-row: var(--dn-cl-identity-row, auto);
+  align-self: var(--dn-cl-identity-align, auto);
 }
 /* Name + access chip are the whole collapsed row — goals moved to the
    expanded panel, so this is the only block inside .md-caseload__list-identity.
@@ -751,8 +759,10 @@
    would squeeze the name to a few ellipsised characters, which is what the <=640 rule that
    moves it back under the username is for. */
 @media (max-width: 1300px) and (min-width: 641px) {
+  /* Focused keeps the status under the username instead (the --dn-cl-* tokens set in
+     _focused-view.scss); the fallbacks are this band's own layout. */
   .md-caseload__list-trigger {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: var(--dn-cl-trigger-cols, auto minmax(0, 1fr) auto);
   }
   /* THE IDENTITY ROW CARRIES THE SIDE PANEL'S WASH once the actions wrap (requested
      2026-09-21: "the avatar row needs the same gradient that the side panel has"). The value
@@ -775,12 +785,12 @@
      Bounded at 641 with the rest of this band: below it the status badge moves to row 2 in
      the same column the identity occupies, and a spanning identity would sit on top of it. */
   .md-caseload__list-identity {
-    grid-row: 1 / span 2;
+    grid-row: var(--dn-cl-identity-row, 1 / span 2);
     align-self: center;
   }
   .md-caseload__list-status {
-    grid-column: 3;
-    grid-row: 1 / span 2;
+    grid-column: var(--dn-cl-status-col, 3);
+    grid-row: var(--dn-cl-status-row, 1 / span 2);
     align-self: center;
     /* Left-aligned now: it sits directly after the role badge on a shared line, so the
        right-anchoring the full-width row needed would open a gap mid-sentence. */

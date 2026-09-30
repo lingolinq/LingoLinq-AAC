@@ -114,6 +114,18 @@
       </nav>
     {{/if}}
 
+    {{!-- Modern + Focused Rooms list (controllers/organization.js#focusedRoomsLabel): the page
+         label the other pages carry (the Dashboard's `md-compact-head` markup and two-toned icon)
+         with the organisation's name in it, in place of the hero title and its divider. --}}
+    {{#if this.focusedRoomsLabel}}
+      <div class="md-compact-head md-compact-head--rooms">
+        <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18" stroke="#46505F"/><path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21" stroke="#46505F"/><path d="M9 21V7h6v14" stroke="#2A9D8F"/><circle cx="13.2" cy="14" r="0.6" fill="#2A9D8F" stroke="#2A9D8F"/></svg>
+        {{!-- The organisation's name follows the label ("Rooms - <name>") instead of a title under
+             the switcher; choosing another org in the switcher transitions this route's model,
+             so the name follows the selection. --}}
+        <h2 class="md-compact-head__title">{{t "Rooms" key="rooms"}}{{#if this.model.permissions.view}} - {{this.model.name}}{{/if}}</h2>
+      </div>
+    {{/if}}
     {{!-- ORGANISATION SWITCHER, ABOVE THE HEADER (requested 2026-09-23). It sits here rather
          than inside the page card because it changes WHICH organisation the header names, so it
          has to read as being upstream of it.
@@ -157,14 +169,18 @@
       </div>
     {{/if}}
     <header class="md-hero md-hero--dashboard md-hero--org">
-      <h1 class="md-hero__title"><span class="md-hero__title--from-left">
-        {{#if this.model.permissions.view}}
-          {{this.model.name}}
-        {{else}}
-          {{t "Organization" key="organization"}}
-        {{/if}}
-      </span></h1>
-      <span class="md-hero__divider" aria-hidden="true"></span>
+      {{#unless this.focusedRoomsLabel}}
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">
+          {{#if this.model.permissions.view}}
+            {{this.model.name}}
+          {{else}}
+            {{t "Organization" key="organization"}}
+          {{/if}}
+        </span></h1>
+      {{/unless}}
+      {{#unless this.focusedRoomsLabel}}
+        <span class="md-hero__divider" aria-hidden="true"></span>
+      {{/unless}}
       <p class="md-hero__sub md-hero__sub--meta"><span class="md-hero__sub--from-right">
         <span class="md-hero-meta__item">
           <svg class="md-hero-meta__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

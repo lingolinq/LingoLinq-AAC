@@ -38,7 +38,9 @@
              so a supporter can switch style from either. Mounting it here also
              registers `appState.dashboard_design_opener`, which the ≤640px drawer
              button below depends on — keep the two route lists in sync. --}}
-        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle />{{/if}}{{/unless}}
+        {{!-- Compressed View drops the disc (requested 2026-09-29) but keeps the component mounted
+             for the opener; see display-style.hbs. --}}
+        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle @triggerless={{this.appState.compressed_view_active}} />{{/if}}{{/unless}}
       </span>
     {{/if}}
     {{!-- App-wide Classic/Modern switch. Sits AFTER the home-actions cluster so it
@@ -249,7 +251,7 @@
          becomes a button whose opener was never registered); shown only <=640px via
          `--display-style` CSS so it never duplicates the still-visible disc. --}}
     {{#unless this.isClassic}}
-    {{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}
+    {{#if (and (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload")) (not this.appState.compressed_view_active))}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button la-mobile-drawer__link--display-style" {{on "click" this.onCloseDrawerAndDisplayStyle}}>{{t "Display Style" key="display_style"}}</button>
     {{/if}}
     {{/unless}}

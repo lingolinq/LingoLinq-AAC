@@ -33,6 +33,21 @@
   </main>
   {{else}}
   <main class="md-main">
+    {{!-- COMPRESSED VIEW page label, FOCUSED only (compressedHomeLabel in authenticated-view.js;
+         Compressed Gentle keeps the greeting hero). Takes the place of the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard cards,
+         which are hidden while it shows. It is the same page label the other pages carry (Profile,
+         Settings: a two-toned icon, then the title as an <h2>, over a rule), sharing their styles
+         (app.scss `.md-edit-profile__header` / `__title`); the icon uses their two stroke colours,
+         so Focused's lift of the gray strokes (`.md-extras-card__svg-icon`) applies to it too.
+         Requested 2026-09-29: no communicator count and no Open My Caseload button (the Caseload
+         tab reaches it). Create a Board is in the account rail ("Create Board"); Edit Dashboard is
+         not offered in Compressed View, here or as the navbar's Display Style disc. --}}
+    {{#if this.compressedHomeLabel}}
+      <div class="md-compact-head">
+        <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5" stroke="#2A9D8F"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="#46505F"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="#46505F"/></svg>
+        <h2 class="md-compact-head__title">{{t "Dashboard" key="dashboard"}}</h2>
+      </div>
+    {{/if}}
     <header class="md-hero md-hero--dashboard" style={{this.heroHideStyle}}>
       {{#if (is-equal this.activeTab "extras")}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
@@ -206,15 +221,17 @@
       <section class="md-card md-card--rooms" style={{this.cardHideStyle.rooms}} aria-label={{t "Rooms" key="rooms"}}>
         <div class="md-card--rooms__top">
           <div class="md-card__head md-card--rooms__head">
+            {{#unless this.compressedHome}}
             <div class="md-card__icon md-card__icon--rooms" aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M14 12h.01"/></svg>
             </div>
+            {{/unless}}
             <div class="md-card__titles">
               <h3 class="md-card__title">{{t "Rooms" key="rooms"}} <span class="md-rooms__count">{{this.sortedRooms.length}}</span></h3>
-              <div class="md-card__sub">{{t "Jump into a room" key="rooms_card_sub"}}</div>
+              {{#unless this.compressedHome}}<div class="md-card__sub">{{t "Jump into a room" key="rooms_card_sub"}}</div>{{/unless}}
             </div>
           </div>
-          {{#if (and this.roomsAllOrgId this.roomsOverflowCount)}}
+          {{#if (and this.roomsAllOrgId this.roomsOverflowCount (not this.compressedHome))}}
             <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-btn md-btn--primary md-rooms__all">
               {{t "View all rooms →" key="view_all_rooms"}}
             </LinkTo>
@@ -232,6 +249,11 @@
             </LinkTo>
           {{/each}}
         </div>
+        {{!-- Compressed View puts "View all rooms" at the bottom right, in the same style as "View
+             all communicators" (requested 2026-09-29); otherwise it stays in the header above. --}}
+        {{#if (and this.roomsAllOrgId this.roomsOverflowCount this.compressedHome)}}
+          <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-card__view-all">{{t "View all rooms →" key="view_all_rooms"}}</LinkTo>
+        {{/if}}
       </section>
       {{/if}}
       {{!-- Communicators Need Attention — supervisees whose org_status is flagged
@@ -241,17 +263,20 @@
       {{#if this.sectionAvailable.attention}}
       <section class="md-card md-card--attention" style={{this.cardHideStyle.attention}} aria-label={{t "Communicators Need Attention" key="communicators_need_attention"}}>
         <div class="md-card__head md-card--attention__head">
+          {{!-- The 122px illustration is decoration; Compressed View drops it for a compact header. --}}
+          {{#unless this.compressedHome}}
           <div class="md-card__icon md-card__icon--attention" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           </div>
+          {{/unless}}
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "Communicators Need Attention" key="communicators_need_attention"}} <span class="md-attention__count">{{this.attentionCommunicators.length}}</span></h3>
-            <div class="md-card__sub">{{t "Follow up on these communicators" key="attention_card_sub"}}</div>
+            {{#unless this.compressedHome}}<div class="md-card__sub">{{t "Follow up on these communicators" key="attention_card_sub"}}</div>{{/unless}}
           </div>
         </div>
         <div class="md-card--boards__divider" aria-hidden="true"></div>
         <div class="md-attention__list">
-          {{#each this.attentionCommunicators as |c|}}
+          {{#each this.attentionShown as |c|}}
             {{!-- Goes to the caseload page focused on this communicator, not their profile:
            this card exists to get the supporter TO the person's controls. The
            caseload page decides expand-vs-highlight from its own supervisee record
@@ -270,6 +295,10 @@
             </LinkTo>
           {{/each}}
         </div>
+        {{!-- Only the first few are listed (attentionShown); the rest are on the caseload page. --}}
+        {{#if this.attentionOverflow}}
+          <LinkTo @route="caseload" class="md-card__view-all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
+        {{/if}}
       </section>
       {{/if}}
       {{!-- Speak Mode mirrors My Caseload: two sibling variants, CSS @media

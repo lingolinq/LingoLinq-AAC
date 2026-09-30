@@ -246,6 +246,7 @@ describe FeatureFlags do
     #
     # This is an INVENTORY, not an endorsement. Shrinking it is the goal.
     TEMPORARY_FORCED_ON = [
+      'compressed_view',
       'customize_menu',
       'dashboard_drag_layout',
       'edit_sidebar',

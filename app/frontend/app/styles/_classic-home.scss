@@ -1430,7 +1430,9 @@ button.ch-row--sync:focus-visible {
    _focused-view.scss, and it is now true of them in focused as well -- so the condition to test
    is the floating nav, which `:has(.ll-appshell__navbar)` already names, and not the layout. */
 #content:has(.ll-appshell__navbar) .ch-org-switcher {
-  margin-top: 68px;
+  /* The Modern Focused Rooms list sets this to 0 (--dn-org-switcher-top,
+     _focused-view.scss): its page label sits above the switcher and already clears the nav. */
+  margin-top: var(--dn-org-switcher-top, 68px);
 }
 
 .ch-org-switcher__label {

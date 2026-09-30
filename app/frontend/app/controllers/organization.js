@@ -282,5 +282,15 @@ export default Controller.extend({
         });
       }
     }
-  }
+  },
+
+  /* THE ROOMS LIST IN MODERN + FOCUSED (requested 2026-09-29/30): a page label ("Rooms - <org>"
+     with the two-toned icon, the Dashboard label's markup) in place of the hero title and its
+     divider (templates/organization.hbs). Placed last so the
+     line-anchored ESLint baseline for this file does not shift. */
+  focusedRoomsLabel: computed('roomsPageActive', 'appState.effectiveLayout', 'appState.effective_view_style', function() {
+    return this.get('roomsPageActive') === true &&
+           this.get('appState.effectiveLayout') === 'focused' &&
+           this.get('appState.effective_view_style') === 'modern';
+  })
 });

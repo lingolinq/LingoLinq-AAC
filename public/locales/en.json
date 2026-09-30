@@ -5106,6 +5106,7 @@
   "rooms": "Rooms",
   "rooms_card_sub": "Jump into a room",
   "view_all_rooms": "View all rooms →",
+  "view_all_communicators": "View all communicators →",
   "communicators_need_attention": "Communicators Need Attention",
   "attention_card_sub": "Follow up on these communicators",
   "start_communication": "Start communication",
@@ -6885,6 +6886,9 @@
   "view_desc_focused": "Stronger contrast and bolder visual cues.",
   "view_style_gentle": "Gentle Style",
   "view_desc_gentle": "Softer colors and lighter emphasis.",
+  "view_group_density": "Density",
+  "view_compressed": "Compressed View",
+  "view_desc_compressed": "Tighter spacing so more fits on each screen.",
   "voice_and_output": "Voice & Output",
   "voice_output_hint": "Adjust the voice your communicator hears. Changes are saved when you click Save.",
   "voice_output_decrease_rate": "Decrease rate",
@@ -7261,6 +7265,8 @@
   "quick_actions_eyebrow": "ADDITIONAL ACTIONS",
   "new_note_for_lower": "New note for",
   "caseload_qa_note": "Note",
+  "caseload": "Caseload",
+  "needs_attention": "Needs attention",
   "eval_history_for": "Eval history for",
   "eval_history_link": "Eval History",
   "quick_assessment_for_lower": "Quick assessment for",
@@ -8824,5 +8830,10 @@
   "no_supervised_rooms": "You do not supervise any rooms in this organization.",
   "no_supervised_rooms_any": "You do not supervise any rooms yet.",
   "admin": "Admin",
-  "classic_org_rail_aria": "Organization navigation"
+  "classic_org_rail_aria": "Organization navigation",
+  "view_menu_intro_density": "There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account.",
+  "view_menu_intro": "There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account.",
+  "caseload_group_insights": "Insights",
+  "caseload_group_profile": "Profile & Notes",
+  "caseload_group_evaluation": "Evaluation"
 }

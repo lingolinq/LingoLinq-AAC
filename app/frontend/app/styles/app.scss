@@ -6,6 +6,8 @@
 @use "focus" as *;
 @use "eval_quick";
 @use "focused-view";
+@use "compressed-view";
+@use "caseload-compact";
 @use "caseload";
 @use "modern_pages";
 @use "badges";
@@ -46639,6 +46641,23 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   --md-shadow: 0 18px 50px #{rgba($brand-blue-black, 0.12)};
   --md-shadow-2: 0 12px 28px #{rgba($brand-blue-black, 0.10)};
 
+  /* The My Caseload card-as-button's glass surface, named once so other cards can wear it:
+     Compressed View gives it to the Need Attention card (_compressed-view.scss). */
+  --md-caseload-glass-bg:
+    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
+    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
+    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
+    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%);
+  /* ...and its raised-glass shadow with the verdigris showcase halo (the card's rest state). */
+  --md-caseload-glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 #{rgba($la-navy, 0.06)},
+    0 1px 2px #{rgba($la-navy, 0.05)},
+    0 4px 10px #{rgba($la-navy, 0.08)},
+    0 12px 28px #{rgba($la-navy, 0.10)},
+    0 0 38px #{rgba($brand-verdigris, 0.32)};
+
   --md-r-lg: 28px;
   --md-r-md: 20px;
   --md-r-sm: 14px;
@@ -47697,7 +47716,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   margin: 0 auto !important;
 
-  padding: 18px 16px 24px !important;
+  padding: var(--dn-main-pad-top, 18px) 16px var(--dn-main-pad-bottom, 24px) !important;
 
 }
 .md-main--home-boards {
@@ -48084,7 +48103,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid {
   display: grid !important;
 
-  gap: 28px !important;
+  gap: var(--dn-grid-gap, 28px) !important;
 
   grid-template-columns: 50fr 50fr !important;
 
@@ -48459,14 +48478,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      A single combined shadow declaration so the cascade-merge stays
      atomic — hover/active just swap the whole stack. The final layer is the
      verdigris showcase halo so My Caseload reads as a primary action exactly
-     like the Speak Mode card-as-button. */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba($la-navy, 0.06),
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 10px rgba($la-navy, 0.08),
-    0 12px 28px rgba($la-navy, 0.10),
-    0 0 38px rgba($brand-verdigris, 0.32) !important;
+     like the Speak Mode card-as-button. The stack is :root --md-caseload-glass-shadow. */
+  box-shadow: var(--md-caseload-glass-shadow) !important;
   transition: box-shadow 180ms ease-out, transform 140ms ease-out !important;
   -webkit-tap-highlight-color: transparent;
 }
@@ -48632,14 +48645,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    base/hover rules above.) Mirrors the .md-card--speak-as-button refinements. */
 .md-grid .md-card.md-card--caseload-as-button {
   min-height: 160px;
-  background:
-    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
-    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
-    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
-    /* Ultra-soft horizontal "flow" connecting the left content cluster to the
-       right side — same gentle communication airflow as the Speak Mode card. */
-    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%) !important;
+  /* Showcase atmosphere + surface (:root --md-caseload-glass-bg): three soft teal/blue glows, an
+     ultra-soft horizontal "flow" connecting the left content cluster to the right side (same
+     gentle communication airflow as the Speak Mode card), over a near-white glass base. */
+  background: var(--md-caseload-glass-bg) !important;
   backdrop-filter: blur(12px) saturate(115%);
   -webkit-backdrop-filter: blur(12px) saturate(115%);
   /* Promote to its own GPU layer so the backdrop-filter result is rasterized and held
@@ -48674,7 +48683,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Rooms title — its own authoritative size + line-height (not shared with the
    caseload 28px rule; per Rule #0.7 one rule governs this element). */
 .md-grid .md-card.md-card--rooms .md-card__title {
-  font-size: 22px !important;
+  font-size: var(--dn-card-title, 22px) !important;
   line-height: 1.15 !important;
 }
 /* Divider below the title — same brand highlight gradient + right-fade mask. */
@@ -48750,7 +48759,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 8px !important;
-  padding: 20px 24px !important;
+  padding: var(--dn-card-pad, 20px 24px) !important;
   border-radius: var(--md-r-lg) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
   border: 1.5px solid rgba($la-navy, 0.10) !important;
@@ -48766,6 +48775,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 14px !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
+}
+/* The Rooms header row's top and bottom padding: 0 unless Compressed View sets
+   --dn-card-head-pad-y, where "View all rooms" has moved to the bottom of the card and this row
+   keeps the spacing it had with the button in it. Rooms only: `.md-card--rooms__top` is shared
+   with My Organizations. */
+.md-card--rooms .md-card--rooms__top {
+  padding-top: var(--dn-card-head-pad-y, 0);
+  padding-bottom: var(--dn-card-head-pad-y, 0);
+  /* 8px in from the card's content edge (requested 2026-09-29), matched on the Need Attention
+     header. */
+  padding-left: 8px;
 }
 /* Top row: header/subheader on the left, the "View all rooms" button on the right. */
 .md-card--rooms__top {
@@ -48805,7 +48825,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      instead of overflowing past the card edge (the classic minmax(fixed,1fr)
      overflow). */
   grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
-  gap: 12px;
+  gap: var(--dn-room-gap, 12px);
 }
 /* Organizations directory "Available Organizations": a lone org tile spans the
    full grid width instead of sitting at ~360px with empty auto-fill tracks beside
@@ -48835,6 +48855,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Added to this existing selector list rather than as a new block, so the three surfaces keep
    one definition of the card. */
 .md-grid .md-card.md-card--rooms .md-room-card,
+.md-grid .md-card.md-card--attention .md-attention-item,
 .md-grid .md-card.md-card--org-management .md-room-card,
 .md-shell--org .md-rooms__grid .md-room-card,
 /* `.md-shell--org .md-rooms__grid` added 2026-09-23 -- see the note on the shared base rule
@@ -48849,7 +48870,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      flex+grid item's default `min-width: auto` keeps it at content width. */
   min-width: 0;
   gap: 10px;
-  padding: 14px 16px;
+  /* Compressed View tightens this on the Rooms list (--dn-room-card-pad, _compressed-view.scss). */
+  padding: var(--dn-room-card-pad, 14px 16px);
   border-radius: 14px;
   /* Match the My Account icon exactly: white→denim gradient + top-left radial highlight,
      a soft denim outline, and the icon's raised "lift" shadow (inset highlight + soft drop
@@ -48858,11 +48880,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
   border: 1px solid rgba(76, 134, 216, 0.20);
-  box-shadow:
+  /* Modern + Focused lightens this on the Rooms list (--dn-room-card-shadow, _focused-view.scss);
+     the fallback is the shadow every other host keeps. */
+  box-shadow: var(--dn-room-card-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -3px 5px rgba(76, 134, 216, 0.10),
     0 3px 9px rgba(15, 23, 42, 0.08),
-    0 0 16px rgba(76, 134, 216, 0.16);
+    0 0 16px rgba(76, 134, 216, 0.16));
   color: $la-navy;
   text-decoration: none;
   font-weight: 700;
@@ -48872,6 +48896,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Hover = the My Account card's lift: stronger raised shadow + denim glow + a 1px rise. */
 .md-grid .md-card.md-card--rooms .md-room-card:hover,
 .md-grid .md-card.md-card--rooms .md-room-card:focus-visible,
+.md-grid .md-card.md-card--attention .md-attention-item:hover,
+.md-grid .md-card.md-card--attention .md-attention-item:focus-visible,
 .md-grid .md-card.md-card--org-management .md-room-card:hover,
 .md-grid .md-card.md-card--org-management .md-room-card:focus-visible,
 .md-shell--org .md-rooms__grid .md-room-card:hover,
@@ -48923,8 +48949,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-room-card__icon {
   flex: 0 0 auto;
-  width: 55px;
-  height: 55px;
+  /* Compressed View shrinks this on the Rooms list (--dn-room-card-icon, _compressed-view.scss). */
+  width: var(--dn-room-card-icon, 55px);
+  height: var(--dn-room-card-icon, 55px);
   background: url(../images/door.png) center / contain no-repeat;
   filter: brightness(1.10) saturate(0.8);
 }
@@ -48932,13 +48959,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    is just the room name (no "· role" second piece like the org tiles), so a
    smaller icon + tighter vertical padding reads less empty. Rooms-scoped; org
    tiles keep the full size. (0,4,0) beats the shared .md-room-card padding. */
-.md-grid .md-card.md-card--rooms .md-rooms__grid .md-room-card {
-  padding-top: 10px;
-  padding-bottom: 10px;
+.md-grid .md-card.md-card--rooms .md-rooms__grid .md-room-card,
+.md-grid .md-card.md-card--attention .md-attention__list .md-attention-item {
+  padding-top: var(--dn-room-pad-y, 10px);
+  padding-bottom: var(--dn-room-pad-y, 10px);
 }
 .md-card--rooms .md-room-card__icon {
-  width: 46px;
-  height: 46px;
+  width: var(--dn-room-icon, 46px);
+  height: var(--dn-room-icon, 46px);
 }
 /* Org tiles reuse .md-room-card chrome but swap the room door for the single
    organization illustration (the header keeps the plural organizations.png). */
@@ -49081,9 +49109,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 8px !important;
-  padding: 20px 24px !important;
+  padding: var(--dn-card-pad, 20px 24px) !important;
   border-radius: var(--md-r-lg) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
+  background: var(--dn-attention-bg, linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95))) !important;
   border: 1.5px solid rgba($la-navy, 0.10) !important;
   border-bottom: 2.5px solid rgba($la-navy, 0.12) !important;
 }
@@ -49093,7 +49121,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center !important;
   gap: 14px !important;
   border-bottom: none !important;
-  padding-bottom: 0 !important;
+  /* 0 unless Compressed View sets --dn-card-head-pad-y (_compressed-view.scss). */
+  padding-top: var(--dn-card-head-pad-y, 0) !important;
+  padding-bottom: var(--dn-card-head-pad-y, 0) !important;
+  /* 8px in from the card's content edge (requested 2026-09-29), matched on the Rooms header. */
+  padding-left: 8px !important;
 }
 /* ≤460px: stack the Rooms / My Organizations / Communicators-Need-Attention /
    My Caseload header content vertically and center it — icon on top (it's the
@@ -49129,7 +49161,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Title matches the Rooms/Caseload header size for consistency down the column.
    Tight line-height so the header block (title + subtitle) reads compactly. */
 .md-grid .md-card.md-card--attention .md-card__title {
-  font-size: 22px !important;
+  font-size: var(--dn-card-title, 22px) !important;
   line-height: 1.15 !important;
 }
 .md-grid .md-card.md-card--attention .md-card--boards__divider {
@@ -49147,26 +49179,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid .md-card.md-card--attention .md-card__icon--attention > svg {
   display: none !important;
 }
-/* Count pill beside the title — shared by Communicators Need Attention and the
-   Rooms card so the two stay identical (one authoritative rule, no drift). */
+/* Count chip beside the title — shared by Communicators Need Attention, Rooms and My
+   Organizations so they stay identical (one authoritative rule, no drift), in every view.
+   2026-09-29 (requested: "sleek and modern", not "bulky and juvenile"): a slim tinted chip
+   instead of a solid 26px verdigris pill with a glow. The verdigris stays as the tint and hairline
+   so it still reads as a count; the digits are $la-navy because verdigris-dark text drops to
+   3.92:1 on Focused's #AEB9C9 header band, while navy on the tinted chip measures 5.65:1 there and
+   10.41:1 on a white card. 14px is the AAC token floor; tabular figures keep 9 and 10 the same
+   width. */
 .md-attention__count,
 .md-rooms__count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  min-width: 26px;
-  height: 26px;
-  margin-left: 12px;
-  padding: 0 8px;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 10px;
+  padding: 0 7px;
   border-radius: 999px;
-  /* Solid verdigris fill + white text — high contrast so the count reads as an
-     actionable indicator rather than a decorative tint. */
-  background: $brand-verdigris;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba($brand-verdigris, 0.45);
+  border: 1px solid rgba($brand-verdigris, 0.38);
+  background: rgba($brand-verdigris, 0.14);
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
 }
 /* ≤640px: drop the count badge's 12px left margin on the My Organizations and
    Communicators Need Attention counts (Rooms keeps its margin — not requested).
@@ -49177,59 +49217,54 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     margin-left: 0;
   }
 }
+// "View all" at the bottom right of a home card: "View all communicators" under the Need Attention
+// list (shown when more than 3 are flagged; see attentionShown in components/dashboard/
+// authenticated-view.js), and in Compressed View "View all rooms" under the Rooms tiles: a slim 28px button, right-aligned
+// (the card is a flex column), in the LIGHT colour of the communicator rows' gradient. Gentle: the
+// rows' lightest layer, white at 0.94 (`.md-attention-item` above); Focused: _focused-view.scss. Not an `.md-btn`:
+// that class forces a 44px height and 14px/20px padding with !important. 28px still clears the
+// WCAG 2.5.8 (AA) 24px target minimum, not the 2.5.5 (AAA) 44px one.
+.md-card__view-all {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(27, 54, 93, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1b365d;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.md-card__view-all:hover,
+.md-card__view-all:focus-visible {
+  border-color: rgba(27, 54, 93, 0.24);
+  text-decoration: none;
+}
+
 .md-attention__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dn-list-gap, 8px);
 }
+/* COMMUNICATOR ROWS WEAR THE ROOM CARD (requested 2026-09-29: "the same styles as the rooms
+   cards"): they are in the room card's own rules above (base, hover and the dashboard padding), in
+   Gentle and in Focused (_focused-view.scss), so the two cannot drift. What stays here is the
+   HEIGHT: a room card's height comes from its icon, which the rows do not have, so the row takes
+   the same total from the same tokens (icon + top and bottom padding + the 1px borders). */
 .md-grid .md-card.md-card--attention .md-attention-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  /* Surface + highlight match the Speak Mode card (.md-card--speak-as-button, ~48246):
-     the same cool-white→warm-gray base with the teal/denim atmospheric radials, the
-     layered navy depth shadow, and the verdigris showcase halo. The GPU layer holds the
-     backdrop blur across scroll so it doesn't flash (same fix as the Speak card). */
-  background:
-    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
-    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
-    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
-    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%);
-  backdrop-filter: blur(12px) saturate(115%);
-  -webkit-backdrop-filter: blur(12px) saturate(115%);
-  will-change: transform;
-  transform: translateZ(0);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba($la-navy, 0.06),
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 10px rgba($la-navy, 0.08),
-    0 12px 28px rgba($la-navy, 0.10),
-    0 0 36px rgba($brand-slate-blue, 0.09);
-  color: $la-navy;
-  text-decoration: none;
-  transition: box-shadow 180ms ease-out, transform 140ms ease-out;
+  min-height: calc(var(--dn-room-icon, 46px) + 2 * var(--dn-room-pad-y, 10px) + 2px);
 }
 /* Hover = lift: the Speak card's intensified shadow stack + verdigris halo + 1px rise. */
-.md-grid .md-card.md-card--attention .md-attention-item:hover,
-.md-grid .md-card.md-card--attention .md-attention-item:focus-visible {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba($la-navy, 0.07),
-    0 2px 4px rgba($la-navy, 0.06),
-    0 8px 18px rgba($la-navy, 0.10),
-    0 20px 44px rgba($la-navy, 0.14),
-    0 0 48px rgba($brand-slate-blue, 0.15);
-  transform: translateY(-1px);
-  outline: none;
-}
 .md-attention-item__avatar {
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
+  width: var(--dn-avatar, 40px);
+  height: var(--dn-avatar, 40px);
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--md-line);
@@ -49282,35 +49317,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 1px;
   background: linear-gradient(180deg, transparent 0%, rgba($la-navy, 0.32) 50%, transparent 100%);
 }
-/* Status as a semantic tinted pill — colour encodes meaning so the status is
-   recognizable at a glance without reading every label, kept low-saturation
-   (≤16% tint) to preserve the calm dashboard feel. The hue is chosen per
-   org_status via [data-status]; the base here is the neutral slate fallback
-   (e.g. unchecked/unknown). Text uses a darker shade of the same hue for AA
-   contrast on the light tint. */
+/* Status as ICON + TEXT, no pill (requested 2026-09-29: a more modern presentation than badges,
+   in every style). The label is plain text in the row's own dark ink, so it reads as part of the
+   row and needs no per-hue contrast tuning; the COLOUR lives only in the icon, which reinforces
+   the status rather than carrying it (the text names it). Each status sets its icon colour as
+   `--status-ink` below; the base is the neutral slate (e.g. unchecked/unknown). */
 .md-attention-item__status {
+  --status-ink: #{$brand-slate-blue};
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 7px;
-  padding: 4px 12px;
-  border-radius: 999px;
+  gap: 8px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  background: rgba($brand-slate-blue, 0.14);
-  color: $brand-slate-blue;
+  color: $la-navy;
 }
-/* Modern representative status icon — a small line-icon before each pill label,
-   masked so it inherits the pill's per-status colour (currentColor). Decorative
-   (the label text already names the status), so no ARIA is needed. */
+/* Modern representative status icon — a small line-icon before each label, masked and painted in
+   the status colour (`--status-ink`). Decorative (the label text already names the status), so no
+   ARIA is needed. */
 @mixin md-attn-status-icon($svg) { mask-image: $svg; -webkit-mask-image: $svg; }
 .md-attention-item__status::before {
   content: "";
   flex: none;
-  width: 15px;
-  height: 15px;
-  background-color: currentColor;
+  width: 16px;
+  height: 16px;
+  background-color: var(--status-ink, currentColor);
   mask-repeat: no-repeat; mask-position: center; mask-size: contain;
   -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
 }
@@ -49342,22 +49374,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-attention-item__status[data-status="exclamation-sign"]::before {
   @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M4.93 4.93l4.24 4.24'/%3E%3Cpath d='M14.83 14.83l4.24 4.24'/%3E%3Cpath d='M14.83 9.17l4.24-4.24'/%3E%3Cpath d='M9.17 14.83l-4.24 4.24'/%3E%3C/svg%3E"));
 }
-/* Amber — evaluation-related waits (Waiting for Evaluation / for Recommendation). */
+/* Icon colours. Amber — evaluation-related waits (Waiting for Evaluation / for Recommendation). */
 .md-attention-item__status[data-status="hourglass"],
 .md-attention-item__status[data-status="equalizer"] {
-  background: rgba($brand-honey-bronze, 0.18);
-  color: color.adjust($brand-honey-bronze, $lightness: -32%);
+  --status-ink: #{color.adjust($brand-honey-bronze, $lightness: -32%)};
 }
 /* Blue — resource waits (Waiting for Device / for Funding). */
 .md-attention-item__status[data-status="phone"],
 .md-attention-item__status[data-status="piggy-bank"] {
-  background: rgba($brand-dusty-denim, 0.12);
-  color: $brand-dusty-denim-aa;
+  --status-ink: #{$brand-dusty-denim-aa};
 }
 /* Teal — needing additional support. */
 .md-attention-item__status[data-status="exclamation-sign"] {
-  background: rgba($brand-verdigris, 0.12);
-  color: $brand-verdigris-aa;
+  --status-ink: #{$brand-verdigris-aa};
 }
 /* ≤460px: stack each Communicators-Need-Attention item vertically — avatar on top
    (it's the first child), name + status centered below — instead of the avatar-left
@@ -50225,7 +50254,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      this page has been checked at (729px) it has ~659px. Nine 48.125px rows plus 34px of
      panel padding is ~467px, which leaves ~192px for eight gaps -- a ~24px ceiling. 12px
      spends half of that, so the panel still does not need to scroll. */
-  gap: 12px;
+  gap: var(--dn-rail-gap, 12px);
   box-sizing: border-box;
   /* THE PANEL (requested 2026-09-14). The nav element IS the panel — no wrapper div was
      added, because a background, a border and padding are all it takes and the element was
@@ -50675,8 +50704,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    859px tall the panel uses base spacing and does not scroll. */
 @media (min-width: 1201px) and (min-height: 860px) {
   .md-acct-rail {
-    padding-top: 40px;
-    gap: 18px;
+    padding-top: var(--dn-rail-pad-top-tall, 40px);
+    gap: var(--dn-rail-gap-tall, 18px);
   }
 }
 
@@ -51218,7 +51247,8 @@ body:not(.ll-layout-focused) .md-goals__header {
     animation: none;
   }
 }
-.md-edit-profile__header {
+.md-edit-profile__header,
+.md-compact-head {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51227,7 +51257,9 @@ body:not(.ll-layout-focused) .md-goals__header {
   border-bottom: 1.5px solid rgba($brand-blue-black, 0.12);
   animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
-.md-edit-profile__title {
+.md-edit-profile__title,
+.md-compact-head__title,
+.md-cl-head__title {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 900;
@@ -57390,7 +57422,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      longer labels ("Create a Board", "Edit Dashboard") ran out of room and
      orphaned the arrow onto a second line, so the four headers sat at different
      heights. Matches the 16px the <=1024px flex fallback already uses. */
-  gap: 14px !important;
+  gap: var(--dn-grid-gap-focused, 14px) !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   min-height: 0 !important;
@@ -66678,7 +66710,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
 
-  gap: 16px !important;
+  gap: var(--dn-extras-grid-gap, 16px) !important;
 
   list-style: none !important;
 
@@ -66701,7 +66733,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      left-aligned horizontally. */
   justify-content: center !important;
 
-  padding: 18px !important;
+  padding: var(--dn-extras-card-pad, 18px) !important;
 
   border-radius: var(--md-r-lg) !important;
 
@@ -66768,6 +66800,16 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    so it wins on weight without !important. */
 .md-shell--layout-focused.md-shell--extras-view .md-extras-card {
   @include caseload.caseload-action-surface(var(--md-r-lg), 10%);
+  /* THE ROOMS TILE'S BACKGROUND (requested 2026-09-29: "make their bg the same as the rooms button
+     bgs"): the value of `body.ll-layout-focused .md-card--rooms .md-room-card` in
+     _focused-view.scss, a white-to-pale-slate diagonal with a soft top-left highlight. The
+     mixin above still gives the radius, border and shadow; this replaces only its ramp. */
+  background:
+    radial-gradient(120% 140% at 14% 0%,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.16) 34%,
+      transparent 60%),
+    linear-gradient(155deg, #FDFDFE 0%, #D2D9E4 100%);
 }
 .md-extras-card:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55) !important;
@@ -66780,7 +66822,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   align-items: flex-start !important;
 
-  gap: 14px !important;
+  gap: var(--dn-extras-head-gap, 14px) !important;
 
   /* No button below the head anymore (the whole card is the action), so drop
      the trailing gap — keeps the head truly centered. */
@@ -66788,9 +66830,9 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
 }
 .md-extras-card__icon-wrap {
-  width: 52px !important;
+  width: var(--dn-extras-icon, 52px) !important;
 
-  height: 52px !important;
+  height: var(--dn-extras-icon, 52px) !important;
 
   flex-shrink: 0 !important;
 
@@ -66891,7 +66933,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
 }
 .md-extras-card__title {
-  margin: 0 0 4px !important;
+  margin: 0 0 var(--dn-extras-title-gap, 4px) !important;
 
   font-size: 18px !important;
 
@@ -66903,7 +66945,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
 }
 .md-extras-card__sub {
-  margin: 4px 0 0 !important;
+  margin: var(--dn-extras-title-gap, 4px) 0 0 !important;
 
   font-size: 14px !important;
 
@@ -111716,13 +111758,13 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
    `.ll-appshell.ll-appshell--no-nav` deliberately carries both classes: that beats the base
    `.ll-appshell` on specificity, so the two values do not depend on which is written first. */
 .ll-appshell {
-  --ll-nav-clearance: 112px;
+  --ll-nav-clearance: var(--dn-nav-clearance, 112px);
   /* THE RAIL'S WIDTH, stated once (2026-09-28). Read by `.md-acct-rail` (its width),
      `.ll-appshell__main` (margin-left) and the fixed `.ll-appshell__navbar` (left), which were
      three separate 208px literals until the rail became collapsible and had to be able to
      change all three at once. The collapsed value is set in the collapsed-rail block near
      `.md-acct-rail__pager`. */
-  --ll-rail-width: 208px;
+  --ll-rail-width: var(--dn-rail-width, 208px);
 }
 .ll-appshell.ll-appshell--no-nav {
   /* The value the base `.md-shell` rule gives a shell with no nav floating over it -- 3rem,
@@ -112006,9 +112048,9 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
        BAND now starts at the navbar's underside while the pills inside it stay exactly where
        they were at y=86. Changing `top` alone would have moved the pills with it. */
     top: max(var(--topbar-height, 70px), 70px);
-    padding-top: 16px;
+    padding-top: var(--dn-nav-pad-top, 16px);
     /* 6px base + the 12px asked for. */
-    padding-bottom: 18px;
+    padding-bottom: var(--dn-nav-pad-bottom, 18px);
     left: var(--ll-rail-width);
     right: 0;
     /* The in-flow band it cancelled no longer exists. */

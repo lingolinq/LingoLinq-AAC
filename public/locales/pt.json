@@ -9567,5 +9567,16 @@
   "categorize_soon_motor_title": "*** Built for motor planning",
   "categorize_soon_motor_body": "*** Nothing moves until you choose to turn it on, and keyboards always keep their familiar letter layout.",
   "categorize_soon_outro": "*** We're putting the finishing touches on Categories right now, and we can't wait to share it with you!",
-  "categorize_soon_done": "*** Back to editing"
+  "categorize_soon_done": "*** Back to editing",
+  "view_all_communicators": "*** View all communicators →",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
+  "view_group_density": "*** Density",
+  "view_compressed": "*** Compressed View",
+  "view_desc_compressed": "*** Tighter spacing so more fits on each screen.",
+  "view_menu_intro_density": "*** There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account.",
+  "view_menu_intro": "*** There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account.",
+  "caseload_group_insights": "*** Insights",
+  "caseload_group_profile": "*** Profile & Notes",
+  "caseload_group_evaluation": "*** Evaluation"
 }

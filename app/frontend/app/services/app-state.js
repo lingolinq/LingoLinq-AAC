@@ -5449,7 +5449,29 @@ export default Service.extend({
 
   updateFaviconForTheme: function(mode) {
     this.updateFavicon();
-  }
+  },
+
+  /* Compressed View: stamp `body.ll-density-compressed` from the feature flag AND the session
+     user's own preference (utils/compressed_view_state.js). Watches RAW paths, not a computed,
+     because an observer on a computed only fires once something consumes it (see
+     sync_view_scope above); `currentUser.feature_flags` is the input to `feature_flags`. With no
+     session user (signed out) the class comes off, so the sign-in page and the next account
+     start at full size. Kept at the end of this service so it shifts no line of the
+     line-anchored ESLint baseline (.eslint-todo). */
+  sync_density_scope: observer('sessionUser', 'sessionUser.preferences.compressed_view', 'currentUser.feature_flags', function() {
+    var on = !!this.get('sessionUser') &&
+             compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
+    if(window.LingoLinq && window.LingoLinq.set_density_scope) {
+      window.LingoLinq.set_density_scope(on);
+    }
+  }),
+
+  /* The same answer for templates and components that change STRUCTURE in Compressed View
+     (the account rail, the Modern home page), so they and the body class cannot disagree. */
+  compressed_view_active: computed('sessionUser', 'sessionUser.preferences.compressed_view', 'feature_flags.compressed_view', function() {
+    return !!this.get('sessionUser') &&
+           compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
+  })
 });
 
 // ScrollTopRoute exported separately for backward compatibility
@@ -5463,3 +5485,6 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+// Placed last for the same reason as sync_density_scope: an import at the top would shift
+// every line of the ESLint baseline. Imports are hoisted, so position does not matter at runtime.
+import { compressedViewActive } from '../utils/compressed_view_state';
