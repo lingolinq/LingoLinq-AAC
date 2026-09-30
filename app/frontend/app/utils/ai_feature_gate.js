@@ -4,7 +4,9 @@
  * Feature flags control rollout; preferences control user opt-in.
  *
  * Pref semantics (match lib/feature_flags.rb#user_pref_allows_ai?):
- * - Master (ai_features_enabled) ABSENT (null/undefined) => grandfather allow
+ * - No user, no preferences object, or master (ai_features_enabled) ABSENT
+ *   (null/undefined) => off. AI features are off until turned on for the
+ *   account (product direction 2026-09-30).
  * - Master an explicit opt-out (false/'false'/0/'0') => block all AI
  * - Master PRESENT but unrecognized ('', 'maybe', an object) => block all AI
  * - Master an explicit opt-in => USER_PREF_AI_FEATURES require
@@ -52,20 +54,19 @@ function aiPrefValue(val) {
  * @returns {boolean}
  */
 function prefAllowsAi(user, feature) {
-  if(!user) { return true; }
+  if(!user) { return false; }
   var prefs = null;
   if(typeof user.get === 'function') {
     prefs = user.get('preferences');
   } else {
     prefs = user.preferences;
   }
-  if(!prefs || typeof prefs !== 'object') { return true; }
+  if(!prefs || typeof prefs !== 'object') { return false; }
 
   var master = prefs.ai_features_enabled;
-  // Absent master only. Note `prefs.ai_features_enabled` is undefined for a key
-  // that was never written, and null for one explicitly stored as null; both are
-  // the legacy grandfather case.
-  if(master === undefined || master === null) { return true; }
+  // `prefs.ai_features_enabled` is undefined for a key that was never written,
+  // and null for one explicitly stored as null; both mean AI was never turned on.
+  if(master === undefined || master === null) { return false; }
   // Deny on an explicit opt-out AND on anything unrecognized, for every feature.
   if(aiPrefValue(master) !== true) { return false; }
   if(!USER_PREF_AI_FEATURES[feature]) { return true; }
@@ -93,9 +94,9 @@ function userAttr(user, key) {
 }
 
 /**
- * UI-only opt-in check. Unlike prefAllowsAi, an absent master is NOT
- * grandfathered — it is treated as off so Generate with AI can prompt the
- * user to enable features. Server grandfather is unchanged.
+ * UI-only opt-in check. Same answer as prefAllowsAi now that an absent master
+ * is off on both client and server; kept separate because the Generate with AI
+ * entry uses it to decide when to prompt the user to turn features on.
  *
  * True only when master is an explicit true AND (for USER_PREF_AI_FEATURES)
  * the per-feature pref is an explicit true. Missing user / prefs / nil /

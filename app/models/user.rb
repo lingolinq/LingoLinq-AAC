@@ -2518,7 +2518,7 @@ class User < ApplicationRecord
   DASHBOARD_SECTION_KEYS = ['boards', 'speak', 'extras', 'caseload', 'rooms', 'attention', 'org',
       'account', 'createboard', 'reports', 'editdashboard', 'hero']
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
-      'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
+      'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code'] + EU_AI_PREF_KEYS
   RESEARCH_PREFERENCE_PARAMS = ['research_primary_use', 'research_age', 'research_experience_level']
   # NOTE: this is an ALLOWLIST — a progress key absent here is silently dropped on
   # save. `guided_tours_completed` was written by the frontend for months without
