@@ -45,8 +45,8 @@ LingoLinq already has a working, if English-shaped, pipeline:
 - `words-{locale}.json` (`_type: 'words'`): flat word list with parts of speech
   (`types`), per-word `inflections` (stored by `WordData.ingest` as
   `inflection_overrides`), antonyms. Only **EN (full)** and **ES (minimal)** exist
-  upstream, and both upstream ES files declare `"_locale": "en"`, so they must never be
-  ingested as-is. Spanish morphology on develop is hardcoded client-side in `i18n.js`
+  upstream. Only the English upstream files are used; the upstream Spanish files are out
+  of scope for this PR. Spanish morphology on develop is hardcoded client-side in `i18n.js`
   and `edit_manager.js`.
 - `rules-{locale}.json` (`_type: 'rules'`): four sections —
   - `rules[]`: **lookback rules**. Each has `id`, `type` (`override` | pos name),
