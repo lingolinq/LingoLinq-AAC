@@ -838,9 +838,14 @@ body.ll-layout-focused .md-user-summary {
 
   // Folders + Boards section PANELS — the light sunken gradient darkened ~10%. The
   // folders/summary headers are transparent, so they ride on this darker surface too.
+  // LIGHTER, FLATTER AND NEAR-OPAQUE (requested 2026-09-29: "make the folders body and boards
+  // body have less gradient and a bit lighter ... or maybe less transparent"). They used the
+  // shared `$focus-section-bg-darkened` (a three-stop blue-to-grey ramp at 0.94-0.96), which the
+  // Profile page's cards still use; the Boards page's two panels now take a two-stop pale slate
+  // one step apart, at 0.98, so the page wash no longer shows through.
   .ub-boards-page__folders-section,
   .ub-boards-page__boards-summary-section {
-    background: $focus-section-bg-darkened !important;
+    background: linear-gradient(180deg, rgba(241, 244, 248, 0.98) 0%, rgba(246, 248, 251, 0.98) 100%) !important;
   }
 
   // Folders + Boards header chips (.ub-boards-page__section-icon) — match the home
@@ -5860,6 +5865,41 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub::before {
 // attention rows just took, so the two cards' inner controls read as one family.
 // `.md-room-card` is SHARED with the org-management card (see the scoped rule earlier in
 // this file), so this is pinned to `.md-card--rooms` and cannot leak there.
+// THE ROOMS LABEL STARTS WHERE THE CASELOAD HEADER DOES (requested 2026-09-29: it sat tucked
+// under the pill nav). Measured at 1440 in the app shell, both densities: the Caseload header's
+// top is 16 (#content) + 48 + 32 (workspace margin and padding) + 56 + 24 (`.md-caseload` margin
+// and padding) = y177, x289; the Rooms label's is 26 + 40 + 40 = y106, x264, so it takes the
+// 71px and 25px difference, plus 7px: the Caseload header is 44px tall (its Needs attention
+// button), which centres its title at y184, and this label has no such button. Inside the app
+// shell only: without it (a manager's org page) the page has its own pill nav above the label
+// and none of this spacing applies.
+body.ll-view-modern.ll-layout-focused .ll-appshell__content .md-compact-head--rooms {
+  margin: 78px 25px 28px;
+}
+
+// THE ORGANISATION TITLE IN THE PAGE LABEL'S FONT AND SIZE (requested 2026-09-29): the app's
+// sans at the label's 25px instead of the heroes' Maitree 32px. Its weight, spacing and ink come
+// from `md-compact-head__title`, which the title carries here (templates/organization.hbs).
+// The font is spelled out, not `inherit`: on a custom property `inherit` inherits the PROPERTY
+// (unset on the parent), so the var() fell back to Maitree. This is the stack the page label
+// computes to (the body's).
+body.ll-view-modern.ll-layout-focused .md-shell--org-rooms .md-hero--org {
+  --dn-hero-title-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --dn-hero-title-size: 25px;
+  // The title's text is an inner <span>, which the global `h1 span` rule (app.scss) thins to 200.
+  --dn-hero-title-weight: 900;
+}
+
+// LESS SHADOW ON THE ROOMS LIST'S CARDS (requested 2026-09-29, Modern + Focused): no blue glow,
+// a tight 1px base line and a short soft drop, in place of the shared tile's 16px halo
+// (app.scss, the `.md-shell--org .md-rooms__grid .md-room-card` surface rule, which reads this).
+body.ll-view-modern.ll-layout-focused .md-shell--org-rooms {
+  --dn-room-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(76, 134, 216, 0.10),
+    0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
 body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card {
   // LIGHTER FALL THAN THE ATTENTION ROWS, which have their own glass surface in Focused.
   // These sit on the RESTORED LIGHT rooms panel, not on a dark card, so the #66738A end the

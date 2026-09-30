@@ -35,6 +35,12 @@ body.ll-density-compressed {
   --dn-nav-pad-bottom: 10px;
 }
 
+// Focused: the pills sit 24px below the app navbar on every page (the band is then the same height
+// as outside Compressed View, 24 + 10 against 16 + 18, so page clearances are unchanged).
+body.ll-density-compressed.ll-layout-focused {
+  --dn-nav-pad-top: 24px;
+}
+
 body.ll-density-compressed .md-shell--home {
   // Page and grid spacing. The home content starts under the fixed pill-nav band (the greeting
   // hero's own top whitespace used to absorb that); 36px puts the heading row 12px below the

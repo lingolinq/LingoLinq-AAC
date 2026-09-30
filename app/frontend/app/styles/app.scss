@@ -2258,7 +2258,9 @@ h1 span {
   top: 0px;
   left: -5px;
   display: none;
-  font-weight: 200;
+  /* The Modern + Focused Rooms list's organisation title sets this to its page label's weight
+     (--dn-hero-title-weight, _focused-view.scss); 200 everywhere else. */
+  font-weight: var(--dn-hero-title-weight, 200);
 }
 h1 span.label {
   left: 9px;
@@ -47748,8 +47750,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 .md-hero--dashboard .md-hero__title {
-  font-family: 'Maitree', serif !important;
-  font-size: 32px !important;
+  /* The Modern + Focused Rooms list sets these to its page label's font (--dn-hero-title-*,
+     _focused-view.scss); the fallbacks are every other hero's. */
+  font-family: var(--dn-hero-title-font, 'Maitree', serif) !important;
+  font-size: var(--dn-hero-title-size, 32px) !important;
   /* Allow the title to grow when the username line wraps so the sub doesn't
      land on top of line 2. */
   height: auto !important;
@@ -48879,11 +48883,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
   border: 1px solid rgba(76, 134, 216, 0.20);
-  box-shadow:
+  /* Modern + Focused lightens this on the Rooms list (--dn-room-card-shadow, _focused-view.scss);
+     the fallback is the shadow every other host keeps. */
+  box-shadow: var(--dn-room-card-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -3px 5px rgba(76, 134, 216, 0.10),
     0 3px 9px rgba(15, 23, 42, 0.08),
-    0 0 16px rgba(76, 134, 216, 0.16);
+    0 0 16px rgba(76, 134, 216, 0.16));
   color: $la-navy;
   text-decoration: none;
   font-weight: 700;
@@ -66796,6 +66802,16 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    so it wins on weight without !important. */
 .md-shell--layout-focused.md-shell--extras-view .md-extras-card {
   @include caseload.caseload-action-surface(var(--md-r-lg), 10%);
+  /* THE ROOMS TILE'S BACKGROUND (requested 2026-09-29: "make their bg the same as the rooms button
+     bgs"): the value of `body.ll-layout-focused .md-card--rooms .md-room-card` in
+     _focused-view.scss, a white-to-pale-slate diagonal with a soft top-left highlight. The
+     mixin above still gives the radius, border and shadow; this replaces only its ramp. */
+  background:
+    radial-gradient(120% 140% at 14% 0%,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.16) 34%,
+      transparent 60%),
+    linear-gradient(155deg, #FDFDFE 0%, #D2D9E4 100%);
 }
 .md-extras-card:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55) !important;
@@ -96726,7 +96742,8 @@ span.md-board-detail-modeling-btn--badge {
 /* Match the Reports hero title exactly (32px Maitree via `.md-hero--dashboard
    .md-hero__title`) — drop the 28px override so both heroes read as one family. */
 .md-hero--org .md-hero__title {
-  font-family: 'Maitree', serif !important;
+  /* Same token as `.md-hero--dashboard .md-hero__title` (Modern + Focused Rooms list). */
+  font-family: var(--dn-hero-title-font, 'Maitree', serif) !important;
 }
 /* Dot separators between the org hero meta items (users · managers · created).
    Scoped to the org hero — the shared `.md-hero-meta__item + …{margin-left:30px}`
