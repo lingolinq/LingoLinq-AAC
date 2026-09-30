@@ -35,6 +35,26 @@ body.ll-density-compressed {
   --dn-nav-pad-bottom: 10px;
 }
 
+// Extras page, Gentle and Focused: smaller cards (requested 2026-09-30). Only spacing changes;
+// each style keeps its own card colours. 12px padding (was 18), 44px icon tile (52; its 28px glyph
+// keeps 8px of room), 12px head gap (14), 2px between title and subtitle on each side (4), 10px
+// grid gap (16). Reads the --dn-extras-* tokens on the base rules in app.scss.
+body.ll-view-modern.ll-density-compressed .md-shell--extras-view {
+  --dn-extras-card-pad: 12px;
+  --dn-extras-icon: 44px;
+  --dn-extras-head-gap: 12px;
+  --dn-extras-title-gap: 2px;
+  --dn-extras-grid-gap: 10px;
+}
+
+// Rooms list (organization.rooms), Gentle and Focused: condensed room tiles. 8px/14px padding and a
+// 40px door (was 14px/16px and 55px) take a tile from 85px to about 58px tall at 1440, still well
+// over the 44px target. Reads the tokens on the shared room-tile rules in app.scss.
+body.ll-view-modern.ll-density-compressed .md-shell--org-rooms {
+  --dn-room-card-pad: 8px 14px;
+  --dn-room-card-icon: 40px;
+}
+
 // Focused: the pills sit 24px below the app navbar on every page (the band is then the same height
 // as outside Compressed View, 24 + 10 against 16 + 18, so page clearances are unchanged).
 body.ll-density-compressed.ll-layout-focused {

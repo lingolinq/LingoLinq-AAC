@@ -2258,9 +2258,7 @@ h1 span {
   top: 0px;
   left: -5px;
   display: none;
-  /* The Modern + Focused Rooms list's organisation title sets this to its page label's weight
-     (--dn-hero-title-weight, _focused-view.scss); 200 everywhere else. */
-  font-weight: var(--dn-hero-title-weight, 200);
+  font-weight: 200;
 }
 h1 span.label {
   left: 9px;
@@ -47750,10 +47748,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 .md-hero--dashboard .md-hero__title {
-  /* The Modern + Focused Rooms list sets these to its page label's font (--dn-hero-title-*,
-     _focused-view.scss); the fallbacks are every other hero's. */
-  font-family: var(--dn-hero-title-font, 'Maitree', serif) !important;
-  font-size: var(--dn-hero-title-size, 32px) !important;
+  font-family: 'Maitree', serif !important;
+  font-size: 32px !important;
   /* Allow the title to grow when the username line wraps so the sub doesn't
      land on top of line 2. */
   height: auto !important;
@@ -48874,7 +48870,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      flex+grid item's default `min-width: auto` keeps it at content width. */
   min-width: 0;
   gap: 10px;
-  padding: 14px 16px;
+  /* Compressed View tightens this on the Rooms list (--dn-room-card-pad, _compressed-view.scss). */
+  padding: var(--dn-room-card-pad, 14px 16px);
   border-radius: 14px;
   /* Match the My Account icon exactly: white→denim gradient + top-left radial highlight,
      a soft denim outline, and the icon's raised "lift" shadow (inset highlight + soft drop
@@ -48952,8 +48949,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-room-card__icon {
   flex: 0 0 auto;
-  width: 55px;
-  height: 55px;
+  /* Compressed View shrinks this on the Rooms list (--dn-room-card-icon, _compressed-view.scss). */
+  width: var(--dn-room-card-icon, 55px);
+  height: var(--dn-room-card-icon, 55px);
   background: url(../images/door.png) center / contain no-repeat;
   filter: brightness(1.10) saturate(0.8);
 }
@@ -66712,7 +66710,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
 
-  gap: 16px !important;
+  gap: var(--dn-extras-grid-gap, 16px) !important;
 
   list-style: none !important;
 
@@ -66735,7 +66733,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      left-aligned horizontally. */
   justify-content: center !important;
 
-  padding: 18px !important;
+  padding: var(--dn-extras-card-pad, 18px) !important;
 
   border-radius: var(--md-r-lg) !important;
 
@@ -66824,7 +66822,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   align-items: flex-start !important;
 
-  gap: 14px !important;
+  gap: var(--dn-extras-head-gap, 14px) !important;
 
   /* No button below the head anymore (the whole card is the action), so drop
      the trailing gap — keeps the head truly centered. */
@@ -66832,9 +66830,9 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
 }
 .md-extras-card__icon-wrap {
-  width: 52px !important;
+  width: var(--dn-extras-icon, 52px) !important;
 
-  height: 52px !important;
+  height: var(--dn-extras-icon, 52px) !important;
 
   flex-shrink: 0 !important;
 
@@ -66935,7 +66933,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
 }
 .md-extras-card__title {
-  margin: 0 0 4px !important;
+  margin: 0 0 var(--dn-extras-title-gap, 4px) !important;
 
   font-size: 18px !important;
 
@@ -66947,7 +66945,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
 }
 .md-extras-card__sub {
-  margin: 4px 0 0 !important;
+  margin: var(--dn-extras-title-gap, 4px) 0 0 !important;
 
   font-size: 14px !important;
 
@@ -96742,8 +96740,7 @@ span.md-board-detail-modeling-btn--badge {
 /* Match the Reports hero title exactly (32px Maitree via `.md-hero--dashboard
    .md-hero__title`) — drop the 28px override so both heroes read as one family. */
 .md-hero--org .md-hero__title {
-  /* Same token as `.md-hero--dashboard .md-hero__title` (Modern + Focused Rooms list). */
-  font-family: var(--dn-hero-title-font, 'Maitree', serif) !important;
+  font-family: 'Maitree', serif !important;
 }
 /* Dot separators between the org hero meta items (users · managers · created).
    Scoped to the org hero — the shared `.md-hero-meta__item + …{margin-left:30px}`

@@ -262,9 +262,9 @@ export default Component.extend({
   // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
   // GREETING hero — on the Extras tab the same <header> is the page header, which
   // the toggle must never hide.
-  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', 'compressedHome', function() {
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', 'compressedHomeLabel', function() {
     if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
-    return (this.get('compressedHome') || sectionHidden(this.get('appState.currentUser'), 'hero')) ? htmlSafe('display: none !important;') : htmlSafe('');
+    return (this.get('compressedHomeLabel') || sectionHidden(this.get('appState.currentUser'), 'hero')) ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
@@ -1864,6 +1864,13 @@ export default Component.extend({
      they stay in the DOM, hidden, like any turned-off card. */
   compressedHome: computed('appState.compressed_view_active', 'activeTab', function() {
     return this.get('appState.compressed_view_active') === true && this.get('activeTab') === 'home';
+  }),
+
+  /* The Dashboard page label in place of the greeting hero: Compressed View in FOCUSED only.
+     Compressed Gentle keeps the same "Welcome back" hero as Gentle without Compressed View
+     (requested 2026-09-30); the rest of compressedHome's changes still apply there. */
+  compressedHomeLabel: computed('compressedHome', 'effectiveLayout', function() {
+    return this.get('compressedHome') === true && this.get('effectiveLayout') === 'focused';
   }),
 
   _compressVisibility: function(vis) {

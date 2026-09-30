@@ -2291,15 +2291,17 @@ body.ll-layout-focused .md-preferences {
     background: $focus-section-bg-darkened !important;
     border-bottom: 1px solid rgba(13, 36, 56, 0.12) !important;
   }
-  // Section icon + its tile ("badge") match the home page's focused action-card icons:
-  // dark slate tile with a brightened glyph. Mirrors
-  // `.md-grid--layout-focused .md-card--badge-action … .md-card__icon` (app.scss:47768).
+  // Section icon + its tile ("badge") match the home page's focused action-card icons
+  // (Create a Board / Edit Dashboard): the shared `$focus-icon-tile-*` glass recipe
+  // (_variables.scss), a brightened glyph on top. It used to be a hand copy of the older
+  // opaque ramp, which had drifted from the home tiles; reading the tokens keeps them one
+  // surface (2026-09-30). The tile keeps its own 36px size and 10px radius.
   .md-pref-box__icon {
-    background: radial-gradient(circle at 50% 46%, #262d3a 0%, #333c4a 48%, #515d70 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.10),
-      0 2px 5px rgba(0, 0, 0, 0.16) !important;
+    background: $focus-icon-tile-bg !important;
+    border: $focus-icon-tile-border !important;
+    box-shadow: $focus-icon-tile-shadow !important;
+    backdrop-filter: $focus-icon-tile-blur;
+    -webkit-backdrop-filter: $focus-icon-tile-blur;
   }
   .md-pref-box__icon svg {
     filter: brightness(1.4) saturate(1.05);
@@ -5877,17 +5879,11 @@ body.ll-view-modern.ll-layout-focused .ll-appshell__content .md-compact-head--ro
   margin: 78px 25px 28px;
 }
 
-// THE ORGANISATION TITLE IN THE PAGE LABEL'S FONT AND SIZE (requested 2026-09-29): the app's
-// sans at the label's 25px instead of the heroes' Maitree 32px. Its weight, spacing and ink come
-// from `md-compact-head__title`, which the title carries here (templates/organization.hbs).
-// The font is spelled out, not `inherit`: on a custom property `inherit` inherits the PROPERTY
-// (unset on the parent), so the var() fell back to Maitree. This is the stack the page label
-// computes to (the body's).
-body.ll-view-modern.ll-layout-focused .md-shell--org-rooms .md-hero--org {
-  --dn-hero-title-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --dn-hero-title-size: 25px;
-  // The title's text is an inner <span>, which the global `h1 span` rule (app.scss) thins to 200.
-  --dn-hero-title-weight: 900;
+// NO GAP ABOVE THE ORGANISATION SWITCHER, with or without Compressed View (requested 2026-09-30):
+// its 68px top margin (_classic-home.scss) clears the floating pill nav, which the page label above
+// it now does, so here it only opened a gap between the label and the switcher.
+body.ll-view-modern.ll-layout-focused .md-shell--org-rooms {
+  --dn-org-switcher-top: 0;
 }
 
 // LESS SHADOW ON THE ROOMS LIST'S CARDS (requested 2026-09-29, Modern + Focused): no blue glow,
