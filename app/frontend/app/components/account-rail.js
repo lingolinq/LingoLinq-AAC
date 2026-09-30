@@ -119,19 +119,54 @@ export default Component.extend({
   /* COLLAPSED TO ICONS AND SHORT LABELS (requested 2026-09-28). Stashed rather than local so
      the choice survives the transition to the next chrome page, the same reason Basic's rail
      gives (dashboard/classic-rail.js:116-120).
-     THE DEFAULT DEPENDS ON THE PAGE (requested the same day): expanded on the home page,
-     collapsed everywhere else. Each context remembers its own choice under its own key, so
+     THE DEFAULT DEPENDS ON THE SCREEN, NOT THE PAGE (requested 2026-09-29; it used to be
+     expanded on the home page and collapsed elsewhere): collapsed on every page at 1200px and
+     narrower, expanded on every page when the window is wider than 1200px (`wideScreen`, kept
+     live by a matchMedia listener, so resizing across the line changes the default). A choice
+     made with the toggle still wins, and each context remembers its own under its own key, so
      expanding the rail on Reports keeps it open on the other non-home pages without changing
-     the home page, and the reverse. An absent away key means the collapsed default.
+     the home page, and the reverse.
      NEITHER KEY IS Basic's `classic_rail_collapsed`: the two rails are different designs at
      different widths, and a choice made in one view should not silently rearrange the other.
      Only the rail's own classes read this; the shell's column offset follows through
      `.ll-appshell:has(> .md-acct-rail--collapsed)` in app.scss, so there is one source. */
-  railCollapsed: computed('onHomePage', 'stashes.modern_rail_collapsed', 'stashes.modern_rail_collapsed_away', function() {
-    if(this.get('onHomePage')) { return !!this.stashes.get('modern_rail_collapsed'); }
-    var away = this.stashes.get('modern_rail_collapsed_away');
-    return (away === undefined || away === null) ? true : !!away;
+  railCollapsed: computed('onHomePage', 'wideScreen', 'stashes.modern_rail_collapsed', 'stashes.modern_rail_collapsed_away', function() {
+    var key = this.get('onHomePage') ? 'modern_rail_collapsed' : 'modern_rail_collapsed_away';
+    var chosen = this.stashes.get(key);
+    if(chosen === undefined || chosen === null) { return !this.get('wideScreen'); }
+    return !!chosen;
   }),
+
+  /* More than 1200px wide: the width at which the rail defaults to expanded (railCollapsed).
+     Set from `matchMedia` in init() and kept current by its change listener, removed in
+     willDestroy. False where matchMedia is unavailable, so the narrow default applies. */
+  wideScreen: false,
+
+  init() {
+    this._super(...arguments);
+    if(typeof window === 'undefined' || !window.matchMedia) { return; }
+    var query = window.matchMedia('(min-width: 1201px)');
+    var _this = this;
+    this.set('wideScreen', !!query.matches);
+    this._wideListener = function(event) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('wideScreen', !!event.matches);
+    };
+    if(query.addEventListener) { query.addEventListener('change', this._wideListener); }
+    else if(query.addListener) { query.addListener(this._wideListener); }
+    this._wideQuery = query;
+  },
+
+  willDestroy() {
+    this._super(...arguments);
+    var query = this._wideQuery;
+    if(query && this._wideListener) {
+      if(query.removeEventListener) { query.removeEventListener('change', this._wideListener); }
+      else if(query.removeListener) { query.removeListener(this._wideListener); }
+    }
+    this._wideQuery = null;
+    this._wideListener = null;
+  },
 
   toggleRail: action(function() {
     var key = this.get('onHomePage') ? 'modern_rail_collapsed' : 'modern_rail_collapsed_away';
