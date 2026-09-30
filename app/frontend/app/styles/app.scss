@@ -7,6 +7,7 @@
 @use "eval_quick";
 @use "focused-view";
 @use "compressed-view";
+@use "caseload-compact";
 @use "caseload";
 @use "modern_pages";
 @use "badges";
@@ -51253,7 +51254,8 @@ body:not(.ll-layout-focused) .md-goals__header {
   animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .md-edit-profile__title,
-.md-compact-head__title {
+.md-compact-head__title,
+.md-cl-head__title {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 900;

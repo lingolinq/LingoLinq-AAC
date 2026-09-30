@@ -8278,6 +8278,8 @@
   "support_word": "wsparcie [[ support",
   "caseload_qa_model": "*** Model",
   "caseload_qa_note": "Notatka [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Raporty [[ Reports",
   "caseload_qa_eval": "Ocena [[ Eval",
   "caseload_qa_history": "Historia [[ History",

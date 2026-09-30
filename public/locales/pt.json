@@ -8028,6 +8028,8 @@
   "support_word": "apoiar [[ support",
   "caseload_qa_model": "Modelo [[ Model",
   "caseload_qa_note": "Observação [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Relatórios [[ Reports",
   "caseload_qa_eval": "Avaliação [[ Eval",
   "caseload_qa_history": "História [[ History",

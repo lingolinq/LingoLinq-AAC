@@ -8027,6 +8027,8 @@
   "support_word": "tacaíocht [[ support",
   "caseload_qa_model": "Samhail [[ Model",
   "caseload_qa_note": "Nóta [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Tuairiscí [[ Reports",
   "caseload_qa_eval": "Meastóireacht [[ Eval",
   "caseload_qa_history": "Stair [[ History",

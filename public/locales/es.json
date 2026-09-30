@@ -8286,6 +8286,8 @@
   "support_word": "apoyo [[ support",
   "caseload_qa_model": "Modelo [[ Model",
   "caseload_qa_note": "Nota [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Informes [[ Reports",
   "caseload_qa_eval": "Evaluación [[ Eval",
   "caseload_qa_history": "Historia [[ History",

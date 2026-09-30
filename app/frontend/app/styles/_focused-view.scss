@@ -1611,17 +1611,18 @@ body.ll-layout-focused {
         // 1. SPECULAR CAP. The bright catch of light across the top. Brighter than before
         //    and with a harder falloff — a fast fade to nothing by 52% is what reads as
         //    GLASS; a slow one just reads as a lighter tint.
+        //    CRISPER (requested 2026-09-29, "less blurry"): gone by 22%, not 52%, so the
+        //    highlight is a clean edge rather than a haze over half the tile.
         linear-gradient(180deg,
-          rgba(255, 255, 255, 0.62) 0%,
-          rgba(255, 255, 255, 0.34) 16%,
-          rgba(255, 255, 255, 0.10) 40%,
-          rgba(255, 255, 255, 0) 52%),
+          rgba(255, 255, 255, 0.50) 0%,
+          rgba(255, 255, 255, 0.18) 10%,
+          rgba(255, 255, 255, 0) 22%),
         // 2. BASE SHEEN. Light bouncing back off the lower curve. Small, but it is the
         //    difference between a domed piece of glass and a flat panel with a highlight
         //    painted on top of it.
         linear-gradient(0deg,
-          rgba(255, 255, 255, 0.20) 0%,
-          rgba(255, 255, 255, 0) 26%),
+          rgba(255, 255, 255, 0.14) 0%,
+          rgba(255, 255, 255, 0) 12%),
         // 3. COLOUR RAMP — the palette hexes, unchanged.
         linear-gradient(145deg, #{$from}, #{$to}) !important;
     } @else {
@@ -1694,11 +1695,14 @@ body.ll-layout-focused {
     // put a coloured ring around every tile and is what made the row shouty. Gloss comes
     // from white and depth here, never from colour — that distinction is the whole reason
     // this can be glossy without going back to what was reverted.
+    // Crisp edges instead of soft glows (2026-09-29, "less blurry"): a 1px highlight and base
+    // line inside, a short tight drop shadow outside.
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.90),
-      inset 0 6px 12px rgba(255, 255, 255, 0.28),
-      inset 0 -2px 4px rgba($la-navy, 0.14),
-      0 4px 10px rgba($la-navy, 0.18) !important;
+      inset 0 2px 3px rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba($la-navy, 0.14),
+      0 1px 2px rgba($la-navy, 0.10),
+      0 3px 6px rgba($la-navy, 0.12) !important;
   }
   // Hover: same fill, a step up in glass, NO lift — matches the CTA exactly.
   // Re-tuned alongside the glossier resting state so hover is still a PROPORTIONAL step
@@ -1709,9 +1713,10 @@ body.ll-layout-focused {
   @mixin caseload-focused-tile-hover {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 7px 14px rgba(255, 255, 255, 0.36),
-      inset 0 -2px 5px rgba($la-navy, 0.16),
-      0 6px 14px rgba($la-navy, 0.24) !important;
+      inset 0 2px 3px rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba($la-navy, 0.16),
+      0 2px 3px rgba($la-navy, 0.12),
+      0 5px 10px rgba($la-navy, 0.16) !important;
     transform: none;
   }
   // The glyphs carry hardcoded dark strokes as inline presentation attributes, which any
@@ -1983,16 +1988,47 @@ body.ll-layout-focused {
   // ATTENTION FAMILY — amber. This is the only badge that asks the supporter to DO
   // something ("Eval needed"), so it is the one warm thing among cool ones. Amber at 0.45
   // over white lands at #F9E0B5 — unmistakably warm without becoming a filled chip.
+  // ATTENTION STATUS — icon + text, not a badge (requested 2026-09-29, the same treatment as
+  // the dashboard's Need Attention statuses and the Compact caseload): navy label, amber glyph.
   .md-shell--caseload .md-caseload__list-access--attention {
-    @include caseload-focused-badge-solid($caseload-badge-attn-ink, $caseload-badge-attn-bg, $caseload-badge-attn-border);
+    min-height: 0;
+    padding: 0;
+    border-color: transparent;
+    border-radius: 0;
+    background: none;
+    color: #1b365d;
+    font-size: 15px;
+    font-weight: 600;
   }
   // The warning glyph goes DARKER than the label — 7.07:1 against the fill versus the
   // label's 5.83:1. It is the part that has to register pre-reading, and it is a small
   // stroked shape, so it needs the extra weight the 12px text does not.
   .md-shell--caseload .md-caseload__list-access--attention svg,
   .md-shell--caseload .md-caseload__list-access--attention svg * {
-    stroke: $caseload-badge-attn-icon !important;
-    color: $caseload-badge-attn-icon !important;
+    stroke: #9a6a12 !important;
+    color: #9a6a12 !important;
+  }
+
+  .md-shell--caseload .md-caseload__list-access--attention svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  // STATUS UNDER THE USERNAME at every width (requested 2026-09-29). Between 641 and 1300px the
+  // shared layout (_caseload.scss) puts it in a third track beside the role; these tokens keep it
+  // in the name's track on the row below instead, as it already is above 1300px.
+  .md-shell--caseload {
+    --dn-cl-trigger-cols: auto minmax(0, 1fr);
+    --dn-cl-identity-row: auto;
+    --dn-cl-status-col: 2;
+    --dn-cl-status-row: auto;
+  }
+
+  // No status on this row: the username and role span both of the avatar's rows and centre on it,
+  // rather than sitting in the top row over an empty one (requested 2026-09-29).
+  .md-shell--caseload .md-caseload__list-trigger:not(:has(.md-caseload__list-status .md-caseload__list-access)) {
+    --dn-cl-identity-row: 1 / span 2;
+    --dn-cl-identity-align: center;
   }
   // EDITOR — teal, the role badge that was called out as muddy. It was the REPORTS tile's
   // sage scaled 66% lighter, which compiled to #BFD8C8: a pale green a hair off the card,
@@ -3421,36 +3457,10 @@ body.ll-layout-focused #content.boards-page .ub-boards-page--below-dashboard-pil
 // toolbar and carries no background at all.
 @media (max-width: 1300px) {
   body.ll-layout-focused .md-caseload__list-trigger {
-    /* THE TOP SHEEN IS A HINT NOW, NOT A WASH (requested 2026-09-24: "limit the gradient from
-       the top portion of each communicator's card - using the darker color predominantly with
-       only slight lighter gradient").
-       It ran `0.62 -> 0.34 -> 0.10 -> 0` across the top 52% of the trigger, so more than half
-       the header was white-washed and the tile colour underneath only showed near the bottom --
-       which is what read as the top portion having its own gradient.
-       Both the STRENGTH and the REACH come down: peak 0.62 -> 0.16, and the fade completes at
-       28% instead of 52%. That leaves roughly three quarters of the header on the base colour
-       with a soft catch of light along the very top edge, which is the "predominantly darker,
-       slightly lighter" the request asks for.
-       THE BOTTOM LAYER IS UNTOUCHED. It lifts the last 26% from the other direction and belongs
-       to the bottom edge, not the top portion this is about -- cutting it too would have
-       flattened the tile's whole material rather than limiting one gradient. */
-    background:
-      linear-gradient(180deg,
-        rgba(255, 255, 255, 0.16) 0%,
-        rgba(255, 255, 255, 0.09) 12%,
-        rgba(255, 255, 255, 0.03) 21%,
-        rgba(255, 255, 255, 0) 28%),
-      linear-gradient(0deg,
-        rgba(255, 255, 255, 0.20) 0%,
-        rgba(255, 255, 255, 0) 26%),
-      /* A teal/denim retint of this base was tried and reverted on 2026-09-24 (asked for as
-         "like the create a board button", then reverted). It was
-         `linear-gradient(145deg, rgba(44,183,176,0.26), rgba(91,141,239,0.22))` -- recorded only
-         so the same swap is not proposed again as if it were untested. The neutral blue-grey
-         below is the value that stands. */
-      linear-gradient(145deg,
-        #{color.scale($caseload-tile-more-from, $lightness: 15%)},
-        #{color.scale($caseload-tile-more-to, $lightness: 15%)});
+    /* NO WASH (requested 2026-09-29: "don't bring back the gray header"). The identity row
+       carried the More Actions tile's blue-grey ramp here, which with the header tint made the
+       grey band; the row now sits on the card's own surface, as it does above 1300px. */
+    background: none;
   }
 }
 
@@ -5951,13 +5961,13 @@ body.ll-layout-focused .md-shell--caseload .md-caseload {
       request allowed "a very subtle translucent border and shadow" and those are what stop the
       card dissolving into the page now that the tray behind it is gone. */
 body.ll-layout-focused .md-shell--caseload .md-caseload__list-row {
-  background: linear-gradient(180deg, #FCFCFD 0%, #F5F6F9 100%);
+  background: var(--dn-cl-card-bg, linear-gradient(180deg, #FCFCFD 0%, #F5F6F9 100%));
   border-color: rgba($la-navy, 0.10);
-  box-shadow:
+  box-shadow: var(--dn-cl-card-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 1px 2px rgba($la-navy, 0.05);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+    0 1px 2px rgba($la-navy, 0.05));
+  backdrop-filter: var(--dn-cl-card-blur, none);
+  -webkit-backdrop-filter: var(--dn-cl-card-blur, none);
 }
 
 /* 3. THE HEADER TAKES A FLAT PERIWINKLE TINT. Asked for directly ("a flatter, slightly tinted
@@ -5986,9 +5996,10 @@ body.ll-layout-focused .md-shell--caseload .md-caseload__list-row:not(.md-caselo
      `calc(100% - 5px)` wide, pinned right, and 1px tall at the bottom edge: same 5px gap the
      tint already leaves, from the same measurement (4px rail, 5px when hovered or active).
      Layer order is paint order -- first listed is on top -- so the rule sits over the tint. */
+  /* THE TINT IS GONE (requested 2026-09-29: "don't bring back the gray header"). Only the slate
+     divider along the bottom remains; the header now sits on the card's own surface. */
   background:
-    linear-gradient(rgba(100, 112, 133, 0.45), rgba(100, 112, 133, 0.45)),
-    linear-gradient(180deg, rgba(124, 137, 158, 0.16) 0%, rgba(124, 137, 158, 0.13) 100%);
+    linear-gradient(rgba(100, 112, 133, 0.45), rgba(100, 112, 133, 0.45));
   /* AND IT STOPS SHORT OF THE ACCENT RAIL (requested 2026-09-24: "don't extend the gradient on
      top of the left border - that border should feel like its own element").
      The rail is `.md-caseload__list-row::before`, a 4px strip at the row's left edge that widens
@@ -6000,12 +6011,8 @@ body.ll-layout-focused .md-shell--caseload .md-caseload__list-row:not(.md-caselo
      the leftmost 5px of the header is simply never painted and the rail shows through at its own
      full strength. 5px, not 4, so the widened hover/active state is covered too -- the extra
      pixel at rest sits under the row's own fill and is invisible. */
-  background-size:
-    calc(100% - 5px) 1px,
-    calc(100% - 5px) 100%;
-  background-position:
-    100% 100%,
-    100% 0;
+  background-size: calc(100% - 5px) 1px;
+  background-position: 100% 100%;
   background-repeat: no-repeat;
   /* AND IT FOLLOWS THE CARD'S CORNERS (requested 2026-09-24: "fix the rounding issue on the
      communicator cards -- they should be rounded"). Giving the header a fill is what introduced

@@ -8283,6 +8283,8 @@
   "support_word": "支持 [[ support",
   "caseload_qa_model": "模型 [[ Model",
   "caseload_qa_note": "笔记 [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "报告 [[ Reports",
   "caseload_qa_eval": "评估 [[ Eval",
   "caseload_qa_history": "历史 [[ History",

@@ -8029,6 +8029,8 @@
   "support_word": "поддерживать [[ support",
   "caseload_qa_model": "Модель [[ Model",
   "caseload_qa_note": "Примечание [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Отчеты [[ Reports",
   "caseload_qa_eval": "Оценка [[ Eval",
   "caseload_qa_history": "История [[ History",

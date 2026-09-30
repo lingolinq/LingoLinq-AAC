@@ -8027,6 +8027,8 @@
   "support_word": "Unterstützung [[ support",
   "caseload_qa_model": "Modell [[ Model",
   "caseload_qa_note": "Notiz [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Berichte [[ Reports",
   "caseload_qa_eval": "*** Eval",
   "caseload_qa_history": "Geschichte [[ History",

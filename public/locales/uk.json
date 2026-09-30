@@ -8028,6 +8028,8 @@
   "support_word": "підтримка [[ support",
   "caseload_qa_model": "Модель [[ Model",
   "caseload_qa_note": "Примітка [[ Note",
+  "caseload": "*** Caseload",
+  "needs_attention": "*** Needs attention",
   "caseload_qa_reports": "Звіти [[ Reports",
   "caseload_qa_eval": "Оцінка [[ Eval",
   "caseload_qa_history": "Історія [[ History",
