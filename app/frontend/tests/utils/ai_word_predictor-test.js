@@ -68,11 +68,11 @@ describe('ai_word_predictor', function() {
     }))).toEqual(false);
   });
 
-  it('should be enabled when flag is on and prefs allow (grandfather)', function() {
+  it('should be disabled when flag is on but the account never recorded an AI choice', function() {
     expect(ai_word_predictor.is_enabled(appStateStub({
       flagOn: true,
       prefs: {}
-    }))).toEqual(true);
+    }))).toEqual(false);
   });
 
   it('should be enabled when flag is on, master true, and per-feature true', function() {
@@ -83,7 +83,7 @@ describe('ai_word_predictor', function() {
   });
 
   it('should resolve cached predictions without duplicate fetches', function() {
-    var appState = appStateStub({ flagOn: true, prefs: {} });
+    var appState = appStateStub({ flagOn: true, prefs: { ai_features_enabled: true, ai_word_prediction: true } });
     ai_word_predictor._cache_put('i want to', ['play', 'go']);
     var res = null;
     ai_word_predictor.predict('I want to', { appState: appState, immediate: true }).then(function(words) {
@@ -96,7 +96,7 @@ describe('ai_word_predictor', function() {
   });
 
   it('should cache predictions separately by locale', function() {
-    var appState = appStateStub({ flagOn: true, prefs: {} });
+    var appState = appStateStub({ flagOn: true, prefs: { ai_features_enabled: true, ai_word_prediction: true } });
     ai_word_predictor._cache_put('i want to', ['play'], 'en');
     ai_word_predictor._cache_put('i want to', ['jugar'], 'es');
     var res = null;

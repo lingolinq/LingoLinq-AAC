@@ -107,7 +107,7 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
 
   test('is_enabled returns its existing value, unchanged, when needsAcknowledgement is false (article_50_disclosure flag off)', function(assert) {
     var appState = makeAppState({
-      flags: { ai_word_prediction: true, article_50_disclosure: false }
+      flags: { ai_word_prediction: true, article_50_disclosure: false }, user: makeUser({ preferences: { ai_features_enabled: true, ai_word_prediction: true } })
     });
     assert.true(ai_word_predictor.is_enabled(appState));
   });
@@ -122,7 +122,7 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
   test('acknowledgement (shown true) re-enables prediction automatically, since is_enabled is evaluated per call', function(assert) {
     var appState = makeAppState({
       flags: { ai_word_prediction: true, article_50_disclosure: true },
-      user: makeUser({
+      user: makeUser({ preferences: { ai_features_enabled: true, ai_word_prediction: true },
         article_50_disclosure_required: true,
         article_50_disclosure_shown: true,
         feature_flags: { article_50_disclosure: true }
