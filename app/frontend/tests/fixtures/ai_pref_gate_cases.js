@@ -27,12 +27,12 @@ const RAW = String.raw`
     "preference was never written (undefined in JS, nil in Ruby)."
   ],
   "cases": [
-    { "name": "absent master grandfathers a gated feature",
-      "prefs": {}, "feature": "ai_board_generation", "expected": true },
-    { "name": "absent master grandfathers an ungated feature",
-      "prefs": {}, "feature": "comprehensive_eval_ai", "expected": true },
-    { "name": "explicit null master grandfathers",
-      "prefs": { "ai_features_enabled": null }, "feature": "ai_board_generation", "expected": true },
+    { "name": "absent master is off for a gated feature",
+      "prefs": {}, "feature": "ai_board_generation", "expected": false },
+    { "name": "absent master is off for an ungated feature",
+      "prefs": {}, "feature": "comprehensive_eval_ai", "expected": false },
+    { "name": "explicit null master is off",
+      "prefs": { "ai_features_enabled": null }, "feature": "ai_board_generation", "expected": false },
 
     { "name": "empty-string master denies a gated feature",
       "prefs": { "ai_features_enabled": "" }, "feature": "ai_board_generation", "expected": false },

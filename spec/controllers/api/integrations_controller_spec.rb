@@ -297,6 +297,17 @@ describe Api::IntegrationsController, :type => :controller do
   end
 
   describe "focus_generate_words" do
+    # AI features default to off (2026-09-30). These examples exercise the endpoint
+    # for an account that has turned board generation on, so each gate under test
+    # is the one that refuses.
+    def token_user(*args)
+      result = super
+      @user.settings['preferences']['ai_features_enabled'] = true
+      @user.settings['preferences']['ai_board_generation'] = true
+      @user.save!
+      result
+    end
+
     before(:each) do
       allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
       allow(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
