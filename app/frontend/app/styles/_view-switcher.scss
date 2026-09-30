@@ -90,6 +90,22 @@
 // Axis headings inside the menu. Not interactive and not focusable -- they exist so the
 // two independent choices (Classic/Card, Gentle/Focused) read as separate groups rather
 // than one list of four.
+// The menu's introduction, above the first group. `width: 0; min-width: 100%` wraps it to the
+// menu's width instead of letting its one long line widen the menu. Navy at 0.72 is the menu's
+// text floor (5.14:1, see below).
+.ll-viewswitch__intro {
+  width: 0;
+  min-width: 100%;
+  margin: 0 0 4px;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid rgba($la-navy, 0.1);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: rgba($la-navy, 0.72);
+  cursor: default;
+}
+
 .ll-viewswitch__group {
   padding: 6px 12px 2px;
   font-size: 10px;

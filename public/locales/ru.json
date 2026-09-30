@@ -9555,5 +9555,7 @@
   "phrases_scroll_for_more": "*** %{n} more — scroll to see them",
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
   "x_handle_example": "*** @whoever",
-  "org_update_failed": "*** Organization update failed unexpectedly"
+  "org_update_failed": "*** Organization update failed unexpectedly",
+  "view_menu_intro_density": "*** There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account.",
+  "view_menu_intro": "*** There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account."
 }

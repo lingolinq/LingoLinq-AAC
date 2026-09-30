@@ -9547,5 +9547,7 @@
   "x_url": "XのURL [[ X URL",
   "x_handle": "Xハンドル [[ X Handle",
   "x_handle_example": "*** @whoever",
-  "org_update_failed": "*** Organization update failed unexpectedly"
+  "org_update_failed": "*** Organization update failed unexpectedly",
+  "view_menu_intro_density": "*** There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account.",
+  "view_menu_intro": "*** There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account."
 }

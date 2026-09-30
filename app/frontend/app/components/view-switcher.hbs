@@ -56,6 +56,16 @@
        worth leaving in the accessibility tree, since it is what tells a screen-reader
        user which of the two axes the following item belongs to. --}}
   <ul class="ll-viewswitch__menu" role="menu">
+    {{!-- A short introduction to the choices below (requested 2026-09-30). `role="none"`, like the
+         group headings, so it stays readable text in the accessibility tree without posing as a
+         menu item. It names only the groups this menu shows: Density appears with its flag. --}}
+    <li role="none" class="ll-viewswitch__intro">
+      {{#if this.compressedAvailable}}
+        {{t "There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account." key="view_menu_intro_density"}}
+      {{else}}
+        {{t "There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account." key="view_menu_intro"}}
+      {{/if}}
+    </li>
     <li role="none" class="ll-viewswitch__group">{{t "Layout" key="view_group_layout"}}</li>
     <li role="none">
       <button type="button" role="menuitemradio"

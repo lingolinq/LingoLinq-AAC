@@ -9546,5 +9546,7 @@
   "link_board_by_url": "*** Link board",
   "board_url_or_key_hint": "*** Paste a board page URL or an owner/key to link a sub-board that is not in the list.",
   "no_board_for_url_or_key": "*** No board found for that URL or key",
-  "looking_up_board": "*** Looking up board…"
+  "looking_up_board": "*** Looking up board…",
+  "view_menu_intro_density": "*** There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account.",
+  "view_menu_intro": "*** There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account."
 }
