@@ -355,7 +355,9 @@ describe Language::Schema2Generator do
       end
 
       it 'accepts a part-of-speech rule with a known inflection and location' do
-        expect(gen.build_rules(rules_json('rules' => [pos_rule]), pin)['rules']).to eq([pos_rule])
+        input = rules_json('rules' => [pos_rule],
+                           'tests' => [['want', 'eat', 'want eat', {'rule_id' => 'r2'}]])
+        expect(gen.build_rules(input, pin)['rules']).to eq([pos_rule])
       end
 
       it 'rejects rules that are not a list' do
@@ -422,6 +424,14 @@ describe Language::Schema2Generator do
         expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'rule_id' => 1}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: option "rule_id" must be a string/)
         expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'inflection' => ['past']}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: option "inflection" must be a string/)
         expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'weight' => 'x'}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: unknown options \["weight"\]/)
+      end
+
+      it 'rejects a test option inflection that is not a known inflection name' do
+        expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'inflection' => 'dual'}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: unknown inflection "dual"/)
+      end
+
+      it 'rejects a test option rule_id that is not a rule id in the same file' do
+        expect { gen.build_rules(rules_json('tests' => [['i', 'is', 'i am', {'rule_id' => 'r9'}]]), pin) }.to raise_error(gen::Error, /tests\[0\]: rule_id "r9" is not a rule id in this file/)
       end
     end
   end

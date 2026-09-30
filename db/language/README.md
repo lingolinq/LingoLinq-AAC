@@ -44,8 +44,10 @@ schema-1 shape.
    generator and in `NOTICE.md`, and update the spec's closed list.
 3. Run the rake task. The generator raises on any words entry field, part of speech or
    inflection name it does not recognise, and on any unknown rules section or key, empty
-   rules, `inflection_locations` or tests list, unknown rule type, inflection name, grid location or test option, or
-   non-string override or test option value. Lookback item values and the `required`
-   and `if_empty` values in `inflection_locations` are checked for key names only, so
-   review those in the diff. Extend the lists deliberately rather than loosening a check.
+   rules, `inflection_locations` or tests list, unknown rule type, inflection name, grid
+   location or test option, non-string override or test option value, or test `rule_id`
+   that names no rule in the file (upstream's `"no_rule"` marker is allowed). Lookback
+   item values and the `required` and `if_empty` values in `inflection_locations` are
+   checked for key names only, so review those in the diff. Extend the lists
+   deliberately rather than loosening a check.
 4. Review the regenerated diff and commit inputs, pins and output together.

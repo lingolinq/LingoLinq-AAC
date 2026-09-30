@@ -18,8 +18,10 @@ module Language
   # - rules: an unknown section or key, an empty rules, inflection_locations or tests
   #   list, a rule type that is not a known part of speech or "override", an unknown
   #   inflection name, a non-string override value, a location that is not a grid
-  #   direction, an unknown part of speech in inflection_locations, or a test option
-  #   that is unknown or not a string.
+  #   direction, an unknown part of speech in inflection_locations, a test option
+  #   that is unknown or not a string, a test inflection that is not a known
+  #   inflection name, or a test rule_id that is neither a rule id in the same file
+  #   nor "no_rule".
   # Lookback item values and the required and if_empty values in
   # inflection_locations are checked for their key names only.
   #
@@ -98,6 +100,9 @@ module Language
     LOCATION_KEYS = %w[if_empty inflection location override_if_same required type].freeze
     SUBSTITUTION_KEYS = %w[contractions default_contractions].freeze
     TEST_OPTION_KEYS = %w[inflection rule_id].freeze
+    # Upstream's test runner reports "no_rule" when no rule fires, so a test expecting
+    # that names "no_rule" instead of a rule id.
+    NO_RULE = 'no_rule'.freeze
     # FORM_NAMES plus the names the upstream slot grid places but no words entry
     # carries.
     RULE_INFLECTION_NAMES = (FORM_NAMES + %w[antonym personal_present subjective]).sort.freeze
@@ -231,7 +236,7 @@ module Language
       check_rules!(json['rules'])
       check_locations!(json['inflection_locations'])
       check_substitutions!(json['substitutions'])
-      check_tests!(json['tests'])
+      check_tests!(json['tests'], json['rules'].map { |rule| rule['id'] })
       {
         '_license' => LICENSE,
         '_locale' => 'en',
@@ -347,7 +352,7 @@ module Language
       end
     end
 
-    def self.check_tests!(tests)
+    def self.check_tests!(tests, rule_ids)
       raise Error, 'rules: tests is not a list' unless tests.is_a?(Array)
       raise Error, 'rules: tests is empty' if tests.empty?
       tests.each_with_index do |test, idx|
@@ -360,6 +365,11 @@ module Language
         raise Error, "rules: tests[#{idx}]: unknown options #{unknown.inspect}" if unknown.any?
         test[3].each do |key, value|
           raise Error, "rules: tests[#{idx}]: option #{key.inspect} must be a string" unless value.is_a?(String)
+        end
+        check_inflection_name!("rules: tests[#{idx}]", test[3]['inflection']) if test[3].key?('inflection')
+        rule_id = test[3]['rule_id']
+        if test[3].key?('rule_id') && rule_id != NO_RULE && !rule_ids.include?(rule_id)
+          raise Error, "rules: tests[#{idx}]: rule_id #{rule_id.inspect} is not a rule id in this file"
         end
       end
     end

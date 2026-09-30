@@ -529,10 +529,11 @@ yet.
   `bundle exec rake language:schema2`, writes `db/language/en/{words,rules}-en.json`. It
   refuses to run when an input's SHA-256 differs from its pin. It raises on any words
   field, part of speech or inflection name it does not recognise, and on any unknown
-  rules section or key, empty rules, `inflection_locations` or tests list, unknown rule type, inflection name, grid
-  location or test option, or non-string override or test option value. Lookback item
-  values and the `required` and `if_empty` values in `inflection_locations` are checked
-  for key names only.
+  rules section or key, empty rules, `inflection_locations` or tests list, unknown rule
+  type, inflection name, grid location or test option, non-string override or test
+  option value, or test `rule_id` that names no rule in the file (upstream's
+  `"no_rule"` marker is allowed). Lookback item values and the `required` and
+  `if_empty` values in `inflection_locations` are checked for key names only.
 - **License:** the OpenAAC data files are CC BY 4.0 (upstream marker "CC By, OpenAAC";
   version per OpenAAC's maintainer). Each generated file credits OpenAAC and carries the
   upstream marker and license link in `_source`. The upstream repository's MIT license
