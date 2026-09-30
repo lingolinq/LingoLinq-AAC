@@ -5872,17 +5872,8 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-room-card {
   border: 1px solid rgba($brand-dusty-denim, 0.38) !important;
 }
 
-// STATUS BADGES 25% BRIGHTER (requested). Done as an INSET WHITE VEIL rather than by editing
-// the fills: there are twelve `[data-status]` variants, each with its own hue and alpha
-// (app.scss ~48868-48911), and a `background` override here would flatten all twelve into one
-// colour. `box-shadow: inset 0 0 0 999px` floods the pill with 25% white ON TOP of whatever
-// tint it already has, so every variant keeps its identity and every one gets the same lift.
-// It also paints BELOW the ::before icon and the label, so neither is washed out.
-// Contrast is not at risk: the labels are dark ink on these pills, so a brighter fill raises
-// their ratio rather than lowering it.
-body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
-  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.25);
-}
+// (The status "pills" and their 25% white veil are gone: statuses are icon + text since
+// 2026-09-29, app.scss `.md-attention-item__status`.)
 // ===== END EXPERIMENT
 
 // ===== EXPERIMENT 2026-09-21 — badge text contrast. DELETE WHOLE BLOCK ON REVERT.
@@ -5916,19 +5907,22 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__
 // scrolls, and a row further down the card's vignette sits on a darker patch -- keep some
 // headroom.
 // Measured after: see the run in the task log; every family clears 4.5:1.
+// 2026-09-29: statuses are icon + text (app.scss `.md-attention-item__status`); the label is the
+// row's navy ink, and these darkened hues now colour only the ICON (`--status-ink`), where they
+// keep it distinct on the darker Focused rows.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
-  color: color.scale($brand-slate-blue, $lightness: -26%) !important;
+  --status-ink: #{color.scale($brand-slate-blue, $lightness: -26%)};
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="hourglass"],
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="equalizer"] {
-  color: color.scale(color.adjust($brand-honey-bronze, $lightness: -32%), $lightness: -28%) !important;
+  --status-ink: #{color.scale(color.adjust($brand-honey-bronze, $lightness: -32%), $lightness: -28%)};
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="phone"],
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="piggy-bank"] {
-  color: color.scale($brand-dusty-denim-aa, $lightness: -34%) !important;
+  --status-ink: #{color.scale($brand-dusty-denim-aa, $lightness: -34%)};
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status[data-status="exclamation-sign"] {
-  color: color.scale($brand-verdigris-aa, $lightness: -33%) !important;
+  --status-ink: #{color.scale($brand-verdigris-aa, $lightness: -33%)};
 }
 // ===== END EXPERIMENT
 

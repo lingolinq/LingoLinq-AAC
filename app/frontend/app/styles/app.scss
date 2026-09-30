@@ -49312,35 +49312,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 1px;
   background: linear-gradient(180deg, transparent 0%, rgba($la-navy, 0.32) 50%, transparent 100%);
 }
-/* Status as a semantic tinted pill — colour encodes meaning so the status is
-   recognizable at a glance without reading every label, kept low-saturation
-   (≤16% tint) to preserve the calm dashboard feel. The hue is chosen per
-   org_status via [data-status]; the base here is the neutral slate fallback
-   (e.g. unchecked/unknown). Text uses a darker shade of the same hue for AA
-   contrast on the light tint. */
+/* Status as ICON + TEXT, no pill (requested 2026-09-29: a more modern presentation than badges,
+   in every style). The label is plain text in the row's own dark ink, so it reads as part of the
+   row and needs no per-hue contrast tuning; the COLOUR lives only in the icon, which reinforces
+   the status rather than carrying it (the text names it). Each status sets its icon colour as
+   `--status-ink` below; the base is the neutral slate (e.g. unchecked/unknown). */
 .md-attention-item__status {
+  --status-ink: #{$brand-slate-blue};
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 7px;
-  padding: 4px 12px;
-  border-radius: 999px;
+  gap: 8px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  background: rgba($brand-slate-blue, 0.14);
-  color: $brand-slate-blue;
+  color: $la-navy;
 }
-/* Modern representative status icon — a small line-icon before each pill label,
-   masked so it inherits the pill's per-status colour (currentColor). Decorative
-   (the label text already names the status), so no ARIA is needed. */
+/* Modern representative status icon — a small line-icon before each label, masked and painted in
+   the status colour (`--status-ink`). Decorative (the label text already names the status), so no
+   ARIA is needed. */
 @mixin md-attn-status-icon($svg) { mask-image: $svg; -webkit-mask-image: $svg; }
 .md-attention-item__status::before {
   content: "";
   flex: none;
-  width: 15px;
-  height: 15px;
-  background-color: currentColor;
+  width: 16px;
+  height: 16px;
+  background-color: var(--status-ink, currentColor);
   mask-repeat: no-repeat; mask-position: center; mask-size: contain;
   -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
 }
@@ -49372,22 +49369,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-attention-item__status[data-status="exclamation-sign"]::before {
   @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M4.93 4.93l4.24 4.24'/%3E%3Cpath d='M14.83 14.83l4.24 4.24'/%3E%3Cpath d='M14.83 9.17l4.24-4.24'/%3E%3Cpath d='M9.17 14.83l-4.24 4.24'/%3E%3C/svg%3E"));
 }
-/* Amber — evaluation-related waits (Waiting for Evaluation / for Recommendation). */
+/* Icon colours. Amber — evaluation-related waits (Waiting for Evaluation / for Recommendation). */
 .md-attention-item__status[data-status="hourglass"],
 .md-attention-item__status[data-status="equalizer"] {
-  background: rgba($brand-honey-bronze, 0.18);
-  color: color.adjust($brand-honey-bronze, $lightness: -32%);
+  --status-ink: #{color.adjust($brand-honey-bronze, $lightness: -32%)};
 }
 /* Blue — resource waits (Waiting for Device / for Funding). */
 .md-attention-item__status[data-status="phone"],
 .md-attention-item__status[data-status="piggy-bank"] {
-  background: rgba($brand-dusty-denim, 0.12);
-  color: $brand-dusty-denim-aa;
+  --status-ink: #{$brand-dusty-denim-aa};
 }
 /* Teal — needing additional support. */
 .md-attention-item__status[data-status="exclamation-sign"] {
-  background: rgba($brand-verdigris, 0.12);
-  color: $brand-verdigris-aa;
+  --status-ink: #{$brand-verdigris-aa};
 }
 /* ≤460px: stack each Communicators-Need-Attention item vertically — avatar on top
    (it's the first child), name + status centered below — instead of the avatar-left
