@@ -607,6 +607,13 @@
                   <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "record_note" supervisee)}}>{{t "New Note" key="new_note"}}</button></li>
                   <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "quick_assessment" supervisee)}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
                   <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "run_eval" supervisee)}}>{{t "Run Evaluation" key="run_evaluation"}}</button></li>
+                  {{!-- Quick Screen Eval and Eval History, as on the Modern caseload (requested
+                       2026-09-30), behind the same flag. The same pages for this communicator;
+                       Quick Screen's Cancel returns here (components/eval-quick-screen.js). --}}
+                  {{#if this.app_state.feature_flags.quick_screen_eval}}
+                    <li><LinkTo @route="eval.quick" @model={{supervisee.user_name}} class="ch-menu__item">{{t "Quick Screen Eval" key="quick_screen_eval"}}</LinkTo></li>
+                    <li><LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}} class="ch-menu__item">{{t "Eval History" key="eval_history_link"}}</LinkTo></li>
+                  {{/if}}
                   {{#if this.app_state.feature_flags.remote_modeling}}
                     <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "remote_model" supervisee)}}>{{t "Remote Modeling" key="remote_modeling"}}</button></li>
                   {{/if}}

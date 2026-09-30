@@ -1600,9 +1600,9 @@ export default Component.extend({
           user = this.appState.get('currentUser');
         }
       }
-      this.appState.check_for_currently_premium(user, 'eval', false, true).then(function() {
-        this.appState.set_speak_mode_user(emberGet(user, 'id'), false, false, 'obf/eval');
-      }.bind(this));
+      this._eval_user_record(user).then((record) => this.appState.check_for_currently_premium(record, 'eval', false, true).then(() => {
+        this.appState.set_speak_mode_user(emberGet(record, 'id'), false, false, 'obf/eval');
+      }), () => { modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user")); });
     },
     remote_model: function(user) {
       if(user.premium || emberGet(user, 'currently_premium')) {
@@ -1851,5 +1851,17 @@ export default Component.extend({
     home_board: function(key) {
       this.get('router').transitionTo('board', key);
     }
+  },
+
+  /* THE USER RECORD FOR RUN EVALUATION (fixed 2026-09-30). The Basic Communicators card passes a
+     supervisee ENTRY, a plain object from `known_supervisees` (models/user.js, the raw
+     `supervisees` attribute), and `appState.check_for_currently_premium` reads computeds only a
+     user record has (`currently_premium`, `currently_premium_or_premium_supporter`), through
+     `.get` -- a TypeError on the plain object, so the eval never started. A record is used as
+     it is; an entry is loaded by id first, as controllers/caseload.js#run_eval does. Kept last
+     so no line of the line-anchored ESLint baseline shifts. */
+  _eval_user_record(user) {
+    if(user && typeof user.get === 'function') { return Promise.resolve(user); }
+    return this.get('store').findRecord('user', emberGet(user, 'id'));
   }
 });

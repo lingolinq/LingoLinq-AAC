@@ -4,6 +4,8 @@ import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
+import { hand_off_index_nav } from '../utils/basic_landing';
 
 /*
  * eval-quick-screen — Phase 1A container component for the 5-minute Quick Screen flow.
@@ -14,6 +16,7 @@ import i18n from '../utils/i18n';
  */
 export default Component.extend({
   router: service('router'),
+  appState: service('app-state'),
   classNames: ['evq', 'evq--quick'],
   tagName: 'div',
   user: null,
@@ -124,6 +127,12 @@ export default Component.extend({
     },
 
     cancel() {
+      /* Basic reaches Quick Screen from a Communicators card (classic-view.hbs, the card's
+         Extras panel), so Cancel opens that tab again rather than the home page's default
+         Actions tab, through the view switch's one-shot handoff (utils/basic_landing.js). */
+      if(is_classic(this.get('appState.effective_view_user'))) {
+        hand_off_index_nav(this.get('appState'), 'supervisees');
+      }
       this.get('router').transitionTo('index');
     }
   }
