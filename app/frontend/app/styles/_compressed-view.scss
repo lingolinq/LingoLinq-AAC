@@ -93,16 +93,15 @@ body.ll-density-compressed .md-shell--home {
   line-height: 1.2;
 }
 
-.md-compact-head__meta {
-  font-size: 16px;
-  font-weight: 600;
-}
-
 // Open My Caseload in the heading row, dressed as the Gentle My Caseload card-as-button: the same
 // glass surface and shadow (:root --md-caseload-glass-bg / --md-caseload-glass-shadow in app.scss).
 // Not an `.md-btn`, whose !important surface would have to be overridden. Focused wears the
 // caseload hero material instead (_focused-view.scss).
+// `top: -8px` (requested 2026-09-29): raised 8px from the row's centre line, by exactly 8px; a
+// negative margin inside the centred row would only move it half that.
 .md-compact-head__caseload {
+  position: relative;
+  top: -8px;
   display: inline-flex;
   align-items: center;
   min-height: 44px;

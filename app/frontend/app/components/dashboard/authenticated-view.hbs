@@ -35,18 +35,15 @@
   <main class="md-main">
     {{!-- COMPRESSED VIEW heading row (compressedHome in authenticated-view.js). Takes the place
          of the greeting hero, the My Caseload card and the Create a Board / Edit Dashboard cards,
-         which are hidden while it shows: the dashboard title and the caseload count on the left,
-         and Open My Caseload, styled as each view's own caseload button, right-aligned
-         (`.md-compact-head` is `justify-content: space-between`; requested 2026-09-29).
+         which are hidden while it shows: the dashboard title on the left and Open My Caseload,
+         styled as each view's own caseload button, right-aligned (`.md-compact-head` is
+         `justify-content: space-between`). No communicator count (requested 2026-09-29).
          Create a Board is in the account rail ("Create Board"); Edit Dashboard is not offered in
          Compressed View at all, here or as the navbar's Display Style disc. --}}
     {{#if this.compressedHome}}
       <header class="md-compact-head">
         <div class="md-compact-head__titles">
           <h1 class="md-compact-head__title">{{t "Dashboard" key="dashboard"}}</h1>
-          {{#if this.sectionAvailable.caseload}}
-            <span class="md-compact-head__meta">{{t "communicator" count=this.slpCommunicatorCount key="slp_communicators"}}</span>
-          {{/if}}
         </div>
         {{#if this.sectionAvailable.caseload}}
           <LinkTo @route="caseload" class="md-compact-head__caseload">{{t "Open My Caseload" key="focused_home_caseload_sub"}}</LinkTo>
