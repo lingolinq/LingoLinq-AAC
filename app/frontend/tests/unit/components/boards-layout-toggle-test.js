@@ -3,6 +3,7 @@ import EmberObject from '@ember/object';
 import Service from '@ember/service';
 import { setupTest } from '../../helpers';
 import { SIDE_BY_SIDE, TOP_DOWN } from 'frontend/components/boards-layout-toggle';
+import { BOARDS_LAYOUT_KEY, setStorageForTesting, readStoredLayout, writeStoredLayout, clearStoredLayout } from 'frontend/utils/boards_layout_state';
 
 /* The Boards-page layout selector (2026-08-16). It reflects its choice as
  * `data-boards-layout` on <body> and persists it in localStorage, so it owns three
@@ -12,13 +13,19 @@ import { SIDE_BY_SIDE, TOP_DOWN } from 'frontend/components/boards-layout-toggle
  *
  * localStorage is stubbed per test rather than used live — a real write would leak
  * the tester's own layout choice into the suite, and the throw path (Safari private
- * mode, sandboxed iframes) cannot be reproduced any other way.
+ * mode, sandboxed iframes) cannot be reproduced any other way. The two real-storage
+ * tests below are the exception: they pin the binding to window.localStorage and put
+ * back whatever the key held before.
+ *
+ * The stub goes through setStorageForTesting(), NOT by replacing window.localStorage.
+ * Other page-level code reads that global on its own timers: capabilities' 2s auth-sync
+ * tick calls localStorage.getItem, so a plain-object stub installed on window made the
+ * tick throw "localStorage.getItem is not a function" into whichever test was running.
  */
 module('Unit | Component | boards-layout-toggle', function(hooks) {
   setupTest(hooks);
 
   hooks.beforeEach(function() {
-    this._realStorage = window.localStorage;
     this._realAttr = document.body.getAttribute('data-boards-layout');
     // The component injects app-state to read/write the preference. Register a
     // no-user stub by default so the storage-only tests below never touch the real
@@ -27,9 +34,7 @@ module('Unit | Component | boards-layout-toggle', function(hooks) {
   });
 
   hooks.afterEach(function() {
-    try {
-      Object.defineProperty(window, 'localStorage', { value: this._realStorage, configurable: true });
-    } catch (e) { /* restoring is best-effort; the stub is per-test anyway */ }
+    setStorageForTesting(null);
     if (this._realAttr === null) {
       document.body.removeAttribute('data-boards-layout');
     } else {
@@ -38,7 +43,7 @@ module('Unit | Component | boards-layout-toggle', function(hooks) {
   });
 
   function stubStorage(store) {
-    Object.defineProperty(window, 'localStorage', { value: store, configurable: true });
+    setStorageForTesting(store);
   }
 
   function throwingStorage() {
@@ -47,6 +52,46 @@ module('Unit | Component | boards-layout-toggle', function(hooks) {
       set: function() { throw new Error('SecurityError: localStorage is disabled'); }
     });
   }
+
+  // Every other test here goes through the stand-in, so this one pins that the util really
+  // is bound to window.localStorage when no stand-in is set. It never replaces the global,
+  // and it puts back whatever the key held before.
+  test('with no stand-in, the layout round-trips through the real localStorage', function(assert) {
+    assert.expect(2);
+    setStorageForTesting(null);
+    var prior = window.localStorage.getItem(BOARDS_LAYOUT_KEY);
+    try {
+      writeStoredLayout(TOP_DOWN);
+      assert.strictEqual(window.localStorage.getItem(BOARDS_LAYOUT_KEY), TOP_DOWN, 'written to the real storage');
+      assert.strictEqual(readStoredLayout(), TOP_DOWN, 'and read back from it');
+    } finally {
+      if (prior === null) {
+        window.localStorage.removeItem(BOARDS_LAYOUT_KEY);
+      } else {
+        window.localStorage.setItem(BOARDS_LAYOUT_KEY, prior);
+      }
+    }
+  });
+
+  // Sign-out calls clearStoredLayout (services/app-state.js) so the next person on a shared
+  // device does not inherit this user's arrangement. Pin that it clears the REAL storage.
+  test('with no stand-in, clearing removes the layout from the real localStorage', function(assert) {
+    assert.expect(2);
+    setStorageForTesting(null);
+    var prior = window.localStorage.getItem(BOARDS_LAYOUT_KEY);
+    try {
+      window.localStorage.setItem(BOARDS_LAYOUT_KEY, TOP_DOWN);
+      clearStoredLayout();
+      assert.strictEqual(window.localStorage.getItem(BOARDS_LAYOUT_KEY), null, 'removed from the real storage');
+      assert.strictEqual(readStoredLayout(), SIDE_BY_SIDE, 'so the next reader gets the default');
+    } finally {
+      if (prior === null) {
+        window.localStorage.removeItem(BOARDS_LAYOUT_KEY);
+      } else {
+        window.localStorage.setItem(BOARDS_LAYOUT_KEY, prior);
+      }
+    }
+  });
 
   test('defaults to SIDE-BY-SIDE with nothing stored', function(assert) {
     stubStorage({});

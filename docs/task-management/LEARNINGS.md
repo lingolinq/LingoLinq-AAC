@@ -193,12 +193,13 @@ Admission rule for an entry in this file:
   indistinguishable from "no words", and blanked the panel under a live dwell. Keep stale predictions
   visible until the new set arrives; never swap under a dwell. Symbol: `_pending_reject` in
   `app/frontend/app/utils/ai_word_predictor.js`.
-- **Render-check the Classic speak bar on `/<user>/board/<name>`, reached by in-app navigation.**
+- **Render-check the Classic speak bar on `/<user>/board/<name>`.**
   `application.hbs` wraps the whole global header, `#speak` included, in `{{#unless this.on_board_detail}}`,
   so on a `/board-detail/` route the Classic bar is absent by design. Board-detail renders its own
   `id="speak"` sentence row, so probe a selector it does not render (`.speak-bar__button-list-wrap`), not
-  `#speak`. In-app navigation lands on board-detail unless the user's board view style is classic, and a
-  hard load of the Classic URL 404s until issue #1037 is fixed. Symbol: `on_board_detail` in `app/frontend/app/controllers/application.js`.
+  `#speak`. In-app navigation lands on board-detail unless the user's board view style is classic. A
+  hard load of the Classic URL also works since #1037. Symbol: `on_board_detail` in
+  `app/frontend/app/controllers/application.js`.
 
 ## SCSS and layout
 
@@ -310,8 +311,15 @@ Admission rule for an entry in this file:
   re-validates a dismissed finding as a routine `reseen`. Symbol: `SCOT_OWNED_CLOSED` in
   `scripts/audit-merge.rb`.
 - **A finding id is `SHA256(ruleKey|file)`, and evidence must match per source line.** Rescoping a row's
-  file in place, or a register-adding script with a looser snippet matcher, reddens the local
-  citation-check later. Cite `scripts/audit-merge.rb`.
+  file in place reddens `register-lint.rb` in CI (it recomputes and requires the derived id) and the
+  local citation-check; a register-adding script with a looser snippet matcher reddens the local
+  citation-check later. Cite
+  `scripts/audit-merge.rb`. The id half does not hold for a row whose ruleKey is the
+  self-referencing withheld form (`minimized-finding-` + its own id, lowercased), which register-lint
+  allows only on a row listed in `audit-reports/SELF-REFERENCING-RULEKEY-IDS.json`: on a listed row in
+  that form neither script recomputes the id (citation-check skips every row in the form; register-lint
+  skips only a listed one, and refuses an unlisted one anyway), so an in-place rescope there shows no id
+  mismatch (the snippet check still runs) and needs review instead.
 - **Register merges are unions, then regenerate; never `json.dumps` the file.** Keep both sides' unique
   rows and the longer notes trail, and edit prose by exact text replace, since a Python dump escapes
   `§` across every note. Cite `scripts/regenerate-register.sh`.
