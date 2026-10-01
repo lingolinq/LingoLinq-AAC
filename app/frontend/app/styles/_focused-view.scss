@@ -53,6 +53,8 @@
 // invent new focused colors here.
 
 @use "variables" as *;
+@use "color-fallbacks" as *;
+@use "sass:map";
 @use "chips" as *;
 @use "sass:color";
 
@@ -263,6 +265,13 @@ $focus-card-surface:
   linear-gradient(140deg,
     color-mix(in oklch, $brand-dusty-denim 13%, white) 0%,
     color-mix(in oklch, $brand-dusty-denim 22%, white) 100%);
+// sRGB fallback for the token above, same layers (_color-fallbacks.scss).
+$focus-card-surface-fallback:
+  radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 48%),
+  radial-gradient(28% 40% at 100% 100%, cf-srgb(cf-oklch-mix($brand-verdigris, white, 24%)) 0%, transparent 46%),
+  linear-gradient(140deg,
+    cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 13%)) 0%,
+    cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 22%)) 100%);
 
 // A LIGHTER sibling of the surface above, for the large analysis panels (Activity /
 // Highlights) that sit beneath the KPI tiles. Same three-layer recipe — white sheen
@@ -281,6 +290,13 @@ $focus-card-surface-light:
   linear-gradient(140deg,
     color-mix(in oklch, $brand-dusty-denim 5%, white) 0%,
     color-mix(in oklch, $brand-dusty-denim 9%, white) 100%);
+// sRGB fallback for the token above, same layers (_color-fallbacks.scss).
+$focus-card-surface-light-fallback:
+  radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0) 48%),
+  radial-gradient(28% 40% at 100% 100%, cf-srgb(cf-oklch-mix($brand-verdigris, white, 11%)) 0%, transparent 46%),
+  linear-gradient(140deg,
+    cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 5%)) 0%,
+    cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 9%)) 100%);
 
 // A slightly DARKER sibling of `$focus-card-surface` (requested 2026-09-30: "a bit darker bg to
 // the avatar on the account page"). Same three-layer recipe with every tint taken a step
@@ -293,6 +309,13 @@ $focus-card-surface-deep:
   linear-gradient(140deg,
     color-mix(in oklch, $brand-dusty-denim 20%, white) 0%,
     color-mix(in oklch, $brand-dusty-denim 30%, white) 100%);
+// sRGB fallback for the token above, same layers (_color-fallbacks.scss).
+$focus-card-surface-deep-fallback:
+  radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
+  radial-gradient(28% 40% at 100% 100%, cf-srgb(cf-oklch-mix($brand-verdigris, white, 30%)) 0%, transparent 46%),
+  linear-gradient(140deg,
+    cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 20%)) 0%,
+    cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 30%)) 100%);
 
 // The focused Boards CARD background — the frosted two-layer gradient from
 // `.md-grid--layout-focused .md-card--boards`. Reused by the Boards section panel and
@@ -710,6 +733,7 @@ body.ll-layout-focused .md-user-summary {
   .ub-boards-page__show-more-btn:focus-visible {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(160deg, $focus-btn-base-dark-fallback 0%, $focus-btn-edge-dark-fallback 100%) !important; // sRGB fallback (_color-fallbacks.scss)
     background: linear-gradient(160deg in oklab,
       color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
       color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%) !important;
@@ -868,6 +892,7 @@ body.ll-layout-focused .md-user-summary {
   // the Focused re-skin too or it would revert to the base glassy white here alone.
   .ub-boards-page__section-icon,
   .ub-boards-page__folders-chevron-btn {
+    background: $focus-card-surface-fallback !important; // sRGB fallback (_color-fallbacks.scss)
     background: $focus-card-surface !important;
     border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
   }
@@ -878,6 +903,7 @@ body.ll-layout-focused .md-user-summary {
   .ub-boards-page__boards-summary-stat--in-folders,
   .ub-boards-page__boards-summary-stat--unfiled,
   .ub-boards-page__folders-count {
+    background: $focus-card-surface-fallback !important; // sRGB fallback (_color-fallbacks.scss)
     background: $focus-card-surface !important;
   }
 }
@@ -1072,6 +1098,7 @@ body.ll-layout-focused .md-shell--reports-view {
   // corner, dusty-denim gradient beneath). Using the shared token rather than
   // copying that gradient means the two pages cannot drift apart.
   .report-kpi {
+    background: $focus-card-surface-fallback !important; // sRGB fallback (_color-fallbacks.scss)
     background: $focus-card-surface !important;
     border-color: rgba($brand-dusty-denim, 0.24) !important;
   }
@@ -1081,6 +1108,7 @@ body.ll-layout-focused .md-shell--reports-view {
   // headline figures in the visual hierarchy rather than competing with them.
   .report-trend,
   .report-insights {
+    background: $focus-card-surface-light-fallback !important; // sRGB fallback (_color-fallbacks.scss)
     background: $focus-card-surface-light !important;
     border-color: rgba($brand-dusty-denim, 0.18) !important;
   }
@@ -1227,6 +1255,7 @@ body.ll-layout-focused {
   .board-picker-page__new-btn:focus-visible {
     color: $focus-on-dark;
     border-color: rgba($focus-on-dark, 0.18);
+    background: linear-gradient(160deg, $focus-btn-base-fallback 0%, $focus-btn-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
     background: linear-gradient(160deg in oklab,
       #{$focus-btn-base} 0%,
       #{$focus-btn-edge} 100%);
@@ -1657,6 +1686,7 @@ body.ll-layout-focused {
     // A shallow ramp: the edge is 9% darker than the centre. It stays shallow on purpose —
     // a wide one spans too much luminance for a single ink, which is what forced white to
     // fail the light centre (2.66-3.09:1) and navy the dark edge (2.46-3.45:1) earlier.
+      background: radial-gradient(ellipse at center, cf-srgb($tint) 0%, cf-srgb(color.scale($tint, $lightness: -9%)) 100%) !important; // sRGB fallback (_color-fallbacks.scss)
       background: radial-gradient(ellipse at center in oklab,
         #{$tint} 0%,
         #{color.scale($tint, $lightness: -9%)} 100%) !important;
@@ -2104,6 +2134,7 @@ body.ll-layout-focused {
   .md-shell--caseload .md-caseload__list-avatar {
     background: $surface-100 !important;
     border-width: 3px !important;
+    border-color: cf-srgb(cf-oklab-mix($focus-hero-center-color, white, 40%)) !important; // sRGB fallback (_color-fallbacks.scss)
     border-color: color-mix(in oklab, #{$focus-hero-center} 40%, white) !important;
     // The More Actions tile's EDGE stop, not its centre. Its centre resolved to
     // oklab(0.563 …) against the Model centre's oklab(0.550 …) — a ~1% lightness
@@ -2112,6 +2143,7 @@ body.ll-layout-focused {
     // source mixed into the same navy anchor lands almost exactly on Model. Taking the
     // edge stop keeps the ring sourced from that same tile while giving the two rings a
     // visible step.
+    box-shadow: inset 0 0 0 3px cf-srgb(cf-oklab-mix(cf-oklab-mix(cf-oklab-mix(#E2E7EE, black, 55%), cf-oklab-mix($focus-hero-edge-color, white, 40%), 26%), white, 95%)) !important; // sRGB fallback (_color-fallbacks.scss)
     box-shadow: inset 0 0 0 3px
       color-mix(in oklab,
         color-mix(in oklab,
@@ -2267,6 +2299,7 @@ body.ll-layout-focused {
   // The avatar tile takes the badge-action card surface, a step darker (2026-09-30): the
   // `$focus-card-surface-deep` sibling of the boards-page section-icon surface it used before.
   .md-hero--user__avatar {
+    background: $focus-card-surface-deep-fallback !important; // sRGB fallback (_color-fallbacks.scss)
     background: $focus-card-surface-deep !important;
   }
   // SLATE RING ROUND THE AVATAR PICTURE (requested 2026-09-30). The circle is part of the avatar
@@ -2346,6 +2379,7 @@ body.ll-layout-focused .md-preferences {
   // so the two chrome tiles read as one family. Hover keeps the same surface.
   .md-pref-box__chevron,
   .md-pref-box__header:hover .md-pref-box__chevron {
+    background: $focus-card-surface-fallback !important; // sRGB fallback (_color-fallbacks.scss)
     background: $focus-card-surface !important;
   }
 }
@@ -2477,6 +2511,13 @@ body.ll-layout-focused .nb-stepper-mini__input {
 // `!important` — so none is needed here.
 body.ll-layout-focused .nb-grid-picker__cell--on {
   border-color: rgba($focus-on-dark, 0.14);
+  // sRGB fallback first, both layers restated (_color-fallbacks.scss); the modern one follows.
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.60) 0%,
+      rgba(255, 255, 255, 0.20) 40%,
+      rgba(255, 255, 255, 0) 62%),
+    radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%);
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.60) 0%,
@@ -2677,6 +2718,7 @@ body.ll-layout-focused .md-shell--create-board-new {
   .nb-wizard__next.btn.btn-primary:focus-visible {
     color: $focus-on-dark;
     border-color: rgba($focus-on-dark, 0.18);
+    background: linear-gradient(160deg, $focus-btn-base-dark-fallback 0%, $focus-btn-edge-dark-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
     background: linear-gradient(160deg in oklab,
       color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
       color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%);
@@ -2733,6 +2775,7 @@ body.ll-layout-focused .md-shell--create-board-new {
   .nb-create-rail__submit:focus-visible {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(160deg, $focus-btn-base-dark-fallback 0%, $focus-btn-edge-dark-fallback 100%) !important; // sRGB fallback (_color-fallbacks.scss)
     background: linear-gradient(160deg in oklab,
       color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
       color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%) !important;
@@ -3832,6 +3875,14 @@ $ch-hero-veil-chip:  0.12;
   @return #{'oklch(' + $l + ' ' + $c + ' ' + $h + ')'};
 }
 
+// sRGB fallbacks for one hero tile's two stops (_color-fallbacks.scss), computed from the same
+// chroma and hue as its `$ch-focused-*-hero-*` tokens below: shell -> 6% white (base) -> centre
+// (84% base) and edge (66% base, 34% black).
+@function ch-hero-fallbacks($c, $h, $l: $ch-hero-shell-l) {
+  $base: cf-oklch-mix(oklch($l $c $h), white, 94%);
+  @return ('center': cf-srgb(cf-oklch-mix($base, white, 84%)), 'edge': cf-srgb(cf-oklch-mix($base, black, 66%)));
+}
+
 // Hue and chroma per card. These four lines are the whole palette.
 $ch-hero-speak-c:   0.128;  $ch-hero-speak-h:   260;   // deep blue indigo  -> dusty periwinkle
 $ch-hero-reports-c: 0.050;  $ch-hero-reports-h: 198;   // deep slate teal   -> muted eucalyptus
@@ -4110,9 +4161,11 @@ $ch-focused-chip-lite: #CAD9E7;   // the disc's own specular top stop
 // therefore the worst case for light ink; the edges are darker and read higher.
 $ch-focused-hero-more-ink: #E5E5E5;
 
-@mixin ch-focused-hero-tile($center, $edge) {
+@mixin ch-focused-hero-tile($center, $edge, $fallback) {
   color: $focus-on-dark !important;
   border: 1px solid rgba($focus-on-dark, 0.14) !important;
+  // sRGB fallback first (_color-fallbacks.scss; `$fallback` from ch-hero-fallbacks()).
+  background: radial-gradient(ellipse at center, map.get($fallback, 'center') 0%, map.get($fallback, 'edge') 100%) !important;
   background: radial-gradient(ellipse at center in oklab,
     #{$center} 0%,
     #{$edge} 100%) !important;
@@ -4295,19 +4348,19 @@ $ch-focused-hero-more-ink: #E5E5E5;
      it applies rather than racing it. */
   .ch-tile--big.ch-tile--speak-main {
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-speak-start 0%, $ch-focused-speak-end 100%));
-    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-speak-hero-center, $ch-focused-speak-hero-edge); }
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-speak-hero-center, $ch-focused-speak-hero-edge, ch-hero-fallbacks($ch-hero-speak-c, $ch-hero-speak-h)); }
   }
   .ch-tile--big.ch-tile--reports {
     @include ch-focused-glass-tile(linear-gradient(145deg, $ch-focused-reports-start 0%, $ch-focused-reports-mid 55%, $ch-focused-reports-end 100%));
-    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-reports-hero-center, $ch-focused-reports-hero-edge); }
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-reports-hero-center, $ch-focused-reports-hero-edge, ch-hero-fallbacks($ch-hero-reports-c, $ch-hero-reports-h)); }
   }
   .ch-tile--big.ch-tile--ideas {
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-ideas-start 0%, $ch-focused-ideas-end 100%));
-    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-ideas-hero-center, $ch-focused-ideas-hero-edge); }
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-ideas-hero-center, $ch-focused-ideas-hero-edge, ch-hero-fallbacks($ch-hero-ideas-c, $ch-hero-ideas-h)); }
   }
   .ch-tile--big.ch-tile--extras-toggle {
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-extras-start 0%, $ch-focused-extras-end 100%));
-    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-extras-hero-center, $ch-focused-extras-hero-edge); }
+    body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-extras-hero-center, $ch-focused-extras-hero-edge, ch-hero-fallbacks($ch-hero-extras-c, $ch-hero-extras-h)); }
   }
 
   .ch-tile--big {
@@ -5388,6 +5441,7 @@ body.ll-layout-focused {
     font-weight: 850;
     color: $focus-on-dark;
     border-color: rgba($focus-on-dark, 0.18);
+    background: linear-gradient(160deg, $focus-btn-base-dark-fallback 0%, $focus-btn-edge-dark-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
     background: linear-gradient(160deg in oklab,
       color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
       color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%);
@@ -5822,9 +5876,17 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:f
 // same $focus-hero-* tokens so the two cannot drift. Read by the card's `$bg-token` above; the
 // card's light title ink already suits it. Gentle's value is set in _compressed-view.scss.
 body.ll-layout-focused.ll-density-compressed .md-shell--home {
-  --dn-attention-bg-focused: radial-gradient(ellipse at center in oklab,
-    #{$focus-hero-center} 0%,
-    #{$focus-hero-edge} 100%);
+  // A custom property takes any value, so an unparseable modern value would not fall back: the
+  // `background` reading it would turn transparent. So the sRGB value is the default and the
+  // modern one is set only where the browser supports it (_color-fallbacks.scss).
+  --dn-attention-bg-focused: radial-gradient(ellipse at center, #{$focus-hero-center-fallback} 0%, #{$focus-hero-edge-fallback} 100%);
+}
+@supports (background: radial-gradient(ellipse at center in oklab, red, blue)) and (color: color-mix(in oklch, red, blue)) {
+  body.ll-layout-focused.ll-density-compressed .md-shell--home {
+    --dn-attention-bg-focused: radial-gradient(ellipse at center in oklab,
+      #{$focus-hero-center} 0%,
+      #{$focus-hero-edge} 100%);
+  }
 }
 
 // Count chips (app.scss `.md-attention__count, .md-rooms__count`). The base 14% verdigris tint mixes
@@ -6203,5 +6265,6 @@ body.ll-layout-focused .progress-highlight {
 // also (0,3,1) -- would have come down to emission order between two partials. Matching that
 // rule's own scope and adding the `:not()` makes it (0,4,1), which wins outright.
 body.ll-layout-focused .md-shell--reports-view .report-kpi:not(.room-kpi) {
+  background: $focus-card-surface-light-fallback !important; // sRGB fallback (_color-fallbacks.scss)
   background: $focus-card-surface-light !important;
 }

@@ -26,6 +26,7 @@
 
 @use "sass:color";
 @use "sass:list";
+@use "color-fallbacks" as *;
 
 // -----------------------------------------------------------------------------
 // Brand colors
@@ -539,6 +540,14 @@ $focus-hero-base:        color-mix(in oklch, $brand-navy, gray 28%);
 // Glossy radial gradient stops: lit center (a hair of white) → deep muted edge.
 $focus-hero-center:      color-mix(in oklch, $focus-hero-base 84%, white);
 $focus-hero-edge:        color-mix(in oklch, $focus-hero-base, black 34%);
+// sRGB fallbacks for the two stops, computed from the same anchors (_color-fallbacks.scss). Place a
+// declaration using these BEFORE any modern one that uses the color-mix tokens above.
+$focus-hero-base-color:      cf-oklch-mix($brand-navy, gray, 72%);
+$focus-hero-center-color:    cf-oklch-mix($focus-hero-base-color, white, 84%);
+$focus-hero-edge-color:      cf-oklch-mix($focus-hero-base-color, black, 66%);
+$focus-hero-base-fallback:   cf-srgb($focus-hero-base-color);
+$focus-hero-center-fallback: cf-srgb($focus-hero-center-color);
+$focus-hero-edge-fallback:   cf-srgb($focus-hero-edge-color);
 // Ink (text / icon / arrow / bevel sheen) sitting ON any dark Focused surface.
 $focus-on-dark:          #ffffff;
 // Ink color tinting every Focused elevation shadow (hero + cards + trigger).
@@ -598,6 +607,14 @@ $focus-text-muted:       #8A97A8;
 // color-mix() values — use ONLY via #{} interpolation in gradients (not rgba()).
 $focus-btn-base:         color-mix(in oklch, $brand-dusty-denim, gray 22%);
 $focus-btn-edge:         color-mix(in oklch, $focus-btn-base, black 14%);
+// sRGB fallbacks for the Focused primary buttons' gradient, which darkens each stop 10% in oklab
+// (`color-mix(in oklab, <stop> 90%, black)` at each use site).
+$focus-btn-base-color:          cf-oklch-mix($brand-dusty-denim, gray, 78%);
+$focus-btn-edge-color:          cf-oklch-mix($focus-btn-base-color, black, 86%);
+$focus-btn-base-fallback:       cf-srgb($focus-btn-base-color);
+$focus-btn-edge-fallback:       cf-srgb($focus-btn-edge-color);
+$focus-btn-base-dark-fallback:  cf-srgb(cf-oklab-mix($focus-btn-base-color, black, 90%));
+$focus-btn-edge-dark-fallback:  cf-srgb(cf-oklab-mix($focus-btn-edge-color, black, 90%));
 
 // =============================================================================
 // CASELOAD — quick-action fill tints

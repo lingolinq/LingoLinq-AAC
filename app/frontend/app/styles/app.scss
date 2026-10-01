@@ -2,6 +2,7 @@
 @use "sass:color";
 @use "sass:list";
 @use "variables" as *;
+@use "color-fallbacks" as *;
 @use "chips" as *;
 @use "focus" as *;
 @use "eval_quick";
@@ -32939,6 +32940,7 @@ body.ll-layout-focused .app-navbar__home-actions .md-display-style__trigger {
    background changes from the shared focused-disc rule above; the Display Style
    disc keeps the blue-grey→charcoal-blue gradient. */
 body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger {
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%) !important; // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%) !important;
@@ -33577,6 +33579,7 @@ $ds-choice-width: 380px;
    text, raised bevel. Same values as the `body.ll-layout-focused …md-tour__btn--primary`
    rule further down this file. */
 .md-ds-select[data-gst-layout="focused"] {
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%);
@@ -33984,6 +33987,7 @@ $ds-choice-width: 380px;
   cursor: pointer;
   text-decoration: none;
   transition: transform 0.14s ease, box-shadow 0.14s ease;
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%);
@@ -56105,6 +56109,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   /* "Glossy button" radial sheen on a DESATURATED Brand Navy ($focus-hero-base):
      lightest in the CENTER, fading to a dark muted navy at the OUTSIDE edges
      (OKLAB-interpolated). See $focus-hero-center / $focus-hero-edge. */
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%) !important; // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%) !important;
@@ -56297,6 +56302,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   border-color: rgba($focus-on-dark, 0.18) !important;
   /* Desaturated Dusty Denim "glossy button" — top stop is the muted brand swatch
      ($focus-btn-base), fading a touch deeper ($focus-btn-edge) for raised depth. */
+  background: linear-gradient(160deg, $focus-btn-base-fallback 0%, $focus-btn-edge-fallback 100%) !important; // sRGB fallback (_color-fallbacks.scss)
   background: linear-gradient(160deg in oklab,
     #{$focus-btn-base} 0%,
     #{$focus-btn-edge} 100%) !important;
@@ -56910,6 +56916,13 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      THE TOP-LEFT SHEEN IS LEFT AT 0.65 — only the three COLOUR stops are darkened, which is
      what was asked. The sheen is white, so the darkening reads weakest under it and strongest
      away from it; if the card should come down evenly, that alpha is the second lever. */
+  // sRGB fallback, all three layers restated (_color-fallbacks.scss); the modern value follows.
+  background:
+    radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0) 48%),
+    radial-gradient(28% 40% at 100% 100%, cf-srgb(cf-oklab-mix(cf-oklch-mix($brand-verdigris, white, 24%), black, 90%)) 0%, transparent 46%),
+    linear-gradient(140deg,
+      cf-srgb(cf-oklab-mix(cf-oklch-mix($brand-dusty-denim, white, 23%), black, 90%)) 0%,
+      cf-srgb(cf-oklab-mix(cf-oklch-mix($brand-dusty-denim, white, 35%), black, 90%)) 100%) !important;
   background:
     /* Top-left white sheen. 0.65 -> 0.40: at 0.65 this washed the denim tint out across
        most of the card, so raising the denim percentage kept measuring bluer while barely
@@ -60787,6 +60800,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__tool-bt
   background: $brand-blue-grey;
 }
 body.ll-view-basic .new-board-mockup-wrap .md-board-detail-sentence-bar__tool-btn--clear {
+  background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 75%)); // sRGB fallback (_color-fallbacks.scss)
   background: color-mix(in oklch, #{$brand-charcoal-blue} 75%, white);
 }
 /* The same slight glass the real board-alt controls wear, via the shared mixin so the two
@@ -68729,6 +68743,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   // Home button: Verdigris
   #inner_header:has(#speak) .speak-header__home-marker .btn,
   #inner_ember.board-alt-view #inner_header:has(#speak) #home_button.btn {
+    background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 75%)) !important; // sRGB fallback (_color-fallbacks.scss)
     background: color-mix(in oklch, $brand-charcoal-blue 75%, white) !important;
     border: none !important;
     border-radius: 12px !important;
@@ -68754,6 +68769,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
       mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z'/%3E%3C/svg%3E") center / contain no-repeat;
     }
     &:hover, &:focus-visible {
+      background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 60%)) !important; // sRGB fallback (_color-fallbacks.scss)
       background: color-mix(in oklch, $brand-charcoal-blue 60%, white) !important;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32) !important;
       transform: translateY(-1px);
@@ -68796,6 +68812,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   // Speak bar container: Charcoal Blue
   #inner_header:has(#speak) .speak-bar__button-list-wrap {
+    background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 75%)) !important; // sRGB fallback (_color-fallbacks.scss)
     background: color-mix(in oklch, $brand-charcoal-blue 75%, white) !important;
     border: none !important;
     border-radius: 12px !important;
@@ -68867,6 +68884,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   // Clear button: Stormy Teal
   #inner_header:has(#speak) #clear_button {
+    background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 75%)) !important; // sRGB fallback (_color-fallbacks.scss)
     background: color-mix(in oklch, $brand-charcoal-blue 75%, white) !important;
     border: none !important;
     border-radius: 12px !important;
@@ -69061,6 +69079,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   // Exit Boards button: icon + label stacked, modern pill style
   #inner_header:has(#nav_header) #board_done {
+    background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 75%)) !important; // sRGB fallback (_color-fallbacks.scss)
     background: color-mix(in oklch, $brand-charcoal-blue 75%, white) !important;
     border: none !important;
     border-radius: 12px !important;
@@ -69566,6 +69585,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   // Other .btn-default buttons in board bar: neutral palette tone
   #inner_header:has(#nav_header) .nav-header__board-bar .btn-default,
   #inner_header:has(#nav_header) .nav-header__board-bar .btn-primary:not(#speak_mode) {
+    background: cf-srgb(cf-oklch-mix($brand-charcoal-blue, white, 75%)) !important; // sRGB fallback (_color-fallbacks.scss)
     background: color-mix(in oklch, $brand-charcoal-blue 75%, white) !important;
     border: none !important;
     border-radius: 12px !important;
@@ -69888,6 +69908,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   // Buttons: lighten background 50% toward white, subtle border, softer radius
   .board .button {
     background: color-mix(in oklch, var(--btn-bg, $color-linen) 50%, white) !important;
+    // OLD-BROWSER FALLBACK (_color-fallbacks.scss). The value above mixes a runtime var(), so it is not
+    // dropped at parse time and a plain declaration before it would never be used: this block,
+    // which only browsers WITHOUT color-mix() apply, follows it instead. sRGB overlays approximate the mix.
+    @supports not (color: color-mix(in srgb, red 50%, white)) {
+      background: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)), var(--btn-bg, #{$color-linen}) !important;
+    }
     border: 2px solid var(--btn-bg, $color-linen) !important;
     border-radius: 12px !important;
     box-shadow: 0 1px 3px rgba($indigo, 0.06) !important;
@@ -84925,6 +84951,18 @@ span.md-board-detail-modeling-btn--badge {
     0 0 0 calc(var(--bd-ring, 6px) - 0.5px) color-mix(in oklch, var(--bd-group-fill, transparent) 66%, white),
     0 0 0 var(--bd-ring, 6px) rgba(255, 255, 255, 0.55),
     0 1px 3px rgba(0, 0, 0, 0.28);
+  // OLD-BROWSER FALLBACK (_color-fallbacks.scss). The value above mixes a runtime var(), so it is not
+  // dropped at parse time and a plain declaration before it would never be used: this block,
+  // which only browsers WITHOUT color-mix() apply, follows it instead. sRGB overlays approximate the mix.
+  @supports not (color: color-mix(in srgb, red 50%, white)) {
+    box-shadow:
+      0 0 0 calc(var(--bd-ring, 6px) / 3) rgba(0, 0, 0, 0.42),
+      0 0 0 calc(var(--bd-ring, 6px) / 3 * 2) var(--bd-group-fill, transparent),
+      0 0 0 calc(var(--bd-ring, 6px) - 0.5px) rgba(255, 255, 255, 0.34),
+      0 0 0 calc(var(--bd-ring, 6px) - 0.5px) var(--bd-group-fill, transparent),
+      0 0 0 var(--bd-ring, 6px) rgba(255, 255, 255, 0.55),
+      0 1px 3px rgba(0, 0, 0, 0.28);
+  }
   border-radius: 14px;
 }
 
@@ -85685,6 +85723,12 @@ span.md-board-detail-modeling-btn--badge {
      it competes with the buttons for attention, which is the opposite of what a
      scanning aid should do. */
   border-bottom: 1px solid color-mix(in srgb, var(--bd-group-text, #{$la-navy}) 25%, transparent);
+  // OLD-BROWSER FALLBACK (_color-fallbacks.scss). The value above mixes a runtime var(), so it is not
+  // dropped at parse time and a plain declaration before it would never be used: this block,
+  // which only browsers WITHOUT color-mix() apply, follows it instead. sRGB overlays approximate the mix.
+  @supports not (color: color-mix(in srgb, red 50%, white)) {
+    border-bottom: 1px solid rgba($la-navy, 0.25);
+  }
 }
 
 .md-board-detail-grid--grouped .md-board-detail-grid__group-name,
@@ -85734,6 +85778,15 @@ span.md-board-detail-modeling-btn--badge {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%),
     color-mix(in srgb, var(--bd-group-fill, #ffffff) 26%, #101826);
+  // OLD-BROWSER FALLBACK (_color-fallbacks.scss). The value above mixes a runtime var(), so it is not
+  // dropped at parse time and a plain declaration before it would never be used: this block,
+  // which only browsers WITHOUT color-mix() apply, follows it instead. sRGB overlays approximate the mix.
+  @supports not (color: color-mix(in srgb, red 50%, white)) {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%),
+      linear-gradient(rgba(16, 24, 38, 0.74), rgba(16, 24, 38, 0.74)),
+      var(--bd-group-fill, #ffffff);
+  }
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
     0 1px 2px  rgba(0, 0, 0, 0.30),
@@ -90595,6 +90648,12 @@ span.md-board-detail-modeling-btn--badge {
   // Falls back to the prior charcoal-blue when a folder has no face color. Applies to
   // default + Show-Labels-on-Tab; colored-corner hides the back and dark mode keeps its lift.
   background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 90%, black);
+  // OLD-BROWSER FALLBACK (_color-fallbacks.scss). The value above mixes a runtime var(), so it is not
+  // dropped at parse time and a plain declaration before it would never be used: this block,
+  // which only browsers WITHOUT color-mix() apply, follows it instead. sRGB overlays approximate the mix.
+  @supports not (color: color-mix(in srgb, red 50%, white)) {
+    background: linear-gradient(rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0.10)), var(--btn-bg, #{cf-srgb(color.adjust($brand-charcoal-blue, $lightness: 16%))});
+  }
   // All four corners match the symbol card's front radius (clamp(6px,1.2vw,16px),
   // the .md-board-detail-symbol-card value) so the back reads as the same
   // roundness as the card face.
@@ -90666,6 +90725,12 @@ span.md-board-detail-modeling-btn--badge {
   // same folder. Sits between the face (0%) and .md-folder-back (10% darker), so
   // the three planes still step back in order: face, tab, body.
   background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 95%, black);
+  // OLD-BROWSER FALLBACK (_color-fallbacks.scss). The value above mixes a runtime var(), so it is not
+  // dropped at parse time and a plain declaration before it would never be used: this block,
+  // which only browsers WITHOUT color-mix() apply, follows it instead. sRGB overlays approximate the mix.
+  @supports not (color: color-mix(in srgb, red 50%, white)) {
+    background: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)), var(--btn-bg, #{cf-srgb(color.adjust($brand-charcoal-blue, $lightness: 16%))});
+  }
   /* Rounded-rectangle tab. A prior version used a trapezoid clip-path
      (polygon(16% 0, 84% 0, 100% 100%, 0 100%)) to angle the sides inward, but
      clip-path RE-CLIPS to the polygon's sharp vertices — it discards the
@@ -108541,6 +108606,7 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
     0 1px 2px rgba(255, 255, 255, 0.9);
 }
 .shepherd-element.md-tour__step--focused.md-tour__step--next .md-tour__foot {
+  color: $focus-hero-base-fallback; // sRGB fallback (_color-fallbacks.scss)
   color: $focus-hero-base;
 }
 /* ── Outro completion animation ──────────────────────────────────────────────
@@ -109216,6 +109282,7 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .shepherd-footer .md-tour__
    brand glow), scaled for a button. */
 .shepherd-element.md-tour__step--focused .md-tour__btn--primary,
 body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary {
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%);
@@ -109233,6 +109300,7 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:not(
      verdigris bg can't bleed through) and bloom the SAME brand-blue glow the
      "Let's Communicate" hero uses on hover — but NO lift (override the base
      hover's translateY). */
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%);
@@ -109924,6 +109992,7 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
    ≤768px `align-self` at ~l.63672, which sets no colour. */
 body.ll-layout-focused .ub-boards-page__new-board-btn,
 body.ll-layout-focused .ub-boards-page__set-home-btn {
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%);
@@ -109940,6 +110009,7 @@ body.ll-layout-focused .ub-boards-page__set-home-btn {
    Gentle pill, and box-shadow does not cascade per layer. */
 body.ll-layout-focused .ub-boards-page__new-board-btn:hover,
 body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%); // sRGB fallback (_color-fallbacks.scss)
   background: radial-gradient(ellipse at center in oklab,
     #{$focus-hero-center} 0%,
     #{$focus-hero-edge} 100%);

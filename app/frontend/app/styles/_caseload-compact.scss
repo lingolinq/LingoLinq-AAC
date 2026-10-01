@@ -237,7 +237,9 @@
 .md-cl-btn--model,
 .md-cl-btn--model:hover,
 .md-cl-btn--model:focus-visible {
+  border-color: $focus-hero-edge-fallback; // sRGB fallbacks first (_color-fallbacks.scss)
   border-color: $focus-hero-edge;
+  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%);
   background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%);
   color: #ffffff;
 }
