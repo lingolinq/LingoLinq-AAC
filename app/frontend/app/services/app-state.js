@@ -2191,7 +2191,7 @@ export default Service.extend({
        a previous account's record surviving a logout is exactly what this method
        exists to prevent. */
     this.set('page_user', null);
-    this.set('pairing', null);
+    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null }); // Basic Try marker + home-page handoffs: per-user, must not reach the next account (2026-10-01)
 
     // Per-user route memory (next route transition would overwrite anyway,
     // but clearing here removes stale "previous user" context from any

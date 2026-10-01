@@ -158,9 +158,9 @@ export default Controller.extend({
     // a later list update re-run this. Never invent a selection for an unknown name.
     if (!match) { return; }
     this.set('_deepLinkAppliedFor', name);
-    /* A stale roster filter can hide the very row we are deep-linking to, which made the
-       arrival silently do nothing for the rest of the session. */
-    if (this.get('superviseeFilter')) { this.set('superviseeFilter', ''); }
+    /* A stale roster filter, or the Needs attention toggle when this communicator needs none, can
+       hide the very row we are deep-linking to, which made the arrival silently do nothing. */
+    this.setProperties({ superviseeFilter: '', attentionOnly: !!this.get('attentionOnly') && !!attentionBadgeFor(match) });
     if (match.modeling_only) {
       this.set('highlightedSupervisee', name);
       this.set('selectedSupervisee', null);

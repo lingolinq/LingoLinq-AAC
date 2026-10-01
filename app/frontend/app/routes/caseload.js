@@ -59,6 +59,9 @@ export default Route.extend({
       controller.set('selectedBadge', null);
       controller.set('_superviseeBadges', null);
       controller.set('superviseeFilter', '');
+      // The Needs attention toggle too (2026-10-01): the controller is a singleton, so it outlived
+      // the page and a logout, leaving the next visit's list filtered.
+      controller.set('attentionOnly', false);
     }
   },
 

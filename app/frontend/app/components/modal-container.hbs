@@ -168,6 +168,10 @@
     <ConfirmLeaveEdit />
   {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
     <ConfirmRecolorBoard />
+  {{else if (is-equal this.currentTemplate "confirm-view-style-change")}}
+    {{!-- "Change this person's view?" (utils/view_style.js#confirm_view_style_change). It was
+         registered as converted with no branch here, so it opened invisibly (2026-10-01). --}}
+    <ConfirmViewStyleChange />
   {{else if (is-equal this.currentTemplate "user-results")}}
     <UserResults />
   {{else if (is-equal this.currentTemplate "speak-menu")}}

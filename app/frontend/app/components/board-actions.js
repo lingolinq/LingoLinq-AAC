@@ -239,40 +239,19 @@ export default Component.extend({
       /* Ask first when the view belongs to someone else (a communicator being modelled for, or
          whose page this is). A cancel must leave the preference AND the navigation below
          alone, so everything from the write onwards sits inside the guard. */
-      var _this = this;
+      /* The services are captured NOW: the confirmation is a modal, and opening it replaces this
+         Board Actions modal, which destroys this component before the answer comes back
+         (2026-10-01). Applying through `apply_view_style` below needs nothing from `this`. */
+      var services = this._view_style_services();
       confirm_view_style_change(this.get('appState'), style).then(function(ok) {
         if(!ok) { return; }
-        _this.send('_apply_view_style', user, board, style);
-      });
-    },
-
-    _apply_view_style(user, board, style) {
-      user.set('preferences.board_view_style', style);
-      if (user.save) {
-        user.set('preferences.device.updated', true);
-        user.save();
-      }
-      var key = (board.get ? board.get('key') : board.key) || '';
-      var routerSvc = this.get('router');
-      this.get('modal').close();
-      if (key.indexOf('/') === -1) { return; }
-      var parts = key.split('/');
-      var userName = parts[0];
-      var boardname = parts.slice(1).join('/');
-      var appStateService = this.get('appState');
-      var isDark = true;
-      var themeMode = appStateService && appStateService.get('themeMode');
-      if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
-      paint_view_switch_overlay({
-        routerSvc: routerSvc,
-        isDark: isDark,
-        accentLight: (style === 'classic'),
-        transition: function() {
-          var route = (style === 'classic') ? 'user.board-alt' : 'user.board-detail';
-          return routerSvc.transitionTo(route, userName, boardname);
-        }
+        apply_view_style(services, user, board, style);
       });
     }
+  },
+
+  _view_style_services() {
+    return { router: this.get('router'), modal: this.get('modal'), appState: this.get('appState') };
   },
 
   didInsertElement() {
@@ -347,3 +326,35 @@ export default Component.extend({
   },
 
 });
+
+/* Applies a view change for `user` from Board Actions: saves the preference, closes the modal
+   and moves to that view's board page under the shared "Preparing your Board" overlay. Module
+   level, taking the services it needs, because it can run after the component is destroyed
+   (see `set_view_style`). Body unchanged from the `_apply_view_style` action it replaces. */
+function apply_view_style(services, user, board, style) {
+  user.set('preferences.board_view_style', style);
+  if (user.save) {
+    user.set('preferences.device.updated', true);
+    user.save();
+  }
+  var key = (board.get ? board.get('key') : board.key) || '';
+  var routerSvc = services.router;
+  services.modal.close();
+  if (key.indexOf('/') === -1) { return; }
+  var parts = key.split('/');
+  var userName = parts[0];
+  var boardname = parts.slice(1).join('/');
+  var appStateService = services.appState;
+  var isDark = true;
+  var themeMode = appStateService && appStateService.get('themeMode');
+  if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+  paint_view_switch_overlay({
+    routerSvc: routerSvc,
+    isDark: isDark,
+    accentLight: (style === 'classic'),
+    transition: function() {
+      var route = (style === 'classic') ? 'user.board-alt' : 'user.board-detail';
+      return routerSvc.transitionTo(route, userName, boardname);
+    }
+  });
+}

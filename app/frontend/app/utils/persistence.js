@@ -3716,7 +3716,7 @@ var persistence = EmberObject.extend({
     var serializer = store.serializerFor(type.modelName);
 
     var snapshot = record; //._createSnapshot();
-    serializer.serializeIntoHash(data, type, snapshot, { includeId: true });
+    serializer.serializeIntoHash(data, type, snapshot, { includeId: true, localCopy: true });
 
     // TODO: mimic any server-side changes that need to happen to make the record usable
     if(!data[type.modelName].id) {
