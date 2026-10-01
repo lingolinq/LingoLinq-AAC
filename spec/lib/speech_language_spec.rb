@@ -19,6 +19,7 @@ describe SpeechLanguage do
         'zh_Hans_CN' => 'cmn-Hans-CN',
         'zh_Hant_TW' => 'cmn-Hant-TW',
         'zh_Hant_HK' => 'yue-Hant-HK',
+        'zh_Hant_MO' => 'cmn-Hant-TW',
         'he_IL' => 'iw-IL',
         'nb_NO' => 'no-NO',
         'sr_Latn_RS' => 'sr-RS'
@@ -58,6 +59,26 @@ describe SpeechLanguage do
         b.update_column(:updated_at, age.hours.ago)
       end
       expect(SpeechLanguage.alternatives(u, 'en-US')).to eq(['fr-FR', 'es-US', 'de-DE'])
+    end
+
+    it "should send one code per language" do
+      u = User.create
+      [['fr', 1], ['fr_CA', 2], ['es', 3]].each do |loc, age|
+        b = Board.create(:user => u, :settings => {'locale' => loc})
+        b.update_column(:updated_at, age.hours.ago)
+      end
+      expect(SpeechLanguage.alternatives(u, 'en-US')).to eq(['fr-FR', 'es-US'])
+    end
+  end
+
+  describe "language_rejected?" do
+    it "should only match a 400 that names the language" do
+      lang = {'error' => {'message' => "Invalid recognition 'config': Bad language code."}}
+      expect(SpeechLanguage.language_rejected?(OpenStruct.new(code: 400), lang)).to eq(true)
+      expect(SpeechLanguage.language_rejected?(OpenStruct.new(code: 500), lang)).to eq(false)
+      expect(SpeechLanguage.language_rejected?(OpenStruct.new(code: 403), lang)).to eq(false)
+      expect(SpeechLanguage.language_rejected?(OpenStruct.new(code: 400), {'error' => {'message' => 'Sync input too long.'}})).to eq(false)
+      expect(SpeechLanguage.language_rejected?(OpenStruct.new(code: 400), nil)).to eq(false)
     end
   end
 end

@@ -881,6 +881,14 @@ describe ButtonSound, :type => :model do
       expect(bs.settings['transcription_errors']).to eq(1)
     end
 
+    it "should not retry a language error when no alternatives were sent" do
+      configs = stub_recognize(language_error_response, ok_response)
+      bs = ButtonSound.new(:settings => {'locale' => 'es'})
+      bs.schedule_transcription(true)
+      expect(configs.length).to eq(1)
+      expect(bs.settings['transcription_errors']).to eq(1)
+    end
+
     it "should not retry on other errors" do
       u = User.create
       Board.create(:user => u, :settings => {'locale' => 'fr'})

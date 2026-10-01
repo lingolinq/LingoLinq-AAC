@@ -3,7 +3,7 @@
 module SpeechLanguage
   # Every code on Google's supported-languages page
   # (https://docs.cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages),
-  # each confirmed accepted by v1 speech:recognize on the global and us- hosts, 2026-10-01.
+  # each confirmed accepted by v1 speech:recognize on 2026-10-01.
   # Google has no v1 API that lists languages; update this list by hand.
   SUPPORTED = %w(
     af-ZA am-ET ar-AE ar-BH ar-DZ ar-EG ar-IL ar-IQ ar-JO ar-KW ar-LB ar-MA ar-MR ar-OM ar-PS ar-QA

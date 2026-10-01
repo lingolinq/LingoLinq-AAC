@@ -2717,10 +2717,11 @@ var soundGrabber = EmberObject.extend({
       if(user_id) {
         attrs.user_id = user_id;
       }
-      // The language the board speaks, so transcription listens for it
-      // (ButtonSound#process_params stores it; lib/speech_language.rb maps it).
+      // The language the button will speak, in the same order utils/button.js:731
+      // uses, so transcription listens for it (ButtonSound#process_params stores
+      // it; lib/speech_language.rb maps it).
       var board = _this.controller && _this.controller.get('board');
-      var locale = board && (emberGet(board, 'translations.current_vocalization') || emberGet(board, 'locale'));
+      var locale = board && ((appStateService && appStateService.get('vocalization_locale')) || emberGet(board, 'translations.current_vocalization') || emberGet(board, 'locale'));
       if(locale) {
         attrs.locale = locale;
       }
