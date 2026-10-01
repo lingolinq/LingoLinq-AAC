@@ -2828,6 +2828,7 @@ class User < ApplicationRecord
         self.settings['preferences'][attr] = val
       end
     end
+    ai_prefs_requested = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     # EU under-16 without active AI parental consent: default AI prefs off on
     # create, and silently force false if the client tries to enable any.
     # Also never allow product-improvement / telemetry opt-in for EU under-16.
@@ -2845,19 +2846,22 @@ class User < ApplicationRecord
     # Record each AI preference whose STORED value changed in this save, with who,
     # when, and the old and new value. Compared after normalization and the EU
     # override above, so a save that omits the keys, repeats a value, or sends a
-    # dropped blank records nothing.
+    # dropped blank records nothing. A value the EU rule set, rather than the
+    # one this save asked for, is marked 'source' => 'eu_forced'.
     EU_AI_PREF_KEYS.each do |key|
       before = ai_prefs_before[key]
       after = self.settings['preferences'][key]
       next if before == after
-      self.settings['confirmation_log'] ||= []
-      self.settings['confirmation_log'] << {
+      entry = {
         'updater' => (non_user_params['updater'] ? non_user_params['updater'].global_id : PaperTrail.request.whodunnit),
         'setting' => key,
         'from' => before,
         'to' => after,
         'timestamp' => Time.now.utc.iso8601
       }
+      entry['source'] = 'eu_forced' if ai_prefs_requested[key] != after
+      self.settings['confirmation_log'] ||= []
+      self.settings['confirmation_log'] << entry
     end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe

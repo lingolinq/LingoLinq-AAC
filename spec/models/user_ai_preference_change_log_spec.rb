@@ -49,6 +49,28 @@ describe User, 'AI preference change log' do
     expect(entries).to eq([])
   end
 
+  it 'marks entries the EU under-16 rule forced, so they are not read as a person turning AI off' do
+    # A saved account: a new record recomputes its registration flags.
+    u = User.create(settings: { 'registration' => { 'eu_under_16' => true } })
+    User::EU_AI_PREF_KEYS.each { |k| u.settings['preferences'].delete(k) }
+    change(u, 'beta_agreement_accepted' => true)
+    entries = (u.settings['confirmation_log'] || []).select { |e| e['setting'].to_s.start_with?('ai_') }
+    expect(entries.map { |e| e['setting'] }).to match_array(User::EU_AI_PREF_KEYS)
+    entries.each do |entry|
+      expect(entry['source']).to eq('eu_forced')
+      expect(entry['from']).to eq(nil)
+      expect(entry['to']).to eq(false)
+    end
+  end
+
+  it 'leaves a person\'s own change unmarked' do
+    u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => false } })
+    change(u, 'ai_features_enabled' => true)
+    entry = (u.settings['confirmation_log'] || []).detect { |e| e['setting'] == 'ai_features_enabled' }
+    expect(entry).to be_present
+    expect(entry.key?('source')).to eq(false)
+  end
+
   it 'records a change to every AI preference key' do
     User::EU_AI_PREF_KEYS.each do |key|
       u = User.new(settings: { 'preferences' => {} })
