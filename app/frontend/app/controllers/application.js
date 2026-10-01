@@ -814,7 +814,7 @@ export default Controller.extend({
     },
     searchBoards: function() {
       if(this.get('searchString') == 'home') {
-        this.router.transitionTo('home-boards');
+        this.router.transitionTo('board-picker');
       } else {
         this.router.transitionTo('search', 'any', encodeURIComponent(this.get('searchString') || '_'));
       }

@@ -988,7 +988,7 @@ export default Controller.extend({
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'skip', 'Extra Setup Pursued');
       }
-      this.router.transitionTo('home-boards');
+      this.router.transitionTo('board-picker');
     },
     done: function() {
       this.appState.return_to_index();

@@ -702,7 +702,7 @@
           </div>
           {{#if this.suggested_selected}}
             {{#unless this.app_state.currentUser.supporter_role}}
-              <LinkTo @route="home-boards" class="ch-boards__lead">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</LinkTo>
+              <LinkTo @route="board-picker" class="ch-boards__lead">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</LinkTo>
             {{/unless}}
           {{/if}}
           {{!-- Focused View wraps the board tiles in a panel that carries the same surface as a

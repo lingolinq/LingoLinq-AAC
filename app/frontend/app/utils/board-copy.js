@@ -1,6 +1,9 @@
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
 import persistence from './persistence';
+import editManager from './edit_manager';
+import i18n from './i18n';
+import { saveHomeBoard } from './home_board';
 
 /* Resolve the current user's already-owned copy of `board`, or null when there
    isn't one we can POSITIVELY confirm.
@@ -78,3 +81,36 @@ export function findExistingUserCopy(board, user) {
 }
 
 export default findExistingUserCopy;
+
+/* MAKE `board` THE USER'S HOME BOARD, as the board picker's "Pick this Board" does (moved here
+   from components/board-preview-overlay.js#pick_for_home on 2026-09-30 so the Basic board page's
+   "Set as Home Board" can do exactly the same). Reuses the user's own confirmed copy when there is
+   one (findExistingUserCopy, above) and sets it through utils/home_board so the save is confirmed
+   against what the server stored; otherwise copies the board and its links and sets the COPY
+   (`links_copy_as_home`). Resolves with the home board; rejects with a display string.
+   The symbol library for a copy is the user's preferred set, gated by extras access (mirrors
+   set-as-home.js#updateSelectedUser); it falls back to 'original'. */
+export function copy_or_reuse_as_home(board, user, locale) {
+  var lib = user.get('preferences.preferred_symbols') || 'original';
+  if (['pcs', 'symbolstix', 'lessonpix'].indexOf(lib) !== -1) {
+    if (!user.get('extras_enabled') && !user.get('subscription.extras_enabled')) {
+      lib = 'original';
+    }
+  }
+  var copy = function() {
+    return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(null, function(err) {
+      // copy_board rejects with an already-localized string or an internal-code object; only a
+      // string is shown as it is.
+      return RSVP.reject((typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again."));
+    });
+  };
+  return findExistingUserCopy(board, user).then(function(existing) {
+    if (!existing) { return copy(); }
+    return saveHomeBoard(user, existing, locale).then(function() { return existing; }, function() {
+      return RSVP.reject(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+    });
+  }, function() {
+    // The lookup itself failed: copy, so the user is never blocked (a duplicate beats a dead end).
+    return copy();
+  });
+}

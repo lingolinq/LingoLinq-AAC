@@ -542,6 +542,9 @@
                     </a>
                   {{/unless}}
                 {{/unless}}
+                {{!-- After a "Try this Board" from the board picker (Basic, 2026-09-30): make the tried
+                     board the home board of the user the picker was choosing for. --}}
+                <BasicTryHomeButton @board={{this.board.model}} />
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}
