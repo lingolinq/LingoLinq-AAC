@@ -4,7 +4,7 @@ import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { inject as service } from '@ember/service';
 import boardsPageListCache from '../../utils/boards_page_list_cache';
-import { send_basic_viewer_to_landing } from '../../utils/basic_landing';
+import { send_basic_viewer_to_landing, is_basic_viewer } from '../../utils/basic_landing';
 import { wait_for_session_user } from '../../utils/session_user_wait';
 
 export default Route.extend({
@@ -23,8 +23,8 @@ export default Route.extend({
   },
 
   /* Basic has no boards library page: its home page's Boards tab is the equivalent, for the
-     viewer's OWN boards only (that tab lists them). A supervisee's library is left as it is.
-     On a cold load `currentUser` is not assigned yet, so this waits (briefly, bounded) for the
+     viewer's OWN boards only (that tab lists them). Anyone else's library goes to their account
+     page instead (below). On a cold load `currentUser` is not assigned yet, so this waits (briefly, bounded) for the
      session user record already in flight, as routes/board.js does, before deciding. */
   afterModel: function(model) {
     var _this = this;
@@ -34,6 +34,15 @@ export default Route.extend({
       // findRecord('user', 'self') and its id is still 'self'.
       var own = !!(model && me && (model.get('id') === me.get('id') || model.get('user_name') === me.get('user_name')));
       if(own && send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.boards', me)) {
+        return RSVP.reject();
+      }
+      /* SOMEONE ELSE'S LIBRARY, in Basic (2026-09-30): that user's account page, which lists the
+         same boards (<BoardsBrowser>, templates/user/index.hbs) under the Basic account rail
+         (templates/user.hbs, controllers/user.js#showClassicAccountRail). Reached by a supervisor
+         from the board header's My Boards while speaking as a communicator
+         (controllers/application.js#openMyBoards reads `referenced_user`), a bookmark or Back. */
+      if(!own && model && model.get('user_name') && is_basic_viewer(_this.get('appState'), me)) {
+        _this.get('router').transitionTo('user.index', model.get('user_name'));
         return RSVP.reject();
       }
     });

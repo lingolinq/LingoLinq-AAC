@@ -87,8 +87,12 @@ export function take_pending_index_nav(appState) {
    `currentUser` is assigned (utils/session_user_wait.js), so `effective_view_user` is empty and
    the view cannot be read from it; the route passes the signed-in account's record it already
    has (or has waited for) instead. */
+export function is_basic_viewer(appState, viewer) {
+  return is_classic(appState.get('effective_view_user') || viewer);
+}
+
 export function send_basic_viewer_to_landing(appState, router, route, viewer, url) {
-  if(!is_classic(appState.get('effective_view_user') || viewer)) { return false; }
+  if(!is_basic_viewer(appState, viewer)) { return false; }
   var landing = basic_landing_for(route, url);
   if(!landing) { return false; }
   if(landing.index_nav) { hand_off_index_nav(appState, landing.index_nav, landing); }

@@ -15,6 +15,7 @@ module('Unit | Route | Basic view landings for Modern-only pages', function(hook
 
   function setup(context, style, cold) {
     var transitions = [];
+    var calls = [];
     var viewer = EmberObject.create({ id: '1_3', user_name: 'example', preferences: { board_view_style: style } });
     context.owner.unregister('service:app-state');
     // COLD: a first page load, where the route runs before `currentUser` is assigned and the
@@ -33,9 +34,10 @@ module('Unit | Route | Basic view landings for Modern-only pages', function(hook
     context.owner.unregister('service:router');
     context.owner.register('service:router', Service.extend({
       currentURL: '/',
-      transitionTo: function(route) { transitions.push(route); }
+      // `calls` keeps every argument, for landings that name a model (a user page).
+      transitionTo: function(route) { transitions.push(route); calls.push(Array.prototype.slice.call(arguments)); }
     }));
-    return { transitions: transitions, appState: context.owner.lookup('service:app-state'), viewer: viewer };
+    return { transitions: transitions, calls: calls, appState: context.owner.lookup('service:app-state'), viewer: viewer };
   }
 
   function supporter(style) {
@@ -85,12 +87,31 @@ module('Unit | Route | Basic view landings for Modern-only pages', function(hook
     assert.strictEqual(t.appState.get('pending_index_nav'), 'boards', 'with Boards handed off');
   });
 
-  test("user.boards, Basic, a supervisee's library: stays", async function(assert) {
+  /* CHANGED 2026-09-30, approved by Traci: this case used to assert that a supervisee's library
+     STAYS in Basic, which left a Basic supervisor on Modern's page with no navigation. The new
+     specification ("route the SLP to the communicator's account page") sends them to that
+     communicator's account page, which lists the same boards (<BoardsBrowser>,
+     templates/user/index.hbs) under the Basic account rail (templates/user.hbs). */
+  test("user.boards, Basic, a supervisee's library: that communicator's account page", async function(assert) {
     var t = setup(this, 'classic');
     var route = this.owner.lookup('route:user/boards');
     await run(route.afterModel(EmberObject.create({ id: '1_7', user_name: 'aiden_parker' })));
-    assert.deepEqual(t.transitions, [], 'no redirect for someone else\'s boards');
+    assert.deepEqual(t.calls, [['user.index', 'aiden_parker']], 'their account page, not the viewer\'s home');
     assert.notOk(t.appState.get('pending_index_nav'), 'nothing handed off');
+  });
+
+  test("user.boards, Basic, cold load, a supervisee's library: waits for the session user, then their account page", async function(assert) {
+    var t = setup(this, 'classic', true);
+    var route = this.owner.lookup('route:user/boards');
+    await run(route.afterModel(EmberObject.create({ id: '1_7', user_name: 'aiden_parker' })));
+    assert.deepEqual(t.calls, [['user.index', 'aiden_parker']], 'their account page');
+  });
+
+  test("user.boards, Modern, a supervisee's library: stays", async function(assert) {
+    var t = setup(this, 'modern');
+    var route = this.owner.lookup('route:user/boards');
+    await run(route.afterModel(EmberObject.create({ id: '1_7', user_name: 'aiden_parker' })));
+    assert.deepEqual(t.transitions, [], 'no redirect');
   });
 
   test('user.boards, Modern: stays', async function(assert) {
