@@ -28,6 +28,27 @@ describe User, 'AI preference change log' do
     expect(entry['updater']).to eq(updater.global_id)
   end
 
+  it 'records the old and new value when AI goes from off to on' do
+    u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => false } })
+    change(u, 'ai_features_enabled' => true)
+    entries = (u.settings['confirmation_log'] || []).select { |e| e['setting'] == 'ai_features_enabled' }
+    expect(entries.length).to eq(1)
+    expect(entries[0]['from']).to eq(false)
+    expect(entries[0]['to']).to eq(true)
+    expect(entries[0]['updater']).to eq(updater.global_id)
+  end
+
+  it 'records nothing for AI preferences when a save leaves them unchanged' do
+    u = User.new(settings: { 'preferences' => {
+      'ai_features_enabled' => true, 'ai_word_prediction' => true, 'ai_board_generation' => true
+    } })
+    change(u, 'beta_agreement_accepted' => true)
+    change(u, 'ai_features_enabled' => 'true', 'ai_word_prediction' => true)
+    change(u, 'ai_board_generation' => '')
+    entries = (u.settings['confirmation_log'] || []).select { |e| e['setting'].to_s.start_with?('ai_') }
+    expect(entries).to eq([])
+  end
+
   it 'records a change to every AI preference key' do
     User::EU_AI_PREF_KEYS.each do |key|
       u = User.new(settings: { 'preferences' => {} })

@@ -2518,7 +2518,7 @@ class User < ApplicationRecord
   DASHBOARD_SECTION_KEYS = ['boards', 'speak', 'extras', 'caseload', 'rooms', 'attention', 'org',
       'account', 'createboard', 'reports', 'editdashboard', 'hero']
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
-      'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code'] + EU_AI_PREF_KEYS
+      'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
   RESEARCH_PREFERENCE_PARAMS = ['research_primary_use', 'research_age', 'research_experience_level']
   # NOTE: this is an ALLOWLIST — a progress key absent here is silently dropped on
   # save. `guided_tours_completed` was written by the frontend for months without
@@ -2808,6 +2808,7 @@ class User < ApplicationRecord
     if params['preferences'] && !(non_user_params['updater'] && non_user_params['updater'].admin?)
       params['preferences'].delete('beta_program_access')
     end
+    ai_prefs_before = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     PREFERENCE_PARAMS.each do |attr|
       if params['preferences'] && params['preferences'][attr] != nil
         val = params['preferences'][attr]
@@ -2840,6 +2841,23 @@ class User < ApplicationRecord
     end
     if eu_under_16?
       product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
+    # Record each AI preference whose STORED value changed in this save, with who,
+    # when, and the old and new value. Compared after normalization and the EU
+    # override above, so a save that omits the keys, repeats a value, or sends a
+    # dropped blank records nothing.
+    EU_AI_PREF_KEYS.each do |key|
+      before = ai_prefs_before[key]
+      after = self.settings['preferences'][key]
+      next if before == after
+      self.settings['confirmation_log'] ||= []
+      self.settings['confirmation_log'] << {
+        'updater' => (non_user_params['updater'] ? non_user_params['updater'].global_id : PaperTrail.request.whodunnit),
+        'setting' => key,
+        'from' => before,
+        'to' => after,
+        'timestamp' => Time.now.utc.iso8601
+      }
     end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe
