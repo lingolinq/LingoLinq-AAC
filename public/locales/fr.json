@@ -9572,5 +9572,6 @@
   "caseload_group_profile": "*** Profile & Notes",
   "caseload_group_evaluation": "*** Evaluation",
   "set_as_home_board_for_user": "*** Set as Home Board for %{user_name}",
-  "classic_short_basic_access": "*** Access"
+  "classic_short_basic_access": "*** Access",
+  "view_all_short": "*** View all →"
 }

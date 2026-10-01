@@ -49220,9 +49220,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     margin-left: 0;
   }
 }
-// "View all" at the bottom right of a home card: "View all communicators" under the Need Attention
-// list (shown when more than 3 are flagged; see attentionShown in components/dashboard/
-// authenticated-view.js), and in Compressed View "View all rooms" under the Rooms tiles: a slim 28px button, right-aligned
+// "View all" on a home card: "View all communicators" under the Need Attention list (shown when
+// more than 3 are flagged; see attentionShown in components/dashboard/authenticated-view.js), and
+// in Compressed View both it and "View all rooms" in their card headers (`--head`, below): a slim 28px button, right-aligned
 // (the card is a flex column), in the LIGHT colour of the communicator rows' gradient. Gentle: the
 // rows' lightest layer, white at 0.94 (`.md-attention-item` above); Focused: _focused-view.scss. Not an `.md-btn`:
 // that class forces a 44px height and 14px/20px padding with !important. 28px still clears the
@@ -49248,6 +49248,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-card__view-all:focus-visible {
   border-color: rgba(27, 54, 93, 0.24);
   text-decoration: none;
+}
+/* In a card's HEADER instead (Compressed View, requested 2026-09-30): the header rows are flex
+   rows, so it centres on the title's line and is pushed to the right edge rather than taking the
+   column's bottom-right `align-self: flex-end`. */
+.md-card__view-all--head {
+  align-self: center;
+  margin-left: auto;
 }
 
 .md-attention__list {
