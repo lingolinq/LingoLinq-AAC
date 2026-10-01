@@ -211,6 +211,9 @@
            `organization.index` is now the Admin TAB in the org strip (templates/organization.hbs),
            so a row here would be a second door to it sitting right beside the first. The four
            rows below are the org sections that strip does NOT carry. --}}
+      {{!-- Admin rows (Reports here; Trainings and Settings below) are for org editors only:
+           `orgAdmin` (2026-10-01). --}}
+      {{#if this.orgAdmin}}
       <li class="ch-rail__item">
         <LinkTo @route="organization.reports" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
           <span class="ch-row__icon" aria-hidden="true">
@@ -221,6 +224,7 @@
           <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
         </LinkTo>
       </li>
+      {{/if}}
       {{!-- Rooms takes `is-active` from <LinkTo> on the LIST route, and `@current-when` adds the
            room DETAIL page: `organization.room` is a SIBLING of `organization.rooms` in
            router.js (`path: '/rooms/:room_id'`), so the path nests but the route name does not
@@ -236,6 +240,7 @@
           <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
         </LinkTo>
       </li>
+      {{#if this.orgAdmin}}
       <li class="ch-rail__item">
         <LinkTo @route="organization.lessons" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
           {{!-- The mortarboard the account rail and the Trainings page header both use, so this
@@ -258,6 +263,7 @@
           <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
         </LinkTo>
       </li>
+      {{/if}}
     {{/if}}
 
     {{!-- ── THE PERSONAL DASHBOARD ROWS, HIDDEN IN ORG MODE (2026-09-25, requested: "Hide the

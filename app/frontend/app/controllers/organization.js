@@ -50,13 +50,13 @@ export default Controller.extend({
     return route === 'organization.rooms';
   }),
 
-  /* BASIC'S ADMIN TABS (Admin, Managers ... Symbols) ARE HIDDEN ON THE ROOMS LIST FOR A
-     VIEW-ONLY VISITOR (requested 2026-09-28). `permissions.edit` is what a manager or assistant
-     has and a supervisor, a public viewer or a manager with org access switched off does not
-     (app/models/organization.rb add_permissions); the tabs lead to admin sections that visitor
-     cannot use. Everywhere else, and for anyone who can edit, the strip is unchanged. */
+  /* BASIC'S ADMIN TABS (Admin, Managers ... Symbols) ARE FOR ORG EDITORS ONLY, on every org page
+     (2026-10-01, approved: "make sure view-only users are hidden from admin links"; 2026-09-28 it was
+     the Rooms list only). `permissions.edit` is what a manager or assistant has and a supervisor, a
+     public viewer or a manager with org access off does not (app/models/organization.rb); develop's
+     org nav gated its admin links the same way. `roomsPageActive` kept as a key for the nav's sake. */
   showBasicOrgTabs: computed('roomsPageActive', 'model.permissions.edit', function() {
-    return !(this.get('roomsPageActive') && !this.get('model.permissions.edit'));
+    return !!this.get('model.permissions.edit');
   }),
 
   /* THE PEOPLE SECTION, ASKED OF THE PAGE THAT OWNS IT rather than re-derived from the URL.

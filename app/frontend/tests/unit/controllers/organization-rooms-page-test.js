@@ -53,10 +53,18 @@ module('Unit | Controller | organization roomsPageActive', function(hooks) {
       'an explicit false as well as an absent key');
   });
 
-  test('and stay for anyone who can edit, and on every other org page', function(assert) {
+  /* CHANGED 2026-10-01, approved by Traci ("make sure view-only users are hidden from admin
+     links"): a view-only visitor used to keep the tabs on every org page except the Rooms list.
+     On develop the org nav's admin links sat behind `permissions.edit` on EVERY org page, so this
+     restores that gate (adversarial review M1). */
+  test('and stay for anyone who can edit; a view-only visitor never gets them', function(assert) {
     assert.true(withOrg(this, 'organization.rooms', { view: true, edit: true }).get('showBasicOrgTabs'),
       'an editor on the Rooms list');
-    assert.true(withOrg(this, 'organization.index', { view: true }).get('showBasicOrgTabs'),
-      'a view-only visitor elsewhere: not asked');
+    assert.true(withOrg(this, 'organization.index', { view: true, edit: true }).get('showBasicOrgTabs'),
+      'an editor elsewhere');
+    assert.false(withOrg(this, 'organization.index', { view: true }).get('showBasicOrgTabs'),
+      'a view-only visitor on the org page');
+    assert.false(withOrg(this, 'organization.room', { view: true }).get('showBasicOrgTabs'),
+      'a view-only visitor on a room');
   });
 });

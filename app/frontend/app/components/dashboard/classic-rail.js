@@ -97,6 +97,12 @@ export default Component.extend({
   orgSection: computed('org', function() {
     return !!this.get('org');
   }),
+  /* The org's admin rows (Reports, Trainings, Settings) are for its editors only (2026-10-01,
+     approved: "make sure view-only users are hidden from admin links"), as develop's org nav gated
+     them on `permissions.edit`. Rooms is not admin: a room supervisor uses it. */
+  orgAdmin: computed('org.permissions.edit', function() {
+    return !!this.get('org.permissions.edit');
+  }),
 
   supervisorCount: computed('appState.currentUser.supervisors', function() {
     return (this.appState.get('currentUser.supervisors') || []).length;
