@@ -17,6 +17,7 @@
 |---|---|---|
 | 1 | Attestation-history narrative (:36): PR #656 moved "the EU tier from inert to functional". | Withdrawn as a characterisation. PR #656 wired a scheduled job and a jurisdiction stamp; it did not make any deletion occur. The tier is wired, not enforcing. |
 | 2 | Section 6 retention table (:293): EU tier is "**Enforced**" and "Now functional: ... It matches EU rows wherever Phase 4 is deployed". | False as an enforcement claim. `purge_old_eu_logs!` deletes `jurisdiction = 'EU' AND created_at < 5.years.ago` (`app/models/ai_api_log.rb:244-248`). The `ai_api_logs` TABLE was created 2026-02-21 (`db/migrate/20260221000001_create_ai_api_logs.rb`), so no row in it can be five years old before **2031-02-21**; rows stamped at write time cannot qualify before **2031-06-21**, when the `jurisdiction` column (created 2026-06-21, `db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb`) turns five. **Scope of this claim, tightened 2026-08-25:** it rests on the table's own age, not on the stamp alone. A backfill that stamped pre-June-2026 rows could pull the floor back toward 2031-02-21, and a manual `UPDATE` could make a row eligible sooner still; no such backfill exists in the codebase (no `update_all` touching `jurisdiction`). Either way the job matched zero rows as of the 2026-08-23 audited read; it has not been re-queried since. |
+| 3 | Bucket table (:64): "Regulated PII \| Second-tier verifiable parental consent required". | Updated 2026-10-01: the Regulated PII bucket row now follows the privacy policy merged in PR #909. The "2nd-tier VPC gate?" column describes family-managed accounts; district-managed accounts follow `2026-08-25_ai-data-sharing-consent.md` section 6. |
 
 > **Scope note.** This successor corrects a *coverage* claim: a working, scheduled job was described as matching production rows it does not match. It does **not** say the control is broken or unenforced. It does **not** assert that any data was retained longer than a rule permits, and it takes **no position on the legal basis**. The predecessor's "Basis" column attributes this tier to "EU AI Act Article 50 record-keeping"; that attribution is inherited unchanged and is **flagged as an open question for counsel**, since Article 50 is the AI Act's transparency provision and this record does not establish that it imposes a five-year `AiApiLog` retention duty. Correcting the basis is out of scope here and is not a change this record is competent to make.
 
@@ -81,7 +82,7 @@ feature to Non-personal.
 |---|---|
 | Non-personal | No second-tier gate; signup consent + feature flag suffice |
 | Scrubbed personal (pseudonymized) | Conservatively personal; gated unless counsel confirms an exemption; never called "de-identified" |
-| Regulated PII | Second-tier verifiable parental consent required |
+| Regulated PII | Authorization per the privacy policy (`2026-08-25_ai-data-sharing-consent.md` section 6): the adult account holder's choice, verifiable parental consent for a family-managed child account, or district authorization for a district-managed account |
 | Never send externally | Blocked unless an explicit approved legal + vendor basis exists |
 
 ## 2. Ground truth verified 2026-07-09 (this classification's audit basis)
