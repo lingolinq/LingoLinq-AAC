@@ -327,6 +327,16 @@ describe Api::IntegrationsController, :type => :controller do
       expect(JSON.parse(response.body)['error']).to eq('Feature not available')
     end
 
+    it 'should 403 for an account that never turned AI features on' do
+      token_user
+      User::EU_AI_PREF_KEYS.each { |k| @user.settings['preferences'].delete(k) }
+      @user.save!
+      expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+      post 'focus_generate_words', params: { prompt: 'grinch lesson' }
+      expect(response).to have_http_status(403)
+      expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+    end
+
     it 'should require a prompt' do
       token_user
       post 'focus_generate_words', params: { prompt: '   ' }
