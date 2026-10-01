@@ -123,6 +123,21 @@
         <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
       </LinkTo>
     </li>
+    {{!-- SUPERVISORS (2026-09-30, requested: "Add a Supervisors link on the Basic account panel").
+         Basic otherwise reaches supervision only from the home page's rail row and Actions tile,
+         both hidden for supporters, so a supporter in Basic had no way there. Links to the
+         Supervision page, which renders inside this rail (controllers/user.js
+         ACCOUNT_SECTION_ROUTES), in the same place and with the same label rule as Modern's
+         account rail (components/account-rail.hbs): "Supervision" for a supporter, "Supervisors"
+         for a communicator. The glyph is the home rail's Supervisors figure pair, two-tone. --}}
+    <li class="ch-rail__item">
+      <LinkTo @route="user.supervision" @model={{@user.user_name}} @activeClass="is-active" class="ch-row ch-row--minor" aria-current={{if (is_equal this.activeRow "supervision") "page"}}>
+        <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#46505F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#2A9D8F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2A9D8F"/></svg></span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Team" key="classic_short_team"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{if @user.supporter_role (t "Supervision" key="supervision") (t "Supervisors" key="supervisors")}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
     <li class="ch-rail__item">
       <LinkTo @route="user.logs" @model={{@user.user_name}} class="ch-row ch-row--minor {{if (is_equal this.activeRow "logs") "is-active"}}" aria-current={{if (is_equal this.activeRow "logs") "page"}}>
         <span class="ch-row__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/></svg></span>

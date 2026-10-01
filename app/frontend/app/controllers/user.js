@@ -23,8 +23,8 @@ import { computed } from '@ember/object';
  *
  * ADDING A ROUTE HERE MEANS ADDING IT TO `ROW_FOR_ROUTE` in components/account-rail.js and in
  * components/dashboard/classic-account-rail.js -- a route in this list with no row there renders
- * a nav that never says where you are. `user.supervision` and `user.focus` are the standing
- * exceptions in the Basic rail, which has no row for either; see the note on that map.
+ * a nav that never says where you are. `user.focus` is the standing exception in the Basic rail
+ * (no row for it; see the note on that map). Supervision gained a Basic row 2026-09-30.
  *
  * DELIBERATELY ABSENT: `user.password_reset` and `user.confirm_registration`. They are
  * single-task pages reached from an email, and signed out the user fetch still SUCCEEDS

@@ -42,19 +42,23 @@ module('Unit | Component | classic-account-rail activeRow', function(hooks) {
     return context.owner.factoryFor('component:dashboard/classic-account-rail').create();
   }
 
-  /* THE TWO ROUTES WITH NO ROW, and why each is deliberate rather than forgotten.
+  /* THE ROUTE WITH NO ROW, and why it is deliberate rather than forgotten.
      Modern makes the same call for the same reason (components/account-rail.js): "pointing them
      at a row would make the nav say something untrue, which is worse than saying nothing".
-       user.supervision -- the panel the user asked for has no Supervision row (the requested
-                           list was summary, reports, goals, trainings, recordings, profile,
-                           preferences, billing, logs & messages).
        user.focus       -- the Focus Words report is not Reports, not Goals, and not Trainings.
-     THIS SET IS ASSERTED TO BE EXACTLY null BELOW, so it cannot grow quietly: a third route
-     added to the exceptions has to be added here too, which is the moment to ask whether it
-     needs a row instead. */
-  var NO_ROW = ['user.supervision', 'user.focus'];
+     CHANGED 2026-09-30, approved by Traci ("Add a Supervisors link on the Basic account panel"):
+     `user.supervision` was the second exception, because the panel as first requested had no
+     Supervision row. It has one now, so it left this list and is pinned to that row below.
+     THIS SET IS ASSERTED TO BE EXACTLY null BELOW, so it cannot grow quietly: a route added to
+     the exceptions has to be added here too, which is the moment to ask whether it needs a row
+     instead. */
+  var NO_ROW = ['user.focus'];
 
-  test('every railed route resolves to a row, except the two stated exceptions', function(assert) {
+  test('the Supervision page lights the Supervisors row', function(assert) {
+    assert.strictEqual(rail(this, 'user.supervision').get('activeRow'), 'supervision');
+  });
+
+  test('every railed route resolves to a row, except the stated exception', function(assert) {
     assert.expect(ACCOUNT_SECTION_ROUTES.length);
     /* ONE assertion per route, not a branch around two: `qunit/no-conditional-assertions`
        forbids an assert inside an `if`, and rightly -- a branch that silently never runs takes

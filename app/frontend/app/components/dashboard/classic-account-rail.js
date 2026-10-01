@@ -28,6 +28,7 @@ const ROW_FOR_ROUTE = {
   'user.edit': 'edit',
   'user.preferences': 'preferences',
   'user.subscription': 'subscription',
+  'user.supervision': 'supervision',
   'user.logs': 'logs', 'user.log': 'logs'
 };
 
