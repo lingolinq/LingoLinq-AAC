@@ -29,7 +29,9 @@ import { is_classic } from './view_style';
    is still saved, Updates still marks notifications read, Boards still collapses the rail. */
 const LANDINGS = {
   // Requested 2026-09-24: "map caseload -> home page Communicators".
-  'caseload': { route: 'index', index_nav: 'supervisees' },
+  // Requested 2026-09-30: one communicator's caseload (`?supervisee=<name>`) expands THAT
+  // communicator's card. `open_supervisee_from` names the URL param that carries them.
+  'caseload': { route: 'index', index_nav: 'supervisees', open_supervisee_from: 'supervisee' },
   // Requested 2026-09-28: "boards page -> basic view home page with boards active".
   'user.boards': { route: 'index', index_nav: 'boards' },
   // Requested 2026-09-30: "extras page -> the home page with the extras drawer expanded and
@@ -52,7 +54,27 @@ const UPDATES_LANDING = { route: 'index', index_nav: 'updates' };
 export function basic_landing_for(route, url) {
   if(!route) { return null; }
   if((route === 'user.logs' || route === 'user.log') && hasHomeNavParam(url)) { return UPDATES_LANDING; }
-  return LANDINGS[route] || null;
+  var landing = LANDINGS[route] || null;
+  var name = landing && landing.open_supervisee_from && url_param(url, landing.open_supervisee_from);
+  // A copy, so the shared map entry never carries one arrival's name into the next.
+  if(name) { landing = Object.assign({}, landing, { open_supervisee: name }); }
+  return landing;
+}
+
+function url_param(url, key) {
+  var query = String(url || '').split('?')[1];
+  if(!query) { return null; }
+  return new URLSearchParams(query.split('#')[0]).get(key) || null;
+}
+
+/* A route sees its query params on the transition, not in a URL; this writes them as the query
+   string `basic_landing_for` reads, so a route and the View menu decide from the same text. */
+export function query_string_for(transition) {
+  var qp = (transition && transition.to && transition.to.queryParams) || {};
+  var pairs = Object.keys(qp).filter(function(k) { return qp[k] != null && qp[k] !== ''; }).map(function(k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(qp[k]);
+  });
+  return pairs.length ? '?' + pairs.join('&') : '';
 }
 
 /* THE HANDOFF, both halves in one place. The switcher leaves the tab in app state before it
@@ -69,6 +91,8 @@ export function hand_off_index_nav(appState, nav, landing) {
   appState.set('pending_index_nav', nav || null);
   // The Extras drawer rides with the tab (the Extras landing above), taken once the same way.
   appState.set('pending_open_extras', !!(landing && landing.open_extras) || null);
+  // And the communicator whose card to expand (the caseload landing above).
+  appState.set('pending_open_supervisee', (landing && landing.open_supervisee) || null);
 }
 
 export function take_pending_index_nav(appState) {
@@ -98,6 +122,12 @@ export function send_basic_viewer_to_landing(appState, router, route, viewer, ur
   if(landing.index_nav) { hand_off_index_nav(appState, landing.index_nav, landing); }
   router.transitionTo(landing.route, ...(landing.models || []));
   return true;
+}
+
+export function take_pending_open_supervisee(appState) {
+  var name = appState.get('pending_open_supervisee') || null;
+  if(name) { appState.set('pending_open_supervisee', null); }
+  return name;
 }
 
 export function take_pending_open_extras(appState) {

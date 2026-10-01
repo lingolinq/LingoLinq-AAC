@@ -6,7 +6,7 @@ import i18n from '../../utils/i18n';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
-import { take_pending_index_nav, take_pending_open_extras } from '../../utils/basic_landing';
+import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
 
 /**
  * Classic home page.
@@ -86,6 +86,8 @@ export default AuthenticatedView.extend({
     }
     // ARRIVING FROM THE EXTRAS PAGE (2026-09-30): open the Extras drawer on insert, below.
     this._pending_open_extras = take_pending_open_extras(this.appState);
+    // ARRIVING FROM ONE COMMUNICATOR'S CASELOAD (2026-09-30): expand their card on insert, below.
+    this._pending_open_supervisee = take_pending_open_supervisee(this.appState);
   },
 
   _tabShown(nav) {
@@ -135,6 +137,26 @@ export default AuthenticatedView.extend({
       this._pending_open_extras = false;
       if(!this.get('show_main_extras')) { this.send('toggle_extras'); }
     }
+    if(this._pending_open_supervisee) {
+      var name = this._pending_open_supervisee;
+      this._pending_open_supervisee = null;
+      this._expand_supervisee_card(name);
+    }
+  },
+
+  /* Expand one communicator's card: its Extras panel, the state the card's own Extras button
+     toggles (`openSuperviseeId`, classic-view.hbs `ch-comm__extras-panel`), then scroll the card
+     to the top once the tab has rendered it. A name not on this caseload does nothing. */
+  _expand_supervisee_card(name) {
+    var match = (this.get('decoratedSupervisees') || []).find(function(s) { return s && s.user_name === name; });
+    if(!match || match.id == null) { return; }
+    this.set('openSuperviseeId', match.id);
+    var _this = this;
+    window.requestAnimationFrame(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var panel = document.getElementById('ch-extras-' + match.id);
+      scrollBelowHeader(panel && panel.closest('.ch-comm'));
+    });
   },
 
   // NOTE: deliberately NOT named `user`. index.hbs passes `@user={{this.user}}`,
