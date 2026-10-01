@@ -106,20 +106,42 @@ Headings: /example "Example", /lingolinq
 username fallback on a nameless account (covered by the display-name helper tests).
 Side effect of an earlier probe (the Updates-tab version): it marked example's notifications read.
 
-### Still open: /logs?type=note&nav=home in Basic -> the plain Logs page
+### Resolved (round 3): Modern's Updates address in Basic -> the plain Logs page
 
-Wanted: a Basic viewer opening Modern's Updates address directly lands on Basic's own Logs page
-(`/<me>/logs`, no query, the page the Basic account rail's Logs row opens). Two attempts in
-`routes/user/logs.js` afterModel, both reverted (`logs.js` is at HEAD):
-1. `router.replaceWith('user.logs', me, {queryParams: {nav: null, type: null}})` then
-   `return RSVP.reject()`: unit tests green, but in the browser the page showed "Failed to load".
-   The QP-only replace to the SAME route did not abort the in-flight transition, so the rejection
-   failed it. (Unit tests stub the router, so they cannot see this.)
-2. The same replace without the reject: the page rendered (Basic rail, Logs row active), but the
-   URL kept `?type=note&nav=home`; the in-flight transition finished with its own params.
-Stopped there (Rule #13). Untried next steps: do the replace after the transition completes
-(`transition.then(...)` or from setupController), skipping `markUpdatesRead` for that arrival;
-or a different-route hop. Whatever lands needs a browser check of the URL, the rail, the filter,
-Back (no loop), and that notifications are not marked read. The two attempts and the trimmed
-tests are saved outside the repo; the unit tests for it should assert on a real transition
-outcome, not a router stub.
+Decision (Traci): route to the Logs page, both when it is opened directly and on the View menu
+switch from Modern's Updates page, and make sure messages are not marked as read.
+
+Two things mark messages read on `user.logs`: `routes/user/logs.js#setupController` calls
+`markUpdatesRead` for `nav=home`, and `controllers/user/logs.js#refresh` saves
+`last_message_read` whenever the list loads with `type=note`. So the Basic page must never be set
+up with either param.
+
+Attempts, in order (each checked in the browser):
+1. replaceWith + `RSVP.reject()` in afterModel: "Failed to load".
+2. replaceWith without the reject: rendered, but the URL kept the params.
+3. Clearing `type`/`nav` on the controller in setupController, then replacing the URL after the
+   transition: URL clean and no saves, but the request log still showed one `type=note` load. A
+   trace of the controller's `refresh` calls showed why: the in-flight transition RE-APPLIES its
+   own query params to the controller after setupController, and the `type` observer then loads
+   the filtered list. The same-route replace had been merged into the in-flight transition.
+4. SHIPPED: afterModel calls `transition.abort()` and then
+   `replaceWith('user.logs', me, {queryParams: {nav: null, type: null}})`. The replace is then a
+   fresh transition. Trace: one refresh, from setupController, with type and nav null. Cold load:
+   one unfiltered request, no user writes, URL /example/logs, Basic rail with Logs active, Back to
+   /example/home. setupController is unchanged from HEAD (Modern's Updates still marks read).
+
+View menu switch: `utils/basic_landing.js` maps `user.logs?nav=home` to a params-only landing
+(`query_params: {nav: null, type: null}`, no route); `components/view-switcher.js` applies it with
+`router.replaceWith({queryParams})`. A single update (`user.log?nav=home`) still lands on the
+Updates tab. Browser (example set to Modern for the probe, restored to Basic in `finally`,
+confirmed): Modern Updates -> View -> Basic gives /example/logs, Basic rail, one unfiltered load;
+the only save was the view preference, carrying `last_message_read: null` (unchanged).
+Limitation: example has no messages, so the marking code never had anything to mark; the
+guarantee is structural (no `type=note` load, no `nav=home` setup), which the tests and the
+request traces check.
+
+APPROVED TEST CHANGE: `tests/unit/utils/basic-landing-test.js` "the Updates page lands on the
+Basic home page, Updates tab" now asserts the params-only landing (comment records approval).
+New: `tests/unit/routes/basic-logs-landing-test.js` (5), `tests/unit/components/
+view-switcher-logs-landing-test.js` (1). Falsified by removing only `transition.abort()` (the two
+Basic redirect cases go red).
