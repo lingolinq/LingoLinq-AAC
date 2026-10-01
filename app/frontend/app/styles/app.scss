@@ -55315,7 +55315,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
         display: none;
       }
     }
-    /* THE FOLDERS ROW GETS THE SAME UNDER-SHADOW THE BODY DRAWS (2026-08-16, requested).
+    /* THE FOLDERS ROW GETS THE SAME DIVIDER THE BODY DRAWS (2026-08-16, requested; its three
+       inset shadows were removed 2026-09-30, leaving the hairline -- see the rule).
        The card's one divider treatment — hairline + highlight + tight inner shadow + wide
        falloff — is authored on `&__folders-body`'s TOP edge (~66137). Before the hoist that
        edge sat directly beneath the whole header, so the header appeared to cast it. Now the
@@ -55333,16 +55334,14 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     .ub-boards-page__folders-actions--header {
       grid-area: actions;
       border-top: 1px solid rgba(13, 36, 56, 0.12);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.85),
-        inset 0 2px 4px -1px rgba($la-navy, 0.16),
-        inset 0 8px 14px -8px rgba($la-navy, 0.12);
+      /* THE THREE INSETS ARE GONE (2026-09-30, requested: "remove the inset look" on this row).
+         They drew the FOLDERS row's under-shadow down across this strip, which read as a sunken
+         band behind the pills. The hairline above stays as the divider. */
       /* Nothing of its own behind the pills — the card's gradient reads straight through, so
          the actions row is a strip of the card rather than a panel sitting on it. Stated
          explicitly (2026-08-16, requested) rather than relied on: the row inherits no
          background today, and this pins that so a future panel treatment cannot creep in
-         unnoticed. The shading across it comes from the insets above, which belong to the
-         FOLDERS row's underside, not to this row. */
+         unnoticed. */
       background: transparent;
     }
     /* NO SECOND DIVIDER (2026-08-16, requested). The body's own top edge — hairline plus the
