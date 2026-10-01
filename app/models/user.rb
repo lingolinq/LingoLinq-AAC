@@ -2505,7 +2505,7 @@ class User < ApplicationRecord
       # failure mode called out on 'dashboard_layout' above.
       # Values are constrained on write by sanitize_boards_layout_preference!.
       'boards_layout',
-      # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
+      # AI feature prefs (master + per-feature). Master nil = off (AI defaults off);
       # for EU under-16 without parental consent these are forced false on write.
       'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
       'ai_board_suggestions', 'ai_symbol_search'

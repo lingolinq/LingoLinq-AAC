@@ -236,7 +236,7 @@ describe('ai_feature_gate', function() {
   });
 
   describe('prefExplicitlyEnabled', function() {
-    it('is false when user is missing (unlike prefAllowsAi grandfather)', function() {
+    it('is false when user is missing (as prefAllowsAi is)', function() {
       expect(aiFeatureGate.prefExplicitlyEnabled(null, 'ai_board_generation')).toEqual(false);
     });
 
