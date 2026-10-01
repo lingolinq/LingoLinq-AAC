@@ -1372,7 +1372,7 @@ button.ch-row--sync:focus-visible {
   line-height: 1.2;
 }
 .ch-organizations-tabs .ch-tab__label {
-  font-size: 14px;
+  font-size: 16px; // 14 -> 16 (2026-10-01): the meta line below rose to the 14px floor, so the label steps up to keep "recession by size"
   font-weight: 650;
 }
 /* ORGANISATION SWITCHER above the org header (2026-09-23), on a card that matches the room
@@ -1825,7 +1825,7 @@ body.ll-view-basic .md-hero--org .md-hero__sub--meta {
 }
 
 .ch-organizations-tabs .ch-tab__meta {
-  font-size: 13px;
+  font-size: 14px; // 13 -> 14px, the AAC text floor (2026-10-01)
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -4132,7 +4132,6 @@ button.ch-tile--silver:focus-visible {
   // the icon it holds does not need to.
   .ch-row__icon { width: 36px; height: 36px; border-radius: 11px; }
   .ch-row__title { font-size: 14px; }
-  .ch-row__sub { font-size: 12px; }
   .ch-row__arrow { font-size: 17px; }
 
 
@@ -4172,7 +4171,6 @@ button.ch-tile--silver:focus-visible {
     flex: 1 1 0;
     min-width: 0;
     padding: 9px 8px;
-    font-size: 13px;
     // Last-resort truncation so the row can never wrap. Only reachable for a
     // SUPPORTER on a narrow phone, where four tabs share the row and
     // "Communicators" is the one long label; three-tab communicators have room.
@@ -4280,7 +4278,7 @@ button.ch-tile--silver:focus-visible {
   background: rgba($brand-dusty-denim, 0.12);
   border: 1px solid rgba($brand-cool-steel, 0.28);
   color: $brand-dusty-denim-aa;
-  font-size: 11px;
+  font-size: 14px; // 11 -> 14px, the AAC text floor; matches the Modern tour eyebrow (2026-10-01)
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
