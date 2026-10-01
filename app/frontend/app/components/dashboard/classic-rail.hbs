@@ -84,8 +84,8 @@
          `.ch-rail__identity` and is deliberately excluded.
          Subjects, in order: Home Page, then Organizations (both pinned ahead of the
          alphabetical run, out of alphabetical order --
-         requested 2026-09-24), then Create a New Board, Home Board, Logging, Subscription,
-         Supervisors, Sync.
+         requested 2026-09-24), then Basic Access (added 2026-09-30), Create a New Board, Home Board,
+         Logging, Subscription, Supervisors, Sync.
          (Organization Management was in this list until it was removed on 2026-09-24 -- see
          the note where it stood.)
          (Rooms was in this list until it was removed later the same day -- see the note
@@ -270,6 +270,10 @@
          org nav. Say the word and either comes back -- it is where this `{{#unless}}` starts and
          stops, nothing else. --}}
     {{#unless this.orgSection}}
+
+    {{!-- Basic Access (2026-09-30): the shared row, also in the home page's inline rail. A personal
+         row, so it hides in org mode with the rest of this block. --}}
+    <Dashboard::ClassicRailBasicAccess @show={{this.app_state.feature_flags.emergency_boards}} />
 
     {{!-- Available to every role in the original. --}}
     <li class="ch-rail__item">
