@@ -574,8 +574,8 @@
       <dl>
         <dt>{{t "Location" key="location"}}</dt>
           <dd>
-          {{#if (and this.model.geo this.appState.feature_flags.location_maps)}}
-            {{t "See map" key="see_map"}}
+          {{#if this.model.geo}}
+            {{#if this.appState.feature_flags.location_maps}}{{t "See map" key="see_map"}}{{/if}}
           {{else}}
             {{t "Not Available" key="not_available_upper"}}
           {{/if}}

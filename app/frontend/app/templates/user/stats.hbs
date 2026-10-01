@@ -353,7 +353,7 @@
           {{#if this.usage_stats2}}
             <Stats::IpAddresses @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
           {{/if}}
-        {{else}}
+        {{else if this.app_state.feature_flags.location_maps}}
           <Stats::GeoDisabled @side_by_side={{this.usage_stats2}} />
           {{#if this.usage_stats2}}
             <Stats::GeoDisabled @side_by_side={{true}} @right_side={{true}} />
