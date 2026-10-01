@@ -141,7 +141,7 @@ export default Route.extend({
       // dashboard to pick one, so they are excluded here too. Storage + eligible
       // routes: utils/session_history.js.
       if (this.appState.get('_index_login_entry') && !communicator_only && !model.get('eval_ended') &&
-          this.appState.get('feature_flags.session_resume')) {
+          !this._basic_supporter_lands_home(model) && this.appState.get('feature_flags.session_resume')) {
         var last = sessionHistory.last_location(model.get('user_name'));
         if (last && last.url) {
           var user_name = model.get('user_name');
@@ -378,5 +378,25 @@ export default Route.extend({
         }
       });
     }
+  },
+
+  /* AN SLP IN BASIC SIGNS IN TO THE COMMUNICATORS TAB (2026-09-30, requested: "for an slp user, if
+     they switch to basic view and that is their preference, when they log in next, take them to
+     the home page with the communicator page as the active page"). Asked by afterModel just before
+     session resume: at a login entry, a supporter whose view is Basic skips the remembered page
+     (which could be Modern's caseload) and falls through to `_land_on_default`, the Basic home
+     page, which takes the Communicators tab handed off here (components/dashboard/classic-view.js).
+     Returns true when it did.
+     PLACED HERE, AND WRITTEN WITHOUT NEW IMPORTS, because this file's ESLint baseline is anchored
+     to line 256 (.eslint-todo): a new import or method above it would shift that entry. So Basic is
+     read as `board_view_route(model) === 'user.board-alt'`, the test this file's resume block
+     already uses, and the handoff sets the values utils/basic_landing.js#hand_off_index_nav sets. */
+  _basic_supporter_lands_home: function(model) {
+    if(!this.appState.get('_index_login_entry') || !model || !model.get('supporter_role')) { return false; }
+    if(board_view_route(model) !== 'user.board-alt') { return false; }
+    this.appState.set('pending_index_nav', 'supervisees');
+    this.appState.set('pending_open_extras', null);
+    this.appState.set('pending_open_supervisee', null);
+    return true;
   }
 });
