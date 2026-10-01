@@ -132,12 +132,24 @@ function canChangeAiSettings(user) {
 }
 
 /**
- * How the create-board AI entry should proceed.
+ * The account an AI authoring feature (board generation, focus words) is
+ * judged for: the signed-in person, as on the server, where these endpoints
+ * check @api_user (integrations_controller.rb focus_generate_words,
+ * boards_controller.rb generate_labels). Not currentUser, which app-state's
+ * set_current_user points at the communicator in speak mode.
+ */
+function authoringUser(appState) {
+  if(!appState || typeof appState.get !== 'function') { return null; }
+  return appState.get('sessionUser');
+}
+
+/**
+ * How the create-board AI entry should proceed, for authoringUser.
  * @returns {'allowed'|'needs_opt_in'|'no_permission'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
  */
 function boardGenerationEntry(appState) {
   if(!appState || typeof appState.get !== 'function') { return 'blocked_flag'; }
-  var user = appState.get('currentUser');
+  var user = authoringUser(appState);
   if(euAiConsentRequired(user)) { return 'eu_consent'; }
   if(!appState.get('feature_flags.ai_board_generation')) { return 'blocked_flag'; }
   if(coppaAiBlocked(user)) { return 'blocked_coppa'; }
@@ -201,6 +213,7 @@ export default {
   prefExplicitlyEnabled: prefExplicitlyEnabled,
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
+  authoringUser: authoringUser,
   boardGenerationEntry: boardGenerationEntry,
   boardGenerationOffered: boardGenerationOffered,
   canChangeAiSettings: canChangeAiSettings,
@@ -216,6 +229,7 @@ export {
   prefExplicitlyEnabled,
   euAiConsentRequired,
   coppaAiBlocked,
+  authoringUser,
   boardGenerationEntry,
   boardGenerationOffered,
   canChangeAiSettings,

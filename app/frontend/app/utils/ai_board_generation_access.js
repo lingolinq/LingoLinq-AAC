@@ -16,7 +16,9 @@ import aiFeatureGate from './ai_feature_gate';
  * Resolves { proceed: true } when generation may continue.
  */
 export function ensureAiBoardGenerationAccess(appState) {
-  var user = appState && appState.get && appState.get('currentUser');
+  // The signed-in person (aiFeatureGate.authoringUser): the turn-on step and
+  // EU consent apply to whoever is generating, as the server checks.
+  var user = aiFeatureGate.authoringUser(appState);
   var entry = aiFeatureGate.boardGenerationEntry(appState);
   var stay = function() { return { proceed: false }; };
 

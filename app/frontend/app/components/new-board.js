@@ -150,9 +150,9 @@ export default Component.extend({
   // goes through the turn-on step or a reason first (generateWithAi).
   ai_board_generation_offered: computed(
     'appState.feature_flags.ai_board_generation',
-    'appState.currentUser.preferences.ai_features_enabled',
-    'appState.currentUser.preferences.ai_board_generation',
-    'appState.currentUser.permissions',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_board_generation',
+    'appState.sessionUser.permissions',
     function() {
       return aiFeatureGate.boardGenerationOffered(this.appState);
     }

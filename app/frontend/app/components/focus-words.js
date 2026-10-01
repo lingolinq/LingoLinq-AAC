@@ -205,9 +205,9 @@ export default Component.extend({
   // boardGenerationEntry): generate, the inline turn-on step, or a reason.
   ai_focus_entry: computed(
     'appState.feature_flags.ai_board_generation',
-    'appState.currentUser.preferences.ai_features_enabled',
-    'appState.currentUser.preferences.ai_board_generation',
-    'appState.currentUser.permissions',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_board_generation',
+    'appState.sessionUser.permissions',
     function() {
       return aiFeatureGate.boardGenerationEntry(this.get('appState'));
     }
@@ -411,7 +411,7 @@ export default Component.extend({
     // was typed. Turns on board generation only (applyAiFeaturePrefs).
     enable_ai_focus_words: function() {
       var _this = this;
-      var user = this.get('appState.currentUser');
+      var user = aiFeatureGate.authoringUser(this.get('appState'));
       this.set('ai_focus_opt_in_error', null);
       if(!user || typeof user.save !== 'function' || (persistence.get && !persistence.get('online'))) {
         this.set('ai_focus_opt_in_error', i18n.t('enable_ai_features_save_error', "Could not save AI feature settings. Please try again."));

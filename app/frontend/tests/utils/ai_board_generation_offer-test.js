@@ -51,6 +51,43 @@ describe('ai_feature_gate board generation offer', function() {
     });
   });
 
+  // Board generation is an authoring feature: it follows the signed-in person,
+  // as the server does (@api_user), not the communicator a supporter is
+  // speaking for (app-state set_current_user points currentUser there).
+  describe('boardGenerationEntry follows the signed-in person', function() {
+    function prefsUser(prefs) {
+      return {
+        get: function(key) {
+          if(key === 'preferences') { return prefs; }
+          if(key === 'permissions') { return { view: true, edit: true }; }
+          return null;
+        },
+        preferences: prefs
+      };
+    }
+    function twoUserState(sessionPrefs, communicatorPrefs) {
+      var sessionUser = prefsUser(sessionPrefs);
+      var communicator = prefsUser(communicatorPrefs);
+      return {
+        get: function(key) {
+          if(key === 'feature_flags.ai_board_generation') { return true; }
+          if(key === 'sessionUser') { return sessionUser; }
+          if(key === 'currentUser') { return communicator; }
+          return null;
+        }
+      };
+    }
+    var on = { ai_features_enabled: true, ai_board_generation: true };
+
+    it('is allowed when the signed-in person turned it on, though the communicator did not', function() {
+      expect(aiFeatureGate.boardGenerationEntry(twoUserState(on, {}))).toEqual('allowed');
+    });
+
+    it('asks to turn it on when the communicator turned it on but the signed-in person did not', function() {
+      expect(aiFeatureGate.boardGenerationEntry(twoUserState({}, on))).toEqual('needs_opt_in');
+    });
+  });
+
   describe('boardGenerationOffered', function() {
     it('is offered for an account that never recorded an AI choice', function() {
       expect(aiFeatureGate.boardGenerationOffered(entryState({ prefs: {} }))).toEqual(true);
