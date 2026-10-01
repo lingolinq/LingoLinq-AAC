@@ -11,6 +11,7 @@ import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import persistence from '../../utils/persistence';
 import aiFeatureGate from '../../utils/ai_feature_gate';
+import modal from '../../utils/modal';
 
 // Every "Generate with AI" entry point is offered for an account that never
 // recorded an AI choice, so the person reaches the turn-on step (or a reason)
@@ -76,6 +77,42 @@ describe('AI generation entry points', 'component:new-board', function() {
     c.set('appState', appStateFor({ ai_board_generation: true, focus_word_highlighting: true }, user));
     expect(c.get('ai_focus_generation_offered')).toEqual(true);
     expect(c.get('ai_focus_entry')).toEqual('no_permission');
+  });
+});
+
+describe('new-board Generate with AI, Not now', 'component:new-board', function() {
+  var testOwner;
+
+  beforeEach(function() {
+    testOwner = this.owner;
+  });
+
+  itAsync('keeps the typed board name and description when the person chooses Not now', async function() {
+    var opened = [];
+    stub(modal, 'open', function(template, opts) {
+      opened.push(template);
+      return RSVP.resolve(false);
+    });
+    var c = testOwner.factoryFor('component:new-board').create({ standalone: true });
+    var user = EmberObject.create({ preferences: {}, permissions: { view: true, edit: true } });
+    c.set('appState', {
+      sessionUser: user,
+      currentUser: user,
+      get: function(key) {
+        if(key === 'feature_flags.ai_board_generation') { return true; }
+        if(key === 'sessionUser' || key === 'currentUser') { return user; }
+        return null;
+      }
+    });
+    c.set('model.name', 'Snack time');
+    c.set('model.description', 'Words for snack time');
+    var fn = (c.actions && c.actions.generateWithAi) || c.generateWithAi;
+    fn.call(c);
+    await new RSVP.Promise(function(resolve) { setTimeout(resolve, 20); });
+    expect(opened).toEqual(['enable-ai-features']);
+    expect(c.isDestroyed).toEqual(false);
+    expect(c.get('model.name')).toEqual('Snack time');
+    expect(c.get('model.description')).toEqual('Words for snack time');
   });
 });
 
