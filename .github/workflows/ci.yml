@@ -452,6 +452,13 @@ jobs:
       - name: Run codex-review chunked-scope match tests
         run: python3 scripts/codex-review-chunked-scope.test.py
 
+      # Guards the path classifier that routes a diff away from the external
+      # reviewer: data-bearing paths (including db/language/** outside the
+      # pinned vendor files) block, and an empty diff, a git-quoted path, or a
+      # git or grep failure exits 3 with no route written.
+      - name: Run codex-review path-classifier tests
+        run: bash -n scripts/codex-review-path-classifier.sh && scripts/tests/codex-review-path-classifier-test.sh
+
   security-scan:
     runs-on: ubuntu-latest
 
