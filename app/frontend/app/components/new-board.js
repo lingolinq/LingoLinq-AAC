@@ -436,12 +436,9 @@ export default Component.extend({
           // and needs no separate error surface here.
         });
       };
-      // AI board generation not on yet for this account: the turn-on step or a
-      // reason first (utils/ai_board_generation_access.js). new-board renders
-      // standalone on the create-board page (templates/create-board.hbs), so that
-      // modal opens over the page and Not now leaves the typed fields in place.
-      // Nothing after it reads component state, so a modal-hosted new-board,
-      // which the modal would replace, cannot act on a destroyed component.
+      // AI not on yet: the turn-on step or a reason first (utils/ai_board_generation_access.js).
+      // On the standalone create-board page it opens over the page, so typed fields stay;
+      // nothing after it reads component state, in case new-board is ever modal-hosted.
       if(aiFeatureGate.boardGenerationEntry(appState) !== 'allowed') {
         ensureAiBoardGenerationAccess(appState).then(function(result) {
           if(result && result.proceed) { openGenerator(); }
