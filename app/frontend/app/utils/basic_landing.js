@@ -44,25 +44,26 @@ const LANDINGS = {
   'offline_boards': { route: 'search', models: ['any', '_'] }
 };
 
-/* Requested 2026-09-28: "updates page (logs) -> basic view home page with Updates active".
-   Updates is not a route of its own but an ARRIVAL: `user.logs` (and a single update,
-   `user.log`) reached from the pill nav, marked by `?nav=home` -- the same test the nav uses to
-   light its Updates pill (utils/primary_nav.js). Reached from the account rail's Logs row, the
-   same route is Basic's own Logs page, which Basic renders, so that one stays put. */
-const UPDATES_LANDING = { route: 'index', index_nav: 'updates' };
-
-/* Revised 2026-09-30 for the Updates PAGE itself ("we should be routing to the logs page but ensure
-   that their messages are not marked as read"): `user.logs?nav=home` stays on the Logs page and
-   drops the Updates marker and the messages filter (`?type=note&nav=home`,
-   components/user-pill-nav.hbs), which makes it Basic's own Logs page. A landing with
-   `query_params` and no `route` means "this page, these params". A single update (`user.log`)
-   still lands on the Updates tab. */
+/* MODERN'S UPDATES, IN BASIC. Updates is not a route of its own but an ARRIVAL: `user.logs` (and
+   a single update, `user.log`) reached from the pill nav, marked by `?nav=home` -- the same test
+   the nav uses to light its Updates pill (utils/primary_nav.js). Reached from the account rail's
+   Logs row, the same route is Basic's own Logs page, which Basic renders, so that one stays put.
+   First mapped 2026-09-28 to the Basic home page's Updates tab ("updates page (logs) -> basic view
+   home page with Updates active"). Revised 2026-09-30 ("we should be routing to the logs page but
+   ensure that their messages are not marked as read"): `user.logs?nav=home` stays on the Logs page
+   and drops the Updates marker and the messages filter (`?type=note&nav=home`,
+   components/user-pill-nav.hbs), which makes it Basic's own Logs page. A single update
+   (`user.log?nav=home`) matches it ("try to match it to the best of your ability"): it stays on
+   that update's page and drops the marker; `nav` is its only param (controllers/user/log.js),
+   changes nothing it renders, and that page marks nothing read.
+   A landing with `query_params` and no `route` means "this page, these params". */
 const LOGS_FROM_UPDATES = { query_params: { nav: null, type: null } };
+const LOG_FROM_UPDATES = { query_params: { nav: null } };
 
 export function basic_landing_for(route, url) {
   if(!route) { return null; }
   if(route === 'user.logs' && hasHomeNavParam(url)) { return LOGS_FROM_UPDATES; }
-  if(route === 'user.log' && hasHomeNavParam(url)) { return UPDATES_LANDING; }
+  if(route === 'user.log' && hasHomeNavParam(url)) { return LOG_FROM_UPDATES; }
   var landing = LANDINGS[route] || null;
   var name = landing && landing.open_supervisee_from && url_param(url, landing.open_supervisee_from);
   // A copy, so the shared map entry never carries one arrival's name into the next.

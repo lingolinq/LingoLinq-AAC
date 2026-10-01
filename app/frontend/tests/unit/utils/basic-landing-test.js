@@ -42,15 +42,17 @@ module('Unit | Utility | basic_landing', function() {
   /* CHANGED 2026-09-30, approved by Traci ("we should be routing to the logs page but ensure that
      their messages are not marked as read"): Modern's Updates page (`user.logs?nav=home`) used to
      land on the Basic home page's Updates tab. It now stays on the Logs page and drops the
-     Updates marker and the messages filter, so the page is Basic's own Logs page. A single update
-     (`user.log?nav=home`) still lands on the Updates tab. */
-  test('the Updates page stays on Logs, unfiltered; a single update lands on the Updates tab; plain Logs stays put', function(assert) {
+     Updates marker and the messages filter, so the page is Basic's own Logs page.
+     CHANGED AGAIN the same day, approved by Traci ("try to match it to the best of your ability"):
+     a single update (`user.log?nav=home`) no longer lands on the Updates tab either. It stays on
+     that update's page and drops the marker (it has no filter; `nav` is its only param). */
+  test('the Updates page stays on Logs, unfiltered; a single update stays on its page; plain Logs stays put', function(assert) {
     assert.expect(5);
     var landing = basic_landing_for('user.logs', '/ada/logs?nav=home');
     assert.notOk(landing.route, 'no route change');
     assert.deepEqual(landing.query_params, { nav: null, type: null }, 'the marker and the filter dropped');
-    assert.strictEqual(basic_landing_for('user.log', '/ada/logs/1_2?nav=home').index_nav, 'updates',
-      'an update opened from the Updates page');
+    assert.deepEqual(basic_landing_for('user.log', '/ada/logs/1_2?nav=home'), { query_params: { nav: null } },
+      'an update opened from the Updates page keeps its page and drops the marker');
     assert.strictEqual(basic_landing_for('user.logs', '/ada/logs'), null, 'the rail Logs row');
     assert.strictEqual(basic_landing_for('user.logs'), null, 'no URL known');
   });
