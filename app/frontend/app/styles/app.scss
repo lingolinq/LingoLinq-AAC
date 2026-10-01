@@ -51269,6 +51269,13 @@ body:not(.ll-layout-focused) .md-goals__header {
   letter-spacing: -0.2px;
   color: var(--md-ink);
 }
+/* A qualifier after a page label's title, such as the organisation in "Rooms - <name>"
+   (templates/organization.hbs; requested 2026-09-30: "a bit smaller and less bold"). Relative to
+   the title, so it follows the title's size at every breakpoint. */
+.md-compact-head__aside {
+  font-size: 0.8em;
+  font-weight: 600;
+}
 .md-edit-profile__quick-links {
   display: flex;
   align-items: center;
