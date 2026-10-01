@@ -18,11 +18,11 @@ import article50Gate from '../../utils/article50_gate';
 function appStateFor(flagOn, prefs) {
   var user = EmberObject.create({ preferences: prefs });
   return {
-    currentUser: user,
+    currentUser: user, sessionUser: user,
     feature_flags: { comprehensive_eval_ai: flagOn },
     get: function(key) {
       if(key === 'feature_flags.comprehensive_eval_ai') { return flagOn; }
-      if(key === 'currentUser') { return user; }
+      if(key === 'currentUser' || key === 'sessionUser') { return user; }
       return null;
     }
   };
@@ -45,6 +45,35 @@ describe('EvalComprehensiveRunner AI setting', 'component:eval-comprehensive-run
     var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
     c.set('appState', appStateFor(true, { ai_features_enabled: true }));
     expect(c.get('aiFlagEnabled')).toEqual(true);
+  });
+
+  // The signed-in SLP, whose setting the server checks (@api_user), not
+  // app-state's currentUser when that points at another account.
+  function twoUserState(slpPrefs, otherPrefs) {
+    var slp = EmberObject.create({ preferences: slpPrefs });
+    var other = EmberObject.create({ preferences: otherPrefs });
+    return {
+      sessionUser: slp, currentUser: other,
+      feature_flags: { comprehensive_eval_ai: true },
+      get: function(key) {
+        if(key === 'feature_flags.comprehensive_eval_ai') { return true; }
+        if(key === 'sessionUser') { return slp; }
+        if(key === 'currentUser') { return other; }
+        return null;
+      }
+    };
+  }
+
+  it('follows the signed-in SLP when the SLP turned AI on and the other account did not', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', twoUserState({ ai_features_enabled: true }, {}));
+    expect(c.get('aiFlagEnabled')).toEqual(true);
+  });
+
+  it('follows the signed-in SLP when the other account turned AI on and the SLP did not', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', twoUserState({}, { ai_features_enabled: true }));
+    expect(c.get('aiFlagEnabled')).toEqual(false);
   });
 
   it('hides AI narration when the flag is off', function() {

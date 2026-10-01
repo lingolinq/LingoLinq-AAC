@@ -144,6 +144,16 @@ function authoringUser(appState) {
 }
 
 /**
+ * Flag AND preference for an authoring feature, judged for authoringUser
+ * (eval narration: eval_sessions_controller.rb checks @api_user, the SLP).
+ */
+function authoringFeatureEnabled(appState, feature) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  if(!appState.get('feature_flags.' + feature)) { return false; }
+  return prefAllowsAi(authoringUser(appState), feature);
+}
+
+/**
  * How the create-board AI entry should proceed, for authoringUser.
  * @returns {'allowed'|'needs_opt_in'|'no_permission'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
  */
@@ -214,6 +224,7 @@ export default {
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
   authoringUser: authoringUser,
+  authoringFeatureEnabled: authoringFeatureEnabled,
   boardGenerationEntry: boardGenerationEntry,
   boardGenerationOffered: boardGenerationOffered,
   canChangeAiSettings: canChangeAiSettings,
@@ -230,6 +241,7 @@ export {
   euAiConsentRequired,
   coppaAiBlocked,
   authoringUser,
+  authoringFeatureEnabled,
   boardGenerationEntry,
   boardGenerationOffered,
   canChangeAiSettings,

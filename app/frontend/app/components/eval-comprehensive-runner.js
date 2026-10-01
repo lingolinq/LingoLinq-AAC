@@ -66,13 +66,13 @@ export default Component.extend({
   // ai_narration state.
   aiBusy: false,
   aiError: null,
-  // The feature flag AND the SLP's own AI setting (the person using the tool),
-  // matching the server gate (eval_sessions_controller ai_feature_enabled?).
+  // The feature flag AND the signed-in SLP's own AI setting (the person using the
+  // tool), matching the server gate (eval_sessions_controller ai_feature_enabled?).
   aiFlagEnabled: computed(
     'appState.feature_flags.comprehensive_eval_ai',
-    'appState.currentUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_features_enabled',
     function() {
-      return aiFeatureGate.aiFeatureEnabled(this.get('appState'), 'comprehensive_eval_ai');
+      return aiFeatureGate.authoringFeatureEnabled(this.get('appState'), 'comprehensive_eval_ai');
     }
   ),
   aiNarrative: computed('session.aiNarrative', function() {
