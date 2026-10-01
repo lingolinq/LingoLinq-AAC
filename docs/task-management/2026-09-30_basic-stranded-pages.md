@@ -145,3 +145,33 @@ Basic home page, Updates tab" now asserts the params-only landing (comment recor
 New: `tests/unit/routes/basic-logs-landing-test.js` (5), `tests/unit/components/
 view-switcher-logs-landing-test.js` (1). Falsified by removing only `transition.abort()` (the two
 Basic redirect cases go red).
+
+## Round 4 (same day): decisions, Supervisors row, Focused account avatar, boards pills
+
+Decisions (Traci, 2026-09-30):
+- Need Attention will not carry over to Basic.
+- The differences in how badges are shown between Basic and Modern are acceptable for now
+  (Basic: Communicators card progress or earned badge, board-header badge in speak mode, the
+  account page grid, Goals -> See User Badges, Updates notifications). Revisit only if needed.
+  The Modern caseload's goals list and "Add Goal with Badge" stay Modern-only with it.
+
+Shipped:
+- Supervisors row in the Basic account panel (components/dashboard/classic-account-rail.hbs):
+  after Subscription, links to user.supervision, labelled "Supervision" for a supporter and
+  "Supervisors" for a communicator, as Modern's account rail. `user.supervision` added to its
+  ROW_FOR_ROUTE. Before this a supporter in Basic had no way to supervision settings (the home
+  rail row and Actions tile are communicator-only). APPROVED TEST CHANGE:
+  classic-account-rail-active-row-test.js no longer lists user.supervision as a no-row
+  exception. Browser: example (a supporter) sees "Supervision"; it opens /example/supervision
+  inside the Basic rail with the row current.
+- Focused account avatar: tile a step darker (new `$focus-card-surface-deep`, a sibling of the
+  shared `$focus-card-surface`, which the boards-page icons and count badges keep) and a 1.5px
+  `$brand-slate-blue` ring over the picture's circle (drawn on the wrapper's ::after, inset by
+  the tile's border + padding). Gentle unchanged. Caveat: an uploaded photo fills the picture's
+  square box, so the ring sits over it rather than round a circle.
+  Two wrong turns on the way, both reverted before the next attempt: the caseload navy radial was
+  first put on the avatar, then on the hero card; what was wanted was "a bit darker" on the
+  avatar only.
+- Boards page New folder / Tag a board pills (`.ub-boards-page__folders-action-btn`, app.scss,
+  two identical copies in the same block, both edited): the 1px inner top highlight removed at
+  rest and on hover. The folders chevron keeps the shared highlight; its comment updated.
