@@ -75,3 +75,51 @@ classic-view Extras landing 2/2, user showClassicAccountRail 6/6, view-switcher 
 over the rest 50/50 with per-module counts (classic-rail-basic-access 2, board-picker pick for a
 communicator 3, basic_landing Extras 3, Basic Access 1, index login entry 4, board_picker_landing
 4, basic-try-home-button 4, home-boards redirect 1). ESLint gate new=73; template lint clean.
+
+## Round 2 (same day): direct arrivals in Basic, and the account heading
+
+Decisions (Traci): (1) a single communicator's caseload carries their user name and expands that
+communicator's card, scrolled to; (2) /extras opened directly in Basic re-routes to the home page
+with the Extras drawer open and scrolled to; (3) /logs?nav=home goes to the Updates tab, REVISED
+the same day to "land on the Logs page" (see "Still open" below; not shipped). Also
+requested: the account page heading shows the account holder's name, or their username.
+
+- `utils/basic_landing.js`: the caseload entry names `open_supervisee_from: 'supervisee'`;
+  `basic_landing_for` copies the entry with `open_supervisee` when the URL carries it;
+  `hand_off_index_nav` hands it off (`pending_open_supervisee`, taken once by
+  `take_pending_open_supervisee`); `query_string_for(transition)` lets routes feed the same URL
+  test the View menu uses.
+- `routes/caseload.js` passes its query string. `routes/user/extras.js` (after the inherited
+  own-account check in routes/user/home.js) calls `send_basic_viewer_to_landing`.
+- `components/dashboard/classic-view.js#_expand_supervisee_card`: sets `openSuperviseeId` (the
+  card's Extras panel) and scrolls the card (`#ch-extras-<id>`'s `.ch-comm`) below the header.
+- `templates/user/index.hbs`: both headings (Gentle hero, Focused head) read
+  `this.model.display_name` instead of "My Account".
+
+Tests (each red first, each change falsified by its own mutation): basic-landing-supervisee (4),
+basic-view-direct-landings (4), classic-view-supervisee-landing (3). Related modules by name:
+basic_landing 14, Basic view landings 9, Extras landing 2, extras scroll 3, index login entry 4,
+view-switcher 11, display-name helper 4; ESLint new=73; template lint clean.
+Browser (example, Basic): /example/extras -> /example/home, Actions, drawer open at y=82.
+Headings: /example "Example", /lingolinq
+"LingoLinq". NOT checked live: the caseload card expansion (example has no supervisees) and the
+username fallback on a nameless account (covered by the display-name helper tests).
+Side effect of an earlier probe (the Updates-tab version): it marked example's notifications read.
+
+### Still open: /logs?type=note&nav=home in Basic -> the plain Logs page
+
+Wanted: a Basic viewer opening Modern's Updates address directly lands on Basic's own Logs page
+(`/<me>/logs`, no query, the page the Basic account rail's Logs row opens). Two attempts in
+`routes/user/logs.js` afterModel, both reverted (`logs.js` is at HEAD):
+1. `router.replaceWith('user.logs', me, {queryParams: {nav: null, type: null}})` then
+   `return RSVP.reject()`: unit tests green, but in the browser the page showed "Failed to load".
+   The QP-only replace to the SAME route did not abort the in-flight transition, so the rejection
+   failed it. (Unit tests stub the router, so they cannot see this.)
+2. The same replace without the reject: the page rendered (Basic rail, Logs row active), but the
+   URL kept `?type=note&nav=home`; the in-flight transition finished with its own params.
+Stopped there (Rule #13). Untried next steps: do the replace after the transition completes
+(`transition.then(...)` or from setupController), skipping `markUpdatesRead` for that arrival;
+or a different-route hop. Whatever lands needs a browser check of the URL, the rail, the filter,
+Back (no loop), and that notifications are not marked read. The two attempts and the trimmed
+tests are saved outside the repo; the unit tests for it should assert on a real transition
+outcome, not a router stub.
