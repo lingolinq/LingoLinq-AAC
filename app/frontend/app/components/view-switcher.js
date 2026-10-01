@@ -240,8 +240,8 @@ export default Component.extend({
       if(next === 'classic') {
         var landing = basic_landing_for(this.appState.get('current_route') || '', this.get('router.currentURL'));
         if(landing) {
-          if(landing.index_nav) { hand_off_index_nav(this.appState, landing.index_nav); }
-          this.get('router').transitionTo(landing.route);
+          if(landing.index_nav) { hand_off_index_nav(this.appState, landing.index_nav, landing); }
+          this.get('router').transitionTo(landing.route, ...(landing.models || []));
           return;
         }
       }

@@ -6,7 +6,7 @@ import i18n from '../../utils/i18n';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
-import { take_pending_index_nav } from '../../utils/basic_landing';
+import { take_pending_index_nav, take_pending_open_extras } from '../../utils/basic_landing';
 
 /**
  * Classic home page.
@@ -84,6 +84,8 @@ export default AuthenticatedView.extend({
       this.set('index_nav_state', pending);
       this._pending_index_nav = pending;
     }
+    // ARRIVING FROM THE EXTRAS PAGE (2026-09-30): open the Extras drawer on insert, below.
+    this._pending_open_extras = take_pending_open_extras(this.appState);
   },
 
   _tabShown(nav) {
@@ -124,6 +126,14 @@ export default AuthenticatedView.extend({
       var nav = this._pending_index_nav;
       this._pending_index_nav = null;
       this.send('set_index_nav', nav);
+    }
+    /* The Extras drawer handed off by a switch from the Extras page (utils/basic_landing.js).
+       Opened through `toggle_extras`, the Extras card's own action, so the arrival gets exactly
+       the click's behaviour: the drawer opens and the card scrolls to the top once it renders.
+       After the tab above, because the drawer lives on the Actions tab. */
+    if(this._pending_open_extras) {
+      this._pending_open_extras = false;
+      if(!this.get('show_main_extras')) { this.send('toggle_extras'); }
     }
   },
 

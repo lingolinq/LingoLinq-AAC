@@ -1,12 +1,16 @@
 import Route from '@ember/routing/route';
+import RSVP from 'rsvp';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { inject as service } from '@ember/service';
 import boardsPageListCache from '../../utils/boards_page_list_cache';
+import { send_basic_viewer_to_landing } from '../../utils/basic_landing';
+import { wait_for_session_user } from '../../utils/session_user_wait';
 
 export default Route.extend({
   appState: service('app-state'),
   store: service('store'),
+  router: service('router'),
   controllerName: 'user/index',
 
   activate: function() {
@@ -16,6 +20,23 @@ export default Route.extend({
   deactivate: function() {
     boardsPageListCache.setBoardsPageActive(false);
     this._super(...arguments);
+  },
+
+  /* Basic has no boards library page: its home page's Boards tab is the equivalent, for the
+     viewer's OWN boards only (that tab lists them). A supervisee's library is left as it is.
+     On a cold load `currentUser` is not assigned yet, so this waits (briefly, bounded) for the
+     session user record already in flight, as routes/board.js does, before deciding. */
+  afterModel: function(model) {
+    var _this = this;
+    return wait_for_session_user(this.get('appState')).then(function(sessionUser) {
+      var me = _this.get('appState.currentUser') || sessionUser;
+      // By user_name as well as id: on a cold load the session record was fetched as
+      // findRecord('user', 'self') and its id is still 'self'.
+      var own = !!(model && me && (model.get('id') === me.get('id') || model.get('user_name') === me.get('user_name')));
+      if(own && send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.boards', me)) {
+        return RSVP.reject();
+      }
+    });
   },
 
   model: function() {

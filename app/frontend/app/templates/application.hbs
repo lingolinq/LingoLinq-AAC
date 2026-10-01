@@ -1476,7 +1476,7 @@
         <li role="presentation">
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
-        <li><LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
+        <li><LinkTo @route="user.boards" @model={{this.app_state.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
         <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
           {{#if this.app_state.currentUser.unread_messages}}

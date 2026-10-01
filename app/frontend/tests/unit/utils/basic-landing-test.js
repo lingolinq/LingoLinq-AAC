@@ -74,7 +74,10 @@ module('Unit | Utility | basic_landing', function() {
      map that guessed a destination would move people off pages that were working. Null is what
      tells the switcher to do what it has always done: re-render in place. */
   test('a page both views render answers null, so the switch stays put', function(assert) {
-    var shared = ['index', 'user.home', 'user.extras', 'organizations',
+    /* `user.extras` left this list on 2026-09-30, approved by Traci: switching to Basic on the
+       Extras page now lands on the home page with the Extras drawer open
+       (tests/unit/utils/basic-landing-extras-test.js), so it no longer stays put. */
+    var shared = ['index', 'user.home', 'organizations',
       'user.stats', 'user.logs', 'organization.rooms', 'user.account'];
     assert.expect(shared.length + 2);
     shared.forEach(function(route) {

@@ -16,6 +16,7 @@
  */
 
 import { hasHomeNavParam } from './primary_nav';
+import { is_classic } from './view_style';
 
 /* `index_nav` NAMES A TAB ON THE BASIC HOME PAGE (components/dashboard/classic-view.hbs
    `ch-tabs`): 'main' (Actions), 'supervisees' (Communicators), 'boards', 'updates'.
@@ -30,7 +31,15 @@ const LANDINGS = {
   // Requested 2026-09-24: "map caseload -> home page Communicators".
   'caseload': { route: 'index', index_nav: 'supervisees' },
   // Requested 2026-09-28: "boards page -> basic view home page with boards active".
-  'user.boards': { route: 'index', index_nav: 'boards' }
+  'user.boards': { route: 'index', index_nav: 'boards' },
+  // Requested 2026-09-30: "extras page -> the home page with the extras drawer expanded and
+  // scrolled down to the Extras items". Basic's Extras are the Actions tab's drawer, so this
+  // names the tab AND the drawer; the home page opens it through the Extras card's own action.
+  'user.extras': { route: 'index', index_nav: 'main', open_extras: true },
+  // Requested 2026-09-30: "basic access -> take the user to the search page". Basic Access has no
+  // Basic navigation; the board search is the same page as the Extras drawer's "Search Boards".
+  // `models` are the route's dynamic segments, in order (router.js `search`: /search/:l/:q).
+  'offline_boards': { route: 'search', models: ['any', '_'] }
 };
 
 /* Requested 2026-09-28: "updates page (logs) -> basic view home page with Updates active".
@@ -49,15 +58,48 @@ export function basic_landing_for(route, url) {
 /* THE HANDOFF, both halves in one place. The switcher leaves the tab in app state before it
    transitions (components/view-switcher.js#_apply_view) and the Basic home page takes it when
    it renders (components/dashboard/classic-view.js). TAKEN ONCE: a value left behind would
-   reopen that tab on some later, ordinary visit to the home page. */
-export function hand_off_index_nav(appState, nav) {
+   reopen that tab on some later, ordinary visit to the home page.
+   A PENDING HANDOFF ALSO MARKS THE ARRIVAL AS NOT A LOGIN ENTRY (routes/index.js#beforeModel).
+   `index` treats an arrival with no `transition.from` as a boot, which resumes the last
+   remembered page and can start a communicator's speak mode. A landing made during the first
+   page load has no `from` either, so it was resumed away and the next page's landing
+   overwrote the tab. The handoff is taken only when the Basic home page renders, so it is
+   still pending when `user.home` (which inherits index's hooks) runs. */
+export function hand_off_index_nav(appState, nav, landing) {
   appState.set('pending_index_nav', nav || null);
+  // The Extras drawer rides with the tab (the Extras landing above), taken once the same way.
+  appState.set('pending_open_extras', !!(landing && landing.open_extras) || null);
 }
 
 export function take_pending_index_nav(appState) {
   var nav = appState.get('pending_index_nav') || null;
   if(nav) { appState.set('pending_index_nav', null); }
   return nav;
+}
+
+/* ARRIVING ON A MODERN-ONLY PAGE IN BASIC (2026-09-30). The View menu is not the only way onto
+   these pages: the navbar's "My Boards", the org page's "Go to My Caseload", a bookmark or Back
+   all reach them, and Basic has no template for them, so the viewer got the Modern page with
+   neither view's navigation. The page's route calls this once its model is known and, for a
+   Basic viewer, goes to the same landing the View menu would. Returns true when it redirected,
+   so the route can stop its own transition.
+   `viewer` IS THE COLD-LOAD FALLBACK. On a first page load the route runs before
+   `currentUser` is assigned (utils/session_user_wait.js), so `effective_view_user` is empty and
+   the view cannot be read from it; the route passes the signed-in account's record it already
+   has (or has waited for) instead. */
+export function send_basic_viewer_to_landing(appState, router, route, viewer, url) {
+  if(!is_classic(appState.get('effective_view_user') || viewer)) { return false; }
+  var landing = basic_landing_for(route, url);
+  if(!landing) { return false; }
+  if(landing.index_nav) { hand_off_index_nav(appState, landing.index_nav, landing); }
+  router.transitionTo(landing.route, ...(landing.models || []));
+  return true;
+}
+
+export function take_pending_open_extras(appState) {
+  var open = !!appState.get('pending_open_extras');
+  if(open) { appState.set('pending_open_extras', null); }
+  return open;
 }
 
 export default basic_landing_for;

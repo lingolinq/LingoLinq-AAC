@@ -34,7 +34,7 @@ export default Route.extend({
     // index.afterModel may replaceWith('user.home') — the origin
     // `transition.from` is preserved across that chain, so a recompute
     // there still resolves to "not login".
-    var login_entry = !from || /^login(\.|$)/.test(from_name);
+    var login_entry = !this.appState.get('pending_index_nav') && (!from || /^login(\.|$)/.test(from_name));
     this.appState.set('_index_login_entry', login_entry);
     return this._super.apply(this, arguments);
   },

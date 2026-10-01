@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
+import { send_basic_viewer_to_landing } from '../utils/basic_landing';
 
 export default Route.extend({
   appState: service('app-state'),
@@ -31,6 +32,11 @@ export default Route.extend({
       supervisees.length > 0;
     if (!canAccess) {
       this.router.transitionTo('index');
+      return RSVP.reject();
+    }
+    // Basic has no caseload page: its home page's Communicators tab is the equivalent. The model
+    // is the signed-in account, so it decides the view on a cold load too.
+    if (send_basic_viewer_to_landing(this.appState, this.router, 'caseload', model)) {
       return RSVP.reject();
     }
     model.set('load_all_connections', true);
