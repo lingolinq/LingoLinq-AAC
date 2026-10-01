@@ -11,26 +11,306 @@ class Organization < ApplicationRecord
   has_many :licenses
   include Replicate
 
+  # Is this user already attached to us as a communicator? Read from UserLink, which is what
+  # Organization#attached_users and Organization.attached_orgs both derive from, so it is the
+  # operative grant. Used to keep a repeat claim from re-running the attach routine, which
+  # would re-enqueue billing work for an attachment that already exists.
+  def attached_as_communicator?(user)
+    return false unless user
+
+    code = Webhook.get_record_code(self)
+    link = UserLink.links_for(user, true).detect { |l| l['type'] == 'org_user' && l['record_code'] == code }
+    return false unless link
+
+    # An invitation is a RELATIONSHIP, not a completed attachment. Treating any link as
+    # attached skipped the attach routine on exactly the legitimate transfer path, where the
+    # receiving district invites the student first: the seat was assigned while sponsorship
+    # state, the subscription handling and added_org_id were all left unset, and the
+    # post-attach verification was skipped too, so it failed silently. Caught by the spec that
+    # asserts the new link is sponsored and non-pending.
+    #
+    # An eval link is not a completed attachment either. It is sponsored and accepted, but
+    # attached_users('user') excludes it, so a student seat claimed over it has to run the
+    # attach, which writes the link's eval flag false and clears the subscription's
+    # eval_account. Skipping it left the student counted as an eval while holding a paid seat.
+    state = link['state'] || {}
+    !state['pending'] && !!state['sponsored'] && !state['eval']
+  end
+
+  # This organization's org_user link for the user, as {'state' => ...}, or nil when there is
+  # none. Read from the table rather than the links_for cache, because it is compared against
+  # a write made moments later.
+  def org_user_link_state(user)
+    link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(self))
+                   .detect { |l| l.data['type'] == 'org_user' }
+    link && {'state' => (link.data['state'] || {}).deep_dup}
+  end
+
+  # Put this organization's org_user link back to a state captured by org_user_link_state:
+  # removed when there was no link, otherwise its prior state rewritten.
+  def restore_org_user_link_state!(user, prior)
+    if prior.nil?
+      UserLink.remove(user, self, 'org_user')
+    else
+      link = UserLink.generate(user, self, 'org_user')
+      link.data['state'] = prior['state']
+      link.save!
+    end
+  end
+
   def can_manage_user?(user)
     # District can see data ONLY if they have an active license for this user
     self.licenses.where(user_id: user.id, status: 'active').exists?
   end
 
   def claim_user(user, seat_type='student')
-    # Find an empty seat
-    license = self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
-    raise "No seats available in this district" unless license
+    # 1. Only student seats are claimed through this method. The attach below is the
+    # COMMUNICATOR routine: it cancels the family's subscription and sets the communicator
+    # role, so running it for a supervisor seat turned a paying supporter into a communicator.
+    # Before that, this method gave a supervisor a sponsored org_user link and the managing
+    # column, which is communicator treatment too, so there is no supervisor behaviour to
+    # restore. Refused before any seat or user write, and an allow-list, so a missing or
+    # unrecognised seat type is refused as well. The API passes params['seat_type'] through,
+    # defaulting a missing value to 'student' (api/organizations_controller.rb, claim_user), so
+    # the nil case is reachable only from Ruby callers.
+    raise "Only student seats can be claimed through this path" unless seat_type.to_s == 'student'
 
-    License.transaction do
-      # 1. Assign the seat
-      license.update!(user_id: user.id, granted_at: Time.now)
+    license = nil
+    existing = nil
 
-      # 2. Set the user to be managed by this district
-      user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
+    # Another organization already supporting this student is NOT a conflict, and this method
+    # deliberately leaves one alone: no seat release, no link removal, no revocation of
+    # classroom membership. Concurrent support is a state the product wants (a student
+    # transitioning between districts, or attending one school in the morning and another in
+    # the afternoon) and the model is built for it. Organization.attached_orgs returns one
+    # entry per org_user link with its own pending and sponsored flags, and licenses.user_id
+    # carries no unique index, so each organization seats the student from its own pool.
+    #
+    # Sponsorship needs no rule of its own because it follows the seat: this method is the
+    # only writer of managing_organization_id, and it reaches that write only after assigning
+    # a seat, so an organization the student adds without spending a license does not become
+    # the sponsor. Decided by Scot, 2026-09-23.
 
-      # 3. Create the UserLink to grant dashboard/tracking rights
-      UserLink.generate(user, self, 'org_user', { sponsored: true }).save!
+    # 2. Choose and assign the seat, both INSIDE a lock on the user row.
+    #
+    # The "already ours" lookup has to be inside the lock, not before it. Read outside, two
+    # concurrent claims of the same student by this district both see no existing seat, then
+    # each takes a DIFFERENT empty license and each compare-and-set succeeds, so the district
+    # consumes two seats for one student and is billed twice. The compare-and-set only defends
+    # a single row; it cannot see that this student was seated by a sibling request. An earlier
+    # revision of this method read it outside the lock while claiming in a comment that the
+    # lock made it race-safe, which it did not.
+    #
+    # Hand back an existing seat rather than allocating a second one: a repeat claim used to
+    # allocate ANOTHER empty seat while the first stayed assigned, so the district paid twice
+    # for one student, or it raised "No seats available" while already holding them.
+    #
+    # The assignment is still a compare-and-set, because the lock serializes claims of the same
+    # STUDENT, not claims against the same empty SEAT: two students seated by one district lock
+    # different rows and race for the same license. An unconditional write let the second claim
+    # overwrite the first, leaving one student with no seat while the roster and the seat count
+    # both still looked correct. db/schema.rb:410 indexes licenses.user_id but NOT uniquely, so
+    # the database does not catch it either. The predicates mirror the SELECT that chose the
+    # row, so a concurrent status, seat_type or organization change cannot be overwritten.
+    user.with_lock do
+      existing = self.licenses.where(user_id: user.id, seat_type: seat_type, status: 'active').first
+      license = existing
+      unless existing
+        license = self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
+        raise "No seats available in this district" unless license
+
+        taken = License.where(id: license.id, organization_id: self.id, seat_type: seat_type,
+                              status: 'active', user_id: nil)
+                       .update_all(user_id: user.id, granted_at: Time.now, updated_at: Time.now)
+        if taken == 0
+          # Name the reason the row no longer matched rather than assuming a competing claim:
+          # License.expire_stale_licenses! and suspension change status on their own schedule.
+          # Every branch raises; only the message differs.
+          current = License.find_by(id: license.id)
+          if current && current.status != 'active'
+            raise "Seat #{license.global_id} is no longer active (#{current.status}); re-run the claim"
+          elsif current && current.user_id
+            raise "Seat #{license.global_id} was claimed by another request; re-run the claim"
+          else
+            raise "Seat #{license.global_id} changed before it could be assigned; re-run the claim"
+          end
+        end
+
+        license.reload
+      end
     end
+
+    # 3. Attach through the established routine, AFTER the transaction has committed.
+    #
+    # It must NOT run inside the transaction. The routine enqueues irreversible billing work
+    # through plain Resque.enqueue, which fires immediately rather than on commit:
+    # Purchasing.cancel_subscription from clear_existing_subscription, and
+    # process_subscription_token 'unsubscribe' on every sponsored attach. Inside a
+    # transaction, any later failure would roll the seat back while a paying family's Stripe
+    # subscription had ALREADY been cancelled, with nothing able to undo it. That is worse
+    # than the defect this method fixes, and add_user never had a transaction here.
+    attached_now = false
+    prior_link_state = nil
+    attempt_stamp = nil
+    unless attached_as_communicator?(user)
+      attached_now = true
+      # Remember this organization's link as it was, so a failed attach can put it back (see
+      # step 4). The routine saves the link before it saves the user.
+      prior_link_state = org_user_link_state(user)
+
+      # Do not let ANOTHER organization's seat time be banked as the family's own credit.
+      # update_subscription_organization calls
+      # clear_existing_subscription(:track_seconds_left => true), which banks whatever
+      # expires_at holds and performs NO check on expiration_source: it writes
+      # seconds_left = max(seconds_left, expires_at - now). A prior organization's claim set
+      # expires_at to ITS license expiry, so without this a second organization's claim credits
+      # the family with the first organization's unused seat time, which User#update_subscription
+      # later returns to them as their own time on their next paid purchase or a 'restore'
+      # purchase. (License#release_user! restores a bank when the last seat goes, but only one
+      # whose recorded source is present and not 'org_license' and that outlasts the two-month
+      # hand-back; see perform_release!.) Supporting more than one organization at a time makes
+      # that a routine path rather than an edge case, so it is cleared here.
+      # The predicate is an explicit 'org_license' stamp, NOT the managing-organization column.
+      #
+      # An earlier revision keyed this on the column and justified it by claiming step 6 writes
+      # the column and expires_at in the same statement, so a set column meant a license-derived
+      # expiry. That invariant is false. The column PERSISTS after step 6, while
+      # User#update_subscription later moves expires_at forward on a purchase
+      # (app/models/concerns/subscription.rb: "self.expires_at = [self.expires_at, Time.now]
+      # .compact.max" then "+= args['seconds_to_add']", setting expiration_source to 'purchase')
+      # and subscription_override('add_5_years') does the same. Neither touches the column.
+      # So a family that bought five years while sponsored by organization A had that expiry
+      # silently destroyed, and NOT banked, by organization B's claim: the banking in
+      # clear_existing_subscription is exactly what this guard skips.
+      #
+      # Gating on expiration_source == 'purchase' is not enough either, because the source
+      # survives a claim: nothing resets it, so a pre-claim 'purchase' would wrongly suppress the
+      # guard. The value has to be STAMPED by step 6, which is what makes it mean "this expiry
+      # was granted by a seat and nothing has replaced it since".
+      #
+      # The decision and the clear run inside the user lock, which reloads the row first. Read
+      # from the in-memory copy, a purchase saved after that copy was loaded was wiped here:
+      # update_columns does not check or advance updated_at, so the stale write replaced the
+      # purchased expiry with nil and nothing noticed until the attach raised on the stale row.
+      # Under the lock, a purchase that committed first is seen (its source is no longer
+      # 'org_license', so nothing is cleared), and one that saves later waits for the lock and
+      # then writes its own expiry. The attach itself stays outside the lock (see above).
+      user.with_lock do
+        if user.expires_at && user.settings.dig('subscription', 'expiration_source') == 'org_license'
+          user.update_columns(expires_at: nil)
+        end
+      end
+
+      stamp_before = user.updated_at
+      begin
+        user.update_subscription_organization(self, false, true)
+      rescue StandardError
+        restore_org_user_link_state!(user, prior_link_state)
+        raise
+      end
+      # The routine saves this user object once, at its end, and nothing before that save
+      # writes the row through it. Rails sets updated_at on the object only when that save
+      # runs, so a new value means this attempt's save happened (checked in step 4).
+      attempt_stamp = user.updated_at unless user.updated_at == stamp_before
+    end
+
+    user.reload
+
+    # 4. Confirm the attach actually applied before treating the claim as done.
+    #
+    # update_subscription_organization rescues ActiveRecord::StaleObjectError, saves only the
+    # link, reschedules ITSELF and returns normally. A half-applied attach would otherwise
+    # look like success: seat assigned and link saved, but added_org_id, the communicator
+    # role, the pending flag and the seconds_left banking all lost. Worse, the rescheduled
+    # retry runs later, after the column write below has set expires_at to the licence expiry,
+    # so its clear_existing_subscription would bank the DISTRICT's seat time as family credit.
+    #
+    # The link the routine saved is put back the way it was before raising. Left in place, a
+    # sponsored non-pending link satisfies attached_as_communicator?, so the re-run this error
+    # asks for skipped the attach and this check and reported success with the attach still
+    # incomplete. Restored rather than deleted, so an invitation or unsponsored link this
+    # organization already had is not lost with the failed attach.
+    #
+    # added_org_id alone cannot show that THIS attempt applied: detaching never deletes it, so
+    # a student this organization attached before already carries its id, and a re-attach that
+    # hit the stale-record rescue passed the check with nothing saved. The check therefore also
+    # requires that this attempt's save ran (attempt_stamp, set in step 3). This method must not
+    # run inside a transaction (step 3), so a save that ran has been stored.
+    if attached_now && (attempt_stamp.nil? || user.settings.dig('subscription', 'added_org_id') != self.global_id)
+      restore_org_user_link_state!(user, prior_link_state)
+      raise "Seat claim for #{user.global_id} did not complete the organization attach; re-run the claim"
+    end
+
+    # 5 and 6 run inside ONE lock on the user row, the same lock License#release_user! takes
+    # before it frees a seat and repoints the column (license.rb, release_user!). Checked and
+    # written separately, a release landing between the check and the write let this claim
+    # write back the id of an organization whose seat had just been freed and report success.
+    # The lock order is user then license, matching release_user!.
+    lost_seat = false
+    inactive_status = nil
+    user.with_lock do
+      # 5. Confirm we still hold the seat, and that it is still active, BEFORE writing the
+      # managing-organization column.
+      #
+      # Checked before the write, not after: a claim that lost a concurrent race used to write
+      # its own id over the winner's and only then notice, leaving the column pointing at a
+      # district with no seat. Status is checked too because License.expire_stale_licenses!
+      # sets it to 'expired' BEFORE it takes this lock and keeps user_id, so user_id alone would
+      # let this claim write sponsorship from a seat that has already expired.
+      license.reload
+      if license.user_id != user.id
+        lost_seat = true
+        next
+      end
+      if license.status != 'active'
+        inactive_status = license.status
+        next
+      end
+
+      # 6. Set the managing-organization COLUMN. It is a separate field from the link-derived
+      # User#managing_organization, and several consumers read the column directly
+      # (telemetry_event.rb, user.rb, the word predictor), so the link write does not cover them.
+      # Stamp the expiry's provenance in the same write. The guard above depends on this: it is
+      # the only signal that distinguishes an expiry this method granted from one the family paid
+      # for. Assigned as a new hash rather than mutated in place so dirty tracking sees it through
+      # secure_serialize. Built after with_lock has reloaded the row, so nothing is lost.
+      subscription = (user.settings['subscription'] || {}).merge('expiration_source' => 'org_license')
+      user.settings = (user.settings || {}).merge('subscription' => subscription)
+      user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
+    end
+
+    if lost_seat || inactive_status
+      # Cleanup is conditional on losing the SEAT, not on whether we attached in this call.
+      # Gating it on attached_now left a district that had been invited and had accepted holding
+      # an accepted org_user link with no license when it lost the race, and
+      # Organization.manager_for? reads that link while ignoring seats: the losing district's
+      # managers would keep managing a student it does not pay for. Scoped to self, so it never
+      # touches another organization's link. A seat that stopped being active is treated the
+      # same way: this organization no longer holds a live seat for the student.
+      #
+      # This organization has ONE org_user link per student, so it is shared with any sibling
+      # claim by this organization that seated the student on a different seat and succeeded.
+      # The link is removed only when no active student seat of this organization still holds the
+      # student, and that re-check and the removal run in a fresh user lock: step 2 assigns
+      # seats under the same lock, so a sibling's seat is either already visible here or is
+      # assigned after the removal, in which case its own attach recreates the link. Removing it
+      # unconditionally left a successful claim holding a seat with no link. The raise below
+      # stays outside the lock.
+      user.with_lock do
+        still_seated = self.licenses.where(user_id: user.id, status: 'active', seat_type: 'student').exists?
+        UserLink.remove(user, self, 'org_user') unless still_seated
+      end
+      if inactive_status
+        raise "Seat #{license.global_id} is no longer active (#{inactive_status}); re-run the claim"
+      end
+      raise "Seat claim for #{user.global_id} lost a concurrent race; re-run the claim"
+    end
+
+    # 7. Refresh the student's available boards. update_subscription_organization does not do
+    # this, while every other attach and detach path in this model does. A claim changes which
+    # district's shared boards the student should see, so a stale set means a newly claimed
+    # student can miss this district's boards.
+    user.schedule(:update_available_boards)
     license
   end
 
@@ -124,12 +404,89 @@ class Organization < ApplicationRecord
     end
   end
 
+  # Booleans and numerics in the data policy, for coercion on write. Values arrive from
+  # Api::OrganizationsController#update_data_policy as `policy_params.permit!.to_h` and from
+  # process_params as `policy_hash.stringify_keys`, neither of which casts, and a form-encoded
+  # client sends every value as a String. Stored uncast, two organizations could hold
+  # retention_months as 12 and "3", and the strictest-wins intersections in this class and in
+  # User#effective_data_policy compare them with `<`: "3" < 12 raises ArgumentError inside
+  # LogSession's before_save, failing every log upload for that student, and "3" < "12" is
+  # lexicographically false so the LONGER window would be chosen as the stricter one.
+  DATA_POLICY_BOOLEAN_KEYS = %w[logging_allowed geo_logging_allowed log_reports_allowed
+                                log_publishing_allowed research_opt_in_allowed].freeze
+  DATA_POLICY_NUMERIC_KEYS = %w[max_logging_cutoff_hours retention_months].freeze
+
+  # A numeric data-policy value as an Integer: nil stays nil, a whole number of 0 or more (an
+  # Integer, or a String of digits with optional surrounding spaces) is returned, and anything
+  # else raises ArgumentError. Used on write (update_data_policy refuses the request) and on
+  # read (DataPolicyEnforcer skips the organization), so a malformed value is never read as 0.
+  # It used to be coerced with to_i, which turned "abc" into 0, and DataPolicyEnforcer treats 0
+  # retention_months as "no retention policy", so the purge stopped with no error.
+  WHOLE_NUMBER = /\A\s*\d+\s*\z/.freeze
+
+  def self.data_policy_number(value)
+    return nil if value.nil?
+    return value if value.is_a?(Integer) && value >= 0
+    return value.strip.to_i if value.is_a?(String) && value.match?(WHOLE_NUMBER)
+
+    raise ArgumentError, "#{value.inspect} is not a whole number of 0 or more"
+  end
+
+  # A boolean data-policy value: nil stays nil, a recognised true or false value is returned as
+  # that boolean, and anything else raises ArgumentError. Unrecognised values used to be stored
+  # as !!value, so "no", "off" or "" became true, the permissive setting for an "allowed" key.
+  def self.data_policy_boolean(value)
+    return nil if value.nil?
+    return false if [false, 'false', '0', 0].include?(value)
+    return true if [true, 'true', '1', 1].include?(value)
+
+    raise ArgumentError, "#{value.inspect} is not true or false"
+  end
+
+  def self.cast_data_policy_value(key, value)
+    if DATA_POLICY_BOOLEAN_KEYS.include?(key)
+      data_policy_boolean(value)
+    elsif DATA_POLICY_NUMERIC_KEYS.include?(key)
+      data_policy_number(value)
+    else
+      value
+    end
+  end
+
+  # The processing error for each key in policy_params whose value cannot be stored, or an
+  # empty list when every value is acceptable.
+  def self.data_policy_errors(policy_params)
+    (DATA_POLICY_BOOLEAN_KEYS + DATA_POLICY_NUMERIC_KEYS).filter_map do |key|
+      next unless policy_params.key?(key)
+
+      begin
+        cast_data_policy_value(key, policy_params[key])
+        nil
+      rescue ArgumentError
+        if DATA_POLICY_NUMERIC_KEYS.include?(key)
+          "#{key} must be a whole number of 0 or more"
+        else
+          "#{key} must be true or false"
+        end
+      end
+    end
+  end
+
+  # Returns true when applied. Returns false, with a processing error per bad key and nothing
+  # changed, when a numeric key is not a whole number of 0 or more or a boolean key is not a
+  # recognised true or false value.
   def update_data_policy(policy_params, updater)
+    errors = Organization.data_policy_errors(policy_params)
+    if errors.any?
+      errors.each { |error| add_processing_error(error) }
+      return false
+    end
+
     self.settings ||= {}
     self.settings['data_policy'] ||= {}
     DATA_POLICY_KEYS.each do |key|
       if policy_params.key?(key)
-        self.settings['data_policy'][key] = policy_params[key]
+        self.settings['data_policy'][key] = Organization.cast_data_policy_value(key, policy_params[key])
       end
     end
     self.settings['data_policy']['updated_at'] = Time.now.iso8601
@@ -144,6 +501,7 @@ class Organization < ApplicationRecord
       'policy' => self.settings['data_policy'],
       'version' => self.data_policy_version
     })
+    true
   end
 
   def self.admin
@@ -1043,7 +1401,15 @@ class Organization < ApplicationRecord
       # Try to use formal license first
       license = self.licenses.available.where(seat_type: 'student').first
       if license
-        return self.claim_user(user, 'student')
+        # Return the USER, not the License. The two branches of this method used to return
+        # different types, and process_params' assignment_action branch calls
+        # `new_user.settings['preferences']`. The licenses table has no settings column
+        # (db/schema.rb), so on the claim path that raised NoMethodError, which the surrounding
+        # rescue turned into "user management action failed" and a false return AFTER the seat
+        # was consumed, the subscription routine had run and the assignment mail had been sent.
+        # gift_purchase.rb and lib/seed_organization.rb also consume this return value.
+        self.claim_user(user, 'student')
+        return user
       end
     end
 
@@ -1105,13 +1471,22 @@ class Organization < ApplicationRecord
     
     self.remove_extras_from_user(user.user_name)
     user.reload
-    user.begin_family_offboarding_consents!(
-      org: self,
-      parent_email: parent_email,
-      actor: actor,
-      birth_month: birth_month,
-      birth_year: birth_year
-    )
+    if License.active_seat_elsewhere?(user, self)
+      # Another organization still holds an active seat, so this is not a hand-back to the
+      # family: no offboarding, and school_authorization is left as it is. The manager's age
+      # attestation is still recorded, because License.expire_stale_licenses! reads it when that
+      # last seat expires. The parent email is not kept; it is collected when offboarding runs.
+      user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
+    else
+      user.begin_family_offboarding_consents!(
+        org: self,
+        parent_email: parent_email,
+        actor: actor,
+        birth_month: birth_month,
+        birth_year: birth_year,
+        skip_if_supported_elsewhere: true
+      )
+    end
     true
   end
 
@@ -1566,7 +1941,26 @@ class Organization < ApplicationRecord
     })
   end
 
+  # The data_policy parameter as a Hash with string keys, or nil when it is absent or not a Hash.
+  def data_policy_param(params)
+    raw = params[:data_policy]
+    raw = raw.to_unsafe_h if raw.respond_to?(:to_unsafe_h)
+    raw.is_a?(Hash) ? raw.stringify_keys : nil
+  end
+
   def process_params(params, non_user_params)
+    # Check the data policy before anything else runs. It is applied last, below, and the
+    # management action above that point writes users and links immediately, so a policy
+    # refused there used to leave the rest of the request applied.
+    policy_hash = data_policy_param(params)
+    if policy_hash
+      errors = Organization.data_policy_errors(policy_hash)
+      if errors.any?
+        errors.each { |error| add_processing_error(error) }
+        return false
+      end
+    end
+
     self.settings ||= {}
     self.settings['name'] = process_string(params['name']) if params['name']
     self.settings['premium'] = process_boolean(params['premium']) if params['premium'] != nil
@@ -1901,9 +2295,8 @@ class Organization < ApplicationRecord
         return false
       end
     end
-    if params[:data_policy].is_a?(Hash) || (params[:data_policy].respond_to?(:to_unsafe_h) && params[:data_policy].to_unsafe_h.is_a?(Hash))
-      policy_hash = params[:data_policy].respond_to?(:to_unsafe_h) ? params[:data_policy].to_unsafe_h : params[:data_policy]
-      self.update_data_policy(policy_hash.stringify_keys, non_user_params['updater'])
+    if policy_hash
+      return false unless self.update_data_policy(policy_hash, non_user_params['updater'])
     end
 
     @processed = true

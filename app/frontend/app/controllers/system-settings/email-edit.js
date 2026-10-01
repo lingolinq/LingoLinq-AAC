@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
+import apiErrorMessage from '../../utils/api_error_message';
 
 export default Controller.extend({
   persistence: service('persistence'),
@@ -23,10 +24,12 @@ export default Controller.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
-    this.ctrlActionEventValueBound = function(actionName, boundArg, targetProp) {
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
-        var value = event && event.target ? event.target[targetProp] : undefined;
-        self.send(actionName, boundArg, value);
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
       };
     };
   },
@@ -136,45 +139,10 @@ export default Controller.extend({
       _this.set('loadError', true);
     });
   },
-  init() {
-    this._super(...arguments);
-    var self = this;
-    this.ctrlAction = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args = bound.concat(Array.prototype.slice.call(arguments));
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          if (evt.preventDefault) { evt.preventDefault(); }
-          args.pop();
-        }
-        self.send.apply(self, [actionName].concat(args));
-      };
-    };
-    this.ctrlActionNoBubble = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function(event) {
-        if (event && event.stopPropagation) { event.stopPropagation(); }
-        if (event && event.preventDefault) { event.preventDefault(); }
-        self.send.apply(self, [actionName].concat(bound));
-      };
-    };
-  },
-
 
   actions: {
     setFormat: function(format) {
       this.set('activeFormat', format);
-    },
-
-    updateI18nBlock: function(block, value) {
-      var blocks = (this.get('i18nBlocks') || []).map(function(item) {
-        if (item.key === block.key) {
-          return Object.assign({}, item, { value: value });
-        }
-        return item;
-      });
-      this.set('i18nBlocks', blocks);
     },
 
     saveTemplate: function() {
@@ -203,7 +171,7 @@ export default Controller.extend({
         _this.loadTemplate();
       }, function(err) {
         _this.set('saving', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     },
 
@@ -218,7 +186,7 @@ export default Controller.extend({
         modal.success(i18n.t('system_settings_email_reset_done', 'Email template reset.'));
         _this.loadTemplate();
       }, function(err) {
-        modal.error(err.error || err.errors || i18n.t('system_settings_save_error', 'Could not save settings.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', 'Could not save settings.')));
       });
     },
 
@@ -252,7 +220,7 @@ export default Controller.extend({
         _this.set('previewText', res.text_body);
       }, function(err) {
         _this.set('previewing', false);
-        modal.error(err.error || err.errors || i18n.t('system_settings_preview_error', 'Could not generate preview.'));
+        modal.error(apiErrorMessage(err, i18n.t('system_settings_preview_error', 'Could not generate preview.')));
       });
     }
   }

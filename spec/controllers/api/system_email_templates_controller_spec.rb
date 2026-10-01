@@ -88,6 +88,17 @@ describe Api::SystemEmailTemplatesController, type: :controller do
       }
       assert_error('Email templates may only use <%= ... %> output tags, not Ruby code blocks (<% ... %>)', 400)
     end
+
+    it 'rejects an i18n override with an unknown placeholder' do
+      make_site_admin
+      put :update, params: {
+        id: 'user_mailer.parental_consent_request',
+        org_id: 'default',
+        template: {i18n_overrides: {'parental_consent_mailer.intro' => 'Welcome to %{app_nam}'}}
+      }
+      expect(response).to have_http_status(400)
+      expect(JSON.parse(response.body)['error']).to include('%{app_nam}')
+    end
   end
 
   describe 'POST preview' do
@@ -119,6 +130,44 @@ describe Api::SystemEmailTemplatesController, type: :controller do
       json = JSON.parse(response.body)
       expect(json['html_body']).to include('Welcome to LingoLinq!')
       expect(json['html_body']).not_to include('%{app_name}')
+    end
+
+    it 'previews the payload the editor sends, with the default bodies included' do
+      make_site_admin
+      post :preview, params: {
+        id: 'user_mailer.parental_consent_request',
+        org_id: 'default',
+        template: {
+          subject: '',
+          html_body: SystemEmailTemplates.default_body('user_mailer/parental_consent_request', 'html'),
+          text_body: SystemEmailTemplates.default_body('user_mailer/parental_consent_request', 'text'),
+          i18n_overrides: {'parental_consent_mailer.greeting' => 'Howdy,'}
+        }
+      }
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)['html_body']).to include('Howdy,')
+    end
+
+    it 'returns a 400 for a placeholder in a block the mailer does not interpolate' do
+      make_site_admin
+      post :preview, params: {
+        id: 'user_mailer.parental_consent_request',
+        org_id: 'default',
+        template: {i18n_overrides: {'parental_consent_mailer.greeting' => 'Hello %{app_name}'}}
+      }
+      expect(response).to have_http_status(400)
+      expect(JSON.parse(response.body)['error']).to start_with('Greeting: %{app_name}')
+    end
+
+    it 'returns a 400, not a 500, for an unknown i18n placeholder' do
+      make_site_admin
+      post :preview, params: {
+        id: 'user_mailer.parental_consent_request',
+        org_id: 'default',
+        template: {i18n_overrides: {'parental_consent_mailer.intro' => 'Welcome to %{app_nam}'}}
+      }
+      expect(response).to have_http_status(400)
+      expect(JSON.parse(response.body)['error']).to include('%{app_nam}')
     end
   end
 end
