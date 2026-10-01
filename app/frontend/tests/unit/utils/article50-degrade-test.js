@@ -139,7 +139,7 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
 
     var appState = makeAppState({
       flags: { ai_word_prediction: true, article_50_disclosure: true },
-      user: makeUser({
+      user: makeUser({ preferences: { ai_features_enabled: true, ai_word_prediction: true },
         article_50_disclosure_required: true,
         article_50_disclosure_shown: false,
         feature_flags: { article_50_disclosure: true }
