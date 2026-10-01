@@ -26,7 +26,10 @@ module('Unit | Component | classic-view Extras landing', function(hooks) {
     planted = button;
     context.owner.unregister('service:app-state');
     context.owner.register('service:app-state', Service.extend({
-      currentUser: EmberObject.create({ preferences: {}, supporter_role: true }),
+      /* `save`: the handed-off Actions tab runs `set_index_nav('main')`, which remembers the tab
+         on the user record (authenticated-view.js#set_index_nav). Fixture fix approved by Traci,
+         2026-09-30: without it the test threw `u.save is not a function` before asserting. */
+      currentUser: EmberObject.create({ preferences: {}, supporter_role: true, save: function() { return Promise.resolve(); } }),
       pending_index_nav: pending ? 'main' : null,
       pending_open_extras: pending ? true : null
     }));
