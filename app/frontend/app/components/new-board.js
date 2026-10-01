@@ -12,6 +12,7 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import actionLock from '../utils/action-lock';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import { ensureAiBoardGenerationAccess } from '../utils/ai_board_generation_access';
 import article50Gate from '../utils/article50_gate';
 import buildEventAction from '../utils/event_action';
 
@@ -145,12 +146,15 @@ export default Component.extend({
     return this.get('model.for_user_id');
   }),
 
-  ai_board_generation_enabled: computed(
+  // Shown whenever AI board generation is available for the account; the click
+  // goes through the turn-on step or a reason first (generateWithAi).
+  ai_board_generation_offered: computed(
     'appState.feature_flags.ai_board_generation',
     'appState.currentUser.preferences.ai_features_enabled',
     'appState.currentUser.preferences.ai_board_generation',
+    'appState.currentUser.permissions',
     function() {
-      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+      return aiFeatureGate.boardGenerationOffered(this.appState);
     }
   ),
 
@@ -418,17 +422,30 @@ export default Component.extend({
       // component state for the same reason -- `standalone` is captured up front.
       var standalone = this.get('standalone');
       var modalService = this.get('modal');
-      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
-        if(!standalone) {
-          modalService.close();
-        }
-        modalUtil.open('generate-board');
-      }, function() {
-        // Gate not acknowledged (bumped by another modal). Do not open
-        // generate-board. The disclosure modal is what the user is looking at,
-        // or another modal took over; either way this is fail-closed by design
-        // and needs no separate error surface here.
-      });
+      var appState = this.get('appState');
+      var openGenerator = function() {
+        article50Gate.presentBlockingGate(appState).then(function() {
+          if(!standalone) {
+            modalService.close();
+          }
+          modalUtil.open('generate-board');
+        }, function() {
+          // Gate not acknowledged (bumped by another modal). Do not open
+          // generate-board. The disclosure modal is what the user is looking at,
+          // or another modal took over; either way this is fail-closed by design
+          // and needs no separate error surface here.
+        });
+      };
+      // AI board generation not on yet for this account: the turn-on step or a
+      // reason first (utils/ai_board_generation_access.js). That modal replaces
+      // this one, so nothing after it reads component state.
+      if(aiFeatureGate.boardGenerationEntry(appState) !== 'allowed') {
+        ensureAiBoardGenerationAccess(appState).then(function(result) {
+          if(result && result.proceed) { openGenerator(); }
+        });
+        return;
+      }
+      openGenerator();
     },
     opening: function() {
       if (this.get('standalone')) { return; }

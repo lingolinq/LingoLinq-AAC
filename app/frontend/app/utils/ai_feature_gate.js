@@ -120,8 +120,20 @@ function coppaAiBlocked(user) {
 }
 
 /**
+ * Whether the signed-in person can change this account's AI settings. The
+ * server writes them only for someone with `edit` on the account, and the user
+ * model carries the viewer's permissions. Unknown permissions do not hide the
+ * turn-on step: the server still refuses a save it does not allow.
+ */
+function canChangeAiSettings(user) {
+  var perms = userAttr(user, 'permissions');
+  if(!perms || typeof perms !== 'object') { return true; }
+  return !!perms.edit;
+}
+
+/**
  * How the create-board AI entry should proceed.
- * @returns {'allowed'|'needs_opt_in'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
+ * @returns {'allowed'|'needs_opt_in'|'no_permission'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
  */
 function boardGenerationEntry(appState) {
   if(!appState || typeof appState.get !== 'function') { return 'blocked_flag'; }
@@ -129,8 +141,19 @@ function boardGenerationEntry(appState) {
   if(euAiConsentRequired(user)) { return 'eu_consent'; }
   if(!appState.get('feature_flags.ai_board_generation')) { return 'blocked_flag'; }
   if(coppaAiBlocked(user)) { return 'blocked_coppa'; }
-  if(!prefExplicitlyEnabled(user, 'ai_board_generation')) { return 'needs_opt_in'; }
+  if(!prefExplicitlyEnabled(user, 'ai_board_generation')) {
+    return canChangeAiSettings(user) ? 'needs_opt_in' : 'no_permission';
+  }
   return 'allowed';
+}
+
+/**
+ * Whether to show a "Generate with AI" entry. Shown whenever the feature is
+ * available for the account, so a person reaches the turn-on step or a plain
+ * reason (boardGenerationEntry) rather than finding no button at all.
+ */
+function boardGenerationOffered(appState) {
+  return boardGenerationEntry(appState) !== 'blocked_flag';
 }
 
 /**
@@ -174,6 +197,8 @@ export default {
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
   boardGenerationEntry: boardGenerationEntry,
+  boardGenerationOffered: boardGenerationOffered,
+  canChangeAiSettings: canChangeAiSettings,
   applyAiFeaturePrefs: applyAiFeaturePrefs,
   rollbackAiFeaturePrefs: rollbackAiFeaturePrefs
 };
@@ -187,6 +212,8 @@ export {
   euAiConsentRequired,
   coppaAiBlocked,
   boardGenerationEntry,
+  boardGenerationOffered,
+  canChangeAiSettings,
   applyAiFeaturePrefs,
   rollbackAiFeaturePrefs
 };

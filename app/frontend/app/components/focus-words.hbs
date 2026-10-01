@@ -228,6 +228,7 @@
           </div>
         {{else}}
           <div class='col-sm-12' style='margin-top: 8px;'>
+            {{#if this.ai_focus_generation_offered}}
             {{#if this.ai_focus_generation_enabled}}
               <div class="nb-ai-generate">
                 <p class="nb-ai-generate__lead">{{t "Describe a topic, book, or lesson and AI will suggest focus words. You can review and edit the list before applying it." key="ai_generate_focus_words_lead"}}</p>
@@ -265,6 +266,26 @@
                   {{/if}}
                 </button>
               </div>
+            {{else if this.ai_focus_needs_opt_in}}
+              <div class="nb-ai-generate">
+                <p class="nb-ai-generate__lead">{{t "Turn on AI features for this account?" key="ai_features_turn_on_question"}}</p>
+                <p class="md-modal-hint">{{t "This turns on AI board generation, which suggests words from a topic you describe. Other AI features stay as they are. You can turn it off any time in Preferences under AI Features." key="ai_features_turn_on_board_generation_hint"}}</p>
+                {{#if this.ai_focus_opt_in_error}}
+                  <p class="text-danger">{{this.ai_focus_opt_in_error}}</p>
+                {{/if}}
+                <button type="button" class="btn btn-primary nb-ai-generate__btn" disabled={{this.ai_focus_opt_in_saving}} {{on "click" (this.ctrlAction "enable_ai_focus_words")}}>
+                  {{#if this.ai_focus_opt_in_saving}}
+                    {{t "Saving..." key="saving"}}
+                  {{else}}
+                    {{t "Turn on" key="ai_features_turn_on_button"}}
+                  {{/if}}
+                </button>
+              </div>
+            {{else if this.ai_focus_blocked_reason}}
+              <div class="nb-ai-generate">
+                <p class="md-modal-hint">{{this.ai_focus_blocked_reason}}</p>
+              </div>
+            {{/if}}
             {{/if}}
             <div class="form-group">
               <textarea aria-label={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} class="form-control" placeholder={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>

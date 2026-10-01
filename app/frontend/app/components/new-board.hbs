@@ -19,7 +19,7 @@
             {{t "Import Board from Another Platform" key="import_json_bundle"}}
           </button>
         {{/if}}
-        {{#if this.ai_board_generation_enabled}}
+        {{#if this.ai_board_generation_offered}}
           <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "generateWithAi")}}>
             {{t "Generate with AI" key="generate_with_ai"}}
           </button>
@@ -59,7 +59,7 @@
             {{t "Import Board from Another Platform" key="import_json_bundle"}}
           </button>
         {{/if}}
-        {{#if this.ai_board_generation_enabled}}
+        {{#if this.ai_board_generation_offered}}
           <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "generateWithAi")}}>
             {{t "Generate with AI" key="generate_with_ai"}}
           </button>

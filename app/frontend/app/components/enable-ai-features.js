@@ -60,6 +60,11 @@ export default Component.extend({
     return this.get('model.blockedReason') === 'coppa';
   }),
 
+  // The signed-in person cannot change this account's AI settings.
+  blockedPermission: computed('model.blockedReason', function() {
+    return this.get('model.blockedReason') === 'permission';
+  }),
+
   _user: function() {
     return this.get('model.user') || this.get('appState.currentUser');
   },
