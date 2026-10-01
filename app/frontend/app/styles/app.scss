@@ -72498,14 +72498,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     font-weight: 600;
     cursor: pointer;
     /* Subtle layered shadow lifts the pills off the inset folders
-       surface — soft outer drop + 1px highlight at the top so the
-       white pill reads as a tactile control rather than sinking into
-       the cool-blue gradient behind it. Hover deepens the lift for
-       press feedback. */
+       surface — a soft outer drop, so the white pill reads as a control
+       rather than sinking into the cool-blue gradient behind it. Hover
+       deepens the lift for press feedback. The 1px inner top highlight
+       was removed 2026-09-30 (requested: "remove the inset look"). */
     box-shadow:
       0 1px 2px rgba($la-navy, 0.06),
-      0 2px 8px rgba($la-navy, 0.10),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      0 2px 8px rgba($la-navy, 0.10);
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
     &:hover {
       background: rgba($brand-blue-black, 0.05);
@@ -72513,8 +72512,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
       color: $indigo;
       box-shadow:
         0 2px 4px rgba($la-navy, 0.08),
-        0 6px 16px rgba($la-navy, 0.14),
-        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        0 6px 16px rgba($la-navy, 0.14);
       transform: translateY(-1px);
     }
   }
@@ -73529,10 +73527,10 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     /* READS AS A BUTTON (requested 2026-09-22). It was a bare transparent icon — no surface,
        no edge — so nothing said it was pressable; with the caret now right-aligned there is
        also no heading beside it to borrow affordance from.
-       Deliberately the SAME treatment as `&__folders-action-btn` (the New folder / Tag a board
+       Deliberately the SAME family as `&__folders-action-btn` (the New folder / Tag a board
        pills in this very header) rather than a new look: white surface, the same border token,
-       the same layered lift (soft drop + 1px top highlight) that stops a control sinking into
-       the card's cool-blue gradient. One button family in one header.
+       a layered lift that stops a control sinking into the card's cool-blue gradient. (The pills
+       dropped their 1px top highlight on 2026-09-30; this button keeps the shared one.)
        FIXED 32px SQUARE with `padding: 0` instead of the old `14px 18px`: an icon-only control
        should be a defined target, not text padding around a glyph. That asymmetric padding was
        also being zeroed on one side at >=901px, which is what made it 32x42 and lopsided. */
@@ -73674,14 +73672,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     font-weight: 600;
     cursor: pointer;
     /* Subtle layered shadow lifts the pills off the inset folders
-       surface — soft outer drop + 1px highlight at the top so the
-       white pill reads as a tactile control rather than sinking into
-       the cool-blue gradient behind it. Hover deepens the lift for
-       press feedback. */
+       surface — a soft outer drop, so the white pill reads as a control
+       rather than sinking into the cool-blue gradient behind it. Hover
+       deepens the lift for press feedback. The 1px inner top highlight
+       was removed 2026-09-30 (requested: "remove the inset look"). */
     box-shadow:
       0 1px 2px rgba($la-navy, 0.06),
-      0 2px 8px rgba($la-navy, 0.10),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      0 2px 8px rgba($la-navy, 0.10);
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
     &:hover {
       background: rgba($brand-blue-black, 0.05);
@@ -73689,8 +73686,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
       color: $indigo;
       box-shadow:
         0 2px 4px rgba($la-navy, 0.08),
-        0 6px 16px rgba($la-navy, 0.14),
-        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        0 6px 16px rgba($la-navy, 0.14);
       transform: translateY(-1px);
     }
   }
