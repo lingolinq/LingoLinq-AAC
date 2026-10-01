@@ -60,7 +60,7 @@ module FeatureFlags
               # app/frontend/app/routes/index.js#afterModel; the recording side
               # (utils/session_history.js) runs regardless so flipping this on
               # takes effect immediately.
-              'session_resume',
+              'session_resume', 'disable_transcription_alternatives', # inverted: ON turns transcription language hints OFF (read only by lib/speech_language.rb); never add it to ENABLED
               # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
               # the upper-left of any page that isn't the supporter's own. Read by
               # app-state#supervising_context; with it OFF the computed returns

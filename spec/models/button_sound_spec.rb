@@ -786,6 +786,12 @@ describe ButtonSound, :type => :model do
       configs
     end
 
+    def connect(user, locale, age)
+      board = Board.create(:user => User.create, :settings => {'locale' => 'en'})
+      ubc = UserBoardConnection.create(:user_id => user.id, :board_id => board.id, :locale => locale)
+      ubc.update_column(:updated_at, age.hours.ago)
+    end
+
     def ok_response
       OpenStruct.new(code: 200, body: {results: [{alternatives: [{transcript: 'hola', confidence: 0.9}]}]}.to_json)
     end
@@ -811,8 +817,7 @@ describe ButtonSound, :type => :model do
     it "should send up to 3 other languages from the owner's boards as alternatives" do
       u = User.create
       [['fr', 1], ['zz', 2], ['en_GB', 3], ['es', 4], ['de', 5], ['it', 6]].each do |loc, age|
-        b = Board.create(:user => u, :settings => {'locale' => loc})
-        b.update_column(:updated_at, age.hours.ago)
+        connect(u, loc, age)
       end
       configs = stub_recognize(ok_response)
       bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
@@ -835,7 +840,7 @@ describe ButtonSound, :type => :model do
 
     it "should treat blank or malformed locales as absent and keep the default request" do
       u = User.create(:settings => {'preferences' => {'locale' => '', 'home_board' => {'id' => '1_1', 'locale' => 'english'}}})
-      Board.create(:user => u, :settings => {'locale' => 'es'})
+      connect(u, 'es', 1)
       configs = stub_recognize(ok_response)
       ButtonSound.new(:user => u, :settings => {'locale' => ''}).schedule_transcription(true)
       expect(configs[0]).to eq({'encoding' => 'LINEAR16', 'sampleRateHertz' => 44100, 'languageCode' => 'en', 'profanityFilter' => true})
@@ -859,7 +864,7 @@ describe ButtonSound, :type => :model do
 
     it "should retry once without alternatives when Google rejects a language code" do
       u = User.create
-      Board.create(:user => u, :settings => {'locale' => 'fr'})
+      connect(u, 'fr', 1)
       configs = stub_recognize(language_error_response, ok_response)
       bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
       bs.schedule_transcription(true)
@@ -873,7 +878,7 @@ describe ButtonSound, :type => :model do
 
     it "should count one error when the retry also fails" do
       u = User.create
-      Board.create(:user => u, :settings => {'locale' => 'fr'})
+      connect(u, 'fr', 1)
       configs = stub_recognize(language_error_response, language_error_response)
       bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
       bs.schedule_transcription(true)
@@ -891,7 +896,7 @@ describe ButtonSound, :type => :model do
 
     it "should not retry on other errors" do
       u = User.create
-      Board.create(:user => u, :settings => {'locale' => 'fr'})
+      connect(u, 'fr', 1)
       configs = stub_recognize(other_error_response, ok_response)
       bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
       bs.schedule_transcription(true)

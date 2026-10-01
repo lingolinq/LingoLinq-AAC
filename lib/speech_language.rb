@@ -50,7 +50,12 @@ module SpeechLanguage
 
   # Google's v1 limit for alternativeLanguageCodes.
   MAX_ALTERNATIVES = 3
-  BOARD_SCAN_LIMIT = 25
+
+  # Kill switch, OFF unless an admin adds it to the default list or an org's
+  # enabled features (system settings). Either one turns alternatives off, so an
+  # org with its own list is still reached from the default list. Canary and
+  # beta opt-ins do not apply to it.
+  ALTERNATIVES_KILL_SWITCH = 'disable_transcription_alternatives'
 
   def self.valid_locale?(locale)
     locale.is_a?(String) && locale.match?(LOCALE_PATTERN)
@@ -80,20 +85,35 @@ module SpeechLanguage
     code.to_s.split('-')[0]
   end
 
-  # Other languages from the owner's most recently updated boards, one code per
-  # language, never the primary's language.
+  def self.alternatives_enabled?(user)
+    return false if SystemFeatureSettings.default_enabled_features.include?(ALTERNATIVES_KILL_SWITCH)
+    !SystemFeatureSettings.effective_enabled_for(user).include?(ALTERNATIVES_KILL_SWITCH)
+  end
+
+  # Other languages of the owner's board sets (UserBoardConnection#locale, which
+  # carries the home or sidebar entry's language onto every linked board), the
+  # home language first, then the language with the most connected boards, one
+  # code per language, never the primary's language.
   def self.alternatives(user, primary)
     return [] unless user && user.id && primary
-    langs = [language_of(primary)]
-    res = []
-    Board.where(user_id: user.id).order(updated_at: :desc).limit(BOARD_SCAN_LIMIT).each do |board|
-      code = normalize(board.settings && board.settings['locale'])
-      next if !code || langs.include?(language_of(code))
-      langs << language_of(code)
-      res << code
-      break if res.length >= MAX_ALTERNATIVES
+    return [] unless alternatives_enabled?(user)
+    primary_lang = language_of(primary)
+    # One row per distinct locale string, so no cap is needed before ranking.
+    rows = UserBoardConnection.where(user_id: user.id).where.not(locale: [nil, '']).group(:locale)
+      .pluck(:locale, Arel.sql('BOOL_OR(home)'), Arel.sql('COUNT(*)'), Arel.sql('MAX(updated_at)'))
+    # Rank by language, not by locale string, so fr and fr_CA count together.
+    by_lang = {}
+    rows.each do |locale, home, count, last|
+      code = normalize(locale)
+      next if !code || language_of(code) == primary_lang
+      entry = by_lang[language_of(code)] ||= {home: false, count: 0, last: Time.at(0), codes: Hash.new(0)}
+      entry[:home] ||= !!home
+      entry[:count] += count
+      entry[:last] = [entry[:last], last].compact.max
+      entry[:codes][code] += count
     end
-    res
+    ranked = by_lang.sort_by { |lang, e| [e[:home] ? 0 : 1, -e[:count], -e[:last].to_f, lang] }
+    ranked.first(MAX_ALTERNATIVES).map { |_lang, e| e[:codes].max_by { |code, n| [n, code] }[0] }
   end
 
   # [languageCode, alternativeLanguageCodes] for a recording, or nil when its
