@@ -272,3 +272,25 @@ open 6, classic-view supervisee landing 3). ESLint gate new=73; template lint cl
 Not done yet: H3 (font floor; a visual batch needing screenshots), M1 (needs approval to change
 a committed test's specification), M4 / M6 / M8 (decisions), and the reviewer-confirmed Mediums
 (each needs verifying first).
+
+### Fix status, 2026-10-01 (continued)
+
+- **M1 (8bf6cb246):** Basic org admin tabs and the org rail's Reports / Trainings / Settings rows
+  are for `permissions.edit` only, on every org page (approved spec change to the committed test).
+- **H3 (4229db37b):** 17 sub-14px declarations raised; hierarchy kept (View menu options 16px,
+  org tab label 16px); three redundant restatements deleted. Found during H3, not fixed: the View
+  menu runs off the right edge on a phone (pre-existing on this branch).
+- **M4:** decision, both flags stay forced on (Traci). **M6:** resolved as intended. SLPs cannot
+  keep `auto_open_speak_mode` (User#generate_defaults deletes it for non-communicators), so a Basic
+  SLP landing on Communicators at sign-in matches the rule "speak mode only if the setting is on".
+- **M8 + extension:** sRGB fallbacks for every use of color-mix / oklch / `in oklab` (branch and
+  develop), via `_color-fallbacks.scss` (Sass recomputes the same colours). 37 + 34 sites:
+  - plain declaration before the modern one where the value has no var();
+  - `@supports not (color: color-mix(...))` blocks after the declaration where it mixes a runtime
+    var(). A declaration containing var() is not dropped at parse time, so a preceding fallback
+    would never apply (caught by the proposal review).
+  - One site deliberately left: the folder badge colour, whose unset value inherits a more legible
+    colour.
+  Verified: the compiled CSS diff is additions only, so modern rendering is unchanged; Chrome
+  evaluates both @supports conditions as intended; the hero fallbacks match Chrome's resolved
+  colours to within one sRGB unit. Not verified on a real old browser.
