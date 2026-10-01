@@ -150,9 +150,14 @@ function boardGenerationEntry(appState) {
 /**
  * Whether to show a "Generate with AI" entry. Shown whenever the feature is
  * available for the account, so a person reaches the turn-on step or a plain
- * reason (boardGenerationEntry) rather than finding no button at all.
+ * reason (boardGenerationEntry) rather than finding no button at all. The
+ * flag is checked first: boardGenerationEntry returns eu_consent before it
+ * reads the flag, and a consent request for an unavailable feature is not an
+ * entry worth showing.
  */
 function boardGenerationOffered(appState) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  if(!appState.get('feature_flags.ai_board_generation')) { return false; }
   return boardGenerationEntry(appState) !== 'blocked_flag';
 }
 

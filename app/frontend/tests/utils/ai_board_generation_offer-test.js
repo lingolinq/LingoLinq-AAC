@@ -67,5 +67,13 @@ describe('ai_feature_gate board generation offer', function() {
     it('is not offered when the feature is not available for the account', function() {
       expect(aiFeatureGate.boardGenerationOffered(entryState({ prefs: {}, flagOn: false }))).toEqual(false);
     });
+
+    it('is not offered to an EU under-16 account without consent when the feature is not available', function() {
+      expect(aiFeatureGate.boardGenerationOffered(entryState({ prefs: {}, eu_under_16: true, flagOn: false }))).toEqual(false);
+    });
+
+    it('is offered to an EU under-16 account without consent when the feature is available, so consent can be asked', function() {
+      expect(aiFeatureGate.boardGenerationOffered(entryState({ prefs: {}, eu_under_16: true }))).toEqual(true);
+    });
   });
 });

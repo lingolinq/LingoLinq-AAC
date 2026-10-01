@@ -58,6 +58,13 @@ describe('AI generation entry points', 'component:new-board', function() {
     expect(c.get('ai_focus_entry')).toEqual('needs_opt_in');
   });
 
+  it('focus-words does not offer AI focus words to an EU under-16 account when the feature is not available', function() {
+    var c = testOwner.factoryFor('component:focus-words').create();
+    var user = EmberObject.create({ preferences: {}, eu_under_16: true, permissions: { view: true, edit: true } });
+    c.set('appState', appStateFor({ ai_board_generation: false, focus_word_highlighting: true }, user));
+    expect(c.get('ai_focus_generation_offered')).toEqual(false);
+  });
+
   it('focus-words shows a reason when the signed-in person cannot change the setting', function() {
     var c = testOwner.factoryFor('component:focus-words').create();
     var user = EmberObject.create({ preferences: {}, permissions: { view: true } });

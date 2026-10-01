@@ -220,7 +220,7 @@ export default Component.extend({
     'ai_focus_entry',
     function() {
       return !!(this.get('appState.feature_flags.focus_word_highlighting') &&
-        this.get('ai_focus_entry') !== 'blocked_flag');
+        aiFeatureGate.boardGenerationOffered(this.get('appState')));
     }
   ),
 
