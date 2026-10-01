@@ -1,9 +1,9 @@
 import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
-import LingoLinq from '../app';
+import LingoLinq from '../app'; import app_state from '../utils/app_state';
 
-import { observer } from '@ember/object';
+import { observer, computed } from '@ember/object';
 
 export default Component.extend({
   didInsertElement: function() {
@@ -16,6 +16,11 @@ export default Component.extend({
     $(this.get('element')).empty();
     // teardown?
   },
+  // The map (and the "use my location" button that needs it) shows only with
+  // location_maps on; the typed latitude,longitude field always works.
+  show_map: computed(function() {
+    return !!app_state.get('feature_flags.location_maps');
+  }),
   fit_bounds: observer('center', function() {
     var map = this.map;
     if(!map) { return; }
@@ -70,6 +75,7 @@ export default Component.extend({
     _this.set_geos();
   },
   draw: function() {
+    if(!this.get('show_map')) { return; }
     var elem = this.get('element') && this.get('element').getElementsByClassName('map_with_geo')[0];
     elem.innerHTML = "";
     var _this = this;
