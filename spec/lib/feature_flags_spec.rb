@@ -179,6 +179,26 @@ describe FeatureFlags do
     end
   end
 
+  describe "location_maps" do
+    it "is registered as available but OFF by default, including for canary users" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('location_maps')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('location_maps')
+      expect(FeatureFlags::DISABLED_CANARY_FEATURES).to include('location_maps')
+      expect(SystemFeatureSettings.default_enabled_features).not_to include('location_maps')
+      expect(SystemFeatureSettings.canary_enabled_features).not_to include('location_maps')
+    end
+
+    it "is OFF with no user and with no per-user value" do
+      u = User.create
+      expect(FeatureFlags.feature_enabled_for?('location_maps', nil)).to eq(false)
+      expect(FeatureFlags.feature_enabled_for?('location_maps', u)).to eq(false)
+    end
+
+    it "has an admin description" do
+      expect(SystemFeatureRegistry::METADATA['location_maps']).to include(:name, :description)
+    end
+  end
+
   describe "multilingual_grammar" do
     # Reserved for the first reader of db/language/ schema-2 data. Every state short of
     # an explicit opt-in must read as OFF.

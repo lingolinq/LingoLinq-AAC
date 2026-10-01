@@ -565,7 +565,7 @@
   {{/if}}
 
   <div class="row" style="margin-bottom: 20px;">
-    {{#if this.model.geo}}
+    {{#if (and this.model.geo this.appState.feature_flags.location_maps)}}
       <div class="col-sm-8">
         <MapWithMarkers @action="marker_link_select" />
       </div>
@@ -574,7 +574,7 @@
       <dl>
         <dt>{{t "Location" key="location"}}</dt>
           <dd>
-          {{#if this.model.geo}}
+          {{#if (and this.model.geo this.appState.feature_flags.location_maps)}}
             {{t "See map" key="see_map"}}
           {{else}}
             {{t "Not Available" key="not_available_upper"}}

@@ -23,7 +23,7 @@ export default Controller.extend({
     return "Log Details";
   }),
   draw_charts: observer('model.geo', 'user', function() {
-    if(!this.get('model.geo')) {
+    if(!this.get('model.geo') || !app_state.get('feature_flags.location_maps')) {
       return;
     }
     var user = this.get('user');

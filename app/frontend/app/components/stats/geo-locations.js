@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import templateHelpers from '../../utils/template_helpers';
-import LingoLinq from '../../app';
+import LingoLinq from '../../app'; import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
@@ -25,6 +25,7 @@ export default Component.extend({
     }
   }),
   draw: observer('usage_stats.draw_id', function() {
+    if(!app_state.get('feature_flags.location_maps')) { return; }
     var stats = this.get('usage_stats');
     var elem = this.get('element').getElementsByClassName('geo_map')[0];
 
