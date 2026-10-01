@@ -125,7 +125,7 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent', 'updates_pill',
+              'sms_recipient_consent', 'updates_pill', 'multilingual_grammar', # multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
               # Compressed View: a per-user density preference (preferences.compressed_view),
               # toggled from the View menu (components/view-switcher.hbs). With it on, the
               # app shell and the Modern home page use tighter spacing and a shorter layout

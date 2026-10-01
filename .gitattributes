@@ -1,1 +1,5 @@
 audit-reports/SELF-REFERENCING-RULEKEY-IDS.json text eol=lf
+# Language data is hashed and byte-compared (spec/lib/language/schema2_generator_spec.rb):
+# never convert line endings. The generated files collapse in GitHub diffs.
+db/language/** -text
+db/language/en/*.json linguist-generated=true

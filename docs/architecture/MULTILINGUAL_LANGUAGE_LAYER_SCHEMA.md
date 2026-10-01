@@ -1,7 +1,8 @@
 # Multilingual Language Layer — Data Schema Design
 
-**Status:** DESIGN ONLY — no implementation yet. Reviewed schema decisions for expanding
-LingoLinq's OpenAAC-inflections-based language model from English(+minimal Spanish) to ~30
+**Status:** DESIGN, with English phase 1 data implemented (see §7.1). Nothing at runtime
+reads the schema-2 files yet. Reviewed schema decisions for expanding LingoLinq's
+OpenAAC-inflections-based language model from English (plus client-side Spanish) to about 30
 languages.
 
 **Audience:** engineering + SLP product stakeholders.
@@ -42,8 +43,11 @@ LingoLinq already has a working, if English-shaped, pipeline:
 
 ### Datasets (OpenAAC standard)
 - `words-{locale}.json` (`_type: 'words'`): flat word list with parts of speech
-  (`types`), per-word `inflection_overrides`, antonyms. Only **EN (full)** and
-  **ES (minimal)** exist upstream today.
+  (`types`), per-word `inflections` (stored by `WordData.ingest` as
+  `inflection_overrides`), antonyms. Only **EN (full)** and **ES (minimal)** exist
+  upstream. Only the English upstream files are used; the upstream Spanish files are out
+  of scope for this PR. Spanish morphology on develop is hardcoded client-side in `i18n.js`
+  and `edit_manager.js`.
 - `rules-{locale}.json` (`_type: 'rules'`): four sections —
   - `rules[]`: **lookback rules**. Each has `id`, `type` (`override` | pos name),
     `lookback[]` (a right-to-left pattern over the utterance history:
@@ -60,40 +64,44 @@ LingoLinq already has a working, if English-shaped, pipeline:
   - `tests[]`: `[prior, word, expected, {rule_id}]` fixtures (195 for EN).
 
 ### Storage & runtime
-- **Backend** `WordData` (one row per word+locale; secure-serialized `data` blob
-  — `app/models/word_data.rb:12` — holding `word`, `locale`, `types[]`,
+(Line references re-verified on develop 2026-09-28.)
+
+- **Backend** `WordData` (one row per word+locale; secure-serialized `data` blob,
+  `app/models/word_data.rb:23`, holding `word`, `locale`, `types[]`,
   `inflection_overrides{}`, `antonyms[]`, `reviews`).
-  `WordData.ingest(url)` (`word_data.rb:74`) loads `words` files into rows and
+  `WordData.ingest(url)` (`word_data.rb:85`) loads `words` files into rows and
   `rules` files into `Setting` records keyed `rules/#{locale}`
-  (`word_data.rb:751`).
-  `WordData.inflection_locations_for(words, locale)` (`word_data.rb:728`) merges
-  Setting rules with per-word overrides — **with a hardcoded English fallback
+  (`word_data.rb:117`); it keeps only top-level `contractions` and
+  `default_contractions`, so the upstream `substitutions` block is dropped.
+  `WordData.inflection_locations_for(words, locale)` (`word_data.rb:914`) merges
+  Setting rules with per-word overrides, **with a hardcoded English fallback
   grid** when a locale has no rules (`locale.match(/^en/i)` branches at
-  `word_data.rb:797,940`). Dataset version: `INFLECTIONS_VERSION = 2`
+  `word_data.rb:983,1126`). Dataset version: `INFLECTIONS_VERSION = 2`
   (`word_data.rb:6`).
 - **Board stamping**: `Board#check_for_parts_of_speech_and_inflections`
-  (`app/models/board.rb:2040`) writes `inflection_defaults` (skipped when the
-  version key `v` already matches, `board.rb:2048`) onto each button and its
-  translations (`board.rb:2089`); manual per-button `inflections` (compass-slot
+  (`app/models/board.rb:2093`) writes `inflection_defaults` (skipped when the
+  version key `v` already matches, `board.rb:2101`) onto each button and its
+  translations (`board.rb:2142`); manual per-button `inflections` (compass-slot
   array, editable in button settings) win over defaults.
 - **Frontend**: `edit_manager.js` `long_press_mode`/`grid_for`/`overlay_grid`
-  (`edit_manager.js:100,661`) render the long-press 3×3 grid (see
+  (`edit_manager.js:121,686,979`) render the long-press 3×3 grid (see
   `docs/INFLECTIONS_LONG_PRESS_OVERLAY.md`);
-  `Board.contextualized_buttons` (`app/frontend/app/models/board.js:568`) +
-  `editManager.inflection_for_types` (`edit_manager.js:267`) apply lookback
+  `Board.contextualized_buttons` (`app/frontend/app/models/board.js:604`) +
+  `editManager.inflection_for_types` (`edit_manager.js:291`) apply lookback
   rules against utterance history for auto-inflection, reading per-locale rules
-  from `i18n.lang_overrides` (`edit_manager.js:278`); `i18n.js` helpers
-  (`pluralize` `:123`, `tense` `:170`, `verb_negation` `:348`, …) are
+  from `i18n.lang_overrides` (`edit_manager.js:302`); `i18n.js` helpers
+  (`pluralize` `:520`, `tense` `:567`, `verb_negation` `:804`, and others) are
   **hardcoded English morphology** used as last-resort fallback, with
   `lang_overrides` loaded per locale from the API and cached
-  (`i18n.js:470-494`); utterance contractions also read `lang_overrides` with
-  English `substitutions` as fallback (`utterance.js:104,708`).
+  (`load_lang_override`, `i18n.js:925`); utterance contractions also read
+  `lang_overrides` with English `substitutions` as fallback
+  (`utterance.js:104,719`).
 - **Translations**: boards carry `settings['translations']` — button_id → locale
   → `{label, vocalization, inflections?, inflection_defaults?}`; runtime locale
   is the pair (`label_locale`, `vocalization_locale`) in app_state/stashes.
   Supervisors modeling for a student inherit the student's `preferred.locale`.
 - **Core/fringe**: `lib/core_lists.json` and `lib/fringe_suggestions.json`,
-  loaded by `WordData.core_lists`/`.fringe_lists` (`word_data.rb:1112,1123`) and
+  loaded by `WordData.core_lists`/`.fringe_lists` (`word_data.rb:1298,1309`) and
   filtered per locale; per-user core list overlays exist.
 - **Prediction**: `word_suggestions.js` — locale-aware lookup, but the local
   ngram corpus is English-only (see LEARNINGS: "Word prediction locale has
@@ -504,8 +512,51 @@ mild subset of Russian's.)
   195 existing `tests[]` fixtures plus a new golden-form test corpus per
   language (`tests` section extends to `[features_request, lemma, expected]`
   triples).
-- Rollout per CLAUDE.md: behind a feature flag (e.g. `multilingual_grammar`),
-  per-locale enablement, EN unchanged by default.
+- Rollout per CLAUDE.md: behind the `multilingual_grammar` feature flag
+  (registered AVAILABLE-only in `lib/feature_flags.rb`), per-locale enablement, EN
+  unchanged by default.
+
+### 7.1 English phase 1 (implemented)
+
+English schema-2 files are generated, not hand-written, and nothing at runtime reads them
+yet.
+
+- **Inputs:** the public OpenAAC files `words-en.json` and `rules-en.json`, pinned at
+  `open-aac/demo-tools@0977e83f9a773fc215d4edbdec8bdd821a99bc24` and vendored unmodified
+  under `db/language/vendor/openaac-demo-tools-0977e83f/`, with `NOTICE.md` recording
+  source, license (CC BY 4.0), paths and SHA-256. No database data is used.
+- **Generator:** `lib/language/schema2_generator.rb`, run by
+  `bundle exec rake language:schema2`, writes `db/language/en/{words,rules}-en.json`. It
+  refuses to run when an input's SHA-256 differs from its pin. It raises on any words
+  field, part of speech or inflection name it does not recognise, and on any unknown
+  rules section or key, empty rules, `inflection_locations` or tests list, unknown rule
+  type, inflection name, grid location or test option, non-string override or test
+  option value, or test `rule_id` that names no rule in the file (upstream's
+  `"no_rule"` marker is allowed). Lookback item values and the `required` and
+  `if_empty` values in `inflection_locations` are checked for key names only.
+- **License:** the OpenAAC data files are CC BY 4.0 (upstream marker "CC By, OpenAAC";
+  version per OpenAAC's maintainer). Each generated file credits OpenAAC and carries the
+  upstream marker and license link in `_source`. The upstream repository's MIT license
+  covers its code, which is not used.
+- **CI check:** `spec/lib/language/schema2_generator_spec.rb` rebuilds the output and
+  byte-compares it with the committed files, and keeps `db/language/` to a closed file
+  list.
+- **Words shape:** one lexeme per upstream entry, sorted by surface form:
+  `lemma` (upstream `base`, else the entry key), `ext_surface` (the entry key, only when it
+  differs from the lemma), `pos` (the upstream `types` array, primary first), `forms`
+  (keyed by the upstream inflection names, which §4.2 already allows as the back-compat
+  form), `antonyms`, and verbatim carry-overs `ext_slot_overrides` (per-word compass keys),
+  `ext_extra` (`extra_*`) and `ext_regulars`. Values the runtime already treats as "no
+  form" (`N/A`, `na`, `NA`, `n/a`) are dropped. Entries are never merged, so surfaces
+  sharing a base, or differing only in case, stay separate lexemes.
+- **Rules shape:** `rules`, `inflection_locations`, `substitutions` and `tests` (195)
+  pass through unchanged, plus a `profile` holding only today's English behaviour
+  (`Latn`, left to right, space tokenizer, contractions apply).
+- **Deferred, needs linguist or SLP review:** the UD feature-bundle `aliases` table, the
+  UD POS mapping, `slot_layouts`, and the profile's `morphology` and `features`. Upstream
+  gives `past` and `simple_past` different values for 8 forms of "be" (`was` versus
+  `were`) and places them in different grid slots, so they cannot share one bundle.
+- **Not a `WordData.ingest` input:** that reader expects the schema-1 shape.
 
 ## 8. Open questions (need product/SLP input)
 
@@ -519,4 +570,5 @@ mild subset of Russian's.)
    (which cases/forms matter for emergent communicators in each language).
 5. Dataset authoring pipeline: hand-authored vs bootstrapped from UniMorph/
    Wiktionary extracts with human review (license check required: UniMorph is
-   CC BY-SA per language source; OpenAAC files are CC BY).
+   CC BY-SA per language source; the OpenAAC inflection data files are CC BY 4.0, see
+   `db/language/vendor/openaac-demo-tools-0977e83f/NOTICE.md`).

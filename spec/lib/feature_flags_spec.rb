@@ -179,6 +179,43 @@ describe FeatureFlags do
     end
   end
 
+  describe "multilingual_grammar" do
+    # Reserved for the first reader of db/language/ schema-2 data. Every state short of
+    # an explicit opt-in must read as OFF.
+    it "is registered as available but OFF by default" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('multilingual_grammar')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('multilingual_grammar')
+      expect(SystemFeatureSettings.default_enabled_features).not_to include('multilingual_grammar')
+    end
+
+    it "is OFF with no user, with no per-user value, and with an explicit false" do
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(FeatureFlags::AVAILABLE_FRONTEND_FEATURES)
+      u = User.create
+      expect(FeatureFlags.feature_enabled_for?('multilingual_grammar', nil)).to eq(false)
+      expect(FeatureFlags.feature_enabled_for?('multilingual_grammar', u)).to eq(false)
+      u.settings['feature_flags'] = {'multilingual_grammar' => false}
+      expect(FeatureFlags.feature_enabled_for?('multilingual_grammar', u)).to eq(false)
+    end
+
+    it "is OFF when the flag is missing from the registry, even for an opted-in user" do
+      stub_const('FeatureFlags::AVAILABLE_FRONTEND_FEATURES', FeatureFlags::AVAILABLE_FRONTEND_FEATURES - ['multilingual_grammar'])
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(['multilingual_grammar'])
+      u = User.create
+      u.settings['feature_flags'] = {'multilingual_grammar' => true}
+      expect(FeatureFlags.feature_enabled_for?('multilingual_grammar', u)).to eq(false)
+    end
+
+    it "is ON only through the normal opt-in routes" do
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(FeatureFlags::AVAILABLE_FRONTEND_FEATURES)
+      u = User.create
+      u.settings['feature_flags'] = {'multilingual_grammar' => true}
+      expect(FeatureFlags.feature_enabled_for?('multilingual_grammar', u)).to eq(true)
+      u.settings['feature_flags'] = {}
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).and_return(['multilingual_grammar'])
+      expect(FeatureFlags.feature_enabled_for?('multilingual_grammar', u)).to eq(true)
+    end
+  end
+
   describe "boards_layout preference" do
     # The Boards-page arrangement is persisted per USER so the choice follows them to a
     # new login. Two things have to hold for that: the key must be in the preference
