@@ -8839,5 +8839,6 @@
   "set_as_home_board_for_user": "Set as Home Board for %{user_name}",
   "classic_short_basic_access": "Access",
   "offline_boards_subtitle": "Offline boards",
-  "view_all_short": "View all →"
+  "view_all_short": "View all →",
+  "choose_organization": "Choose an organization"
 }
