@@ -51,9 +51,18 @@ const LANDINGS = {
    same route is Basic's own Logs page, which Basic renders, so that one stays put. */
 const UPDATES_LANDING = { route: 'index', index_nav: 'updates' };
 
+/* Revised 2026-09-30 for the Updates PAGE itself ("we should be routing to the logs page but ensure
+   that their messages are not marked as read"): `user.logs?nav=home` stays on the Logs page and
+   drops the Updates marker and the messages filter (`?type=note&nav=home`,
+   components/user-pill-nav.hbs), which makes it Basic's own Logs page. A landing with
+   `query_params` and no `route` means "this page, these params". A single update (`user.log`)
+   still lands on the Updates tab. */
+const LOGS_FROM_UPDATES = { query_params: { nav: null, type: null } };
+
 export function basic_landing_for(route, url) {
   if(!route) { return null; }
-  if((route === 'user.logs' || route === 'user.log') && hasHomeNavParam(url)) { return UPDATES_LANDING; }
+  if(route === 'user.logs' && hasHomeNavParam(url)) { return LOGS_FROM_UPDATES; }
+  if(route === 'user.log' && hasHomeNavParam(url)) { return UPDATES_LANDING; }
   var landing = LANDINGS[route] || null;
   var name = landing && landing.open_supervisee_from && url_param(url, landing.open_supervisee_from);
   // A copy, so the shared map entry never carries one arrival's name into the next.
@@ -118,7 +127,8 @@ export function is_basic_viewer(appState, viewer) {
 export function send_basic_viewer_to_landing(appState, router, route, viewer, url) {
   if(!is_basic_viewer(appState, viewer)) { return false; }
   var landing = basic_landing_for(route, url);
-  if(!landing) { return false; }
+  // A params-only landing is applied by its own page (routes/user/logs.js), not by a transition.
+  if(!landing || !landing.route) { return false; }
   if(landing.index_nav) { hand_off_index_nav(appState, landing.index_nav, landing); }
   router.transitionTo(landing.route, ...(landing.models || []));
   return true;

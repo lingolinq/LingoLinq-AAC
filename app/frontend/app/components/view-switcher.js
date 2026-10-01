@@ -239,6 +239,12 @@ export default Component.extend({
          when it was reached from the pill nav (`?nav=home`). */
       if(next === 'classic') {
         var landing = basic_landing_for(this.appState.get('current_route') || '', this.get('router.currentURL'));
+        if(landing && landing.query_params) {
+          // Same page, other params (Modern's Updates -> Basic's Logs page); replace, so Back does
+          // not return to the Updates address.
+          this.get('router').replaceWith({ queryParams: landing.query_params });
+          return;
+        }
         if(landing) {
           if(landing.index_nav) { hand_off_index_nav(this.appState, landing.index_nav, landing); }
           this.get('router').transitionTo(landing.route, ...(landing.models || []));

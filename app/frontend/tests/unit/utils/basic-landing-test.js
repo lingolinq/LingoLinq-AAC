@@ -39,11 +39,16 @@ module('Unit | Utility | basic_landing', function() {
      UPDATES IS AN ARRIVAL, NOT A ROUTE: it is `user.logs` reached from the pill nav, told apart
      by `?nav=home` (utils/primary_nav.js#hasHomeNavParam). The same route opened from the
      account rail's Logs row is Basic's own Logs page, which Basic renders, so it stays put. */
-  test('the Updates page lands on the Basic home page, Updates tab; plain Logs stays put', function(assert) {
+  /* CHANGED 2026-09-30, approved by Traci ("we should be routing to the logs page but ensure that
+     their messages are not marked as read"): Modern's Updates page (`user.logs?nav=home`) used to
+     land on the Basic home page's Updates tab. It now stays on the Logs page and drops the
+     Updates marker and the messages filter, so the page is Basic's own Logs page. A single update
+     (`user.log?nav=home`) still lands on the Updates tab. */
+  test('the Updates page stays on Logs, unfiltered; a single update lands on the Updates tab; plain Logs stays put', function(assert) {
     assert.expect(5);
     var landing = basic_landing_for('user.logs', '/ada/logs?nav=home');
-    assert.strictEqual(landing.route, 'index');
-    assert.strictEqual(landing.index_nav, 'updates');
+    assert.notOk(landing.route, 'no route change');
+    assert.deepEqual(landing.query_params, { nav: null, type: null }, 'the marker and the filter dropped');
     assert.strictEqual(basic_landing_for('user.log', '/ada/logs/1_2?nav=home').index_nav, 'updates',
       'an update opened from the Updates page');
     assert.strictEqual(basic_landing_for('user.logs', '/ada/logs'), null, 'the rail Logs row');
