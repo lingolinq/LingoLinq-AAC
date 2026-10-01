@@ -4,6 +4,8 @@ import {
   expect,
   beforeEach,
   afterEach,
+  waitsFor,
+  runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
 import LingoLinq from '../../app';
@@ -37,9 +39,25 @@ describe('Visualizations', function() {
     expect(maps_scripts().length).toEqual(0);
   });
 
-  it('should load the maps script for a geo map', function() {
+  it('should load the maps script for a geo map, and not the charts loader', function() {
     LingoLinq.Visualizations.wait('geo', function() { });
     expect(maps_scripts().length).toEqual(1);
+    expect(chart_scripts().length).toEqual(0);
+  });
+
+  it('should load the maps script once for two geo maps', function() {
+    LingoLinq.Visualizations.wait('geo', function() { });
+    LingoLinq.Visualizations.wait('geo', function() { });
+    expect(maps_scripts().length).toEqual(1);
+  });
+
+  it('should not load the maps script when it is already loaded', function() {
+    window.google = {maps: {}};
+    var ran = false;
+    LingoLinq.Visualizations.wait('geo', function() { ran = true; });
+    expect(maps_scripts().length).toEqual(0);
+    waitsFor(function() { return ran; });
+    runs();
   });
 
   it('should run chart callbacks when charts are ready and geo callbacks only when maps are ready', function() {

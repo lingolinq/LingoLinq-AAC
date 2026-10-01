@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
-import LingoLinq from '../app'; import app_state from '../utils/app_state';
+import LingoLinq from '../app'; import { inject as service } from '@ember/service';
 
 import { observer, computed } from '@ember/object';
 
@@ -18,8 +18,9 @@ export default Component.extend({
   },
   // The map (and the "use my location" button that needs it) shows only with
   // location_maps on; the typed latitude,longitude field always works.
-  show_map: computed(function() {
-    return !!app_state.get('feature_flags.location_maps');
+  appState: service('app-state'),
+  show_map: computed('appState.feature_flags.location_maps', function() {
+    return !!this.get('appState.feature_flags.location_maps');
   }),
   fit_bounds: observer('center', function() {
     var map = this.map;

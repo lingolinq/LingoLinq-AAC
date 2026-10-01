@@ -40,6 +40,14 @@ describe('MapWithGeosComponent', 'component:map-with-geos', function() {
     expect(res.show_map).toEqual(false);
   });
 
+  it("should follow the flag when it changes after the component reads it", function() {
+    app_state.set('currentUser', EmberObject.create({feature_flags: {}}));
+    var c = testOwner.factoryFor('component:map-with-geos').create();
+    expect(c.get('show_map')).toEqual(false);
+    app_state.set('currentUser', EmberObject.create({feature_flags: {location_maps: true}}));
+    expect(c.get('show_map')).toEqual(true);
+  });
+
   it("should draw the map when location maps are on", function() {
     var res = draw({location_maps: true});
     expect(res.waited).toEqual(true);
