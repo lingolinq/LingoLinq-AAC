@@ -43661,9 +43661,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      so the discs tuck in just to its right (left-aligned) instead of the brand's
      flex:1 pushing them to the far edge onto the identity menu. `:has()` scopes
      this to headers that actually carry the discs; the `#inner_header` variant
-     gives it the ID specificity needed to beat the grow rule above. */
-  .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions) h1.app-navbar__brand,
-  #inner_header .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions) h1.app-navbar__brand {
+     gives it the ID specificity needed to beat the grow rule above.
+     THE VIEW BUTTON COUNTS TOO (2026-09-30): it sits right of the brand in the same row, so
+     on a page with no discs (the search page, for one) the growing brand pushed it to the far
+     edge, under the fixed settings gear and menu button. */
+  .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions, .ll-viewswitch) h1.app-navbar__brand,
+  #inner_header .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions, .ll-viewswitch) h1.app-navbar__brand {
     flex: 0 0 auto !important;
     order: -2 !important;
   }

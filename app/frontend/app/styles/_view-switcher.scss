@@ -19,7 +19,17 @@
   // 12px clear of whatever precedes it in the navbar (requested 2026-09-02).
   // Margin rather than a positional offset so it still participates in the
   // navbar's flex flow and cannot overlap its neighbour at narrow widths.
-  margin-left: 12px;
+  // Reads --ll-viewswitch-offset (below) so it lands in the same place on every page.
+  margin-left: var(--ll-viewswitch-offset, 12px);
+}
+
+// THE SAME PLACE ON EVERY PAGE (2026-09-30). Most pages render the navbar's home-actions cluster
+// (app-navbar-authenticated-inner.hbs) before this button, usually empty, and its own 12px left
+// margin adds to the gap: the button sits 24px after the brand there. A page with no cluster
+// (the search page) put it 12px closer. The header supplies that 12px itself when the cluster is
+// absent, so the button measures the same distance from the logo everywhere.
+.app-navbar__nav-header:not(:has(.app-navbar__home-actions)) {
+  --ll-viewswitch-offset: 24px;
 }
 
 .ll-viewswitch__trigger {
