@@ -2717,6 +2717,13 @@ var soundGrabber = EmberObject.extend({
       if(user_id) {
         attrs.user_id = user_id;
       }
+      // The language the board speaks, so transcription listens for it
+      // (ButtonSound#process_params stores it; lib/speech_language.rb maps it).
+      var board = _this.controller && _this.controller.get('board');
+      var locale = board && (emberGet(board, 'translations.current_vocalization') || emberGet(board, 'locale'));
+      if(locale) {
+        attrs.locale = locale;
+      }
       var sound = LingoLinq.store.createRecord('sound', attrs);
 
       return window.cg.save_record(sound);
