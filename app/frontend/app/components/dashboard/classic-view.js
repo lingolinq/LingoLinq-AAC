@@ -159,6 +159,10 @@ export default AuthenticatedView.extend({
     });
   },
 
+  // The Extras drawer's "Learn and Setup" tile (classic-view.hbs), hidden for now (requested
+  // 2026-09-30) until the home page tours are confirmed to work. Set true to bring it back.
+  showLearnAndSetupTile: false,
+
   // NOTE: deliberately NOT named `user`. index.hbs passes `@user={{this.user}}`,
   // which on the index controller is the blank `createRecord('user')` used by the
   // registration form (routes/index.js#setupController) — a passed argument

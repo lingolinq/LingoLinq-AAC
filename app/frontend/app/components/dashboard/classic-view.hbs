@@ -885,7 +885,7 @@
                   from the page.
 
                   Deliberately not an override of `intro` itself: the Extras drawer's
-                  "Learn and Setup" tile also calls it, and there `intro` still needs its
+                  "Learn and Setup" tile (hidden for now, 2026-09-30) calls it, and there `intro` needs its
                   full behaviour (board-picker for a named user, the "Select User to Run
                   Setup" prompt for a supervisor — authenticated-view.js:1690-1703). --}}
             <button type="button" class="ch-btn ch-btn--primary" {{on "click" (this.ctrlAction "start_tour")}}>{{t "How To Use %app_name%" key="how_this_works"}}<span class="ch-intro__cta-arrow" aria-hidden="true">&rarr;</span></button>
@@ -1100,6 +1100,12 @@
               <span class="ch-tile__rule" aria-hidden="true"></span>
             </span>
           </button>
+          {{!-- LEARN AND SETUP IS HIDDEN FOR NOW (requested 2026-09-30: "we need to make sure the home
+               page tours are actually wired up correctly before we include them there"). A closed
+               access point, not a removed feature: the tile and its `intro` action are kept, behind
+               `showLearnAndSetupTile` (classic-view.js). The intro card's "How To Use" button still
+               starts the tour while that card shows. --}}
+          {{#if this.showLearnAndSetupTile}}
           <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "intro")}}>
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as
@@ -1123,6 +1129,7 @@
               <span class="ch-tile__rule" aria-hidden="true"></span>
             </span>
           </button>
+          {{/if}}
           {{#unless this.app_state.currentUser.supporter_role}}
             <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manage_supervisors")}}>
             {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
