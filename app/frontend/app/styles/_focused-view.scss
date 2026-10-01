@@ -282,6 +282,18 @@ $focus-card-surface-light:
     color-mix(in oklch, $brand-dusty-denim 5%, white) 0%,
     color-mix(in oklch, $brand-dusty-denim 9%, white) 100%);
 
+// A slightly DARKER sibling of `$focus-card-surface` (requested 2026-09-30: "a bit darker bg to
+// the avatar on the account page"). Same three-layer recipe with every tint taken a step
+// further: denim 13/22% -> 20/30%, verdigris corner 24% -> 30%, white sheen 0.65 -> 0.55. Its own
+// token rather than a change to the shared one, which the Boards-page section icons and the
+// count badges also use. Read by the account page's Focused avatar tile.
+$focus-card-surface-deep:
+  radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
+  radial-gradient(28% 40% at 100% 100%, color-mix(in oklch, $brand-verdigris 30%, white) 0%, transparent 46%),
+  linear-gradient(140deg,
+    color-mix(in oklch, $brand-dusty-denim 20%, white) 0%,
+    color-mix(in oklch, $brand-dusty-denim 30%, white) 100%);
+
 // The focused Boards CARD background — the frosted two-layer gradient from
 // `.md-grid--layout-focused .md-card--boards`. Reused by the Boards section panel and
 // the account page's user hero so their surfaces match.
@@ -2252,9 +2264,24 @@ body.ll-layout-focused {
     backdrop-filter: blur(14px) saturate(1.3) !important;
     -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
   }
-  // The avatar tile takes the boards-page section-icon surface (badge-action card).
+  // The avatar tile takes the badge-action card surface, a step darker (2026-09-30): the
+  // `$focus-card-surface-deep` sibling of the boards-page section-icon surface it used before.
   .md-hero--user__avatar {
-    background: $focus-card-surface !important;
+    background: $focus-card-surface-deep !important;
+  }
+  // SLATE RING ROUND THE AVATAR PICTURE (requested 2026-09-30). The circle is part of the avatar
+  // artwork, not an element, so the ring is drawn on the wrapper instead: a circle over the
+  // picture's box, inset by the tile's 1px border + 11px padding (app.scss
+  // `.md-hero--user__avatar`), which is the edge the artwork's circle fills. Above the picture,
+  // never in the way of a click.
+  .md-hero--user__avatar-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    // 1.5px, thinned from 2px on request the same day.
+    border: 1.5px solid $brand-slate-blue;
+    border-radius: 50%;
+    pointer-events: none;
   }
 }
 
