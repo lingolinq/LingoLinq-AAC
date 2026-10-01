@@ -175,3 +175,34 @@ Shipped:
 - Boards page New folder / Tag a board pills (`.ub-boards-page__folders-action-btn`, app.scss,
   two identical copies in the same block, both edited): the 1px inner top highlight removed at
   rest and on hover. The folders chevron keeps the shared highlight; its comment updated.
+
+## Round 5 (same day)
+
+Decisions (Traci): the organisation switcher is correctly wired (it hides with fewer than two
+orgs; nothing to change). Direct room tiles in Basic are not needed (the menu links the list). No
+home-board link on the Modern caseload (Model already opens it). Learn and Setup is hidden until
+the home page tours are confirmed to work.
+
+Shipped:
+- A single update from Updates (`user.log?nav=home`): the View menu switch to Basic stays on that
+  page and drops `nav` (params-only landing), matching the Logs page. Opened directly it already
+  renders in the Basic panel; nothing there reads `nav` or marks read. Approved change to
+  basic-landing-test.js.
+- Basic SLP login: routes/index.js#_basic_supporter_lands_home. At a login entry a supporter in
+  Basic skips session resume and lands on the Basic home page with the Communicators tab handed
+  off. Written after line 256 and without imports (the file's .eslint-todo anchor). Reproduced
+  before (remembered /caseload; Actions tab or Modern caseload), verified after (Communicators).
+- Boards page: the Folders actions row's three inset shadows (the "under-shadow", app.scss
+  ~55333) removed; hairline kept.
+- Rooms label: " - <org>" in a `.md-compact-head__aside` span, 0.8em / 600.
+- Compressed home: "View all" links in the Rooms and Need Attention headers
+  (`.md-card__view-all--head`), labelled "View all →" (new key view_all_short, 13 locales) with
+  the full names as aria-labels; both cards' bottom padding 12 -> 20px (--dn-card-pad).
+- Basic Extras drawer: Learn and Setup hidden behind `showLearnAndSetupTile: false`
+  (classic-view.js); its `intro` action is untouched. With it gone, Basic reaches the guided tour
+  only from the intro card while that card shows.
+
+Remote Modeling (answered, open): Modern offers it only on a communicator's account page
+(Extras menu), gated on that communicator's `preferences.remote_modeling`; Basic's Communicators
+card gates only on the feature flag. Model (on this device) is a different feature from Remote
+Modeling (pairing with the communicator's device).
