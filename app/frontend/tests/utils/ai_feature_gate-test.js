@@ -295,7 +295,7 @@ describe('ai_feature_gate', function() {
       return {
         get: function(key) {
           if(key === 'feature_flags.ai_board_generation') { return opts.flagOn !== false; }
-          if(key === 'currentUser') { return opts.noUser ? null : user; }
+          if(key === 'currentUser' || key === 'sessionUser') { return opts.noUser ? null : user; }
           return null;
         }
       };

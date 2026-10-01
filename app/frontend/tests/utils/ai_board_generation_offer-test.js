@@ -24,7 +24,7 @@ function entryState(opts) {
   return {
     get: function(key) {
       if(key === 'feature_flags.ai_board_generation') { return opts.flagOn !== false; }
-      if(key === 'currentUser') { return user; }
+      if(key === 'currentUser' || key === 'sessionUser') { return user; }
       return null;
     }
   };

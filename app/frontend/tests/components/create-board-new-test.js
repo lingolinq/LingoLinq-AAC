@@ -406,7 +406,7 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
     function stubAppState(flagOn, user) {
       return EmberObject.create({
         feature_flags: EmberObject.create({ ai_board_generation: flagOn }),
-        currentUser: user
+        currentUser: user, sessionUser: user
       });
     }
 

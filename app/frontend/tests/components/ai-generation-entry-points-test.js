@@ -19,10 +19,11 @@ import modal from '../../utils/modal';
 function appStateFor(flags, user) {
   return {
     currentUser: user,
+    sessionUser: user,
     feature_flags: flags,
     get: function(key) {
       if(key.indexOf('feature_flags.') === 0) { return flags[key.slice('feature_flags.'.length)]; }
-      if(key === 'currentUser') { return user; }
+      if(key === 'currentUser' || key === 'sessionUser') { return user; }
       return null;
     }
   };
