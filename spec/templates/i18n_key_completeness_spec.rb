@@ -33,11 +33,17 @@ require 'json'
 #   It does not assert that en.json's value equals the inline default. 68 keys
 #   legitimately differ, because record_string (i18n_generator.rb:86-95) deliberately
 #   preserves an existing English value over the source default.
-describe 'i18n key completeness' do
+
+# Constants live in this module, not in the `describe` block: a constant assigned inside a
+# block is defined at the TOP LEVEL, shared by every spec in the run (2026-10-02, adversarial
+# review).
+module I18nKeyCompletenessSpec
   # `i18n.t('some_key', "Default")` or `i18n.t('some_key', 'Default')`, with or without
   # a receiver prefix such as `evaluation.i18n.t(`.
   CALL_RE = /i18n\.t\(\s*'([^']+)'\s*,\s*["']/
+end
 
+describe 'i18n key completeness' do
   let(:en_json) { JSON.parse(File.read(Rails.root.join('public/locales/en.json'))) }
 
   let(:found_keys) do
@@ -45,7 +51,7 @@ describe 'i18n key completeness' do
     Dir.glob(Rails.root.join('app/frontend/app/**/*.js')).sort.each do |path|
       rel = path.sub(Rails.root.to_s + '/', '')
       File.readlines(path).each_with_index do |line, idx|
-        line.scan(CALL_RE).each do |(key)|
+        line.scan(I18nKeyCompletenessSpec::CALL_RE).each do |(key)|
           keys[key] ||= "#{rel}:#{idx + 1}"
         end
       end

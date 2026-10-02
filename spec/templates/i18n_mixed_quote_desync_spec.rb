@@ -32,16 +32,22 @@ require 'spec_helper'
 #   at all, e.g. `i18n.t('am', 'am')` in components/sidebar-button-settings.js:118. That
 #   class is ~115 keys and is out of scope here; this spec pins only the shape that
 #   silently writes a WRONG value.
-describe 'i18n mixed-quote key/value desync' do
+
+# Constants live in this module, not in the `describe` block: a constant assigned inside a
+# block is defined at the TOP LEVEL, shared by every spec in the run (2026-10-02, adversarial
+# review).
+module I18nMixedQuoteDesyncSpec
   # An i18n.t( call whose default is SINGLE-quoted.
   SINGLE_DEFAULT_CALL = /i18n\.t\(\s*'([^']+)'\s*,\s*'(?:[^'\\]|\\.)*'/
+end
 
+describe 'i18n mixed-quote key/value desync' do
   let(:offenders) do
     found = []
     Dir.glob(Rails.root.join('app/frontend/app/**/*.js')).sort.each do |path|
       rel = path.sub(Rails.root.to_s + '/', '')
       File.readlines(path).each_with_index do |line, idx|
-        line.scan(SINGLE_DEFAULT_CALL) do |(key)|
+        line.scan(I18nMixedQuoteDesyncSpec::SINGLE_DEFAULT_CALL) do |(key)|
           # Corruption only happens if a double-quoted string follows on the SAME line:
           # that is what the scanner will grab and misfile under `key`.
           tail = Regexp.last_match.post_match

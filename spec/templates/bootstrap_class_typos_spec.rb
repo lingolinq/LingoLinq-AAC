@@ -21,7 +21,11 @@ require 'spec_helper'
 #   does not already prove, and would go stale the moment the file moves. This scans
 #   every template for a known set of misspellings, so the NEXT one is caught too.
 #   Add an entry when you find a new near-miss.
-describe 'bootstrap utility class typos' do
+
+# Constants live in this module, not in the `describe` block: a constant assigned inside a
+# block is defined at the TOP LEVEL, shared by every spec in the run (2026-10-02, adversarial
+# review).
+module BootstrapClassTyposSpec
   # misspelling => the correct Bootstrap class it was meant to be
   MISSPELLINGS = {
     'table-reponsive'  => 'table-responsive',
@@ -32,7 +36,9 @@ describe 'bootstrap utility class typos' do
   # Only the two spellings that are genuinely wrong. `col-xs-` above is a real
   # Bootstrap prefix and is excluded so the list documents intent without flagging.
   ACTIVE_TYPOS = MISSPELLINGS.reject { |_typo, correct| correct.nil? }.freeze
+end
 
+describe 'bootstrap utility class typos' do
   let(:template_files) do
     Dir.glob(Rails.root.join('app/frontend/app/{templates,components}/**/*.hbs'))
   end
@@ -41,7 +47,7 @@ describe 'bootstrap utility class typos' do
     expect(template_files.length).to be > 100
   end
 
-  ACTIVE_TYPOS.each do |typo, correct|
+  BootstrapClassTyposSpec::ACTIVE_TYPOS.each do |typo, correct|
     it "contains no occurrence of the misspelling '#{typo}' (meant: '#{correct}')" do
       offenders = template_files.each_with_object([]) do |path, acc|
         File.readlines(path).each_with_index do |line, idx|
