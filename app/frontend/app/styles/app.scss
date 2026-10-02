@@ -1322,7 +1322,7 @@ body.md-home-focused #content > .ember-view:empty {
 
 }
 #within_ember #content {
-  margin-top: var(--ll-navbar-row2, 0px) !important; /* override header + #content { margin-top: 50–200px } from legacy header_sizing.scss (Rails asset); !important needed to beat .speaking.tiny/.medium/.large/.huge variants. 0 except when the navbar grows a second row for the View button at <=375px (_view-switcher.scss, TWO ROWS); then the page moves down with it. */
+  margin-top: var(--ll-navbar-row2, 0px) !important; /* override header + #content { margin-top: 50–200px } from legacy header_sizing.scss (Rails asset); !important needed to beat .speaking.tiny/.medium/.large/.huge variants. 0 except when the navbar grows a second row for the View button at <=600px (_view-switcher.scss, TWO ROWS); then the page moves down with it. */
   overflow-x: hidden !important; /* Kill horizontal scroll on authenticated pages at small widths; no element inside should ever need to scroll the whole page horizontally. */
   padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px)); /* content below fixed header; extra grows when speak bar wraps */
 }
@@ -21339,7 +21339,7 @@ body:-ms-fullscreen {
   overflow: visible !important;
 
 }
-/* Authenticated pages (no board bar): header, inner_header, and navbar all 70px, plus --ll-navbar-row2 when the View button takes its own row at <=375px (_view-switcher.scss, TWO ROWS) */
+/* Authenticated pages (no board bar): header, inner_header, and navbar all 70px, plus --ll-navbar-row2 when the View button takes its own row at <=600px (_view-switcher.scss, TWO ROWS) */
 #within_ember > header.header-index-with-dark-toggle:not(.header--unauthenticated):has(.app-navbar):not(:has(#speak)):not(:has(#nav_header)) {
   height: calc(70px + var(--ll-navbar-row2, 0px)) !important;
 

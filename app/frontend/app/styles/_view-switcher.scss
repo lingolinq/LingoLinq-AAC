@@ -39,7 +39,7 @@
   --ll-viewswitch-offset: 24px;
 }
 
-// TWO ROWS AT <=375px (2026-10-01, requested; was 360px). The top row has no room for the button there: the
+// TWO ROWS AT <=600px (2026-10-02, requested; was 375px, before that 360px). The top row has no room for the button there: the
 // fixed Beta feedback tab, the settings gear and the menu button were all drawn over it (measured on
 // home, search, boards and caseload). It takes its own row under the logo instead, inside the bar;
 // the bar grows by --ll-navbar-row2 (11px gap + the 33px button) and so does the page's offset below
@@ -50,7 +50,7 @@
 // and edit mode, and the bar returns to one row. Boards never match: their header carries #speak or
 // #nav_header, and the classic board's own button is not inside .app-navbar-authenticated-inner.
 // Every selector needs :has(), so a browser without it keeps the one-row bar.
-@media (max-width: 375px) {
+@media (max-width: 600px) {
   #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):not(.header--hidden) .app-navbar-authenticated-inner .ll-viewswitch):not(:has(> header #speak)):not(:has(> header #nav_header)) {
     --ll-navbar-row2: 44px;
   }
