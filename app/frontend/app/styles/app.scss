@@ -31612,6 +31612,17 @@ header.header--unauthenticated ~ #content .la-topbar {
 /* Logo to nav 32px when nav is inside .app-navbar (no .la-topbar gap) */
 .app-navbar .la-topbar-nav {
   margin-left: 31px; /* 31px + 1px separator = 32px to first link */
+  /* 1025-1219px (2026-10-02). With Basic Access as a fifth link the window-centred row wrapped to two
+     rows here, and kept on one row (no-wrap) it ran under Try Free / Sign In: the logo side is
+     narrower than the buttons side, so the row sits 120px nearer the buttons than the logo at every
+     width in this range (measured with no-wrap at 1025, 1060, 1100 and 1180px: 91 / -29, 109 / -12,
+     129 / 8, 169 / 48px). Shifting it 60px left centres it between the two. Still absolutely
+     positioned, so the `flex: 1 !important` rules on `.header-unauth-nav` do not apply. Below
+     1025px the hamburger takes over ($aac-breakpoint-lg); from 1220px nothing changes. */
+  @media (min-width: 1025px) and (max-width: 1219px) {
+    left: calc(50% - 60px);
+    white-space: nowrap;
+  }
 }
 
 .la-topbar-link {

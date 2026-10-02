@@ -24,33 +24,19 @@
             {{!-- <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
             <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key="fsa_nav_about"}}</LinkTo>
             <LinkTo @route="beta-feedback" class="la-topbar-link" role="menuitem">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+            {{#if this.appState.feature_flags.emergency_boards}}
+              <LinkTo @route="offline_boards" class="la-topbar-link critical_access" role="menuitem">{{t "Basic Access" key="critical_access"}}</LinkTo>
+            {{/if}}
           </div>
           <div class="la-topbar-right header-unauth-right">
             <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key="fsa_try_free"}}</LinkTo>
+            {{!-- SIGN IN GOES STRAIGHT TO THE LOGIN PAGE (2026-10-02, requested). It opened a menu
+                 (Sign In / Register / Basic Access), so reaching /login took two clicks. Register is
+                 already on screen as "Try Free"; Basic Access is a top link above and in the drawer
+                 below, behind the same `emergency_boards` flag. Keeps `#identity_button` and its
+                 classes, so it looks as before. --}}
             <span id="identity" class="advanced_selection app-navbar-auth-nav--desktop identity-with-dark-toggle">
-              <span style="display: inline-block;" class="dropdown">
-                <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
-                  {{t "Sign In" key="login"}}
-                  <span class="caret"></span>
-                </a>
-                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
-                  <li role="presentation">
-                    <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
-                  </li>
-                  {{#unless this.appState.no_linky}}
-                    {{#if this.appState.domain_settings.full_domain}}
-                      <li role="presentation">
-                        <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
-                      </li>
-                    {{/if}}
-                  {{/unless}}
-                  {{#if this.appState.feature_flags.emergency_boards}}
-                    <li role="presentation">
-                      <LinkTo @route="offline_boards" class="critical_access">{{t "Basic Access" key="critical_access"}}</LinkTo>
-                    </li>
-                  {{/if}}
-                </ul>
-              </span>
+              <LinkTo @route="login" class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button">{{t "Sign In" key="login"}}</LinkTo>
             </span>
             <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isLandingDrawerOpen}} {{on "click" this.toggleLandingDrawer}}>
               <span class="la-topbar-hamburger__bar"></span>
@@ -64,6 +50,9 @@
             {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
             <LinkTo @route="about" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "About" key="fsa_nav_about"}}</LinkTo>
             <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+            {{#if this.appState.feature_flags.emergency_boards}}
+              <LinkTo @route="offline_boards" class="la-mobile-drawer__link critical_access" {{on "click" this.closeLandingDrawer}}>{{t "Basic Access" key="critical_access"}}</LinkTo>
+            {{/if}}
             <div class="la-mobile-drawer__divider"></div>
             <LinkTo @route="login" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Sign In" key="login"}}</LinkTo>
             <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Register" key="register"}}</LinkTo>
