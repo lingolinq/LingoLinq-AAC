@@ -16,6 +16,7 @@ module('Unit | Model | board reload_including_all_downstream', function(hooks) {
   setupTest(hooks);
 
   test('looks up a board that is not in the store, without throwing', async function(assert) {
+    assert.expect(1);
     var found = [];
     var original = LingoLinq.store.peekAll;
     LingoLinq.store.peekAll = function() { return []; };

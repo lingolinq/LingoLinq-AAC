@@ -116,7 +116,7 @@ app/components/confirm-delete-board.js|ember/no-runloop|209|25|2|5addc2170315
 app/components/confirm-delete-board.js|ember/require-computed-property-dependencies|70|26|1|b19855c081b9
 app/components/confirm-delete-user.js|ember/no-runloop|88|13|2|5addc2170315
 app/components/confirm-org-action.js|ember/require-computed-property-dependencies|107|18|1|4f3cfbc971db
-app/components/copying-board.js|lingolinq/no-orphaned-action|408|5|1|981d7ce18fc2
+app/components/copying-board.js|lingolinq/no-orphaned-action|410|5|1|981d7ce18fc2
 app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2694|41|1|2da67c91d637
 app/components/create-board-new.js|ember/no-runloop|1430|5|2|ab6701509d85
 app/components/create-board-new.js|ember/no-runloop|1496|7|2|513c0395fe72

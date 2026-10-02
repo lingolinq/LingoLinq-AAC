@@ -1,7 +1,6 @@
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import Service from '@ember/service';
-import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
 import editManager from 'frontend/utils/edit_manager';
@@ -26,6 +25,7 @@ module('Unit | Component | copying-board completion notice', function(hooks) {
   }
 
   test('a copy watched to the end shows "Copy created!" and still opens the new board', async function(assert) {
+    assert.expect(3);
     var orig = { copy: editManager.copy_board, success: modal.success, notice: modal.notice, isOpen: modal.is_open, close: modal.close };
     var successes = [];
     var notices = [];
@@ -49,10 +49,8 @@ module('Unit | Component | copying-board completion notice', function(hooks) {
       }));
       var board = EmberObject.create({ id: '1_5', key: 'example/source', locale: 'en' });
       var owner = this.owner;
-      run(function() {
-        owner.factoryFor('component:copying-board').create({
-          model: { action: 'keep_links', board: board, user: EmberObject.create({ id: 'self' }), symbol_library: 'original' }
-        });
+      owner.factoryFor('component:copying-board').create({
+        model: { action: 'keep_links', board: board, user: EmberObject.create({ id: 'self' }), symbol_library: 'original' }
       });
       await poll(function() { return jumps.length > 0; }, 2000);
       assert.deepEqual(jumps, ['example/copied'], 'the new board still opens');

@@ -11,6 +11,7 @@ module('Unit | Controller | user flush-top workspace', function(hooks) {
   setupTest(hooks);
 
   test('true on the seven pages and their details, false elsewhere', function(assert) {
+    assert.expect(14);
     this.owner.unregister('service:router');
     this.owner.register('service:router', Service.extend({ currentRouteName: 'user.goals' }));
     var router = this.owner.lookup('service:router');
