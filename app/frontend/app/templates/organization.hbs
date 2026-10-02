@@ -152,8 +152,8 @@
       <div class="ch-org-switcher">
         <span class="ch-org-switcher__label" id="org-switcher-label">{{t "Available Organizations" key="accessible_orgs"}}</span>
         <details class="ch-org-dropdown" {{details-autoclose}}>
-          <summary class="ch-org-dropdown__trigger" aria-label={{t "Choose an organization" key="choose_organization"}}>
-            <span class="ch-org-dropdown__current">{{this.model.name}}</span>
+          <summary class="ch-org-dropdown__trigger" aria-labelledby="org-switcher-label org-switcher-current">
+            <span class="ch-org-dropdown__current" id="org-switcher-current">{{this.model.name}}</span>
             <svg class="ch-org-dropdown__chevron" width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <ul class="ch-org-dropdown__list" role="list">
