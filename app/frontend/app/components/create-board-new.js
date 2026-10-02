@@ -2326,7 +2326,7 @@ export default Component.extend({
      distinguishable so Back from nowhere cannot un-reveal it. */
   wizard_step: 1,
   wizard_done: false,
-  WIZARD_LAST_STEP: 4,
+  WIZARD_LAST_STEP: computed('ai_mode', 'show_user_options', 'appState.sessionUser.supporter_role', function() { return (this.get('show_user_options') && this.get('appState.sessionUser.supporter_role')) ? 4 : (this.get('ai_mode') ? 3 : 2); }), // step 4 only when there is someone to choose (2026-10-02); else the step before it is last and the board is for the user
 
   /* STEP 3 (Core Words) IS SKIPPED WHEN NOT GENERATING WITH AI, in both directions.
      `include_core_words` is read in exactly one place -- the `generate_labels` request payload

@@ -228,13 +228,45 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(c.get('wizard_done')).toEqual(false);
     });
 
+    // Step 4 ("for someone else?") exists only for a supporter with someone to choose
+    // (2026-10-02), so this path now needs one; without, see the no-supervisees cases below.
     it('create my own: Next steps 1 -> 2 -> 4, skipping the AI-only core-words step', function() {
       var c = makeComponent();
+      c.set('appState.sessionUser', EmberObject.create({ known_supervisees: [{ id: '1', user_name: 'kid' }], supporter_role: true }));
       c.set('model.name', 'Playground');
       c.send('wizard_next');
       c.send('wizard_next');
       expect(c.get('wizard_step')).toEqual(4);
       expect(c.get('wizard_done')).toEqual(false);
+    });
+
+    /* NO ONE TO CHOOSE, NO STEP 4 (requested 2026-10-02: "if the supporter doesn't have at least
+       one communicator they supervise, skip that step and default the board creation for
+       themselves"). Step 4 rendered nothing for them -- a blank step between the grid and the
+       editor. The step before it becomes the last: its Next opens the editor (or, generating
+       with AI, Core Words offers Generate), and the board is for themselves. */
+    it('no supervisees, create my own: Next on the grid step opens the editor', function() {
+      var c = makeComponent();
+      c.set('appState.sessionUser', EmberObject.create({ known_supervisees: [], supporter_role: true }));
+      c.set('model.name', 'Playground');
+      c.send('wizard_next');
+      expect(c.get('wizard_step')).toEqual(2);
+      expect(c.get('wizard_on_last_step')).toEqual(true);
+      c.send('wizard_next');
+      expect(c.get('wizard_done')).toEqual(true);
+      expect(c.get('wizard_step')).toEqual(2);
+      expect(c.get('creating_for_someone_else')).toEqual(false);
+    });
+
+    it('no supervisees, generating with AI: Core Words is the last step', function() {
+      var c = makeComponent();
+      c.set('appState.sessionUser', EmberObject.create({ known_supervisees: [], supporter_role: true }));
+      c.set('ai_mode', true);
+      c.set('model.description', 'Playground words');
+      c.send('wizard_next');
+      c.send('wizard_next');
+      expect(c.get('wizard_step')).toEqual(3);
+      expect(c.get('wizard_on_last_step')).toEqual(true);
     });
 
     it('Next on the last step sets wizard_done instead of advancing', function() {
