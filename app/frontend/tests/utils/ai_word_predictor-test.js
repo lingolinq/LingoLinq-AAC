@@ -4,8 +4,10 @@ import {
   expect,
   beforeEach,
   waitsFor,
-  runs
+  runs,
+  stub
 } from 'frontend/tests/helpers/jasmine';
+import $ from 'jquery';
 import ai_word_predictor from '../../utils/ai_word_predictor';
 
 function appStateStub(opts) {
@@ -106,6 +108,50 @@ describe('ai_word_predictor', function() {
     waitsFor(function() { return res; });
     runs(function() {
       expect(res).toEqual(['jugar']);
+    });
+  });
+
+  describe('backing off when the server declines', function() {
+    function failingAjax(status) {
+      return function() {
+        return { then: function(ok, fail) { fail({ status: status }); } };
+      };
+    }
+
+    it('pauses requests after a refusal (403), as after a rate limit', function() {
+      ai_word_predictor._backoff_until = 0;
+      stub($, 'ajax', failingAjax(403));
+      var res = null;
+      ai_word_predictor._fetch('i want to', 'en', 5).then(function(words) { res = words; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res).toEqual([]);
+        expect(ai_word_predictor._backoff_until > Date.now()).toEqual(true);
+        ai_word_predictor._backoff_until = 0;
+      });
+    });
+
+    it('still pauses after a rate limit (429)', function() {
+      ai_word_predictor._backoff_until = 0;
+      stub($, 'ajax', failingAjax(429));
+      var res = null;
+      ai_word_predictor._fetch('i want to', 'en', 5).then(function(words) { res = words; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(ai_word_predictor._backoff_until > Date.now()).toEqual(true);
+        ai_word_predictor._backoff_until = 0;
+      });
+    });
+
+    it('does not pause after a server error (500)', function() {
+      ai_word_predictor._backoff_until = 0;
+      stub($, 'ajax', failingAjax(500));
+      var res = null;
+      ai_word_predictor._fetch('i want to', 'en', 5).then(function(words) { res = words; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(ai_word_predictor._backoff_until).toEqual(0);
+      });
     });
   });
 });

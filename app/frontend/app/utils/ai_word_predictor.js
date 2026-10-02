@@ -134,8 +134,9 @@ var ai_word_predictor = {
         _this._cache_put(sentence, words, locale);
         resolve(words);
       }, function(xhr) {
-        if(xhr && xhr.status === 429) {
-          // Back off — stop sending requests for a while
+        if(xhr && (xhr.status === 429 || xhr.status === 403)) {
+          // Rate limited, or the server declined AI prediction for this
+          // account: stop sending requests for a while either way.
           _this._backoff_until = Date.now() + BACKOFF_MS;
         }
         resolve([]);
