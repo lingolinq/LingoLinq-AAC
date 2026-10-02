@@ -63,4 +63,20 @@ QUnit.module('Integration | Component | dashboard/classic-rail org admin rows', 
     await render(hbs`<Dashboard::ClassicRail @org={{this.org}} />`);
     assert.strictEqual(hrefs(this.element).indexOf('/organizations/1_2/extras'), -1, 'ordinary org, even with manage');
   });
+
+  /* BILLING (2026-10-02, reported: "for an admin user, there's no way to route to the licensing
+     crediting page"). organization.subscription (Billing Details: purchased licenses, premium
+     supervisors, eval accounts, premium symbols, expiry) is gated on `manage_subscription`, which
+     is also how the org page linked to it until the Basic redesign dropped the button. */
+  QUnit.test('Billing shows to someone who can manage the subscription, on any org', async function(assert) {
+    this.set('org', { id: '1_2', admin: false, permissions: { view: true, edit: true, manage: true, manage_subscription: true } });
+    await render(hbs`<Dashboard::ClassicRail @org={{this.org}} />`);
+    assert.notStrictEqual(hrefs(this.element).indexOf('/organizations/1_2/subscription'), -1, 'Billing');
+  });
+
+  QUnit.test('Billing is hidden without manage_subscription', async function(assert) {
+    this.set('org', { id: '1_2', admin: false, permissions: { view: true, edit: true, manage: true } });
+    await render(hbs`<Dashboard::ClassicRail @org={{this.org}} />`);
+    assert.strictEqual(hrefs(this.element).indexOf('/organizations/1_2/subscription'), -1, 'no Billing');
+  });
 });

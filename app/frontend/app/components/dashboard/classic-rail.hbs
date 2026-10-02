@@ -264,6 +264,23 @@
           <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
         </LinkTo>
       </li>
+      {{!-- BILLING (2026-10-02, reported: "for an admin user, there's no way to route to the licensing
+           crediting page"). organization.subscription is where licenses, premium supervisors, eval
+           accounts and premium symbols are credited to an org (templates/organization/subscription.hbs).
+           Same gate as that page and as the org page's own "Billing" button before the redesign
+           dropped it (e46aff7a2:templates/organization.hbs): `manage_subscription`, i.e. site admins. --}}
+      {{#if this.org.permissions.manage_subscription}}
+        <li class="ch-rail__item">
+          <LinkTo @route="organization.subscription" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#46505F"/><path d="M2 10h20" stroke="#2A9D8F"/><path d="M6 15h4" stroke="#46505F"/></svg>
+            </span>
+            <span class="ch-row__short" aria-hidden="true">{{t "Billing" key="classic_short_subscription"}}</span>
+            <span class="ch-row__body"><span class="ch-row__title">{{t "Billing Details" key="subscription_details"}}</span></span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </LinkTo>
+        </li>
+      {{/if}}
     {{/if}}
 
     {{!-- ── THE PERSONAL DASHBOARD ROWS, HIDDEN IN ORG MODE (2026-09-25, requested: "Hide the
