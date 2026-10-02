@@ -768,4 +768,152 @@ describe ButtonSound, :type => :model do
       expect(bs.settings['extra_transcoding_attempts']).to eq(nil)
     end
   end
+
+  describe "transcription language" do
+    before(:each) do
+      ENV['GOOGLE_TRANSLATE_TOKEN'] = 'tokeny'
+      allow_any_instance_of(ButtonSound).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      allow(Uploader).to receive(:remote_remove).and_return(true)
+    end
+
+    def stub_recognize(*responses)
+      allow(Typhoeus).to receive(:get).with("http://www.example.com/sound.wav").and_return(OpenStruct.new({body: 'asdf'}))
+      configs = []
+      allow(Typhoeus).to receive(:post) do |url, opts|
+        configs << JSON.parse(opts[:body])['config']
+        responses[configs.length - 1] || responses.last
+      end
+      configs
+    end
+
+    def connect(user, locale, age)
+      board = Board.create(:user => User.create, :settings => {'locale' => 'en'})
+      ubc = UserBoardConnection.create(:user_id => user.id, :board_id => board.id, :locale => locale)
+      ubc.update_column(:updated_at, age.hours.ago)
+    end
+
+    def ok_response
+      OpenStruct.new(code: 200, body: {results: [{alternatives: [{transcript: 'hola', confidence: 0.9}]}]}.to_json)
+    end
+
+    def language_error_response
+      OpenStruct.new(code: 400, body: {error: {code: 400, message: "Invalid recognition 'config': Bad language code.", status: 'INVALID_ARGUMENT'}}.to_json)
+    end
+
+    def other_error_response
+      OpenStruct.new(code: 400, body: {error: {code: 400, message: "Sync input too long.", status: 'INVALID_ARGUMENT'}}.to_json)
+    end
+
+    it "should send the recording's language" do
+      configs = stub_recognize(ok_response)
+      bs = ButtonSound.new(:settings => {'locale' => 'es'})
+      bs.schedule_transcription(true)
+      expect(configs.length).to eq(1)
+      expect(configs[0]['languageCode']).to eq('es-US')
+      expect(configs[0].key?('alternativeLanguageCodes')).to eq(false)
+      expect(bs.settings['transcription']).to eq('hola')
+    end
+
+    it "should send up to 3 other languages from the owner's boards as alternatives" do
+      u = User.create
+      [['fr', 1], ['zz', 2], ['en_GB', 3], ['es', 4], ['de', 5], ['it', 6]].each do |loc, age|
+        connect(u, loc, age)
+      end
+      configs = stub_recognize(ok_response)
+      bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
+      bs.schedule_transcription(true)
+      expect(configs[0]['languageCode']).to eq('en-US')
+      expect(configs[0]['alternativeLanguageCodes']).to eq(['fr-FR', 'es-US', 'de-DE'])
+    end
+
+    it "should fall back to the owner's home board language, then the owner's language" do
+      u = User.create(:settings => {'preferences' => {'locale' => 'fr', 'home_board' => {'id' => '1_1', 'locale' => 'es'}}})
+      configs = stub_recognize(ok_response)
+      ButtonSound.new(:user => u, :settings => {}).schedule_transcription(true)
+      expect(configs[0]['languageCode']).to eq('es-US')
+
+      u2 = User.create(:settings => {'preferences' => {'locale' => 'fr'}})
+      configs = stub_recognize(ok_response)
+      ButtonSound.new(:user => u2, :settings => {}).schedule_transcription(true)
+      expect(configs[0]['languageCode']).to eq('fr-FR')
+    end
+
+    it "should treat blank or malformed locales as absent and keep the default request" do
+      u = User.create(:settings => {'preferences' => {'locale' => '', 'home_board' => {'id' => '1_1', 'locale' => 'english'}}})
+      connect(u, 'es', 1)
+      configs = stub_recognize(ok_response)
+      ButtonSound.new(:user => u, :settings => {'locale' => ''}).schedule_transcription(true)
+      expect(configs[0]).to eq({'encoding' => 'LINEAR16', 'sampleRateHertz' => 44100, 'languageCode' => 'en', 'profanityFilter' => true})
+    end
+
+    it "should not send audio for a language it cannot transcribe, and should not schedule again" do
+      u = User.create
+      expect(Typhoeus).not_to receive(:get)
+      expect(Typhoeus).not_to receive(:post)
+      bs = ButtonSound.create(:user => u, :settings => {'locale' => 'tlh'})
+      Worker.flush_queues
+      bs.schedule_transcription(true)
+      bs.reload
+      expect(bs.settings['transcription_status']).to eq('unavailable')
+      expect(bs.settings['transcription_status_reason']).to eq('language_not_supported')
+      expect(bs.settings['transcription_errors']).to eq(nil)
+      expect(Worker.scheduled_actions).to eq([])
+      bs.schedule_transcription
+      expect(Worker.scheduled_actions).to eq([])
+    end
+
+    it "should retry once without alternatives when Google rejects a language code" do
+      u = User.create
+      connect(u, 'fr', 1)
+      configs = stub_recognize(language_error_response, ok_response)
+      bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
+      bs.schedule_transcription(true)
+      expect(configs.length).to eq(2)
+      expect(configs[0]['alternativeLanguageCodes']).to eq(['fr-FR'])
+      expect(configs[1].key?('alternativeLanguageCodes')).to eq(false)
+      expect(configs[1]['languageCode']).to eq('en-US')
+      expect(bs.settings['transcription']).to eq('hola')
+      expect(bs.settings['transcription_errors']).to eq(nil)
+    end
+
+    it "should count one error when the retry also fails" do
+      u = User.create
+      connect(u, 'fr', 1)
+      configs = stub_recognize(language_error_response, language_error_response)
+      bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
+      bs.schedule_transcription(true)
+      expect(configs.length).to eq(2)
+      expect(bs.settings['transcription_errors']).to eq(1)
+    end
+
+    it "should not retry a language error when no alternatives were sent" do
+      configs = stub_recognize(language_error_response, ok_response)
+      bs = ButtonSound.new(:settings => {'locale' => 'es'})
+      bs.schedule_transcription(true)
+      expect(configs.length).to eq(1)
+      expect(bs.settings['transcription_errors']).to eq(1)
+    end
+
+    it "should not retry on other errors" do
+      u = User.create
+      connect(u, 'fr', 1)
+      configs = stub_recognize(other_error_response, ok_response)
+      bs = ButtonSound.new(:user => u, :settings => {'locale' => 'en'})
+      bs.schedule_transcription(true)
+      expect(configs.length).to eq(1)
+      expect(bs.settings['transcription_errors']).to eq(1)
+    end
+
+    it "should store a locale-shaped locale param on create and ignore anything else" do
+      u = User.create
+      bs = ButtonSound.new(:user => u)
+      bs.process_params({'locale' => 'es_MX'}, {})
+      expect(bs.settings['locale']).to eq('es_MX')
+      ['<script>', 'en-US-x-very-long-junk-code', ['es'], {'a' => 'b'}, ''].each do |bad|
+        bs = ButtonSound.new(:user => u)
+        bs.process_params({'locale' => bad}, {})
+        expect([bad, bs.settings['locale']]).to eq([bad, nil])
+      end
+    end
+  end
 end

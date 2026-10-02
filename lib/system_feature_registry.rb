@@ -1,5 +1,6 @@
 module SystemFeatureRegistry
   METADATA = {
+    'disable_transcription_alternatives' => { name: 'Disable transcription language hints', category: 'Media', description: 'Kill switch: when on, voice transcription sends only the recording language, without other languages from the boards the owner uses. Off by default (hints are sent).' },
     'subscriptions' => { name: 'Subscriptions', category: 'Billing', description: 'Subscription and billing UI' },
     'assessments' => { name: 'Assessments', category: 'Evaluations', description: 'Assessment tools' },
     'custom_sidebar' => { name: 'Custom sidebar', category: 'Boards', description: 'Customizable board sidebar' },
