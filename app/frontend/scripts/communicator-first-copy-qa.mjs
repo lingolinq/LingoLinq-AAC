@@ -13,13 +13,14 @@
 //
 // DATA (local dev DB): this makes one more copied board set in the communicator's account. Their
 // original home board is read first and restored in a finally (restore verified and reported).
-// Localhost only. Usage: node scripts/communicator-first-copy-qa.mjs [--headed]
+// Localhost only. Usage: node scripts/communicator-first-copy-qa.mjs [--comm <user_name>] [--headed]
 
 import { cliArgs, launch, login } from './qa-helpers.mjs';
 
 const { BASE, HEADED, arg } = cliArgs(process.argv);
 const SLP = arg('--slp', 'sarah_chen_slp');
 const SLP_PASS = arg('--slp-pass', 'demo2025!');
+const COMM = arg('--comm', null); // a communicator's user name; default: the SLP's first
 if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(BASE)) {
   console.error(`REFUSING: --base must be localhost, got ${BASE}`); process.exit(2);
 }
@@ -61,11 +62,12 @@ let original = null;
 try {
   await login(page, { BASE, USER: SLP, PASS: SLP_PASS });
   await page.setViewport({ width: 1280, height: 900 });
-  const who = await page.evaluate(() => {
+  const who = await page.evaluate((comm) => {
     const u = window.appState.get('currentUser');
     const sups = (u && u.get('supervisees')) || [];
-    return { view: window.appState.get('effective_view_user.preferences.board_view_style'), sup: sups[0] ? { id: sups[0].id, user_name: sups[0].user_name } : null };
-  });
+    const pick = (comm && sups.find((x) => x.user_name === comm)) || sups[0];
+    return { view: window.appState.get('effective_view_user.preferences.board_view_style'), sup: pick ? { id: pick.id, user_name: pick.user_name } : null };
+  }, COMM);
   if (who.view !== 'classic') { throw new Error(`${SLP} is in "${who.view}", not Basic; switch to Basic and re-run`); }
   if (!who.sup) { throw new Error(`${SLP} supervises no communicator`); }
   comm = who.sup;

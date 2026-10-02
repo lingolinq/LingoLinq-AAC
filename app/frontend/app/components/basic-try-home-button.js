@@ -6,6 +6,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { copy_or_reuse_as_home } from '../utils/board-copy';
 import { basic_try_for, basic_try_target, clear_basic_try } from '../utils/board_picker_landing';
+import { preload_board_images } from '../utils/board_preview_warmer';
 
 /**
  * "SET AS HOME BOARD" ON THE BASIC BOARD PAGE AFTER A "TRY" (2026-09-30).
@@ -24,10 +25,12 @@ export default Component.extend({
   appState: service('app-state'),
   store: service('store'),
   router: service('router'),
+  persistence: service('persistence'),
   board: null,
   busy: false,
   // Injectable so a test can observe the call; the real one in the app.
   copyAsHome: copy_or_reuse_as_home,
+  preloadImages: preload_board_images,
 
   mark: computed('appState.basic_try_home', 'appState.currentBoardState.key', function() {
     return basic_try_for(this.get('appState'), this.get('appState.currentBoardState.key'));
@@ -54,6 +57,20 @@ export default Component.extend({
     this.set('busy', true);
     return who.then(function(user) {
       return _this.copyAsHome(_this.get('board'), user, appState.get('label_locale'));
+    }).then(function(home) {
+      /* FINISHED LIKE THE PICKER (2026-10-02, adversarial review). Preload the new home board's
+         images before opening it, as "Pick this Board" does for someone else
+         (components/board-preview-overlay.js _finishPickForHome; best-effort, never rejects,
+         capped at 6s), and sync when online with auto-sync on, as the board picker page does
+         (controllers/board-picker.js _afterHomeBoardAssigned), so this device's offline copy
+         catches up with the change. */
+      return RSVP.resolve(_this.preloadImages(home)).then(null, function() {}).then(function() {
+        var persistence = _this.get('persistence');
+        if(persistence && persistence.get('online') && persistence.get('auto_sync')) {
+          persistence.sync('self', null, null, 'home_board_changed').then(null, function() { });
+        }
+        return home;
+      });
     }).then(function(home) {
       clear_basic_try(appState);
       modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
