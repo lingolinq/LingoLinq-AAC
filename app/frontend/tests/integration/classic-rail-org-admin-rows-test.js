@@ -45,4 +45,22 @@ QUnit.module('Integration | Component | dashboard/classic-rail org admin rows', 
     assert.deepEqual(['/organizations/1_1/reports', '/organizations/1_1/lessons', '/organizations/1_1/settings'].filter(function(p) { return h.indexOf(p) !== -1; }), [],
       'none of the admin rows');
   });
+
+  /* ADMIN ACTIONS (2026-10-02, requested: "adding a menu for admin actions in basic"). The page
+     (templates/organization/extras.hbs) renders only for the SITE-admin organisation and only for
+     someone with `manage` on it, so the row carries that same gate. */
+  QUnit.test('the site-admin org shows Admin Actions to someone who can manage it', async function(assert) {
+    this.set('org', { id: '1_1', admin: true, permissions: { view: true, edit: true, manage: true } });
+    await render(hbs`<Dashboard::ClassicRail @org={{this.org}} />`);
+    assert.notStrictEqual(hrefs(this.element).indexOf('/organizations/1_1/extras'), -1, 'Admin Actions');
+  });
+
+  QUnit.test('Admin Actions is hidden without manage, and on every ordinary org', async function(assert) {
+    this.set('org', { id: '1_1', admin: true, permissions: { view: true, edit: true } });
+    await render(hbs`<Dashboard::ClassicRail @org={{this.org}} />`);
+    assert.strictEqual(hrefs(this.element).indexOf('/organizations/1_1/extras'), -1, 'admin org, edit but no manage');
+    this.set('org', { id: '1_2', admin: false, permissions: { view: true, edit: true, manage: true } });
+    await render(hbs`<Dashboard::ClassicRail @org={{this.org}} />`);
+    assert.strictEqual(hrefs(this.element).indexOf('/organizations/1_2/extras'), -1, 'ordinary org, even with manage');
+  });
 });

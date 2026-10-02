@@ -135,6 +135,24 @@
         </LinkTo>
       </li>
     {{/unless}}
+    {{#if this.orgNav}}
+    {{!-- ADMIN ACTIONS (2026-10-02, requested: "adding a menu for admin actions in basic"; moved above Organizations, requested). The
+         page (templates/organization/extras.hbs) renders only for the SITE-admin organisation and
+         only for someone with `manage` on it, so this row carries exactly that gate and shows on
+         that organisation's pages alone. Until now nothing in the app linked to it. --}}
+    {{#if (and this.org.admin this.org.permissions.manage)}}
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.extras" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6Z" stroke="#46505F"/><path d="M9 12l2 2 4-4" stroke="#2A9D8F"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Admin" key="admin"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Admin Actions" key="admin_actions"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+    {{/if}}
+    {{/if}}
 
     {{!-- ORGANIZATIONS (added 2026-09-23). The rail already linked to INDIVIDUAL orgs
          below, but never to the list itself, so someone managing several had no way here
