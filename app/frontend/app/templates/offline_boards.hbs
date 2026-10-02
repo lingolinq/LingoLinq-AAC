@@ -4,6 +4,14 @@
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Always-Available Boards" key="always_available_boards"}}</span></h1>
       <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Free emergency and" key="offline_boards_sub_pre"}} <em class="md-hero__gradient-text">{{t "critical-use boards" key="offline_boards_sub_em"}}</em></span></p>
     </header>
+    {{!-- FOCUSED HIDES THE HERO ABOVE (`.md-hero--dashboard-user`, _focused-view.scss), which left
+         this page with no title there; this is its title in Focused (requested 2026-10-01: "a page
+         title ... that has our two-toned icon and header (like that on the rooms page)"). "Basic
+         Access" is what the menu row and Modern's Extras card that lead here call the page; the life
+         ring is that row's icon (components/dashboard/classic-rail-basic-access.hbs). --}}
+    <FocusedPageLabel @title={{t "Basic Access" key="critical_access"}}>
+      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="4" stroke="#46505F"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6" stroke="#2A9D8F"/></svg>
+    </FocusedPageLabel>
 
     <main class="md-main">
       <div class="md-offline-boards">
