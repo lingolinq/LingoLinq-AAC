@@ -9,7 +9,7 @@
 > versions**; none of them attests these bytes.
 
 **Supersedes:** `docs/legal/AI_DATA_SHARING_CONSENT.md` (`DOC-2e9fdc06e4`), frozen at the bytes attested 2026-08-04. This dated record is the operative consent rationale from 2026-08-25 forward. Attestation state lives in `audit-reports/DOCUMENT-REGISTER.json`, which is authoritative.
-**Reason for supersession:** Two factual claims in the section 3 operational-status bullet were overtaken within the hour they described and were never corrected. **Revised 2026-10-01:** this successor now also changes the consent policy. Section 6 follows the privacy policy merged in PR #909 (not yet released to production), under which a school district may authorize approved AI supports for an account it provides and manages (row 3 below, pending counsel review).
+**Reason for supersession:** Two factual claims in the section 3 operational-status bullet were overtaken within the hour they described and were never corrected. **Revised 2026-10-01:** this successor now also changes the consent policy. Section 6 follows the privacy policy merged in PR #909 (not yet released to production), under which a school district may authorize approved AI supports for an account it provides and manages (row 3 below, pending counsel review). The 2026-10-01 wording in sections 1, 3, 5 and 6 describes the privacy policy merged in PR #909 and takes effect when that policy is released to production. Row 4 aligns section 5 with section 2.1 (Bedrock route).
 
 ## Corrections in this successor
 
@@ -40,10 +40,11 @@ disclosure.
 
 ## 1. Why this consent is separate from signup-time COPPA consent
 
-LingoLinq already requires verifiable parental consent (or, for an account a school district
+The privacy policy requires verifiable parental consent (or, for an account a school district
 provides and manages, the district's authorization; see section 6) before a child under 13 can use
 the product at all. For a family-managed account, that consent is NOT sufficient, on its own, to
-cover sending a child's data to an outside AI company.
+cover sending a child's data to an outside AI company (section 6 describes the authorization that
+applies to district-managed accounts).
 
 The legal basis (per the Phase 2 plan's validation pass, 2026-06-26): the trigger for a second,
 separate consent is the *disclosure of a child's personal information to a third party*, not simply
@@ -246,14 +247,17 @@ section.
 AI authorization can be withdrawn at any time. An adult account holder may turn off their own AI
 features. For a family-managed child account, the parent or guardian controlling the consent may
 withdraw it. A district may disable school-purpose AI or end its authorization, including when it
-releases the account or license seat. Once the applicable authorization ends, LingoLinq stops new
-consent-gated AI processing unless another valid authorization applies. On revocation:
+releases the account or license seat. Under the privacy policy, once the applicable authorization
+ends, LingoLinq stops new consent-gated AI processing unless another valid authorization applies.
+On revocation:
 
 - `User#revoke_ai_consent!` (Phase 1) records the revocation; future calls to
   `ai_consent_granted?` return false for that account.
-- LingoLinq stops sending any further data from that account to any AI vendor for word prediction
-  or evaluation narration (AI board suggestions are governed separately; see section 3) (wiring the actual call-site hard-fail is
-  VPC Phase 4; this phase documents the intended behavior the disclosure describes).
+- The withdrawn authorization no longer permits sending further data from that account to any AI
+  vendor (AI board suggestions are governed separately; see section 3. The privacy policy states
+  that AI-drafted evaluation summaries are currently inactive and send nothing to any AI company.)
+  (wiring the actual call-site hard-fail is VPC Phase 4; this phase documents the intended behavior
+  the disclosure describes).
 - Revocation **cannot** retract or delete anything already sent to a vendor before the withdrawal.
   Runtime AI runs on AWS Bedrock, and no zero-data-retention guarantee is claimed for that route
   (section 2.1); retention there is governed by the AWS account BAA and AWS service terms. LingoLinq
@@ -293,13 +297,17 @@ provides that it runs only with the authorization that applies to the account:
 For every account type, LingoLinq does not use student information for advertising or to train
 general-purpose AI models, and every non-AI feature works without AI enabled. If LingoLinq learns
 it collected a child's personal information without the authorization required for that
-deployment, it deletes it promptly.
+deployment, it deletes it promptly. Turning on live AI evaluation summaries would require an
+updated disclosure and fresh applicable authorization before anything is sent.
 
 **Pending counsel review.** The school-authorization pathway rests on FTC staff guidance rather
 than COPPA Rule text (see
 `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md`, question 10).
 This section records the position the privacy policy states, not how each step is carried out in
-the product, and is not a legal opinion. See questions 10 and 19 of that memorandum.
+the product, and is not a legal opinion. Question 10 of that memorandum, as written, asks about the
+earlier school pathway without AI; question 19 covers separate consent for AI. A question on AI
+supports under district authorization is still to be added to that memorandum. Counsel review of
+this section is not deferred to the end of the VPC build.
 
 ## 7. Open questions -- resolved 2026-07-09 by Scot's provisional attestation
 
@@ -386,8 +394,8 @@ point, commit `c595f6304a545a6a10de80924edd99951eb41aa5`) by direct inspection o
 
 This document, `AI_DATA_FLOW_CLASSIFICATION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
 and the `privacy.hbs` edits in this phase reflect Scot's provisional attestation of the PREDECESSOR above and may be
-built upon for Phase 3/4/5 work, except section 6, which was revised on 2026-10-01 and is pending
-counsel review. They are not yet a formal, counsel-reviewed legal position --
+built upon for Phase 3/4/5 work, except the 2026-10-01 revisions to sections 1, 3, 5 and 6, which
+are pending counsel review. They are not yet a formal, counsel-reviewed legal position --
 that review is intentionally deferred (see "Deferred to" above), consistent with how
 `AI_GOVERNANCE_MEMO.md` section 7's open items are already tracked and accepted without blocking
 build. Do not represent this content to a real parent, regulator, or auditor as counsel-reviewed
