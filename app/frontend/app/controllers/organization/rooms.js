@@ -24,38 +24,6 @@ export default Controller.extend({
     return !!this.get('model.permissions.edit');
   }),
 
-  /* EVERY ORGANISATION THIS PERSON SUPERVISES ROOMS IN, for the picker on this page.
-   *
-   * A supervisor CAN hold rooms in more than one organisation: `OrganizationUnit.supervised_units`
-   * (app/models/organization_unit.rb) collects every `org_unit_supervisor` link with no org
-   * filter, and each entry carries its own `organization_id`. Nothing in the data model prevents
-   * it -- it simply happens not to occur in the current seed data.
-   *
-   * That matters because the rail's Rooms row resolves its destination with `roomsAllOrgId`,
-   * which is `sortedRooms[0].organization_id` -- the FIRST room's org and no other. Without a
-   * way to switch, a supervisor with rooms in two districts could reach only one of them and
-   * would have no indication the others existed. This picker is that way.
-   *
-   * Names come from `currentUser.organizations`, since `supervised_units` carries ids only.
-   * An org whose name is missing falls back to its id rather than rendering blank. */
-  roomOrgs: computed('app_state.currentUser.supervised_units.[]',
-                     'app_state.currentUser.organizations.[]', 'model.id', function() {
-    var names = {};
-    (this.get('app_state.currentUser.organizations') || []).forEach(function(o) {
-      if(o && o.id) { names[o.id] = o.name; }
-    });
-    var counts = {};
-    (this.get('app_state.currentUser.supervised_units') || []).forEach(function(u) {
-      if(!u || !u.organization_id) { return; }
-      counts[u.organization_id] = (counts[u.organization_id] || 0) + 1;
-    });
-    var current = this.get('model.id');
-    var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-    return Object.keys(counts).map(function(id) {
-      return { id: id, name: names[id] || id, room_count: counts[id], is_current: id === current };
-    }).sort(function(a, b) { return collator.compare(a.name || '', b.name || ''); });
-  }),
-
   /* THE SUPERVISOR'S OWN ROOMS, from the user record rather than the manager-only units API.
      Filtered to the org being viewed so the page shows this district's rooms and not every
      room the person supervises anywhere. Sorted the same way `dashboard/authenticated-view.js`

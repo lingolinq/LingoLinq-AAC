@@ -289,7 +289,13 @@ var PILL_COPY = {
 function navPillSummary() {
   var labels = Array.prototype.slice.call(document.querySelectorAll('.md-pillnav [data-tour-pill]'))
     .filter(function(el) { return el.offsetParent !== null; })
-    .map(function(el) { return (el.textContent || '').replace(/\s+/g, ' ').trim(); })
+    // The LABEL only: a copy without the Updates pill's count badge and its screen-reader text,
+    // which otherwise run into it ("Updates3has new updates") (2026-10-01).
+    .map(function(el) {
+      var copy = el.cloneNode(true);
+      copy.querySelectorAll('.md-pillnav__badge, .sr-only').forEach(function(n) { n.remove(); });
+      return (copy.textContent || '').replace(/\s+/g, ' ').trim();
+    })
     .filter(function(t) { return t.length; });
   if (!labels.length) { return ''; }
   if (labels.length === 1) { return labels[0]; }
@@ -868,5 +874,5 @@ function buildHomeSteps(layout, options) {
   return steps;
 }
 
-export { buildHomeSteps };
+export { buildHomeSteps, navPillSummary };
 export default buildHomeSteps;

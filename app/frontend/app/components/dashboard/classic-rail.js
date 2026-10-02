@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 import modal from '../../utils/modal';
 import { pillForRoute } from '../../utils/primary_nav';
 
@@ -34,6 +35,11 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     var self = this;
+    /* `extras`, which `sync_able` waits on: the same explicit lookup the dashboard rail makes
+       (dashboard/authenticated-view.js init), since implicit injection is gone. Without it the
+       Sync row showed during boot, before extras were ready (2026-10-01). */
+    var extras = getOwner(this) && getOwner(this).lookup('lingolinq:extras');
+    if(extras) { Object.defineProperty(this, 'extras', { value: extras, writable: false, configurable: true }); }
     /* Same wrapper shape the dashboard components use, so the copied markup's
        `(this.ctrlAction "…")` bindings work unchanged. */
     this.ctrlAction = function(actionName) {
@@ -190,7 +196,7 @@ export default Component.extend({
   }),
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
-    return !this.appState.get('currentUser.external_device');
+    return !!this.get('extras.ready') && !this.appState.get('currentUser.external_device');
   }),
   needs_sync: computed('persistence.last_sync_at', function() {
     var p = this.get('persistence');

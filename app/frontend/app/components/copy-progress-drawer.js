@@ -51,7 +51,7 @@ export default Component.extend({
       // classic user lands on their own board here rather than being ejected into
       // modern. KNOWN GAP: edit mode is not auto-entered for them; closing that
       // needs the classic edit route (Cluster C in the restoration plan).
-      this.get('router').transitionTo(board_edit_route(this.get('appState.currentUser')), parts[0], parts.slice(1).join('/'));
+      this.get('router').transitionTo(board_edit_route(this.get('appState.effective_view_user')), parts[0], parts.slice(1).join('/'));
       return;
     }
     this.get('appState').jump_to_board({ id: copy.id, key: copy.key });

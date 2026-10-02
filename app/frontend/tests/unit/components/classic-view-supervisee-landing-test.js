@@ -16,7 +16,7 @@ module('Unit | Component | classic-view supervisee landing', function(hooks) {
     planted = null;
   });
 
-  function setup(context, pendingName) {
+  function setup(context, pendingName, modelingOnly) {
     var scrolls = [];
     // The rendered card, as classic-view.hbs draws it: an article holding the panel by id.
     var card = document.createElement('article');
@@ -30,7 +30,7 @@ module('Unit | Component | classic-view supervisee landing', function(hooks) {
     context.owner.unregister('service:app-state');
     context.owner.register('service:app-state', Service.extend({
       currentUser: EmberObject.create({
-        preferences: {}, supporter_role: true,
+        preferences: {}, supporter_role: true, modeling_only: !!modelingOnly,
         known_supervisees: [{ id: '1_5', user_name: 'other' }, { id: '1_7', user_name: 'aiden_parker' }],
         save: function() { return Promise.resolve(); }
       }),
@@ -58,6 +58,18 @@ module('Unit | Component | classic-view supervisee landing', function(hooks) {
     await frame();
     assert.notOk(t.component.get('openSuperviseeId'), 'no card expanded');
     assert.strictEqual(t.scrolls.length, 0, 'no scroll');
+  });
+
+  /* NO COMMUNICATORS TAB, NO CARD (2026-10-01). A modeling-only account has no Communicators tab
+     (classic-view.js#_tabShown), so the tab handoff is dropped; the card handoff went on to expand a
+     card in a panel that is not rendered. It is now taken (cleared) and dropped with the tab. */
+  test('without a Communicators tab, the handed-off card is dropped and cleared', async function(assert) {
+    var t = setup(this, 'aiden_parker', true);
+    t.component.didInsertElement();
+    await frame();
+    assert.notOk(t.component.get('openSuperviseeId'), 'no card expanded');
+    assert.strictEqual(t.scrolls.length, 0, 'no scroll');
+    assert.notOk(this.owner.lookup('service:app-state').get('pending_open_supervisee'), 'the handoff is cleared');
   });
 
   test('an ordinary arrival expands nothing', async function(assert) {

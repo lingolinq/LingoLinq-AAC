@@ -87,7 +87,10 @@ export default AuthenticatedView.extend({
     // ARRIVING FROM THE EXTRAS PAGE (2026-09-30): open the Extras drawer on insert, below.
     this._pending_open_extras = take_pending_open_extras(this.appState);
     // ARRIVING FROM ONE COMMUNICATOR'S CASELOAD (2026-09-30): expand their card on insert, below.
+    // Taken either way, so the handoff is cleared; KEPT only when the Communicators tab renders
+    // (2026-10-01): with the tab dropped above, there is no card to expand.
     this._pending_open_supervisee = take_pending_open_supervisee(this.appState);
+    if(!this._tabShown('supervisees')) { this._pending_open_supervisee = null; }
   },
 
   _tabShown(nav) {

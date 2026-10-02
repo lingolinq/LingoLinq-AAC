@@ -4740,37 +4740,13 @@ $ch-focused-identity-start: #94A6BE;   // #8EA5C4 -> -15% -> #92A6C0 -> -10%; wa
 $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; was #73C8BD
 
 .ch-rail {
-  // Glassy silver: a corner specular, a raking band, a bottom shade, then the ramp — the same
-  // four-layer recipe the Actions cards use, so the two surfaces read as one material.
-  //
-  // Every layer is in `background`, never a pseudo-element: `.ch-rail` has no spare pseudo and,
-  // more to the point, a pseudo-element would paint OVER the rows rather than under them.
-  //
-  // Measured at the DARKEST point — the ramp's end under the bottom shade, #C7D2E1 since the
-  // 2026-09-14 lightening: the group label holds 8.26 and the rail arrow 5.37 directly on the
-  // pane, while a row's marks sit on the row's own 0.34 veil (#DAE1EB) — description 8.48,
-  // arrow 7.49, and the global navy focus ring 9.23. Every one of these was RAISED by the
-  // lightening — the slate ramp's figures were 5.19 / 5.77 / 5.28 / 4.45 against #979DA8 — so
-  // nothing here is running near a floor.
-  background:
-    radial-gradient(120% 80% at 16% 4%, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0) 56%),
-    linear-gradient(180deg,
-      rgba(255, 255, 255, 0.30) 0%,
-      rgba(255, 255, 255, 0.09) 18%,
-      rgba(255, 255, 255, 0) 34%),
-    linear-gradient(0deg,
-      rgba($ch-focused-ink-on-tint, 0.07) 0%,
-      rgba($ch-focused-ink-on-tint, 0) 26%),
-    linear-gradient(160deg, $ch-focused-rail-start 0%, $ch-focused-rail-end 100%);
-  // 0.80 -> 0.55: on the old slate ramp a near-white edge was the containment. On the light
-  // ramp it reads as a hard rim instead, and the shadow below already does the containing.
-  border-color: rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 18px 44px rgba($focus-shadow-ink, 0.16),
-    0 3px 10px rgba($focus-shadow-ink, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 2px rgba($ch-focused-ink-on-tint, 0.06);
-
+  // NO SURFACE OF ITS OWN (2026-10-01, requested: remove the dead rule). This block's top level
+  // set a glassy-silver background, border-color and box-shadow, and they never rendered:
+  // `.ch-rail` in _classic-home.scss has the same specificity and is emitted later (it is
+  // `@use`d after this partial in app.scss), so its surface won in both layouts -- measured, the
+  // rail's computed background, border and shadow were _classic-home's on every page. The
+  // contrast figures quoted with them described a surface nobody saw. The Focused-only blocks
+  // below are scoped (`body.ll-layout-focused &`), outrank that rule, and are live.
   /* IDENTITY BLOCK (the panel the avatar sits in) IS FOCUSED-ONLY (requested 2026-09-22:
      "keep the gentle avatar bg the same as it is on gentle basic"). This `.ch-rail` block lost
      its `body.ll-layout-focused` prefix earlier the same day so Basic could take the focused

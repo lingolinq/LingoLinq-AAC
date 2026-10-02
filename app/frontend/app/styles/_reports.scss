@@ -1535,11 +1535,11 @@ body.ll-layout-focused .report-kpi:not(.room-kpi)::before {
 // up that material rather than sitting on it), and the top-down white ramp plus the inset
 // highlight is the GLOSS. A flat white fill would have been neither.
 //
-// The glyph goes navy. It inherited `color` from the tint rule, and a per-metric hue on a white
-// well would be the colour coding this was asked to remove -- on a near-white surface navy also
-// measures far past AA, where the lighter hues would not.
+// The glyph's colour is set by "KPI GLYPHS GO TWO-TONE" below (charcoal, with a verdigris accent):
+// not the per-metric hue it inherited from the tint rule, which on a white well would be the
+// colour coding this was asked to remove. (A `color: $la-navy` here never rendered -- the same
+// selector below sets charcoal later -- and was removed 2026-10-01.)
 body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
-  color: $la-navy;
   background:
     linear-gradient(
       180deg,

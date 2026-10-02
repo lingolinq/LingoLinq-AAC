@@ -38,8 +38,10 @@ const LANDINGS = {
   // scrolled down to the Extras items". Basic's Extras are the Actions tab's drawer, so this
   // names the tab AND the drawer; the home page opens it through the Extras card's own action.
   'user.extras': { route: 'index', index_nav: 'main', open_extras: true },
-  // Requested 2026-09-30: "basic access -> take the user to the search page". Basic Access has no
-  // Basic navigation; the board search is the same page as the Extras drawer's "Search Boards".
+  // Requested 2026-09-30: "basic access -> take the user to the search page"; the board search is the
+  // same page as the Extras drawer's "Search Boards". (Both Basic rails also link to Basic Access
+  // itself, components/dashboard/classic-rail-basic-access.hbs; this is only where the View menu's
+  // switch to Basic lands from it.)
   // `models` are the route's dynamic segments, in order (router.js `search`: /search/:l/:q).
   'offline_boards': { route: 'search', models: ['any', '_'] }
 };
