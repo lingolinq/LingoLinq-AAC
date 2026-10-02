@@ -266,6 +266,11 @@
     {{#if this.application.showDatabaseExplorerLink}}
     <LinkTo @route="database" class="la-mobile-drawer__link" {{on "click" this.onCloseDrawer}}>{{t "Database" key="database_explorer_nav"}}</LinkTo>
     {{/if}}
+    {{!-- System Settings, as the account dropdown has it (2026-10-02): the drawer had the other two
+         admin links but not this one, so a system admin on a phone had no menu path to it. --}}
+    {{#if this.application.showSystemSettingsLink}}
+    <LinkTo @route="system-settings.emails" class="la-mobile-drawer__link" {{on "click" this.onCloseDrawer}}>{{t "System Settings" key="system_settings_nav"}}</LinkTo>
+    {{/if}}
     {{!-- Separate Sign Out from the Help / Beta / Language group. Mirrors the
          --modern gradient divider used above the user's quick links. --}}
     <div class="la-mobile-drawer__divider la-mobile-drawer__divider--modern"></div>
