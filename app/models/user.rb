@@ -2852,14 +2852,19 @@ class User < ApplicationRecord
       before = ai_prefs_before[key]
       after = self.settings['preferences'][key]
       next if before == after
+      forced = ai_prefs_requested[key] != after
+      # With no editor, an EU-rule value is credited to the rule itself.
+      updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
+                   elsif forced then 'system:eu_rule'
+                   else PaperTrail.request.whodunnit end
       entry = {
-        'updater' => (non_user_params['updater'] ? non_user_params['updater'].global_id : PaperTrail.request.whodunnit),
+        'updater' => updater_id,
         'setting' => key,
         'from' => before,
         'to' => after,
         'timestamp' => Time.now.utc.iso8601
       }
-      entry['source'] = 'eu_forced' if ai_prefs_requested[key] != after
+      entry['source'] = 'eu_forced' if forced
       entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
       self.settings['confirmation_log'] ||= []
       self.settings['confirmation_log'] << entry

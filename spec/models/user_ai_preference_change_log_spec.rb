@@ -115,6 +115,31 @@ describe User, 'AI preference change log' do
     expect(entry.key?('operator')).to eq(false)
   end
 
+  it 'records a fixed system actor, not the request, on EU-rule entries with no editor' do
+    u = User.create(settings: { 'registration' => { 'eu_under_16' => true } })
+    User::EU_AI_PREF_KEYS.each { |k| u.settings['preferences'].delete(k) }
+    prior = PaperTrail.request.whodunnit
+    begin
+      PaperTrail.request.whodunnit = 'unauthenticated:192.0.2.10.users.create'
+      u.process_params({ 'preferences' => { 'beta_agreement_accepted' => true } }, {})
+    ensure
+      PaperTrail.request.whodunnit = prior
+    end
+    entries = (u.settings['confirmation_log'] || []).select { |e| e['source'] == 'eu_forced' }
+    expect(entries.length).to eq(User::EU_AI_PREF_KEYS.length)
+    entries.each { |e| expect(e['updater']).to eq('system:eu_rule') }
+    expect(entries.to_json).not_to include('192.0.2.10')
+  end
+
+  it 'keeps the editor on EU-rule entries when there is one' do
+    u = User.create(settings: { 'registration' => { 'eu_under_16' => true } })
+    User::EU_AI_PREF_KEYS.each { |k| u.settings['preferences'].delete(k) }
+    change(u, 'beta_agreement_accepted' => true)
+    entries = (u.settings['confirmation_log'] || []).select { |e| e['source'] == 'eu_forced' }
+    expect(entries).not_to be_empty
+    entries.each { |e| expect(e['updater']).to eq(updater.global_id) }
+  end
+
   it 'records a change to every AI preference key' do
     User::EU_AI_PREF_KEYS.each do |key|
       u = User.new(settings: { 'preferences' => {} })
