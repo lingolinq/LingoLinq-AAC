@@ -913,16 +913,16 @@ window.addEventListener('message', function(event) {
 
 LingoLinq.Visualizations = {
   wait: function(name, callback) {
-    if(!LingoLinq.Visualizations.ready) {
+    // Only a geo map needs the Maps script; charts need only the Charts loader.
+    var maps = name == 'geo';
+    if(!(maps ? LingoLinq.Visualizations.maps_ready : LingoLinq.Visualizations.ready)) {
       LingoLinq.Visualizations.callbacks = LingoLinq.Visualizations.callbacks || [];
-//       var found = LingoLinq.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
-//       if(!found) {
-        LingoLinq.Visualizations.callbacks.push({
-          name: name,
-          callback: callback
-        });
-//       }
-      LingoLinq.Visualizations.init();
+      LingoLinq.Visualizations.callbacks.push({
+        name: name,
+        maps: maps,
+        callback: callback
+      });
+      if(maps) { LingoLinq.Visualizations.init_maps(); } else { LingoLinq.Visualizations.init(); }
     } else {
       callback();
     }
@@ -930,50 +930,50 @@ LingoLinq.Visualizations = {
   handle_callbacks: function() {
     LingoLinq.Visualizations.initializing = false;
     LingoLinq.Visualizations.ready = true;
-    (LingoLinq.Visualizations.callbacks || []).forEach(function(obj) {
-      obj.callback();
-    });
-    LingoLinq.Visualizations.callbacks = [];
+    LingoLinq.Visualizations.flush_callbacks();
+  },
+  handle_maps: function() {
+    LingoLinq.Visualizations.maps_initializing = false;
+    LingoLinq.Visualizations.maps_ready = true;
+    LingoLinq.Visualizations.flush_callbacks();
+  },
+  flush_callbacks: function() {
+    var is_ready = function(obj) { return obj.maps ? LingoLinq.Visualizations.maps_ready : LingoLinq.Visualizations.ready; };
+    var pending = LingoLinq.Visualizations.callbacks || [];
+    LingoLinq.Visualizations.callbacks = pending.filter(function(obj) { return !is_ready(obj); });
+    pending.filter(is_ready).forEach(function(obj) { obj.callback(); });
+  },
+  init_maps: function() {
+    if(LingoLinq.Visualizations.maps_initializing || LingoLinq.Visualizations.maps_ready) { return; }
+    LingoLinq.Visualizations.maps_initializing = true;
+    if(window.google && window.google.maps) { return setTimeout(LingoLinq.Visualizations.handle_maps, 0); }
+    window.ready_to_do_maps = LingoLinq.Visualizations.handle_maps;
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.async = true;
+    // TODO: pull api keys out into config file?
+    script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
+        'callback=ready_to_do_maps&key=' + window.maps_key;
+    document.body.appendChild(script);
   },
   init: function() {
     if(LingoLinq.Visualizations.initializing || LingoLinq.Visualizations.ready) { return; }
     LingoLinq.Visualizations.initializing = true;
-    if(!window.google || !window.google.visualization || !window.google.maps) {
-      var script = document.createElement('script');
-      script.type = 'text/javascript';
-
-      var one_done = function(type) {
-        one_done[type] = true;
-        if(one_done.graphs && one_done.maps) {
-          if(!window.google || !window.google.charts || !window.google.charts.load) {
-            setTimeout(function() {
-              one_done('both');
-            }, 500);
-          } else {
-            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinq.Visualizations.handle_callbacks});
-          }
+    if(!window.google || !window.google.visualization) {
+      var load_charts = function() {
+        if(!window.google || !window.google.charts || !window.google.charts.load) {
+          setTimeout(load_charts, 500);
+        } else {
+          window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinq.Visualizations.handle_callbacks});
         }
       };
-
-      window.ready_to_load_graphs = function() {
-        one_done('graphs');
-      };
-      script.src = 'https://www.gstatic.com/charts/loader.js';
-      document.body.appendChild(script);
+      window.ready_to_load_graphs = load_charts;
       var script = document.createElement('script');
       script.type = 'text/javascript';
-      script.appendChild(document.createTextNode("window.ready_to_load_graphs();"));
+      script.src = 'https://www.gstatic.com/charts/loader.js';
       document.body.appendChild(script);
-
-      window.ready_to_do_maps = function() {
-        one_done('maps');
-      };
       script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.async = true;
-      // TODO: pull api keys out into config file?
-      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
-          'callback=ready_to_do_maps&key=' + window.maps_key;
+      script.appendChild(document.createTextNode("window.ready_to_load_graphs();"));
       document.body.appendChild(script);
     } else {
       RunLater(LingoLinq.Visualizations.handle_callbacks);

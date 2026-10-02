@@ -343,15 +343,17 @@
       </div>
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         {{#if this.model.preferences.geo_logging }}
-          <Stats::GeoLocations @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} @snapshots={{this.filter_list}} />
-          {{#if this.usage_stats2}}
-            <Stats::GeoLocations @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
+          {{#if this.app_state.feature_flags.location_maps}}
+            <Stats::GeoLocations @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} @snapshots={{this.filter_list}} />
+            {{#if this.usage_stats2}}
+              <Stats::GeoLocations @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
+            {{/if}}
           {{/if}}
           <Stats::IpAddresses @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} />
           {{#if this.usage_stats2}}
             <Stats::IpAddresses @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
           {{/if}}
-        {{else}}
+        {{else if this.app_state.feature_flags.location_maps}}
           <Stats::GeoDisabled @side_by_side={{this.usage_stats2}} />
           {{#if this.usage_stats2}}
             <Stats::GeoDisabled @side_by_side={{true}} @right_side={{true}} />
