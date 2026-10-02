@@ -35,7 +35,7 @@
          the Updates pill, for 64px of extra headroom that cleared a nav which no longer
          renders inside the page -- the app shell clears the hoisted nav for every
          destination now. See the note left at that rule's old site in app.scss. --}}
-    <div class="md-workspace">
+    <div class="md-workspace {{if this.flushTopWorkspace "md-workspace--flush-top"}}">
       {{!-- WHICH NAV, DECIDED BY WHERE THE USER CAME FROM (requested 2026-09-14).
            `homeNavContext` (controllers/user.js) is true only on the logs page and only when it
            was reached from the home page's Updates pill, which says so with `nav=home` in the

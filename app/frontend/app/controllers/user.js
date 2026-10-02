@@ -228,5 +228,17 @@ export default Controller.extend({
       }
       return false;
     }
-  )
+  ),
+
+  /* NO TOP MARGIN ON SEVEN ACCOUNT PAGES IN MODERN GENTLE (requested 2026-10-02: "on goals, logs,
+     profile, recordings, settings, subscription, and supervision, remove the top margin from
+     md-workspace"). Profile is `user.edit` and Settings `user.preferences` (the account rail's own
+     rows, components/dashboard/classic-account-rail.hbs); the Goal and Log detail pages belong to
+     their sections. templates/user.hbs flags the workspace with it; the rule is in app.scss beside
+     the offline-boards one, and only Modern Gentle reads it. */
+  flushTopWorkspace: computed('router.currentRouteName', function() {
+    var route = this.get('router.currentRouteName') || '';
+    return ['user.goals', 'user.goal', 'user.logs', 'user.log', 'user.edit', 'user.recordings',
+            'user.preferences', 'user.subscription', 'user.supervision'].indexOf(route) !== -1;
+  })
 });

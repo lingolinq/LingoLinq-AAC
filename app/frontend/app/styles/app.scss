@@ -46882,9 +46882,9 @@ body.ll-view-modern:not(.ll-layout-focused) .md-shell {
 
   box-sizing: border-box !important;
 
-  margin: 40px auto !important;
+  margin: var(--md-workspace-margin-top, 40px) auto 40px !important; /* top from a variable (2026-10-02) so ONE page can tighten it without a competing !important: see .md-shell--offline-boards */
 
-  padding: 40px 40px calc(40px - 9rem) 40px !important;
+  padding: var(--md-workspace-padding-top, 40px) 40px calc(40px - 9rem) 40px !important;
 
   border-radius: 48px !important;
 
@@ -52260,6 +52260,23 @@ body:not(.ll-layout-focused) .md-goals__header {
 }
 
 /* ── Offline Boards page (modern) ── */
+/* SEVEN ACCOUNT PAGES, MODERN GENTLE (requested 2026-10-02): Goals, Logs, Profile, Recordings,
+   Settings, Subscription and Supervision lose the workspace's top margin. `md-workspace--flush-top`
+   is set by controllers/user.js (`flushTopWorkspace`); this sets the variable the global
+   `.md-workspace` rule reads. Above 900px only, as for offline boards: the stacked layout below
+   that already has no top margin. Basic and Focused are untouched. */
+body.ll-view-modern:not(.ll-layout-focused) .md-shell--user > .md-workspace--flush-top {
+  --md-workspace-margin-top: 0px;
+}
+/* ALWAYS-AVAILABLE BOARDS, GENTLE (requested 2026-10-02): the workspace sits 20px below the header
+   with no top padding, so the page's content starts higher. Sets the two variables the global
+   `.md-workspace` rule reads for its top margin and padding (40px everywhere else). Above 900px only
+   by construction: at <=900px the stacked-layout `.md-workspace` rules set their own values, which
+   keep the content clear of the fixed header. Focused is untouched. */
+body:not(.ll-layout-focused) .md-shell--offline-boards > .md-workspace {
+  --md-workspace-margin-top: 20px;
+  --md-workspace-padding-top: 0px;
+}
 .md-offline-boards {
   max-width: 700px;
   margin: 0 auto;
