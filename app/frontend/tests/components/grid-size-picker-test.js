@@ -167,6 +167,21 @@ describe('GridSizePickerComponent', 'component:grid-size-picker', function() {
     });
   });
 
+  // The total number of buttons beside the size (requested 2026-10-02): rows x columns, and the
+  // hovered size's total while sweeping, as the readout does.
+  describe('total_buttons', function() {
+    it('is rows times columns', function() {
+      expect(makePicker().get('total_buttons')).toEqual(30);
+      expect(makePicker({ rows: 18, columns: 4 }).get('total_buttons')).toEqual(72);
+    });
+
+    it('follows the hovered size while sweeping', function() {
+      var c = makePicker();
+      c.send('preview_from_event', cellEvent(2, 3));
+      expect(c.get('total_buttons')).toEqual(6);
+    });
+  });
+
   describe('picking a cell', function() {
     it('commits straight to onChange -- no OK step', function() {
       var committed = [];

@@ -114,6 +114,14 @@ export default Component.extend({
     var cols = hoverRows ? this.get('hoverCols') : this.get('selectedCols');
     return i18n.t('grid_size_readout', "%{rows} × %{cols}", { rows: rows, cols: cols });
   }),
+  /* The number of buttons that size makes (requested 2026-10-02), shown beside the readout and
+     following it the same way: the hovered size while sweeping, else the caller's real size. */
+  total_buttons: computed('hoverRows', 'hoverCols', 'selectedRows', 'selectedCols', function() {
+    var hoverRows = this.get('hoverRows');
+    var rows = hoverRows || this.get('selectedRows');
+    var cols = hoverRows ? this.get('hoverCols') : this.get('selectedCols');
+    return (rows || 0) * (cols || 0);
+  }),
 
   /* The MAX x MAX cell matrix. Rebuilt whenever the highlight extent changes, which
      is what drives the fill as the pointer sweeps. Cells carry no event handlers of

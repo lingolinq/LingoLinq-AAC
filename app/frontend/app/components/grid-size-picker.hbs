@@ -51,7 +51,7 @@
          more (a cell click commits straight to the caller) and there is no panel left
          to dismiss, so both were controls that could not do anything. --}}
     <div class="nb-grid-picker__footer">
-      <p class="nb-grid-picker__readout" aria-live="polite">{{this.readout}}</p>
+      <p class="nb-grid-picker__readout" aria-live="polite">{{this.readout}}<span class="nb-grid-picker__total"> · {{t "button" count=this.total_buttons key="n_buttons"}}</span></p>
     </div>
   </div>
 </div>
