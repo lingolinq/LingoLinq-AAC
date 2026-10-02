@@ -99,6 +99,22 @@ describe User, 'AI preference change log' do
     expect(entry.key?('source')).to eq(false)
   end
 
+  it 'records the operator when someone acts for the account' do
+    operator = User.create
+    u = User.new(settings: { 'preferences' => {} })
+    u.process_params({ 'preferences' => { 'ai_features_enabled' => true } }, { 'updater' => u, 'operator' => operator })
+    entry = (u.settings['confirmation_log'] || []).detect { |e| e['setting'] == 'ai_features_enabled' }
+    expect(entry['updater']).to eq(u.global_id)
+    expect(entry['operator']).to eq(operator.global_id)
+  end
+
+  it 'records no operator for an ordinary edit' do
+    u = User.new(settings: { 'preferences' => {} })
+    change(u, 'ai_features_enabled' => true)
+    entry = (u.settings['confirmation_log'] || []).detect { |e| e['setting'] == 'ai_features_enabled' }
+    expect(entry.key?('operator')).to eq(false)
+  end
+
   it 'records a change to every AI preference key' do
     User::EU_AI_PREF_KEYS.each do |key|
       u = User.new(settings: { 'preferences' => {} })

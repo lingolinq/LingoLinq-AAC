@@ -2860,6 +2860,7 @@ class User < ApplicationRecord
         'timestamp' => Time.now.utc.iso8601
       }
       entry['source'] = 'eu_forced' if ai_prefs_requested[key] != after
+      entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
       self.settings['confirmation_log'] ||= []
       self.settings['confirmation_log'] << entry
     end
