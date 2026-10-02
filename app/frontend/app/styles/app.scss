@@ -5535,6 +5535,22 @@ tr.accuracy_non_mastered {
 @keyframes md-spin {
   to { transform: rotate(360deg); }
 }
+/* DROPPED-IMAGE SPINNER (2026-10-02): covers a board button while an image dropped onto it in edit
+   mode uploads (services/content-grabbers.js, drop_spinner_show). The button is its positioning
+   context; the veil blocks clicks on it until the upload settles. */
+.button:has(> .ll-drop-uploading) {
+  position: relative;
+}
+.ll-drop-uploading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.72);
+}
 
 /* Copy-Board modal loading rows — used by both the route and the
    component template. Vertically stacks the modern spinner above its

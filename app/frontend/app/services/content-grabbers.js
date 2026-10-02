@@ -497,10 +497,10 @@ var contentGrabbers = Service.extend({
   },
   content_dropped: function(button_id, dataTransfer) {
     if(!appStateService.get('edit_mode') || !dataTransfer) { return; }
-    // board-detail applies a dropped image DIRECTLY to the button (upload +
-    // change_button, no settings modal) — see apply_dropped_image_to_button.
-    // The classic board keeps the file_dropped → button-settings flow.
-    var on_board_detail = (('' + (appStateService.get('current_route') || '')).indexOf('board-detail') >= 0);
+    // board-detail AND board-alt apply a dropped image DIRECTLY to the button (upload +
+    // change_button, no settings modal, a spinner on the button meanwhile) -- see
+    // apply_dropped_image_to_button. board-alt joined 2026-10-02; other routes keep the modal flow.
+    var on_board_detail = /board-detail|board-alt/.test('' + (appStateService.get('current_route') || ''));
     if(dataTransfer.files && dataTransfer.files.length > 0) {
       var files = dataTransfer.files;
       var image = null, sound = null;
@@ -565,22 +565,16 @@ var contentGrabbers = Service.extend({
     }
   },
   apply_dropped_image_to_button: function(button_id, image_or_url) {
-    // Direct image apply for board-detail edit mode: upload the dropped image,
-    // then set it on the button via editManager.change_button — which updates
-    // image_url for the grid, marks the board edited, and re-renders — with NO
-    // button-settings modal. Mirrors the modal's set_as_button_image upload
-    // (pictureGrabber.save_image_preview) but commits straight to the button so
-    // the dropped image shows + persists immediately. image_or_url is either a
-    // File (dropped image file) or {url} (image dragged from another page/tab).
+    // Direct image apply for board-detail AND board-alt edit mode (board-alt since 2026-10-02):
+    // upload the dropped image, then set it via editManager.change_button (updates the grid,
+    // marks the board edited, re-renders) with NO settings modal. A spinner covers the button
+    // until it settles and a failure says so (drop_spinner_*, end of this file). image_or_url is
+    // a File (dropped image file) or {url} (image dragged from another page/tab).
     if(!button_id || !image_or_url) { return RSVP.reject(); }
-    var url_promise;
-    if(image_or_url.url) {
-      url_promise = RSVP.resolve(image_or_url.url);
-    } else {
-      url_promise = window.cg.read_file(image_or_url).then(function(data) {
-        return data.target.result; // data URL
-      });
-    }
+    drop_spinner_show(button_id);
+    var url_promise = image_or_url.url ? RSVP.resolve(image_or_url.url) : window.cg.read_file(image_or_url).then(function(data) {
+      return data.target.result; // data URL
+    });
     return url_promise.then(function(url) {
       var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
       var preview = { url: url, content_type: content_type, protected: false };
@@ -593,6 +587,12 @@ var contentGrabbers = Service.extend({
         });
         return image;
       });
+    }).then(function(image) {
+      drop_spinner_clear(button_id);
+      return image;
+    }, function() {
+      drop_spinner_clear(button_id); modal.error(i18n.t('upload_failed', "Upload failed"));
+      return null; // handled here: content_dropped, the caller, does not catch
     });
   },
   read_file: function(file, type) {
@@ -3264,4 +3264,33 @@ contentGrabbers.reopen({
   videoGrabber: videoGrabber
 });
 window.cg = contentGrabbers;
+/* THE DROP SPINNER (2026-10-02, requested: "after the user drops the image, add a spinner indicating
+   it is working on replacing the image"). An overlay ELEMENT inside the button, not a class on it:
+   board-detail's tile classes are template-bound (components/board-detail-grid.hbs), so a class added
+   here would be wiped by the next re-render. Cleared by button id, wherever the tile now is. Styled
+   by `.ll-drop-uploading` in app.scss. */
+function drop_spinner_selector_id(button_id) {
+  var id = String(button_id);
+  return (window.CSS && window.CSS.escape) ? window.CSS.escape(id) : id.replace(/["\\]/g, '');
+}
+function drop_spinner_show(button_id) {
+  if(typeof document === 'undefined') { return; }
+  var btn = document.querySelector('.button[data-id="' + drop_spinner_selector_id(button_id) + '"]');
+  if(!btn || btn.querySelector('.ll-drop-uploading')) { return; }
+  var veil = document.createElement('span');
+  veil.className = 'll-drop-uploading';
+  veil.setAttribute('data-drop-for', String(button_id));
+  veil.setAttribute('role', 'status');
+  veil.setAttribute('aria-label', i18n.t('loading', "Loading..."));
+  var spinner = document.createElement('span');
+  spinner.className = 'md-loading-spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+  veil.appendChild(spinner);
+  btn.appendChild(veil);
+}
+function drop_spinner_clear(button_id) {
+  if(typeof document === 'undefined') { return; }
+  document.querySelectorAll('.ll-drop-uploading[data-drop-for="' + drop_spinner_selector_id(button_id) + '"]').forEach(function(el) { el.remove(); });
+}
+
 export default contentGrabbers;
