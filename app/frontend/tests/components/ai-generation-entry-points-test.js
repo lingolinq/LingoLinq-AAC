@@ -88,7 +88,7 @@ describe('new-board Generate with AI, Not now', 'component:new-board', function(
     testOwner = this.owner;
   });
 
-  itAsync('keeps the typed board name and description when the person chooses Not now', async function() {
+  itAsync('routes Generate with AI to the turn-on step and stops on Not now, without opening the generator', async function() {
     var opened = [];
     stub(modal, 'open', function(template, opts) {
       opened.push(template);
