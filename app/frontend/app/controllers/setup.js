@@ -835,7 +835,7 @@ export default Controller.extend({
           // View-aware edit destination — see utils/board_view.js#board_edit_route.
           // Classic users land on their own board; edit mode is not auto-entered
           // for them (known gap, Cluster C).
-          this.router.transitionTo(board_edit_route(this.get('appState.currentUser')), parts[0], parts[1]).then(function() {
+          this.router.transitionTo(board_edit_route(this.get('appState.effective_view_user')), parts[0], parts[1]).then(function() {
             _this.appState.set('board_layout_mode', null);
           });
         } else {
