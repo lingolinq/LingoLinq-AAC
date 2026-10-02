@@ -79,10 +79,11 @@ export function art50DisclosureUrl() {
  * gate is the PRESENTATION layer, and all five server-side backstops still
  * refuse the authenticated account regardless of what the client decided.
  *
- * NOT to be confused with utils/ai_feature_gate.js, which reads `currentUser`
- * deliberately and correctly: it answers "may this data subject's data be
- * processed by AI at all", where the communicator IS the right subject. Two
- * different questions about two different people; do not unify them.
+ * NOT to be confused with utils/ai_feature_gate.js, which answers whether an
+ * account's AI setting allows a feature: authoringUser (sessionUser) for
+ * authoring features such as board generation and eval narration, and
+ * aiFeatureEnabled (currentUser) for word prediction. This gate answers a
+ * different question, about the person told they are using AI; keep them apart.
  */
 export function art50Subject(appState) {
   if (!appState || typeof appState.get !== 'function') { return null; }
