@@ -101,7 +101,7 @@ describe('ensureAiBoardGenerationAccess', function() {
     expect(opened[0].opts.blockedReason).toEqual('permission');
   });
 
-  itAsync('gives the reason modal the signed-in person, so closing it resets that account and not the communicator', async function() {
+  itAsync('opens the reason modal for the signed-in person, not the communicator', async function() {
     var supporter = makeUser('supporter', { permissions: { view: true } });
     var communicator = makeUser('communicator');
     await ensureAiBoardGenerationAccess(makeState(supporter, communicator));
