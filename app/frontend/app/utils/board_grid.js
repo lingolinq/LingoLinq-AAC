@@ -68,8 +68,9 @@ export function analyze_grid(opts) {
   var positional = split_labels(opts.labels);
 
   /* Cells are read out of the flat array rather than the array being reshaped, so labels
-     PAST the end of the grid simply never get read. Over-supply is the existing
-     `too_many_labels` warning's business; this guard only describes the cells that exist. */
+     PAST the end of the grid are not counted here. Over-supply is the existing
+     `too_many_labels` warning's business; this guard only describes the cells that exist --
+     but the trim below carries those labels over rather than dropping them. */
   var cells = [];
   var filled = 0;
   for(var r = 0; r < rows; r++) {
@@ -128,6 +129,11 @@ export function analyze_grid(opts) {
         keep_cols.forEach(function(c2) { out.push(cells[r2][c2]); });
       });
     }
+    /* LABELS PAST THE END OF THE GRID ARE KEPT (2026-10-02, adversarial review). The trim only
+       removes empty rows and columns; rebuilding from the cells alone deleted every label typed
+       past the last cell. They follow the trimmed grid's labels, in order, so the save keeps them
+       exactly as "Save as is" would, and `too_many_labels` still warns about them. */
+    positional.slice(total).forEach(function(extra) { if(extra) { out.push(extra); } });
     trimmed = {
       rows: keep_rows.length,
       columns: keep_cols.length,

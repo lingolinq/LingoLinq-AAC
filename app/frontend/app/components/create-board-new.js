@@ -2601,7 +2601,7 @@ export default Component.extend({
         value = value + 1;
       }
       value = Math.min(Math.max(1, value), 20);
-      this.set(attribute, value);
+      this.set(attribute, value); if(attribute === 'model.grid.rows' || attribute === 'model.grid.columns') { this.set('grid_size_chosen', true); } // +/- is the person's choice too, so autoFitGrid leaves it (2026-10-02)
     },
     /* Set both dimensions at once from <GridSizePicker>. Clamped to the same 1-20
        range `plus_minus` above enforces, so the picker cannot reach a size the
