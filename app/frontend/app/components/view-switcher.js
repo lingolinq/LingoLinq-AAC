@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { is_classic, view_style, set_view_style, confirm_view_style_change } from '../utils/view_style';
 import { board_view_route } from '../utils/board_view';
-import { basic_landing_for, hand_off_index_nav, is_own_page } from '../utils/basic_landing';
+import { basic_landing_for, hand_off_index_nav, is_own_page, modern_landing_for } from '../utils/basic_landing';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 /**
@@ -252,6 +252,22 @@ export default Component.extend({
         if(landing) {
           if(landing.index_nav) { hand_off_index_nav(this.appState, landing.index_nav, landing); }
           this.get('router').replaceWith(landing.route, ...(landing.models || []));
+          return;
+        }
+      }
+
+      /* ...AND ON THE WAY TO MODERN FROM THE BASIC HOME (2026-10-02, requested). The Basic home is
+         one address with four tabs; re-rendering it in place gave the Modern Dashboard whatever tab
+         was open. It publishes where you are (app_state.basic_home_place, classic-view.js) and
+         `modern_landing_for` names the Modern page for it; replaced, like the Basic direction, so
+         Back does not return to the Basic address. Only your OWN home: the route is `index` or
+         `user.home` (which sends anyone else's /home to your own, routes/user/home.js). */
+      var here = this.appState.get('current_route') || '';
+      if(next !== 'classic' && (here === 'index' || here === 'user.home')) {
+        var me = this.appState.get('sessionUser') || this.appState.get('currentUser');
+        var modern = modern_landing_for(this.appState.get('basic_home_place'), me && me.get('user_name'), this.appState.get('feature_flags'));
+        if(modern) {
+          this.get('router').replaceWith(modern.route, ...modern.models, { queryParams: modern.query_params });
           return;
         }
       }

@@ -143,13 +143,31 @@ export function is_basic_viewer(appState, viewer) {
   return is_classic(appState.get('effective_view_user') || viewer);
 }
 
-export function send_basic_viewer_to_landing(appState, router, route, viewer, url) {
+/* REDIRECT WITHOUT TRAPPING THE BACK BUTTON (2026-10-02, requested: "fix the back-button loop").
+   When the arrival came from the address bar -- Back, Forward, a typed or bookmarked address --
+   Ember's handleURL gives the transition `urlMethod: null`. A redirect made from inside it is a
+   transition caused by an aborting one, and Ember PUSHES those (router.js updateURL; it replaces
+   only the boot transition or a replace that is not aborting), so Back from the landing returned
+   to the Modern-only page, which redirected again: a loop (scripts/view-switch-back-loop-qa.mjs).
+   Aborting first makes the replace a fresh one, which replaces that history entry -- the
+   pattern routes/user/logs.js already uses. A link click (`urlMethod` 'update') keeps the
+   ordinary transition, so the page the user came from stays in history. */
+export function redirect_keeping_history(router, transition, route, models) {
+  if(transition && transition.urlMethod === null) {
+    transition.abort();
+    router.replaceWith(route, ...(models || []));
+  } else {
+    router.transitionTo(route, ...(models || []));
+  }
+}
+
+export function send_basic_viewer_to_landing(appState, router, route, viewer, url, transition) {
   if(!is_basic_viewer(appState, viewer)) { return false; }
   var landing = basic_landing_for(route, url);
   // A params-only landing is applied by its own page (routes/user/logs.js), not by a transition.
   if(!landing || !landing.route) { return false; }
   if(landing.index_nav) { hand_off_index_nav(appState, landing.index_nav, landing); }
-  router.transitionTo(landing.route, ...(landing.models || []));
+  redirect_keeping_history(router, transition, landing.route, landing.models);
   return true;
 }
 
@@ -166,3 +184,25 @@ export function take_pending_open_extras(appState) {
 }
 
 export default basic_landing_for;
+
+/* BASIC -> MODERN KEEPS YOUR PLACE (2026-10-02, requested: "switching from basic to modern ->
+   implement it"). The reverse of `basic_landing_for`. The Basic home page is ONE address with four
+   tabs, so a switch used to re-render it in place as the Modern Dashboard whatever tab was open.
+   `place` is what the Basic home publishes as `app_state.basic_home_place`
+   (components/dashboard/classic-view.js): {tab, extras, supervisee}. Returns {route, models,
+   query_params} or null to stay on the Dashboard (Actions is the Dashboard's own counterpart).
+   Updates only when Modern draws its Updates pill (`updates_pill`), or there is no such page. */
+export function modern_landing_for(place, user_name, flags) {
+  if(!place || !place.tab) { return null; }
+  var at = function(route, models, query_params) { return { route: route, models: models || [], query_params: query_params || {} }; };
+  if(place.tab === 'supervisees') {
+    return at('caseload', [], place.supervisee ? { supervisee: place.supervisee } : {});
+  }
+  if(!user_name) { return null; }
+  if(place.tab === 'boards') { return at('user.boards', [user_name]); }
+  if(place.tab === 'updates') {
+    return (flags && flags.updates_pill) ? at('user.logs', [user_name], { type: 'note', nav: 'home' }) : null;
+  }
+  if(place.tab === 'main' && place.extras) { return at('user.extras', [user_name]); }
+  return null;
+}

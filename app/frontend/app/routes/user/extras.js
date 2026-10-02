@@ -16,10 +16,10 @@ export default HomeRoute.extend({
      After the inherited check (routes/user/home.js), which sends anyone else's /extras to the
      viewer's own home; past it, `user` is the signed-in account, which decides the view on a
      cold load too. */
-  afterModel: function(user) {
+  afterModel: function(user, transition) {
     var _this = this;
     return RSVP.resolve(this._super.apply(this, arguments)).then(function() {
-      if(send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.extras', user)) {
+      if(send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.extras', user, null, transition)) {
         return RSVP.reject();
       }
     });

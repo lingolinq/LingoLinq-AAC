@@ -7,8 +7,10 @@ import { setupTest } from '../../helpers';
  * Extras page, so the switcher sends the viewer to the Basic landing. With `transitionTo` the Modern
  * address stayed in history: Back re-entered it and its route redirected forward again, a Back
  * trap. `replaceWith` drops it. The route-side redirect (utils/basic_landing.js
- * send_basic_viewer_to_landing) is NOT changed: Ember forces a push for a replace issued while
- * another transition is aborting (ember-source router `_updateURL`, `replaceAndNotAborting`).
+ * send_basic_viewer_to_landing) was fixed separately on 2026-10-02: Ember forces a push for a
+ * replace issued while another transition is in flight (ember-source router `_updateURL`,
+ * `replaceAndNotAborting`), so it aborts first and then replaces (redirect_keeping_history;
+ * tests/unit/utils/basic-landing-redirect-test.js).
  */
 module('Unit | Component | view-switcher back trap', function(hooks) {
   setupTest(hooks);

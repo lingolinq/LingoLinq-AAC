@@ -4,7 +4,7 @@ import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { inject as service } from '@ember/service';
 import boardsPageListCache from '../../utils/boards_page_list_cache';
-import { send_basic_viewer_to_landing, is_basic_viewer, is_own_page } from '../../utils/basic_landing';
+import { send_basic_viewer_to_landing, is_basic_viewer, is_own_page, redirect_keeping_history } from '../../utils/basic_landing';
 import { wait_for_session_user } from '../../utils/session_user_wait';
 
 export default Route.extend({
@@ -26,13 +26,13 @@ export default Route.extend({
      viewer's OWN boards only (that tab lists them). Anyone else's library goes to their account
      page instead (below). On a cold load `currentUser` is not assigned yet, so this waits (briefly, bounded) for the
      session user record already in flight, as routes/board.js does, before deciding. */
-  afterModel: function(model) {
+  afterModel: function(model, transition) {
     var _this = this;
     return wait_for_session_user(this.get('appState')).then(function(sessionUser) {
       var me = _this.get('appState.currentUser') || sessionUser;
       // By user_name as well as id (utils/basic_landing.js#is_own_page, shared with the View menu).
       var own = is_own_page(model, me);
-      if(own && send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.boards', me)) {
+      if(own && send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.boards', me, null, transition)) {
         return RSVP.reject();
       }
       /* SOMEONE ELSE'S LIBRARY, in Basic (2026-09-30): that user's account page, which lists the
@@ -41,7 +41,7 @@ export default Route.extend({
          from the board header's My Boards while speaking as a communicator
          (controllers/application.js#openMyBoards reads `referenced_user`), a bookmark or Back. */
       if(!own && model && model.get('user_name') && is_basic_viewer(_this.get('appState'), me)) {
-        _this.get('router').transitionTo('user.index', model.get('user_name'));
+        redirect_keeping_history(_this.get('router'), transition, 'user.index', [model.get('user_name')]);
         return RSVP.reject();
       }
     });

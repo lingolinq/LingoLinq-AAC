@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { computed, set as emberSet } from '@ember/object';
+import { computed, observer, set as emberSet } from '@ember/object';
 import AuthenticatedView from './authenticated-view';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -7,6 +7,7 @@ import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
 import { showsAdminSlot } from '../../utils/admin_nav';
+import { has_caseload_access } from '../../utils/caseload_access';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
 
 /**
@@ -146,6 +147,8 @@ export default AuthenticatedView.extend({
       this._pending_open_supervisee = null;
       this._expand_supervisee_card(name);
     }
+    // The first place for the View menu; the observer below keeps it current (Basic -> Modern).
+    this._publish_basic_home_place();
   },
 
   /* Expand one communicator's card: its Extras panel, the state the card's own Extras button
@@ -501,4 +504,39 @@ export default AuthenticatedView.extend({
                          'appState.currentUser.supervised_units.[]', function() {
     return showsAdminSlot(this.appState.get('currentUser'));
   }),
+
+  /* THE COMMUNICATORS TAB, drawn for everyone the Caseload admits (2026-10-02, requested: "make it
+     open communicators section with a drawn tab"): Basic's landing for the Caseload is this tab,
+     so anyone who can be sent here must be able to see it. Modeling-only accounts keep their
+     earlier exclusion from the strip (the {{#unless}} around it in the template). */
+  showCommunicatorsTab: computed('app_state.currentUser.{supporter_role,supporter_view,modeling_only}',
+                                 'app_state.currentUser.known_supervisees.[]',
+                                 'app_state.currentUser.supervisees.[]', function() {
+    var user = this.get('app_state.currentUser');
+    return !this.get('app_state.currentUser.modeling_only') && has_caseload_access(user);
+  }),
+
+  /* WHERE YOU ARE ON THE BASIC HOME, for the View menu (2026-10-02, requested: Basic -> Modern
+     keeps your place). The tab, whether the Extras drawer is open and which communicator card is
+     expanded are this component's own state, so it publishes them as `app_state.basic_home_place`
+     ({tab, extras, supervisee}); components/view-switcher.js reads it through
+     utils/basic_landing.js modern_landing_for. Cleared when this page goes away, so a stale place
+     can never send a switch made elsewhere. */
+  publish_basic_home_place: observer('currentTab', 'show_main_extras', 'openSuperviseeId', function() {
+    this._publish_basic_home_place();
+  }),
+  _publish_basic_home_place() {
+    if(this.isDestroying || this.isDestroyed) { return; }
+    var open_id = this.get('openSuperviseeId');
+    var open = open_id != null && (this.get('decoratedSupervisees') || []).find(function(s) { return s && s.id === open_id; });
+    this.get('app_state').set('basic_home_place', {
+      tab: this.get('currentTab'),
+      extras: !!this.get('show_main_extras'),
+      supervisee: (open && open.user_name) || null
+    });
+  },
+  willDestroyElement() {
+    this._super(...arguments);
+    this.get('app_state').set('basic_home_place', null);
+  },
 });

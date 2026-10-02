@@ -454,7 +454,7 @@
     <nav class="ch-tabs" role="tablist" aria-label={{t "Dashboard sections" key="classic_dashboard_sections"}}>
       <button type="button" role="tab" aria-selected={{if this.index_nav.main "true" "false"}} class="ch-tab {{unless (or this.index_nav.supervisees this.index_nav.boards this.index_nav.updates) "is-active"}}" {{on "click" (this.ctrlAction "set_index_nav" "main")}}>{{t "Actions" key="actions"}}</button>
       {{#unless this.app_state.currentUser.modeling_only}}
-        {{#if this.app_state.currentUser.supporter_role}}
+        {{#if this.showCommunicatorsTab}}
           <button type="button" role="tab" aria-selected={{if this.index_nav.supervisees "true" "false"}} class="ch-tab {{if this.index_nav.supervisees "is-active"}}" {{on "click" (this.ctrlAction "set_index_nav" "supervisees")}}>{{t "Communicators" key="communicators"}}</button>
         {{/if}}
       {{/unless}}
@@ -480,7 +480,7 @@
     <select class="ch-tabselect" aria-label={{t "Dashboard sections" key="classic_dashboard_sections"}} {{on "change" this.handleTabSelect}}>
       <option value="main" selected={{is-equal this.currentTab "main"}}>{{t "Actions" key="actions"}}</option>
       {{#unless this.app_state.currentUser.modeling_only}}
-        {{#if this.app_state.currentUser.supporter_role}}
+        {{#if this.showCommunicatorsTab}}
           <option value="supervisees" selected={{is-equal this.currentTab "supervisees"}}>{{t "Communicators" key="communicators"}}</option>
         {{/if}}
       {{/unless}}

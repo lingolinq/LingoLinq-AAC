@@ -4,6 +4,7 @@ import RSVP from 'rsvp';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import { send_basic_viewer_to_landing, query_string_for } from '../utils/basic_landing';
+import { has_caseload_access } from '../utils/caseload_access';
 
 export default Route.extend({
   appState: service('app-state'),
@@ -26,18 +27,15 @@ export default Route.extend({
       this.router.transitionTo('index');
       return RSVP.reject();
     }
-    var supervisees = model.get('known_supervisees') || model.get('supervisees') || [];
-    var canAccess = model.get('supporter_role') ||
-      model.get('supporter_view') ||
-      supervisees.length > 0;
-    if (!canAccess) {
+    // The same reading the Basic home's Communicators tab uses (utils/caseload_access.js).
+    if (!has_caseload_access(model)) {
       this.router.transitionTo('index');
       return RSVP.reject();
     }
     // Basic has no caseload page: its home page's Communicators tab is the equivalent. The model
     // is the signed-in account, so it decides the view on a cold load too. The query string
     // carries `?supervisee=`, whose card the Basic tab then expands.
-    if (send_basic_viewer_to_landing(this.appState, this.router, 'caseload', model, query_string_for(transition))) {
+    if (send_basic_viewer_to_landing(this.appState, this.router, 'caseload', model, query_string_for(transition), transition)) {
       return RSVP.reject();
     }
     model.set('load_all_connections', true);
