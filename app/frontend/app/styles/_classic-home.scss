@@ -1310,8 +1310,9 @@ button.ch-row--sync:focus-visible {
      (every `<h2 class="ch-panel__title">` in classic-view.hbs). An !important declaration
      can only be beaten by another !important, regardless of specificity or source
      order — so without this the panel headings rendered at 25px, 25% larger than
-     designed. This and .ch-card__title below are the only two !importants in this
-     file, and they exist solely to escape that global hammer. */
+     designed. This and .ch-card__title below exist solely to escape that global
+     hammer. (They were once this file's only two !importants; it has many more now, each
+     matching a base rule's own !important -- see the notes where they stand.) */
   font-size: 20px !important;
   font-weight: 700;
   color: $la-navy;
@@ -2786,13 +2787,13 @@ button.ch-tile--silver:focus-visible {
   // communicator card is one recognisable object in both schemes.
   @include ch-chip;
 }
-
 // The card a caseload landing points at when its communicator is modeling-only (2026-10-02):
 // highlighted rather than expanded, as the Modern caseload highlights that row.
 .ch-comm--highlighted {
   outline: 3px solid $brand-verdigris-aa;
   outline-offset: 2px;
 }
+
 .ch-comm__head {
   display: flex;
   align-items: center;

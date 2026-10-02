@@ -49291,6 +49291,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 // rows' lightest layer, white at 0.94 (`.md-attention-item` above); Focused: _focused-view.scss. Not an `.md-btn`:
 // that class forces a 44px height and 14px/20px padding with !important. 28px still clears the
 // WCAG 2.5.8 (AA) 24px target minimum, not the 2.5.5 (AAA) 44px one.
+// 28px IS DELIBERATE, NOT A MISSED 44px (2026-10-02, adversarial review; decided by Traci). These
+// links live only on the dashboard's SUPPORTER cards -- Rooms and Communicators Need Attention
+// (components/dashboard/authenticated-view.hbs) -- which are shown to SLPs, supervisors and other
+// supporters, never to AAC communicators. The project's 44px tap target is for communicator-facing
+// controls; the compact height is what lets Compressed View fit more on screen for supporters.
+// Do not raise it to 44px on the grounds of the AAC rule alone.
 .md-card__view-all {
   align-self: flex-end;
   display: inline-flex;
@@ -50704,7 +50710,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: 14px; // the AAC text floor (2026-10-01)
   font-weight: 600;
   line-height: 1.3;
-  color: rgba($la-navy, 0.62);
+  // 0.72, not 0.62 (2026-10-02, adversarial review): on the row's white-to-blue gradient 0.62
+  // measured 3.68-3.89:1, under the 4.5:1 WCAG AA floor; 0.72 gives 4.82-5.18:1.
+  color: rgba($la-navy, 0.72);
   overflow-wrap: anywhere;
 }
 /* Hover lifts the same glow rather than introducing a new colour, so the button brightens

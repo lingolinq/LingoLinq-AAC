@@ -1537,8 +1537,9 @@ body.ll-layout-focused .report-kpi:not(.room-kpi)::before {
 //
 // The glyph's colour is set by "KPI GLYPHS GO TWO-TONE" below (charcoal, with a verdigris accent):
 // not the per-metric hue it inherited from the tint rule, which on a white well would be the
-// colour coding this was asked to remove. (A `color: $la-navy` here never rendered -- the same
-// selector below sets charcoal later -- and was removed 2026-10-01.)
+// colour coding this was asked to remove. (A `color: $la-navy` here never rendered -- a second
+// rule with this selector set charcoal later -- and was removed 2026-10-01; that charcoal now
+// lives in this rule.)
 body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
   background:
     linear-gradient(
@@ -1555,6 +1556,9 @@ body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
     0 2px 6px rgba($la-navy, 0.10);
   backdrop-filter: blur(8px) saturate(1.15);
   -webkit-backdrop-filter: blur(8px) saturate(1.15);
+  // The glyph's charcoal, from "KPI GLYPHS GO TWO-TONE" below; kept in this one rule rather than
+  // a second rule with the same selector (merged 2026-10-02, adversarial review).
+  color: #46505F;
 }
 
 // ── FOCUSED: KPI GLYPHS GO TWO-TONE ─────────────────────────────────────────────────────
@@ -1575,10 +1579,8 @@ body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
 // the elements that already declare it. That is why this is two selectors rather than one.
 //
 // The icons are decorative (`aria-hidden` on every caller, per the component's own note), so
-// the accent is free to be a hue rather than an AA-rated ink.
-body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon {
-  color: #46505F;
-}
+// the accent is free to be a hue rather than an AA-rated ink. The charcoal primary (`color`) is
+// set in the glassy-well rule above, which carries the same selector.
 body.ll-layout-focused .report-kpi:not(.room-kpi) .report-kpi__icon svg > *:not(:first-child)[stroke] {
   stroke: $brand-verdigris;
 }
