@@ -314,6 +314,8 @@ export default Component.extend({
           if (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board')) {
             modalSvc.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           }
+          // Watched to the end: say so, as the drawer (:266) and the dismissed path (:322) do.
+          modal.success(i18n.t('copy_ready', "Copy created!"));
         } else {
           if (model.copy_finished) {
             model.copy_finished(copiedBoard);
