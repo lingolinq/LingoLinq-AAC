@@ -167,6 +167,13 @@ report blocked "git mv db/language/en/vocab-en.json -> $V/words-en.json"
 
 echo "== a large listing (far past a pipe buffer) classifies end to end =="
 BIG="$(for i in $(seq 1 20000); do printf 'app/models/generated_%05d.rb\n' "$i"; done)"
+total=$((total + 1))
+if [ "${#BIG}" -gt 65536 ]; then
+  echo "  ok   listing is ${#BIG} bytes (more than 65536)"
+else
+  echo "  FAIL listing is ${#BIG} bytes, not more than 65536; the large-listing cases prove nothing"
+  fails=$((fails + 1))
+fi
 stub_case codex '20000 ordinary paths (stubbed git)' "$BIG"$'\n'
 stub_case blocked '20000 ordinary paths, then db/language/en/vocab-en.json (stubbed git)' \
   "$BIG"$'\ndb/language/en/vocab-en.json\n'

@@ -205,8 +205,8 @@ for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> 
 for the working tree, `bash ~/ai-company-brain/scripts/review-preflight.sh working <base>`.
 Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
 the flagged paths rather than sending anything. On exit 0, review only the `DIFF_FILE` the
-preflight prints (never fetch the diff again by another route) and record its `REVIEWED`
-SHA with the verdict. The `range` or `working` form run against a PR number guards the
+preflight prints (never fetch the diff again by another route) and record the full `REVIEWED=`
+line verbatim with the verdict. The `range` or `working` form run against a PR number guards the
 wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
