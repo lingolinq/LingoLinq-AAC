@@ -41,6 +41,7 @@ import { board_edit_route } from '../utils/board_view';
 import { set_view_style, is_classic } from '../utils/view_style';
 import { pillForRoute } from '../utils/primary_nav';
 import { showsRoomsPill } from '../utils/rooms_nav';
+import { isSiteAdmin } from '../utils/admin_nav';
 
 export default Controller.extend({
   router: service('router'),
@@ -124,15 +125,8 @@ export default Controller.extend({
     'appState.currentUser.permissions',
     function() {
       // Prefer sessionUser (logged-in account); in speak mode currentUser may be the communicator.
-      var u = this.get('appState.sessionUser') || this.get('appState.currentUser');
-      if (!u) {
-        return false;
-      }
-      if (u.get('admin') || u.get('is_admin')) {
-        return true;
-      }
-      var perm = u.get('permissions');
-      return !!(perm && perm.admin_support_actions);
+      // The admin reading itself is shared with the nav's Admin slot (utils/admin_nav).
+      return isSiteAdmin(this.get('appState.sessionUser') || this.get('appState.currentUser'));
     }
   ),
 

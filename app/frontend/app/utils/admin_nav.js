@@ -15,8 +15,8 @@
  * Organizations pill. An admin by the `admin` user setting alone is refused that list, but is let
  * into System Settings (app/controllers/concerns/api/system_settings_access.rb:16, `admin?`).
  *
- * WHO IS A SITE ADMIN is the same reading as `showBetaFeedbackAdminLink`
- * (controllers/application.js:116), which gates the account-menu links this complements.
+ * WHO IS A SITE ADMIN is `isSiteAdmin` below, which `showBetaFeedbackAdminLink`
+ * (controllers/application.js) also reads, so the account-menu links and this slot agree.
  */
 import { get as emberGet } from '@ember/object';
 import { showsRoomsPill } from './rooms_nav';

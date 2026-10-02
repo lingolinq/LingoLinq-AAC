@@ -1604,13 +1604,6 @@ export default Component.extend({
         this.appState.set_speak_mode_user(emberGet(record, 'id'), false, false, 'obf/eval');
       }), () => { modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user")); });
     },
-    remote_model: function(user) {
-      if(user.premium || emberGet(user, 'currently_premium')) {
-        modal.open('modals/remote-model', {user_id: user.id});
-      } else {
-        modal.open('premium-required', {user_name: user.user_name, action: 'evaluation', reason: 'not_currently_premium'});
-      }
-    },
     support: function() {
       modal.open('support');
     },
