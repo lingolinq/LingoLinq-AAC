@@ -1163,7 +1163,7 @@ LingoLinq.Board = BaseModel.extend({
         found_board_ids.push(brd.get('id'));
       }
     });
-    affected_board_ids.forEach(function(id) {
+    affected_board_ids.forEach((id) => { // arrow: `this` is the board (was undefined in a plain function, 2026-10-02)
       if(found_board_ids.indexOf(id) == -1) {
         this.persistence.find('board', id).then(function() {
           // Mark as needing to be reloaded if ever retrieved
