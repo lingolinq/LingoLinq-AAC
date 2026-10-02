@@ -468,12 +468,13 @@ body.ll-layout-focused {
   // The comment above says to re-run scripts/focused-layout-qa.mjs after touching these.
   // That script measures the PILL-NAV offset, and neither of these pages renders one any
   // more, so it reports nothing for them; the gaps below were measured directly instead.
+  // ONE STEP, AT 900 (2026-10-01, requested: "hold the full-size spacing"). The 44px band at
+  // <=1024 made up for the workspace's top margin going there; that margin now holds down to
+  // 901, so the band only pushed Reports 44px down at 1024 (then 28 at 950). Below 900 this is
+  // the 28px it always was there.
   .md-shell--stats > .md-workspace {
     padding-top: 0 !important;
-    @media (max-width: 1024px) {
-      padding-top: 44px !important;
-    }
-    @media (max-width: 950px) {
+    @media (max-width: 900px) {
       padding-top: 28px !important;
     }
   }
@@ -695,7 +696,10 @@ body.ll-layout-focused .md-user-summary {
     // with the 1024 value itself now 0 it could only ever restate the same result, and a
     // second breakpoint that no longer changes anything is a thing to trip over later.
     // Above 1024 the 16px top margin on the base declaration still stands.
-    @media (max-width: 1024px) {
+    // FROM 900, NOT 1024, since 2026-10-01 (requested: "hold the full-size spacing"): at 1024
+    // this lifted the boards 16px while the rest of the page held still; below 900 it is 0 as
+    // the 2026-09-22 request asked.
+    @media (max-width: 900px) {
       margin: 0px 0px 0px !important;
     }
     @include focus-frosted-panel;
@@ -3443,10 +3447,12 @@ body.ll-layout-focused .md-shell--home > .md-workspace > .md-main {
 // is not one value: measured, `.md-workspace` here has `margin-top: 16px` from 1280 down to
 // 951 and 0 at <=950. So 48px and 32px respectively -- each is the measured value plus 32,
 // not a number picked to look right.
+// THAT BASELINE NOW STEPS AT 900, not 950 (2026-10-01, requested: "hold the full-size spacing";
+// app.scss, the Focused `.md-shell--layout-focused > .md-workspace` 0 rule), so this does too.
 body.ll-layout-focused .md-shell--caseload > .md-workspace {
   margin-top: 48px !important;
 }
-@media (max-width: 950px) {
+@media (max-width: 900px) {
   body.ll-layout-focused .md-shell--caseload > .md-workspace {
     margin-top: 32px !important;
   }

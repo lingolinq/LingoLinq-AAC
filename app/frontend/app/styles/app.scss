@@ -34573,6 +34573,13 @@ body.md-ds-active .app-navbar__beta-feedback-link {
     order: 0 !important;
     z-index: 1001 !important;
   }
+  /* The title's 2rem top margin: the <=900px block after this one (2026-10-01). */
+}
+/* THE TITLE'S 2rem LEAD STARTS AT 900, NOT 1024 (2026-10-01, requested: "hold the full-size
+   spacing"). Above 900 the tour chip it made room for is `position: fixed` (above), so the margin
+   only moved the title down 20px at 1024. Below 900 it stays as it was, and the account section's
+   11px (the next block) still overrides it there. */
+@media (max-width: 900px) {
   .md-hero.md-hero--dashboard .md-hero__title {
     margin-top: 2rem !important;
   }
@@ -64867,8 +64874,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    MODERN ONLY since 2026-10-01: in Basic these pages carry the side rail, whose
    own 80px inset already clears the navbar at every width (_classic-home.scss),
    and this extra 26px moved the rail and the page at 1024 (requested: "content
-   should not shift at 1024px and below"). */
-@media (max-width: 1024px) {
+   should not shift at 1024px and below").
+   FROM 900, NOT 1024 (2026-10-01, requested: "hold the full-size spacing"): in
+   Modern the workspace keeps its 40px top margin down to 901, so this clearance is
+   only needed where that margin goes (it moved the Focused Boards and Reports pages
+   26px at 1024). */
+@media (max-width: 900px) {
   body:not(.ll-view-basic) #within_ember #content.home-page,
   body:not(.ll-view-basic) #within_ember #content.boards-page,
   body:not(.ll-view-basic) #within_ember #content.stats-page,
@@ -67067,10 +67078,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      pages sit flush against the navbar — EXCEPT the create-board-new shell,
      which keeps its own (smaller) padding so the modal-card has breathing
      room below the (hidden) topbar. */
-  .md-shell:not(.md-shell--create-board-new) {
-    padding-top: 0 !important;
-
-  }
+  /* (The shell's top padding moved to the <=900px block after this one, 2026-10-01; see there.) */
   /* Create-board-new shell: drop from base 3rem to 1rem at ≤1024px so the
      modal-card sits closer to the top while still breathing. */
   .md-shell--create-board-new {
@@ -67128,7 +67136,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     padding-bottom: 0 !important;
   }
   .md-workspace {
-    margin-top: 0 !important;
     border-radius: 0 !important;
   }
   /* Board-picker only: give the picker the full narrow-viewport width by
@@ -67162,6 +67169,24 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      1024px — which read as a bug when resizing. The identical block was duplicated in
      the <=950px media query; both are gone, and every width now inherits the single
      authoritative `.md-shell` background defined near the top of this file. */
+}
+/* THE PAGE KEEPS ITS FULL-SIZE TOP SPACING DOWN TO 901px (2026-10-01, requested: "hold the
+   full-size spacing" -- in Modern the page content jumped at 1024 and again at 950: the shell's
+   3rem top padding and the workspace's 40px top margin went to 0 at 1024, and the workspace's
+   top padding stepped 40 -> 52 at 950, measured as 12-70px moves on the account, org, dashboard
+   and Basic Access pages). These three top values were in the <=1024 and <=950 blocks; they now
+   start at 900, where the page changes layout anyway (Basic's rail stacks there). Everything else
+   in those blocks -- side padding, radius, sizing -- keeps its own breakpoint.
+   The create-board shell keeps its 1rem from the <=1024 block. The <=820 block below still sets
+   its own padding, so phones are unchanged. */
+@media (max-width: 900px) {
+  .md-shell:not(.md-shell--create-board-new) {
+    padding-top: 0 !important;
+  }
+  .md-workspace {
+    margin-top: 0 !important;
+    padding-top: calc(32px + 2rem) !important;
+  }
 }
 @media (max-width: 950px) {
   /* Modern dashboard: single-column layout under 945px; workspace expands to content, #content scrolls vertically */
@@ -67198,9 +67223,14 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   }
   .md-workspace {
-    margin: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
 
-    padding: calc(32px + 2rem) 16px calc(24px - 9rem) 16px !important;
+    padding-right: 16px !important;
+    padding-bottom: calc(24px - 9rem) !important;
+    padding-left: 16px !important;
+    /* Top margin and padding: the <=900px block above (2026-10-01). */
 
     border-radius: 24px !important;
 
@@ -68167,10 +68197,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     text-align: center !important;
   }
 }
-/* Focused View — keep the workspace top MARGIN at 0 for ≤950px (matches the
+/* Focused View — keep the workspace top MARGIN at 0 for ≤900px (matches the
    general .md-workspace, which drops to 0 there); the base focused 16px rule
-   above would otherwise leak down to small screens via specificity. */
-@media (max-width: 950px) {
+   above would otherwise leak down to small screens via specificity.
+   900, NOT 950, since 2026-10-01: the general margin now holds down to 901
+   (requested: "hold the full-size spacing"), and this moved the Focused home
+   page 16px at 950. */
+@media (max-width: 900px) {
   .md-shell--layout-focused > .md-workspace {
     margin-top: 0 !important;
   }
@@ -75589,12 +75622,17 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   }
   .ub-boards-page {
     max-width: 100%;
-    padding: 0 !important;
+    /* Not the top: the <=900px block after this one (2026-10-01). */
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
     box-sizing: border-box;
     overflow-x: hidden;
   }
   .ub-boards-page__content {
-    padding: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
   }
   .ub-boards-page__page-header {
     padding-left: 12px;
@@ -75633,9 +75671,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-hero--reports-dashboard .md-hero__title {
     margin-top: 12px !important;
   }
-  .md-hero--dashboard {
-    padding-top: 0 !important;
-  }
+  /* `.md-hero--dashboard` top padding: the <=900px block after this one (2026-10-01). */
   .md-user-meta {
     display: flex;
     flex-direction: column;
@@ -75665,7 +75701,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-user-layout > .md-shell > .md-workspace {
     border-radius: 0 !important;
 
-    margin: 0 !important;
+    margin-bottom: 0 !important; /* top: the <=900px block after this one (2026-10-01) */
 
     margin-left: 0 !important;
     margin-right: 0 !important;
@@ -75678,6 +75714,30 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     overflow-x: hidden !important;
     overflow-x: clip !important;
 
+  }
+}
+/* THE BOARDS PAGE KEEPS ITS TOP PADDING DOWN TO 901px (2026-10-01, requested: "hold the full-size
+   spacing"). The block above zeroed `.ub-boards-page` and its content's padding at 1024, top
+   included, which moved the page up 24px (Gentle) / 16px (Focused) there; the top now goes at 900
+   with the rest of the page's top spacing. */
+@media (max-width: 900px) {
+  .ub-boards-page,
+  .ub-boards-page__content {
+    padding-top: 0 !important;
+  }
+}
+/* THE ACCOUNT SECTION AND THE DASHBOARD HEROES KEEP THEIR FULL-SIZE TOP SPACING DOWN TO 901px
+   (2026-10-01, requested: "hold the full-size spacing"). These two were in the <=1024 block above:
+   the account section's workspace lost its 40px top margin there (its page moved up 40px at 1024),
+   and the dashboard hero its top padding. They now start at 900, with the rest of the page's
+   top spacing (see the matching block after the general <=1024 block). */
+@media (max-width: 900px) {
+  .md-shell--user > .md-workspace,
+  .md-user-layout > .md-shell > .md-workspace {
+    margin-top: 0 !important;
+  }
+  .md-hero--dashboard {
+    padding-top: 0 !important;
   }
 }
 @media (max-width: 768px) {
@@ -111920,9 +111980,7 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
    on the old 30px clearance here would have aligned the pages at 1280 and split them again at
    1024, which is the failure this block exists to prevent. */
 @media (max-width: 1024px) {
-  body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
-    padding-top: 52px !important;
-  }
+  /* (The 52px moved to the <=900px block at the end of this one, 2026-10-01; see there.) */
   /* NO SIDE GUTTER ON THE WORKSPACE AT THESE WIDTHS (requested 2026-09-21: "the md-workspace
      l/r padding needs to be 0"). It was not one value to halve or zero -- measured at 1024 the
      five pages ran 40px (caseload, dashboard, extras), 14px (boards) and 16px (updates), and
@@ -111944,6 +112002,15 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
      `#content.boards-page` matches the general scope's specificity exactly -- both are
      (1,2,1) once `body:not(...)` is counted -- so this has to come AFTER it to win, which is
      why it is here rather than beside the other boards rules. */
+}
+/* ...AND BOTH PUSHES START AT 900, NOT 1024 (2026-10-01, requested: "hold the full-size spacing").
+   They made up for the workspace's 40px top margin, which used to go at 1024; that margin now holds
+   down to 901 (the <=900 block after the general <=1024 block), so above 900 these would push the
+   page 12px (36px on Boards) below where it sits at full size. Below 900 nothing changes. */
+@media (max-width: 900px) {
+  body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
+    padding-top: 52px !important;
+  }
   body:not(.ll-layout-focused) #content.boards-page .ll-appshell .md-shell {
     padding-top: 76px !important;
   }
@@ -112370,7 +112437,9 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
    GENTLE ONLY and >900 ONLY, as asked. The 900-and-below work of 2026-09-24 (the section moving
    up 64px when the rail drops in flow) is a different range and is untouched. */
 @media (min-width: 901px) {
-  body:not(.ll-layout-focused) #within_ember #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) {
+  /* Not Basic (2026-10-01): its rail pages take the home page's `#content` padding so the rail
+     starts at one height on every page (_classic-home.scss, "ONE MENU HEIGHT"). */
+  body:not(.ll-layout-focused):not(.ll-view-basic) #within_ember #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) {
     padding-top: calc(var(--topbar-height) + 3rem) !important;
   }
   body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) .ll-appshell .md-shell {

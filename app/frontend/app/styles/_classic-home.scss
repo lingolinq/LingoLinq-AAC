@@ -143,15 +143,29 @@ body.ll-view-basic .md-shell--org-directory > .md-workspace {
    `padding-top` ALONE, not the shorthand: the 2px sides and the 10px bottom are the header's own
    rhythm and were not asked about, and a shorthand here would silently reset both.
    NOT `.md-hero--org`, which is a DIFFERENT element -- the org DETAIL pages' header, whose top
-   padding was deliberately widened on large screens a few days ago. Scoping to the directory
-   shell keeps that request intact.
+   padding was deliberately widened on large screens a few days ago. `:not(.md-hero--org)` keeps
+   that request intact (the rule covers every rail page since 2026-10-01; see the note below).
    Below 1024px this is already 0 from `@media (max-width: 1024px) { .md-hero--dashboard }`, so
    this rule only does work on wider screens.
    `!important` MATCHED, not added: the base `.md-hero` shorthand carries one (app.scss:47657),
    and specificity alone does not beat it -- this landed with no visible effect until the flag
    was added, measured at 28px either way. */
-body.ll-view-basic .md-shell--org-directory .md-hero--dashboard {
+body.ll-view-basic .md-shell:has(> .ch-rail) .md-hero--dashboard:not(.md-hero--org) {
   padding-top: 0 !important;
+}
+/* BESIDE THE RAIL, EVERY PAGE TITLE STARTS ON THE CONTENT LINE, AT EVERY WIDTH (2026-10-01,
+   requested: fix the header title spacing on Account, Reports and the org directory -- it sat
+   40-55px below the rail and jumped 8-20px at 1024).
+   THE RULE ABOVE WAS THE DIRECTORY'S ALONE; it now covers every Basic page whose rail is a direct
+   child of its shell (the account section, Reports, the directory), so their header has no top
+   padding there either. The org pages' header is excluded: its padding (below, "MORE BREATHING
+   ROOM") is the gap between the tab strip or switcher and the title, not space above the page.
+   AND NO TITLE MARGIN: at <=1024 the shared dashboard hero turns into a flex column and gives
+   its title `margin-top: 2rem` to clear the tour chip (app.scss), which that block itself now
+   pins `position: fixed`; the account section then takes 11px below 901, and Reports 12px.
+   Each moved the title as the screen narrowed. Here, beside the rail, the title has none. */
+body.ll-view-basic .md-shell:has(> .ch-rail) .md-hero--dashboard .md-hero__title {
+  margin-top: 0 !important;
 }
 
 /* FOCUSED HIDES THE DIRECTORY'S HEADER (2026-09-24, requested: "basic view: focused. Hide the
@@ -187,6 +201,13 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero__sub {
 body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero--dashboard {
   padding: 0 !important;
   margin: 0 !important;
+}
+/* ...AND THE MAIN AREA'S 18px TOP INSET GOES WITH IT (2026-10-01, requested: page content starts
+   on the same line on every page). In Gentle it separates the header from the first card; with
+   the header gone it only held the "Available Organizations" card 18px below the content line
+   (measured: card 124 against 106 everywhere else). */
+body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-main--org {
+  padding-top: 0 !important;
 }
 
 /* NO TOP-PADDING STEPS (2026-10-01, requested: content should not shift at 1024px and below, and
@@ -1732,14 +1753,15 @@ body.ll-view-modern .md-workspace:has(.ch-org-switcher) .md-hero--org {
 
    TWO VALUES, because the two cases are not the same gap. Without a switcher this is the space
    between the tab strip and the title; with one it is the space under the dropdown, which
-   already has its own 28px above it, so it needs slightly less to feel even. */
-@media (min-width: 1201px) {
-  body.ll-view-basic .md-hero--org {
-    padding-top: 28px !important;
-  }
-  body.ll-view-basic .md-workspace:has(.ch-org-switcher) .md-hero--org {
-    padding-top: 22px !important;
-  }
+   already has its own 28px above it, so it needs slightly less to feel even.
+   AT EVERY WIDTH since 2026-10-01 (requested: the page content should not shift as the screen
+   narrows): above 1200px only, the title stepped 8px at 1200 (28 -> 20) and 16px with a switcher
+   (22 -> 6). These later rules now win at every width, so the 6px rule above no longer applies. */
+body.ll-view-basic .md-hero--org {
+  padding-top: 28px !important;
+}
+body.ll-view-basic .md-workspace:has(.ch-org-switcher) .md-hero--org {
+  padding-top: 22px !important;
 }
 
 /* ORG HEADER ON BASIC VIEW (2026-09-23): no role meta row, and no entrance motion.
@@ -4379,6 +4401,21 @@ button.ch-tile--silver:focus-visible {
   outline-offset: 3px;
 }
 
+
+/* ── BASIC VIEW: ONE MENU HEIGHT ON EVERY PAGE THAT HAS THE RAIL (2026-10-01) ──────────
+   Requested: "the menu needs to start at the same height it is on the home page".
+   Every Basic rail shell (`.ch-page`, the account section, the org directory, the org pages) insets
+   its rail 80px from the top of `#content`, so the rail's height is `#content`'s top padding plus
+   that. The home page's `#content` carries `calc(var(--topbar-height) + 1rem)` (app.scss,
+   `#content.home-page`) and so do the Focused org pages (_focused-view.scss); the rest fell back to
+   the generic `+ 3rem` (app.scss `#within_ember #content`), so their rail sat 20px lower and moved
+   as you went from Home to Logs (measured 94 vs 114). Every page that renders the rail takes the
+   home page's padding here, so the rail starts at one height everywhere.
+   `:has(.ch-rail)` names the condition directly: the rail renders only in Basic, on exactly these
+   pages. `!important` matches the page-specific `#content` paddings it sits alongside. */
+body.ll-view-basic #within_ember #content:has(.ch-rail) {
+  padding-top: calc(var(--topbar-height) + 1rem) !important;
+}
 
 /* ── BASIC VIEW: THE ACCOUNT PAGE GETS THE SECTION RAIL BESIDE IT (2026-09-25) ──────────
    Requested: "on basic view account page we need to add the ch-rail to the account page ...
