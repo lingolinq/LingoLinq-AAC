@@ -76,6 +76,24 @@ describe('EvalComprehensiveRunner AI setting', 'component:eval-comprehensive-run
     expect(c.get('aiFlagEnabled')).toEqual(false);
   });
 
+  it('says the SLP\'s own AI setting is off when the feature is available but not turned on', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', appStateFor(true, {}));
+    expect(c.get('aiSettingOff')).toEqual(true);
+  });
+
+  it('does not blame the SLP\'s setting when the feature itself is not available', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', appStateFor(false, {}));
+    expect(c.get('aiSettingOff')).toEqual(false);
+  });
+
+  it('does not show the setting-off message once AI narration is on', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', appStateFor(true, { ai_features_enabled: true }));
+    expect(c.get('aiSettingOff')).toEqual(false);
+  });
+
   it('hides AI narration when the flag is off', function() {
     var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
     c.set('appState', appStateFor(false, { ai_features_enabled: true }));
@@ -108,10 +126,10 @@ describe('EvalComprehensiveRunner AI narration errors', 'component:eval-comprehe
     return c;
   }
 
-  itAsync('shows translated text when the server says AI narration is not enabled', async function() {
+  itAsync('shows neutral translated text when the server says AI narration is not available', async function() {
     var c = await narrateWithError({ error: 'comprehensive_eval_ai feature not enabled' });
     expect(c.get('aiBusy')).toEqual(false);
-    expect(c.get('aiError')).toEqual("AI narration is turned off for your account. You can turn it on in Preferences under AI Features.");
+    expect(c.get('aiError')).toEqual("AI narration is not available for this account right now.");
   });
 
   itAsync('shows the general failure text for any other error, never the raw server string', async function() {

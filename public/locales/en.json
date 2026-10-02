@@ -2274,6 +2274,7 @@
   "comp_ai_offline": "AI narration requires an Internet connection.",
   "comp_ai_no_payload": "Could not assemble the eval payload.",
   "comp_ai_empty": "The AI did not return a narrative.",
+  "comp_ai_unavailable": "AI narration is not available for this account right now.",
   "comp_ai_not_enabled": "AI narration is turned off for your account. You can turn it on in Preferences under AI Features.",
   "comp_ai_failed": "AI narration failed. Please try again.",
   "comp_ai_disclosure_required": "Please review the AI transparency notice before generating an AI narrative.",

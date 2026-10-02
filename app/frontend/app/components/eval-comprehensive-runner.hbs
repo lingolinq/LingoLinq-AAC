@@ -135,7 +135,11 @@
           </div>
         {{else}}
           <div class="evq-comp__placeholder">
-            <p>{{t "AI-drafted SLP narrative is gated by the comprehensive_eval_ai feature flag. Ask your org admin to enable it." key="comp_ai_flag_off"}}</p>
+            {{#if this.aiSettingOff}}
+              <p>{{t "AI narration is turned off for your account. You can turn it on in Preferences under AI Features." key="comp_ai_not_enabled"}}</p>
+            {{else}}
+              <p>{{t "AI-drafted SLP narrative is gated by the comprehensive_eval_ai feature flag. Ask your org admin to enable it." key="comp_ai_flag_off"}}</p>
+            {{/if}}
             <button type="button" class="evq-btn evq-btn--ghost" {{on "click" (this.ctrlAction "skipSubtest")}}>{{t "Skip" key="skip"}}</button>
           </div>
         {{/if}}

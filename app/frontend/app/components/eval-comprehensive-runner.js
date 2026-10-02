@@ -75,6 +75,11 @@ export default Component.extend({
       return aiFeatureGate.authoringFeatureEnabled(this.get('appState'), 'comprehensive_eval_ai');
     }
   ),
+  // Available, but the signed-in SLP has not turned AI features on: say so,
+  // rather than the feature-unavailable message.
+  aiSettingOff: computed('appState.feature_flags.comprehensive_eval_ai', 'aiFlagEnabled', function() {
+    return !!this.get('appState.feature_flags.comprehensive_eval_ai') && !this.get('aiFlagEnabled');
+  }),
   aiNarrative: computed('session.aiNarrative', function() {
     return this.get('session.aiNarrative');
   }),
@@ -416,9 +421,10 @@ export default Component.extend({
         }, function(err) {
           if (_this.isDestroyed || _this.isDestroying) { return; }
           _this.set('aiBusy', false);
-          // Show a translated message, never the raw server string.
+          // Show a translated message, never the raw server string. The server
+          // sends this one for every refusal (setting, organization, consent).
           if (err && err.error === 'comprehensive_eval_ai feature not enabled') {
-            _this.set('aiError', i18n.t('comp_ai_not_enabled', "AI narration is turned off for your account. You can turn it on in Preferences under AI Features."));
+            _this.set('aiError', i18n.t('comp_ai_unavailable', "AI narration is not available for this account right now."));
           } else {
             _this.set('aiError', i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
           }
