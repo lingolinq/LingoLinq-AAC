@@ -20,7 +20,7 @@
 // STATIC parser can extract it. User-facing defaults are DOUBLE-quoted; a single-quoted
 // default is silently dropped by the generator.
 import i18n from '../i18n';
-import { standardButtons, decoratedTitle, tourChecklist, visibleEl, liveTarget, waitForElement } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, visibleEl, visibleBySelector, liveTarget, waitForElement } from './shared';
 
 // Every helper is called with this so the popover, footer and checklist render in the
 // classic glass language (`ch-tour__*`, themed in _classic-home.scss) rather than the
@@ -100,6 +100,7 @@ function interiorSteps() {
     {
       id: 'classic_tour_speak',
       sel: '.ch-tile--speak-main',
+      tab: 'main',
       on: 'bottom',
       title: i18n.t('classic_tour_speak_title', "Speak"),
       text: tourChecklist([
@@ -109,7 +110,10 @@ function interiorSteps() {
     },
     {
       id: 'classic_tour_reports',
-      sel: '.ch-tile--reports',
+      // `--big` is the Actions tile; a communicator card's Reports link also carries
+      // `ch-tile--reports` (classic-view.hbs) and was being spotlit from the Communicators tab.
+      sel: '.ch-tile--big.ch-tile--reports',
+      tab: 'main',
       on: 'bottom',
       title: i18n.t('classic_tour_reports_title', "Reports"),
       text: tourChecklist([
@@ -125,6 +129,7 @@ function interiorSteps() {
       // anyway. Describing beats animating here.
       id: 'classic_tour_extras',
       sel: '.ch-tile--extras-toggle',
+      tab: 'main',
       on: 'bottom',
       title: i18n.t('classic_tour_extras_title', "Extras"),
       text: tourChecklist([
@@ -148,17 +153,33 @@ function interiorSteps() {
   ];
 }
 
+/* THE TOUR IS OF THE ACTIONS TAB (2026-10-02, adversarial review). Its Speak, Reports and Extras
+   steps live on that tab, and the tabs step says "Actions is what you see now". Started on another
+   tab, those tiles were not rendered, so their steps were dropped (and Reports matched a
+   communicator card's link). So the first interior step switches to Actions through the tab's own
+   button (`data-tour-tab="main"`, classic-view.hbs), and an Actions-tab step is kept at build time
+   whenever that tab exists, then skipped at show time (`showOn`) if its tile is not there -- which
+   still drops Speak for a supporter, whose Actions tab has no Speak card. */
+var ACTIONS_TAB = '.ch-tabs [data-tour-tab="main"]';
+function showActionsTab() {
+  var tab = document.querySelector(ACTIONS_TAB);
+  if (tab && !tab.classList.contains('is-active')) { tab.click(); }
+}
+
 function pushInteriorSteps(steps) {
+  var first = true;
   interiorSteps().forEach(function(cfg) {
     var el = visibleEl(cfg.sel);
-    if (!el) { return; }
+    var later = !el && cfg.tab === 'main' && !!document.querySelector(ACTIONS_TAB);
+    if (!el && !later) { return; }
+    var wait = waitForElement(cfg.sel);
     var step = {
       id: cfg.id,
       // Resolve the target LIVE at show time so a control that re-rendered, shifted, or
       // painted a beat late (common under deployment latency, where the DOM is not as
       // instant as on a dev machine) is still spotlighted.
       attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
-      beforeShowPromise: waitForElement(cfg.sel),
+      beforeShowPromise: first ? function() { showActionsTab(); return wait(); } : wait,
       title: cfg.title,
       text: cfg.text,
       classes: 'ch-tour__step' + (cfg.cls ? ' ' + cfg.cls : ''),
@@ -172,6 +193,8 @@ function pushInteriorSteps(steps) {
       step.modalOverlayOpeningRadius = 18;
       step.matchTargetRadius = false;
     }
+    if (cfg.tab) { step.showOn = function() { return !!visibleBySelector(cfg.sel); }; }
+    first = false;
     steps.push(step);
   });
 }
@@ -190,7 +213,10 @@ function doneStep() {
     buttons: [
       {
         text: i18n.t('home_tour_done', "Got it"),
-        type: 'complete',
+        // An ACTION, not `type: 'complete'` (2026-10-02): ember-shepherd's makeButton accepts only
+        // back/cancel/next as types and asserts otherwise, which in a development build stopped
+        // this whole tour from starting. The other tours finish the same way (utils/tours/home.js).
+        action: function() { return this.complete(); },
         classes: 'ch-tour__btn ch-tour__btn--primary'
       }
     ]
