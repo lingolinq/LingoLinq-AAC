@@ -41,7 +41,8 @@ git -C "$REPO" add README.md
 git -C "$REPO" commit -q -m base
 BASE="$(git -C "$REPO" rev-parse HEAD)"
 
-# classify <base> <head> [env assignments...]: runs the classifier in $REPO and sets
+# classify <base> <head> [env assignments...]: runs the classifier in $REPO (or in
+# $CLASSIFY_DIR when the caller sets it) and sets
 # RESULT to blocked, codex, claude-deep, or ERR3. Any other outcome (another exit
 # code, a missing or malformed route, a route written alongside exit 3) is reported
 # as BAD:<detail> so it can never match an expectation by accident.
@@ -51,7 +52,7 @@ classify() {
   out="$WORK/github_output"
   : > "$out"
   rc=0
-  (cd "$REPO" && env GITHUB_OUTPUT="$out" "$@" bash "$CLASSIFIER" "$base" "$head") >/dev/null 2>&1 || rc=$?
+  (cd "${CLASSIFY_DIR:-$REPO}" && env GITHUB_OUTPUT="$out" "$@" bash "$CLASSIFIER" "$base" "$head") >/dev/null 2>&1 || rc=$?
   route="$(sed -n 's/^reviewer_route=//p' "$out")"
   data="$(sed -n 's/^data_bearing=//p' "$out")"
   if [ "$rc" = 3 ]; then
@@ -142,6 +143,8 @@ stub_case blocked "$V/../../en/vocab-en.json (stubbed git)" \
   "$V/../../en/vocab-en.json"$'\n'
 stub_case blocked "$V/NOTICE.md/../../../en/x.json (stubbed git)" \
   "$V/NOTICE.md/../../../en/x.json"$'\n'
+real_case blocked "x/$V/words-en.json"
+real_case blocked 'db/language'
 
 echo "== db/language: the pinned vendor files pass =="
 real_case codex "$V/NOTICE.md"
@@ -169,6 +172,32 @@ stub_case blocked '20000 ordinary paths, then db/language/en/vocab-en.json (stub
   "$BIG"$'\ndb/language/en/vocab-en.json\n'
 stub_case blocked 'db/language/en/vocab-en.json, then 20000 ordinary paths (stubbed git)' \
   $'db/language/en/vocab-en.json\n'"$BIG"$'\n'
+# The same shape through the data-bearing patterns: the match is on the first line and
+# far more than a pipe buffer of paths follows it.
+stub_case blocked 'db/migrate/20260101000000_add.rb, then 20000 ordinary paths (stubbed git)' \
+  $'db/migrate/20260101000000_add.rb\n'"$BIG"$'\n'
+
+echo "== paths are read byte for byte and from the repo root =="
+# Under a UTF-8 locale `.` does not match an invalid byte, so db/migrate/.*\.rb cannot
+# see this path unless the classifier reads bytes. The probe proves C.UTF-8 really is
+# a multibyte locale on this machine, so the case cannot pass on a silent fallback to C.
+total=$((total + 1))
+if [ "$(printf 'a\377b\n' | LC_ALL=C.UTF-8 /usr/bin/grep -ac 'a.b')" = 0 ]; then
+  echo "  ok   C.UTF-8 is a multibyte locale here"
+else
+  echo "  FAIL C.UTF-8 is not a multibyte locale here; the invalid-byte case proves nothing"
+  fails=$((fails + 1))
+fi
+head="$(commit_paths $'db/migrate/20260101\377_add.rb')"
+classify "$BASE" "$head" LC_ALL=C.UTF-8 LANG=C.UTF-8
+report blocked 'db/migrate/20260101<0xff>_add.rb under LC_ALL=C.UTF-8'
+# With diff.relative set, a listing made from db/ would read language/en/vocab-en.json,
+# which the anchored patterns cannot see.
+head="$(commit_paths 'db/language/en/vocab-en.json')"
+git -C "$REPO" config diff.relative true
+CLASSIFY_DIR="$REPO/db" classify "$BASE" "$head"
+git -C "$REPO" config --unset diff.relative
+report blocked 'db/language/en/vocab-en.json with diff.relative=true, run from db/'
 
 echo "== unrelated paths still route to the reviewer =="
 real_case codex 'lib/language/schema2_generator.rb'
@@ -195,6 +224,33 @@ chmod +x "$GREP_STUB/grep"
 head="$(commit_paths 'app/models/user.rb')"
 classify "$BASE" "$head" PATH="$GREP_STUB:$PATH"
 report ERR3 'grep fails (exit 2) during classification'
+# The stub above fails at the first grep, so it never reaches a later call site. This
+# one fails only when its pattern contains $GREP_FAIL_ON and otherwise runs the real
+# grep, so each call site is reached after the earlier ones ran cleanly.
+SITE_STUB="$WORK/grep-site-stub"
+mkdir -p "$SITE_STUB"
+cat > "$SITE_STUB/grep" <<'STUB'
+#!/usr/bin/env bash
+case "${!#}" in *"$GREP_FAIL_ON"*) exit 2 ;; esac
+exec /usr/bin/grep "$@"
+STUB
+chmod +x "$SITE_STUB/grep"
+# site_case <expect> <pattern-substring> <label> <path...>
+site_case() {
+  local expect="$1" on="$2" label="$3" head
+  shift 3
+  head="$(commit_paths "$@")"
+  classify "$BASE" "$head" PATH="$SITE_STUB:$PATH" GREP_FAIL_ON="$on"
+  report "$expect" "$label"
+}
+# Control: a substring no pattern contains, so every grep passes through. Without it,
+# a stub that could not run the real grep would fail everywhere and pass the cases below.
+site_case codex 'no-pattern-contains-this' 'grep site stub passes through when nothing fails' 'app/models/user.rb'
+site_case ERR3 '^"' 'grep fails only at the git-quoted check' 'app/models/user.rb'
+site_case ERR3 'fixtures' 'grep fails only at the data-bearing patterns' 'app/models/user.rb'
+site_case ERR3 '[lL][aA]' 'grep fails only at the db/language pattern' 'app/models/user.rb'
+site_case ERR3 'openaac-demo-tools' 'grep fails only at the vendor exception' "$V/words-en.json"
+site_case ERR3 'docs/legal' 'grep fails only at the compliance patterns' 'app/models/user.rb'
 
 echo
 if [ "$fails" -eq 0 ]; then

@@ -64,7 +64,7 @@ New user-facing features MUST be behind a feature flag in `lib/feature_flags.rb`
 
 ## Review
 - Two passes gate a PR: a senior-dev pass and an adversarial red-team pass; a Critical or High from either blocks. Copilot has no command surface for either, so it runs neither; they are owed by a named human or agent reviewer.
-- The senior-dev pass ships the diff to an external model on an account with no BAA. Whoever runs it must run the PII pre-flight first (`~/ai-company-brain/scripts/review-preflight.sh` for a PR number, `~/ai-company-brain/scripts/codex-review-guard.sh` for a branch; LingoLinq-internal paths), matching the invocation form to the argument. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. If you cannot reach that path, you are not set up to run this pass, so stop and hand it to someone who is rather than proceeding without it. Full detail in `CLAUDE.md` and `AGENTS.md`.
+- The senior-dev pass ships the diff to an external model on an account with no BAA. Whoever runs it must run the PII pre-flight first (`~/ai-company-brain/scripts/review-preflight.sh`, a LingoLinq-internal path: `pr <n> lingolinq/LingoLinq-AAC` for a PR number, `range <base> <head>` for a branch, `working <base>` for the working tree), matching the invocation form to the argument. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. On exit 0, review only the `DIFF_FILE` the preflight prints and record its `REVIEWED` SHA. If you cannot reach that path, you are not set up to run this pass, so stop and hand it to someone who is rather than proceeding without it. Full detail in `CLAUDE.md` and `AGENTS.md`.
 
 ## Testing
 - **Backend**: RSpec (`bundle exec rspec`).
