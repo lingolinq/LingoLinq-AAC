@@ -112,9 +112,10 @@ describe('ai_word_predictor', function() {
   });
 
   describe('backing off when the server declines', function() {
+    // The shape the app's $.ajax wrapper (utils/extras.js) rejects with.
     function failingAjax(status) {
       return function() {
-        return { then: function(ok, fail) { fail({ status: status }); } };
+        return { then: function(ok, fail) { fail({ fakeXHR: { status: status }, message: 'error', result: 'error' }); } };
       };
     }
 

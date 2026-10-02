@@ -47,8 +47,8 @@ var ai_word_predictor = {
     // RSVP.resolve([]) with no AJAX call, so the caller falls back to the
     // existing non-AI prediction path with no dialog, error, or indicator of
     // any kind. Acknowledging at any other gated surface (or at session
-    // entry) flips article_50_disclosure_shown, and this check re-evaluates
-    // per call, so prediction re-enables automatically with no extra wiring.
+    // entry) flips article_50_disclosure_shown, and this check re-evaluates per
+    // call, so prediction re-enables with no extra wiring (after any 403 pause).
     if(needsAcknowledgement(state)) { return false; }
     return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction');
   },
@@ -134,7 +134,9 @@ var ai_word_predictor = {
         _this._cache_put(sentence, words, locale);
         resolve(words);
       }, function(xhr) {
-        if(xhr && (xhr.status === 429 || xhr.status === 403)) {
+        // The app's $.ajax wrapper (utils/extras.js) rejects with { fakeXHR }.
+        var status = xhr && ((xhr.fakeXHR && xhr.fakeXHR.status) || xhr.status);
+        if(status === 429 || status === 403) {
           // Rate limited, or the server declined AI prediction for this
           // account: stop sending requests for a while either way.
           _this._backoff_until = Date.now() + BACKOFF_MS;
