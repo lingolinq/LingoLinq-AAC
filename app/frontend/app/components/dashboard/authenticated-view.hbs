@@ -238,10 +238,13 @@
             {{#if this.compressedHome}}
               {{!-- Just "View all" (requested 2026-09-30): the card title beside it names what; the
                    aria-label keeps the full name for a screen reader, which hears the link alone. --}}
-              <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-card__view-all md-card__view-all--head" aria-label={{t "View all rooms →" key="view_all_rooms"}}>{{t "View all →" key="view_all_short"}}</LinkTo>
+              <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-card__view-all md-card__view-all--head" aria-label={{t "View all rooms" key="view_all_rooms_label"}}>{{t "View all →" key="view_all_short"}}</LinkTo>
             {{else}}
               <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-btn md-btn--primary md-rooms__all">
-                {{t "View all rooms →" key="view_all_rooms"}}
+                {{!-- The arrow is decoration: hidden from screen readers, which read it as "right arrow"
+                     (2026-10-01). The space is inside the span (&nbsp;): these links are flex
+                     containers, where a space between the text and the span collapses. --}}
+                {{t "View all rooms" key="view_all_rooms_label"}}<span aria-hidden="true">&nbsp;→</span>
               </LinkTo>
             {{/if}}
           {{/if}}
@@ -280,7 +283,7 @@
           {{!-- Compressed View: "View all communicators" in the header (requested 2026-09-30), as
                "View all rooms" above. Otherwise it stays under the list, below. --}}
           {{#if (and this.attentionOverflow this.compressedHome)}}
-            <LinkTo @route="caseload" class="md-card__view-all md-card__view-all--head" aria-label={{t "View all communicators →" key="view_all_communicators"}}>{{t "View all →" key="view_all_short"}}</LinkTo>
+            <LinkTo @route="caseload" class="md-card__view-all md-card__view-all--head" aria-label={{t "View all communicators" key="view_all_communicators_label"}}>{{t "View all →" key="view_all_short"}}</LinkTo>
           {{/if}}
         </div>
         <div class="md-card--boards__divider" aria-hidden="true"></div>
@@ -307,7 +310,7 @@
         {{!-- Only the first few are listed (attentionShown); the rest are on the caseload page.
              Compressed View shows this link in the header instead. --}}
         {{#if (and this.attentionOverflow (not this.compressedHome))}}
-          <LinkTo @route="caseload" class="md-card__view-all">{{t "View all communicators →" key="view_all_communicators"}}</LinkTo>
+          <LinkTo @route="caseload" class="md-card__view-all">{{t "View all communicators" key="view_all_communicators_label"}}<span aria-hidden="true">&nbsp;→</span></LinkTo>
         {{/if}}
       </section>
       {{/if}}

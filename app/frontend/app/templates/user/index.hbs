@@ -15,7 +15,9 @@
          wrong. `display_name` (models/user.js, utils/display_name.js) is their name, or their
          username when no name is set. --}}
     <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{this.model.display_name}}</span></h1>
-    <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "View your account" key="account_sub_pre"}} <em class="md-hero__gradient-text">{{t "details" key="account_sub_em"}}</em></span></p>
+    {{!-- ...AND THE SUBTITLE SAYS WHOSE (2026-10-01): "your" on your own account only
+         (controllers/user/index.js#isSelf), their name on anyone else's. --}}
+    <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{#if this.isSelf}}{{t "View your account" key="account_sub_pre"}}{{else}}{{t "View %{user_name}'s account" key="account_sub_other_pre" user_name=this.model.display_name}}{{/if}} <em class="md-hero__gradient-text">{{t "details" key="account_sub_em"}}</em></span></p>
   </header>
 {{else}}
   {{!-- FOCUSED VIEW GETS ITS OWN HEAD (requested 2026-09-21): a two-tone icon, a title and a

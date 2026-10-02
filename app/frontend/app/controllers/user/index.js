@@ -1876,5 +1876,15 @@ export default Controller.extend({
     retry_board_list: function() {
       this.update_selected();
     }
-  }
+  },
+
+  /* WHOSE ACCOUNT THIS IS, for the header's subtitle (2026-10-01, requested: it read "View your
+     account details" on someone else's account too). The SESSION user, never `currentUser`, which
+     is the communicator while modeling; by id or user_name, since a cold load's session record
+     has id 'self'. Placed last so the line-anchored ESLint baseline above does not shift. */
+  isSelf: computed('model.id', 'model.user_name', 'appState.sessionUser.id', 'appState.sessionUser.user_name', function() {
+    var me = this.get('appState.sessionUser');
+    if(!me) { return false; }
+    return me.get('id') === this.get('model.id') || me.get('user_name') === this.get('model.user_name');
+  })
 });
