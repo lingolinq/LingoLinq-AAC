@@ -88,8 +88,16 @@ export default Component.extend({
     this.toggleLandingDrawer = () => {
       self.set('isLandingDrawerOpen', !self.get('isLandingDrawerOpen'));
     };
+    /* CLOSED AFTER THE CLICK, NOT DURING IT (2026-10-02, reported: "I click Sign In and it
+       refreshes the page"). The drawer's LinkTos run this on click BEFORE LinkTo's own handler, and
+       closing re-renders the drawer away (`{{#if @isOpen}}`, la-mobile-drawer.hbs) in between, so
+       LinkTo's handler never ran: nothing prevented the default and the browser loaded the href as
+       a new page. A 0ms timeout runs after every listener for this click, so the link navigates in
+       the app first. scripts/drawer-link-reload-qa.mjs is the check (a unit test cannot see it). */
     this.closeLandingDrawer = () => {
-      self.set('isLandingDrawerOpen', false);
+      window.setTimeout(function() {
+        if(!self.isDestroyed && !self.isDestroying) { self.set('isLandingDrawerOpen', false); }
+      }, 0);
     };
     this.toggleBetaFeedbackDrawer = () => {
       owner.lookup('controller:application').send('toggleBetaFeedbackDrawer');

@@ -143,7 +143,13 @@ export default Component.extend({
       this.toggleProperty('isDrawerOpen');
     },
     closeDrawer() {
-      this.set('isDrawerOpen', false);
+      /* Closed after the click, not during it (2026-10-02): the drawer's LinkTos call this before
+         LinkTo's own handler, and closing synchronously re-rendered the link away first, so every
+         drawer link reloaded the page. See closeLandingDrawer in components/app-navbar.js. */
+      var _this = this;
+      window.setTimeout(function() {
+        if(!_this.isDestroyed && !_this.isDestroying) { _this.set('isDrawerOpen', false); }
+      }, 0);
       this.get('application').send('closeThemePicker');
     },
     closeDrawerAndSend(signal) {

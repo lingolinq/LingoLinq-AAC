@@ -293,7 +293,7 @@ export default Controller.extend({
       self.set('landingNavOpen', !self.get('landingNavOpen'));
     };
     this.closeLandingNav = () => {
-      self.set('landingNavOpen', false);
+      window.setTimeout(function() { if(!self.isDestroyed && !self.isDestroying) { self.set('landingNavOpen', false); } }, 0); // after the click: see closeLandingDrawer, components/app-navbar.js
     };
     this.onCloseBetaFeedbackDrawer = () => {
       self.send('closeBetaFeedbackDrawer');
