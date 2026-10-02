@@ -1026,7 +1026,9 @@ body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)
    becomes an in-flow band above the page (app.scss), so everything below it moves by design --
    that is a layout change, not a shift to pin. */
 @media (max-width: 1024px) and (min-width: 901px) {
-  body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .md-workspace {
+  /* MODERN ONLY since 2026-10-01: Basic's org pages take no top gap at any width above 900px
+     (_classic-home.scss, "ORG PAGES: NO TOP GAP"), and this rule's id weight would override that. */
+  body.ll-view-modern.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .md-workspace {
     margin-top: 40px !important;
     padding-top: 40px !important;
   }

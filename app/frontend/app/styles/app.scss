@@ -64863,13 +64863,17 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 }
 /* At ≤1024px the four dashboard pages need extra clearance below the fixed
    navbar — placed immediately after the base rule so source-order wins the
-   !important tie (same specificity as the rule above). */
+   !important tie (same specificity as the rule above).
+   MODERN ONLY since 2026-10-01: in Basic these pages carry the side rail, whose
+   own 80px inset already clears the navbar at every width (_classic-home.scss),
+   and this extra 26px moved the rail and the page at 1024 (requested: "content
+   should not shift at 1024px and below"). */
 @media (max-width: 1024px) {
-  #within_ember #content.home-page,
-  #within_ember #content.boards-page,
-  #within_ember #content.stats-page,
-  #within_ember #content.extras-page,
-  #within_ember #content.modern-dashboard {
+  body:not(.ll-view-basic) #within_ember #content.home-page,
+  body:not(.ll-view-basic) #within_ember #content.boards-page,
+  body:not(.ll-view-basic) #within_ember #content.stats-page,
+  body:not(.ll-view-basic) #within_ember #content.extras-page,
+  body:not(.ll-view-basic) #within_ember #content.modern-dashboard {
     padding-top: 52px !important;
   }
 }

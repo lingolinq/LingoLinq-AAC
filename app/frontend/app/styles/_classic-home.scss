@@ -189,17 +189,17 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero--dashboar
   margin: 0 !important;
 }
 
-@media (max-width: 1024px) {
-  body.ll-view-basic .md-shell--org-directory { padding-top: 44px !important; }
-}
-/* Stacks at the same width `.ch-page` stacks, and takes its 48px with it. */
+/* NO TOP-PADDING STEPS (2026-10-01, requested: content should not shift at 1024px and below, and
+   should sit level with the top of the side menu -- "the alignment option"). This took `.ch-page`'s
+   44px at <=1024 and 48px at <=900, which lifted the rail and the page 36px at 1024 (measured
+   126 -> 90). The 80px above now holds at every width, as `.ch-page`'s own does. */
+/* Stacks at the same width `.ch-page` stacks. */
 @media (max-width: 900px) {
   body.ll-view-basic .md-shell--org-directory {
     flex-direction: column !important;
-    padding-top: 48px !important;
   }
 }
-/* Sides narrow with `.ch-page`'s, top left alone -- the 48px above still applies here. */
+/* Sides narrow with `.ch-page`'s, top left alone. */
 @media (max-width: 767px) {
   body.ll-view-basic .md-shell--org-directory {
     padding-right: 22px !important;
@@ -240,6 +240,12 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-hero--dashboar
   flex: 0 0 auto;
   width: 100%;
   max-width: 380px;
+  // 12px ABOVE THE PAGE CONTENT BESIDE IT (2026-10-01, requested: "the left menu is pushed down
+  // too far a bit, it should sit about 12px above the top of the page content"). Every page that
+  // mounts this rail (the home page, the account section, the org directory and org pages) starts
+  // the rail and the content on one line, from its shell's 80px inset; this lifts the rail alone,
+  // so the content stays where it is. Stacked (<=900px), the page below moves up with it.
+  margin-top: -12px;
   padding: 16px;
   box-sizing: border-box;
   border-radius: 22px;
@@ -1108,6 +1114,14 @@ button.ch-row--sync:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  // LEVEL WITH THE RAIL'S TOP (2026-10-01, requested: "on the home page, make the ch-tabs menu top
+  // align with the new position of the left menu top"). The rail sits 12px above the shared
+  // `.ch-page` inset (`.ch-rail` margin-top), so this column takes the same 12px and the tab strip,
+  // its first child, starts on the rail's line. Beside the rail only: stacked (<=900px) the column
+  // follows the rail and keeps the gap between them.
+  @media (min-width: 901px) {
+    margin-top: -12px;
+  }
 }
 
 .ch-tabpanel {
@@ -3760,14 +3774,12 @@ button.ch-tile--silver:focus-visible {
   // second size, which is the thing this is meant to stop.
 }
 
-// The top inset steps down as the viewport narrows: 80 (base) -> 44 here (all requested
-// 2026-09-03). NOTE this is now TIGHTER than the 48px the 900px block sets, so that block
-// no longer steps the inset down -- it steps it back UP by 4px below 900. Kept as-is
-// because both values were asked for directly; collapse the 900px rule if that 4px
-// rebound is not wanted. MUST stay ABOVE the 900px block either way: both are
-// single-class selectors of equal specificity, so source order alone decides which wins.
+// NO TOP-INSET STEPS (2026-10-01, requested: content should not shift at 1024px and below,
+// and should sit level with the top of the side menu). The inset stepped 80 -> 44 here and
+// -> 48 below 900 (both asked for on 2026-09-03), which moved the rail and the page 10px at
+// 1024 once `#content`'s own padding rose there; that rise is now Modern-only (app.scss, the
+// dashboard pages' 52px), so the 80px base holds at every width.
 @media (max-width: 1024px) {
-  .ch-page { padding-top: 44px; }
 
   // ---------------------------------------------------------------------------
   // ONBOARDING CALLOUT — three-row shape
@@ -4094,10 +4106,9 @@ button.ch-tile--silver:focus-visible {
 @media (max-width: 900px) {
   // 60 -> 48, the last step of the ladder described above.
   //
-  // `padding-top` on its own, never the shorthand — the 767px block below sets sides and
-  // bottom and deliberately leaves the top alone, so this value is what carries all the
-  // way down to the narrowest phone.
-  .ch-page { flex-direction: column; padding-top: 48px; }
+  // No top inset of its own here any more (2026-10-01, see the 1024px block): the 80px base
+  // carries down to the narrowest phone, so the stacked rail starts where the side rail did.
+  .ch-page { flex-direction: column; }
   .ch-rail, .ch-panel { max-width: none; width: 100%; }
   .ch-comms { grid-template-columns: 1fr; }
 
@@ -4423,13 +4434,10 @@ body.ll-view-basic .md-shell:has(> .ch-rail--account) {
      page and the organizations directory: both put their rail at y=126 / 90 / 94. Matching them
      is what makes the three Basic pages that carry this rail start on one line, rather than
      picking a number that only looks right on the page in front of me.
-     The content moves down with the rail, keeping the 40px offset it already had between them. */
+     The content moves down with the rail, keeping the 40px offset it already had between them.
+     AT EVERY WIDTH since 2026-10-01: the 44px (<=1024) and 48px (<=900) steps lifted the rail and
+     the page 36px at 1024, so they are gone and 80px holds. */
   padding-top: 80px !important;
-}
-@media (max-width: 1024px) {
-  body.ll-view-basic .md-shell:has(> .ch-rail--account) {
-    padding-top: 44px !important;
-  }
 }
 body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace {
   flex: 1 1 auto !important;
@@ -4444,8 +4452,10 @@ body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace {
    reason and with the same result: one top edge across the row.
    THE CONTENT KEEPS ITS OWN INSET -- `.md-main--user` has 35px of its own (app.scss), so this
    moves the block up without pushing the card against the shell's edge.
-   GENTLE ONLY, as asked; Focused keeps the spacing it has. */
-body.ll-view-basic:not(.ll-layout-focused) .md-shell:has(> .ch-rail--account) > .md-workspace {
+   BOTH LAYOUTS since 2026-10-01 (was Gentle only, as first asked; Focused sat 95px below the
+   rail, measured 126 / 221). Holds at every width: the base `.md-workspace` steps its own margin and
+   padding at 1024, so zeroing them here is also what keeps the page from moving there. */
+body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace {
   margin-top: 0 !important;
   padding-top: 0 !important;
 }
@@ -4457,8 +4467,8 @@ body.ll-view-basic:not(.ll-layout-focused) .md-shell:has(> .ch-rail--account) > 
    organizations directory has, and as far up as this content can go without moving the rail,
    which was deliberately placed at the home page's inset earlier today.
    TOP ONLY: the bottom keeps its 35px, as in the Modern narrow-width rule that does the same
-   thing for the same reason. GENTLE ONLY, and only where the rail renders. */
-body.ll-view-basic:not(.ll-layout-focused) .md-shell:has(> .ch-rail--account) > .md-workspace > .md-main--user {
+   thing for the same reason. Only where the rail renders; both layouts since 2026-10-01 (above). */
+body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace > .md-main--user {
   padding-top: 0 !important;
 }
 /* STACKS WHERE EVERY OTHER BASIC RAIL STACKS. At 900 and below `.ch-rail` is already
@@ -4469,11 +4479,8 @@ body.ll-view-basic:not(.ll-layout-focused) .md-shell:has(> .ch-rail--account) > 
 @media (max-width: 900px) {
   body.ll-view-basic .md-shell:has(> .ch-rail--account) {
     flex-direction: column !important;
-    /* AND IT HAS TO CLEAR THE FIXED HEADER. Stacked, the rail is the page's first element and
-       started at y=46 with the header's bottom edge at 70 -- its top 24px were behind the
-       navbar. Measured against the two Basic pages that already carry this rail: both put it
-       at y=94 at this width and at 767, so 48 is their figure, not a new one. */
-    padding-top: 48px !important;
+    /* It still clears the fixed header: the 80px above holds here too (2026-10-01; it was 48px,
+       which put the stacked rail 32px higher than the side rail). */
   }
 }
 /* Sides narrow with `.ch-page`'s at the same width, for the same reason. */
@@ -4570,34 +4577,36 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   flex: 1 1 auto !important;
   min-width: 0;
 }
-/* ROOMS, FOCUSED, FULL-SIZED SCREEN: NO TOP GAP (2026-09-28, requested: "remove the top margin
-   and top padding" from the workspace). Both come from the base `.md-workspace`
-   (`margin: 40px auto; padding: 40px ...`, both `!important`, app.scss), which is why this
-   matches them with `!important` -- the same arrangement the org directory's block above uses
-   for the same two boxes. The rail and the Rooms card then share one top edge.
-   SCOPED THREE WAYS, each as asked: the Rooms list only (`md-shell--org-rooms`, set from the
-   route by controllers/organization.js#roomsPageActive, so the other org pages keep their
-   spacing); Focused only; and above 1024px, the "full-sized screen" -- at 1024 and below the
-   shell's own top padding and the stacked rail change the geometry, and nobody asked for those
-   widths to move. `margin-top` / `padding-top` longhands, so the sides and bottom are untouched. */
-@media (min-width: 1025px) {
-  body.ll-view-basic.ll-layout-focused .md-shell--org-rooms:not(.md-shell--org-directory) > .md-workspace {
+/* ORG PAGES: NO TOP GAP, LEVEL WITH THE RAIL, AT EVERY WIDTH THE RAIL SITS BESIDE THEM.
+   History: 2026-09-28 the Focused Rooms list only (requested: "remove the top margin and top
+   padding" from the workspace); 2026-10-01 the rooms section in both layouts, then every org page
+   (requested: content should not shift at 1024px and below, and should sit level with the top of
+   the side menu -- "the alignment option").
+   BOTH VALUES come from the base `.md-workspace` (`margin: 40px auto; padding: 40px ...`, both
+   `!important`, app.scss), which is why this matches them with `!important` -- the same
+   arrangement the org directory's block above uses for the same two boxes. That base also drops
+   its margin to 0 and steps its padding 40 -> 52 -> 40 at 1024 and below, which is what moved
+   these pages there (measured, Focused: rail 106 -> 70, page 186 -> 150; Gentle: rail 126 -> 90,
+   page 206 -> 130 / 142); zeroing both here holds the page still across those steps, and the
+   shell's 80px (above) holds the rail.
+   ABOVE 900px only: at 900 and below the rail stacks over the page, and where the content lands
+   under it is a layout change, not this gap. `margin-top` / `padding-top` longhands, so the sides
+   and bottom are untouched. The page's own header keeps its inset (`.md-hero--org`'s padding). */
+@media (min-width: 901px) {
+  body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace {
     margin-top: 0 !important;
     padding-top: 0 !important;
   }
 }
-@media (max-width: 1024px) {
-  body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
-    padding-top: 44px !important;
-  }
-}
 /* Stacks where every other Basic rail stacks: at 900 and below `.ch-rail` is already full-width
    and built to sit ABOVE the content, so left as a row it would squeeze the org page into
-   whatever was left. Same breakpoint and same 48px header clearance as the others. */
+   whatever was left. Same breakpoint as the others; the 48px header clearance they take is not
+   taken here (2026-10-01, see the rule). */
 @media (max-width: 900px) {
   body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) {
     flex-direction: column !important;
-    padding-top: 48px !important;
+    /* No 48px top padding here any more (2026-10-01, the no-shift request above): the shell keeps
+       its 80px, so the stacked rail starts where the side rail did. */
   }
 }
 @media (max-width: 767px) {
