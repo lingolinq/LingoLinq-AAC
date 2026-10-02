@@ -21,6 +21,13 @@
   // navbar's flex flow and cannot overlap its neighbour at narrow widths.
   // Reads --ll-viewswitch-offset (below) so it lands in the same place on every page.
   margin-left: var(--ll-viewswitch-offset, 12px);
+  // NARROW SCREENS (2026-10-01): not the menu's anchor, so the menu anchors to the full-width
+  // navbar row instead (`.app-navbar-authenticated-inner`, position: relative at <=767px in
+  // app.scss; on the legacy board header, the positioned header) and can span the screen. Anchored
+  // here, a 268px+ menu opened from a button ~190px in ran ~95px off a 375px phone.
+  @media (max-width: 766px) {
+    position: static;
+  }
 }
 
 // THE SAME PLACE ON EVERY PAGE (2026-09-30). Most pages render the navbar's home-actions cluster
@@ -30,6 +37,40 @@
 // absent, so the button measures the same distance from the logo everywhere.
 .app-navbar__nav-header:not(:has(.app-navbar__home-actions)) {
   --ll-viewswitch-offset: 24px;
+}
+
+// TWO ROWS AT <=360px (2026-10-01, requested). The top row has no room for the button there: the
+// fixed Beta feedback tab, the settings gear and the menu button were all drawn over it (measured on
+// home, search, boards and caseload). It takes its own row under the logo instead, inside the bar;
+// the bar grows by --ll-navbar-row2 (11px gap + the 33px button) and so does the page's offset below
+// it. Both are the original rules, reading this one variable (0 everywhere else): the 70px header
+// pins and `#within_ember #content` margin-top in app.scss, and #identity's `top`, which centres the
+// gear on row 1. Set only for the app navbar header that is showing (not .header--hidden: setup and
+// create-board keep it in the DOM, hidden) and holding the button; the button un-renders in speak
+// and edit mode, and the bar returns to one row. Boards never match: their header carries #speak or
+// #nav_header, and the classic board's own button is not inside .app-navbar-authenticated-inner.
+// Every selector needs :has(), so a browser without it keeps the one-row bar.
+@media (max-width: 360px) {
+  #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):not(.header--hidden) .app-navbar-authenticated-inner .ll-viewswitch):not(:has(> header #speak)):not(:has(> header #nav_header)) {
+    --ll-navbar-row2: 44px;
+  }
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) {
+    flex-wrap: wrap;
+    row-gap: 11px;
+  }
+  // Row 1 keeps the 56px it had as one row, so the logo stays where it was.
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) h1.app-navbar__brand {
+    min-height: 56px;
+  }
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) .ll-viewswitch {
+    order: 99;
+    flex: 0 0 100%;
+  }
+  // Left edge under the logo's: at these widths `.nav-header__brand` pulls itself 25px left
+  // (computed margin-left -20px plus left -5px, from app.scss's per-breakpoint brand rules).
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) > .app-navbar__nav-header {
+    --ll-viewswitch-offset: -25px;
+  }
 }
 
 .ll-viewswitch__trigger {
@@ -84,6 +125,22 @@
   // this menu had while each group held a single bare label) every description wrapped
   // to three or four lines and the two groups stopped reading as two short lists.
   min-width: 268px;
+  // NARROW SCREENS (2026-10-01): just below the navbar row and across the screen, 12px in from each
+  // edge, scrolling inside itself if it is taller than the space left (dvh tracks iOS Safari's
+  // collapsing toolbar; vh is the fallback). No fixed positioning: the classic board header carries a
+  // backdrop-filter, which would make a fixed menu relative to it rather than the screen.
+  @media (max-width: 766px) {
+    // BELOW THE NAVBAR, not over it (2026-10-01): the anchor row ends at y=62 inside a 70px bar
+    // (measured at 320-414px), so 100% started the menu 8px inside the bar. +8px reaches the bar's
+    // bottom; +6px more is the same gap the desktop menu has under its button.
+    top: calc(100% + 14px);
+    left: 12px;
+    right: 12px;
+    min-width: 0;
+    max-height: calc(100vh - 96px - var(--ll-navbar-row2, 0px));
+    max-height: calc(100dvh - 96px - var(--ll-navbar-row2, 0px));
+    overflow-y: auto;
+  }
   margin: 0;
   padding: 5px;
   list-style: none;
