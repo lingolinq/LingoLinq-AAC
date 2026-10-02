@@ -101,6 +101,14 @@ describe('ensureAiBoardGenerationAccess', function() {
     expect(opened[0].opts.blockedReason).toEqual('permission');
   });
 
+  itAsync('gives the reason modal the signed-in person, so closing it resets that account and not the communicator', async function() {
+    var supporter = makeUser('supporter', { permissions: { view: true } });
+    var communicator = makeUser('communicator');
+    await ensureAiBoardGenerationAccess(makeState(supporter, communicator));
+    expect(opened[0].opts.blocked).toEqual(true);
+    expect(opened[0].opts.user).toBe(supporter);
+  });
+
   itAsync('opens EU parental consent for the signed-in person and does not continue', async function() {
     var supporter = makeUser('supporter', { eu_under_16: true, parent_email: 'parent@example.com' });
     var result = await ensureAiBoardGenerationAccess(makeState(supporter, makeUser('communicator')));

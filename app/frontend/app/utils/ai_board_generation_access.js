@@ -41,6 +41,7 @@ export function ensureAiBoardGenerationAccess(appState) {
   if(entry === 'blocked_flag' || entry === 'blocked_coppa' || entry === 'no_permission') {
     var reason = { blocked_coppa: 'coppa', no_permission: 'permission' }[entry] || 'flag';
     return modalUtil.open('enable-ai-features', {
+      user: user,
       blocked: true,
       blockedReason: reason,
       triggeredPref: 'ai_board_generation'
