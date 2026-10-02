@@ -4,7 +4,7 @@ import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { inject as service } from '@ember/service';
 import boardsPageListCache from '../../utils/boards_page_list_cache';
-import { send_basic_viewer_to_landing, is_basic_viewer } from '../../utils/basic_landing';
+import { send_basic_viewer_to_landing, is_basic_viewer, is_own_page } from '../../utils/basic_landing';
 import { wait_for_session_user } from '../../utils/session_user_wait';
 
 export default Route.extend({
@@ -30,9 +30,8 @@ export default Route.extend({
     var _this = this;
     return wait_for_session_user(this.get('appState')).then(function(sessionUser) {
       var me = _this.get('appState.currentUser') || sessionUser;
-      // By user_name as well as id: on a cold load the session record was fetched as
-      // findRecord('user', 'self') and its id is still 'self'.
-      var own = !!(model && me && (model.get('id') === me.get('id') || model.get('user_name') === me.get('user_name')));
+      // By user_name as well as id (utils/basic_landing.js#is_own_page, shared with the View menu).
+      var own = is_own_page(model, me);
       if(own && send_basic_viewer_to_landing(_this.get('appState'), _this.get('router'), 'user.boards', me)) {
         return RSVP.reject();
       }

@@ -60,8 +60,24 @@ const LANDINGS = {
 const LOGS_FROM_UPDATES = { query_params: { nav: null, type: null } };
 const LOG_FROM_UPDATES = { query_params: { nav: null } };
 
-export function basic_landing_for(route, url) {
+/* IS THIS PAGE THE VIEWER'S OWN? By id or user_name: on a cold load the session record was fetched
+   as findRecord('user', 'self') and its id is still 'self'. */
+export function is_own_page(page_user, viewer) {
+  if(!page_user || !viewer) { return false; }
+  var get = function(u, k) { return u.get ? u.get(k) : u[k]; };
+  return get(page_user, 'id') === get(viewer, 'id') || get(page_user, 'user_name') === get(viewer, 'user_name');
+}
+
+/* `owner` (optional): `{ own, user_name }` for the page on screen. SOMEONE ELSE'S BOARDS LIBRARY
+   lands on that user's account page, which lists the same boards (templates/user/index.hbs) -- not
+   the viewer's own home page's Boards tab, which lists THEIR boards (requested 2026-10-01: switching
+   view on another user's page "you still stay on that user's board", so an SLP can show a
+   communicator what their view would look like). Without an owner the landing is as it was. */
+export function basic_landing_for(route, url, owner) {
   if(!route) { return null; }
+  if(route === 'user.boards' && owner && owner.own === false && owner.user_name) {
+    return { route: 'user.index', models: [owner.user_name] };
+  }
   if(route === 'user.logs' && hasHomeNavParam(url)) { return LOGS_FROM_UPDATES; }
   if(route === 'user.log' && hasHomeNavParam(url)) { return LOG_FROM_UPDATES; }
   var landing = LANDINGS[route] || null;

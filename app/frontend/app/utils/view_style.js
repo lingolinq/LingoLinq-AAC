@@ -83,7 +83,7 @@ export function set_view_style(user, style) {
 
 /* A view change writes a PREFERENCE ON A USER RECORD, and that user is not always the person
  * clicking. `app_state.effective_view_user` resolves to the communicator while a supervisor
- * models for them, or while the supervisor is on that communicator's pages, so the same
+ * models for them (speak mode; not merely on their pages -- services/app-state.js), so the same
  * control that changes your own view changes SOMEONE ELSE'S default when it is pointed at
  * them: stored on their record, synced to every device they use, and persisting long after
  * the modelling session ends.

@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { is_classic, view_style, set_view_style, confirm_view_style_change } from '../utils/view_style';
 import { board_view_route } from '../utils/board_view';
-import { basic_landing_for, hand_off_index_nav } from '../utils/basic_landing';
+import { basic_landing_for, hand_off_index_nav, is_own_page } from '../utils/basic_landing';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 /**
@@ -238,7 +238,11 @@ export default Component.extend({
          THE URL IS PASSED because Updates is an arrival, not a route: `user.logs` counts only
          when it was reached from the pill nav (`?nav=home`). */
       if(next === 'classic') {
-        var landing = basic_landing_for(this.appState.get('current_route') || '', this.get('router.currentURL'));
+        /* WHOSE PAGE IT IS: `page_user` is set for every /:user_id page (routes/user.js), so on
+           someone else's library the landing is their account page, not the viewer's own home. */
+        var page_user = this.appState.get('page_user');
+        var owner = page_user ? { own: is_own_page(page_user, this.appState.get('sessionUser') || this.appState.get('currentUser')), user_name: page_user.get ? page_user.get('user_name') : page_user.user_name } : null;
+        var landing = basic_landing_for(this.appState.get('current_route') || '', this.get('router.currentURL'), owner);
         if(landing && landing.query_params) {
           // Same page, other params (Modern's Updates -> Basic's Logs page); replace, so Back does
           // not return to the Updates address.
