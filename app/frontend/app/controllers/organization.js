@@ -306,5 +306,23 @@ export default Controller.extend({
   focusedRoomsLabel: computed('roomsPageActive', 'appState.effectiveLayout', function() {
     return this.get('roomsPageActive') === true &&
            this.get('appState.effectiveLayout') === 'focused';
+  }),
+
+  /* THE ORG TABS AS A DROPDOWN (2026-10-02): the trigger of the Basic strip's dropdown twin
+     (templates/organization.hbs, shown while the tabs do not fit; modifiers/fit-or-select.js)
+     names the tab you are on, as the home pill dropdown does. Same rule the strip lights by:
+     Admin on the org index (`adminTabActive`), otherwise the people section (`activePeopleSection`;
+     `extras` is the Symbols tab). Placed last so the line-anchored ESLint baseline for this file
+     does not shift. */
+  orgTabLabel: computed('adminTabActive', 'activePeopleSection', function() {
+    if(this.get('adminTabActive')) { return i18n.t('admin', "Admin"); }
+    var labels = {
+      managers: i18n.t('managers', "Managers"),
+      supervisors: i18n.t('supervisors', "Supervisors"),
+      communicators: i18n.t('communicators', "Communicators"),
+      evals: i18n.t('evals', "Evals"),
+      extras: i18n.t('symbols', "Symbols")
+    };
+    return labels[this.get('activePeopleSection')] || i18n.t('admin', "Admin");
   })
 });

@@ -69,6 +69,13 @@
            fall through to the `{{else if this.showSectionPillNav}}` below and draw Modern's strip
            in Basic view. --}}
       {{#if this.showBasicOrgTabs}}
+      {{!-- TABS OR DROPDOWN (2026-10-02, requested): while the six tabs do not fit -- the Basic rail
+           expanded beside them, a narrow window, a longer language -- {{fit-or-select}} swaps the
+           strip for the dropdown below, the Modern home page's pill dropdown (requested: "styled like
+           they are on the home page dropdown pill menu"). Same six destinations as LinkTos, same
+           active one; `md-pillnav-dropdown--user` inherits the <details> styling, as
+           components/user-pill-nav.hbs does. The trigger names the tab you are on. --}}
+      <div class="ch-tabs-fit" {{fit-or-select}}>
       <nav class="ch-tabs ch-tabs--primary" aria-label={{t "Organization Navigation" key="org_navigation"}}>
         <LinkTo @route="organization.index" @model={{this.model.id}} class="ch-tab {{if this.adminTabActive "is-active"}}" aria-current={{if this.adminTabActive "page"}}>
           <span class="ch-tab__label">{{t "Admin" key="admin"}}</span>
@@ -89,6 +96,21 @@
           <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
         </LinkTo>
       </nav>
+      <details class="md-pillnav-dropdown md-pillnav-dropdown--user md-pillnav-dropdown--fit" {{details-autoclose}}>
+        <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
+          <span class="md-pillnav-dropdown__label">{{this.orgTabLabel}}</span>
+          <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <ul class="md-pillnav-dropdown__list" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+          <li><LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav-dropdown__option {{if this.adminTabActive "is-active"}}" aria-current={{if this.adminTabActive "page"}}>{{t "Admin" key="admin"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="managers"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "managers") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "managers") "page"}}>{{t "Managers" key="managers"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="supervisors"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "supervisors") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "supervisors") "page"}}>{{t "Supervisors" key="supervisors"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="communicators"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "communicators") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "communicators") "page"}}>{{t "Communicators" key="communicators"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="evals"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "evals") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "evals") "page"}}>{{t "Evals" key="evals"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="extras"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "extras") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "extras") "page"}}>{{t "Symbols" key="symbols"}}</LinkTo></li>
+        </ul>
+      </details>
+      </div>
       {{/if}}
     {{else if this.showSectionPillNav}}
       {{!-- ...AND NOT AT ALL WHERE THE APP SHELL ALREADY DREW ONE (2026-09-23). On the rooms

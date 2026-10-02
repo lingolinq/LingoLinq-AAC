@@ -1354,6 +1354,41 @@ button.ch-row--sync:focus-visible {
   appearance: none;
 }
 
+// TABS OR DROPDOWN BY FIT (2026-10-02): the org strip (templates/organization.hbs) is wrapped in
+// `.ch-tabs-fit`, which modifiers/fit-or-select.js marks `is-squeezed` while the tabs do not fit
+// -- the rail expanded beside them, a narrow window, a longer language -- instead of at a fixed
+// width. Squeezed, the strip is kept LAID OUT but invisible, across the wrapper's full width, so
+// the modifier can keep measuring it and hand back as soon as it fits; the dropdown shows in its
+// place. The dropdown is the Modern home page's pill dropdown (`.md-pillnav-dropdown--fit`, its
+// parts styled in app.scss at every width since 2026-10-02), at the home dropdown's 52% width.
+// At <=550px the strip is hidden outright (the rule below, as on home) and the dropdown shows.
+.ch-tabs-fit {
+  position: relative;
+}
+.ch-tabs-fit.is-squeezed > .ch-tabs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.ch-tabs-fit > .md-pillnav-dropdown--fit {
+  // The list is absolutely positioned (app.scss, `.md-pillnav-dropdown__list`): anchor it to this
+  // dropdown, as the <=550px container rule does for the home one, not to the wider wrapper.
+  position: relative;
+  width: 52%;
+  margin: 0 auto;
+}
+.ch-tabs-fit.is-squeezed > .md-pillnav-dropdown--fit {
+  display: block;
+}
+@media (max-width: 550px) {
+  .ch-tabs-fit > .md-pillnav-dropdown--fit {
+    display: block;
+  }
+}
+
 .ch-tabs {
   display: flex;
   flex-wrap: wrap;

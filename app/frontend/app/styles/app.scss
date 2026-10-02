@@ -67680,7 +67680,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-shell--user > .md-workspace {
     padding-top: var(--topbar-height, 68px) !important;
   }
-  .md-pillnav-dropdown {
+  .md-pillnav-dropdown:not(.md-pillnav-dropdown--fit) {
     display: none !important;
     position: relative !important;
 
@@ -67695,7 +67695,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     margin-bottom: 0 !important;
 
   }
-
+}
+/* THE DROPDOWN'S OWN PARTS, AT EVERY WIDTH (2026-10-02). Trigger, label, chevron, list, icon and option were
+   styled inside the <=550px block above, so a pill dropdown shown any wider rendered unstyled. The
+   Basic org tabs' dropdown (`--fit`, templates/organization.hbs) shows whenever its tabs do not fit,
+   at any width. Moved out unchanged: every other pill dropdown is still hidden above its own breakpoint,
+   so nothing else looks different. The container rule above (hide, width) stays at <=550px. */
   .md-pillnav-dropdown__trigger {
     width: 100% !important;
 
@@ -67911,7 +67916,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     background: rgba($brand-slate-blue, 0.20) !important;
 
   }
-}
 
 /* Very small screens: keep all pillnavs compact */
 @media (max-width: 375px) {
