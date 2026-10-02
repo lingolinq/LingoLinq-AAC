@@ -525,7 +525,7 @@
           {{#if this.filteredSupervisees}}
           <div class="ch-comms">
             {{#each this.filteredSupervisees as |supervisee|}}
-              <article class="ch-comm">
+              <article class="ch-comm {{if (is-equal this.highlightedSuperviseeId supervisee.id) "ch-comm--highlighted"}}">
                 <div class="ch-comm__head">
                   <img src={{supervisee.avatar_url}} alt="" class="ch-comm__avatar">
                   <div class="ch-comm__ident">

@@ -99,7 +99,9 @@ export default AuthenticatedView.extend({
     var me = this.appState.get('currentUser');
     var modelingOnly = !!(me && me.get('modeling_only'));
     if(nav === 'updates') { return !modelingOnly; }
-    if(nav === 'supervisees') { return !modelingOnly && !!(me && me.get('supporter_role')); }
+    // The same rule that draws the tab (showCommunicatorsTab, 2026-10-02): a handoff to a tab that
+    // is drawn must never be dropped.
+    if(nav === 'supervisees') { return !!this.get('showCommunicatorsTab'); }
     return true;
   },
 
@@ -153,11 +155,24 @@ export default AuthenticatedView.extend({
 
   /* Expand one communicator's card: its Extras panel, the state the card's own Extras button
      toggles (`openSuperviseeId`, classic-view.hbs `ch-comm__extras-panel`), then scroll the card
-     to the top once the tab has rendered it. A name not on this caseload does nothing. */
+     to the top once the tab has rendered it. A name not on this caseload does nothing.
+     MODELING-ONLY COMMUNICATORS ARE HIGHLIGHTED, NOT EXPANDED (2026-10-02, adversarial review), as
+     the Modern caseload's deep link does (controllers/caseload.js): the card's actions are for full
+     supervisors. AN EMPTY LIST IS WAITED FOR: the communicators may not have loaded when the page
+     opened, so the name is kept and retried when they arrive (`expand_when_supervisees_arrive`). */
   _expand_supervisee_card(name) {
-    var match = (this.get('decoratedSupervisees') || []).find(function(s) { return s && s.user_name === name; });
-    if(!match || match.id == null) { return; }
-    this.set('openSuperviseeId', match.id);
+    var list = this.get('decoratedSupervisees') || [];
+    var match = list.find(function(s) { return s && s.user_name === name; });
+    if(!match || match.id == null) {
+      this._awaiting_supervisee = list.length ? null : name;
+      return;
+    }
+    this._awaiting_supervisee = null;
+    if(match.modeling_only) {
+      this.set('highlightedSuperviseeId', match.id);
+    } else {
+      this.set('openSuperviseeId', match.id);
+    }
     var _this = this;
     window.requestAnimationFrame(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -539,4 +554,12 @@ export default AuthenticatedView.extend({
     this._super(...arguments);
     this.get('app_state').set('basic_home_place', null);
   },
+
+  /* The communicator list arriving after a caseload landing (see _expand_supervisee_card). */
+  highlightedSuperviseeId: null,
+  expand_when_supervisees_arrive: observer('decoratedSupervisees', function() {
+    if(this._awaiting_supervisee && !this.isDestroying && !this.isDestroyed) {
+      this._expand_supervisee_card(this._awaiting_supervisee);
+    }
+  }),
 });

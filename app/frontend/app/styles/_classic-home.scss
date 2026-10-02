@@ -2787,6 +2787,12 @@ button.ch-tile--silver:focus-visible {
   @include ch-chip;
 }
 
+// The card a caseload landing points at when its communicator is modeling-only (2026-10-02):
+// highlighted rather than expanded, as the Modern caseload highlights that row.
+.ch-comm--highlighted {
+  outline: 3px solid $brand-verdigris-aa;
+  outline-offset: 2px;
+}
 .ch-comm__head {
   display: flex;
   align-items: center;
