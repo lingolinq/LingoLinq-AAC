@@ -416,10 +416,17 @@
    Subtabs and the <=550px <select> have never been listed: their rings land on the page
    ground, which is light, so navy stays correct for them at 10.86:1. Carries `#within_ember` and the
    same `:not(...)` as every sibling here, per the note above — at (1,4,1) it outranks the
-   global rule's (1,2,0) rather than relying on source order. */
+   global rule's (1,2,0) rather than relying on source order.
+   Modern home, Focused: the Need Attention card is a dark navy dome (_focused-view.scss,
+   `body.ll-layout-focused .md-grid .md-card.md-card--attention`), and its "View all
+   communicators" link (under the list, and in the header in Compressed View) sits straight on
+   it. Measured 2026-10-01: the navy ring there was invisible against the card. Only that link
+   is listed: the attention ROWS are light and keep their own ring (_focused-view.scss,
+   `.md-attention-item:focus-visible`), and the Rooms card is a light panel. */
 body.ll-layout-focused #within_ember .ch-card:not(.ch-card--intro) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 body.ll-layout-focused #within_ember .ch-comm *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
-body.ll-layout-focused #within_ember .ch-menu *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+body.ll-layout-focused #within_ember .ch-menu *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+body.ll-layout-focused #within_ember .md-card--attention .md-card__view-all:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
   border-radius: 6px;
 }
