@@ -1869,18 +1869,18 @@ LingoLinq.Board = BaseModel.extend({
         if(fit.any_fit) {
           text_style = "style='font-size: " + fit.size + "px;'";
         }
-      } else if(txt && pos.width) {
-        // Scale down label font when text is too wide for the button
-        var baseFontSize = size.base_text_height || 18;
-        var estCharWidth = baseFontSize * 0.6;
-        var maxChars = Math.floor(pos.width / estCharWidth);
-        if(txt.length > maxChars && maxChars > 0) {
-          var scaledSize = Math.max(Math.floor(pos.width / (txt.length * 0.6)), 8);
-          if(scaledSize < baseFontSize) {
-            text_style = "style='font-size: " + scaledSize + "px;'";
-          }
-        }
       }
+      /* NO SHRINK-TO-FIT FOR LABELLED BUTTONS IN SPEAK MODE EITHER (2026-10-02, requested). The
+         browsing renderer lost its estimate-and-scale block on 2026-09-15 (utils/button.js
+         #button_html: the same word is the same size on every button; long labels keep their
+         size and clip at one line, `.button span.button-label` in app.scss). This, the Basic
+         board's speak-mode renderer (edit_manager.process_for_displaying: speak mode, not
+         board-detail), still scaled long labels down to 8px, so one board showed up to eight
+         label sizes and broke the 14px AAC floor (scripts/speak-label-size-qa.mjs). The
+         text-only branch above stays: those buttons carry no symbol and are fitted to the tile
+         by design, as in utils/button.js. Kept to this many lines so the line-anchored lint
+         entries below do not move.
+      */
 
       res = res + "<div class='" + button_class + "' " + holder_style + ">";
       res = res + "<span " + text_style + "class='button-label " + (button.hide_label ? "hide-label" : "") + "'>" + txt + "</span>";
