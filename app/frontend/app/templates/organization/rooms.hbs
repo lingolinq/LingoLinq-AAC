@@ -38,8 +38,10 @@
          as a control rather than restyled from scratch so the two surfaces cannot drift, and
          `@models` takes the ROOM's own `organization_id` -- as Modern's does -- rather than the
          page's, so a card always points at its own org even if this list is ever unfiltered. --}}
+    {{!-- Search filter (2026-10-01): by room name; a supervisor's rooms carry no people to match. --}}
+    {{#if this.showRoomFilter}}<ListFilter @value={{this.roomFilter}} @label={{t "Filter rooms" key="filter_rooms"}} @placeholder={{t "Filter rooms by name" key="filter_rooms_by_name"}} @onInput={{set-field this "roomFilter"}} @onClear={{this.ctrlActionNoBubble "clearRoomFilter"}} />{{/if}}
     <div class="md-rooms__grid">
-      {{#each this.ownRooms as |room|}}
+      {{#each this.filteredOwnRooms as |room|}}
         <LinkTo @route="organization.room" @models={{array room.organization_id room.id}} class="md-room-card" title={{room.name}}>
           <span class="md-room-card__icon" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M14 12h.01"/></svg>
@@ -49,6 +51,7 @@
         </LinkTo>
       {{/each}}
     </div>
+    <div role="status" aria-live="polite">{{#unless this.filteredOwnRooms.length}}<p class="md-muted">{{t "No matches" key="no_matches"}}</p>{{/unless}}</div>
   {{else}}
     <p class="md-muted">{{t "You do not supervise any rooms in this organization." key="no_supervised_rooms"}}</p>
   {{/if}}
@@ -68,7 +71,8 @@
   <p class="md-org-error">{{t "There was an unexpected problem loading rooms" key="error_loading_rooms"}}</p>
 {{else if this.units}}
   <div class="md-org-rooms">
-    {{#each this.units as |unit|}}
+    {{#if this.showRoomFilter}}<ListFilter @value={{this.roomFilter}} @label={{t "Filter rooms" key="filter_rooms"}} @placeholder={{t "Filter rooms by name or person" key="filter_rooms_by_name_or_person"}} @onInput={{set-field this "roomFilter"}} @onClear={{this.ctrlActionNoBubble "clearRoomFilter"}} />{{/if}}
+    {{#each this.filteredUnits as |unit|}}
       <div class="md-org-room-card">
         <div class="md-org-room-card__header">
           <div class="md-org-room-card__title-row">
@@ -172,6 +176,8 @@
         </div>
       </div>
     {{/each}}
+    {{!-- Polite live region: says when the filter matches nothing (2026-10-01). Inside .md-org-rooms so the Focused panel styling, which keys on it, stays while typing. --}}
+    <div role="status" aria-live="polite">{{#unless this.filteredUnits.length}}<p class="md-muted">{{t "No matches" key="no_matches"}}</p>{{/unless}}</div>
   </div>
 {{else}}
   <div class="md-org-rooms-empty">

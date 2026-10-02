@@ -9626,5 +9626,8 @@
   "no_supervised_rooms": "*** You do not supervise any rooms in this organization.",
   "no_supervised_rooms_any": "*** You do not supervise any rooms yet.",
   "classic_org_rail_aria": "*** Organization navigation",
-  "choose_organization": "*** Choose an organization"
+  "choose_organization": "*** Choose an organization",
+  "filter_rooms": "*** Filter rooms",
+  "filter_rooms_by_name": "*** Filter rooms by name",
+  "filter_rooms_by_name_or_person": "*** Filter rooms by name or person"
 }

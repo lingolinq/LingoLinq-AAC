@@ -1,6 +1,12 @@
 import Route from '@ember/routing/route';
 
 export default Route.extend({
+  /* Leaving the page clears the search filter: the controller is a singleton, so it would otherwise
+     still be filtering on the next visit (2026-10-01; the caseload had this leak). */
+  resetController: function(controller, isExiting) {
+    this._super.apply(this, arguments);
+    if(isExiting) { controller.set('roomFilter', ''); }
+  },
   model: function() {
     var model = this.modelFor('organization');
     return model;
@@ -25,6 +31,8 @@ export default Route.extend({
        entirely, since the branch below never touches `units` for them.
        Everything else on this page derives from `model.id` and invalidates on its own. */
     controller.set('units', null);
+    // The search filter belongs to the org it was typed on (2026-10-01).
+    controller.set('roomFilter', '');
     if(model && model.get('permissions.edit')) {
       controller.refresh_units();
       model.load_users();

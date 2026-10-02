@@ -70,6 +70,41 @@ export default Controller.extend({
       return collator.compare((a && a.name) || '', (b && b.name) || '');
     });
   }),
+  /* THE SEARCH FILTER (2026-10-01, requested). Supervisors' rooms (`ownRooms`) carry a name only;
+     managers' `units` also list their supervisors and communicators, so a manager can find the
+     room someone is in. Case-insensitive substring. The unfiltered lists stay as they are:
+     `max_session_count` (the shared stats bar scale) keeps reading every room. */
+  roomFilter: '',
+  _roomQuery: computed('roomFilter', function() {
+    return (this.get('roomFilter') || '').trim().toLowerCase();
+  }),
+  filteredOwnRooms: computed('ownRooms.[]', '_roomQuery', function() {
+    var q = this.get('_roomQuery');
+    var list = this.get('ownRooms') || [];
+    if(!q) { return list; }
+    return list.filter(function(r) { return String((r && r.name) || '').toLowerCase().indexOf(q) !== -1; });
+  }),
+  filteredUnits: computed('units.[]', 'units.@each.{name,supervisors,communicators}', '_roomQuery', function() {
+    var units = this.get('units');
+    if(!Array.isArray(units)) { return units; }
+    var q = this.get('_roomQuery');
+    if(!q) { return units; }
+    var has = function(v) { return String(v || '').toLowerCase().indexOf(q) !== -1; };
+    return units.filter(function(u) {
+      if(!u) { return false; }
+      if(has(u.get ? u.get('name') : u.name)) { return true; }
+      var people = [].concat((u.get ? u.get('supervisors') : u.supervisors) || [], (u.get ? u.get('communicators') : u.communicators) || []);
+      return people.some(function(p) { return p && has(p.user_name); });
+    });
+  }),
+  // Shown with more than one room (the UNFILTERED count, as the caseload does), or while a filter is
+  // set so it can be cleared.
+  showRoomFilter: computed('ownRooms.[]', 'units.[]', 'roomFilter', 'model.permissions.edit', function() {
+    if(this.get('roomFilter')) { return true; }
+    var units = this.get('units');
+    var count = this.get('model.permissions.edit') ? (Array.isArray(units) ? units.length : 0) : (this.get('ownRooms') || []).length;
+    return count > 1;
+  }),
   refresh_units: function() {
     var _this = this;
     this.set('units', {loading: true});
@@ -117,6 +152,9 @@ export default Controller.extend({
   },
 
   actions: {
+    clearRoomFilter: function() {
+      this.set('roomFilter', '');
+    },
     add_unit: function() {
       var name = this.get('new_unit_name');
       var _this = this;

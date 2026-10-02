@@ -45,21 +45,8 @@
                .board-picker__filter pattern used elsewhere in the app
                so the UX reads as familiar. --}}
           {{#if this.showSuperviseeFilter}}
-            <div class="md-caseload__filter" role="search">
-              <span class="md-caseload__filter-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </span>
-              {{!-- Scope is stated in BOTH the placeholder and the accessible name:
-                   the global "Search Boards" field in the app header looks similar,
-                   and a placeholder alone is neither a label nor visible once the
-                   user has typed. --}}
-              <input type="search" value={{this.superviseeFilter}} class="md-caseload__filter-input" placeholder={{t "Filter caseload by name or goal" key="filter_caseload_placeholder"}} aria-label={{t "Filter caseload" key="filter_caseload"}} autocomplete="off" {{on "input" (set-field this "superviseeFilter")}} />
-              {{#if this.superviseeFilter}}
-                <button type="button" class="md-caseload__filter-clear" {{on "click" (this.ctrlActionNoBubble "clearSuperviseeFilter")}} aria-label={{t "Clear filter" key="clear_filter"}} title={{t "Clear filter" key="clear_filter"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              {{/if}}
-            </div>
+            {{!-- The shared filter box (components/list-filter.hbs); same markup and classes as before. --}}
+            <ListFilter @value={{this.superviseeFilter}} @label={{t "Filter caseload" key="filter_caseload"}} @placeholder={{t "Filter caseload by name or goal" key="filter_caseload_placeholder"}} @onInput={{set-field this "superviseeFilter"}} @onClear={{this.ctrlActionNoBubble "clearSuperviseeFilter"}} />
           {{/if}}
           {{#if this.filteredSupervisees.length}}
           {{!-- Compact student list (Google Classroom-style). When

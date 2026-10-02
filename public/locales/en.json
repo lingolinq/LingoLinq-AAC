@@ -8840,5 +8840,8 @@
   "classic_short_basic_access": "Access",
   "offline_boards_subtitle": "Offline boards",
   "view_all_short": "View all →",
-  "choose_organization": "Choose an organization"
+  "choose_organization": "Choose an organization",
+  "filter_rooms": "Filter rooms",
+  "filter_rooms_by_name": "Filter rooms by name",
+  "filter_rooms_by_name_or_person": "Filter rooms by name or person"
 }
