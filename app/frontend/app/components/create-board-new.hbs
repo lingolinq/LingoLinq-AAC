@@ -794,6 +794,10 @@
                          {{on "dragend" (this.eventAction "cellDragEnd")}}>
                       <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}} {{if cell.is_duplicate "md-board-detail-symbol-card--duplicate"}} {{if cell.no_category "md-board-detail-symbol-card--no-category"}}"
                            style={{cell.bg_style}}>
+                        {{#if cell.uploading}}
+                          {{!-- The drop spinner while a dropped image uploads (create-board-new.js _set_label_uploading). --}}
+                          <span class="ll-drop-uploading" role="status" aria-label={{t "Loading..." key="loading"}}><span class="md-loading-spinner" aria-hidden="true"></span></span>
+                        {{/if}}
                         {{#unless cell.empty}}
                           {{#if cell.is_duplicate}}
                             {{!-- Duplicate-label warning icon. Pinned to the

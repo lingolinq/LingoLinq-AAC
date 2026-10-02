@@ -1078,7 +1078,7 @@ export default Component.extend({
     return (this.get('entryViewStyle') || this.get('appState.effective_view_style')) === 'classic';
   }),
 
-  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'positional_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', 'appState.sessionUser.preferences.skin', function() {
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'positional_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', '_uploading_labels', 'paint_mode', 'appState.sessionUser.preferences.skin', function() {
     var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
     var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
     rows = Math.max(0, Math.min(20, rows));
@@ -1200,7 +1200,7 @@ export default Component.extend({
           is_duplicate: is_duplicate,
           no_category: no_category,
           bg_style: bg_style,
-          image_url: image_url,
+          image_url: image_url, uploading: !!(label && (this.get('_uploading_labels') || {})[label.toLowerCase()]), // the drop spinner (_set_label_uploading)
           // A near-white POS fill (conjunction/article) counts as no
           // color visually, so the template adds the `--no-color` class
           // and the preview's flat-card rule kicks in. Painted cells
@@ -2296,13 +2296,13 @@ export default Component.extend({
     });
     // Track so Create can wait for the hosted URL before baking buttons.
     if(!this._pending_label_image_uploads) { this._pending_label_image_uploads = []; }
-    this._pending_label_image_uploads.push(upload_promise);
+    this._pending_label_image_uploads.push(upload_promise); this._set_label_uploading(key, true);
     var clear_pending = function() {
       var list = _this._pending_label_image_uploads || [];
       var idx = list.indexOf(upload_promise);
-      if(idx >= 0) { list.splice(idx, 1); }
+      if(idx >= 0) { list.splice(idx, 1); } _this._set_label_uploading(key, false);
     };
-    upload_promise.then(clear_pending, clear_pending);
+    upload_promise.then(clear_pending, function() { clear_pending(); if(!_this.isDestroyed && !_this.isDestroying) { modalUtil.error(i18n.t('upload_failed', "Upload failed")); } });
     return upload_promise;
   },
 
@@ -3678,5 +3678,17 @@ export default Component.extend({
       if(this.get('skin_is_mix_only'))   { this._rebuild_compound_skin('mix_only'); }
       if(this.get('skin_is_mix_prefer')) { this._rebuild_compound_skin('mix_prefer'); }
     }
+  },
+
+  /* THE DROP SPINNER (2026-10-02, requested: "make sure the image drag drop works on board buttons on
+     the create-board-new page"). While a dropped image uploads (_applyDroppedImageToLabel), its label's
+     preview cell carries `uploading`, and the template puts the same `.ll-drop-uploading` veil over the
+     button that board-alt and board-detail show (services/content-grabbers.js drop_spinner_show).
+     Keyed by lower-cased label, like `_label_images`; a new map each time so preview_grid recomputes. */
+  _set_label_uploading: function(key, on) {
+    if(!key || this.isDestroyed || this.isDestroying) { return; }
+    var next_map = Object.assign({}, this.get('_uploading_labels') || {});
+    if(on) { next_map[key] = true; } else { delete next_map[key]; }
+    this.set('_uploading_labels', next_map);
   }
 });
