@@ -56,6 +56,7 @@ module('Unit | Utility | badge_display', function() {
   });
 
   test('THE MECHANISM: the result survives JSON.stringify on a payload that reached the store', function(assert) {
+    assert.expect(3);
     var supervisees = [{ id: '1_1170', user_name: 'someone' }];
     supervisees[0].current_badge = badge_snapshot(record_like({ id: '9', name: 'Talker', image_url: '/b.png', progress: 0.4 }));
     var json = null;
@@ -64,11 +65,15 @@ module('Unit | Utility | badge_display', function() {
     } catch (e) {
       assert.ok(false, 'threw: ' + e.message);
     }
-    assert.ok(json && json.indexOf('Talker') > -1, 'the badge is still there to render');
-    assert.ok(json && json.indexOf('notifications') === -1, 'and the store did not ride along');
+    // Split from `json && ...` (qunit/no-assert-logical-expression, 2026-10-02): the null case
+    // now fails on its own assertion instead of inside the expression; the two checks are unchanged.
+    assert.notStrictEqual(json, null, 'the payload serialized');
+    assert.true(json.indexOf('Talker') > -1, 'the badge is still there to render');
+    assert.strictEqual(json.indexOf('notifications'), -1, 'and the store did not ride along');
   });
 
   test('is an allowlist: exactly the four fields the consumers read, and nothing else', function(assert) {
+    assert.expect(8);
     var snap = badge_snapshot(record_like({ id: '9', name: 'Talker', image_url: '/b.png', progress: 0.4 }));
     // THE ASSERTION THAT FORCES AN ALLOWLIST. Without it, "copy everything then delete the keys
     // I know about" passes the whole module and still ships the bug, because a record's internal
