@@ -741,6 +741,14 @@ describe User, :type => :model do
       u.reload.settings['preferences']['board_category_grouping']
     end
 
+    # NEW USERS START WITH CATEGORIES OFF (2026-10-01, requested: "ensure that every newly
+    # registered user's categories is turned off by default"). generate_defaults backfills
+    # User.preference_defaults onto a new account before its first save.
+    it "is off for a newly registered user" do
+      u = User.create
+      expect(u.reload.settings['preferences']['board_category_grouping']['enabled']).to eq(false)
+    end
+
     it "stores enabled as off for a user without the flag, whatever truthy shape arrives" do
       [true, 'true', 1, '1'].each do |value|
         g = stored_grouping(value)

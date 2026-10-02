@@ -57,10 +57,10 @@ module FeatureFlags
               # preferences.board_category_grouping says enabled. The code, the preference and
               # its sanitizer are kept for when the work resumes; re-register it here only
               # (beta opt-in), not in ENABLED. Pinned by spec/lib/feature_flags_spec.rb.
-              # Saved values were reset to off by lib/board_category_grouping_reset.rb, and the
-              # guard in User#sanitize_board_category_grouping! refuses "on" without this flag.
-              # A deploy's old revision can still re-save "on" during cutover, so run
-              # BoardCategoryGroupingReset.run once more before re-registering the flag. Also
+              # User#sanitize_board_category_grouping! stores "on" as off without this flag; new users
+              # default off. Saved values are not reset on deploy (that migration was removed
+              # 2026-10-01) and are inert while the flag is off, so run BoardCategoryGroupingReset.run
+              # (lib/board_category_grouping_reset.rb) before re-registering the flag. Also
               # note that registering it here alone reaches more than beta opt-in: canary users
               # get every AVAILABLE flag not in DISABLED_CANARY_FEATURES, and a stored
               # default/org Setting that still lists it switches it on for everyone

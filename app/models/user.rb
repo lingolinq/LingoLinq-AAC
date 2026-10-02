@@ -3318,8 +3318,9 @@ class User < ApplicationRecord
     ).merge('boards' => clean_boards)
     # IN PROGRESS GUARD (2026-09-28). Only a user with the board_category_grouping flag may
     # store grouping as on; while the flag is out of every list (lib/feature_flags.rb) that is
-    # nobody. A stale or offline client re-sends its whole preferences hash on any save, which
-    # would otherwise undo BoardCategoryGroupingReset. Checked on the REBUILT value so 'true',
+    # nobody. A stale or offline client re-sends its whole preferences hash on any save, so a
+    # stored "on" from before this guard is turned off on that save (no migration resets them;
+    # see lib/board_category_grouping_reset.rb). Checked on the REBUILT value so 'true',
     # 1 and '1' are caught, and only when it is on, so ordinary saves skip the flag lookup.
     # The check is on THIS user (the preference's owner), not on whoever is editing it, so
     # during a beta a flagged supervisor cannot switch it on for an unflagged communicator.
