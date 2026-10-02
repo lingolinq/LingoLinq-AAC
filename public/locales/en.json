@@ -5159,6 +5159,7 @@
   "update_license": "Please update your license",
   "preview_expires": "your free preview ends",
   "classic_short_home": "Home",
+  "classic_short_board": "Board",
   "copying_board": "copying %{brd}...",
   "let_us_help_choose_home": "Let us help you choose one.",
   "classic_short_team": "Team",

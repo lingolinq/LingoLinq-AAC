@@ -103,6 +103,27 @@ export default Component.extend({
   orgAdmin: computed('org.permissions.edit', function() {
     return !!this.get('org.permissions.edit');
   }),
+  /* THE TWO ORG MENUS (2026-10-01, requested). An org EDITOR gets the org menu (`orgNav`): the org's
+     rows, collapsed by default. Someone with ROOMS ACCESS ONLY -- the rooms list and a room are the
+     org pages they can open -- gets a mix (`roomsOnly`): Home Page, Organizations (if they manage an
+     org), Basic Access, Create a New Board, Home Board, then this org's Rooms, lit. The org menu
+     alone gave them two rows, collapsed, so arriving from home changed the menu and moved the page;
+     the mix keeps the home rows they use and follows their own collapsed choice. */
+  orgNav: computed('orgSection', 'orgAdmin', function() {
+    return this.get('orgSection') && this.get('orgAdmin');
+  }),
+  roomsOnly: computed('orgSection', 'orgAdmin', function() {
+    return this.get('orgSection') && !this.get('orgAdmin');
+  }),
+  /* The org Rooms row is lit on the rooms list AND a room's page (components/dashboard/
+     classic-rail-org-rooms.hbs). Decided here from the route NAME because the row's LinkTo cannot:
+     it checks its own models against the route, and `organization.room` also needs a room id, which
+     a row holding only the org's id cannot supply. The router first, `current_route` as the
+     in-flight fallback, as controllers/organization.js `roomsPageActive` reads them. */
+  roomsActive: computed('router.currentRouteName', 'appState.current_route', function() {
+    var route = this.get('router.currentRouteName') || this.get('appState.current_route') || '';
+    return route === 'organization.rooms' || route === 'organization.room';
+  }),
 
   supervisorCount: computed('appState.currentUser.supervisors', function() {
     return (this.appState.get('currentUser.supervisors') || []).length;
@@ -145,7 +166,8 @@ export default Component.extend({
   }),
 
   /* COLLAPSED BY DEFAULT INSIDE AN ORGANISATION (2026-09-25, requested: "when an organization is
-   * selected, make the ch-rail unexpanded by default").
+   * selected, make the ch-rail unexpanded by default"). The editors' org menu only, since
+   * 2026-10-01: the rooms-only mix follows the stashed choice (see `orgNav` / `roomsOnly`).
    *
    * PRESENTATIONAL, NOT PERSISTED -- the same split `classic-account-rail.js` makes for its
    * auto-collapse at narrow widths, and for the same reason. `classic_rail_collapsed` is the
@@ -162,8 +184,8 @@ export default Component.extend({
    * `aria-expanded` and the expand/collapse label all have to agree, and they only do if there is
    * one answer for them to read. */
   org_expanded: false,
-  isCollapsed: computed('orgSection', 'org_expanded', 'railCollapsed', function() {
-    if(this.get('orgSection')) { return !this.get('org_expanded'); }
+  isCollapsed: computed('orgNav', 'org_expanded', 'railCollapsed', function() {
+    if(this.get('orgNav')) { return !this.get('org_expanded'); }
     return this.get('railCollapsed');
   }),
 
@@ -180,9 +202,9 @@ export default Component.extend({
 
   actions: {
     toggle_rail: function() {
-      /* In org mode the control is a LOCAL override (see `isCollapsed` above); only outside it
-         does it write the preference the other two rails share. */
-      if(this.get('orgSection')) {
+      /* In the editors' org menu the control is a LOCAL override (see `isCollapsed` above); outside
+         it, the rooms-only mix included, it writes the preference the other two rails share. */
+      if(this.get('orgNav')) {
         this.set('org_expanded', !this.get('org_expanded'));
         return;
       }
