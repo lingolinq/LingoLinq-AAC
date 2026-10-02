@@ -1047,8 +1047,20 @@
    to be one size down the whole list. */
 .md-caseload__list-quick .md-caseload__quick-action--model,
 .md-caseload__list-quick .md-caseload__quick-action--choose-board,
+.md-caseload__list-quick .md-caseload__quick-action--remote,
 .md-caseload__list-quick .md-caseload__quick-action--ideas {
   flex: 0 0 86px;
+}
+/* Remote Modeling (2026-10-02): its "Limited" pill sits on the tile's top-right edge, where the
+   lock badge sits on the unavailable tiles, so it does not widen the tile or push the label. */
+.md-caseload__quick-action--remote {
+  position: relative;
+}
+.md-caseload__quick-action--remote .md-limited-badge {
+  position: absolute;
+  top: -9px;
+  right: -6px;
+  margin-left: 0;
 }
 /* Choose-Board slot — shown in place of Model when a communicator has no home
    board yet. It is the row's PRIMARY action (denim tile, above) because it is
@@ -2177,6 +2189,7 @@ a.md-caseload__quick-action {
 
 /* Two-word labels wrap inside the shared tile width instead of widening it. */
 .md-caseload__quick-action--choose-board .md-caseload__quick-label,
+.md-caseload__quick-action--remote .md-caseload__quick-label,
 .md-caseload__quick-action--ideas .md-caseload__quick-label {
   white-space: normal;
   text-align: center;

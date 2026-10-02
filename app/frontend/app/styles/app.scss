@@ -5551,6 +5551,25 @@ tr.accuracy_non_mastered {
   border-radius: inherit;
   background: rgba(255, 255, 255, 0.72);
 }
+/* "LIMITED" BADGE (2026-10-02): marks a Remote Modeling entry the signed-in supporter cannot use in
+   full yet (utils/remote_modeling.js); a click explains why. One pill for every entry that shows
+   it (Basic communicator menu, Modern caseload row and tiles, account Extras). */
+.md-limited-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-verdigris-aa, 0.55);
+  background: #FFFFFF;
+  color: $brand-verdigris-aa;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: middle;
+}
 
 /* Copy-Board modal loading rows — used by both the route and the
    component template. Vertically stacks the modern spinner above its

@@ -632,7 +632,10 @@
                     <li><LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}} class="ch-menu__item">{{t "Eval History" key="eval_history_link"}}</LinkTo></li>
                   {{/if}}
                   {{#if this.app_state.feature_flags.remote_modeling}}
-                    <li><button type="button" class="ch-menu__item" {{on "click" (this.ctrlAction "remote_model" supervisee)}}>{{t "Remote Modeling" key="remote_modeling"}}</button></li>
+                    {{!-- Always offered; "Limited" when it cannot connect yet, and the click says why (utils/remote_modeling.js). --}}
+                    {{#let (remote-modeling-access supervisee) as |rm|}}
+                      <li><button type="button" class="ch-menu__item" {{on "click" rm.open}}>{{t "Remote Modeling" key="remote_modeling"}}{{#if rm.limited}}<span class="md-limited-badge">{{t "Limited" key="remote_modeling_limited"}}</span>{{/if}}</button></li>
+                    {{/let}}
                   {{/if}}
                 </ul>
 
