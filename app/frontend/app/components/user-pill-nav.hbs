@@ -52,6 +52,10 @@
     {{else}}
       <LinkTo @route="organization.rooms" @model={{this.roomsOrgId}} class="{{this.pillClass}}" data-tour-pill="rooms">{{t "Rooms" key="rooms"}}</LinkTo>
     {{/if}}
+  {{else if this.showAdminPill}}
+    {{!-- A site admin with neither of the above gets System Settings here (utils/admin_nav). That
+         page has its own nav, so this pill is never the current one. --}}
+    <LinkTo @route="system-settings.emails" class="{{this.pillClass}}" data-tour-pill="admin">{{t "Admin" key="admin"}}</LinkTo>
   {{/if}}
 
 
@@ -128,6 +132,8 @@
       <li><LinkTo @route="organizations" class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "organizations") "is-active"}}">{{t "Organizations" key="organizations"}}</LinkTo></li>
     {{else if this.showRoomsPill}}
       <li><LinkTo @route="organization.rooms" @model={{this.roomsOrgId}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "rooms") "is-active"}}">{{t "Rooms" key="rooms"}}</LinkTo></li>
+    {{else if this.showAdminPill}}
+      <li><LinkTo @route="system-settings.emails" class="md-pillnav-dropdown__option">{{t "Admin" key="admin"}}</LinkTo></li>
     {{/if}}
     <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
     <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal this.activeKey "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>

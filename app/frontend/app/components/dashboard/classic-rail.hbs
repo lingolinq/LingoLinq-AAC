@@ -442,6 +442,20 @@
     </li>
     {{/if}}
     {{/unless}}
+    {{!-- ADMIN (2026-10-02): System Settings for a site admin who manages no org and supervises no
+         rooms, in the Rooms row's place and on the same one-slot rule (utils/admin_nav). --}}
+    {{#if this.showAdminRow}}
+    <li class="ch-rail__item">
+      <LinkTo @route="system-settings.emails" class="ch-row ch-row--minor">
+        <span class="ch-row__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6Z" stroke="#46505F"/><path d="M9 12l2 2 4-4" stroke="#2A9D8F"/></svg>
+        </span>
+        <span class="ch-row__short" aria-hidden="true">{{t "Admin" key="admin"}}</span>
+        <span class="ch-row__body"><span class="ch-row__title">{{t "System Settings" key="system_settings_nav"}}</span></span>
+        <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+      </LinkTo>
+    </li>
+    {{/if}}
 
     {{!-- ROOMS ROW REMOVED FROM THE RAIL (requested 2026-09-23). A closed access point,
          not a removed feature: the Rooms page is unchanged and still reachable from the

@@ -6,6 +6,7 @@ import i18n from '../../utils/i18n';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
+import { showsAdminSlot } from '../../utils/admin_nav';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
 
 /**
@@ -492,5 +493,12 @@ export default AuthenticatedView.extend({
       if(!user_name) { return; }
       this.get('router').transitionTo('user.logs', user_name);
     }
-  }
+  },
+
+  /* System Settings in the Rooms row's place for a site admin with no org and no rooms: the
+     third alternative of the one slot (utils/admin_nav), so it never shows beside either. */
+  showAdminRow: computed('appState.currentUser.{admin,is_admin,permissions,has_management_responsibility}',
+                         'appState.currentUser.supervised_units.[]', function() {
+    return showsAdminSlot(this.appState.get('currentUser'));
+  }),
 });

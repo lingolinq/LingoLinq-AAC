@@ -5,6 +5,7 @@ import i18n from '../utils/i18n';
 import { pendingUpdates, PENDING_UPDATE_KEYS } from '../utils/pending_updates';
 import { is_classic } from '../utils/view_style';
 import { roomsOrgId, showsRoomsPill } from '../utils/rooms_nav';
+import { showsAdminSlot } from '../utils/admin_nav';
 
 /**
  * Shared primary pill-nav for the user-level pages (Boards / Reports / the
@@ -106,9 +107,17 @@ export default Component.extend({
      carries Rooms in the same slot and the same six items, so they need the same breakpoint --
      bound to the pill being drawn rather than to one of the two reasons it might be. */
   hasSlotPill: computed('appState.currentUser.has_management_responsibility', 'showRoomsPill',
-                        function() {
+                        'showAdminPill', function() {
     return !!this.get('appState.currentUser.has_management_responsibility') ||
-           !!this.get('showRoomsPill');
+           !!this.get('showRoomsPill') || !!this.get('showAdminPill');
+  }),
+
+  /* THE SLOT'S THIRD ALTERNATIVE: System Settings for a site admin who has neither Organizations
+     nor Rooms (utils/admin_nav). Same `permissions` whole-object dependency as
+     controllers/application.js showBetaFeedbackAdminLink, for the same invalidation reason. */
+  showAdminPill: computed('appState.currentUser.{admin,is_admin,permissions,has_management_responsibility}',
+                          'showRoomsPill', function() {
+    return showsAdminSlot(this.get('appState.currentUser'));
   }),
 
   activeLabel: computed('activeKey', function() {

@@ -4,6 +4,7 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import modal from '../../utils/modal';
 import { pillForRoute } from '../../utils/primary_nav';
+import { showsAdminSlot } from '../../utils/admin_nav';
 
 /* The Basic-view rail, as a component any page can render.
  *
@@ -163,6 +164,13 @@ export default Component.extend({
   roomsAllOrgId: computed('sortedRooms.[]', function() {
     var first = (this.get('sortedRooms') || [])[0];
     return first && first.organization_id;
+  }),
+
+  /* System Settings in the Rooms row's place for a site admin with no org and no rooms: the
+     third alternative of the one slot (utils/admin_nav), so it never shows beside either. */
+  showAdminRow: computed('appState.currentUser.{admin,is_admin,permissions,has_management_responsibility}',
+                         'appState.currentUser.supervised_units.[]', function() {
+    return showsAdminSlot(this.appState.get('currentUser'));
   }),
 
   /* Collapsed state is stashed, not local, so collapsing the rail on one page keeps it
