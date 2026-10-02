@@ -98695,6 +98695,128 @@ span.md-board-detail-modeling-btn--badge {
   display: inline-block;
   text-align: center;
 }
+/* ADMIN ACTIONS (templates/organization/extras.hbs, restyled 2026-10-02 onto the Settings
+   primitives above). What those do not already cover: an input that shares its row with a
+   button, a two-up grid for the purchase forms, and the lists (blocked emails and cells, custom
+   purchases). */
+.md-org-admin-actions__input {
+  flex: 1 1 220px;
+  width: auto;
+  min-width: 0;
+}
+.md-org-admin-actions__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.md-org-admin-actions__create {
+  margin-top: 20px;
+}
+.md-org-admin-actions__check {
+  margin-bottom: 14px;
+}
+.md-org-admin-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.md-org-admin-list__item {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--md-ink, $brand-blue-black);
+  overflow-wrap: anywhere;
+}
+.md-org-admin-list__item + .md-org-admin-list__item {
+  border-top: 1px solid rgba($la-navy, 0.06);
+}
+.md-org-admin-list--gifts {
+  max-height: 420px;
+}
+.md-org-admin-gift {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.md-org-admin-gift__icon {
+  flex: 0 0 auto;
+  font-size: 22px;
+  line-height: 1;
+  color: $brand-dusty-denim-aa;
+  padding-top: 2px;
+}
+.md-org-admin-gift__body a {
+  font-weight: 600;
+}
+.md-org-admin-gift__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--md-muted, $la-navy);
+}
+/* Billing Details' four license counts: two by two, one column on phones. */
+.md-org-billing-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 550px) {
+  .md-org-billing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* BILLING DETAILS' "Associated Purchases" (templates/organization/subscription.hbs, restyled
+   2026-10-02): user / purchase / expires as rows in the same rounded panel as the lists above,
+   with a muted header row. Stacks to one column on narrow screens. */
+.md-org-billing-subs {
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+.md-org-billing-subs__row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-org-billing-subs__row + .md-org-billing-subs__row {
+  border-top: 1px solid rgba($la-navy, 0.06);
+}
+.md-org-billing-subs__row--head {
+  font-weight: 700;
+  color: var(--md-muted, $la-navy);
+  background: rgba($la-navy, 0.03);
+}
+.md-org-billing-subs__user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.md-org-billing-subs__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+@media (max-width: 550px) {
+  .md-org-billing-subs__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .md-org-billing-subs__row--head {
+    display: none;
+  }
+}
 .md-org-settings-textarea {
   display: block;
   width: 100%;
