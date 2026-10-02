@@ -157,11 +157,11 @@ export default Route.extend({
             var want_alt = board_view_route(model) === 'user.board-alt';
             resume_url = '/' + board_match[1] + (want_alt ? '/board/' : '/board-detail/') + board_match[2];
           }
-          var resume = this.router.replaceWith(resume_url);
-          // The remembered page can have gone away since last session (a deleted
-          // board, a supervisee relationship that ended, a renamed org). Drop the
-          // stale record and fall back to the default landing page rather than an
-          // error page.
+          var resume = this.router.replaceWith(resume_url); resume = (resume && resume.followRedirects) ? resume.followRedirects() : resume;
+          // The remembered page can have gone away (a deleted board, an ended supervision): drop the
+          // record and land on the default page. NOT on a redirect: Basic redirects several pages
+          // (utils/basic_landing.js), which aborts this transition, so its own promise rejected and
+          // the page was forgotten; followRedirects settles where they end (2026-10-01).
           if (resume && resume.then) {
             resume.then(null, function() {
               sessionHistory.clear_location(user_name);
