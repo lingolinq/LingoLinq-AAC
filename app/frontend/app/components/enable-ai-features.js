@@ -65,8 +65,10 @@ export default Component.extend({
     return this.get('model.blockedReason') === 'permission';
   }),
 
+  // Only the account the caller passed (utils/ai_board_generation_access.js
+  // passes the signed-in person). No fallback: with none, nothing is saved.
   _user: function() {
-    return this.get('model.user') || this.get('appState.currentUser');
+    return this.get('model.user') || null;
   },
 
   _rollback: function() {
