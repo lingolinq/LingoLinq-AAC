@@ -66,6 +66,10 @@ describe 'privacy locale English pins' do
       'AI request logs: the audit record (AiApiLog) tied to a user account is deleted when that account is deleted; IP addresses on those records are redacted at 90 days.',
     'privacy_special_coppa_v2' =>
       'For a family-managed account belonging to a child under 13, LingoLinq obtains verifiable parental consent where COPPA requires it. When a school district provides and manages the account, the district may authorize LingoLinq, including its approved AI supports, for a school-authorized educational purpose and no other commercial purpose. That authorization is limited to the district-sponsored use and ends when the district releases the account or its license seat; continued family use then follows the applicable parent or guardian authorization process. We do not use student information for advertising or to train general-purpose AI models. If we learn we collected a child\'s personal information without the authorization required for that deployment, we will delete it promptly.',
+    'privacy_special_ai_consent_intro' =>
+      'Because AI word prediction sends some information outside LingoLinq for processing, it requires an applicable authorization for that feature: the adult account holder\'s choice, a parent or guardian\'s consent for a family-managed child account, or valid district authorization for a school-sponsored educational use. AI-drafted evaluation summaries are currently inactive and send nothing to any AI company; that feature produces a draft on our own systems instead, and turning on live AI evaluation summaries would require an updated disclosure and fresh applicable authorization before anything is sent. You do not have to enable these AI features to use the rest of LingoLinq. See our',
+    'privacy_special_ai_consent_outro' =>
+      'for the full details and how to authorize, decline, or turn off these features.',
   }.freeze
 
   english = JSON.parse(File.read(File.join(locale_dir, 'en.json')))
