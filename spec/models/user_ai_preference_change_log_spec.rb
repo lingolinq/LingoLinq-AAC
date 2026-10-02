@@ -63,6 +63,34 @@ describe User, 'AI preference change log' do
     end
   end
 
+  context 'EU under-16 account without consent that has AI stored as on' do
+    let(:u) do
+      user = User.create(settings: { 'registration' => { 'eu_under_16' => true } })
+      User::EU_AI_PREF_KEYS.each { |k| user.settings['preferences'][k] = true }
+      user
+    end
+
+    it 'leaves an explicit choice to turn AI off unmarked, though the EU rule also sets it off' do
+      change(u, 'ai_features_enabled' => false)
+      entry = (u.settings['confirmation_log'] || []).detect { |e| e['setting'] == 'ai_features_enabled' }
+      expect(entry).to be_present
+      expect(entry['from']).to eq(true)
+      expect(entry['to']).to eq(false)
+      expect(entry.key?('source')).to eq(false)
+    end
+
+    it 'marks the keys a save left out, which the EU rule turned off' do
+      change(u, 'ai_features_enabled' => false)
+      entries = (u.settings['confirmation_log'] || []).select { |e| e['setting'].to_s.start_with?('ai_') && e['setting'] != 'ai_features_enabled' }
+      expect(entries.map { |e| e['setting'] }).to match_array(User::EU_AI_PREF_KEYS - ['ai_features_enabled'])
+      entries.each do |entry|
+        expect(entry['from']).to eq(true)
+        expect(entry['to']).to eq(false)
+        expect(entry['source']).to eq('eu_forced')
+      end
+    end
+  end
+
   it 'leaves a person\'s own change unmarked' do
     u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => false } })
     change(u, 'ai_features_enabled' => true)
