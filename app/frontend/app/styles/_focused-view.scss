@@ -986,14 +986,18 @@ body.ll-view-modern.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-
    `.md-hero--org` in the descendant part keeps this off the Reports page, which also carries
    `.md-stats-main` but has no org hero.
 
-   NO `!important`: at (0,7,1) against the base rules' (0,3,0) this wins on specificity alone,
+   BOTH VIEWS SINCE 2026-10-01 (was `body.ll-view-modern.ll-layout-focused`): Basic's rooms pages
+   now show their header as Modern's do (requested; see `md-hero--org-rooms` in _classic-home.scss),
+   so in Focused they take this same still, meta-less list header.
+
+   NO `!important`: at (0,6,1) against the base rules' (0,3,0) this wins on specificity alone,
    which matters because this partial is `@use`d and so EMITTED BEFORE app.scss -- a tie would
    have gone to the base rule. */
-body.ll-view-modern.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-hero--org .md-hero__title .md-hero__title--from-left {
+body.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-hero--org .md-hero__title .md-hero__title--from-left {
   animation: none;
   opacity: 1;
 }
-body.ll-view-modern.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-hero--org .md-hero__sub--meta {
+body.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-rooms-empty) .md-hero--org .md-hero__sub--meta {
   display: none;
 }
 
@@ -5960,7 +5964,10 @@ body.ll-view-modern.ll-layout-focused .ll-appshell__content .md-compact-head--ro
 // NO GAP ABOVE THE ORGANISATION SWITCHER, with or without Compressed View (requested 2026-09-30):
 // its 68px top margin (_classic-home.scss) clears the floating pill nav, which the page label above
 // it now does, so here it only opened a gap between the label and the switcher.
-body.ll-view-modern.ll-layout-focused .md-shell--org-rooms {
+// BOTH VIEWS since 2026-10-01: Basic's Focused rooms list has the same page label above its switcher
+// (controllers/organization.js `focusedRoomsLabel`), and its own 28px (_classic-home.scss) doubled
+// the gap Modern shows there.
+body.ll-layout-focused .md-shell--org-rooms {
   --dn-org-switcher-top: 0;
 }
 

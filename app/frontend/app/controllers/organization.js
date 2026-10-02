@@ -42,12 +42,21 @@ export default Controller.extend({
   }),
 
   /* THE ROOMS LIST, for the `md-shell--org-rooms` modifier on this section's shell
-     (templates/organization.hbs), which the Basic + Focused spacing rule keys on
-     (_classic-home.scss). Exact match for the same reason as Admin above; the router first and
+     (templates/organization.hbs), which Modern's Focused rooms-list rules key on (Basic's top
+     spacing applies to every org page since 2026-10-01). Exact match for the same reason as Admin above; the router first and
      `app_state.current_route` as the fallback, the pair `showSectionPillNav` reads below. */
   roomsPageActive: computed('router.currentRouteName', 'appState.current_route', function() {
     var route = this.get('router.currentRouteName') || this.get('appState.current_route') || '';
     return route === 'organization.rooms';
+  }),
+
+  /* THE ROOMS SECTION: the list AND a room's page (`organization.room` is a sibling route of the
+     list in router.js). Puts `md-hero--org-rooms` on the org header (templates/organization.hbs),
+     which Basic's still, meta-less org header excludes (_classic-home.scss), so the header there
+     shows as Modern's does (requested 2026-10-01). Same route reads as `roomsPageActive`. */
+  roomsSectionActive: computed('router.currentRouteName', 'appState.current_route', function() {
+    var route = this.get('router.currentRouteName') || this.get('appState.current_route') || '';
+    return route === 'organization.rooms' || route === 'organization.room';
   }),
 
   /* BASIC'S ADMIN TABS (Admin, Managers ... Symbols) ARE FOR ORG EDITORS ONLY, on every org page
@@ -137,8 +146,13 @@ export default Controller.extend({
      NOTHING ELSE CHANGED TO SUIT MODERN: the `.ch-org-switcher` / `.ch-org-dropdown` rules in
      _classic-home.scss are written unscoped (only the hero-spacing rule beside them carried a
      `body.ll-view-basic`, now widened to match this), and the control's look was already built
-     to the app's modern-select idiom rather than Basic's. */
-  showOrgSwitcher: computed('switchableOrgs.[]', function() {
+     to the app's modern-select idiom rather than Basic's.
+     NOT ON A ROOM'S OWN PAGE (2026-10-01, requested: "there shouldn't be an organizational dropdown
+     there since the user has already selected a specific room for a specific org"). Route read as
+     `roomsPageActive` reads it. */
+  showOrgSwitcher: computed('switchableOrgs.[]', 'router.currentRouteName', 'appState.current_route', function() {
+    var route = this.get('router.currentRouteName') || this.get('appState.current_route') || '';
+    if(route === 'organization.room') { return false; }
     return (this.get('switchableOrgs') || []).length > 1;
   }),
 
@@ -284,13 +298,13 @@ export default Controller.extend({
     }
   },
 
-  /* THE ROOMS LIST IN MODERN + FOCUSED (requested 2026-09-29/30): a page label ("Rooms - <org>"
-     with the two-toned icon, the Dashboard label's markup) in place of the hero title and its
-     divider (templates/organization.hbs). Placed last so the
-     line-anchored ESLint baseline for this file does not shift. */
-  focusedRoomsLabel: computed('roomsPageActive', 'appState.effectiveLayout', 'appState.effective_view_style', function() {
+  /* THE ROOMS LIST IN FOCUSED (requested 2026-09-29/30 for Modern; Basic too since 2026-10-01,
+     requested: its rooms header should match Modern Focused's): a page label ("Rooms - <org>" with
+     the two-toned icon, the Dashboard label's markup) in place of the hero title and its divider
+     (templates/organization.hbs). Placed last so the line-anchored ESLint baseline for this file
+     does not shift. */
+  focusedRoomsLabel: computed('roomsPageActive', 'appState.effectiveLayout', function() {
     return this.get('roomsPageActive') === true &&
-           this.get('appState.effectiveLayout') === 'focused' &&
-           this.get('appState.effective_view_style') === 'modern';
+           this.get('appState.effectiveLayout') === 'focused';
   })
 });

@@ -1396,8 +1396,10 @@ button.ch-row--sync:focus-visible {
   gap: 16px;
   /* PUSHED DOWN, AND CLOSER TO THE TITLE (requested 2026-09-23). The 28px above separates it
      from the tab strip; the 0 below hands the remaining gap entirely to the hero's own
-     padding, which is tightened just beneath. */
-  margin: 28px auto 0;
+     padding, which is tightened just beneath.
+     Reads --dn-org-switcher-top, which the Focused rooms list sets to 0 in both views (2026-10-01;
+     _focused-view.scss): its "Rooms - <org>" page label sits right above and carries the gap. */
+  margin: var(--dn-org-switcher-top, 28px) auto 0;
   width: fit-content;
   max-width: 100%;
   padding: 14px 16px;
@@ -1750,16 +1752,22 @@ body.ll-view-modern .md-workspace:has(.ch-org-switcher) .md-hero--org {
    GENTLE ONLY WITHOUT A LAYOUT TEST: `body.ll-layout-focused .md-shell--reports-view
    .md-hero--reports-dashboard` is `display: none !important` (_focused-view.scss:1011), so this
    hero does not exist in Focused and cannot animate there. A `:not(.ll-layout-focused)` here
-   would be a condition that is already guaranteed. */
-body.ll-view-basic .md-hero--dashboard:not(.md-hero--reports-dashboard) .md-hero__title .md-hero__title--from-left,
-body.ll-view-basic .md-hero--dashboard:not(.md-hero--reports-dashboard) .md-hero__sub .md-hero__sub--from-right {
+   would be a condition that is already guaranteed.
+   THE ROOMS PAGES ARE EXCLUDED TOO (2026-10-01, requested: "on basic view, the rooms page headers
+   should show like they do on modern view"), the same way and for the same reason as Reports:
+   `md-hero--org-rooms` (controllers/organization.js `roomsSectionActive`) marks the org header on
+   the rooms list and a room's page, which then move as Modern's do. In Focused the rooms LIST is
+   stilled again, for both views, by the rule in _focused-view.scss that Modern Focused has there. */
+body.ll-view-basic .md-hero--dashboard:not(.md-hero--reports-dashboard):not(.md-hero--org-rooms) .md-hero__title .md-hero__title--from-left,
+body.ll-view-basic .md-hero--dashboard:not(.md-hero--reports-dashboard):not(.md-hero--org-rooms) .md-hero__sub .md-hero__sub--from-right {
   animation: none;
   opacity: 1;
 }
 /* The "User · Manager" counts under the org title. Scoped to `.md-hero--org` rather than the
    `--meta` modifier generally, which the reports dashboard also uses and which was not asked
-   about. */
-body.ll-view-basic .md-hero--org .md-hero__sub--meta {
+   about. Not on the rooms pages (`md-hero--org-rooms`, 2026-10-01; see the motion rule above):
+   they show the counts as Modern does. */
+body.ll-view-basic .md-hero--org:not(.md-hero--org-rooms) .md-hero__sub--meta {
   display: none;
 }
 

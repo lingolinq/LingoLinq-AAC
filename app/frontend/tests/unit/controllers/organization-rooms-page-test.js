@@ -3,8 +3,8 @@ import Service from '@ember/service';
 import { setupTest } from '../../helpers';
 
 /* `roomsPageActive` drives `md-shell--org-rooms` on the org shell (templates/organization.hbs),
- * which is the hook for the Basic + Focused Rooms page's top spacing (requested 2026-09-28,
- * _classic-home.scss). A route-derived class rather than a `:has()` on the page's content,
+ * a hook for the Focused Rooms list's rules (requested 2026-09-28; Basic's top spacing covers
+ * every org page since 2026-10-01). A route-derived class rather than a `:has()` on the page's content,
  * because the rooms template has no root element and its content differs between the manager
  * and supervisor branches and while loading -- a content hook would let the page jump.
  *

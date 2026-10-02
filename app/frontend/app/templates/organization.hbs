@@ -114,7 +114,7 @@
       </nav>
     {{/if}}
 
-    {{!-- Modern + Focused Rooms list (controllers/organization.js#focusedRoomsLabel): the page
+    {{!-- Focused Rooms list, both views (controllers/organization.js#focusedRoomsLabel): the page
          label the other pages carry (the Dashboard's `md-compact-head` markup and two-toned icon)
          with the organisation's name in it, in place of the hero title and its divider. --}}
     {{#if this.focusedRoomsLabel}}
@@ -170,7 +170,7 @@
         </details>
       </div>
     {{/if}}
-    <header class="md-hero md-hero--dashboard md-hero--org">
+    <header class="md-hero md-hero--dashboard md-hero--org {{if this.roomsSectionActive "md-hero--org-rooms"}}">
       {{#unless this.focusedRoomsLabel}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">
           {{#if this.model.permissions.view}}
