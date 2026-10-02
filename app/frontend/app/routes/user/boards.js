@@ -29,6 +29,9 @@ export default Route.extend({
   afterModel: function(model, transition) {
     var _this = this;
     return wait_for_session_user(this.get('appState')).then(function(sessionUser) {
+      // Gone elsewhere during the wait (2026-10-02, adversarial review): never redirect over the
+      // newer navigation.
+      if(transition && transition.isAborted) { return; }
       var me = _this.get('appState.currentUser') || sessionUser;
       // By user_name as well as id (utils/basic_landing.js#is_own_page, shared with the View menu).
       var own = is_own_page(model, me);

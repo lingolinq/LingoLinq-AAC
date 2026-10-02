@@ -4,6 +4,11 @@ import i18n from '../../utils/i18n';
 import { markUpdatesRead } from '../../utils/pending_updates';
 import { basic_landing_for, is_basic_viewer, query_string_for } from '../../utils/basic_landing';
 import { wait_for_session_user } from '../../utils/session_user_wait';
+import session from '../../utils/session';
+
+/* How long to wait for the signed-in user when the address is THEIR OWN log (2026-10-02,
+   adversarial review). See afterModel. */
+var OWN_LOG_WAIT_MS = 8000;
 
 export default Route.extend({
   app_state: service('app-state'),
@@ -27,7 +32,15 @@ export default Route.extend({
     var _this = this;
     var landing = basic_landing_for('user.logs', query_string_for(transition));
     if(!landing || !landing.query_params) { return; }
-    return wait_for_session_user(this.get('app_state')).then(function(sessionUser) {
+    /* A SLOW COLD LOAD (2026-10-02, adversarial review). After the default 1.2s wait the user was
+       unknown, nothing redirected, and the `type=note` load marked the newest message read. When
+       the address is the signed-in account's own log -- the session knows its user name before
+       the record arrives -- wait longer for the record already being fetched; only this exact
+       arrival (a bookmark or Back to Modern's Updates address) pays the wait. */
+    var own_by_name = !!(model && session.get('user_name') && model.get('user_name') === session.get('user_name'));
+    return wait_for_session_user(this.get('app_state'), own_by_name ? { timeout: OWN_LOG_WAIT_MS } : undefined).then(function(sessionUser) {
+      // Gone elsewhere during the wait: never redirect over the newer navigation.
+      if(transition && transition.isAborted) { return; }
       var me = _this.get('app_state.currentUser') || sessionUser;
       var own = !!(model && me && (model.get('id') === me.get('id') || model.get('user_name') === me.get('user_name')));
       if(own && is_basic_viewer(_this.get('app_state'), me)) {
