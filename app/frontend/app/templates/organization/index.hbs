@@ -79,7 +79,7 @@
         <div class="md-org-stat-card">
           <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Active Users" key="org_active_users"}}</span></div>
           <div class="md-org-stat-card__body">
-            <span class="md-org-stat-card__value">{{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}} {{t "users" key="users_lower"}}</span>
+            <span class="md-org-stat-card__value">{{this.user_counts.recent_session_user_count}}{{#if this.user_counts.recent_session_total_users}} / {{this.user_counts.recent_session_total_users}}{{/if}} {{t "users" key="users_lower"}}</span>
           </div>
         </div>
         <div class="md-org-stat-card">
@@ -169,8 +169,12 @@
           {{/if}}
         </div>
         <div class="md-org-charts__item">
-          {{#if this.model.total_users}}
-            <Stats::RecentSessions @total={{this.model.total_users}} @recent={{this.user_counts.recent_session_user_count}} />
+          {{!-- Recent users out of a total of THE SAME users (2026-10-02): `recent_session_total_users`
+               comes from the same stats request (api/organizations_controller.rb#stats). The org's
+               own link count was used before, and on the site-admin org, whose recent count is
+               system-wide, the "None Recent" slice went negative and the chart refused to draw. --}}
+          {{#if this.user_counts.recent_session_total_users}}
+            <Stats::RecentSessions @total={{this.user_counts.recent_session_total_users}} @recent={{this.user_counts.recent_session_user_count}} />
           {{else}}
             <div class="md-org-chart-empty">
               <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 13l3-3 3 3 5-5"/></svg>
