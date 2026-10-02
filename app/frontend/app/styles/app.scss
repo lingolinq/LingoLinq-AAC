@@ -97948,10 +97948,51 @@ span.md-board-detail-modeling-btn--badge {
   color: rgba($la-navy, 0.45);
   flex-shrink: 0;
 }
-.md-org-letter-group__letter {
-  font-size: 18px;
-  font-weight: 800;
+/* THE LETTER HEADERS of the All Organizations list (templates/organizations.hbs). The toggle had
+   no rule at all, so it drew as the browser's grey default button (restyled 2026-10-02, requested:
+   "restyle the letter headers with our new modern styles"): a full-width rounded row in the org
+   list rows' language, the letter as a soft badge, the chevron turning when the group is open. The
+   keyboard ring is the app's global one. */
+.md-org-letter-group {
+  margin-bottom: 8px;
+}
+.md-org-letter-group__toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
   color: var(--md-ink, $brand-blue-black);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.md-org-letter-group__toggle:hover {
+  background: rgba($brand-dusty-denim, 0.06);
+  border-color: rgba($brand-dusty-denim, 0.25);
+  box-shadow: 0 2px 8px rgba($brand-dusty-denim, 0.08);
+}
+.md-org-letter-group__toggle .md-muted {
+  font-size: 14px;
+}
+.md-org-letter-group__letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  /* Darker (requested 2026-10-02): solid AA denim with a white letter; white on the AA shade
+     keeps the 4.5:1 that shade is named for. */
+  background: $brand-dusty-denim-aa;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
 }
 .md-org-letter-group__chevron {
   display: inline-block;
@@ -97960,9 +98001,12 @@ span.md-board-detail-modeling-btn--badge {
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-top: 5px solid currentColor;
-  opacity: 0.4;
+  opacity: 0.45;
   transition: transform 0.2s ease;
   margin-left: auto;
+}
+.md-org-letter-group__chevron.is-open {
+  transform: rotate(180deg);
 }
 /* Recent Sessions — a scan-friendly activity feed: each session is a contained
    card with a metadata row (user · time · count-pill) over a muted 2-line

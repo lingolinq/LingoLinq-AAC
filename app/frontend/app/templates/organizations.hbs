@@ -123,7 +123,7 @@
               {{else}}
                 {{#each this.alphabetized_orgs as |letter|}}
                   <div class="md-org-letter-group">
-                    <button type="button" class="md-org-letter-group__toggle" {{on "click" (this.ctrlAction "toggle_letter" letter)}}>
+                    <button type="button" class="md-org-letter-group__toggle" aria-expanded={{if letter.expanded "true" "false"}} {{on "click" (this.ctrlAction "toggle_letter" letter)}}>
                       <span class="md-org-letter-group__letter">{{letter.letter}}</span>
                       <span class="md-muted">{{t "org" count=letter.orgs.length key="n_orgs"}}</span>
                       <span class="md-org-letter-group__chevron {{if letter.expanded "is-open"}}" aria-hidden="true"></span>
