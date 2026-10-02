@@ -5,7 +5,7 @@ import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { copy_or_reuse_as_home } from '../utils/board-copy';
-import { basic_try_for, clear_basic_try } from '../utils/board_picker_landing';
+import { basic_try_for, basic_try_target, clear_basic_try } from '../utils/board_picker_landing';
 
 /**
  * "SET AS HOME BOARD" ON THE BASIC BOARD PAGE AFTER A "TRY" (2026-09-30).
@@ -32,8 +32,10 @@ export default Component.extend({
   mark: computed('appState.basic_try_home', 'appState.currentBoardState.key', function() {
     return basic_try_for(this.get('appState'), this.get('appState.currentBoardState.key'));
   }),
-  shown: computed('mark', 'appState.speak_mode', 'appState.edit_mode', function() {
-    return !!this.get('mark') && !this.get('appState.speak_mode') && !this.get('appState.edit_mode');
+  // Only for a try for SOMEONE ELSE (2026-10-01): a try for yourself gets the header's grey "Set as
+  // Home" instead (templates/application.hbs), so the two never show together.
+  shown: computed('mark', 'appState.currentUser.id', 'appState.speak_mode', 'appState.edit_mode', function() {
+    return basic_try_target(this.get('appState')) === 'other' && !this.get('appState.speak_mode') && !this.get('appState.edit_mode');
   }),
   // For someone other than the signed-in user: the label names them.
   forUserName: computed('mark', 'appState.currentUser.id', function() {

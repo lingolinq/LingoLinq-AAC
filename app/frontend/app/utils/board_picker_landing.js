@@ -40,3 +40,14 @@ export function basic_try_for(appState, key) {
 export function clear_basic_try(appState) {
   appState.set('basic_try_home', null);
 }
+
+/* WHOSE TRY IS ON SCREEN (2026-10-01): 'other' when the board was tried for someone else (an SLP
+   choosing for a communicator), 'self' when for the signed-in user (or no user was recorded), null
+   when the board on screen was not tried. The board header shows ONE home button from this: the
+   blue "Set as Home Board for X" (components/basic-try-home-button.js) for 'other', the grey "Set
+   as Home" (templates/application.hbs, via helpers/basic-try-home.js) for 'self'. */
+export function basic_try_target(appState) {
+  var mark = basic_try_for(appState, appState.get('currentBoardState.key'));
+  if(!mark) { return null; }
+  return (mark.user_id && mark.user_id !== appState.get('currentUser.id')) ? 'other' : 'self';
+}

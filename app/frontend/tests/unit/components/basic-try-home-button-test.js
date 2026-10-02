@@ -83,4 +83,11 @@ module('Unit | Component | basic-try-home-button', function(hooks) {
     assert.deepEqual(t.calls.findRecord, [], 'no load for yourself');
     assert.strictEqual(t.calls.copy[0].user, t.appState.get('currentUser'), 'your own record');
   });
+
+  // Requested 2026-10-01: a try for yourself gets the grey "Set as Home" in the board header
+  // (templates/application.hbs) instead of this button, so the two never show together.
+  test('hidden when the try is for yourself; the header\'s "Set as Home" stands in', function(assert) {
+    assert.false(setup(this, { marker: { key: 'public/core-60', user_id: '1_3', user_name: 'example' } }).component.get('shown'), 'your own id');
+    assert.false(setup(this, { marker: { key: 'public/core-60' } }).component.get('shown'), 'no user recorded');
+  });
 });
