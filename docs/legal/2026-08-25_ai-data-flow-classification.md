@@ -9,7 +9,7 @@
 > history; none of them attests these bytes. See "Corrections in this successor" below.
 
 **Supersedes:** `docs/legal/2026-08-17_ai-data-flow-classification.md` (`DOC-6d37a68cf4`), which remains frozen at the bytes attested 2026-08-19 with its own attestation block unaltered. This dated record is the operative AI data-flow classification from 2026-08-25 forward. Attestation state is maintained in the document register (`audit-reports/DOCUMENT-REGISTER.json`), which is authoritative.
-**Reason for supersession:** The predecessor describes the EU-jurisdiction `AiApiLog` retention tier as **"Enforced"** and **"Now functional ... It matches EU rows"**, and narrates PR #656 as moving that tier "from inert to functional". Tracing the job shows it matches no production row: production has no confirmed `:eu` user, so nothing is stamped. The job itself is real and verified end to end (`spec/models/ai_api_log_spec.rb:550-586`); what is false is that it matches EU rows in production today. No data flow, gate, or classification changes in this successor -- only the enforcement claim. **Revised 2026-10-01:** row 3 below updates the Regulated PII bucket row to follow the privacy policy merged in PR #909 (not yet released to production; pending counsel review).
+**Reason for supersession:** The predecessor describes the EU-jurisdiction `AiApiLog` retention tier as **"Enforced"** and **"Now functional ... It matches EU rows"**, and narrates PR #656 as moving that tier "from inert to functional". Tracing the job shows it matches no production row: production has no confirmed `:eu` user, so nothing is stamped. The job itself is real and verified end to end (`spec/models/ai_api_log_spec.rb:550-586`); what is false is that it matches EU rows in production today. The 2026-08-25 revision made no data flow, gate, or classification changes -- only the enforcement claim. **Revised 2026-10-01:** row 3 below updates the Regulated PII bucket row to follow the privacy policy merged in PR #909 (not yet released to production; pending counsel review).
 
 ## Corrections in this successor
 
@@ -25,7 +25,7 @@
 **Predecessor lineage (inherited text, describes the 2026-08-17 record, not this one):** the 2026-08-17 record superseded `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md`, which remains frozen at the bytes attested 2026-08-08. **This** record supersedes the 2026-08-17 record; see the Supersedes line above, which is authoritative.
 **Predecessor's reason for supersession (inherited text -- why the 2026-08-17 record superseded the 2026-08-08 one; NOT this record's reason, which is stated above):** The predecessor's section 3 operational-status note states **"Status re-verified 2026-08-07: credentialled, carrying no traffic"**, cites serving revision `lingolinq-web-00017-n65`, and records production `AiApiLog` as holding **a single row with no `user_global_id`**. All three were overtaken by the 2026-08-12 production deploy of PR #734. **The classification's operative fact changes: user-attributed prompts now reach the vendor.** See the corrected note in section 3.
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Maintained in `audit-reports/DOCUMENT-REGISTER.json` for this record's row, which is authoritative. The predecessor's status line, which read "Re-attested 2026-08-08 (provisional)", described the predecessor's bytes and is retained there rather than restated here. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See `AI_DATA_SHARING_CONSENT.md` section 9.
+**Status:** Maintained in `audit-reports/DOCUMENT-REGISTER.json` for this record's row, which is authoritative. The predecessor's status line, which read "Re-attested 2026-08-08 (provisional)", described the predecessor's bytes and is retained there rather than restated here. Formal outside counsel review remains deferred until the full 5-phase VPC is built, except that counsel review of `2026-08-25_ai-data-sharing-consent.md` section 6 (which row 3 below follows) is not deferred. See `AI_DATA_SHARING_CONSENT.md` section 9.
 
 **Attestation of this record:** none. This dated successor is a draft. Attestation state lives only in `audit-reports/DOCUMENT-REGISTER.json` (THIS record's row is `DOC-48adac383b`; `DOC-6d37a68cf4` is the PREDECESSOR's row). The dates below are the predecessor's history; they are not a review of these bytes.
 
@@ -375,4 +375,5 @@ follow-up.
 - Selecting and vetting a specific government-ID-verification vendor/integration for Phase 3 (the
   *method* -- gov-ID match -- is decided; the vendor is not).
 - Formal outside-counsel legal review of this document and the disclosure content (deferred to
-  pre-launch, see `AI_DATA_SHARING_CONSENT.md` section 9).
+  pre-launch, see `AI_DATA_SHARING_CONSENT.md` section 9; counsel review of
+  `2026-08-25_ai-data-sharing-consent.md` section 6 is not deferred).

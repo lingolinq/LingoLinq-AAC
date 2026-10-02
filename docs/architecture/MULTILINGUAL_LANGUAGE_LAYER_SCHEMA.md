@@ -64,7 +64,7 @@ LingoLinq already has a working, if English-shaped, pipeline:
   - `tests[]`: `[prior, word, expected, {rule_id}]` fixtures (195 for EN).
 
 ### Storage & runtime
-(Line references re-verified on develop 2026-09-28.)
+(Line references re-verified on develop 2026-10-02.)
 
 - **Backend** `WordData` (one row per word+locale; secure-serialized `data` blob,
   `app/models/word_data.rb:25`, holding `word`, `locale`, `types[]`,
