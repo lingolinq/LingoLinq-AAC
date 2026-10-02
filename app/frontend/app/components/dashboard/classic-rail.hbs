@@ -140,7 +140,7 @@
          page (templates/organization/extras.hbs) renders only for the SITE-admin organisation and
          only for someone with `manage` on it, so this row carries exactly that gate and shows on
          that organisation's pages alone. Until now nothing in the app linked to it. --}}
-    {{#if (and this.org.admin this.org.permissions.manage)}}
+    {{#if (get (org-admin-links this.org) "adminActions")}}
       <li class="ch-rail__item">
         <LinkTo @route="organization.extras" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
           <span class="ch-row__icon" aria-hidden="true">
@@ -241,6 +241,21 @@
           <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
         </LinkTo>
       </li>
+      {{!-- TELEMETRY (2026-10-02, requested): the org's telemetry page had no link anywhere. Offered
+           only to whoever can load it -- an org editor who is a site admin or in the telemetry beta
+           (utils/admin_nav.js canViewOrgTelemetry, the server's own rule). --}}
+      {{#if (get (org-admin-links this.org) "telemetry")}}
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.telemetry" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="#2A9D8F"/></svg>
+          </span>
+          <span class="ch-row__short" aria-hidden="true">{{t "Telemetry" key="telemetry"}}</span>
+          <span class="ch-row__body"><span class="ch-row__title">{{t "Telemetry" key="telemetry"}}</span></span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      {{/if}}
       <Dashboard::ClassicRailOrgRooms @orgId={{this.org.id}} @active={{this.roomsActive}} />
       <li class="ch-rail__item">
         <LinkTo @route="organization.lessons" @model={{this.org.id}} @activeClass="is-active" class="ch-row ch-row--minor">

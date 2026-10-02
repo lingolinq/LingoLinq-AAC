@@ -39,3 +39,19 @@ export function showsAdminSlot(user) {
   if(read(user, 'has_management_responsibility')) { return false; }
   return !showsRoomsPill(user);
 }
+
+/* ORG TELEMETRY LINK (2026-10-02, requested: "add org telemetry", keeping the server's rule). The
+   page (/organizations/:id/telemetry) loads only for someone with `edit` on the org who is also a
+   site admin or opted into the telemetry beta (app/controllers/api/telemetry_controller.rb:40 and
+   require_telemetry_admin_panel), so the link is offered to exactly them. `flags` is
+   app_state.feature_flags. */
+export function canViewOrgTelemetry(org, sessionUser, flags) {
+  if(!read(org, 'permissions.edit')) { return false; }
+  return isSiteAdmin(sessionUser) || !!(flags && read(flags, 'telemetry_admin_panel'));
+}
+
+/* ADMIN ACTIONS LINK: the page (templates/organization/extras.hbs) renders only for the site-admin
+   organisation and only for someone with `manage` on it. */
+export function canViewAdminActions(org) {
+  return !!(read(org, 'admin') && read(org, 'permissions.manage'));
+}

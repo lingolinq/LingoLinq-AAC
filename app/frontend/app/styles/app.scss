@@ -98597,6 +98597,12 @@ span.md-board-detail-modeling-btn--badge {
 .md-org-btn--outline:active {
   transform: scale(0.98);
 }
+/* The Modern org page's Admin tools links (templates/organization/index.hbs), a wrapping row. */
+.md-org-admin-tools__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 
 /* ═══════════════ Organization Settings ═══════════════ */
 .md-org-settings-form {

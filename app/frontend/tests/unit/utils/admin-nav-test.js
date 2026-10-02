@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { isSiteAdmin, showsAdminSlot } from 'frontend/utils/admin_nav';
+import { isSiteAdmin, showsAdminSlot, canViewOrgTelemetry, canViewAdminActions } from 'frontend/utils/admin_nav';
 import { showsRoomsPill } from 'frontend/utils/rooms_nav';
 
 /* THE ADMIN SLOT is the third alternative in the one slot that holds Organizations or Rooms
@@ -31,5 +31,24 @@ module('Unit | Utility | admin_nav', function() {
     assert.false(showsAdminSlot(user({})), 'a plain user');
     assert.false(showsAdminSlot(user({ permissions: { admin_support_actions: false, edit: true } })), 'other permissions');
     assert.false(isSiteAdmin(user({ admin: false, is_admin: false })), 'flags set false');
+  });
+
+  /* The org Telemetry link is offered to exactly who the server serves the page to
+     (api/telemetry_controller.rb): an org editor who is a site admin or in the telemetry beta. */
+  test('Telemetry: org editors who are site admins or in the telemetry beta', function(assert) {
+    assert.expect(5);
+    var editable = { permissions: { view: true, edit: true } };
+    assert.true(canViewOrgTelemetry(editable, user({ admin: true }), {}), 'site admin editor');
+    assert.true(canViewOrgTelemetry(editable, user({}), { telemetry_admin_panel: true }), 'editor in the beta');
+    assert.false(canViewOrgTelemetry(editable, user({}), {}), 'an editor alone');
+    assert.false(canViewOrgTelemetry({ permissions: { view: true } }, user({ admin: true }), { telemetry_admin_panel: true }), 'no edit on the org');
+    assert.false(canViewOrgTelemetry(null, user({ admin: true }), {}), 'no org');
+  });
+
+  test('Admin Actions: the site-admin org, with manage', function(assert) {
+    assert.expect(3);
+    assert.true(canViewAdminActions({ admin: true, permissions: { manage: true } }));
+    assert.false(canViewAdminActions({ admin: false, permissions: { manage: true } }), 'another org');
+    assert.false(canViewAdminActions({ admin: true, permissions: { edit: true } }), 'without manage');
   });
 });

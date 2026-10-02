@@ -12,6 +12,30 @@
        `.md-org-supervisees-link*` remains in app.scss (8 rules) and is now unused -- left in
        place because dead CSS is a separate cleanup from a closed access point. --}}
 
+  {{!-- ADMIN TOOLS, MODERN (2026-10-02, requested: "add Admin actions to Modern admin view" and
+       "add org telemetry"). Modern's org pages have no section menu (templates/organization.hbs
+       keeps its strip to "< Home | section"), so Admin Actions and Telemetry had no way in there;
+       Basic carries both as rail rows. Each link shows by the same rule as its page and the server
+       (utils/admin_nav.js, via the org-admin-links helper). --}}
+  {{#let (org-admin-links this.model) as |links|}}
+    {{#if (and (not links.basic) (or links.adminActions links.telemetry))}}
+      <section class="md-org-section md-org-admin-tools" aria-label={{t "Admin tools" key="org_admin_tools"}}>
+        <div class="md-org-section-head">
+          <div>
+            <h3 class="md-org-section-title">{{t "Admin tools" key="org_admin_tools"}}</h3>
+          </div>
+        </div>
+        <div class="md-org-admin-tools__links">
+          {{#if links.adminActions}}
+            <LinkTo @route="organization.extras" @model={{this.model.id}} class="md-org-btn md-org-btn--outline">{{t "Admin Actions" key="admin_actions"}}</LinkTo>
+          {{/if}}
+          {{#if links.telemetry}}
+            <LinkTo @route="organization.telemetry" @model={{this.model.id}} class="md-org-btn md-org-btn--outline">{{t "Telemetry" key="telemetry"}}</LinkTo>
+          {{/if}}
+        </div>
+      </section>
+    {{/if}}
+  {{/let}}
   {{#if (or this.model.parent_org this.model.children_orgs.length)}}
     <section class="md-org-section md-org-structure" aria-label={{t "Organization structure" key="org_structure"}}>
       <div class="md-org-section-head">
