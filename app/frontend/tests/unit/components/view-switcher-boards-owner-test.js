@@ -39,7 +39,7 @@ module('Unit | Component | view-switcher boards owner', function(hooks) {
     var slp = user('1_3', 'slp_ana');
     var calls = setup(this, user('1_7', 'aiden_parker'), slp);
     this.owner.factoryFor('component:view-switcher').create().send('_apply_view', slp, 'classic');
-    assert.deepEqual(calls, [['transitionTo', 'user.index', 'aiden_parker']]);
+    assert.deepEqual(calls, [['replaceWith', 'user.index', 'aiden_parker']]);
     assert.notOk(this.owner.lookup('service:app-state').get('pending_index_nav'), 'no home-page tab handed off');
   });
 
@@ -47,7 +47,7 @@ module('Unit | Component | view-switcher boards owner', function(hooks) {
     var slp = user('1_3', 'slp_ana');
     var calls = setup(this, user('self', 'slp_ana'), slp);
     this.owner.factoryFor('component:view-switcher').create().send('_apply_view', slp, 'classic');
-    assert.deepEqual(calls, [['transitionTo', 'index']]);
+    assert.deepEqual(calls, [['replaceWith', 'index']]);
     assert.strictEqual(this.owner.lookup('service:app-state').get('pending_index_nav'), 'boards');
   });
 

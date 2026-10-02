@@ -251,7 +251,7 @@ export default Component.extend({
         }
         if(landing) {
           if(landing.index_nav) { hand_off_index_nav(this.appState, landing.index_nav, landing); }
-          this.get('router').transitionTo(landing.route, ...(landing.models || []));
+          this.get('router').replaceWith(landing.route, ...(landing.models || []));
           return;
         }
       }
