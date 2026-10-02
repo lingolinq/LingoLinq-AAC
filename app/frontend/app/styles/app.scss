@@ -49262,7 +49262,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* In a card's HEADER instead (Compressed View, requested 2026-09-30): the header rows are flex
    rows, so it centres on the title's line and is pushed to the right edge rather than taking the
-   column's bottom-right `align-self: flex-end`. */
+   column's bottom-right `align-self: flex-end`.
+   28px, NOT THE 44px AAC TAP TARGET, IS DELIBERATE (decided 2026-10-01): Compressed View is a dense
+   layout for supervisors and staff, not a view intended for AAC users, so the 44px target the
+   communicator-facing views keep does not apply here. Do not raise it to 44px as an audit fix. */
 .md-card__view-all--head {
   align-self: center;
   margin-left: auto;
