@@ -27,7 +27,7 @@
 **Status (PREDECESSOR versions only -- these bytes are an UNATTESTED draft):** Attested by Scot Wahlquist, CEO, 2026-07-09 as a provisional, conservative-default
 position (Task 02-02.8); **re-attested 2026-08-04**. Formal outside counsel review is deferred
 until the full 5-phase VPC is built and ready for real parents -- see section 9. Not yet reviewed
-by outside counsel.
+by outside counsel. (This deferral does not apply to section 6 as revised 2026-10-01; see section 6.)
 **Attestation history (PREDECESSOR versions only):** first attested (provisional) 2026-07-09; re-attested 2026-08-04. The
 **2026-08-04** re-attestation covers the zero-data-retention and training-posture bullets, which
 were narrowed to apply only to the direct `api.anthropic.com` path and now expressly disclaim any
@@ -177,7 +177,7 @@ endpoint. There is no code path in this product that sends data to OpenAI's actu
 |---|---|
 | Non-personal | No second-tier gate; signup consent + feature flag suffice |
 | Scrubbed personal (pseudonymized) | Conservatively personal; gated unless counsel confirms an exemption; never called "de-identified" |
-| Regulated PII | Authorization per the privacy policy (section 6): the adult account holder's choice, verifiable parental consent for a family-managed child account, or district authorization for a district-managed account |
+| Regulated PII | Authorization per the privacy policy (section 6): the account owner's choice (the parent or guardian who owns a family account, for an AAC user of any age, with verifiable parental consent where COPPA requires it; or an adult AAC user who holds their own account), or the district's authorization for a district-managed account (all ages). A clinic or private practice account follows the family account rule. |
 | Never send externally | Blocked unless an explicit approved legal + vendor basis exists |
 
 **AI board suggestions are classified Non-personal (reclassified 2026-07-09, Scot)** -- not gated
@@ -249,7 +249,7 @@ features. For a family-managed child account, the parent or guardian controlling
 withdraw it. A district may disable school-purpose AI or end its authorization, including when it
 releases the account or license seat. Under the privacy policy, once the applicable authorization
 ends, LingoLinq stops new consent-gated AI processing unless another valid authorization applies.
-On revocation:
+Anyone with full (edit) rights on the account can turn AI features off (section 6). On revocation:
 
 - `User#revoke_ai_consent!` (Phase 1) records the revocation; future calls to
   `ai_consent_granted?` return false for that account.
@@ -267,7 +267,7 @@ On revocation:
 
 ## 6. Who can authorize AI features: school district, clinic, and family accounts
 
-**Revised 2026-10-01; pending counsel review.** This section mirrors the privacy policy merged in
+**Revised 2026-10-01; pending counsel review.** This section follows the privacy policy merged in
 PR #909 (not yet released to production; this section takes effect when it is)
 (`privacy_special_coppa_v2`, `privacy_special_ai_consent_intro` and
 `privacy_special_ai_consent_outro` in `public/locales/en.json`, and the `ai_consent_disclosures.v1`
@@ -275,24 +275,43 @@ authorization text in `config/locales/en.yml`). It replaces the provisional 2026
 a school could never authorize AI use for a child under 13; that position remains in the frozen
 predecessor as the record of what was attested then.
 
-AI word prediction sends some information outside LingoLinq for processing, so the privacy policy
-provides that it runs only with the authorization that applies to the account:
+This section follows the privacy policy merged in PR #909, except that the team and supervisor
+model below (set 2026-10-02) replaces #909's sentence about district administrators and delegated
+staff; the privacy policy text is to be updated to match.
 
+Until PR #909 is released to production, the production privacy policy states the earlier position,
+which matches the frozen predecessor's section 6: a school-official authorization covers only
+limited school-curriculum use with no AI features, and AI word prediction or AI-drafted evaluation
+summaries for a child under 13 require verifiable parental consent. That earlier position applies
+until the release.
+
+LingoLinq is team-based. The family (the adult owner: a parent or guardian) owns the account, and
+the AAC user uses it; an adult AAC user may also hold their own account. A school district can
+manage an account it sponsors. AI word prediction sends some information outside LingoLinq for
+processing, so the privacy policy provides that it runs only with the authorization that applies to
+the account:
+
+- **Family (parent-created) account.** The adult owner's authorization applies regardless of the
+  AAC user's age. Where the AAC user is a child under 13, it is verifiable parental consent where
+  COPPA requires it, using the verification method in LingoLinq's consent request (see section 8).
+  An adult AAC user who holds their own account may choose for themselves.
 - **School or district account.** When a school district provides and manages the account, the
   district may authorize LingoLinq, including its approved AI supports, for a school-authorized
-  educational purpose and no other commercial purpose. An authorized district administrator, or a
-  staff member acting within authority the district has delegated, may enable those features; a
-  generic supervisor connection alone does not provide that authority. The authorization is limited
-  to the district-sponsored use and ends when the district releases the account or its license
-  seat. Continued family use then follows the parent or guardian authorization process.
-- **Clinic or private practice account.** The district pathway above applies only to accounts a
-  school district provides and manages. For a child under 13, a clinic or private practice account
-  follows the parent-created rule below. An adult client may choose for themselves. (LingoLinq's
-  reading, approved 2026-10-01; the #909 text does not name clinic accounts.)
-- **Parent-created (family-managed) account.** For a child under 13, a parent or legally authorized
-  guardian provides verifiable parental consent where COPPA requires it, using the verification
-  method in LingoLinq's consent request (see section 8). An adult account holder may choose for
-  themselves.
+  educational purpose and no other commercial purpose. Its authorization covers all of its
+  sponsored students, at any age. It is limited to the district-sponsored use and ends when the
+  district releases the account or its license seat; continued family use then follows the family
+  account rule.
+- **Clinic or private practice account.** The district pathway applies only to accounts a school
+  district provides and manages. A clinic or private practice account follows the family account
+  rule. (LingoLinq's reading, approved 2026-10-01; the #909 text does not name clinic accounts.)
+
+**Supervisors and settings.** Supervisors join an account's team in two ways: the family adds them
+from the user's account and chooses their rights (for example, full or view-only), or a district
+adds its staff through the organization portal and sets their rights under its agreements with
+families and staff. Anyone with full (edit) rights on the account can turn AI features, data
+logging and reports on or off; view-only supervisors cannot. AI features start off until someone
+with full rights turns them on; this default takes effect with the change that turns AI features
+off by default.
 
 For every account type, LingoLinq does not use student information for advertising or to train
 general-purpose AI models, and every non-AI feature works without AI enabled. If LingoLinq learns
@@ -315,7 +334,8 @@ These two questions blocked Task 02-02.8. Per Scot's 2026-07-09 decision, they a
 own business-risk judgment as a **provisional** position, not by outside counsel. Formal counsel
 review, if engaged at all, happens once the full 5-phase VPC is built and ready for real parents
 (see section 9) -- this is consistent with how `AI_GOVERNANCE_MEMO.md`'s open items are already
-tracked and accepted without outside counsel involvement at this stage.
+tracked and accepted without outside counsel involvement at this stage. This deferral does not apply
+to section 6 as revised 2026-10-01, whose counsel review is not deferred (see section 6).
 
 1. **Can scrubbed, neutral AI board generation ever be treated as Non-personal (exempt from the
    second-tier gate), or must it always stay in the Scrubbed-personal (gated) bucket?**
@@ -390,13 +410,14 @@ point, commit `c595f6304a545a6a10de80924edd99951eb41aa5`) by direct inspection o
 | Attested by (PREDECESSOR only) | **Scot Wahlquist, CEO** -- this successor is NOT attested |
 | Attestation date (PREDECESSOR only) | **2026-08-04** (first attested 2026-07-09) |
 | Attestation scope | Provisional business-risk sign-off on the conservative-default position (section 7) and the government-ID-match consent method (section 8). The 2026-08-04 re-attestation additionally covers the ZDR/training-posture narrowing to the direct `api.anthropic.com` path, with no ZDR guarantee claimed for the AWS Bedrock runtime route. NOT a formal outside-counsel legal opinion. |
-| Deferred to | Formal outside counsel review, once the full 5-phase VPC (Phases 1-5) is built and ready to go live for real parents. |
+| Deferred to | Formal outside counsel review, once the full 5-phase VPC (Phases 1-5) is built and ready to go live for real parents. Does not apply to section 6 as revised 2026-10-01, whose counsel review is not deferred (see section 6). |
 
 This document, `AI_DATA_FLOW_CLASSIFICATION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
 and the `privacy.hbs` edits in this phase reflect Scot's provisional attestation of the PREDECESSOR above and may be
 built upon for Phase 3/4/5 work, except the 2026-10-01 revisions to sections 1, 3, 5 and 6, which
 are pending counsel review. They are not yet a formal, counsel-reviewed legal position --
-that review is intentionally deferred (see "Deferred to" above), consistent with how
+that review is intentionally deferred (see "Deferred to" above; section 6 as revised 2026-10-01 is
+the exception, and its counsel review is not deferred), consistent with how
 `AI_GOVERNANCE_MEMO.md` section 7's open items are already tracked and accepted without blocking
 build. Do not represent this content to a real parent, regulator, or auditor as counsel-reviewed
 until that formal review happens.
