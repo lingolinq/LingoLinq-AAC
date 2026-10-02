@@ -348,8 +348,8 @@ export default Controller.extend({
         var key = linked && linked.key;
         var name = linked && linked.name;
         var same_owner = !owner || (key && key.split(/\//)[0] == owner);
-        var topish_key = key && key.match(/(^|[-/])(top[-_]?page|home)([-/]|$)/);
-        var topish_name = name && name.match(/(^|\s)(top page|home)(\s|$)/i);
+        var topish_key = key && key.split('/').pop().match(/^(top[-_]?page|home([-_]?page)?)(_\d+)?$/i); // the WHOLE slug is a top page, not merely contains one (2026-10-02: core-40-things-at-home was copied for core-40)
+        var topish_name = name && name.trim().match(/^(top page|home( page)?)$/i);
         return linked && !linked.link_disabled && same_owner && (linked.home_board || topish_key || topish_name);
       });
       var linked_ref = linked_root && (linked_root.key || linked_root.id);
