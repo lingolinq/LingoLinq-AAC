@@ -294,3 +294,80 @@ a committed test's specification), M4 / M6 / M8 (decisions), and the reviewer-co
   Verified: the compiled CSS diff is additions only, so modern rendering is unchanged; Chrome
   evaluates both @supports conditions as intended; the hero fallbacks match Chrome's resolved
   colours to within one sRGB unit. Not verified on a real old browser.
+
+### Fix status, 2026-10-02
+
+Re-checked against the code; each fix had a red test first and one mutation per fix turned it red.
+
+- **Back-button trap (reviewer-confirmed):** fixed. The switcher half on 10-01; the route half
+  today: `redirect_keeping_history` in utils/basic_landing.js aborts then replaces on a URL
+  transition (Back/Forward/typed). Browser: scripts/view-switch-back-loop-qa.mjs.
+- **View menu ignores whose boards page:** fixed earlier (owner-aware landing, view-switcher.js).
+- **Two home buttons side by side:** fixed earlier (`application.hbs` hides the legacy button while
+  a Try for someone else applies).
+- **Org switcher accessible name:** fixed earlier (`aria-labelledby`, organization.hbs).
+- **Org switcher on every org sub-page:** kept by request (2026-10-01); hidden on a room's own page.
+- **Grouping-reset migration:** the migration was removed (8e4873446); the module stays until
+  Categories ships (decided 2026-10-02).
+- **Feature flags for the Basic features:** decided 2026-10-02, none needed.
+- **Basic "Set as Home Board" skips the picker's tail:** fixed. basic-try-home-button.js preloads the
+  new home board's images and syncs (online, auto-sync) before opening it.
+  tests/unit/components/basic-try-home-button-tail-test.js; browser:
+  scripts/communicator-first-copy-qa.mjs --comm bella_martinez 7/7.
+- **Rooms page, manager record without permissions:** already fixed on 10-01 (routes/organization.js
+  waits for the permissions when online; every link passes an id, so the wait always runs).
+  Verified live today: a permission-less list record, then Rooms in-app, loads 3 rooms.
+- **Logs redirect, timeout and abort:** fixed. On the viewer's own log (known by session user name)
+  the wait is 8s instead of 1.2s; after the wait, logs.js and boards.js return if the transition was
+  aborted. tests/unit/routes/basic-landing-slow-load-test.js; browser: own Updates address with
+  `users/self` held 3s lands on the plain Logs page.
+- **Low, fixed earlier:** session resume `followRedirects`; dead `roomOrgs`; rail `sync_able`;
+  account-page subtitle.
+
+- **Create Board +/- steppers:** fixed. `plus_minus` records `grid_size_chosen` for rows/columns
+  (line-neutral). tests/unit/components/create-board-new-steppers-test.js.
+- **"Save trimmed" drops labels past the grid:** fixed. utils/board_grid.js keeps them, in order,
+  after the trimmed grid's labels. tests/unit/utils/board-grid-trim-test.js.
+- **Speak-mode label shrink (`render_fast_html`):** verified to run only on the Basic board (and the
+  legacy obf/ board page) in Speak mode; removed, as utils/button.js was on 09-15 (option A,
+  Traci). Browser: scripts/speak-label-size-qa.mjs -- before, 16 of 48 labels shrunk to 8-16px
+  (8 sizes on one board); after, all 18px. Trade-off: long labels clip at one line (4 of 48 at
+  1280px, 17 at 700px).
+
+- **Basic caseload landing:** fixed. A modeling-only communicator's card is highlighted
+  (`ch-comm--highlighted`) and scrolled to, not expanded, as Modern does; an empty list at insert
+  is waited for (`expand_when_supervisees_arrive`). Also found: `_tabShown('supervisees')` still
+  required `supporter_role`, so the Communicators handoff was dropped for a parent with
+  communicators even after a9e79990c drew the tab; it now reads `showCommunicatorsTab`.
+  tests/unit/components/classic-view-caseload-landing-gaps-test.js.
+- **Home Board sublabel contrast:** fixed. 0.62 measured 3.68-3.89:1 on the row's gradient; 0.72
+  gives 4.82-5.18:1 (app.scss, in place).
+- **"View all" links 28px:** kept by decision (Traci). Comment in app.scss: the links live only on
+  supporter cards (Rooms, Communicators Need Attention; `supporter_role`,
+  utils/dashboard_sections.js:40-41), never shown to communicators.
+- **`:has()` without fallback:** confirmed real but not actioned: develop already uses `:has()` 891
+  times (1,028 on the branch), and config/targets.js targets only the latest Chrome, Firefox and
+  Safari. Two fallbacks would not change which browsers work. Decision for Traci.
+- **Dead Focused `.ch-rail` rule:** already removed 2026-10-01 (b052ed9fd).
+
+- **Basic home tour (Low):** fixed. Started on another tab, the Reports step spotlit a
+  communicator card's Reports link and the Speak/Extras steps were dropped. The first interior step
+  now switches to the Actions tab (`data-tour-tab="main"`), Actions steps are kept and skipped at
+  show time (`showOn`) if their tile is absent, and Reports targets `.ch-tile--big.ch-tile--reports`.
+  Also found: the done step's `type: 'complete'` failed ember-shepherd's makeButton assertion, so
+  in a development build the Basic tour never started; now an `action` calling `complete()`, as
+  the other tours do. tests/unit/utils/tours-classic-home-tab-test.js; browser walk from the
+  Communicators tab: rail, Speak, Reports (Actions tile), Extras, tabs, done.
+- **Duplicate selector in _reports.scss:** merged (the `color` moved into the one rule; compiled CSS
+  checked).
+- **Spec constants in `describe` blocks:** moved into per-file modules in the three spec/templates
+  files; 6 examples, 0 failures, before and after.
+- **Stale comments:** `_classic-home.scss` "only two !importants" corrected (the file has many);
+  its template line numbers were already gone. The feature_flags.rb "kept on this line" note is
+  NOT stale (capability-check validates its cited lines at HEAD).
+- **`_board_picker.scss` duplicated block:** none found (a same-context duplicate-selector scan
+  returns 0; the tripled class is a deliberate specificity boost).
+- **Low, already fixed:** "View all" aria-labels (no arrow), copy-flow edit route
+  (effective_view_user), Basic Access comment.
+
+Nothing open from this review.
