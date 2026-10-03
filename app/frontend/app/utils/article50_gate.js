@@ -81,8 +81,8 @@ export function art50DisclosureUrl() {
  *
  * NOT to be confused with utils/ai_feature_gate.js, which answers whether an
  * account's AI setting allows a feature: authoringUser (sessionUser) for
- * authoring features such as board generation and eval narration, and
- * aiFeatureEnabled (currentUser) for word prediction. This gate answers a
+ * authoring features such as board generation and eval narration, and both
+ * currentUser and sessionUser for word prediction. This gate answers a
  * different question, about the person told they are using AI; keep them apart.
  */
 export function art50Subject(appState) {

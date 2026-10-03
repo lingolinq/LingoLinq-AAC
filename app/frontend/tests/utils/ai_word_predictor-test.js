@@ -18,6 +18,7 @@ function appStateStub(opts) {
   var user = {
     get: function(key) {
       if(key === 'preferences') { return prefs; }
+      if(key === 'feature_flags') { return { ai_word_prediction: flagOn }; }
       return null;
     },
     preferences: prefs
@@ -25,7 +26,7 @@ function appStateStub(opts) {
   return {
     get: function(key) {
       if(key === 'feature_flags.ai_word_prediction') { return flagOn; }
-      if(key === 'currentUser') { return user; }
+      if(key === 'currentUser' || key === 'sessionUser') { return user; }
       return null;
     }
   };

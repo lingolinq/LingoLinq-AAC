@@ -47,10 +47,10 @@ var ai_word_predictor = {
     // RSVP.resolve([]) with no AJAX call, so the caller falls back to the
     // existing non-AI prediction path with no dialog, error, or indicator of
     // any kind. Acknowledging at any other gated surface (or at session
-    // entry) flips article_50_disclosure_shown, and this check re-evaluates per
-    // call, so prediction re-enables with no extra wiring (after any 403 pause).
+    // entry) flips article_50_disclosure_shown, re-evaluated per call (after any pause).
+    // Both must allow AI: the current user (whose taps are sent) and the signed-in person (words_controller.rb).
     if(needsAcknowledgement(state)) { return false; }
-    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction');
+    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction') && aiFeatureGate.authoringFeatureEnabled(state, 'ai_word_prediction');
   },
 
   predict: function(sentence, options) {

@@ -44,13 +44,13 @@ function makeAppState(opts) {
     ai_word_prediction: true,
     article_50_disclosure: false
   }, opts.flags || {});
-  var user = opts.user !== undefined ? opts.user : makeUser();
+  var user = withPredictionFlag(opts.user !== undefined ? opts.user : makeUser(), flags.ai_word_prediction);
   return {
     get: function(key) {
       if(key.indexOf('feature_flags.') === 0) {
         return flags[key.slice('feature_flags.'.length)];
       }
-      if(key === 'currentUser') { return user; }
+      if(key === 'currentUser' || key === 'sessionUser') { return user; }
       return null;
     }
   };
@@ -80,8 +80,8 @@ function makeSpeakModeAppState(opts) {
       if(key.indexOf('feature_flags.') === 0) {
         return flags[key.slice('feature_flags.'.length)];
       }
-      if(key === 'sessionUser') { return opts.sessionUser; }
-      if(key === 'currentUser') { return opts.currentUser; }
+      if(key === 'sessionUser') { return withPredictionFlag(opts.sessionUser, flags.ai_word_prediction); }
+      if(key === 'currentUser') { return withPredictionFlag(opts.currentUser, flags.ai_word_prediction); }
       return null;
     }
   };
@@ -226,3 +226,15 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
     });
   });
 });
+
+// The ai_word_prediction flag the app-state stub sets, carried on the user
+// record too: is_enabled also reads the signed-in person's own feature_flags.
+function withPredictionFlag(user, on) {
+  if(!user) { return user; }
+  return {
+    get: function(key) {
+      if(key === 'feature_flags') { return Object.assign({}, user.get('feature_flags'), { ai_word_prediction: on }); }
+      return user.get(key);
+    }
+  };
+}
