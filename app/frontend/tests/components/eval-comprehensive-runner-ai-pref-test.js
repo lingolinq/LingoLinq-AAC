@@ -127,13 +127,18 @@ describe('EvalComprehensiveRunner AI narration errors', 'component:eval-comprehe
   }
 
   itAsync('shows neutral translated text when the server says AI narration is not available', async function() {
-    var c = await narrateWithError({ error: 'comprehensive_eval_ai feature not enabled' });
+    var c = await narrateWithError({ fakeXHR: { status: 400 }, message: 'error', result: 'comprehensive_eval_ai feature not enabled' });
     expect(c.get('aiBusy')).toEqual(false);
     expect(c.get('aiError')).toEqual("AI narration is not available for this account right now.");
   });
 
+  itAsync('shows the neutral text for the same reply sent as a 200 body (ApplicationCache clients)', async function() {
+    var c = await narrateWithError({ fakeXHR: { status: 200 }, message: 'error', result: { error: 'comprehensive_eval_ai feature not enabled', status: 400 } });
+    expect(c.get('aiError')).toEqual("AI narration is not available for this account right now.");
+  });
+
   itAsync('shows the general failure text for any other error, never the raw server string', async function() {
-    var c = await narrateWithError({ error: 'some other server error' });
+    var c = await narrateWithError({ fakeXHR: { status: 500 }, message: 'error', result: 'some other server error' });
     expect(c.get('aiError')).toEqual("AI narration failed. Please try again.");
   });
 });

@@ -423,7 +423,10 @@ export default Component.extend({
           _this.set('aiBusy', false);
           // Show a translated message, never the raw server string. The server
           // sends this one for every refusal (setting, organization, consent).
-          if (err && err.error === 'comprehensive_eval_ai feature not enabled') {
+          // The $.ajax wrapper (utils/extras.js) puts it in err.result, or in
+          // err.result.error for the 200-with-body reply to ApplicationCache clients.
+          const reason = err && ((err.result && typeof err.result === 'object') ? err.result.error : err.result);
+          if (reason === 'comprehensive_eval_ai feature not enabled') {
             _this.set('aiError', i18n.t('comp_ai_unavailable', "AI narration is not available for this account right now."));
           } else {
             _this.set('aiError', i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
