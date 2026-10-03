@@ -1,7 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import Service from '@ember/service';
-import { settled } from '@ember/test-helpers';
 import { setupTest } from '../../helpers';
 
 /* ARRIVING FROM THE EXTRAS PAGE (a switch to Basic, utils/basic_landing.js): the Basic home page
@@ -38,7 +37,11 @@ module('Unit | Component | classic-view Extras landing', function(hooks) {
     return { component: component, scrolls: scrolls };
   }
 
-  function frame() { return settled().then(function() { return new Promise(function(r) { window.requestAnimationFrame(r); }); }); }
+  /* Two animation frames, never `settled()`: the handoff runs in didInsertElement (observers in the
+     next run-loop flush) and the scroll in one requestAnimationFrame. `settled()` waits for every
+     run-loop timer in the app, and one earlier test can leave a 15-minute stashes flush timer
+     (learnings-archive/2026-09.md, #1073), so every test here hit the 15s timeout in CI. */
+  function frame() { return new Promise(function(r) { window.requestAnimationFrame(function() { window.requestAnimationFrame(r); }); }); }
 
   test('arriving with the Extras drawer handed off opens it and scrolls to it', async function(assert) {
     var t = setup(this, true);

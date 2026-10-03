@@ -1,7 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import Service from '@ember/service';
-import { settled } from '@ember/test-helpers';
 import { setupTest } from '../../helpers';
 
 /* THE BASIC LANDING FROM ONE COMMUNICATOR'S CASELOAD ROW (2026-10-02, adversarial review, requested:
@@ -40,7 +39,11 @@ module('Unit | Component | classic-view caseload landing gaps', function(hooks) 
     var model = EmberObject.create({ id: '1_3', load_word_activities: function() {} });
     return { me: me, component: context.owner.factoryFor('component:dashboard/classic-view').create({ model: model }) };
   }
-  function frame() { return settled().then(function() { return new Promise(function(r) { window.requestAnimationFrame(r); }); }); }
+  /* Two animation frames, never `settled()`: the handoff runs in didInsertElement (observers in the
+     next run-loop flush) and the scroll in one requestAnimationFrame. `settled()` waits for every
+     run-loop timer in the app, and one earlier test can leave a 15-minute stashes flush timer
+     (learnings-archive/2026-09.md, #1073), so every test here hit the 15s timeout in CI. */
+  function frame() { return new Promise(function(r) { window.requestAnimationFrame(function() { window.requestAnimationFrame(r); }); }); }
 
   test('a modeling-only communicator is highlighted and scrolled to, not expanded', async function(assert) {
     assert.expect(3);
