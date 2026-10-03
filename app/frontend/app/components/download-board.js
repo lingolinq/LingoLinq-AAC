@@ -144,7 +144,7 @@ export default Component.extend({
         }, function() {
           _this.set('progress', {
             status: 'errored',
-            result: i18n.t('Download failed unexpectedly', 'board_download_failed')
+            result: i18n.t('Download failed unexpectedly', "board_download_failed")
           });
         });
       }

@@ -463,6 +463,39 @@ behavior throughout the app.
 
 ---
 
+## 14. Dropdown opens off the side of the page and clips itself
+
+**Symptom:** A dropdown attached to a trigger near the LEFT edge opens
+down-and-to-the-left, running off the page; its labels are cut off.
+(Mirror image: a trigger near the right edge whose menu runs off the right.)
+
+**Cause:** The menu is anchored on the wrong side. `right: 0` pins the
+menu's right edge to the trigger's right edge, so any menu WIDER than its
+trigger grows leftwards. That is invisible while the trigger sits mid-header
+and only shows up once it is near an edge — or once the menu gains a
+`min-width`.
+
+**Fix:** Anchor on the side the trigger is nearest. Edit the existing
+property; do not add an override.
+```scss
+.la-board-mobile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;   /* was `right: 0` — trigger is at the LEFT end of the header */
+  min-width: 240px;
+}
+```
+The menu also needs a positioning ancestor that hugs the trigger, or it
+anchors to whatever wide container is `position: relative` instead — see
+`.la-board-hamburger-wrap` (`app.scss`), added for exactly that reason.
+
+**Example sites:** `.la-board-mobile-menu` (`app.scss`, classic board
+hamburger) and `.ll-viewswitch__menu` (`_view-switcher.scss`, the View
+switcher). Both were `right: 0` and both had to become `left: 0`; the
+second one is why this entry exists.
+
+---
+
 ## How to add to this doc
 
 When you encounter a new repeating problem:

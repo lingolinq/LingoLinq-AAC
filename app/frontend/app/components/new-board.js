@@ -15,6 +15,7 @@ import aiFeatureGate from '../utils/ai_feature_gate';
 import { ensureAiBoardGenerationAccess } from '../utils/ai_board_generation_access';
 import article50Gate from '../utils/article50_gate';
 import buildEventAction from '../utils/event_action';
+import { board_view_route } from '../utils/board_view';
 
 /**
  * New Board Modal Component
@@ -179,7 +180,7 @@ export default Component.extend({
 
   locales: computed(function() {
     var list = i18n.get('locales');
-    var res = [{name: i18n.t('choose_locale', '[Choose a Language]'), id: ''}];
+    var res = [{name: i18n.t('choose_locale', "[Choose a Language]"), id: ''}];
     for(var key in list) {
       res.push({name: list[key], id: key});
     }
@@ -339,7 +340,7 @@ export default Component.extend({
   }),
 
   key_placeholder: computed(function() {
-    return i18n.t('board_key_placeholder', 'board-key');
+    return i18n.t('board_key_placeholder', "board-key");
   }),
 
   updatePreview: observer('model.grid.rows', 'model.grid.columns', function() {
@@ -775,7 +776,10 @@ export default Component.extend({
           // Debounced "Preparing your Board" mask for the post-create board load.
           _this.appState.arm_board_load_overlay(_this.get('router'));
           if (parts.length >= 2) {
-            return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+            // Honor the user's view preference (utils/board_view.js) instead of
+            // hardcoding the modern shell — a classic user who creates/imports a board
+            // must land on their own board view, not be pushed into modern.
+            return _this.get('router').transitionTo(board_view_route(_this.appState.get('effective_view_user')), parts[0], parts.slice(1).join('/'));
           } else {
             return _this.get('router').transitionTo('board', key);
           }

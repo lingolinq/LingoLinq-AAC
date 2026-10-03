@@ -1,0 +1,45 @@
+@use "variables" as *;
+
+// =============================================================================
+// THE CHIP SURFACE — one small raised glass object, shared by both schemes
+// =============================================================================
+//
+// A white sheen over the top of a silver ramp. It is the material behind every classic
+// rail icon and, since 2026-09-14, behind every classic board card.
+//
+// WHY IT LIVES IN ITS OWN MODULE. It started as a hand-written recipe in Gentle's
+// `.ch-row__icon`, was copied into Focused's, then wanted by the board cards in both — four
+// copies of the same eight declarations across three files, each free to drift. Gentle and
+// Focused were asked to match exactly (requested 2026-09-14), so there is now ONE recipe and
+// the two schemes cannot diverge by accident. `_variables.scss` was the only file all three
+// callers already shared, and it is a token file with no mixins in it; a small module of its
+// own keeps that boundary intact and is what `_classic-home.scss`, `_focused-view.scss` and
+// `app.scss` each `@use`.
+//
+// Surface only: no radius, no size. A rail icon is a 13px disc and a board card is a 240px
+// square, and that difference is the point — same material, different object.
+$ch-chip-hi:    #EAEFF6;
+$ch-chip-lo:    #D2DAE5;
+// The inset shade. Near-black rather than either scheme's ink so the chip is scheme-neutral;
+// at 0.10 on a light ramp it is a shading cue, never a contrast surface.
+$ch-chip-shade: #0F172A;
+
+// `$imp` exists for ONE caller. `board-card-modern` (app.scss:97) marks its background,
+// border and box-shadow `!important` by design, so that the shared board look wins over each
+// surface's bespoke rules whatever the source order; anything replacing them has to match
+// that weight. The rail icons pass nothing and emit plain declarations. Pass
+// `$imp: '!important'` only against a rule that is already `!important`, never to win an
+// ordinary cascade.
+@mixin ch-chip($imp: null) {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.90) 0%,
+      rgba(255, 255, 255, 0.42) 48%,
+      rgba(255, 255, 255, 0) 64%),
+    linear-gradient(160deg, $ch-chip-hi 0%, $ch-chip-lo 100%) #{$imp};
+  border: 1px solid rgba(255, 255, 255, 0.85) #{$imp};
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 4px rgba($ch-chip-shade, 0.10),
+    0 3px 8px rgba($focus-shadow-ink, 0.18) #{$imp};
+}

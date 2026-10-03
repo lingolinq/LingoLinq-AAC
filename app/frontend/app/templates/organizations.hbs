@@ -1,8 +1,24 @@
+{{!-- BASIC VIEW GETS THE `ch-` RAIL BESIDE THIS PAGE (requested 2026-09-23). This page is not
+     under the `user` route, so it received neither this rail nor the Modern `AccountRail` --
+     and after the rail's Rooms row was removed, an org-unit supervisor reached their rooms
+     through here with no way back out.
+
+     THE RAIL IS A DIRECT CHILD OF `.md-shell`, deliberately, and it was a sibling of it first.
+     `.md-shell` is the element carrying the page's gradient, so a rail outside it sat on bare
+     page background while the gradient covered only the content column. Putting it inside
+     stretches that background across the whole page, rail included.
+     It is NOT wrapped in a flex div either: `.md-shell > .md-workspace` is a DIRECT-CHILD
+     selector that sets the workspace's `flex` and `min-height`, and any wrapper between the two
+     silently stops those applying -- which would have changed Modern's layout for a Basic-only
+     feature. `.md-shell` is already `display: flex`, so Basic only has to turn it to a row
+     (_classic-home.scss); Modern keeps the column and renders exactly as before. --}}
 <div class="md-shell md-shell--org md-shell--org-directory">
+  {{#if this.isBasicView}}
+    <Dashboard::ClassicRail />
+  {{/if}}
   <div class="md-workspace">
     {{!-- Shared user-level pill-nav (Home / Organizations / Boards / Reports /
          Extras / Account) — the Organizations pill renders as the active page here. --}}
-    <UserPillNav @active="organizations" @userName={{this.app_state.currentUser.user_name}} />
     <header class="md-hero md-hero--dashboard">
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Organizations" key="my_organizations"}}</span></h1>
       <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Choose an organization to" key="choose_org_to_manage_pre"}} <em class="md-hero__gradient-text">{{t "manage or view..." key="choose_org_to_manage_em"}}</em></span></p>
@@ -95,6 +111,11 @@
                     <LinkTo @route="organization.settings" @model={{org.id}} class="md-org-user-row__edit" aria-label={{t "Edit" key="edit"}}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </LinkTo>
+                    {{!-- Billing (2026-10-02): the org's license crediting page, from the list itself, so Modern has a route
+                         to it too (Basic also has the Billing row in the org side menu). --}}
+                    <LinkTo @route="organization.subscription" @model={{org.id}} class="md-org-user-row__edit md-org-user-row__billing" aria-label={{t "Billing Details" key="subscription_details"}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
+                    </LinkTo>
                     {{#unless org.admin}}
                       <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "remove_org" org)}} aria-label={{t "Delete" key="delete"}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -107,7 +128,7 @@
               {{else}}
                 {{#each this.alphabetized_orgs as |letter|}}
                   <div class="md-org-letter-group">
-                    <button type="button" class="md-org-letter-group__toggle" {{on "click" (this.ctrlAction "toggle_letter" letter)}}>
+                    <button type="button" class="md-org-letter-group__toggle" aria-expanded={{if letter.expanded "true" "false"}} {{on "click" (this.ctrlAction "toggle_letter" letter)}}>
                       <span class="md-org-letter-group__letter">{{letter.letter}}</span>
                       <span class="md-muted">{{t "org" count=letter.orgs.length key="n_orgs"}}</span>
                       <span class="md-org-letter-group__chevron {{if letter.expanded "is-open"}}" aria-hidden="true"></span>
@@ -123,6 +144,11 @@
                           </LinkTo>
                           <LinkTo @route="organization.settings" @model={{org.id}} class="md-org-user-row__edit" aria-label={{t "Edit" key="edit"}}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </LinkTo>
+                          {{!-- Billing (2026-10-02): the org's license crediting page, from the list itself, so Modern has a route
+                               to it too (Basic also has the Billing row in the org side menu). --}}
+                          <LinkTo @route="organization.subscription" @model={{org.id}} class="md-org-user-row__edit md-org-user-row__billing" aria-label={{t "Billing Details" key="subscription_details"}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
                           </LinkTo>
                           {{#unless org.admin}}
                             <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "remove_org" org)}} aria-label={{t "Delete" key="delete"}}>

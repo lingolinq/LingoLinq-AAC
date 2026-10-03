@@ -1,24 +1,14 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
-import { scheduleOnce } from '@ember/runloop';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import Badge from '../models/badge';
-
-function resolveSuperviseeHomeBoardKey(s) {
-  if (!s || typeof s !== 'object') {
-    return null;
-  }
-  return (
-    s.home_board_key ||
-    s.homeBoardKey ||
-    (s.home_board && typeof s.home_board === 'object' && s.home_board.key) ||
-    (s.preferences && s.preferences.home_board && s.preferences.home_board.key) ||
-    null
-  );
-}
+// Moved to utils/ so the classic home page's supervisee menu resolves the key
+// exactly the same way this page does. Behavior is unchanged.
+import { resolveSuperviseeHomeBoardKey } from '../utils/supervisee_home_board';
+import scrollBelowHeader from '../utils/scroll_below_header';
 
 // Palette for the 10 colored avatar PNGs in public/avatars/. The
 // caseload card renders its outer glass frame from the inline SVG
@@ -168,9 +158,9 @@ export default Controller.extend({
     // a later list update re-run this. Never invent a selection for an unknown name.
     if (!match) { return; }
     this.set('_deepLinkAppliedFor', name);
-    /* A stale roster filter can hide the very row we are deep-linking to, which made the
-       arrival silently do nothing for the rest of the session. */
-    if (this.get('superviseeFilter')) { this.set('superviseeFilter', ''); }
+    /* A stale roster filter, or the Needs attention toggle when this communicator needs none, can
+       hide the very row we are deep-linking to, which made the arrival silently do nothing. */
+    this.setProperties({ superviseeFilter: '', attentionOnly: !!this.get('attentionOnly') && !!attentionBadgeFor(match) });
     if (match.modeling_only) {
       this.set('highlightedSupervisee', name);
       this.set('selectedSupervisee', null);
@@ -181,9 +171,10 @@ export default Controller.extend({
     }
     // Deferred so the row has actually rendered with its --active/--highlighted
     // class before we look for it. requestAnimationFrame rather than the runloop's
-    // scheduleOnce (used by selectSupervisee below) purely to avoid adding another
-    // `ember/no-runloop` violation to this file — the project has no ember-lifeline
-    // dependency to migrate to. The callback is best-effort: it re-checks isDestroyed
+    // scheduleOnce purely to avoid an `ember/no-runloop` violation — the project has no
+    // ember-lifeline dependency to migrate to. `selectSupervisee` below used to be the
+    // counter-example named here; it takes this same approach as of 2026-09-22, so the
+    // file now has no runloop calls at all. The callback is best-effort: it re-checks isDestroyed
     // and _scrollExpandedIntoView is itself try/caught and no-ops when the row is
     // absent, so a teardown mid-frame is harmless.
     var _this = this;
@@ -315,40 +306,32 @@ export default Controller.extend({
       // Also matches the deep-link highlight, which is NOT expanded and so carries
       // no --active class; both states want the identical top-aligned scroll.
       var row = document.querySelector('.md-caseload__list-row--active, .md-caseload__list-row--highlighted');
-      if (!row || typeof row.scrollIntoView !== 'function') { return; }
-      // ALWAYS top-align the opened card, and always scroll.
+      // ALWAYS top-align the opened card, and always scroll. This used to pick
+      // `block: 'nearest'` whenever the card fitted the viewport, and to skip
+      // scrolling entirely when the row was already fully visible. Both produced
+      // the reported behaviour: a card whose bottom was below the fold got its
+      // BOTTOM pulled to the viewport bottom, leaving the previous communicator's
+      // row occupying the top of the screen, which reads as "it scrolled to the
+      // wrong person".
       //
-      // This used to pick `block: 'nearest'` whenever the card fitted the
-      // viewport, and to skip scrolling entirely when the row was already fully
-      // visible. Both produced the reported behaviour: 'nearest' scrolls the
-      // MINIMUM distance, so a card whose bottom was below the fold got its
-      // BOTTOM pulled to the viewport bottom — leaving the previous
-      // communicator's row occupying the top of the screen, which reads as
-      // "it scrolled to the wrong person".
-      // 'start' puts the card's own top edge at the top every time.
+      // The header measurement, the inline scroll-margin-top and the
+      // reduced-motion handling all live in the shared helper now — see
+      // utils/scroll_below_header.js for why each is the way it is. The classic
+      // home page's Extras drawer needs the identical behaviour, and this logic
+      // is entirely about the app's chrome rather than about this page.
       //
-      // The navbar clearance is MEASURED from the live header, not taken from
-      // --topbar-height: that token resolves to 16px on authenticated layouts
-      // (app.scss ~367) while the bar this page actually renders is ~88px, so
-      // trusting it scrolled the card up UNDER the header and clipped its top.
-      // Measuring also survives the bar changing height between layouts (16 /
-      // 68 / 70 / 129px are all live values in this app) and when it wraps.
-      // Written to inline scroll-margin-top rather than doing the arithmetic
-      // ourselves, so this keeps working whether the scroll container is the
-      // window or an ancestor element.
-      var offset = 0;
-      var header = document.querySelector('#within_ember > header') || document.querySelector('body > header');
-      if (header && typeof window.getComputedStyle === 'function') {
-        var pos = window.getComputedStyle(header).position;
-        if (pos === 'fixed' || pos === 'sticky') {
-          offset = header.getBoundingClientRect().height || 0;
-        }
-      }
-      if (offset > 0) {
-        row.style.scrollMarginTop = (offset + 12) + 'px';
-      }
-      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      row.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start', inline: 'nearest' });
+      // `gap: 76` = the helper's default 12 plus 64 (requested 2026-09-22). Arriving here
+      // from the home page's "Communicators Need Attention" card landed the card's top
+      // tight under the chrome, so the communicator's name and the top of their card were
+      // not readable. The helper already clears the FIXED header exactly — verified — so
+      // this is not a correction to its measurement; it is extra breathing room below it,
+      // because the pill-nav menu sits under the header and is NOT fixed, so no amount of
+      // measuring picks it up.
+      //
+      // PASSED HERE, NOT CHANGED IN THE HELPER: the classic home page's Extras drawer is
+      // the other caller and wants the tighter default — it opens in place rather than
+      // being arrived at from another page, so it has no menu to clear.
+      scrollBelowHeader(row, { gap: 76 });
     } catch (e) { /* best-effort — never block toggling */ }
   },
 
@@ -494,7 +477,24 @@ export default Controller.extend({
         this._loadBadgeForSupervisee(supervisee);
         // After the panel renders, bring the newly-expanded card into view —
         // expanding a low row can push its content below the fold.
-        scheduleOnce('afterRender', this, this._scrollExpandedIntoView);
+        //
+        // requestAnimationFrame, NOT `scheduleOnce('afterRender', ...)` (changed 2026-09-22).
+        // This is the same deferral the sibling above uses on this same method, and for the
+        // same stated reason: `ember/no-runloop`, with no ember-lifeline in the project to
+        // migrate to. It was the file's last runloop call, so the import is gone with it.
+        //
+        // WHY IT SURFACED NOW: the rule is not new and neither was this line. `.eslint-todo`
+        // anchors legacy findings BY LINE, and an edit higher up this file shifted this call
+        // down, so the gate stopped recognising it as the known entry and reported it as a
+        // new violation. Re-anchoring the baseline would have buried it; converting the call
+        // removes it. See app/frontend/CLAUDE.md on the line-anchored gate.
+        var _this2 = this;
+        if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+          window.requestAnimationFrame(function() {
+            if (_this2.isDestroyed || _this2.isDestroying) { return; }
+            _this2._scrollExpandedIntoView();
+          });
+        }
       }
     },
 
@@ -668,6 +668,50 @@ export default Controller.extend({
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
       });
+    },
+
+    // The Compact header's "Needs attention" pill: show only the communicators who need
+    // attention, or everyone again.
+    toggleAttentionOnly: function() {
+      this.toggleProperty('attentionOnly');
     }
-  }
+  },
+
+  /* COMPACT CASELOAD (requested 2026-09-29): Modern view + Focused style + Compressed View.
+     The page renders a compact work list instead of the tiled rows (templates/caseload.hbs):
+     identity, attention status and Model / Speak / "…" on one row; "…" opens the SAME
+     expanded panel as More Actions, where Reports, Modeling Ideas and the additional actions
+     sit. Every action calls the same handler as the tiled rows. Kept below the file's one
+     ESLint baseline entry so the line-anchored gate does not shift. */
+  compactCaseload: computed('appState.compressed_view_active', 'appState.effectiveLayout', 'appState.effective_view_style', function() {
+    return this.get('appState.compressed_view_active') === true &&
+           this.get('appState.effectiveLayout') === 'focused' &&
+           this.get('appState.effective_view_style') === 'modern';
+  }),
+
+  /* Modern view + Focused style, with or without Compressed View: the page header (title,
+     communicator count, "Needs attention" toggle) shows here (requested 2026-09-29). */
+  focusedCaseload: computed('appState.effectiveLayout', 'appState.effective_view_style', function() {
+    return this.get('appState.effectiveLayout') === 'focused' &&
+           this.get('appState.effective_view_style') === 'modern';
+  }),
+
+  attentionOnly: false,
+
+  attentionSupervisees: computed('supervisees.[]', function() {
+    return (this.get('supervisees') || []).filter(function(s) { return !!attentionBadgeFor(s); });
+  }),
+
+  /* The rows the list renders: the text filter's result, narrowed to the communicators who
+     need attention while the header's toggle is on. Outside Modern Focused the toggle does not
+     exist, so this is exactly filteredSupervisees. */
+  listedSupervisees: computed('filteredSupervisees.[]', 'attentionOnly', 'focusedCaseload', function() {
+    var list = this.get('filteredSupervisees') || [];
+    if (!this.get('focusedCaseload') || !this.get('attentionOnly')) { return list; }
+    return list.filter(function(s) { return !!attentionBadgeFor(s); });
+  })
 });
+
+// Placed last for the same reason as the computeds above: an import at the top would shift the
+// line-anchored ESLint baseline. Imports are hoisted, so position does not matter at runtime.
+import { attentionBadgeFor } from '../utils/dashboard_sections';

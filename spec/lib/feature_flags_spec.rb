@@ -116,6 +116,18 @@ describe FeatureFlags do
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
     end
 
+    it "does not treat a district-sponsored user with school authorization as pending parental consent" do
+      u = User.new(settings: {
+        'school_authorization' => {
+          'basis' => 'school_official',
+          'organization_id' => '1_1',
+          'authorized_by' => '1_2',
+          'authorized_at' => Time.now.utc.iso8601
+        }
+      })
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+    end
+
     it "returns true when user has pending parental consent" do
       u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
@@ -176,6 +188,26 @@ describe FeatureFlags do
       u.settings['feature_flags'] = {'sms_recipient_consent' => true}
       expect(FeatureFlags.sms_recipient_consent_enabled?(u)).to eq(true)
       expect(FeatureFlags.sms_recipient_consent_enabled?(nil)).to eq(false)
+    end
+  end
+
+  describe "location_maps" do
+    it "is registered as available but OFF by default, including for canary users" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('location_maps')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('location_maps')
+      expect(FeatureFlags::DISABLED_CANARY_FEATURES).to include('location_maps')
+      expect(SystemFeatureSettings.default_enabled_features).not_to include('location_maps')
+      expect(SystemFeatureSettings.canary_enabled_features).not_to include('location_maps')
+    end
+
+    it "is OFF with no user and with no per-user value" do
+      u = User.create
+      expect(FeatureFlags.feature_enabled_for?('location_maps', nil)).to eq(false)
+      expect(FeatureFlags.feature_enabled_for?('location_maps', u)).to eq(false)
+    end
+
+    it "has an admin description" do
+      expect(SystemFeatureRegistry::METADATA['location_maps']).to include(:name, :description)
     end
   end
 
@@ -283,8 +315,7 @@ describe FeatureFlags do
     #
     # This is an INVENTORY, not an endorsement. Shrinking it is the goal.
     TEMPORARY_FORCED_ON = [
-      'board_category_grouping',
-      'boards_side_by_side_layout',
+      'compressed_view',
       'customize_menu',
       'dashboard_drag_layout',
       'edit_sidebar',
@@ -292,7 +323,8 @@ describe FeatureFlags do
       'sentence_bar_editing',
       'session_resume',
       'supervising_context_banner',
-      'supervisor_consent_flow'
+      'supervisor_consent_flow',
+      'updates_pill'
     ].freeze
 
     # Parsed from the source rather than hand-listed a second time: a hand-copied mirror is
@@ -337,8 +369,8 @@ describe FeatureFlags do
   end
 
   describe "home_tour" do
-    # INVERTED TRIPWIRE. boards_side_by_side_layout and board_category_grouping below are
-    # pinned so that REMOVING them from ENABLED fails and reminds you to gate the rollout.
+    # INVERTED TRIPWIRE. The rollout tripwires elsewhere in this file pin a flag so that REMOVING it from
+    # ENABLED fails and reminds you to gate the rollout.
     # This one is the opposite: the guided tour is the ONBOARDING PATH now, so removing it
     # from ENABLED is the breaking change.
     #
@@ -374,33 +406,58 @@ describe FeatureFlags do
     end
   end
 
-  describe "boards_side_by_side_layout" do
-    # TRIPWIRE, not a preference. This flag is TEMPORARILY forced on for everyone
-    # (2026-08-16) so the Boards-page layout selector is visible for design comparison
-    # without a per-user opt-in. Turning it off before production go-live means REMOVING
-    # it from ENABLED_FRONTEND_FEATURES — at which point the second expectation below
-    # fails and this spec must be updated to the "available but OFF by default" shape
-    # used by compliance_workflow_kernel above. The failure is the reminder.
-    it "is registered as available" do
-      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
+  describe "boards_side_by_side_layout (retired)" do
+    # The Boards page is side-by-side wherever there is room for two columns and stacked
+    # where there is not. That is decided by one media query in app/frontend/app/styles/app.scss
+    # (`@media (max-width: 900px)` on the split rule), not by a flag and not by the user.
+    # The layout selector's render site came out on 2026-09-14 and the arrangement became an
+    # inherent part of the page on 2026-09-18, so this flag gates nothing.
+    #
+    # This REPLACES a tripwire that pinned the flag into BOTH lists. That tripwire allowed for
+    # exactly one future: "remove from ENABLED, then rewrite this spec to the available-but-OFF
+    # shape". The actual outcome was a third one, that the flag should not exist at all.
+    # Registering it again would advertise a control the page no longer has, so both lists are
+    # asserted negative rather than the spec being reshaped.
+    #
+    # The plumbing is deliberately LEFT IN PLACE and is not what this spec guards:
+    # components/boards-layout-toggle.js (mounted by nothing), the `boards_layout` preference
+    # and sanitize_boards_layout_preference! in app/models/user.rb, and
+    # utils/boards_layout_state.js. Note that boards_layout_state is NOT dead: its
+    # clearStoredLayout is called from services/app-state.js on session teardown so a shared
+    # school or clinic device does not leak one user's arrangement to the next person who
+    # signs in. Retiring that plumbing is a separate, consented change.
+    it "is not registered as available" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).not_to include('boards_side_by_side_layout')
     end
 
-    it "is currently forced ON for everyone — remove from ENABLED before go-live" do
-      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
+    it "is not forced ON for everyone" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('boards_side_by_side_layout')
     end
   end
 
   describe "board_category_grouping" do
-    # Same TRIPWIRE shape as boards_side_by_side_layout above, and this is the flag that
-    # actually needs it: turning grouping on MOVES vocabulary out of the cells a user has
-    # built positional motor memory on. It previously had no spec at all, which is how a
-    # default of `enabled => true` reached the branch unnoticed.
-    it "is registered as available" do
-      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('board_category_grouping')
+    # IN PROGRESS, AND OFF FOR EVERYONE (2026-09-28, Traci). Turning grouping on MOVES
+    # vocabulary out of the cells a user has built positional motor memory on, and the feature
+    # is not finished, so no account may reach it. Taking it out of ENABLED alone would not do
+    # that: the production default Setting, canary users, beta opt-in and org features can
+    # each switch on any flag in AVAILABLE (lib/system_feature_settings.rb), so the flag is
+    # absent from BOTH lists.
+    # The edit page keeps its Categorize button, which opens a Coming Soon page instead of the
+    # controls (components/board-categorize-coming-soon.hbs). When the work resumes, register
+    # the flag in AVAILABLE only (beta opt-in) and rewrite these two examples.
+    it "is not registered as available, so no setting, org, canary or beta route can enable it" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).not_to include('board_category_grouping')
     end
 
-    it "is currently forced ON for everyone — remove from ENABLED before go-live" do
-      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('board_category_grouping')
+    it "is not forced ON for everyone" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('board_category_grouping')
+    end
+
+    it "resolves OFF for a user even when a stored default Setting still lists it" do
+      u = User.create
+      allow(Setting).to receive(:get).and_call_original
+      allow(Setting).to receive(:get).with(SystemFeatureSettings::DEFAULT_KEY).and_return(['board_category_grouping'])
+      expect(FeatureFlags.feature_enabled_for?('board_category_grouping', u)).to eq(false)
     end
 
     # The clinical guarantee. `generate_defaults` backfills preference_defaults onto EVERY

@@ -1,0 +1,208 @@
+# 2026-09-30 — Basic stranded pages: Basic Access rail link, supervisee boards, picker for a communicator
+
+Branch: `traci/styling/classic-view-overlay`. Follows the Basic View Parity handoff (same day),
+whose "Pages that can still strand a Basic user" table had two rows.
+
+## Decisions (Traci, 2026-09-30)
+
+- `/offline-boards` in Basic: NO redirect. Give Basic its own link to Basic Access in the home
+  page's left rail. (A redirect to search was proposed and rejected after review: see below.)
+- `/<communicator>/boards` in Basic: go to that communicator's account page (`/<communicator>`).
+- Picker "use the recommended board" for a communicator: match the overlay's "Pick this Board"
+  (Basic opens their new home board; Modern unchanged).
+
+## Why not redirect Basic Access to search
+
+Red-team review of the redirect proposal, verified:
+- Basic Access boards are bundled (`controllers/offline_boards.js:14`, `utils/obf-emergency`) and
+  work offline; search fetches only online (`controllers/search.js:153`, `:218`).
+- Basic had no other entry (the only signed-in card is Modern's Extras list,
+  `authenticated-view.js:1224`), so a redirect would make the emergency boards unreachable from
+  Basic, offline included.
+- The emergency board's Back returns to `offline_boards` (`services/app-state.js:1319-1322`).
+Not verified, noted only: after an in-app logout (beta `auth_spa_transition`)
+`session_user_promise` is not cleared, which a redirect keyed on it could misread.
+
+## Changes
+
+1. **Basic Access rail row.** New `components/dashboard/classic-rail-basic-access.hbs`, rendered by
+   both rail copies (`classic-view.hbs` inline rail, `classic-rail.hbs`; in the latter inside the
+   personal-rows block, hidden in org mode). Gated on `feature_flags.emergency_boards`, as the
+   Modern card and signed-out navbar link are. Alphabetical slot: after the pinned Home Page and
+   Organizations. New i18n key `classic_short_basic_access` (13 locales); `offline_boards_subtitle`
+   added to en.json (it existed in the other 12 only). Browser: example in Basic shows the row
+   second, and clicking it opens `/offline-boards`, which keeps the top navbar.
+2. **Someone else's boards library in Basic -> their account page.** `routes/user/boards.js`
+   afterModel: not own + Basic viewer -> `transitionTo('user.index', user_name)`. The account page
+   renders the same `<BoardsBrowser>` (`templates/user/index.hbs:799`) under the Basic account
+   rail (`templates/user.hbs:25`). Covers the board header's My Boards while speaking as a
+   communicator (`openMyBoards` reads `referenced_user`), bookmarks and Back. New
+   `is_basic_viewer` in `utils/basic_landing.js`, shared with `send_basic_viewer_to_landing`.
+   Browser (no supervisees on example, so the public `lingolinq` account): cold and in-app
+   `/lingolinq/boards` -> `/lingolinq` with the Basic rail and boards list.
+   APPROVED TEST CHANGE: "user.boards, Basic, a supervisee's library: stays" now asserts the
+   account page (spec changed by Traci's decision above); comment in the test records it.
+3. **Picker recommended board for a communicator.** `controllers/board-picker.js`: `onSuccess`
+   already receives the home board (`utils/assign-vocal-flair-home.js:58`, `:93`); it is passed to
+   `_afterHomeBoardAssigned`, which uses `after_pick_for_other`. No board -> boards list as before
+   (which item 2 now routes to the account page in Basic).
+
+Tests: `tests/integration/classic-rail-basic-access-test.js` (2),
+`tests/unit/controllers/board-picker-pick-for-other-test.js` (3), basic-view-landing-routes-test
+(+2, 1 changed). Each red first, and falsified after (gate removed / redirect disabled / picker
+branch disabled -> exactly the expected tests red; restored from copies).
+ESLint gate new=73 (unchanged); template lint clean.
+
+## Pre-existing failing test, fixed (approved by Traci)
+
+- `tests/unit/components/classic-view-extras-landing-test.js` "arriving with the Extras drawer
+  handed off..." failed at HEAD (baseline: same failure with this change's app files reverted).
+  Its stub `currentUser` had no `save`; the `main` handoff calls `set_index_nav`, which saves the
+  user (`authenticated-view.js:1667`). Fixed by giving the stub a resolving `save`; falsified by
+  disabling the drawer-open block in `classic-view.js` (that test goes red, the other stays green).
+- The handoff's regex filter never ran this module (nor `Basic view landings`), so batch 1's
+  commit message (`67bc5b6b7`, already pushed) wrongly lists it as passing. Corrected in the
+  test-fix commit's message rather than by rewriting pushed history.
+
+## Noted, not fixed
+
+- Account page heading reads "My Account" when viewing another user (pre-existing).
+
+## Verification (final)
+
+Plain-string module filters, each counted: Basic view landings for Modern-only pages 9/9,
+classic-view Extras landing 2/2, user showClassicAccountRail 6/6, view-switcher 11/11; regex run
+over the rest 50/50 with per-module counts (classic-rail-basic-access 2, board-picker pick for a
+communicator 3, basic_landing Extras 3, Basic Access 1, index login entry 4, board_picker_landing
+4, basic-try-home-button 4, home-boards redirect 1). ESLint gate new=73; template lint clean.
+
+## Round 2 (same day): direct arrivals in Basic, and the account heading
+
+Decisions (Traci): (1) a single communicator's caseload carries their user name and expands that
+communicator's card, scrolled to; (2) /extras opened directly in Basic re-routes to the home page
+with the Extras drawer open and scrolled to; (3) /logs?nav=home goes to the Updates tab, REVISED
+the same day to "land on the Logs page" (see "Still open" below; not shipped). Also
+requested: the account page heading shows the account holder's name, or their username.
+
+- `utils/basic_landing.js`: the caseload entry names `open_supervisee_from: 'supervisee'`;
+  `basic_landing_for` copies the entry with `open_supervisee` when the URL carries it;
+  `hand_off_index_nav` hands it off (`pending_open_supervisee`, taken once by
+  `take_pending_open_supervisee`); `query_string_for(transition)` lets routes feed the same URL
+  test the View menu uses.
+- `routes/caseload.js` passes its query string. `routes/user/extras.js` (after the inherited
+  own-account check in routes/user/home.js) calls `send_basic_viewer_to_landing`.
+- `components/dashboard/classic-view.js#_expand_supervisee_card`: sets `openSuperviseeId` (the
+  card's Extras panel) and scrolls the card (`#ch-extras-<id>`'s `.ch-comm`) below the header.
+- `templates/user/index.hbs`: both headings (Gentle hero, Focused head) read
+  `this.model.display_name` instead of "My Account".
+
+Tests (each red first, each change falsified by its own mutation): basic-landing-supervisee (4),
+basic-view-direct-landings (4), classic-view-supervisee-landing (3). Related modules by name:
+basic_landing 14, Basic view landings 9, Extras landing 2, extras scroll 3, index login entry 4,
+view-switcher 11, display-name helper 4; ESLint new=73; template lint clean.
+Browser (example, Basic): /example/extras -> /example/home, Actions, drawer open at y=82.
+Headings: /example "Example", /lingolinq
+"LingoLinq". NOT checked live: the caseload card expansion (example has no supervisees) and the
+username fallback on a nameless account (covered by the display-name helper tests).
+Side effect of an earlier probe (the Updates-tab version): it marked example's notifications read.
+
+### Resolved (round 3): Modern's Updates address in Basic -> the plain Logs page
+
+Decision (Traci): route to the Logs page, both when it is opened directly and on the View menu
+switch from Modern's Updates page, and make sure messages are not marked as read.
+
+Two things mark messages read on `user.logs`: `routes/user/logs.js#setupController` calls
+`markUpdatesRead` for `nav=home`, and `controllers/user/logs.js#refresh` saves
+`last_message_read` whenever the list loads with `type=note`. So the Basic page must never be set
+up with either param.
+
+Attempts, in order (each checked in the browser):
+1. replaceWith + `RSVP.reject()` in afterModel: "Failed to load".
+2. replaceWith without the reject: rendered, but the URL kept the params.
+3. Clearing `type`/`nav` on the controller in setupController, then replacing the URL after the
+   transition: URL clean and no saves, but the request log still showed one `type=note` load. A
+   trace of the controller's `refresh` calls showed why: the in-flight transition RE-APPLIES its
+   own query params to the controller after setupController, and the `type` observer then loads
+   the filtered list. The same-route replace had been merged into the in-flight transition.
+4. SHIPPED: afterModel calls `transition.abort()` and then
+   `replaceWith('user.logs', me, {queryParams: {nav: null, type: null}})`. The replace is then a
+   fresh transition. Trace: one refresh, from setupController, with type and nav null. Cold load:
+   one unfiltered request, no user writes, URL /example/logs, Basic rail with Logs active, Back to
+   /example/home. setupController is unchanged from HEAD (Modern's Updates still marks read).
+
+View menu switch: `utils/basic_landing.js` maps `user.logs?nav=home` to a params-only landing
+(`query_params: {nav: null, type: null}`, no route); `components/view-switcher.js` applies it with
+`router.replaceWith({queryParams})`. A single update (`user.log?nav=home`) still lands on the
+Updates tab. Browser (example set to Modern for the probe, restored to Basic in `finally`,
+confirmed): Modern Updates -> View -> Basic gives /example/logs, Basic rail, one unfiltered load;
+the only save was the view preference, carrying `last_message_read: null` (unchanged).
+Limitation: example has no messages, so the marking code never had anything to mark; the
+guarantee is structural (no `type=note` load, no `nav=home` setup), which the tests and the
+request traces check.
+
+APPROVED TEST CHANGE: `tests/unit/utils/basic-landing-test.js` "the Updates page lands on the
+Basic home page, Updates tab" now asserts the params-only landing (comment records approval).
+New: `tests/unit/routes/basic-logs-landing-test.js` (5), `tests/unit/components/
+view-switcher-logs-landing-test.js` (1). Falsified by removing only `transition.abort()` (the two
+Basic redirect cases go red).
+
+## Round 4 (same day): decisions, Supervisors row, Focused account avatar, boards pills
+
+Decisions (Traci, 2026-09-30):
+- Need Attention will not carry over to Basic.
+- The differences in how badges are shown between Basic and Modern are acceptable for now
+  (Basic: Communicators card progress or earned badge, board-header badge in speak mode, the
+  account page grid, Goals -> See User Badges, Updates notifications). Revisit only if needed.
+  The Modern caseload's goals list and "Add Goal with Badge" stay Modern-only with it.
+
+Shipped:
+- Supervisors row in the Basic account panel (components/dashboard/classic-account-rail.hbs):
+  after Subscription, links to user.supervision, labelled "Supervision" for a supporter and
+  "Supervisors" for a communicator, as Modern's account rail. `user.supervision` added to its
+  ROW_FOR_ROUTE. Before this a supporter in Basic had no way to supervision settings (the home
+  rail row and Actions tile are communicator-only). APPROVED TEST CHANGE:
+  classic-account-rail-active-row-test.js no longer lists user.supervision as a no-row
+  exception. Browser: example (a supporter) sees "Supervision"; it opens /example/supervision
+  inside the Basic rail with the row current.
+- Focused account avatar: tile a step darker (new `$focus-card-surface-deep`, a sibling of the
+  shared `$focus-card-surface`, which the boards-page icons and count badges keep) and a 1.5px
+  `$brand-slate-blue` ring over the picture's circle (drawn on the wrapper's ::after, inset by
+  the tile's border + padding). Gentle unchanged. Caveat: an uploaded photo fills the picture's
+  square box, so the ring sits over it rather than round a circle.
+  Two wrong turns on the way, both reverted before the next attempt: the caseload navy radial was
+  first put on the avatar, then on the hero card; what was wanted was "a bit darker" on the
+  avatar only.
+- Boards page New folder / Tag a board pills (`.ub-boards-page__folders-action-btn`, app.scss,
+  two identical copies in the same block, both edited): the 1px inner top highlight removed at
+  rest and on hover. The folders chevron keeps the shared highlight; its comment updated.
+
+## Round 5 (same day)
+
+Decisions (Traci): the organisation switcher is correctly wired (it hides with fewer than two
+orgs; nothing to change). Direct room tiles in Basic are not needed (the menu links the list). No
+home-board link on the Modern caseload (Model already opens it). Learn and Setup is hidden until
+the home page tours are confirmed to work.
+
+Shipped:
+- A single update from Updates (`user.log?nav=home`): the View menu switch to Basic stays on that
+  page and drops `nav` (params-only landing), matching the Logs page. Opened directly it already
+  renders in the Basic panel; nothing there reads `nav` or marks read. Approved change to
+  basic-landing-test.js.
+- Basic SLP login: routes/index.js#_basic_supporter_lands_home. At a login entry a supporter in
+  Basic skips session resume and lands on the Basic home page with the Communicators tab handed
+  off. Written after line 256 and without imports (the file's .eslint-todo anchor). Reproduced
+  before (remembered /caseload; Actions tab or Modern caseload), verified after (Communicators).
+- Boards page: the Folders actions row's three inset shadows (the "under-shadow", app.scss
+  ~55333) removed; hairline kept.
+- Rooms label: " - <org>" in a `.md-compact-head__aside` span, 0.8em / 600.
+- Compressed home: "View all" links in the Rooms and Need Attention headers
+  (`.md-card__view-all--head`), labelled "View all →" (new key view_all_short, 13 locales) with
+  the full names as aria-labels; both cards' bottom padding 12 -> 20px (--dn-card-pad).
+- Basic Extras drawer: Learn and Setup hidden behind `showLearnAndSetupTile: false`
+  (classic-view.js); its `intro` action is untouched. With it gone, Basic reaches the guided tour
+  only from the intro card while that card shows.
+
+Remote Modeling (answered, open): Modern offers it only on a communicator's account page
+(Extras menu), gated on that communicator's `preferences.remote_modeling`; Basic's Communicators
+card gates only on the feature flag. Model (on this device) is a different feature from Remote
+Modeling (pairing with the communicator's device).

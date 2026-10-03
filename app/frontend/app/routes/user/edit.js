@@ -4,7 +4,7 @@ import i18n from '../../utils/i18n';
 export default Route.extend({
   model: function() {
     var model = this.modelFor('user');
-    model.set('subroute_name', i18n.t('profile', 'profile'));
+    model.set('subroute_name', i18n.t('profile', "profile"));
     return model;
   },
   setupController: function(controller, model) {

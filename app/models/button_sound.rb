@@ -42,7 +42,7 @@ class ButtonSound < ApplicationRecord
   end
   
   def schedule_transcription(frd=false)
-    if self.secondary_url && (!self.settings['transcription'] || self.settings['transcription'] == '') && (self.settings['transcription_errors'] || 0) < 2
+    if self.secondary_url && (!self.settings['transcription'] || self.settings['transcription'] == '') && (self.settings['transcription_errors'] || 0) < 2 && self.settings['transcription_status'] != 'unavailable'
       # Org off-switch: do not call Google Speech-to-Text when disabled.
       # Gate-skip is "not permitted," not a failure — do not bump transcription_errors.
       unless Organization.external_ai_processing_allowed_for_user?(self.user)
@@ -61,6 +61,16 @@ class ButtonSound < ApplicationRecord
       # now defaults to off.
       return unless FeatureFlags.ai_enabled_for?(self.user)
       if frd
+        language_code, alternative_codes = SpeechLanguage.for_recording(self.settings['locale'], self.user)
+        if !language_code
+          # A known language Google cannot transcribe: send nothing. Not a failure,
+          # so transcription_errors is untouched; the status stops the gate above
+          # from scheduling again when this save fires after_save.
+          self.settings['transcription_status'] = 'unavailable'
+          self.settings['transcription_status_reason'] = 'language_not_supported'
+          self.save
+          return
+        end
         # https://cloud.google.com/speech/reference/rest/
         ref = self.settings['secondary_output']
         secondary_url = self.secondary_url
@@ -68,22 +78,29 @@ class ButtonSound < ApplicationRecord
         # download the wav file
         req = Typhoeus.get(secondary_url)
         encoded_content = [req.body].pack('m0').gsub(/\=+\Z/, '').tr('+/', '-_') # base64 url encoding
-        opts = {
-          config: {
-            encoding: 'LINEAR16',
-            sampleRateHertz: 44100,
-            languageCode: 'en',
-            profanityFilter: true
-          },
-          audio: {
-            content: encoded_content
-          }
-        }.to_json
+        config = {
+          encoding: 'LINEAR16',
+          sampleRateHertz: 44100,
+          languageCode: language_code,
+          profanityFilter: true
+        }
+        config[:alternativeLanguageCodes] = alternative_codes if alternative_codes.length > 0
         url = "https://speech.googleapis.com/v1/speech:recognize?key=#{key}"
         # pass it to google cloud recognition async
         # (wav file, 44100Hz, linear PCM)
-        res = Typhoeus.post(url, body: opts, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json'})
+        recognize = lambda do
+          opts = {config: config, audio: {content: encoded_content}}.to_json
+          Typhoeus.post(url, body: opts, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json'})
+        end
+        res = recognize.call
         json = JSON.parse(res.body)
+        if config[:alternativeLanguageCodes] && SpeechLanguage.language_rejected?(res, json)
+          # One rejected alternative fails the whole request: retry once with the primary only.
+          Rails.logger.warn("ButtonSound #{self.global_id} transcription retried without alternative languages: #{config[:alternativeLanguageCodes].join(',')}")
+          config.delete(:alternativeLanguageCodes)
+          res = recognize.call
+          json = JSON.parse(res.body)
+        end
         # on success, set transcription (including confidence) and delete the wav file from S3
         if json['results'] && json['results'][0] && json['results'][0]['alternatives'] && json['results'][0]['alternatives'][0]
           alt = json['results'][0]['alternatives'][0]
@@ -283,6 +300,7 @@ class ButtonSound < ApplicationRecord
       self.settings['protected'] = process_boolean(params['ext_lingolinq_protected']) if params['ext_lingolinq_protected'] != nil
       self.settings['protected_source'] = params['ext_lingolinq_protected_source'] if params['ext_lingolinq_protected_source'] != nil
       self.settings['suggestion'] = params['suggestion'] if params['suggestion']
+      self.settings['locale'] = params['locale'] if SpeechLanguage.valid_locale?(params['locale'])
       self.public = params['public'] if params['public'] != nil
     end
     self.settings['name'] = params['name'] if params['name']

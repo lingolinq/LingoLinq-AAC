@@ -8,7 +8,7 @@ export default Route.extend({
   appState: service('app-state'),
   model: function() {
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('subscription', 'subscription'));
+    user.set('subroute_name', i18n.t('subscription_lower', "subscription")); // own key: `subscription` is "Purchase" (2026-10-02)
     return user;
   },
   setupController: function(controller, model) {

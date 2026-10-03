@@ -1,22 +1,41 @@
 {{#if this.model.permissions.edit}}
-  {{!-- Link to Caseload --}}
-  {{#if this.app_state.currentUser.supporter_role}}
-    <div class="md-org-supervisees-link">
-      <LinkTo @route="caseload" class="md-org-supervisees-link__card">
-        <div class="md-org-supervisees-link__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2A9D8F"/>
-          </svg>
-        </div>
-        <div class="md-org-supervisees-link__text">
-          <span class="md-org-supervisees-link__label">{{t "My Caseload" key="my_caseload"}}</span>
-          <span class="md-org-supervisees-link__desc">{{t "View and manage your communicators" key="view_manage_communicators"}}</span>
-        </div>
-        <svg class="md-org-supervisees-link__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      </LinkTo>
-    </div>
-  {{/if}}
+  {{!-- NO "MY CASELOAD" CARD HERE (removed 2026-09-24, requested: "on the organizations page,
+       remove the my caseload link"). It was a `<LinkTo @route="caseload">` card at the top of
+       this page, behind `permissions.edit` + `supporter_role`.
+       A CLOSED ACCESS POINT, NOT A REMOVED FEATURE: the caseload is a top-level destination,
+       reachable from the primary nav's Caseload pill in Modern and from the rail in Basic, so
+       this was a third door to it -- on the one page that is about an ORGANISATION rather than
+       about your own communicators.
+       The view-only branch further down keeps its own "Go to My Caseload" button. That is not
+       this card: it renders only for someone with no edit rights here, where it is the page's
+       single call to action, and removing it would leave that page a dead end.
+       `.md-org-supervisees-link*` remains in app.scss (8 rules) and is now unused -- left in
+       place because dead CSS is a separate cleanup from a closed access point. --}}
 
+  {{!-- ADMIN TOOLS, MODERN (2026-10-02, requested: "add Admin actions to Modern admin view" and
+       "add org telemetry"). Modern's org pages have no section menu (templates/organization.hbs
+       keeps its strip to "< Home | section"), so Admin Actions and Telemetry had no way in there;
+       Basic carries both as rail rows. Each link shows by the same rule as its page and the server
+       (utils/admin_nav.js, via the org-admin-links helper). --}}
+  {{#let (org-admin-links this.model) as |links|}}
+    {{#if (and (not links.basic) (or links.adminActions links.telemetry))}}
+      <section class="md-org-section md-org-admin-tools" aria-label={{t "Admin tools" key="org_admin_tools"}}>
+        <div class="md-org-section-head">
+          <div>
+            <h3 class="md-org-section-title">{{t "Admin tools" key="org_admin_tools"}}</h3>
+          </div>
+        </div>
+        <div class="md-org-admin-tools__links">
+          {{#if links.adminActions}}
+            <LinkTo @route="organization.extras" @model={{this.model.id}} class="md-org-btn md-org-btn--outline">{{t "Admin Actions" key="admin_actions"}}</LinkTo>
+          {{/if}}
+          {{#if links.telemetry}}
+            <LinkTo @route="organization.telemetry" @model={{this.model.id}} class="md-org-btn md-org-btn--outline">{{t "Telemetry" key="telemetry"}}</LinkTo>
+          {{/if}}
+        </div>
+      </section>
+    {{/if}}
+  {{/let}}
   {{#if (or this.model.parent_org this.model.children_orgs.length)}}
     <section class="md-org-section md-org-structure" aria-label={{t "Organization structure" key="org_structure"}}>
       <div class="md-org-section-head">
@@ -84,7 +103,7 @@
         <div class="md-org-stat-card">
           <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Active Users" key="org_active_users"}}</span></div>
           <div class="md-org-stat-card__body">
-            <span class="md-org-stat-card__value">{{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}} {{t "users" key="users_lower"}}</span>
+            <span class="md-org-stat-card__value">{{this.user_counts.recent_session_user_count}}{{#if this.user_counts.recent_session_total_users}} / {{this.user_counts.recent_session_total_users}}{{/if}} {{t "users" key="users_lower"}}</span>
           </div>
         </div>
         <div class="md-org-stat-card">
@@ -174,8 +193,12 @@
           {{/if}}
         </div>
         <div class="md-org-charts__item">
-          {{#if this.model.total_users}}
-            <Stats::RecentSessions @total={{this.model.total_users}} @recent={{this.user_counts.recent_session_user_count}} />
+          {{!-- Recent users out of a total of THE SAME users (2026-10-02): `recent_session_total_users`
+               comes from the same stats request (api/organizations_controller.rb#stats). The org's
+               own link count was used before, and on the site-admin org, whose recent count is
+               system-wide, the "None Recent" slice went negative and the chart refused to draw. --}}
+          {{#if this.user_counts.recent_session_total_users}}
+            <Stats::RecentSessions @total={{this.user_counts.recent_session_total_users}} @recent={{this.user_counts.recent_session_user_count}} />
           {{else}}
             <div class="md-org-chart-empty">
               <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 13l3-3 3 3 5-5"/></svg>
@@ -213,8 +236,12 @@
         </div>
         <div class="md-org-charts md-org-charts--goals">
           <div class="md-org-charts__item">
-            {{#if this.model.total_users}}
-              <Stats::RecentGoals @total={{this.model.total_users}} @goal_set={{this.user_counts.goal_set}} @tracked={{this.user_counts.goal_recently_logged}} />
+            {{!-- The total is the STATS count (approved users, Organization.usage_stats), the same people
+                 goal_set and tracked count -- not `model.total_users`, which also counts pending and eval
+                 links and inflated "No Goal Set" by them (2026-10-02; the Sessions pie above had the same
+                 mismatch, fixed in c28330f57). --}}
+            {{#if this.user_counts.total_users}}
+              <Stats::RecentGoals @total={{this.user_counts.total_users}} @goal_set={{this.user_counts.goal_set}} @tracked={{this.user_counts.goal_recently_logged}} />
             {{else}}
               <div class="md-org-chart-empty">
                 <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></svg>

@@ -30,37 +30,49 @@ module FeatureFlags
               'english_first_board_generation', 'signup_spanish_library_boards',
               'eval_single_library',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
-              # Boards page: offers a selector for SIDE-BY-SIDE (Folders 1/4 left,
-              # Boards 3/4 right) versus TOP-DOWN (the original stacked order), so the
-              # two arrangements can be compared on the real page. CURRENTLY ALSO IN
-              # ENABLED_FRONTEND_FEATURES (forced ON for everyone) so the selector is
-              # visible without a per-user opt-in — see the TEMPORARY note there, and
-              # REMOVE IT FROM THAT LIST BEFORE PRODUCTION GO-LIVE, which returns this
-              # to the canonical AVAILABLE-only / beta-opt-in state. Off, the selector
-              # does not render and the page keeps the TOP-DOWN layout, which is the
-              # pre-existing behaviour. Read by
-              # app/frontend/app/templates/user/boards.hbs and applied by
-              # app/frontend/app/components/boards-layout-toggle.js.
-              'boards_side_by_side_layout',
+              # RETIRED 2026-09-18: 'boards_side_by_side_layout' was registered here. The
+              # Boards page offered a selector between SIDE-BY-SIDE and TOP-DOWN so the two
+              # arrangements could be compared on the real page. The answer is that each one
+              # suits a different amount of room, so the arrangement is now decided by width
+              # (app/frontend/app/styles/app.scss, `@media (max-width: 900px)` on the split
+              # rule) and is an inherent part of the page rather than a feature. Do not
+              # re-register it: membership here is the hard ceiling that would advertise a
+              # control the page no longer has. The remaining plumbing
+              # (components/boards-layout-toggle.js, the `boards_layout` preference,
+              # utils/boards_layout_state.js) is unreferenced by this flag; see
+              # spec/lib/feature_flags_spec.rb "boards_side_by_side_layout (retired)".
               'sentence_bar_editing',
               'text_symbol_fallback',
-              # Board-detail Fitzgerald category grouping: renders a board's buttons
-              # inside per-category panels instead of the uniform grid, with a
-              # user-orderable category sequence. Off by default because it MOVES
-              # vocabulary out of the cells a user has built positional motor memory
-              # on -- that is a clinical change, not a cosmetic one, so it stays
-              # opt-in. Preference: preferences.board_category_grouping
-              # ({enabled, order}); registry: app/frontend/app/utils/board_categories.js.
-              # Only board CONTENT is regrouped; the sidebar and sentence bar are
-              # separate DOM outside the grid component and are never affected.
-              'board_category_grouping',
+              # IN PROGRESS, OFF FOR EVERYONE (2026-09-28): 'board_category_grouping' was
+              # registered here. Board-detail Fitzgerald category grouping renders a board's
+              # buttons inside per-category panels instead of the uniform grid, with a
+              # user-orderable category sequence. It MOVES vocabulary out of the cells a user
+              # has built positional motor memory on, and it is not finished, so it is out of
+              # BOTH lists: membership here is the ceiling that the default Setting, canary,
+              # beta opt-in and org features are all intersected with
+              # (lib/system_feature_settings.rb), so any entry here could switch it on.
+              # With the flag absent the edit page's Categorize button opens a Coming Soon page
+              # (app/frontend/app/components/board-categorize-coming-soon.hbs) and every board
+              # renders the uniform grid, including for users whose saved
+              # preferences.board_category_grouping says enabled. The code, the preference and
+              # its sanitizer are kept for when the work resumes; re-register it here only
+              # (beta opt-in), not in ENABLED. Pinned by spec/lib/feature_flags_spec.rb.
+              # User#sanitize_board_category_grouping! stores "on" as off without this flag; new users
+              # default off. Saved values are not reset on deploy (that migration was removed
+              # 2026-10-01) and are inert while the flag is off, so run BoardCategoryGroupingReset.run
+              # (lib/board_category_grouping_reset.rb) before re-registering the flag. Also
+              # note that registering it here alone reaches more than beta opt-in: canary users
+              # get every AVAILABLE flag not in DISABLED_CANARY_FEATURES, and a stored
+              # default/org Setting that still lists it switches it on for everyone
+              # (lib/system_feature_settings.rb:6-30). Add it to DISABLED_CANARY_FEATURES and
+              # check the stored Settings first.
               # Per-user session resume: return a user to the page they were last
               # on when they log back in. Communicator-only accounts are exempt by
               # design (they always land on their board). Read by
               # app/frontend/app/routes/index.js#afterModel; the recording side
               # (utils/session_history.js) runs regardless so flipping this on
               # takes effect immediately.
-              'session_resume',
+              'session_resume', 'disable_transcription_alternatives', # inverted: ON turns transcription language hints OFF (read only by lib/speech_language.rb); never add it to ENABLED
               # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
               # the upper-left of any page that isn't the supporter's own. Read by
               # app-state#supervising_context; with it OFF the computed returns
@@ -113,7 +125,14 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent', 'multilingual_grammar'] # multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
+              'sms_recipient_consent', 'updates_pill', 'multilingual_grammar', 'location_maps', # location_maps: session-location maps on the stats and log pages; AVAILABLE-only and in DISABLED_CANARY_FEATURES, so OFF for everyone including canary users. multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
+              # Compressed View: a per-user density preference (preferences.compressed_view),
+              # toggled from the View menu (components/view-switcher.hbs). With it on, the
+              # app shell and the Modern home page use tighter spacing and a shorter layout
+              # (body.ll-density-compressed). Board pages (board-detail, board-alt) are
+              # never compressed. The flag gates the toggle AND the class, so turning the
+              # flag off un-compresses everyone. See utils/compressed_view_state.js.
+              'compressed_view']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -135,11 +154,12 @@ module FeatureFlags
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
-              'board_category_grouping', # TEMPORARY (2026-08-17): forced ON for everyone so Traci can evaluate the Fitzgerald category-panel board layout in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES. NOTE: grouping MOVES vocabulary out of the cells a user has positional motor memory for, so the opt-in default matters more here than for a cosmetic flag. Flip together with the PRE-PRODUCTION markers in app/models/user.rb (preference_defaults) and components/board-detail-grid.js#groupingEnabled.
+              # IN PROGRESS (2026-09-28): 'board_category_grouping' is no longer forced ON; it is off for everyone. See the note in AVAILABLE_FRONTEND_FEATURES above.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'compressed_view', # TEMPORARY (2026-09-29): forced ON for everyone so Traci can evaluate the Compressed View toggle in the browser. The preference itself defaults OFF, so nobody's page changes until they flip it. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'boards_side_by_side_layout'] # TEMPORARY (2026-08-16): forced ON for everyone so the Boards-page layout selector (side-by-side vs top-down) is visible for design comparison without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the selector stops rendering and the page falls back to the TOP-DOWN layout, which is the pre-existing behaviour.
-  DISABLED_CANARY_FEATURES = []
+              'updates_pill'] # TEMPORARY (2026-09-14): forced ON for everyone so the Card-view Updates pill (primary nav -> the user's notes log, with the unread counter classic already shows on its Updates tab) is visible without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the pill stops rendering, the nav returns to its current item set, and `?nav=home` on the logs page no longer marks a rail row as current, which is the pre-existing behaviour. Read by components/user-pill-nav.hbs, the one primary nav (the home dashboard's own nav was retired 2026-09-21), and by the account rail's current-row logic (components/account-rail.js:232, controllers/application.js:2338).
+  DISABLED_CANARY_FEATURES = ['location_maps']
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
     'hidden_buttons' => 'Feb 2, 2017',
