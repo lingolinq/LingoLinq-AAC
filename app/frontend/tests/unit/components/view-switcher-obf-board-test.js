@@ -28,8 +28,24 @@ module('Unit | Component | view-switcher obf boards', function(hooks) {
       transitionTo: function() { calls.push(['transitionTo'].concat(Array.prototype.slice.call(arguments))); },
       replaceWith: function() { calls.push(['replaceWith'].concat(Array.prototype.slice.call(arguments))); }
     }));
-    context.owner.factoryFor('component:view-switcher').create().send('_apply_view', me, next);
-    return calls;
+    /* The board route's transition is deferred: utils/view_switch_overlay.js paints its overlay on
+     * document.body synchronously (:128) and starts the transition in a requestAnimationFrame (:194).
+     * Reading `calls` alone right after send() saw [] whether or not the switcher painted, so the
+     * frames and the overlay are recorded too. The scheduler is replaced, not drained, so no
+     * transition runs once this spec has ended (learnings-archive/2026-09.md, rAF loops). */
+    var frames = [];
+    var realFrame = window.requestAnimationFrame;
+    window.requestAnimationFrame = function(fn) { frames.push(fn); return frames.length; };
+    var overlay;
+    try {
+      context.owner.factoryFor('component:view-switcher').create().send('_apply_view', me, next);
+      overlay = !!document.getElementById('ll-pre-reload-overlay');
+    } finally {
+      window.requestAnimationFrame = realFrame;
+      var painted = document.getElementById('ll-pre-reload-overlay');
+      if(painted) { painted.remove(); }
+    }
+    return { calls: calls, frames: frames.length, overlay: overlay };
   }
 
   test('the rule: user boards move between the view routes; obf/ and integrations/ do not', function(assert) {
@@ -43,7 +59,8 @@ module('Unit | Component | view-switcher obf boards', function(hooks) {
 
   test('switching view on Liked Boards stays on it, both directions', async function(assert) {
     assert.expect(2);
-    assert.deepEqual(run(this, 'obf/stars-self', 'classic'), [], 'Modern -> Basic: no transition');
-    assert.deepEqual(run(this, 'obf/stars-self', 'modern'), [], 'Basic -> Modern: no transition');
+    var none = { calls: [], frames: 0, overlay: false };
+    assert.deepEqual(run(this, 'obf/stars-self', 'classic'), none, 'Modern -> Basic: no transition, no overlay, nothing queued');
+    assert.deepEqual(run(this, 'obf/stars-self', 'modern'), none, 'Basic -> Modern: no transition, no overlay, nothing queued');
   });
 });
