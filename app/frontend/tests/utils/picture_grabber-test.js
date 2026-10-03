@@ -287,8 +287,15 @@ describe('pictureGrabber', function() {
     it('should stash the image on the editManager for postMessage callback', function() {
       pictureGrabber.setup(button, controller);
       controller.set('image_preview', {url: 'data:image/png'});
+      // The stash happens in a promise's .then (edit_image_preview), so it is waited for, like the
+      // tests either side; and cleared first, so the previous test's stash of this same image cannot
+      // satisfy it (approved 2026-10-02: alone this failed, after its neighbour it passed on leftovers).
+      editManager.stashedImage = null;
       pictureGrabber.edit_image_preview();
-      expect(editManager.stashedImage.url).toEqual('data:image/png');
+      waitsFor(function() { return editManager.stashedImage; });
+      runs(function() {
+        expect(editManager.stashedImage.url).toEqual('data:image/png');
+      });
     });
 
     it('should generate a data-uri for remote images before trying to edit', function() {
