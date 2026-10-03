@@ -69,7 +69,7 @@ export default Component.extend({
   // The feature flag AND the signed-in SLP's own AI setting (the person using the
   // tool), matching the server gate (eval_sessions_controller ai_feature_enabled?).
   aiFlagEnabled: computed(
-    'appState.feature_flags.comprehensive_eval_ai',
+    'appState.sessionUser.feature_flags.comprehensive_eval_ai',
     'appState.sessionUser.preferences.ai_features_enabled',
     function() {
       return aiFeatureGate.authoringFeatureEnabled(this.get('appState'), 'comprehensive_eval_ai');
@@ -77,8 +77,8 @@ export default Component.extend({
   ),
   // Available, but the signed-in SLP has not turned AI features on: say so,
   // rather than the feature-unavailable message.
-  aiSettingOff: computed('appState.feature_flags.comprehensive_eval_ai', 'aiFlagEnabled', function() {
-    return !!this.get('appState.feature_flags.comprehensive_eval_ai') && !this.get('aiFlagEnabled');
+  aiSettingOff: computed('appState.sessionUser.feature_flags.comprehensive_eval_ai', 'aiFlagEnabled', function() {
+    return aiFeatureGate.authoringFlagEnabled(this.get('appState'), 'comprehensive_eval_ai') && !this.get('aiFlagEnabled');
   }),
   aiNarrative: computed('session.aiNarrative', function() {
     return this.get('session.aiNarrative');

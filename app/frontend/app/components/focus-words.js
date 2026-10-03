@@ -204,7 +204,7 @@ export default Component.extend({
   // How the AI focus-word entry proceeds (utils/ai_feature_gate.js
   // boardGenerationEntry): generate, the inline turn-on step, or a reason.
   ai_focus_entry: computed(
-    'appState.feature_flags.ai_board_generation',
+    'appState.sessionUser.feature_flags.ai_board_generation',
     'appState.sessionUser.preferences.ai_features_enabled',
     'appState.sessionUser.preferences.ai_board_generation',
     'appState.sessionUser.permissions',

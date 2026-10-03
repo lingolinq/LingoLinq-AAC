@@ -137,3 +137,45 @@ describe('EvalComprehensiveRunner AI narration errors', 'component:eval-comprehe
     expect(c.get('aiError')).toEqual("AI narration failed. Please try again.");
   });
 });
+
+// The flag, like the setting, is the signed-in SLP's (the server checks
+// @api_user), not app state's, which is the current user's.
+describe('EvalComprehensiveRunner AI flag follows the signed-in SLP', 'component:eval-comprehensive-runner', function() {
+  var testOwner;
+
+  beforeEach(function() {
+    testOwner = this.owner;
+  });
+
+  function flagState(slpFlags, appFlags, slpPrefs) {
+    var slp = EmberObject.create({ preferences: slpPrefs || {}, feature_flags: slpFlags });
+    return {
+      sessionUser: slp, currentUser: slp,
+      feature_flags: appFlags,
+      get: function(key) {
+        if(key.indexOf('feature_flags.') === 0) { return (appFlags || {})[key.slice('feature_flags.'.length)]; }
+        if(key === 'sessionUser' || key === 'currentUser') { return slp; }
+        return null;
+      }
+    };
+  }
+
+  it('offers narration when the SLP has the flag and setting, though app state lacks the flag', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', flagState({ comprehensive_eval_ai: true }, {}, { ai_features_enabled: true }));
+    expect(c.get('aiFlagEnabled')).toEqual(true);
+  });
+
+  it('hides narration, without blaming the setting, when only app state has the flag', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', flagState({}, { comprehensive_eval_ai: true }, {}));
+    expect(c.get('aiFlagEnabled')).toEqual(false);
+    expect(c.get('aiSettingOff')).toEqual(false);
+  });
+
+  it('says the setting is off when the SLP has the flag but not the setting, though app state lacks the flag', function() {
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', flagState({ comprehensive_eval_ai: true }, {}, {}));
+    expect(c.get('aiSettingOff')).toEqual(true);
+  });
+});

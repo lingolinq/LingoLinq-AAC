@@ -290,7 +290,7 @@ export default Component.extend({
   // Shown whenever AI board generation is available for the account; the
   // click goes through _ensureAiBoardGenerationAccess (turn-on step or reason).
   ai_board_generation_offered: computed(
-    'appState.feature_flags.ai_board_generation',
+    'appState.sessionUser.feature_flags.ai_board_generation',
     'appState.sessionUser.preferences.ai_features_enabled',
     'appState.sessionUser.preferences.ai_board_generation',
     'appState.sessionUser.permissions',

@@ -144,12 +144,24 @@ function authoringUser(appState) {
 }
 
 /**
- * Flag AND preference for an authoring feature, judged for authoringUser
+ * The feature flag for an authoring feature, from authoringUser's own
+ * feature_flags: the server checks feature_enabled_for?(feature, @api_user),
+ * built by the same FeatureFlags.frontend_flags_for that serializes
+ * user.feature_flags (lib/json_api/user.rb). Not appState.feature_flags, which
+ * is currentUser's plus the build's enabled list. Missing flags => off.
+ */
+function authoringFlagEnabled(appState, feature) {
+  var flags = userAttr(authoringUser(appState), 'feature_flags');
+  if(!flags || typeof flags !== 'object') { return false; }
+  return flags[feature] === true;
+}
+
+/**
+ * Flag AND preference for an authoring feature, both judged for authoringUser
  * (eval narration: eval_sessions_controller.rb checks @api_user, the SLP).
  */
 function authoringFeatureEnabled(appState, feature) {
-  if(!appState || typeof appState.get !== 'function') { return false; }
-  if(!appState.get('feature_flags.' + feature)) { return false; }
+  if(!authoringFlagEnabled(appState, feature)) { return false; }
   return prefAllowsAi(authoringUser(appState), feature);
 }
 
@@ -161,7 +173,7 @@ function boardGenerationEntry(appState) {
   if(!appState || typeof appState.get !== 'function') { return 'blocked_flag'; }
   var user = authoringUser(appState);
   if(euAiConsentRequired(user)) { return 'eu_consent'; }
-  if(!appState.get('feature_flags.ai_board_generation')) { return 'blocked_flag'; }
+  if(!authoringFlagEnabled(appState, 'ai_board_generation')) { return 'blocked_flag'; }
   if(coppaAiBlocked(user)) { return 'blocked_coppa'; }
   if(!prefExplicitlyEnabled(user, 'ai_board_generation')) {
     return canChangeAiSettings(user) ? 'needs_opt_in' : 'no_permission';
@@ -179,7 +191,7 @@ function boardGenerationEntry(appState) {
  */
 function boardGenerationOffered(appState) {
   if(!appState || typeof appState.get !== 'function') { return false; }
-  if(!appState.get('feature_flags.ai_board_generation')) { return false; }
+  if(!authoringFlagEnabled(appState, 'ai_board_generation')) { return false; }
   return boardGenerationEntry(appState) !== 'blocked_flag';
 }
 
@@ -224,6 +236,7 @@ export default {
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
   authoringUser: authoringUser,
+  authoringFlagEnabled: authoringFlagEnabled,
   authoringFeatureEnabled: authoringFeatureEnabled,
   boardGenerationEntry: boardGenerationEntry,
   boardGenerationOffered: boardGenerationOffered,
@@ -241,6 +254,7 @@ export {
   euAiConsentRequired,
   coppaAiBlocked,
   authoringUser,
+  authoringFlagEnabled,
   authoringFeatureEnabled,
   boardGenerationEntry,
   boardGenerationOffered,
