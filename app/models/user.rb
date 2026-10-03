@@ -2535,7 +2535,7 @@ class User < ApplicationRecord
       # failure mode called out on 'dashboard_layout' above.
       # Values are constrained on write by sanitize_boards_layout_preference!.
       'boards_layout',
-      # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
+      # AI feature prefs (master + per-feature). Master nil = off (AI defaults off);
       # for EU under-16 without parental consent these are forced false on write.
       'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
       'ai_board_suggestions', 'ai_symbol_search'
@@ -2838,6 +2838,7 @@ class User < ApplicationRecord
     if params['preferences'] && !(non_user_params['updater'] && non_user_params['updater'].admin?)
       params['preferences'].delete('beta_program_access')
     end
+    ai_prefs_before = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     PREFERENCE_PARAMS.each do |attr|
       if params['preferences'] && params['preferences'][attr] != nil
         val = params['preferences'][attr]
@@ -2857,6 +2858,7 @@ class User < ApplicationRecord
         self.settings['preferences'][attr] = val
       end
     end
+    ai_prefs_requested = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     # EU under-16 without active AI parental consent: default AI prefs off on
     # create, and silently force false if the client tries to enable any.
     # Also never allow product-improvement / telemetry opt-in for EU under-16.
@@ -2870,6 +2872,35 @@ class User < ApplicationRecord
     end
     if eu_under_16?
       product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
+    # Record each AI preference whose STORED value changed in this save, with who,
+    # when, and the old and new value. Compared after normalization and the EU
+    # override above, so a save that omits the keys, repeats a value, or sends a
+    # dropped blank records nothing. A value the EU rule set, rather than the
+    # one this save asked for, is marked 'source' => 'eu_forced'.
+    EU_AI_PREF_KEYS.each do |key|
+      before = ai_prefs_before[key]
+      after = self.settings['preferences'][key]
+      next if before == after
+      forced = ai_prefs_requested[key] != after
+      # With no editor, an EU-rule value is credited to the rule itself, and a
+      # request with no signed-in user (a sign-up) to a fixed system actor.
+      whodunnit = PaperTrail.request.whodunnit
+      updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
+                   elsif forced then 'system:eu_rule'
+                   elsif whodunnit.to_s.start_with?('unauthenticated') then 'system:unauthenticated'
+                   else whodunnit end
+      entry = {
+        'updater' => updater_id,
+        'setting' => key,
+        'from' => before,
+        'to' => after,
+        'timestamp' => Time.now.utc.iso8601
+      }
+      entry['source'] = 'eu_forced' if forced
+      entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
+      self.settings['confirmation_log'] ||= []
+      self.settings['confirmation_log'] << entry
     end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe

@@ -201,16 +201,48 @@ export default Component.extend({
     return this.get('search') || this.get('browse');
   }),
 
-  ai_focus_generation_enabled: computed(
-    'appState.feature_flags.focus_word_highlighting',
-    'appState.feature_flags.ai_board_generation',
-    'appState.currentUser.preferences.ai_features_enabled',
-    'appState.currentUser.preferences.ai_board_generation',
+  // How the AI focus-word entry proceeds (utils/ai_feature_gate.js
+  // boardGenerationEntry): generate, the inline turn-on step, or a reason.
+  ai_focus_entry: computed(
+    'appState.sessionUser.feature_flags.ai_board_generation',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_board_generation',
+    'appState.sessionUser.permissions',
     function() {
-      return !!(this.get('appState.feature_flags.focus_word_highlighting') &&
-        aiFeatureGate.aiFeatureEnabled(this.get('appState'), 'ai_board_generation'));
+      return aiFeatureGate.boardGenerationEntry(this.get('appState'));
     }
   ),
+
+  // The AI section is shown whenever the feature is available for the account,
+  // so a person sees the turn-on step or a reason rather than no AI option.
+  ai_focus_generation_offered: computed(
+    'appState.feature_flags.focus_word_highlighting',
+    'ai_focus_entry',
+    function() {
+      return !!(this.get('appState.feature_flags.focus_word_highlighting') &&
+        aiFeatureGate.boardGenerationOffered(this.get('appState')));
+    }
+  ),
+
+  ai_focus_generation_enabled: computed('ai_focus_generation_offered', 'ai_focus_entry', function() {
+    return !!(this.get('ai_focus_generation_offered') && this.get('ai_focus_entry') === 'allowed');
+  }),
+
+  ai_focus_needs_opt_in: computed('ai_focus_entry', function() {
+    return this.get('ai_focus_entry') === 'needs_opt_in';
+  }),
+
+  ai_focus_blocked_reason: computed('ai_focus_entry', function() {
+    var entry = this.get('ai_focus_entry');
+    if(entry === 'no_permission') {
+      return i18n.t('ai_features_no_permission', "Only someone who can edit this account can turn on AI features.");
+    } else if(entry === 'blocked_coppa') {
+      return i18n.t('enable_ai_features_blocked_coppa', "AI features require parental consent for this account.");
+    } else if(entry === 'eu_consent') {
+      return i18n.t('ai_features_eu_consent_needed', "AI features for this account need a parent or guardian's consent first. You can request it in Preferences under AI Features.");
+    }
+    return null;
+  }),
 
   /**
    * EU AI Act Article 50(1) hand-off for the AI focus-word generator.
@@ -374,6 +406,29 @@ export default Component.extend({
   },
 
   actions: {
+    // Inline turn-on step for AI focus words. Inline rather than the
+    // enable-ai-features modal, which would replace this modal and lose what
+    // was typed. Turns on board generation only (applyAiFeaturePrefs).
+    enable_ai_focus_words: function() {
+      var _this = this;
+      var user = aiFeatureGate.authoringUser(this.get('appState'));
+      this.set('ai_focus_opt_in_error', null);
+      if(!user || typeof user.save !== 'function' || (persistence.get && !persistence.get('online'))) {
+        this.set('ai_focus_opt_in_error', i18n.t('enable_ai_features_save_error', "Could not save AI feature settings. Please try again."));
+        return;
+      }
+      aiFeatureGate.applyAiFeaturePrefs(user, { ai_board_generation: true });
+      this.set('ai_focus_opt_in_saving', true);
+      return user.save().then(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('ai_focus_opt_in_saving', false);
+      }, function() {
+        aiFeatureGate.rollbackAiFeaturePrefs(user);
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('ai_focus_opt_in_saving', false);
+        _this.set('ai_focus_opt_in_error', i18n.t('enable_ai_features_save_error', "Could not save AI feature settings. Please try again."));
+      });
+    },
     close() {
       this.get('modal').close();
     },
