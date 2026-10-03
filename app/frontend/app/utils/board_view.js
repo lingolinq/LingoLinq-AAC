@@ -28,6 +28,15 @@ export function opens_in_view_route(key) {
   return !key.match(/^integrations\//) && !key.match(/^obf\//);
 }
 
+/* THE PAGES THAT SHOW A BOARD (2026-10-02): the legacy board page, Basic's board-alt and Modern's
+   board-detail, viewing or editing. No view switch is offered on these (requested 2026-10-02: "they
+   would have to exit the boards entirely in order to switch views"); a board's stats and history
+   pages are not board pages. Read by components/view-switcher.js#available. */
+var BOARD_PAGE_ROUTES = ['board.index', 'user.board-alt.index', 'user.board-detail.index', 'user.board-detail.edit'];
+export function is_board_page(route) {
+  return BOARD_PAGE_ROUTES.indexOf(route) !== -1;
+}
+
 export default board_view_route;
 
 // Where to send a user who should land on a board IN EDIT MODE.

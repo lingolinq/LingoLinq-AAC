@@ -543,57 +543,6 @@
 
         </div>
 
-        {{!-- VIEW STYLE SHORTCUT — switch this board to the Classic full-device grid.
-             Restored to this panel 2026-09-15 (it lived here before 2026-08-24, when it
-             moved into the Board Actions modal). The modal is still the other way in, via
-             "Other Actions" above; this is the shortcut, because reaching a view switch
-             from edit mode otherwise took two clicks through a modal — and the navbar
-             View dropdown deliberately hides during an edit session
-             (components/view-switcher.js#available).
-
-             LAST CHILD OF THE ASIDE, DELIBERATELY — it has to sit at the bottom in BOTH
-             panel states, and that is the one position that gets it for free. It cannot
-             go inside `__bottom` (hidden outright on the collapsed rail) and it cannot go
-             above `__bottom` (then it is not last when expanded). After it, the expanded
-             panel shows it below Board Display, and the collapsed rail — where `__bottom`
-             is gone — shows it below the Display pill. One row, no duplicate for the
-             other state.
-
-             Same reason it is not inside the Board Actions group: rows in a
-             `md-board-edit-panel__collapse` list are `display: none` on the rail. The
-             `__label` / `__label-collapsed` pair every always-visible row uses gives
-             "Classic View" expanded and "Style" on the rail — "Style" rather than
-             "Classic" because the caption names the CONTROL, matching its Display
-             neighbour, while the expanded label names the destination.
-
-             Destination labelling matches components/view-switcher.hbs, which shows the
-             style you would move TO. This page is the Card-view board, so that is always
-             Classic.
-
-             `go_to_classic` prompts through confirm-discard-changes when the edit session
-             is dirty — see the action for why that guard is not optional here. --}}
-        <button
-          type="button"
-          class="md-board-edit-panel__row md-board-edit-panel__row--view-style"
-          data-tooltip={{t "Basic View" key="classic_view"}}
-          data-bd-action="go_to_classic"
-          {{on "click" (this.ctrlAction "go_to_classic")}}>
-          {{!-- A board frame with a double-headed arrow across it: "swap what this board
-               is displayed as". The previous icon was a plain 3x3 grid, which named the
-               DESTINATION layout rather than the act of switching — and read as yet
-               another grid among the panel's other square icons. Two-tone as elsewhere in
-               this panel: frame in currentColor, the swap arrow in verdigris so the
-               moving part is what catches the eye. --}}
-          <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2" y="4" width="20" height="16" rx="2.5" stroke="currentColor"/>
-            <path d="M7.5 12h9" stroke="#2A9D8F"/>
-            <path d="M9.75 9.75 7.5 12l2.25 2.25" stroke="#2A9D8F"/>
-            <path d="M14.25 9.75 16.5 12l-2.25 2.25" stroke="#2A9D8F"/>
-          </svg>
-          <span class="md-board-edit-panel__label">{{t "Basic View" key="classic_view"}}</span>
-          <span class="md-board-edit-panel__label-collapsed">{{t "Style" key="board_view_style_short"}}</span>
-        </button>
-
       </aside>
     {{/if}}
 

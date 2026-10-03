@@ -960,7 +960,8 @@
          is false on user.board-alt.index (controllers/application.js:2326), so the
          modern navbar's <ViewSwitcher /> does not render there — the classic board
          needs its own mount to stay switchable. The component self-hides with no
-         user and in speak mode.
+         user, in speak mode and on every board page (utils/board_view.js is_board_page,
+         2026-10-02), so on a board this mount renders nothing either.
 
          NOT ON BOARD-ALT (requested 2026-09-22), for both Focused and Gentle. Note the
          irony this guard has to hold: this mount exists BECAUSE board-alt has no modern
@@ -1475,9 +1476,6 @@
           {{t "Messages" key="messages"}}
         </LinkTo></li>
         <li><a href="#" {{on "click" (this.ctrlAction "support")}}>{{t "Help" key="help"}}</a></li>
-        {{#if this.app_state.currentBoardState.key}}
-        <li class="dropdown-menu__try-new-style-item"><a href="#" {{on "click" (this.ctrlAction "goToNewStyle")}}>{{t "Try New Style" key="try_new_style"}}</a></li>
-        {{/if}}
         <li class="app-navbar__beta-feedback-menu-item"><a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}}>{{t "Beta feedback" key="beta_feedback_nav"}}</a></li>
         {{#if this.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>

@@ -55,4 +55,18 @@ module('Unit | Component | view-switcher availability', function(hooks) {
     stubAppState(this, { currentUser: { id: 'u1' }, speak_mode: false, edit_mode: true });
     assert.false(switcher(this).get('available'), 'no unprompted exit from an edit session');
   });
+
+  // NO VIEW SWITCH ON A BOARD PAGE (requested 2026-10-02): "they would have to exit the boards
+  // entirely in order to switch views". Both styles' board pages and the legacy board page.
+  test('is hidden on every board page, and offered again off the board', function(assert) {
+    assert.expect(8);
+    ['board.index', 'user.board-alt.index', 'user.board-detail.index', 'user.board-detail.edit'].forEach((route) => {
+      stubAppState(this, { currentUser: { id: 'u1' }, speak_mode: false, edit_mode: false, current_route: route });
+      assert.false(switcher(this).get('available'), route + ': leave the board to switch view');
+    });
+    ['index', 'user.index', 'user.boards', 'board.stats'].forEach((route) => {
+      stubAppState(this, { currentUser: { id: 'u1' }, speak_mode: false, edit_mode: false, current_route: route });
+      assert.true(switcher(this).get('available'), route + ': not a board page');
+    });
+  });
 });

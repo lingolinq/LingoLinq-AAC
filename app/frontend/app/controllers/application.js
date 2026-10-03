@@ -731,7 +731,7 @@ export default Controller.extend({
     // person tapping the menu. Writing there flipped and persisted an AAC user's own
     // stored view because their supporter tried a different UI. `sessionUser` is the
     // signed-in account and speak mode does not reassign it. When a communicator
-    // speaks as themselves the two are the same record, so that case is unchanged.
+    // speaks as themselves the two are the same record, so that case is unchanged. NOT RENDERED since 2026-10-02 ("Try New Style" removed: no view switch on a board page).
     goToNewStyle: function() {
       var user = this.appState.get('sessionUser');
       if(user) { set_view_style(user, 'modern'); }

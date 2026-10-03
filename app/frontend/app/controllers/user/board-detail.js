@@ -12,8 +12,6 @@ import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
-import paint_view_switch_overlay from '../../utils/view_switch_overlay';
-import { set_view_style, confirm_view_style_change } from '../../utils/view_style';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
@@ -39,9 +37,9 @@ import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/displ
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_color, resolve_labels_pos } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
-import { is_copy_decision } from '../../utils/copy_decision';
 import LingoLinq from '../../app';
 import buildEventAction from '../../utils/event_action';
+import { is_copy_decision } from '../../utils/copy_decision';
 
 // Catalog of speak-mode options-menu entries the user can show/hide
 // via the "Customize Menu" preference (right panel → Board Settings).
@@ -7655,91 +7653,6 @@ export default Controller.extend(prefClasses, {
       }
     },
 
-    // "Classic View" button on the board-detail EDIT page: persist the
-    // user's preference to 'classic' (so future logins land in the
-    // classic view) AND navigate to the board-alt page in normal mode.
-    // Uses the same dirty-bit trick as set_display_pref: Ember Data
-    // doesn't reliably mark the raw `preferences` blob dirty on a
-    // nested set, so we also poke `preferences.device.updated` to
-    // force the full blob to ship.
-    //
-    // Loading mask: reuse the same view-switch overlay that the
-    // Classic → Modern direction uses (controllers/board/index.js
-    // go_to_modern → utils/view_switch_overlay.js). Pass
-    // accentLight:true so the parenthesized clarifier in the title
-    // renders at a lighter font-weight on this direction, per the
-    // design ask.
-    /* GATED ON UNSAVED CHANGES. Switching view style navigates to `user.board-alt`, which
-       leaves the edit session — so without this it would be a THIRD way out of edit mode
-       that never asks, alongside `exit_to_home_from_edit` and `cancel_edit` which both
-       prompt via confirm-discard-changes. components/view-switcher.js#available documents
-       exactly this: it hides the navbar View switch during an edit session "so unsaved
-       button edits would go without a word". Re-adding a shortcut to this panel without
-       the same guard would have reopened that hole from inside edit mode, where the risk
-       is highest — a therapist may have spent a session laying the board out.
-
-       Same shape as the other two exits: no dialog on a clean session (a confirm that only
-       ever says "you will lose nothing" trains people to click through the one that
-       matters), confirm on a dirty one, and nothing happens unless they choose discard. */
-    go_to_classic: function() {
-      /* Guarded: on a communicator's board this writes THEIR stored default, so ask before
-         doing it and skip the navigation too on a cancel. */
-      var _gc = this;
-      confirm_view_style_change(this.get('app_state'), 'classic').then(function(ok) {
-        if(ok) { _gc.send('_go_to_classic_confirmed'); }
-      });
-    },
-
-    _go_to_classic_confirmed: function() {
-      var _this = this;
-      /* The navigation half, as a local so the guard below reads as a guard. Mirrors
-         components/board-actions.js#set_view_style, the same switch reached from the
-         Board Actions modal. */
-      var doSwitch = function() {
-        var user = _this.get('user');
-        var boardname = _this.get('boardname');
-        /* The record whose view is ON SCREEN, not the session account. While a supervisor
-           models for a communicator those differ, and writing `currentUser` there would
-           store the change against the supervisor while the page kept rendering the
-           communicator's shell -- the control would look dead. See
-           app-state#effective_view_user. */
-        var prefUser = _this.get('app_state.effective_view_user');
-        /* Shared helper rather than an inline preference write: it guards the `preferences`
-           and `preferences.device` containers before setting the nested dirty bit, which
-           THROWS ("object in path could not be found") on a record that carries neither.
-           The inline version here did not, and it ran before the navigation, so the throw
-           would have taken the switch down with it. */
-        if(prefUser) { set_view_style(prefUser, 'classic'); }
-        if(!user || !boardname) { return; }
-        var userName = user.get('user_name');
-        var routerSvc = _this.get('router');
-        // Theme detection mirrors go_to_modern: prefer the user's explicit
-        // light signal, otherwise default dark so the mockup matches the
-        // destination's typical theme.
-        var appStateService = _this.get('app_state');
-        var isDark = true;
-        if (appStateService && typeof appStateService.get === 'function') {
-          var themeMode = appStateService.get('themeMode');
-          if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
-            isDark = false;
-          }
-        }
-        paint_view_switch_overlay({
-          routerSvc: routerSvc,
-          isDark: isDark,
-          accentLight: true,
-          transition: function() {
-            return routerSvc.transitionTo('user.board-alt', userName, boardname);
-          }
-        });
-      };
-
-      if(!this.edit_session_has_changes()) { doSwitch(); return; }
-      modal.open('confirm-discard-changes', {}).then(function(result) {
-        if(result === 'discard') { doSwitch(); }
-      }, function() { });
-    },
-
     toggle_board_collapsed: function() {
       this.toggleProperty('board_collapsed');
     },
@@ -8444,7 +8357,7 @@ export default Controller.extend(prefClasses, {
     // Prediction section. Reads/writes referenced_user (the board's user,
     // matching the speak-mode display gate). Dirty-bits preferences.device.updated
     // so the raw preferences blob ships (Ember Data won't mark a nested set dirty
-    // on its own — same trick as go_to_classic / set_display_pref).
+    // on its own — same trick as set_display_pref).
     toggle_word_suggestions: function() {
       var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
       if(!prefUser) { return; }

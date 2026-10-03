@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { is_classic, view_style, set_view_style, confirm_view_style_change } from '../utils/view_style';
-import { board_view_route, opens_in_view_route } from '../utils/board_view';
+import { board_view_route, opens_in_view_route, is_board_page } from '../utils/board_view';
 import { basic_landing_for, hand_off_index_nav, is_own_page, modern_landing_for } from '../utils/basic_landing';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
@@ -108,10 +108,14 @@ export default Component.extend({
   // protects; the guard itself was not affected, and #928 touched neither this file nor
   // services/app-state.js. An earlier version of this comment claimed both exits always
   // prompt, which #928 made false, and cited :8797/:8806, which the rewrite moved.
-  available: computed('appState.currentUser', 'appState.speak_mode', 'appState.edit_mode', function() {
+  //
+  // BOARD PAGES (2026-10-02): no switch on any page that shows a board; the user leaves the board
+  // to switch view (utils/board_view.js is_board_page).
+  available: computed('appState.currentUser', 'appState.speak_mode', 'appState.edit_mode', 'appState.current_route', function() {
     return !!this.appState.get('currentUser') &&
            !this.appState.get('speak_mode') &&
-           !this.appState.get('edit_mode');
+           !this.appState.get('edit_mode') &&
+           !is_board_page(this.appState.get('current_route'));
   }),
 
   isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
@@ -296,7 +300,7 @@ export default Component.extend({
       paint_view_switch_overlay({
         routerSvc: routerSvc,
         // Modern -> Classic renders the parenthetical lighter, matching
-        // board-detail.js#go_to_classic; Classic -> Modern keeps the default.
+        // the former board-detail Classic shortcut; Classic -> Modern keeps the default.
         accentLight: (next === 'classic'),
         isDark: !!this.appState.get('currentUser.preferences.board_dark_mode'),
         transition: function() {

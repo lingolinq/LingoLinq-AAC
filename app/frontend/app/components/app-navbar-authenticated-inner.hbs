@@ -51,11 +51,11 @@
          screen — not acceptable on an AAC product.
 
          Deliberately OUTSIDE the `empty_header` gate above: unlike the tour and
-         display-style buttons (dashboard-only), the View switch must be reachable from
-         every authenticated page, boards included. On those pages the home-actions
-         cluster does not render at all, so the switch simply sits where it always did.
-         It hides itself when there is no user, in speak mode, and during a board edit
-         session — see components/view-switcher.js. --}}
+         display-style buttons (dashboard-only), the View switch is reachable from
+         every authenticated page except a board page: there it hides itself, and the
+         user leaves the board to switch view (requested 2026-10-02). It also hides when
+         there is no user, in speak mode, and during a board edit session — see
+         components/view-switcher.js#available. --}}
     <ViewSwitcher />
   </span>
   {{!-- Quick-actions cluster. Lives in its own span

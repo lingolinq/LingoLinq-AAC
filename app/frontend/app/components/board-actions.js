@@ -1,10 +1,8 @@
 import Component from '@ember/component';
-import { confirm_view_style_change } from '../utils/view_style';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
-import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 /**
  * Board Actions Modal Component
@@ -86,12 +84,6 @@ export default Component.extend({
   can_set_as_home: computed('appState.currentUser', 'is_subject_home_board', function() {
     if (!this.get('appState.currentUser')) { return false; }
     return !this.get('is_subject_home_board');
-  }),
-
-  // True when the persisted board view style is Modern (the default). Drives the
-  // View Style toggle's active segment + thumb position.
-  is_modern: computed('appState.effective_view_user.preferences.board_view_style', function() {
-    return this.get('appState.effective_view_user.preferences.board_view_style') !== 'classic';
   }),
 
   actions: {
@@ -221,37 +213,6 @@ export default Component.extend({
       if (!model || !model.board) { return; }
       modalUtil.open('set-as-home', { board: model.board });
     },
-    // View Style toggle (Modern panels ↔ Classic full-device grid). Persists the
-    // preference and navigates to the matching board page through the shared
-    // "Preparing your Board" overlay — mirrors go_to_classic/go_to_modern. No-op
-    // when already on the chosen style.
-    set_view_style(style) {
-      /* The record whose view is ON SCREEN, not the session account. While a supervisor
-         models for a communicator those differ, and writing `currentUser` there would
-         store the change against the supervisor while the page kept rendering the
-         communicator's shell -- the control would look dead. See
-         app-state#effective_view_user. */
-      var user = this.get('appState.effective_view_user');
-      var board = this.get('model.board');
-      if (!user || !board) { return; }
-      var current = this.get('appState.effective_view_user.preferences.board_view_style') || 'modern';
-      if (current === style) { return; }
-      /* Ask first when the view belongs to someone else (a communicator being modelled for, or
-         whose page this is). A cancel must leave the preference AND the navigation below
-         alone, so everything from the write onwards sits inside the guard. */
-      /* The services are captured NOW: the confirmation is a modal, and opening it replaces this
-         Board Actions modal, which destroys this component before the answer comes back
-         (2026-10-01). Applying through `apply_view_style` below needs nothing from `this`. */
-      var services = this._view_style_services();
-      confirm_view_style_change(this.get('appState'), style).then(function(ok) {
-        if(!ok) { return; }
-        apply_view_style(services, user, board, style);
-      });
-    }
-  },
-
-  _view_style_services() {
-    return { router: this.get('router'), modal: this.get('modal'), appState: this.get('appState') };
   },
 
   didInsertElement() {
@@ -326,35 +287,3 @@ export default Component.extend({
   },
 
 });
-
-/* Applies a view change for `user` from Board Actions: saves the preference, closes the modal
-   and moves to that view's board page under the shared "Preparing your Board" overlay. Module
-   level, taking the services it needs, because it can run after the component is destroyed
-   (see `set_view_style`). Body unchanged from the `_apply_view_style` action it replaces. */
-function apply_view_style(services, user, board, style) {
-  user.set('preferences.board_view_style', style);
-  if (user.save) {
-    user.set('preferences.device.updated', true);
-    user.save();
-  }
-  var key = (board.get ? board.get('key') : board.key) || '';
-  var routerSvc = services.router;
-  services.modal.close();
-  if (key.indexOf('/') === -1) { return; }
-  var parts = key.split('/');
-  var userName = parts[0];
-  var boardname = parts.slice(1).join('/');
-  var appStateService = services.appState;
-  var isDark = true;
-  var themeMode = appStateService && appStateService.get('themeMode');
-  if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
-  paint_view_switch_overlay({
-    routerSvc: routerSvc,
-    isDark: isDark,
-    accentLight: (style === 'classic'),
-    transition: function() {
-      var route = (style === 'classic') ? 'user.board-alt' : 'user.board-detail';
-      return routerSvc.transitionTo(route, userName, boardname);
-    }
-  });
-}
