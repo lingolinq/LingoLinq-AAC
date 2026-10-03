@@ -255,6 +255,13 @@ Admission rule for an entry in this file:
   test waiters and hangs every acceptance test; Mirage 3 calls the default export with its config and
   expects a server back, and a 2.x-style zero-arg export throws in `beforeEach`. Symbol: `refresh_user`
   in `app/frontend/app/services/app-state.js`.
+- **A unit test never waits with `settled()`; wait on its own outcome.** `settled()` waits for EVERY
+  run-loop timer in the app. An earlier test can leave the stashes 15-minute flush timer armed, and then
+  every `settled()` hits the 15s timeout, intermittently, depending on how earlier tests race (#1094: 13
+  tests, then 10 more). A timed-out test never runs its `finally`, so a global stub restored there leaks
+  into later tests. Use `waitUntil(() => <own result>)`, the code's own promise, or animation frames, and
+  restore globals in afterEach. Reproduce with `later(() => {}, 20 * 60 * 1000)` from `QUnit.begin`.
+  Symbol: `setupRestoreOnTeardown` in `app/frontend/tests/helpers/restore-on-teardown.js`.
 - **`Worker.scheduled?` flakes repo-wide off BoyBand's 30-second `sizeof/<queue>` cache.** One example
   that pushes a queue past 500 makes every later `scheduled?` a false negative for 30 wall-clock
   seconds; the cache keys are deleted in `before(:each)`. Cite `spec/spec_helper.rb`.
