@@ -519,7 +519,7 @@ export function analyze(stats) {
        twice was restating the labels in words.
        A NEW KEY, not a reworded one: `i18n_generator.rb` never refreshes an existing value, so
        editing the English of `report_comparison_basis` would leave 12 locales showing the long
-       sentence while English showed the short one. The old key stays defined and unused. */
+       sentence while English showed the short one. The old key is unused; the generator dropped it from en.json. */
     comparisonBasis: comparison.available ? i18n.t('report_comparison_basis_short', "Changes compare %{later} with %{earlier}.", {later: comparison.later_label, earlier: comparison.label}) : '',
     primaryInsight: buildPrimaryInsight(stats, comparison),
     summaryMetrics: buildSummaryMetrics(stats, comparison),

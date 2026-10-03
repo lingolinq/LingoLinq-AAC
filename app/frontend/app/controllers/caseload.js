@@ -715,4 +715,3 @@ export default Controller.extend({
 // Placed last for the same reason as the computeds above: an import at the top would shift the
 // line-anchored ESLint baseline. Imports are hoisted, so position does not matter at runtime.
 import { attentionBadgeFor } from '../utils/dashboard_sections';
-
