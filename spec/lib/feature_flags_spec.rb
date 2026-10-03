@@ -116,6 +116,18 @@ describe FeatureFlags do
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
     end
 
+    it "does not treat a district-sponsored user with school authorization as pending parental consent" do
+      u = User.new(settings: {
+        'school_authorization' => {
+          'basis' => 'school_official',
+          'organization_id' => '1_1',
+          'authorized_by' => '1_2',
+          'authorized_at' => Time.now.utc.iso8601
+        }
+      })
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+    end
+
     it "returns true when user has pending parental consent" do
       u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
@@ -176,6 +188,26 @@ describe FeatureFlags do
       u.settings['feature_flags'] = {'sms_recipient_consent' => true}
       expect(FeatureFlags.sms_recipient_consent_enabled?(u)).to eq(true)
       expect(FeatureFlags.sms_recipient_consent_enabled?(nil)).to eq(false)
+    end
+  end
+
+  describe "location_maps" do
+    it "is registered as available but OFF by default, including for canary users" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('location_maps')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('location_maps')
+      expect(FeatureFlags::DISABLED_CANARY_FEATURES).to include('location_maps')
+      expect(SystemFeatureSettings.default_enabled_features).not_to include('location_maps')
+      expect(SystemFeatureSettings.canary_enabled_features).not_to include('location_maps')
+    end
+
+    it "is OFF with no user and with no per-user value" do
+      u = User.create
+      expect(FeatureFlags.feature_enabled_for?('location_maps', nil)).to eq(false)
+      expect(FeatureFlags.feature_enabled_for?('location_maps', u)).to eq(false)
+    end
+
+    it "has an admin description" do
+      expect(SystemFeatureRegistry::METADATA['location_maps']).to include(:name, :description)
     end
   end
 

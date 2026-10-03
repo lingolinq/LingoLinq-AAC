@@ -72,7 +72,7 @@ module FeatureFlags
               # app/frontend/app/routes/index.js#afterModel; the recording side
               # (utils/session_history.js) runs regardless so flipping this on
               # takes effect immediately.
-              'session_resume',
+              'session_resume', 'disable_transcription_alternatives', # inverted: ON turns transcription language hints OFF (read only by lib/speech_language.rb); never add it to ENABLED
               # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
               # the upper-left of any page that isn't the supporter's own. Read by
               # app-state#supervising_context; with it OFF the computed returns
@@ -125,7 +125,7 @@ module FeatureFlags
               # blanket ENABLED_FRONTEND_FEATURES on. Do not add this flag to
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
-              'sms_recipient_consent', 'updates_pill', 'multilingual_grammar', # multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
+              'sms_recipient_consent', 'updates_pill', 'multilingual_grammar', 'location_maps', # location_maps: session-location maps on the stats and log pages; AVAILABLE-only and in DISABLED_CANARY_FEATURES, so OFF for everyone including canary users. multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
               # Compressed View: a per-user density preference (preferences.compressed_view),
               # toggled from the View menu (components/view-switcher.hbs). With it on, the
               # app shell and the Modern home page use tighter spacing and a shorter layout
@@ -159,7 +159,7 @@ module FeatureFlags
               'compressed_view', # TEMPORARY (2026-09-29): forced ON for everyone so Traci can evaluate the Compressed View toggle in the browser. The preference itself defaults OFF, so nobody's page changes until they flip it. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'updates_pill'] # TEMPORARY (2026-09-14): forced ON for everyone so the Card-view Updates pill (primary nav -> the user's notes log, with the unread counter classic already shows on its Updates tab) is visible without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the pill stops rendering and the nav returns to its current item set, which is the pre-existing behaviour. Read by components/user-pill-nav.hbs, the one primary nav (the home dashboard's own nav was retired 2026-09-21).
-  DISABLED_CANARY_FEATURES = []
+  DISABLED_CANARY_FEATURES = ['location_maps']
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
     'hidden_buttons' => 'Feb 2, 2017',
