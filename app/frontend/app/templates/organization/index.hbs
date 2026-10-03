@@ -236,8 +236,12 @@
         </div>
         <div class="md-org-charts md-org-charts--goals">
           <div class="md-org-charts__item">
-            {{#if this.model.total_users}}
-              <Stats::RecentGoals @total={{this.model.total_users}} @goal_set={{this.user_counts.goal_set}} @tracked={{this.user_counts.goal_recently_logged}} />
+            {{!-- The total is the STATS count (approved users, Organization.usage_stats), the same people
+                 goal_set and tracked count -- not `model.total_users`, which also counts pending and eval
+                 links and inflated "No Goal Set" by them (2026-10-02; the Sessions pie above had the same
+                 mismatch, fixed in c28330f57). --}}
+            {{#if this.user_counts.total_users}}
+              <Stats::RecentGoals @total={{this.user_counts.total_users}} @goal_set={{this.user_counts.goal_set}} @tracked={{this.user_counts.goal_recently_logged}} />
             {{else}}
               <div class="md-org-chart-empty">
                 <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></svg>
