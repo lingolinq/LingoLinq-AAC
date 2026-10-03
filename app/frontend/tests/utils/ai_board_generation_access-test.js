@@ -22,6 +22,7 @@ describe('ensureAiBoardGenerationAccess', function() {
       id: id,
       get: function(key) {
         if(key === 'preferences') { return o.prefs || {}; }
+        if(key === 'feature_flags') { return { ai_board_generation: true }; }
         if(key === 'permissions') { return o.permissions || { view: true, edit: true }; }
         if(key === 'eu_under_16') { return !!o.eu_under_16; }
         if(key === 'eu_ai_parental_consent_parent_email') { return o.parent_email || null; }

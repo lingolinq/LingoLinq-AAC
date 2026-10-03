@@ -17,6 +17,7 @@ import modal from '../../utils/modal';
 // recorded an AI choice, so the person reaches the turn-on step (or a reason)
 // instead of the button silently disappearing.
 function appStateFor(flags, user) {
+  if(user && user.set) { user.set('feature_flags', flags); }
   return {
     currentUser: user,
     sessionUser: user,
@@ -95,7 +96,7 @@ describe('new-board Generate with AI, Not now', 'component:new-board', function(
       return RSVP.resolve(false);
     });
     var c = testOwner.factoryFor('component:new-board').create({ standalone: true });
-    var user = EmberObject.create({ preferences: {}, permissions: { view: true, edit: true } });
+    var user = EmberObject.create({ preferences: {}, permissions: { view: true, edit: true }, feature_flags: { ai_board_generation: true } });
     c.set('appState', {
       sessionUser: user,
       currentUser: user,
@@ -136,6 +137,7 @@ describe('focus-words inline AI turn-on', 'component:focus-words', function() {
   }
 
   function speakState(sessionUser, communicator) {
+    [sessionUser, communicator].forEach(function(u) { u.set('feature_flags', { ai_board_generation: true, focus_word_highlighting: true }); });
     return {
       sessionUser: sessionUser,
       currentUser: communicator,

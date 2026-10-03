@@ -16,7 +16,7 @@ import article50Gate from '../../utils/article50_gate';
 // as well as the feature flag, so an SLP with AI off is not shown an AI button
 // the server will refuse.
 function appStateFor(flagOn, prefs) {
-  var user = EmberObject.create({ preferences: prefs });
+  var user = EmberObject.create({ preferences: prefs, feature_flags: { comprehensive_eval_ai: flagOn } });
   return {
     currentUser: user, sessionUser: user,
     feature_flags: { comprehensive_eval_ai: flagOn },
@@ -50,8 +50,8 @@ describe('EvalComprehensiveRunner AI setting', 'component:eval-comprehensive-run
   // The signed-in SLP, whose setting the server checks (@api_user), not
   // app-state's currentUser when that points at another account.
   function twoUserState(slpPrefs, otherPrefs) {
-    var slp = EmberObject.create({ preferences: slpPrefs });
-    var other = EmberObject.create({ preferences: otherPrefs });
+    var slp = EmberObject.create({ preferences: slpPrefs, feature_flags: { comprehensive_eval_ai: true } });
+    var other = EmberObject.create({ preferences: otherPrefs, feature_flags: { comprehensive_eval_ai: true } });
     return {
       sessionUser: slp, currentUser: other,
       feature_flags: { comprehensive_eval_ai: true },

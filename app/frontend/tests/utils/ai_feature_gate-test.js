@@ -285,6 +285,7 @@ describe('ai_feature_gate', function() {
       var user = {
         get: function(key) {
           if(key === 'preferences') { return opts.prefs; }
+          if(key === 'feature_flags') { return { ai_board_generation: opts.flagOn !== false }; }
           if(key === 'eu_under_16') { return !!opts.eu_under_16; }
           if(key === 'eu_ai_parental_consent_active') { return !!opts.eu_consent_active; }
           if(key === 'coppa_parental_consent_pending') { return !!opts.coppa_pending; }

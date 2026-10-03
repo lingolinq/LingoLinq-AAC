@@ -13,6 +13,7 @@ function entryState(opts) {
   var user = {
     get: function(key) {
       if(key === 'preferences') { return opts.prefs; }
+      if(key === 'feature_flags') { return { ai_board_generation: opts.flagOn !== false }; }
       if(key === 'permissions') { return opts.permissions; }
       if(key === 'eu_under_16') { return !!opts.eu_under_16; }
       if(key === 'coppa_parental_consent_pending') { return !!opts.coppa_pending; }
@@ -59,6 +60,7 @@ describe('ai_feature_gate board generation offer', function() {
       return {
         get: function(key) {
           if(key === 'preferences') { return prefs; }
+          if(key === 'feature_flags') { return { ai_board_generation: true }; }
           if(key === 'permissions') { return { view: true, edit: true }; }
           return null;
         },
