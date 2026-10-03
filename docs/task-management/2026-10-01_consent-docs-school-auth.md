@@ -27,7 +27,6 @@ product behaviour. Both lessons are in `learnings-archive/2026-10.md`.
 
 ## Open
 
-The follow-ups listed in #1093's PR body (effective dates per part of section 6, revision labels,
-whether turning AI features on requires the applicable authorization, two pointer fixes, one
-punctuation fix), a privacy-wording update after #1087, a counsel-memo question on AI under district
-authorization, and Scot's attestation via `/re-attest-record`.
+The follow-ups listed in #1093's PR body (effective dates per part of section 6, revision labels, a
+policy clarification in sections 5 and 6, two pointer fixes, one punctuation fix), a privacy-wording
+update after #1087, a counsel-memo question, and Scot's attestation via `/re-attest-record`.
