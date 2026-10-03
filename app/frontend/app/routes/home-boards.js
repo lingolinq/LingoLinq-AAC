@@ -7,6 +7,13 @@ export default Route.extend({
   store: service('store'),
   persistence: service('persistence'),
   appState: service('app-state'),
+  router: service('router'),
+  /* RETIRED AS A DESTINATION (2026-09-30): "Finding the Right Home Board" gave way to the board
+     picker. Every link that opened it now opens the picker, and this forwards the address itself,
+     so an old bookmark lands there too. The page below is left intact but unreachable. */
+  beforeModel: function() {
+    this.get('router').replaceWith('board-picker');
+  },
   setupController: function(controller) {
     var _this = this;
     _this.appState.controller.set('simple_board_header', true);

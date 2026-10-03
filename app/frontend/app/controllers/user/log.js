@@ -14,6 +14,14 @@ import persistence from '../../utils/persistence';
 import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  /* `nav` is NOT a filter and changes nothing this page renders -- it records which menu the
+     user arrived through, exactly as it does on the logs LIST (controllers/user/logs.js:23-31),
+     so opening one update from the Updates list does not drop the user out of the Home
+     section's nav. It is declared here only so <LinkTo> can carry it; nothing reads it on this
+     controller. utils/primary_nav.js reads it off the URL. */
+  queryParams: ['nav'],
+  nav: null,
+
   router: service('router'),
   // Injected so computed dependency keys can actually observe it. The imported
   // `app_state` singleton above is the same instance, but it lives in module

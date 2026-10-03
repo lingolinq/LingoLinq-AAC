@@ -52,12 +52,12 @@ export default Component.extend({
   },
   supervisor_options: computed('subscription.subscription_amount', function() {
     var list = [
-      {name: i18n.t('0', '0'), id: 0},
-      {name: i18n.t('1', '1'), id: 1},
-      {name: i18n.t('2', '2'), id: 2},
-      {name: i18n.t('3', '3'), id: 3},
-      {name: i18n.t('4', '4'), id: 4},
-      {name: i18n.t('5', '5'), id: 5},
+      {name: i18n.t('0', "0"), id: 0},
+      {name: i18n.t('1', "1"), id: 1},
+      {name: i18n.t('2', "2"), id: 2},
+      {name: i18n.t('3', "3"), id: 3},
+      {name: i18n.t('4', "4"), id: 4},
+      {name: i18n.t('5', "5"), id: 5},
     ];
     if(this.get('subscription.subscription_amount').match(/^long_term/)) {
 //      list.shift();

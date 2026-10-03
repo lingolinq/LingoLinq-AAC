@@ -117,7 +117,12 @@ export default modal.ModalController.extend({
         if(ids[item.profile.id]) { return; }
         ids[item.profile.id] = true;
         var prof = item.profile;
-        prof.button_class = 'btn btn-lg btn-default';
+        /* The modern modal button family, not Bootstrap's `btn-default/warning/danger`
+           (2026-09-14). The THREE-WAY split is meaningful and is preserved: a profile
+           untouched for 10+ months warns, 12+ months is overdue. That state must not be
+           carried by colour alone, and it is not — the button's own label and the date beside
+           it in the row say the same thing in words. */
+        prof.button_class = 'btn md-modal-btn md-modal-btn--secondary';
         if(prof.summary_color) {
           var rgb = prof.summary_color.map(function(c) { return parseInt(c, 10); }).join(',');
           prof.circle_style = htmlSafe("border-color: rgb(" + rgb + "); box-shadow: inset 0 0 5px rgb(" + rgb + ")");
@@ -125,12 +130,12 @@ export default modal.ModalController.extend({
         if(item.started) {
           prof.date = window.moment(item.started);
           if(item.expected == 'due_soon') {
-            prof.button_class = 'btn btn-lg btn-warning';
+            prof.button_class = 'btn md-modal-btn md-modal-btn--warn';
           } else if(item.expected == 'overdue') {
-            prof.button_class = 'btn btn-lg btn-danger';
+            prof.button_class = 'btn md-modal-btn md-modal-btn--danger';
           }
         } else {
-          prof.button_class = 'btn btn-lg btn-danger';
+          prof.button_class = 'btn md-modal-btn md-modal-btn--danger';
         }
         prof.log_id = item.log_id;
         prof.author = item.author;
@@ -154,16 +159,16 @@ export default modal.ModalController.extend({
         var now = window.moment();
         var started = window.moment(this.get('profile.started') * 1000);
         if(started < now.add(-12, 'month')) {
-          return 'btn btn-lg btn-danger';
+          return 'btn md-modal-btn md-modal-btn--danger';
         } else if(started < now.add(-10, 'month')) {
-          return 'btn btn-lg btn-warning';
+          return 'btn md-modal-btn md-modal-btn--warn';
         }
-        return 'btn btn-lg btn-default';
+        return 'btn md-modal-btn md-modal-btn--secondary';
       } else {
-        return 'btn btn-lg btn-danger';
+        return 'btn md-modal-btn md-modal-btn--danger';
       }
     } else {
-      return 'btn btn-lg btn-default';
+      return 'btn md-modal-btn md-modal-btn--secondary';
     }
   }),
   actions: {

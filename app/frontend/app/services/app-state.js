@@ -31,6 +31,8 @@ import sessionHistory from '../utils/session_history';
 import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import { clearStoredLayout } from '../utils/boards_layout_state';
+import { readStoredDashboardLayout, writeStoredDashboardLayout, clearStoredDashboardLayout } from '../utils/dashboard_layout_state';
+import { readStoredViewStyle, writeStoredViewStyle, clearStoredViewStyle } from '../utils/view_style_state';
 import { clearFoldersExpanded } from '../utils/folders_panel_state';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
@@ -769,7 +771,12 @@ export default Service.extend({
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
-      this.refresh_session_user();
+      // Keep the promise, do not just fire and forget. This runs on `routeWillChange`,
+      // which fires BEFORE any route's beforeModel, so by the time a route hook needs the
+      // user record the fetch is already in flight — and a hook that needs a preference to
+      // decide where to send the user can await THIS rather than starting a second
+      // request or guessing. See utils/session_user_wait.js and routes/board.js.
+      this.set('session_user_promise', this.refresh_session_user());
     }
     this.set('current_route', transition.to_route);
     this.updateFavicon();
@@ -2184,7 +2191,7 @@ export default Service.extend({
        a previous account's record surviving a logout is exactly what this method
        exists to prevent. */
     this.set('page_user', null);
-    this.set('pairing', null);
+    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null }); // Basic Try marker + home-page handoffs: per-user, must not reach the next account (2026-10-01)
 
     // Per-user route memory (next route transition would overwrite anyway,
     // but clearing here removes stale "previous user" context from any
@@ -2212,6 +2219,20 @@ export default Service.extend({
     // account signed in on this tab.
     this.set('auto_open_home_tour', false);
     this.set('auto_open_home_tour_rearmed_at', null);
+    // The MANUAL twin, raised by a page that renders its own "Take a tour" button
+    // (components/dashboard/classic-view.js#start_tour). It is normally cleared the moment
+    // it is consumed, so it is only ever true here if the signal was raised with no
+    // <GuidedTour /> mounted to hear it — in which case it must not fire for the next
+    // account signed in on this tab.
+    this.set('start_home_tour', false);
+    /* The dashboard-layout mirror, cleared for the same reason as the boards one below: it
+       cannot be keyed by user id, so on a shared device the next person to sign in would
+       otherwise inherit this user's layout on their first frame. */
+    clearStoredDashboardLayout();
+    /* The view-style mirror, cleared for exactly the same reason: it is not keyed by user
+       id, so on a shared clinic device the next person to sign in would otherwise get this
+       user's Basic/Modern shell on their first frame. */
+    clearStoredViewStyle();
     try {
       if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
     } catch(e) { /* sessionStorage unavailable */ }
@@ -3997,13 +4018,6 @@ export default Service.extend({
       return res;
     }
   ),
-  sidebar_pinned: computed(
-    'speak_mode',
-    'effective_quick_sidebar',
-    function() {
-      return this.get('speak_mode') && this.get('effective_quick_sidebar');
-    }
-  ),
   /* The user record whose account the CURRENT PAGE belongs to — set by
      routes/user.js for every `/:user_id/...` page and cleared on the way out.
      Distinct from `currentUser` (the session account) and from `referenced_user`
@@ -5058,10 +5072,143 @@ export default Service.extend({
    *  NOTE (security review — LOW, non-issue: "observer concurrency/flicker"): this
    *  only toggles ONE idempotent class; Ember observers already batch in the run loop,
    *  and it mirrors the long-shipped sync_fitzgerald_scope. No debounce needed. */
+  /**
+   * The layout actually RENDERED — the saved `dashboard_layout` pref validated to a known
+   * variant. Default 'gentle'; an unset pref or a legacy value (the removed 'balanced')
+   * resolves to it.
+   *
+   * ON THE SERVICE so a TEMPLATE can gate on it. `sync_layout_scope` below mirrors the same
+   * preference onto <body> for the CSS overlay, but that runs from an OBSERVER — it fires
+   * after the user record resolves, which is after first paint. Anything hidden only by
+   * `body.ll-layout-focused` therefore renders once and is then hidden, which is visible as a
+   * flash (reported 2026-09-14 for the account page's hero). A template that asks this
+   * computed instead never renders the element at all.
+   *
+   * components/dashboard/authenticated-view.js has its own identical `effectiveLayout`. It is
+   * left alone here rather than repointed, because that component reads it a dozen times
+   * through derived computeds and rewiring them is a separate change; this is the definition
+   * for everything OUTSIDE that component. If the two ever disagree, they should be merged.
+   */
+  effectiveLayout: computed('currentUser.preferences.dashboard_layout', function() {
+    var layout = this.get('currentUser.preferences.dashboard_layout');
+    /* THE PREFERENCE WINS WHENEVER IT EXISTS. The mirror is consulted ONLY while the user
+       record has not hydrated — which on a cold load is exactly the window in which the
+       first frame is painted, and the reason the template gate alone was not enough: it read
+       an absent preference, resolved to 'gentle', and rendered the Gentle header before the
+       real value arrived (reported 2026-09-14).
+       Once `currentUser.preferences.dashboard_layout` lands, the dependent key invalidates
+       and this recomputes from the authoritative value, so a stale mirror can only ever
+       affect the frames before hydration — never the settled page. */
+    if(!layout) { layout = readStoredDashboardLayout(); }
+    if(['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
+    return layout;
+  }),
+
   sync_layout_scope: observer('sessionUser', 'sessionUser.preferences.dashboard_layout', function() {
     var layout = this.get('sessionUser.preferences.dashboard_layout');
     if(window.LingoLinq && window.LingoLinq.set_layout_scope) {
       window.LingoLinq.set_layout_scope(layout);
+    }
+    /* Mirror it for the NEXT cold load. This observer is the one place that reliably sees the
+       real preference — it fires when the user record resolves and again on every change — so
+       it is where the per-device copy is kept honest. Only a known variant is written; an
+       absent preference leaves whatever is stored alone rather than overwriting it with a
+       guess. See utils/dashboard_layout_state.js. */
+    writeStoredDashboardLayout(layout);
+  }),
+
+  /* WHOSE view style the app should be wearing right now.
+   *
+   * THE VIEW IS ABSOLUTE. It follows the SESSION ACCOUNT everywhere, with exactly one
+   * exception: while actively MODELLING in speak mode, the communicator decides, because it is
+   * their session on their device and an SLP's Modern shell has no business driving it.
+   * Nothing else changes the view. Only the person switching it changes it.
+   *
+   * WHAT THIS REPLACED, and why it had to go. A third branch used to adopt `page_user` -- the
+   * owner of the page being viewed -- on `user.home`, `user.boards` and the three board routes.
+   * The intent was that a supervisor arranging a communicator's boards should see what that
+   * communicator will see. The effect was that clicking between people flipped the supervisor's
+   * entire UI back and forth, unasked and with no way to pin it: browse one person's boards and
+   * you were in Basic, click back to your own and you were in Modern again. Reported as "it
+   * keeps switching me back to basic view". The preview belongs on the surface being arranged,
+   * not on the whole shell, so the branch is gone rather than narrowed.
+   *
+   * Read this rather than `currentUser.preferences.board_view_style`. */
+  effective_view_user: computed(
+    'modeling_for_user', 'referenced_user', 'currentUser', 'currentUser.id',
+    function() {
+      var current = this.get('currentUser');
+      if(this.get('modeling_for_user')) {
+        var referenced = this.get('referenced_user');
+        if(referenced) { return referenced; }
+      }
+      return current;
+    }
+  ),
+
+  /* The resolved style, 'classic' (Basic) or 'modern'. Never returns anything else, so a
+     caller can compare without re-normalising.
+
+     The per-device mirror is consulted ONLY when the preference is absent, which on a cold
+     load is exactly the window before the user record hydrates -- the same reasoning as
+     `effectiveLayout` above. That fallback is safe even though this can resolve to ANOTHER
+     user: `page_user` and `referenced_user` are both set after their records resolve, so at
+     first paint `effective_view_user` is always the session account, whose style is what the
+     mirror holds. */
+  effective_view_style: computed(
+    'effective_view_user', 'effective_view_user.preferences.board_view_style',
+    'currentUser', 'currentUser.id',
+    function() {
+      var showing = this.get('effective_view_user');
+      var style = this.get('effective_view_user.preferences.board_view_style');
+      if(!style) {
+        /* THE MIRROR HOLDS THE SESSION ACCOUNT'S STYLE, so it may only answer FOR the session
+           account. It used to answer for whoever was resolved, on the argument that at first
+           paint that is always the session account anyway -- which stopped being true the
+           moment another user's record could be resolved before its preferences hydrated. The
+           result was one person's question answered with another person's data, and because
+           nothing corrected it until that record landed, a stale Basic could re-assert itself
+           on page after page. For anyone else, an unread preference means the documented
+           'modern' default and nothing more. */
+        var current = this.get('currentUser');
+        var own = !showing || showing === current ||
+                  (!!current && !!emberGet(current, 'id') &&
+                   emberGet(current, 'id') == emberGet(showing, 'id'));
+        if(own) { style = readStoredViewStyle(); }
+      }
+      return (style === 'classic') ? 'classic' : 'modern';
+    }
+  ),
+
+  /* Stamp the resolved style on <body> so EVERY page has a hook for view-specific styling,
+     and keep the per-device mirror honest.
+     Most pages render identically in both views today -- this exists so that when they stop
+     being identical, the selector is already there on every page rather than being retrofitted
+     one surface at a time. */
+  sync_view_scope: observer(
+    /* The RAW inputs, deliberately, not `effective_view_style` itself. An observer on a
+       computed only fires once something consumes that computed, and nothing else reads this
+       one -- so watching it directly meant the class was never stamped at all (caught in the
+       browser: every page came back with no `ll-view-*` class). `sync_layout_scope` above
+       works precisely because it watches a raw preference path. These are the three records
+       `effective_view_user` can resolve to, plus the speak-mode flag that decides between
+       them. */
+    'currentUser', 'currentUser.preferences.board_view_style',
+    'referenced_speak_mode_user', 'referenced_speak_mode_user.preferences.board_view_style',
+    'speak_mode',
+    function() {
+    var style = this.get('effective_view_style');
+    if(window.LingoLinq && window.LingoLinq.set_view_scope) {
+      window.LingoLinq.set_view_scope(style);
+    }
+    /* Mirror ONLY the session account's own style. While modelling, the shell on screen
+       belongs to the COMMUNICATOR; writing that here would make the supervisor's next cold
+       load open in the communicator's view until hydration corrected it -- the exact flash
+       this mirror exists to prevent. */
+    var current = this.get('currentUser');
+    var showing = this.get('effective_view_user');
+    if(current && showing && emberGet(current, 'id') && emberGet(current, 'id') == emberGet(showing, 'id')) {
+      writeStoredViewStyle(style);
     }
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
@@ -5302,7 +5449,29 @@ export default Service.extend({
 
   updateFaviconForTheme: function(mode) {
     this.updateFavicon();
-  }
+  },
+
+  /* Compressed View: stamp `body.ll-density-compressed` from the feature flag AND the session
+     user's own preference (utils/compressed_view_state.js). Watches RAW paths, not a computed,
+     because an observer on a computed only fires once something consumes it (see
+     sync_view_scope above); `currentUser.feature_flags` is the input to `feature_flags`. With no
+     session user (signed out) the class comes off, so the sign-in page and the next account
+     start at full size. Kept at the end of this service so it shifts no line of the
+     line-anchored ESLint baseline (.eslint-todo). */
+  sync_density_scope: observer('sessionUser', 'sessionUser.preferences.compressed_view', 'currentUser.feature_flags', function() {
+    var on = !!this.get('sessionUser') &&
+             compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
+    if(window.LingoLinq && window.LingoLinq.set_density_scope) {
+      window.LingoLinq.set_density_scope(on);
+    }
+  }),
+
+  /* The same answer for templates and components that change STRUCTURE in Compressed View
+     (the account rail, the Modern home page), so they and the body class cannot disagree. */
+  compressed_view_active: computed('sessionUser', 'sessionUser.preferences.compressed_view', 'feature_flags.compressed_view', function() {
+    return !!this.get('sessionUser') &&
+           compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
+  })
 });
 
 // ScrollTopRoute exported separately for backward compatibility
@@ -5316,3 +5485,6 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+// Placed last for the same reason as sync_density_scope: an import at the top would shift
+// every line of the ESLint baseline. Imports are hoisted, so position does not matter at runtime.
+import { compressedViewActive } from '../utils/compressed_view_state';

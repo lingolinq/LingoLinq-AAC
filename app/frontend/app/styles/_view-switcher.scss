@@ -1,0 +1,313 @@
+@use "variables" as *;
+
+// =============================================================================
+// VIEW SWITCH — the navbar "View" dropdown
+// =============================================================================
+// Styles for components/view-switcher.{js,hbs}.
+//
+// Its OWN partial, not part of _classic-home.scss: this control renders in BOTH
+// chromes (the modern navbar and the legacy classic header) and therefore on
+// MODERN pages too. Keeping it here means the classic-home partial contains only
+// classic-home rules, and a change to the switch cannot accidentally be reasoned
+// about as a classic-only change. `ll-` prefix rather than `ch-` for the same
+// reason: it is the control that CHOOSES classic, not part of the classic page.
+
+.ll-viewswitch {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  // 12px clear of whatever precedes it in the navbar (requested 2026-09-02).
+  // Margin rather than a positional offset so it still participates in the
+  // navbar's flex flow and cannot overlap its neighbour at narrow widths.
+  // Reads --ll-viewswitch-offset (below) so it lands in the same place on every page.
+  margin-left: var(--ll-viewswitch-offset, 12px);
+  // NARROW SCREENS (2026-10-01): not the menu's anchor, so the menu anchors to the full-width
+  // navbar row instead (`.app-navbar-authenticated-inner`, position: relative at <=767px in
+  // app.scss; on the legacy board header, the positioned header) and can span the screen. Anchored
+  // here, a 268px+ menu opened from a button ~190px in ran ~95px off a 375px phone.
+  @media (max-width: 766px) {
+    position: static;
+  }
+}
+
+// THE SAME PLACE ON EVERY PAGE (2026-09-30). Most pages render the navbar's home-actions cluster
+// (app-navbar-authenticated-inner.hbs) before this button, usually empty, and its own 12px left
+// margin adds to the gap: the button sits 24px after the brand there. A page with no cluster
+// (the search page) put it 12px closer. The header supplies that 12px itself when the cluster is
+// absent, so the button measures the same distance from the logo everywhere.
+.app-navbar__nav-header:not(:has(.app-navbar__home-actions)) {
+  --ll-viewswitch-offset: 24px;
+}
+
+// TWO ROWS AT <=767px (2026-10-02, requested; was 600px, 375px, 360px). The top row has no room for the button there: the
+// fixed Beta feedback tab, the settings gear and the menu button were all drawn over it (measured on
+// home, search, boards and caseload). It takes its own row under the logo instead, inside the bar;
+// the bar grows by --ll-navbar-row2 (11px gap + the 33px button) and so does the page's offset below
+// it. Both are the original rules, reading this one variable (0 everywhere else): the 70px header
+// pins and `#within_ember #content` margin-top in app.scss, and #identity's `top`, which centres the
+// gear on row 1. Set only for the app navbar header that is showing (not .header--hidden: setup and
+// create-board keep it in the DOM, hidden) and holding the button; the button un-renders in speak
+// and edit mode, and the bar returns to one row. Boards never match: their header carries #speak or
+// #nav_header, and the classic board's own button is not inside .app-navbar-authenticated-inner.
+// Every selector needs :has(), so a browser without it keeps the one-row bar.
+@media (max-width: 767px) {
+  #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):not(.header--hidden) .app-navbar-authenticated-inner .ll-viewswitch):not(:has(> header #speak)):not(:has(> header #nav_header)) {
+    --ll-navbar-row2: 44px;
+  }
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) {
+    flex-wrap: wrap;
+    row-gap: 11px;
+  }
+  // Row 1 keeps the 56px it had as one row, so the logo stays where it was.
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) h1.app-navbar__brand {
+    min-height: 56px;
+  }
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) .ll-viewswitch {
+    order: 99;
+    flex: 0 0 100%;
+  }
+  // Left edge under the logo's: at these widths `.nav-header__brand` pulls itself 25px left
+  // (computed margin-left -20px plus left -5px, from app.scss's per-breakpoint brand rules).
+  .app-navbar-authenticated-inner:has(.ll-viewswitch) > .app-navbar__nav-header {
+    --ll-viewswitch-offset: -25px;
+  }
+}
+
+.ll-viewswitch__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+  box-shadow:
+    0 2px 6px rgba($brand-blue-black, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: $la-navy;
+  font: inherit;
+  font-size: 14px; // the AAC text floor (2026-10-01)
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.ll-viewswitch__trigger:hover,
+.ll-viewswitch__trigger:focus-visible {
+  background: #fff;
+  border-color: rgba($brand-dusty-denim, 0.45);
+}
+
+.ll-viewswitch__icon { flex: 0 0 auto; }
+
+.ll-viewswitch__caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba($la-navy, 0.5);
+  transition: transform 0.18s ease;
+}
+
+.ll-viewswitch.is-open .ll-viewswitch__caret { transform: rotate(180deg); }
+
+.ll-viewswitch__menu {
+  display: none;
+  position: absolute;
+  z-index: $aac-z-dropdown;
+  top: calc(100% + 6px);
+  // Anchored to the trigger's LEFT edge so the panel opens down-and-to-the-RIGHT.
+  // It was `right: 0`, which pinned the right edges together and made a wider menu
+  // than its trigger grow leftwards.
+  left: 0;
+  // Wide enough for the one-line description under each option. At 170px (the width
+  // this menu had while each group held a single bare label) every description wrapped
+  // to three or four lines and the two groups stopped reading as two short lists.
+  min-width: 268px;
+  // NARROW SCREENS (2026-10-01): just below the navbar row and across the screen, 12px in from each
+  // edge, scrolling inside itself if it is taller than the space left (dvh tracks iOS Safari's
+  // collapsing toolbar; vh is the fallback). No fixed positioning: the classic board header carries a
+  // backdrop-filter, which would make a fixed menu relative to it rather than the screen.
+  @media (max-width: 766px) {
+    // BELOW THE NAVBAR, not over it (2026-10-01): the anchor row ends at y=62 inside a 70px bar
+    // (measured at 320-414px), so 100% started the menu 8px inside the bar. +8px reaches the bar's
+    // bottom; +6px more is the same gap the desktop menu has under its button.
+    top: calc(100% + 14px);
+    left: 12px;
+    right: 12px;
+    min-width: 0;
+    max-height: calc(100vh - 96px - var(--ll-navbar-row2, 0px));
+    max-height: calc(100dvh - 96px - var(--ll-navbar-row2, 0px));
+    overflow-y: auto;
+  }
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  border-radius: 13px;
+  // OPAQUE (2026-10-02): the stops were white at 0.98 and 0.92, so on a phone, where the menu
+  // spans the screen over the Basic rail, the rail's row titles showed through the option text
+  // (seen at 340px). Same white-to-cool-grey ramp, no alpha.
+  background: linear-gradient(160deg, #FFFFFF 0%, #F6F8FB 100%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 12px 30px rgba($brand-blue-black, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.ll-viewswitch.is-open .ll-viewswitch__menu { display: block; }
+
+// Axis headings inside the menu. Not interactive and not focusable -- they exist so the
+// two independent choices (Classic/Card, Gentle/Focused) read as separate groups rather
+// than one list of four.
+// The menu's introduction, above the first group. `width: 0; min-width: 100%` wraps it to the
+// menu's width instead of letting its one long line widen the menu. Navy at 0.72 is the menu's
+// text floor (5.14:1, see below).
+.ll-viewswitch__intro {
+  width: 0;
+  min-width: 100%;
+  margin: 0 0 4px;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid rgba($la-navy, 0.1);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: rgba($la-navy, 0.72);
+  cursor: default;
+}
+
+.ll-viewswitch__group {
+  padding: 6px 12px 2px;
+  font-size: 14px; // 10 -> 14px, the AAC text floor (2026-10-01); tracking eased below so it does not out-shout the 16px options
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  // These are real labels, so they are held to the 4.5:1 text floor rather than treated as
+  // decoration. 0.62 was recorded here as 4.6:1 and does not measure that -- $la-navy at
+  // 0.62 over the menu's near-white surface composites to #708296 and lands at 3.87:1, the
+  // same arithmetic slip the boards filter placeholder carried. 0.72 measures 5.14:1.
+  color: rgba($la-navy, 0.72);
+  cursor: default;
+}
+
+.ll-viewswitch__sep {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba($la-navy, 0.10);
+}
+
+// Each option is a two-row grid: a tick gutter on the left, label over description on
+// the right. The gutter is reserved by the ALWAYS-present ::before rather than added
+// only when selected -- a ::before that appeared with `.is-selected` would be a new grid
+// item, so the label would shift sideways as the selection moved between the two
+// options in a group.
+.ll-viewswitch__item {
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  column-gap: 9px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.ll-viewswitch__item::before {
+  content: '';
+  grid-column: 1;
+  grid-row: 1;
+  width: 15px;
+  height: 15px;
+  // Optically centres the tick on the label's cap height rather than its line box.
+  margin-top: 2px;
+  background-color: transparent;
+}
+
+// The tick marks the option currently in effect. Decoration only -- `aria-checked` on
+// the button is what reports the state to assistive tech.
+.ll-viewswitch__item.is-selected::before {
+  background-color: $brand-dusty-denim;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+.ll-viewswitch__item-label {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  // WRAPS (2026-10-02): at 340px "Modern View" plus the RECOMMENDED tag is wider than the option,
+  // and the tag (nowrap) ran 16px past the menu's edge. Now the tag drops to its own line when
+  // there is no room, and stays beside the label when there is.
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 7px;
+  font-size: 16px; // 13 -> 16px (2026-10-01): above the 14px group headings and descriptions
+  font-weight: 600;
+}
+
+// "Recommended" beside Modern View. A deliberate nudge rather than a neutral menu: the
+// two layouts are not equivalent, and Modern is the one that keeps gaining features.
+// Kept as its own element (not baked into the label string) so it can be moved or
+// dropped without touching a translated sentence.
+//
+// $brand-dusty-denim at full strength on the near-white menu is the same ink the
+// selected tick uses, so the tag reads as part of the menu's own palette rather than a
+// warning colour. Uppercase + letter-spacing matches `.ll-viewswitch__group` above.
+.ll-viewswitch__item-tag {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba($brand-dusty-denim, 0.13);
+  color: $brand-dusty-denim;
+  font-size: 14px; // 9.5 -> 14px, the AAC text floor (2026-10-01)
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// Reuses the 0.72 alpha proved against this same near-white menu surface for
+// `.ll-viewswitch__group` above: it composites to 5.14:1, so the description is held to
+// the 4.5:1 text floor rather than treated as decoration. Do not lower it without
+// re-measuring -- 0.62 looks similar and lands at 3.87:1.
+.ll-viewswitch__item-desc {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba($la-navy, 0.72);
+}
+
+// The Compressed View switch row: text on the left, the on/off switch on the right. It is a
+// checkbox, not a radio, so there is no tick gutter; its state is the switch
+// (`nb-toggle__switch`, app.scss) and `aria-checked` on the button.
+.ll-viewswitch__item--switch {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.ll-viewswitch__item--switch::before {
+  content: none;
+}
+
+.ll-viewswitch__item-text {
+  display: grid;
+  row-gap: 2px;
+}
+
+.ll-viewswitch__item:hover,
+.ll-viewswitch__item:focus-visible {
+  background: rgba($brand-dusty-denim, 0.12);
+}
+
+// The legacy header is a dense Bootstrap bar; keep the control compact there so
+// it does not push the identity cluster onto a second line.
+#nav_header .ll-viewswitch__trigger {
+  padding: 6px 10px;
+}

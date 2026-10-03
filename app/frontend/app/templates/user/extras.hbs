@@ -1,6 +1,16 @@
 <OpeningObserver @opening={{this.opening_index}} @closing={{this.closing_index}}></OpeningObserver>
 {{#if this.app_state}}
   <div id="index_view" class="row main_columns" style="touch-action: manipulation;">
-    <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} @initialActiveTab="extras" />
+    {{!-- Classic/modern split, same gate as templates/index.hbs. This route sets
+         controllerName:'index' (routes/user/extras.js extends user/home), so
+         `classicHome` is already on the controller. Classic has no separate Extras
+         TAB — Gen 2 put those tools behind the Actions tab's Extras expander — so
+         the classic view opens on its default tab rather than taking an
+         initialActiveTab it has no concept of. --}}
+    {{#if this.classicHome}}
+      <Dashboard::ClassicView @model={{this.model}} @user={{this.user}} />
+    {{else}}
+      <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} @initialActiveTab="extras" />
+    {{/if}}
   </div>
 {{/if}}

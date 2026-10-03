@@ -7,6 +7,7 @@ import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 import boardsPageListCache from '../utils/boards_page_list_cache';
+import { board_edit_route } from '../utils/board_view';
 
 // Best-effort human-readable form of whatever the copy chain rejected with. Used for BOTH
 // the background drawer and the modal's own error slot: copying-board.hbs:10 renders
@@ -205,7 +206,7 @@ export default Component.extend({
           });
         });
         next = next.then(null, function() {
-          return RSVP.reject(i18n.t('sharing_failed', 'Sharing with one or more users failed'));
+          return RSVP.reject(i18n.t('sharing_failed', "Sharing with one or more users failed"));
         });
       }
       next = next.then(function() {
@@ -227,7 +228,7 @@ export default Component.extend({
                   return RSVP.resolve({ translated: true });
                 });
               }
-              return RSVP.reject(i18n.t('translation_canceled', 'Translation was canceled'));
+              return RSVP.reject(i18n.t('translation_canceled', "Translation was canceled"));
             });
           });
         }
@@ -295,7 +296,13 @@ export default Component.extend({
               }
             } catch (e) { /* controller not resolvable — non-fatal */ }
             if (!model.copy_finished && editParts.length >= 2) {
-              _this.get('router').transitionTo('user.board-detail.edit', editParts[0], editParts.slice(1).join('/'));
+              // View-aware edit destination. board-detail has an /edit subroute; the
+              // classic board has none (router.js declares only `index` under board-alt) —
+              // classic editing is a MODE entered via app_state.toggle_edit_mode. So a
+              // classic user lands on their own board here rather than being ejected into
+              // modern. KNOWN GAP: edit mode is not auto-entered for them; closing that
+              // needs the classic edit route (Cluster C in the restoration plan).
+              _this.get('router').transitionTo(board_edit_route(_this.get('appState.effective_view_user')), editParts[0], editParts.slice(1).join('/'));
             }
           } else {
             appState.jump_to_board({
@@ -307,11 +314,13 @@ export default Component.extend({
           if (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board')) {
             modalSvc.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           }
+          // Watched to the end: say so, as the drawer (:266) and the dismissed path (:322) do.
+          modal.success(i18n.t('copy_ready', "Copy created!"));
         } else {
           if (model.copy_finished) {
             model.copy_finished(copiedBoard);
           } else {
-            modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
+            modal.notice(i18n.t('copy_created', "Copy created! You can find the new board in your profile."));
           }
         }
       }, function(err) {

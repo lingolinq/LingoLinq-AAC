@@ -510,6 +510,22 @@ LingoLinq.keyed_colors = [
     // never inject an attacker-chosen class name.
     document.body.classList.toggle('ll-layout-focused', layout === 'focused');
   };
+  /* The BASIC/MODERN axis, alongside the Gentle/Focused one above. Two classes rather than
+     one boolean, because unlike the Focused overlay neither view is "the default plus
+     changes" -- they are two shells, and styling for EITHER needs a hook on every page.
+     That is the whole point of stamping this app-wide: most pages look identical in both
+     views today, so this exists to be designed against later.
+
+     Same non-injection property as set_layout_scope: both class names are LITERALS and
+     `style` only chooses between them, so a garbage `board_view_style` preference can at
+     most pick the wrong one of two fixed classes, never introduce a name of its own. An
+     unrecognised value leaves BOTH off rather than guessing, so a half-hydrated record
+     cannot flash the wrong shell. */
+  LingoLinq.set_view_scope = function(style) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    document.body.classList.toggle('ll-view-basic', style === 'classic');
+    document.body.classList.toggle('ll-view-modern', style === 'modern');
+  };
 })();
 LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
@@ -1009,5 +1025,14 @@ window.LingoLinq = LingoLinq;
 window.LingoLinq.VERSION = window.app_version;
 // Set verboseDebug=true in console or localStorage lingolinq_verbose_debug='true' for verbose debug logs
 window.LingoLinq.verboseDebug = window.LingoLinq.verboseDebug || (typeof localStorage !== 'undefined' && localStorage.getItem('lingolinq_verbose_debug') === 'true');
+
+/* The Compressed View density axis. `on` is already resolved (flag AND preference, see
+   utils/compressed_view_state.js); only an exact `true` adds the class, and the class name is a
+   literal, so a garbage value can at most leave it off. Driven by sync_density_scope in
+   services/app-state.js. Board pages are not compressed: their styles never read this class. */
+LingoLinq.set_density_scope = function(on) {
+  if(typeof document === 'undefined' || !document.body) { return; }
+  document.body.classList.toggle('ll-density-compressed', on === true);
+};
 
 export default LingoLinq;

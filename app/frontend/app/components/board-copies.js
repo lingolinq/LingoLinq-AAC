@@ -59,7 +59,7 @@ export default Component.extend({
         _this.set('copies', data.board);
       }, function() {
         _this.set('loading', false);
-        _this.set('error', i18n.t('copies_loading_error', 'There was an unexpected error trying to load copies of this board'));
+        _this.set('error', i18n.t('copies_loading_error', "There was an unexpected error trying to load copies of this board"));
       });
   },
 

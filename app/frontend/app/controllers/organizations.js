@@ -1,15 +1,25 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
 
 export default Controller.extend({
   router: service('router'),
   app_state: service('app-state'),
   store: service('store'),
+
+  /* Basic view gets the `ch-` rail beside this page; Modern keeps the page as it was.
+     Read through `utils/view_style#is_classic` rather than touching
+     `preferences.board_view_style` here -- that module is the single reader for this
+     preference, and it resolves against `effective_view_user`, so a supervisor modelling
+     for someone sees the shell that person's view calls for. */
+  isBasicView: computed('app_state.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('app_state.effective_view_user'));
+  }),
 
   refresh_lists: function() {
     this.set('orgs', {});
@@ -61,6 +71,16 @@ export default Controller.extend({
     return !!(this.get('all_orgs') || []).find(function(org) {
       return org.admin && org.full_manager;
     });
+  }),
+
+  /* On a fresh load of /organizations, setupController runs refresh_lists before the user's
+     organizations have arrived, so has_admin_access is still false and refresh_orgs skips the
+     fetch; the list then read "None found" until the page was left and re-entered (2026-10-02).
+     Fetch once access is known, unless a fetch already ran or is running. */
+  load_orgs_when_admin: observer('has_admin_access', function() {
+    if(this.get('has_admin_access') && this.get('orgs') && !this.get('orgs.loading') && this.get('orgs.data') === undefined) {
+      this.refresh_orgs();
+    }
   }),
 
   sorted_orgs: computed('orgs.data', function() {

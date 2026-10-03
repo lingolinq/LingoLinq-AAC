@@ -242,6 +242,67 @@ function skipHandoffStep() {
 // added only when the pill row itself is on-screen. Keys are static literals
 // (not a loop with bound keys) so i18n_generator.rb can extract them — see
 // LEARNINGS.md on the static-parser gotcha.
+/* Tour copy per pill, keyed by the `data-tour-pill` value the nav renders.
+   Each entry is a FUNCTION so the i18n lookups run when the tour is built (with the active
+   locale loaded) rather than at module load, and every key is a literal string so
+   i18n_generator.rb's static scanner can extract it -- see LEARNINGS.md on the dynamic-key
+   gotcha. Adding a pill to the nav means adding its key here; leaving it out costs nothing
+   and simply produces no step for that pill. */
+var PILL_COPY = {
+  dashboard: function() { return { title: i18n.t('home_tour_page_dashboard_title', "Dashboard"), text: tourChecklist([
+    i18n.t('home_tour_page_home_b1', "Pick up where you left off"),
+    i18n.t('home_tour_page_home_b2', "Your most-used tools at a glance")
+  ]) }; },
+  caseload: function() { return { title: i18n.t('home_tour_page_caseload_title', "Caseload"), text: tourChecklist([
+    i18n.t('home_tour_page_caseload_b1', "Everyone you support, in one list"),
+    i18n.t('home_tour_page_caseload_b2', "Open a communicator to model or take notes")
+  ]) }; },
+  organizations: function() { return { title: i18n.t('home_tour_page_orgs_title', "Organizations"), text: tourChecklist([
+    i18n.t('home_tour_page_orgs_b1', "Manage the organizations you run"),
+    i18n.t('home_tour_page_orgs_b2', "Add people and assign supervisors")
+  ]) }; },
+  /* ROOMS STANDS IN FOR ORGANIZATIONS for a rooms-only supervisor -- the nav draws one or the
+     other in that slot, never both (components/user-pill-nav.hbs). Without an entry here the
+     tour would simply skip the pill, leaving that user's nav half-described. */
+  rooms: function() { return { title: i18n.t('home_tour_page_rooms_title', "Rooms"), text: tourChecklist([
+    i18n.t('home_tour_page_rooms_b1', "The rooms you supervise, in one list"),
+    i18n.t('home_tour_page_rooms_b2', "Open a room to see its communicators and reports")
+  ]) }; },
+  boards: function() { return { title: i18n.t('home_tour_page_boards_title', "Boards"), text: tourChecklist([
+    i18n.t('home_tour_page_boards_b1', "Browse & create boards"),
+    i18n.t('home_tour_page_boards_b2', "Open any board to view or edit")
+  ]) }; },
+  extras: function() { return { title: i18n.t('home_tour_page_extras_title', "Extras"), text: tourChecklist([
+    i18n.t('home_tour_page_extras_b1', "Games & lessons"),
+    i18n.t('home_tour_page_extras_b2', "Settings & more tools")
+  ]) }; },
+  updates: function() { return { title: i18n.t('home_tour_page_updates_title', "Updates"), text: tourChecklist([
+    i18n.t('home_tour_page_updates_b1', "Messages and notes sent to you"),
+    i18n.t('home_tour_page_updates_b2', "The badge counts what you have not read")
+  ]) }; }
+};
+
+/* The visible pill labels as one readable list ("Dashboard, Caseload, Boards, Extras and
+   Updates"), for the nav overview step. Reads the nav's own rendered text, so it is already
+   in the user's language and already reflects their role and feature flags. Returns '' when
+   the nav is collapsed to its dropdown or not on screen, and the caller falls back. */
+function navPillSummary() {
+  var labels = Array.prototype.slice.call(document.querySelectorAll('.md-pillnav [data-tour-pill]'))
+    .filter(function(el) { return el.offsetParent !== null; })
+    // The LABEL only: a copy without the Updates pill's count badge and its screen-reader text,
+    // which otherwise run into it ("Updates3has new updates") (2026-10-01).
+    .map(function(el) {
+      var copy = el.cloneNode(true);
+      copy.querySelectorAll('.md-pillnav__badge, .sr-only').forEach(function(n) { n.remove(); });
+      return (copy.textContent || '').replace(/\s+/g, ' ').trim();
+    })
+    .filter(function(t) { return t.length; });
+  if (!labels.length) { return ''; }
+  if (labels.length === 1) { return labels[0]; }
+  var last = labels.pop();
+  return labels.join(', ') + ' ' + i18n.t('and', "and") + ' ' + last;
+}
+
 function pushNavSteps(steps) {
   // Target the visible nav control: the full pill row when shown, else the
   // collapsed dropdown trigger. If neither is visible (no dashboard nav on this
@@ -254,53 +315,44 @@ function pushNavSteps(steps) {
       attachTo: { element: liveTarget('.md-pillnav, .md-pillnav-dropdown__trigger, .md-pillnav-dropdown', navEl), on: 'bottom' },
       beforeShowPromise: waitForElement('.md-pillnav, .md-pillnav-dropdown__trigger, .md-pillnav-dropdown'),
       title: i18n.t('home_tour_nav_title', "Your main navigation"),
+      /* The second line NAMES THE PILLS THAT ARE ACTUALLY THERE. It read "Home, Boards,
+         Reports & Extras" -- a fixed list that was wrong on both counts by 2026-09-21:
+         Reports left the nav on 2026-09-18, and Caseload, Organizations and Updates had
+         joined it. Reading the rendered labels keeps it true for every role and feature-flag
+         combination, and it stays correctly translated for free, because the labels are the
+         nav's own already-localized text rather than a phrase reassembled here. Falls back to
+         the generic line when no labels can be read. */
       text: tourChecklist([
         i18n.t('home_tour_nav_b1', "Switch sections in one tap"),
-        i18n.t('home_tour_nav_b2', "Home, Boards, Reports & Extras")
+        navPillSummary() || i18n.t('home_tour_nav_b2_generic', "Every section of the app, one tap away")
       ]),
       classes: 'md-tour__step',
       buttons: standardButtons()
     });
   }
 
-  // Per-pill steps — DOM-driven so they include EVERY pill actually rendered,
-  // incl. the communicator-only "Account" pill (Gentle View) the old fixed
-  // nth-of-type list skipped. nth-of-type was also fragile here: Account is an
-  // <a> while the others are <button>, so per-type indexing misaligns. Instead
-  // resolve each pill by a STABLE hook: Reports/Account carry modifier classes;
-  // the remaining plain pills are Home/Boards/Extras in DOM order. Steps are
-  // sorted by live geometry so they follow the on-screen order, and each is
-  // placed 'bottom' (pills sit at the top of the page at every width). Keys are
-  // static literals so i18n_generator.rb can extract them. (Focused View has no
-  // Account pill, so that step is simply absent — DOM-driven.)
+  /* PER-PILL STEPS, KEYED OFF THE PILL ITSELF.
+     This used to identify pills BY POSITION -- first plain pill = Home, second = Boards,
+     third = Extras -- which was correct when those were the only three. Once Caseload,
+     Organizations and Updates joined the nav it narrated the wrong element: measured on a
+     supporter's dashboard the step titled "Boards" spotlighted CASELOAD and the one titled
+     "Extras" spotlighted BOARDS, while Extras and Updates got no step at all. An org
+     manager fared worse -- "Extras" landed on ORGANIZATIONS and three pills were skipped.
+     Each pill now carries `data-tour-pill` (components/user-pill-nav.hbs) and the step is
+     looked up by that key, so a pill can be added, removed, reordered or role-gated without
+     the tour describing the wrong thing. NOT matched on the pill's TEXT: the labels ship in
+     13 locales, so word-matching would work in English and fail silently everywhere else.
+     A pill with no entry in PILL_COPY simply gets no step, the same way an absent pill does. */
   var visiblePills = function(sel) {
     return Array.prototype.slice.call(document.querySelectorAll(sel))
       .filter(function(el) { return el.offsetParent !== null; });
   };
-  var plain = visiblePills('.md-pillnav .md-pillnav__pill:not(.md-pillnav__pill--reports):not(.md-pillnav__pill--account)');
-  var reports = visibleEl('.md-pillnav .md-pillnav__pill--reports');
-  var account = visibleEl('.md-pillnav .md-pillnav__pill--account');
   var pills = [];
-  if (plain[0]) { pills.push({ kind: 'home', el: plain[0], title: i18n.t('home_tour_page_home_title', "Home"), text: tourChecklist([
-    i18n.t('home_tour_page_home_b1', "Pick up where you left off"),
-    i18n.t('home_tour_page_home_b2', "Your most-used tools at a glance")
-  ]) }); }
-  if (plain[1]) { pills.push({ kind: 'boards', el: plain[1], title: i18n.t('home_tour_page_boards_title', "Boards"), text: tourChecklist([
-    i18n.t('home_tour_page_boards_b1', "Browse & create boards"),
-    i18n.t('home_tour_page_boards_b2', "Open any board to view or edit")
-  ]) }); }
-  if (plain[2]) { pills.push({ kind: 'extras', el: plain[2], title: i18n.t('home_tour_page_extras_title', "Extras"), text: tourChecklist([
-    i18n.t('home_tour_page_extras_b1', "Games & lessons"),
-    i18n.t('home_tour_page_extras_b2', "Settings & more tools")
-  ]) }); }
-  if (reports) { pills.push({ kind: 'reports', el: reports, title: i18n.t('home_tour_page_reports_title', "Reports"), text: tourChecklist([
-    i18n.t('home_tour_page_reports_b1', "Usage & progress"),
-    i18n.t('home_tour_page_reports_b2', "Word data for those you support")
-  ]) }); }
-  if (account) { pills.push({ kind: 'account', el: account, title: i18n.t('home_tour_page_account_title', "Account"), text: tourChecklist([
-    i18n.t('home_tour_page_account_b1', "Profile & preferences"),
-    i18n.t('home_tour_page_account_b2', "Manage your subscription")
-  ]) }); }
+  visiblePills('.md-pillnav [data-tour-pill]').forEach(function(el) {
+    var copy = PILL_COPY[el.getAttribute('data-tour-pill')];
+    if (!copy) { return; }
+    pills.push({ kind: el.getAttribute('data-tour-pill'), el: el, title: copy().title, text: copy().text });
+  });
   pills.sort(function(a, b) {
     var ra = a.el.getBoundingClientRect(), rb = b.el.getBoundingClientRect();
     return (ra.top - rb.top) || (ra.left - rb.left);
@@ -822,5 +874,5 @@ function buildHomeSteps(layout, options) {
   return steps;
 }
 
-export { buildHomeSteps };
+export { buildHomeSteps, navPillSummary };
 export default buildHomeSteps;

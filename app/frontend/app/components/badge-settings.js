@@ -256,52 +256,52 @@ export default Component.extend({
   }),
   unit_type: computed('badge.interval', function () {
     if (this.get('badge.interval') == 'monthyear') {
-      return i18n.t('month', 'month');
+      return i18n.t('month', "month");
     } else if (this.get('badge.interval') == 'biweekyear') {
-      return i18n.t('other_week', 'other week');
+      return i18n.t('other_week', "other week");
     } else if (this.get('badge.interval') == 'weekyear') {
-      return i18n.t('week', 'week');
+      return i18n.t('week', "week");
     } else {
-      return i18n.t('day', 'day');
+      return i18n.t('day', "day");
     }
   }),
   unit_type_plural: computed('badge.interval', function () {
     if (this.get('badge.interval') == 'monthyear') {
-      return i18n.t('months', 'months');
+      return i18n.t('months', "months");
     } else if (this.get('badge.interval') == 'biweekyear') {
-      return i18n.t('bi-weeks', 'bi-weeks');
+      return i18n.t('bi-weeks', "bi-weeks");
     } else if (this.get('badge.interval') == 'weekyear') {
-      return i18n.t('weeks', 'weeks');
+      return i18n.t('weeks', "weeks");
     } else {
-      return i18n.t('days', 'days');
+      return i18n.t('days', "days");
     }
   }),
   event_type_plural: computed('badge.instance_metric', function () {
     if (this.get('badge.instance_metric') == 'button') {
-      return i18n.t('buttons', 'buttons');
+      return i18n.t('buttons', "buttons");
     } else if (this.get('badge.instance_metric') == 'word') {
-      return i18n.t('words', 'words');
+      return i18n.t('words', "words");
     } else if (this.get('badge.instance_metric') == 'session') {
-      return i18n.t('sessions', 'sessions');
+      return i18n.t('sessions', "sessions");
     } else if (this.get('badge.instance_metric') == 'modeled_word') {
-      return i18n.t('modeled_words', 'modeled words');
+      return i18n.t('modeled_words', "modeled words");
     } else if (this.get('badge.instance_metric') == 'modeled_button') {
-      return i18n.t('modeled_buttons', 'modeled buttons');
+      return i18n.t('modeled_buttons', "modeled buttons");
     } else if (this.get('badge.instance_metric') == 'unique_word') {
-      return i18n.t('unique_words', 'unique words');
+      return i18n.t('unique_words', "unique words");
     } else if (this.get('badge.instance_metric') == 'unique_button') {
-      return i18n.t('unique_buttons', 'unique buttons');
+      return i18n.t('unique_buttons', "unique buttons");
     } else {
-      return i18n.t('instances', 'instances');
+      return i18n.t('instances', "instances");
     }
   }),
   watchlist_type_plural: computed('badge.watchlist_type', function () {
     if (this.get('badge.watchlist_type') == 'words') {
-      return i18n.t('words', 'words');
+      return i18n.t('words', "words");
     } else if (this.get('badge.watchlist_type') == 'parts_of_speech') {
-      return i18n.t('parts_of_speech', 'parts of speech');
+      return i18n.t('parts_of_speech', "parts of speech");
     } else {
-      return i18n.t('units', 'units');
+      return i18n.t('units', "units");
     }
   }),
   in_list: computed('index', function () {

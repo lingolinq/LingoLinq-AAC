@@ -7,7 +7,7 @@ export default Route.extend({
 
   model: function() {
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('reports', 'reports'));
+    user.set('subroute_name', i18n.t('reports', "reports"));
     return user;
   },
 
