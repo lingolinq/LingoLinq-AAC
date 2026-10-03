@@ -262,6 +262,28 @@ class RunChunksTest(unittest.TestCase):
             finally:
                 run_chunks.subprocess.run = original
         self.assertIn("--ephemeral", seen[0])
+        # The shared hardening arguments, an empty working directory and absolute paths
+        # (2026-10-02): codex runs with no tools, no PR files and no user config.
+        command = seen[0]
+        for required in run_chunks.codex_exec_args():
+            self.assertIn(required, command)
+        self.assertIn("features.shell_tool=false", command)
+        workdir = command[command.index("-C") + 1]
+        self.assertTrue(pathlib.Path(workdir).is_dir())
+        self.assertEqual(list(pathlib.Path(workdir).iterdir()), [], "codex's working directory is not empty")
+        self.assertTrue(pathlib.Path(command[command.index("--output-schema") + 1]).is_absolute())
+
+    def test_refuses_to_build_a_codex_call_without_hardening_arguments(self):
+        original = run_chunks.CODEX_EXEC_ARGS_FILE
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = pathlib.Path(tmp) / "args.txt"
+            empty.write_text("# nothing\n\n")
+            run_chunks.CODEX_EXEC_ARGS_FILE = empty
+            try:
+                with self.assertRaises(RuntimeError):
+                    run_chunks.codex_exec_args()
+            finally:
+                run_chunks.CODEX_EXEC_ARGS_FILE = original
 
     def test_needs_tiebreak_for_approve_block_split(self):
         with tempfile.TemporaryDirectory() as tmp:

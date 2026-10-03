@@ -149,9 +149,54 @@ def diff_has_injection(diff):
     return bool(diff) and bool(_INJECTION_RE.search(diff))
 
 
-def guarded_outcome(review, diff):
+# A file git treats as binary is not shown in the diff: the reviewer sees only "Binary files ...
+# differ". Git decides that from content (a NUL byte), so a PR can make a source file "binary" and
+# hide it. Media, fonts and archives are expected to be binary and are listed as unreviewed; any
+# other path that diffs as binary withholds an APPROVE. (PR-added .gitattributes cannot force
+# this: the workflow diffs from a trusted worktree.)
+REVIEWABLE_BINARY_EXTENSIONS = frozenset((
+    "png", "jpg", "jpeg", "gif", "webp", "ico", "bmp", "tif", "tiff", "avif", "heic",
+    "pdf", "woff", "woff2", "ttf", "otf", "eot",
+    "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "mp4", "m4v", "webm", "mov",
+    "zip", "gz", "tgz", "obz",
+))
+_BINARY_DIFF_RE = re.compile(r"^Binary files (.+) and (.+) differ$", re.MULTILINE)
+
+
+def _binary_side_path(side):
+    if side == "/dev/null":
+        return None
+    return side[2:] if side[:2] in ("a/", "b/") else side
+
+
+def unreviewable_binary_paths(diff):
+    """Paths that diff as binary and are not an expected binary type."""
+    paths = set()
+    for match in _BINARY_DIFF_RE.finditer(diff or ""):
+        for side in match.groups():
+            path = _binary_side_path(side)
+            if path is None:
+                continue
+            extension = path.rsplit(".", 1)[-1].lower() if "." in path.rsplit("/", 1)[-1] else ""
+            if extension not in REVIEWABLE_BINARY_EXTENSIONS:
+                paths.add(path)
+    return sorted(paths)
+
+
+UNREVIEWED_BINARY_OUTCOME = {
+    "kind": "incomplete_evidence",
+    "status_state": "failure",
+    "status_description": "Codex review APPROVE withheld: a non-media file diffs as binary (needs human)",
+    "human_label": "Unreviewed binary content",
+}
+
+
+def guarded_outcome(review, diff, binary_diff=None):
     """Per-run outcome with the prompt-injection guard applied: an APPROVE whose
-    diff carries verdict-steering text is withheld and fails closed."""
+    diff carries verdict-steering text is withheld and fails closed.
+
+    binary_diff is the UNTRUNCATED diff for the binary guard: the bounded diff the reviewer sees is
+    cut at a size cap, and a hidden file past the cut must still withhold an APPROVE."""
     outcome = review_outcome(review)
     if outcome["kind"] == "approved" and diff_has_injection(diff):
         return {
@@ -160,6 +205,8 @@ def guarded_outcome(review, diff):
             "status_description": "Codex review APPROVE withheld: possible prompt-injection in the diff (needs human)",
             "human_label": "Suspected prompt-injection",
         }
+    if outcome["kind"] == "approved" and unreviewable_binary_paths(diff if binary_diff is None else binary_diff):
+        return dict(UNREVIEWED_BINARY_OUTCOME)
     return outcome
 
 
@@ -488,6 +535,18 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
         else:
             review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
         return outcome, "full raw diff injection guard", 0, review_body, synthesis_reviews[decisive_index]
+    hidden = unreviewable_binary_paths(full_diff) if final["kind"] == "approved" else []
+    if hidden:
+        finding = _path_coverage_finding(
+            head_sha,
+            "A file that is not an expected binary type diffs as binary, so its content was not reviewed.",
+            "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
+        )
+        if review_body.get("findings"):
+            review_body["findings"].append(finding)
+        else:
+            review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
+        return dict(UNREVIEWED_BINARY_OUTCOME), "full raw diff binary guard", 0, review_body, synthesis_reviews[decisive_index]
     return final, f"synthesis: {reason}", approve_count, review_body, synthesis_reviews[decisive_index]
 
 
@@ -495,6 +554,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--diff", default=None, help="bounded diff file for the injection guard")
     parser.add_argument("--full-diff", default=None, help="complete raw diff file for chunked injection guard")
+    parser.add_argument(
+        "--binary-scan-diff",
+        default=None,
+        help="untruncated diff for the binary guard on the bounded path (must be readable)",
+    )
     parser.add_argument("--manifest", default=None, help="chunked evidence manifest")
     parser.add_argument("--evidence-dir", default=None, help="chunked evidence directory")
     parser.add_argument("--chunk-reviews", nargs="*", default=[], help="chunk review JSON files")
@@ -512,7 +576,14 @@ def main():
         parser.error("review JSON files are required unless --manifest is provided")
 
     diff = _read_diff(args.full_diff) if args.full_diff else _read_diff(args.diff)
-    outcomes = [guarded_outcome(_load(path), diff) for path in args.reviews]
+    binary_diff = None
+    if args.binary_scan_diff:
+        # Fail closed: an unreadable file must not read as "no binary files".
+        try:
+            binary_diff = pathlib.Path(args.binary_scan_diff).read_text()
+        except OSError as error:
+            parser.error(f"--binary-scan-diff unreadable: {error.__class__.__name__}")
+    outcomes = [guarded_outcome(_load(path), diff, binary_diff) for path in args.reviews]
 
     if args.need_third:
         # A 3rd run is needed only when the two runs disagree.

@@ -101,7 +101,8 @@ sticky-comment payload so a later audit can tell which path produced a verdict.
 
 ## Chunked evidence contract
 
-The trusted workflow-ref helper `scripts/codex-review-build-evidence.py`
+The helper `scripts/codex-review-build-evidence.py` (run from the trusted checkout; see
+[Execution isolation](#execution-isolation))
 generates:
 
 - `manifest.json`
@@ -156,11 +157,14 @@ file/line evidence remains attributable.
 One oversized hunk is not split. It marks coverage incomplete and the envelope
 returns `NEEDS_HUMAN`.
 
-Header-only changes are complete coverage. This includes binary diffs,
-mode-only changes, pure renames, and deletions.
+Header-only changes are complete coverage. This includes mode-only changes,
+pure renames, deletions, and binary diffs of expected binary types (images,
+fonts, PDFs, audio/video, archives). Any other path that diffs as binary
+withholds an APPROVE (`incomplete_evidence`, needs human): git decides
+"binary" from file content, so the diff cannot show what changed.
 
 The exclusion policy is stored in `.github/codex/evidence-policy.json`, which
-is restored from the workflow ref before it is used. Exclusions are deterministic
+comes from the trusted checkout of the workflow ref. Exclusions are deterministic
 policy coverage, not semantic model review. The policy separates paths excluded
 from chunking from approval-safe classes, and the envelope recomputes approval
 safety from the trusted policy before approval.
@@ -205,6 +209,52 @@ The guard scans the complete raw diff, every chunk, and the synthesis input.
 Raw diff hashes identify the exact Git evidence. Prompt hashes identify the
 defanged bytes sent to the model. `CI_INJECT` markers in diff or model-authored
 chunk findings are defanged before prompt assembly.
+
+## Execution isolation
+
+The review job runs PR content only as data:
+
+- The workspace is a checkout of the workflow ref (`persist-credentials:
+  false`). Every helper, prompt, schema and policy file comes from it. Python
+  helpers run as `python3 -I "$GITHUB_WORKSPACE/scripts/..."`; the shell
+  helpers run by the same absolute path.
+- The PR's commits are fetched as git objects and never checked out. Diffs are
+  computed from those objects with the trusted worktree's git attributes, and
+  the path classifier matches NUL-separated names, so quoting cannot hide a
+  data-bearing path. A file that diffs as binary is checked on the untruncated
+  diff (see Oversized and excluded evidence).
+- `codex exec` runs from an empty directory with a fresh `CODEX_HOME`, the key
+  only in `CODEX_API_KEY` on the reviewer step (no `codex login`, no stored
+  credential), and the arguments in `.github/codex/codex-exec-args.txt`:
+  read-only sandbox, no command, browser, image, web or plugin tools, no
+  session saving. The CI job `codex-review-tests` installs the pinned codex
+  version and checks that each disabled feature exists in it and is really
+  off, that the other overrides are accepted, and that `codex exec` accepts
+  every flag. The reviewer step refuses to run if the list is empty.
+- Model calls get no other credential and no `GITHUB_*` runtime variable in
+  their environment (`scripts/codex-review-quiet-exec.py`). `GH_TOKEN` is set
+  only on the steps that call `gh`; neither reviewer step has it.
+- Secrets are passed as step `env`, never written into a step script. The
+  webhook URL reaches `curl` as a config line on stdin; the HMAC key is read
+  from the step environment. Before the W2 POST,
+  `scripts/codex-review-secret-scan.py` refuses an envelope that contains
+  anything credential-shaped (best effort: a split or encoded secret is not
+  found) and posts a specific failure status.
+- **Admin preconditions, NOT enforced by this file.** The job names the
+  `codex-review` environment, but GitHub creates a referenced environment with
+  no protection, and `secrets.*` falls back to repository secrets. Isolation
+  holds only after a repo admin (1) restricts the environment's deployment
+  branches to the branch W1 dispatches from, (2) moves
+  `CODEX_OPENAI_API_KEY`, `CLAUDE_REVIEW_API_KEY`,
+  `N8N_CODEX_RESULTS_WEBHOOK_URL` and `N8N_CODEX_RESULTS_HMAC_SECRET` into the
+  environment and deletes the repository-level copies, and (3) rotates all
+  four. Until then the workflow runs exactly as before on that front.
+- Three jobs: `status-pending` posts the pending anchor, `codex-review` holds
+  the environment and does the review, and `status-final` (`always()`)
+  resolves deep-pass from the review job's result. The two status jobs hold no
+  environment and no secret, so a run the environment refuses still gets a
+  terminal status.
+- `zizmor` scans this workflow in CI (`--persona auditor`, medium and above).
 
 ## Watchdog and heartbeat
 
@@ -255,11 +305,13 @@ Actions; scheduling cannot provide one. There is also no `workflow_dispatch`
 on the watchdog, so there is currently no operator lever and no audited manual
 path (issue #717).
 
-Chunked reviews can legitimately take longer than the old 2-3 model-call path,
-so `scripts/codex-review-run-chunks.py` reposts pending status before every
-model call and retry. Heartbeat failures are non-fatal; they are progress hints,
-not correctness gates. A real hang stops heartbeating and the watchdog fails it
-closed whenever the next sweep happens to run.
+Chunked reviews can legitimately take longer than the old 2-3 model-call path.
+`scripts/codex-review-run-chunks.py` can repost pending status before every
+model call (`--heartbeat`), but the workflow no longer passes that flag
+(2026-10-02): the heartbeat needs a GitHub token in the process that starts
+codex, and it only ever refreshed the pending text. The watchdog times a run
+from its EARLIEST pending status, so heartbeats never moved its clock. Progress
+is in the run log.
 
 Measured smoke timing:
 
@@ -269,8 +321,7 @@ Measured smoke timing:
 - Total workflow wall-clock: about 2 minutes 27 seconds.
 - Reasoning effort: none, as currently shipped by
   `scripts/codex-review-run-chunks.py`.
-- Heartbeats fired about every 5-6 seconds, far below the 30-minute staleness
-  threshold.
+- Heartbeats (then enabled) fired about every 5-6 seconds.
 
 The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
 a rough lower-bound throughput check, assuming the smoke had no structural
@@ -282,8 +333,7 @@ once, so up to about 50 minutes for that chunk), and several hung calls can
 still reach the 90-minute job timeout. Past that, the watchdog will fail the
 stale status, but only once it is 30 minutes old AND a scheduled sweep actually
 runs, which is best-effort and unbounded.
-Each model call still posts a pending-status heartbeat before it starts. Treat
-5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
+Treat 5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
 the manifest block embedded in every chunk prompt grows with chunk count.
 
 Two known limits this cap raise does not address, both unchanged from the

@@ -8,6 +8,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import tempfile
 
 
 # Model calls go through the quiet runner so the `codex exec` transcript (the
@@ -17,6 +18,29 @@ _QUIET_EXEC_SPEC = importlib.util.spec_from_file_location(
 )
 quiet_exec = importlib.util.module_from_spec(_QUIET_EXEC_SPEC)
 _QUIET_EXEC_SPEC.loader.exec_module(quiet_exec)
+
+# Hardening arguments shared with the bounded reviewer in codex-review.yml: read-only sandbox, no
+# command/browser/web tools, no session saving, no user config.
+CODEX_EXEC_ARGS_FILE = pathlib.Path(__file__).resolve().parents[1] / ".github" / "codex" / "codex-exec-args.txt"
+
+
+def codex_exec_args():
+    lines = CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+    args = [line for line in lines if line and not line.startswith("#")]
+    if not args:
+        raise RuntimeError(f"{CODEX_EXEC_ARGS_FILE} has no arguments; refusing to run codex unhardened")
+    return args
+
+
+# codex runs from an empty directory: it needs no files, and the prompt carries all evidence.
+_CODEX_WORKDIR = None
+
+
+def codex_workdir():
+    global _CODEX_WORKDIR
+    if _CODEX_WORKDIR is None:
+        _CODEX_WORKDIR = tempfile.mkdtemp(prefix="codex-review-workdir-")
+    return _CODEX_WORKDIR
 
 
 CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
@@ -177,16 +201,17 @@ def run_model(args, prompt_path, schema_path, output_path, heartbeat_description
     command = [
         "codex",
         "exec",
-        # Do not save the session (prompt and model output) under CODEX_HOME.
-        "--ephemeral",
-        "--sandbox",
-        "read-only",
+        # --ephemeral (no session saved under CODEX_HOME) and the rest are in the shared file.
+        *codex_exec_args(),
+        "-C",
+        codex_workdir(),
         "-m",
         model,
         "--output-schema",
-        str(schema_path),
+        # Absolute: codex runs from the empty workdir, not from the trusted checkout.
+        str(pathlib.Path(schema_path).resolve()),
         "--output-last-message",
-        str(output_path),
+        str(pathlib.Path(output_path).resolve()),
     ]
     if heartbeat_description:
         heartbeat(args, heartbeat_description)
