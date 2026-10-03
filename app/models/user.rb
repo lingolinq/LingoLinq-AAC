@@ -2853,10 +2853,13 @@ class User < ApplicationRecord
       after = self.settings['preferences'][key]
       next if before == after
       forced = ai_prefs_requested[key] != after
-      # With no editor, an EU-rule value is credited to the rule itself.
+      # With no editor, an EU-rule value is credited to the rule itself, and a
+      # request with no signed-in user (a sign-up) to a fixed system actor.
+      whodunnit = PaperTrail.request.whodunnit
       updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
                    elsif forced then 'system:eu_rule'
-                   else PaperTrail.request.whodunnit end
+                   elsif whodunnit.to_s.start_with?('unauthenticated') then 'system:unauthenticated'
+                   else whodunnit end
       entry = {
         'updater' => updater_id,
         'setting' => key,
