@@ -283,7 +283,7 @@ export default Component.extend({
   actions: {
     close() {
       // utils/modal, not the service (2026-10-02): its close(false) rejects the open() promise AND
-      // clears utils' own `last_template`. The service's close left that set, so modal.is_open()
+      // clears utils' own `_component_based_template`. The service's close left that set, so is_open()
       // stayed true after the X or Cancel -- and, once Escape and backdrop clicks reach this action
       // (onClose bound in init, above), after those too.
       modal.close(false);

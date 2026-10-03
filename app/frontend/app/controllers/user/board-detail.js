@@ -39,6 +39,7 @@ import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/displ
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_color, resolve_labels_pos } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
+import { is_copy_decision } from '../../utils/copy_decision';
 import LingoLinq from '../../app';
 import buildEventAction from '../../utils/event_action';
 
@@ -7499,7 +7500,7 @@ export default Controller.extend(prefClasses, {
                     for_editing: true
                   });
                 }).then(function(opts) {
-                  if(opts === false) { return RSVP.resolve(); }
+                  if(!is_copy_decision(opts)) { return RSVP.resolve(); }
                   return appController.copy_board(opts, true, null, finish_copy);
                 }).then(finish_copy, function() { });
               }
@@ -8494,7 +8495,7 @@ export default Controller.extend(prefClasses, {
         return;
       }
       modal.open('copy-board', {board: board}).then(function(opts) {
-        if(opts === false) { return RSVP.resolve(); }
+        if(!is_copy_decision(opts)) { return RSVP.resolve(); }
         return appController.copy_board(opts, false);
       }).then(function(res) {
         if(res && res.id && res.key && !_this.isDestroyed && !_this.isDestroying) {

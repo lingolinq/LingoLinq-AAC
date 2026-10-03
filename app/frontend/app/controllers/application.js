@@ -42,6 +42,7 @@ import { set_view_style, is_classic } from '../utils/view_style';
 import { pillForRoute } from '../utils/primary_nav';
 import { showsRoomsPill } from '../utils/rooms_nav';
 import { isSiteAdmin } from '../utils/admin_nav';
+import { is_copy_decision } from '../utils/copy_decision';
 
 export default Controller.extend({
   router: service('router'),
@@ -414,6 +415,9 @@ export default Controller.extend({
           selected_user_name: selected_user_name
         });
       }).then(function(opts) {
+        // Dismissed without a decision (utils/copy_decision.js): stop, rather than reopen the dialog
+        // through the `!decision` branch above. Callers read an undefined result as a cancel.
+        if(!is_copy_decision(opts)) { return; }
         return _this.copy_board(opts, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution);
       });
     }
