@@ -83,7 +83,7 @@ export default Component.extend({
 
   locales: computed(function() {
     const list = i18n.get('translatable_locales');
-    const res = [{ name: i18n.t('choose_locale', '[Choose a Language]'), id: '' }];
+    const res = [{ name: i18n.t('choose_locale', "[Choose a Language]"), id: '' }];
     for (const key in list) {
       res.push({ name: list[key], id: key });
     }

@@ -11,6 +11,7 @@ import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
 import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate, sessionEntryGatePending } from '../utils/article50_gate';
 import sessionHistory from '../utils/session_history';
+import { board_view_route } from '../utils/board_view';
 
 export default Route.extend({
   router: service('router'),
@@ -33,7 +34,7 @@ export default Route.extend({
     // index.afterModel may replaceWith('user.home') — the origin
     // `transition.from` is preserved across that chain, so a recompute
     // there still resolves to "not login".
-    var login_entry = !from || /^login(\.|$)/.test(from_name);
+    var login_entry = !this.appState.get('pending_index_nav') && (!from || /^login(\.|$)/.test(from_name));
     this.appState.set('_index_login_entry', login_entry);
     return this._super.apply(this, arguments);
   },
@@ -67,13 +68,19 @@ export default Route.extend({
   // (components/user-pill-nav.hbs, utils/dashboard_sections.js), so the default
   // page is always one the user can see a pill for, and it is a strict subset of
   // the caseload route's own access guard (routes/caseload.js) — no bounce loop.
+  // EVERY role lands on Home (2026-09-02). Supporters used to be dropped on
+  // /caseload instead; Home is now the shared landing page and Caseload is one
+  // pill along from it. Note this is only the DEFAULT — the session-resume branch
+  // in afterModel runs first, so a returning user still goes back to whatever page
+  // they were last on (caseload included). This is the first-registration path and
+  // the fallback when there is nothing remembered.
+  //
+  // Removing the caseload branch also retires the compliance-gate carve-out that
+  // sat here: /caseload hosts neither the terms-agree modal nor the EU AI Act
+  // Art.50 disclosure, so sending supporters there could skip a pending gate. This
+  // route's setupController hosts both, and everyone now lands here.
   _land_on_default: function(model) {
-    if (this.appState.get('_index_login_entry') && model.get('supporter_role') &&
-        !this._session_entry_gate_pending(model)) {
-      this.router.replaceWith('caseload');
-    } else {
-      this.router.replaceWith('user.home', model.get('user_name'));
-    }
+    this.router.replaceWith('user.home', model.get('user_name'));
   },
   // This route's setupController is the ONLY host for the session-entry gates —
   // the terms-agree modal and the EU AI Act Art.50 disclosure (routes/bento.js is
@@ -134,15 +141,27 @@ export default Route.extend({
       // dashboard to pick one, so they are excluded here too. Storage + eligible
       // routes: utils/session_history.js.
       if (this.appState.get('_index_login_entry') && !communicator_only && !model.get('eval_ended') &&
-          this.appState.get('feature_flags.session_resume')) {
+          !this._basic_supporter_lands_home(model) && this.appState.get('feature_flags.session_resume')) {
         var last = sessionHistory.last_location(model.get('user_name'));
         if (last && last.url) {
           var user_name = model.get('user_name');
-          var resume = this.router.replaceWith(last.url);
-          // The remembered page can have gone away since last session (a deleted
-          // board, a supervisee relationship that ended, a renamed org). Drop the
-          // stale record and fall back to the default landing page rather than an
-          // error page.
+          // Resume in the shell the user is on NOW, not the one they were in when
+          // the page was recorded. Board urls are the only ones that differ between
+          // views (`/:user/board-detail/:name` vs `/:user/board/:name`); every other
+          // page renders both variants at one url, so replaying the url is correct
+          // for them. Without this, a user who switched to classic since last login
+          // resumes straight back into the modern board.
+          var resume_url = last.url;
+          var board_match = /^\/([^/]+)\/(?:board-detail|board)\/([^/?#]+)/.exec(last.url || '');
+          if (board_match && /^user\.board-(detail|alt)/.test(last.route || '')) {
+            var want_alt = board_view_route(model) === 'user.board-alt';
+            resume_url = '/' + board_match[1] + (want_alt ? '/board/' : '/board-detail/') + board_match[2];
+          }
+          var resume = this.router.replaceWith(resume_url); resume = (resume && resume.followRedirects) ? resume.followRedirects() : resume;
+          // The remembered page can have gone away (a deleted board, an ended supervision): drop the
+          // record and land on the default page. NOT on a redirect: Basic redirects several pages
+          // (utils/basic_landing.js), which aborts this transition, so its own promise rejected and
+          // the page was forgotten; followRedirects settles where they end (2026-10-01).
           if (resume && resume.then) {
             resume.then(null, function() {
               sessionHistory.clear_location(user_name);
@@ -305,7 +324,10 @@ export default Route.extend({
     home_board: function(key) {
       var parts = key ? key.split('/') : [];
       if(parts.length === 2) {
-        this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+        // Honor the view preference — this action is reachable from the classic
+        // home page, so hardcoding the modern shell would bounce a classic user
+        // straight out of classic on their first board tap.
+        this.router.transitionTo(board_view_route(this.appState.get('effective_view_user')), parts[0], parts[1]);
       } else {
         this.router.transitionTo('board', key);
       }
@@ -356,5 +378,25 @@ export default Route.extend({
         }
       });
     }
+  },
+
+  /* AN SLP IN BASIC SIGNS IN TO THE COMMUNICATORS TAB (2026-09-30, requested: "for an slp user, if
+     they switch to basic view and that is their preference, when they log in next, take them to
+     the home page with the communicator page as the active page"). Asked by afterModel just before
+     session resume: at a login entry, a supporter whose view is Basic skips the remembered page
+     (which could be Modern's caseload) and falls through to `_land_on_default`, the Basic home
+     page, which takes the Communicators tab handed off here (components/dashboard/classic-view.js).
+     Returns true when it did.
+     PLACED HERE, AND WRITTEN WITHOUT NEW IMPORTS, because this file's ESLint baseline is anchored
+     to line 256 (.eslint-todo): a new import or method above it would shift that entry. So Basic is
+     read as `board_view_route(model) === 'user.board-alt'`, the test this file's resume block
+     already uses, and the handoff sets the values utils/basic_landing.js#hand_off_index_nav sets. */
+  _basic_supporter_lands_home: function(model) {
+    if(!this.appState.get('_index_login_entry') || !model || !model.get('supporter_role')) { return false; }
+    if(board_view_route(model) !== 'user.board-alt') { return false; }
+    this.appState.set('pending_index_nav', 'supervisees');
+    this.appState.set('pending_open_extras', null);
+    this.appState.set('pending_open_supervisee', null);
+    return true;
   }
 });

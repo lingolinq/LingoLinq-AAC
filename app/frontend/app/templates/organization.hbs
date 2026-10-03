@@ -1,46 +1,210 @@
-<div class="md-shell md-shell--org">
+<div class="md-shell md-shell--org {{if this.roomsPageActive "md-shell--org-rooms"}}">
+  {{!-- BASIC VIEW'S ORG NAV (2026-09-25, requested). Selecting an organisation used to REPLACE
+       the rail with the two-item `ch-tabs` strip below, so the section you had just entered was
+       the one place in Basic with no sidebar. The rail renders here too now, in org mode: see
+       `orgSection` in components/dashboard/classic-rail.js for what changes and why.
+       `@org={{this.model}}` is what puts it in that mode -- the directory page mounts the same
+       component with no argument and is unchanged.
+       A DIRECT CHILD OF `.md-shell`, for the two reasons templates/organizations.hbs records at
+       its own mount: `.md-shell` carries the page's gradient, so a rail outside it would sit on
+       bare page; and `.md-shell > .md-workspace` is a DIRECT-CHILD selector that a flex wrapper
+       between the two would silently break. --}}
+  {{#if this.isClassic}}
+    <Dashboard::ClassicRail @org={{this.model}} />
+  {{/if}}
   <div class="md-workspace">
-    <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Organization Navigation" key="org_navigation"}}>
-      {{!-- Back to the org list — same "< Home" pattern used on the org directory page. --}}
-      <LinkTo @route="organizations" class="md-pillnav__pill">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
-        {{t "My Organizations" key="my_organizations"}}
-      </LinkTo>
-      <LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav__pill">{{t "Dashboard" key="dashboard"}}</LinkTo>
-      {{!-- Management tabs are manager/assistant-only (every backing endpoint
-           requires 'edit'). Supervisors have view-only org access, so these
-           links must not appear for them — they'd only lead to 400s. --}}
-      {{#if this.model.permissions.edit}}
-        {{!-- "User", not "Admin": this tab is the org's PEOPLE — managers, supervisors,
-             communicators and their evals — while every other tab on this nav is already
-             org administration. `key="user"` is the existing key for this exact string
-             (7 other call sites), so it is translated in every locale already; `admin`
-             stays defined for the role chips that legitimately say "Admin". --}}
-        <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "User" key="user"}}</LinkTo>
-        <LinkTo @route="organization.reports" @model={{this.model.id}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
-        {{#if (or this.app_state.feature_flags.telemetry_admin_panel this.app_state.currentUser.admin)}}
-          <LinkTo @route="organization.telemetry" @model={{this.model.id}} class="md-pillnav__pill">{{t "Telemetry" key="telemetry"}}</LinkTo>
-        {{/if}}
-        <LinkTo @route="organization.rooms" @model={{this.model.id}} class="md-pillnav__pill">{{t "Rooms" key="rooms"}}</LinkTo>
-        {{#if this.app_state.feature_flags.lessons}}
-          <LinkTo @route="organization.lessons" @model={{this.model.id}} class="md-pillnav__pill">{{t "Trainings" key="trainings"}}</LinkTo>
-        {{/if}}
-        <LinkTo @route="organization.settings" @model={{this.model.id}} class="md-pillnav__pill">{{t "Settings" key="settings"}}</LinkTo>
-        {{#if (and this.model.admin this.model.permissions.manage)}}
-          <LinkTo @route="organization.extras" @model={{this.model.id}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
-        {{/if}}
-      {{/if}}
-    </nav>
+    {{!-- BASIC VIEW REPLACES THE PILL NAV WITH THE `ch-` TAB STRIP (requested 2026-09-23), in
+         this exact slot -- the strip used to render further down, inside the page card, which is
+         why hiding the pills alone left a gap and the strip in the wrong place.
+         It wears `ch-tabs` / `ch-tab`, the Basic home page's own classes, so it takes the gentle
+         and focused schemes from there rather than restating either.
 
-    <header class="md-hero md-hero--dashboard md-hero--org">
-      <h1 class="md-hero__title"><span class="md-hero__title--from-left">
-        {{#if this.model.permissions.view}}
-          {{this.model.name}}
-        {{else}}
-          {{t "Organization" key="organization"}}
-        {{/if}}
-      </span></h1>
-      <span class="md-hero__divider" aria-hidden="true"></span>
+         THE TWO STRIPS NO LONGER MIRROR EACH OTHER (2026-09-25). They were the same two items in
+         two sets of class names -- a way back, and the section you are on. Basic's has since
+         become the ADMIN AREA'S OWN TABS (Admin plus the five people sections; see the note on
+         that branch), because Basic also gained the rail beside it, which took over both of the
+         jobs that pair was doing. Modern has no such rail, so its strip is unchanged and still
+         reads "< Home | <section>".
+         THAT IS WHY `currentSectionLabel`, `backRoute`, `backModels` and `backLabel`
+         (controllers/organization.js) are now read by the MODERN branch alone. They are still
+         correct and still used; they simply have one consumer instead of two. The rule they
+         carry is worth keeping in mind if Basic's strip ever needs a way back again: on the room
+         DETAIL page the label reads "Back" and returns to the rooms LIST, because that is the
+         page above it, and everywhere else it reads "Home" and leaves the org section. --}}
+    {{#if this.isClassic}}
+      {{!-- THE ADMIN AREA'S OWN TABS (2026-09-25, requested: "the ch-tabs need to be: Admin,
+           Managers, Supervisors, Communicators, Evals, Symbols (instead of Home and
+           Organizations)").
+
+           IT REPLACED A "< Home | <section>" PAIR. That pair was a way back plus a label; both
+           jobs now belong to the rail beside it, which carries Home Page, Organizations and the
+           org's five sections and marks the page you are on. Two navs saying "where you are"
+           was the redundancy this removes.
+
+           THE FIVE PEOPLE TABS ARE ONE ROUTE WITH A PARAM, not five routes. Managers,
+           Supervisors, Communicators, Evals and Symbols are sections of `organization.people`
+           (templates/organization/people.hbs), selected until now by a click-only property that
+           a parent template had no way to set -- see the note on `section` in
+           controllers/organization/people.js for why it moved into the URL. SYMBOLS IS
+           `extras`: that is the value its own tab has always used and the name of the API it
+           loads (`/organizations/:id/extras`), so the label and the param differ on purpose.
+
+           ADMIN IS `organization.index`, and it is the tab this strip lights on that page.
+           The five take their highlight from `activePeopleSection`, which asks the people
+           controller what it is showing rather than re-reading the URL, so the strip cannot
+           disagree with the page under it -- including with no param at all, where the page
+           defaults to Managers and so does this.
+
+           NO COUNTS (requested 2026-09-25: "Remove the count from the nav menu"). They were
+           carried up here from the people page's own Basic strip when this replaced it -- the
+           manager/supervisor/user totals and the two used-of-allotted ratios. Each figure is
+           still shown by the section it belongs to, in its own heading ("2 managers",
+           "1 / 10 eval accounts used"), so nothing is lost by taking them out of the nav.
+           `ch-organizations-tabs` GOES WITH THEM: that class exists only to stack a label over
+           a count (`.ch-tab` becomes a flex COLUMN, _classic-home.scss:1366), which a
+           single-line tab does not want. The base `.ch-tab` is the right treatment now.
+           Its rules are left in place, unused -- dead CSS is its own cleanup. --}}
+      {{!-- NOT FOR A VIEW-ONLY VISITOR ON THE ROOMS LIST (2026-09-28): see `showBasicOrgTabs`.
+           NESTED inside the Basic branch rather than added to its `{{#if}}`: a false there would
+           fall through to the `{{else if this.showSectionPillNav}}` below and draw Modern's strip
+           in Basic view. --}}
+      {{#if this.showBasicOrgTabs}}
+      {{!-- TABS OR DROPDOWN (2026-10-02, requested): while the six tabs do not fit -- the Basic rail
+           expanded beside them, a narrow window, a longer language -- {{fit-or-select}} swaps the
+           strip for the dropdown below, the Modern home page's pill dropdown (requested: "styled like
+           they are on the home page dropdown pill menu"). Same six destinations as LinkTos, same
+           active one; `md-pillnav-dropdown--user` inherits the <details> styling, as
+           components/user-pill-nav.hbs does. The trigger names the tab you are on. --}}
+      <div class="ch-tabs-fit" {{fit-or-select}}>
+      <nav class="ch-tabs ch-tabs--primary" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+        <LinkTo @route="organization.index" @model={{this.model.id}} class="ch-tab {{if this.adminTabActive "is-active"}}" aria-current={{if this.adminTabActive "page"}}>
+          <span class="ch-tab__label">{{t "Admin" key="admin"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="managers"}} class="ch-tab {{if (is_equal this.activePeopleSection "managers") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "managers") "page"}}>
+          <span class="ch-tab__label">{{t "Managers" key="managers"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="supervisors"}} class="ch-tab {{if (is_equal this.activePeopleSection "supervisors") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "supervisors") "page"}}>
+          <span class="ch-tab__label">{{t "Supervisors" key="supervisors"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="communicators"}} class="ch-tab {{if (is_equal this.activePeopleSection "communicators") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "communicators") "page"}}>
+          <span class="ch-tab__label">{{t "Communicators" key="communicators"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="evals"}} class="ch-tab {{if (is_equal this.activePeopleSection "evals") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "evals") "page"}}>
+          <span class="ch-tab__label">{{t "Evals" key="evals"}}</span>
+        </LinkTo>
+        <LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="extras"}} class="ch-tab {{if (is_equal this.activePeopleSection "extras") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "extras") "page"}}>
+          <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
+        </LinkTo>
+      </nav>
+      <details class="md-pillnav-dropdown md-pillnav-dropdown--user md-pillnav-dropdown--fit" {{details-autoclose}}>
+        <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
+          <span class="md-pillnav-dropdown__label">{{this.orgTabLabel}}</span>
+          <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <ul class="md-pillnav-dropdown__list" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+          <li><LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav-dropdown__option {{if this.adminTabActive "is-active"}}" aria-current={{if this.adminTabActive "page"}}>{{t "Admin" key="admin"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="managers"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "managers") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "managers") "page"}}>{{t "Managers" key="managers"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="supervisors"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "supervisors") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "supervisors") "page"}}>{{t "Supervisors" key="supervisors"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="communicators"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "communicators") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "communicators") "page"}}>{{t "Communicators" key="communicators"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="evals"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "evals") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "evals") "page"}}>{{t "Evals" key="evals"}}</LinkTo></li>
+          <li><LinkTo @route="organization.people" @model={{this.model.id}} @query={{hash section="extras"}} class="md-pillnav-dropdown__option {{if (is_equal this.activePeopleSection "extras") "is-active"}}" aria-current={{if (is_equal this.activePeopleSection "extras") "page"}}>{{t "Symbols" key="symbols"}}</LinkTo></li>
+        </ul>
+      </details>
+      </div>
+      {{/if}}
+    {{else if this.showSectionPillNav}}
+      {{!-- ...AND NOT AT ALL WHERE THE APP SHELL ALREADY DREW ONE (2026-09-23). On the rooms
+           page a rooms-only supervisor gets the FULL primary nav from the app shell, with
+           Rooms active, so this two-item strip would stack a second nav under the first.
+           `showSectionPillNav` asks utils/primary_nav the same question the app shell asks
+           before mounting its nav, so exactly one of the two renders -- see the note on that
+           computed in controllers/organization.js.
+           MODERN NOW MATCHES BASIC (requested 2026-09-23): a way back, and the section you are
+           on, with that section marked active. It previously listed every org destination --
+           Dashboard, User, Reports, Rooms, Settings and the rest -- and those are no longer
+           reachable from this nav in either view.
+           `is-active` plus `aria-current="page"` on a <span> rather than a link: there is
+           nowhere to go, and that pairing is what tells assistive tech you are already here.
+           The label comes from the router via `currentSectionLabel`, so each org sub-page names
+           itself without this template knowing which child is rendering. --}}
+      <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+        <LinkTo @route={{this.backRoute}} @models={{this.backModels}} class="md-pillnav__pill">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
+          {{this.backLabel}}
+        </LinkTo>
+        <span class="md-pillnav__pill is-active" aria-current="page">{{this.currentSectionLabel}}</span>
+      </nav>
+    {{/if}}
+
+    {{!-- Focused Rooms list, both views (controllers/organization.js#focusedRoomsLabel): the page
+         label the other pages carry (the Dashboard's `md-compact-head` markup and two-toned icon)
+         with the organisation's name in it, in place of the hero title and its divider. --}}
+    {{#if this.focusedRoomsLabel}}
+      <div class="md-compact-head md-compact-head--rooms">
+        <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18" stroke="#46505F"/><path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21" stroke="#46505F"/><path d="M9 21V7h6v14" stroke="#2A9D8F"/><circle cx="13.2" cy="14" r="0.6" fill="#2A9D8F" stroke="#2A9D8F"/></svg>
+        {{!-- The organisation's name follows the label ("Rooms - <name>") instead of a title under
+             the switcher; choosing another org in the switcher transitions this route's model,
+             so the name follows the selection. --}}
+        {{!-- The " - <name>" part is its own span so it can sit a step smaller and lighter than
+             "Rooms" (requested 2026-09-30); `.md-compact-head__aside`, app.scss. --}}
+        <h2 class="md-compact-head__title">{{t "Rooms" key="rooms"}}{{#if this.model.permissions.view}}<span class="md-compact-head__aside"> - {{this.model.name}}</span>{{/if}}</h2>
+      </div>
+    {{/if}}
+    {{!-- ORGANISATION SWITCHER, ABOVE THE HEADER (requested 2026-09-23). It sits here rather
+         than inside the page card because it changes WHICH organisation the header names, so it
+         has to read as being upstream of it.
+         Shown only when there is more than one to choose between -- see `showOrgSwitcher`; with
+         a single org it would be a dropdown whose only option is the page you are on.
+         A <details>/<summary> DROPDOWN, not a native <select> (requested: the open list had to
+         be on-brand, and a native select's popup is drawn by the operating system and cannot be
+         themed). `<details>` keeps the toggle keyboard-operable and exposes expanded state to
+         assistive tech without a custom widget's worth of ARIA and key handling -- the same
+         trade `components/user-pill-nav.hbs` makes for its own collapsed menu.
+         It reuses NEITHER `.ch-tabselect` NOR `.md-pillnav-dropdown`: both are `display: none`
+         until 550px, where they stand in for a tab strip, so wearing either would have hidden
+         this control at every normal width.
+         Each option is a LinkTo, so choosing one is an ordinary navigation -- no change
+         handler, and middle-click and open-in-new-tab work as they should. The trigger shows
+         `model.name`, so after the transition it already reads as the newly selected org.
+         `{{details-autoclose}}` closes the menu on a choice, on an outside click and on Escape:
+         `<details>` keeps `open` as DOM state and this element SURVIVES the transition (only
+         the parent route's model changes), so without it the menu stayed open over the page it
+         had just navigated to. --}}
+    {{#if this.showOrgSwitcher}}
+      <div class="ch-org-switcher">
+        <span class="ch-org-switcher__label" id="org-switcher-label">{{t "Available Organizations" key="accessible_orgs"}}</span>
+        <details class="ch-org-dropdown" {{details-autoclose}}>
+          <summary class="ch-org-dropdown__trigger" aria-labelledby="org-switcher-label org-switcher-current">
+            <span class="ch-org-dropdown__current" id="org-switcher-current">{{this.model.name}}</span>
+            <svg class="ch-org-dropdown__chevron" width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <ul class="ch-org-dropdown__list" role="list">
+            {{#each this.switchableOrgs as |org|}}
+              <li>
+                {{#if org.is_current}}
+                  <span class="ch-org-dropdown__option is-current" aria-current="true">{{org.name}}</span>
+                {{else}}
+                  <LinkTo @route="organization.rooms" @model={{org.id}} class="ch-org-dropdown__option">{{org.name}}</LinkTo>
+                {{/if}}
+              </li>
+            {{/each}}
+          </ul>
+        </details>
+      </div>
+    {{/if}}
+    <header class="md-hero md-hero--dashboard md-hero--org {{if this.roomsSectionActive "md-hero--org-rooms"}}">
+      {{#unless this.focusedRoomsLabel}}
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">
+          {{#if this.model.permissions.view}}
+            {{this.model.name}}
+          {{else}}
+            {{t "Organization" key="organization"}}
+          {{/if}}
+        </span></h1>
+      {{/unless}}
+      {{#unless this.focusedRoomsLabel}}
+        <span class="md-hero__divider" aria-hidden="true"></span>
+      {{/unless}}
       <p class="md-hero__sub md-hero__sub--meta"><span class="md-hero__sub--from-right">
         <span class="md-hero-meta__item">
           <svg class="md-hero-meta__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

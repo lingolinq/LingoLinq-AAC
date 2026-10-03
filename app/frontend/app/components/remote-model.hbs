@@ -5,6 +5,25 @@
     </button>
     <h3>{{t "Remote Modeling" key="remote_modeling"}}</h3>
   </div>
+  {{!-- LIMITED (2026-10-02): opened from a Remote Modeling entry that shows the "Limited" badge
+       (utils/remote_modeling.js). Says what would make it work, and offers no connection. --}}
+  {{#if this.model.limited}}
+    <div class="modal-body md-modal-body">
+      <p class="md-modal-message">
+        {{#if (is_equal this.model.limited "modeling_access")}}
+          {{t "Your access to %{user_name} is for modeling only. Remote Modeling needs full supervision access, so ask the person who manages %{user_name}'s account to change your access." user_name=this.model.user.user_name key="remote_modeling_limited_access"}}
+        {{else}}
+          {{t "%{user_name} has not turned on Remote Modeling yet. It is turned on in their Settings, under Remote Modeling." user_name=this.model.user.user_name key="remote_modeling_limited_not_enabled"}}
+        {{/if}}
+      </p>
+    </div>
+    <div class="modal-footer md-modal-footer">
+      <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+      {{#if (and this.model.can_edit_settings (is_equal this.model.limited "not_enabled") this.model.user.user_name)}}
+        <LinkTo @route="user.preferences" @model={{this.model.user.user_name}} class="md-modal-btn md-modal-btn--primary">{{t "Open Their Settings" key="remote_modeling_open_settings"}}</LinkTo>
+      {{/if}}
+    </div>
+  {{else}}
   <div class="modal-body md-modal-body">
     <p>
       {{#if this.model.user.avatar_url_with_fallback}}
@@ -92,4 +111,5 @@
       </div>
     {{/if}}
   </div>
+  {{/if}}
 </ModalDialog>

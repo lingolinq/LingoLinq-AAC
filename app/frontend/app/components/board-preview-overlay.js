@@ -5,11 +5,11 @@ import EmberObject from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
-import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
-import { findExistingUserCopy } from '../utils/board-copy';
-import { saveHomeBoard } from '../utils/home_board';
+import { copy_or_reuse_as_home } from '../utils/board-copy';
+import { is_classic } from '../utils/view_style';
+import { open_picked_board, after_pick_for_other, mark_basic_try } from '../utils/board_picker_landing';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
 /* Minimum time the loading overlay must stay visible after it first
@@ -295,7 +295,17 @@ export default Component.extend({
       // transition below is what triggers that -- clear it here so the preview
       // cannot repaint its picker CTAs during the hand-off.
       app_state.set('tour_board_picker_active', false);
-      app_state.set('board_detail_try_origin', { key: key, from: 'board_picker' });
+      /* BASIC (2026-09-30): the tried board opens on the Basic board page in normal mode, which
+         offers "Set as Home Board" for it (components/basic-try-home-button.js) for the user the
+         picker is choosing for -- the communicator when an SLP opened it for one. The picker
+         forgets that user once left, so it rides with the marker. Modern keeps its Back
+         control on board-detail. */
+      var basic = is_classic(app_state.get('effective_view_user'));
+      if (basic) {
+        mark_basic_try(app_state, key, app_state.get('setup_user') || app_state.get('currentUser'));
+      } else {
+        app_state.set('board_detail_try_origin', { key: key, from: 'board_picker' });
+      }
 
       modal.close_board_preview();
 
@@ -307,8 +317,8 @@ export default Component.extend({
         isDark: isDark,
         accentLight: false,
         transition: function() {
-          // Speak (use) mode = the board-detail INDEX route.
-          return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          // Modern: board-detail in speak (use) mode; Basic: board-alt, normal mode.
+          return open_picked_board(routerSvc, key, app_state.get('effective_view_user'));
         }
       });
     },
@@ -334,14 +344,6 @@ export default Component.extend({
         return;
       }
       var locale = (preview && preview.locale) || app_state.get('label_locale');
-      // Symbol library for the copy — the user's preferred set, gated by extras
-      // access (mirrors set-as-home.js#updateSelectedUser); falls back to 'original'.
-      var lib = user.get('preferences.preferred_symbols') || 'original';
-      if (['pcs', 'symbolstix', 'lessonpix'].indexOf(lib) !== -1) {
-        if (!user.get('extras_enabled') && !user.get('subscription.extras_enabled')) {
-          lib = 'original';
-        }
-      }
       // Paint the shared "Preparing your Board" overlay (the SAME one a board
       // card → speak-mode uses) the INSTANT the user clicks, so it covers the
       // preview immediately and stays up through the copy + route change — no gap,
@@ -354,43 +356,12 @@ export default Component.extend({
       app_state.set('board_picker_pick_in_progress', true);
       var setupUserSnapshot = user;
       var routerSvc = _this.get('router');
-      // Dedup first: skip copying if the user already owns a copy of this board.
-      findExistingUserCopy(board, user).then(function(existing) {
-        if (existing) {
-          // Reuse the existing copy — just (re)set it as the home board, no new
-          // copy. Via utils/home_board so the save is CONFIRMED against what the
-          // server stored: a 200 here does not mean the assignment was kept (the
-          // server drops the write for a board it can't resolve or the user
-          // can't view), and this branch used to report those as success.
-          saveHomeBoard(user, existing, locale).then(function() {
-            _this._finishPickForHome(existing, locale, setupUserSnapshot, routerSvc);
-          }, function() {
-            _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"), routerSvc);
-          });
-        } else {
-          // No existing copy — 'links_copy_as_home' copies the board + downstream
-          // links AND sets the COPY as the user's home board, resolving with the new
-          // owned board (mirrors set-as-home#copy_as_home).
-          editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-            _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
-          }, function(err) {
-            // Only surface `err` directly when it's a display string — copy_board can
-            // reject with an Error/object, which would render as "[object Object]".
-            // copy_board only rejects with an already-localized i18n.t() STRING or a
-            // plain internal-code OBJECT; the fallback below covers the object case.
-            var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-            _this._handlePickError(msg, routerSvc);
-          });
-        }
-      }, function() {
-        // Dedup lookup itself failed unexpectedly — fall back to copying so the user
-        // is never blocked (a duplicate is preferable to a dead end).
-        editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-          _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
-        }, function(err) {
-          var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-          _this._handlePickError(msg, routerSvc);
-        });
+      // Copy or reuse the board and set it as the home board (utils/board-copy.js, shared with
+      // the Basic board page's "Set as Home Board"); rejects with a display string.
+      copy_or_reuse_as_home(board, user, locale).then(function(homeBoard) {
+        _this._finishPickForHome(homeBoard, locale, setupUserSnapshot, routerSvc);
+      }, function(msg) {
+        _this._handlePickError(msg, routerSvc);
       });
     }
   },
@@ -416,7 +387,9 @@ export default Component.extend({
         modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
         var userName = setupUser.get('user_name');
         if (userName && routerSvc) {
-          routerSvc.transitionTo('user.boards', userName);
+          // Modern: their boards list; Basic: their new home board on board-alt (Basic has no
+          // boards list for another user) -- utils/board_picker_landing.js.
+          after_pick_for_other(routerSvc, key, userName, app_state.get('effective_view_user'));
         } else {
           app_state.return_to_index();
         }
@@ -433,7 +406,8 @@ export default Component.extend({
     // alone: it rides the same pending flag to mark a "Take a tour" REPLAY, and a
     // replay request that was never consumed would otherwise make this AUTO open
     // skip its once-per-user bookkeeping and re-fire on every subsequent pick.
-    if (key) {
+    // Modern only: the speak tour runs on board-detail, which Basic does not open.
+    if (key && !is_classic(app_state.get('effective_view_user'))) {
       app_state.set('board_detail_tour_speak_manual', false);
       app_state.set('board_detail_tour_pending_speak', key);
     }
@@ -470,8 +444,8 @@ export default Component.extend({
           isDark: isDark,
           accentLight: false,
           transition: function() {
-            // Speak (use) mode = the board-detail INDEX route.
-            return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+            // Modern: board-detail in speak (use) mode; Basic: board-alt, normal mode.
+            return open_picked_board(routerSvc, key, app_state.get('effective_view_user'));
           }
         });
       } else if (routerSvc) {

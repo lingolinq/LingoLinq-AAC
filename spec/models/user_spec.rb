@@ -477,6 +477,48 @@ describe User, :type => :model do
       expect(u.settings['preferences']['word_suggestion_images']).to eq(true)
     end
 
+    # Focused is the style NEW accounts land on. It is seeded under `new_record?` rather than
+    # added to the `any_user` preference_defaults bucket on purpose: that bucket loop
+    # (`generate_defaults`, no new_record? guard) backfills EVERY existing user on their next
+    # routine save, which would silently restyle accounts that have been on Gentle for months.
+    # Same trap, and the same remedy, as word_suggestions directly below.
+    it "should default dashboard_layout to focused for new users only, never backfilling existing users" do
+      u = User.new
+      u.generate_defaults
+      expect(u.settings['preferences']['dashboard_layout']).to eq('focused')
+
+      # An existing user with no stored value falls to the `any_user` bucket default, which
+      # stays 'gentle' — their style must not change underneath them.
+      u2 = User.new
+      u2.settings = {'preferences' => {}}
+      allow(u2).to receive(:new_record?).and_return(false)
+      u2.generate_defaults
+      expect(u2.settings['preferences']['dashboard_layout']).to eq('gentle')
+
+      # An explicit choice always wins, on a new record included — registration flows and the
+      # Dashboard Design step can both set it before the first save.
+      u3 = User.new
+      u3.settings = {'preferences' => {'dashboard_layout' => 'gentle'}}
+      u3.generate_defaults
+      expect(u3.settings['preferences']['dashboard_layout']).to eq('gentle')
+    end
+
+    # The block above calls generate_defaults directly. This one goes through a REAL create,
+    # so it also pins that the `before_save` actually fires for a registration and that
+    # sanitize_dashboard_preferences! does not strip the seeded value back out again on the
+    # way to the database -- neither of which a direct call would catch.
+    it "persists focused as the dashboard_layout of an actually-created user" do
+      u = User.create
+      expect(u.settings['preferences']['dashboard_layout']).to eq('focused')
+      expect(u.reload.settings['preferences']['dashboard_layout']).to eq('focused')
+    end
+
+    it "should keep the any_user dashboard_layout default at gentle so no existing user is restyled" do
+      # If this bucket entry became 'focused', the generate_defaults bucket loop would flip
+      # every existing user who has never been saved since the key was introduced.
+      expect(User.preference_defaults['any_user']['dashboard_layout']).to eq('gentle')
+    end
+
     it "should default word_suggestions ON for new users only, never backfilling existing users" do
       # New users (new_record?) get word prediction ON by default at registration.
       u = User.new
@@ -651,6 +693,13 @@ describe User, :type => :model do
       u.reload.settings['preferences']['board_category_grouping']
     end
 
+    # These rebuild a hash with `enabled` on, which only a user who has the
+    # board_category_grouping flag may store. The guard itself has its own block below.
+    before(:each) do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('board_category_grouping', anything).and_return(true)
+    end
+
     it "defaults show_category_names and vertical_scroll to true" do
       expect(User.preference_defaults['any_user']['board_category_grouping']['show_category_names']).to eq(true)
       expect(User.preference_defaults['any_user']['board_category_grouping']['vertical_scroll']).to eq(true)
@@ -681,6 +730,77 @@ describe User, :type => :model do
     it "still strips unknown category keys from order" do
       g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category', 'people']})
       expect(g['order']).to eq(['people'])
+    end
+  end
+
+  describe "board_category_grouping guard" do
+    def stored_grouping(enabled)
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {'enabled' => enabled, 'vertical_scroll' => false}}}, {})
+      u.save
+      u.reload.settings['preferences']['board_category_grouping']
+    end
+
+    # NEW USERS START WITH CATEGORIES OFF (2026-10-01, requested: "ensure that every newly
+    # registered user's categories is turned off by default"). generate_defaults backfills
+    # User.preference_defaults onto a new account before its first save.
+    it "is off for a newly registered user" do
+      u = User.create
+      expect(u.reload.settings['preferences']['board_category_grouping']['enabled']).to eq(false)
+    end
+
+    it "stores enabled as off for a user without the flag, whatever truthy shape arrives" do
+      [true, 'true', 1, '1'].each do |value|
+        g = stored_grouping(value)
+        expect(g['enabled']).to eq(false), "#{value.inspect} was stored as #{g['enabled'].inspect}"
+        expect(g['vertical_scroll']).to eq(false)
+      end
+    end
+
+    it "lets a user with the flag turn it on" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('board_category_grouping', anything).and_return(true)
+      expect(stored_grouping(true)['enabled']).to eq(true)
+    end
+
+    it "does not look up the flag when enabled arrives off" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      expect(FeatureFlags).not_to receive(:feature_enabled_for?).with('board_category_grouping', anything)
+      expect(stored_grouping(false)['enabled']).to eq(false)
+      end
+    end
+
+  describe "compressed_view preference" do
+    # Compressed View is a per-user display choice read with `=== true` on the client
+    # (utils/compressed_view_state.js). Stored only as a real boolean, so a string or number
+    # sent by an old or hand-built client can never compress someone's page.
+    def stored_compressed(value)
+      u = User.create
+      u.process({'preferences' => {'compressed_view' => value}}, {})
+      u.save
+      u.reload.settings['preferences']['compressed_view']
+    end
+
+    it "is an accepted preference" do
+      expect(User::PREFERENCE_PARAMS).to include('compressed_view')
+    end
+
+    it "stores true and false as booleans, including their string forms" do
+      expect(stored_compressed(true)).to eq(true)
+      expect(stored_compressed('true')).to eq(true)
+      expect(stored_compressed(false)).to eq(false)
+      expect(stored_compressed('false')).to eq(false)
+    end
+
+    it "stores anything else as off" do
+      expect(stored_compressed(1)).to eq(false)
+      expect(stored_compressed('yes')).to eq(false)
+      expect(stored_compressed({'a' => 1})).to eq(false)
+    end
+
+    it "has no server default, so existing users are not backfilled" do
+      expect(User.preference_defaults['any_user']).not_to have_key('compressed_view')
+      expect(User.create.settings['preferences']).not_to have_key('compressed_view')
     end
   end
 

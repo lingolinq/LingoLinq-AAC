@@ -45,7 +45,7 @@ export default Component.extend({
     };
     this.set('add_supervisee_hit', false);
 
-    if (this.get('inline')) {
+    if (this.get('inline') || this.get('standalone')) { // standalone (/user/supervision): its own @model, never stale modal settings (2026-10-01)
       const model = this.get('model');
       if (model && model.reload) {
         model.reload();

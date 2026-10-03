@@ -12,28 +12,37 @@
     {{/if}}
     {{#if this.filtered_results}}
       {{t "(filtered)" key="filtered"}}
-      <span style='font-size: 14px; padding-left: 5px;'>
+    {{/if}}
+  </h2>
+  {{!-- FILTER LINKS SIT BELOW THE TITLE, NOT BESIDE IT (requested 2026-09-21). They used to
+       be inline `<span>`s INSIDE the <h2>, which put them on the title's baseline and, once
+       the name was long enough, wrapped "Show Journal" onto its own line mid-heading. They
+       are controls, not part of the page's name, so they are a sibling of the heading now
+       and `.md-logs__header` stacks. They stay INSIDE the header block, above its rule, so
+       the divider still closes the whole group.
+       The 14px sizing moved to `.md-logs__filters a` in app.scss -- it was two copies of an
+       inline `style` attribute before. Every branch and separator is otherwise unchanged;
+       this is a move, not a rewrite. --}}
+  <div class="md-logs__filters">
+    {{#if this.filtered_results}}
       <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=this.type highlighted=null start="" end="" device_id="" location_id=""}}>
         {{t "clear filter" key="clear_filter"}}
       </LinkTo>
-      </span>
     {{else}}
-      <span style='font-size: 14px; padding-left: 5px;'>
-        {{#if this.all_logs}}
-          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo> 
-          {{#if this.model.currently_premium}}
-            | 
-            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted="1"}}>{{t "Show Highlighted" key="show_highlighted"}}</LinkTo>
-            {{#if this.model.permissions.delete}}
-              | <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="journal" highlighted=null}}>{{t "Show Journal" key="show_journal"}}</LinkTo>
-            {{/if}}
+      {{#if this.all_logs}}
+        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo>
+        {{#if this.model.currently_premium}}
+          |
+          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted="1"}}>{{t "Show Highlighted" key="show_highlighted"}}</LinkTo>
+          {{#if this.model.permissions.delete}}
+            | <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="journal" highlighted=null}}>{{t "Show Journal" key="show_journal"}}</LinkTo>
           {{/if}}
-        {{else}}
-          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted=null}}>{{t "Show Full Log" key="show_full_log"}}</LinkTo>
         {{/if}}
-      </span>
+      {{else}}
+        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted=null}}>{{t "Show Full Log" key="show_full_log"}}</LinkTo>
+      {{/if}}
     {{/if}}
-  </h2>
+  </div>
   </div>
   {{#if this.model.external_device}}
     {{#if this.model.permissions.supervise}}
@@ -115,7 +124,7 @@
             </tr>
           {{/if}}
           {{#each this.logs as |log|}}
-            <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} />
+            <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} @navOrigin={{this.nav}} />
           {{/each}}
         </tbody>
       </table>
@@ -157,15 +166,26 @@
   {{else}}
     {{#if this.messages_only}}
       {{#if this.model.permissions.edit}}
-        <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</button>
-        <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+        {{!-- RIGHT-ALIGNED, AND THE PAIR SWAPPED so Quick Assessment leads (requested
+             2026-09-20). Wrapped in their own row rather than aligning `.md-logs__card`:
+             the sibling `{{#if this.all_logs}}` branch above puts Download Log File and
+             Clear All Logs in the same parent, and those are not part of this request. --}}
+        <div class="md-logs__note-actions">
+          <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+          <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</button>
+        </div>
       {{/if}}
     {{/if}}
   {{/if}}
   </div>
-  <div class="md-logs__back-row">
-    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
-  </div>
+  {{!-- The "Back to Account" row was removed here (requested 2026-09-14). It was a
+       `.md-logs__back-row` holding one LinkTo, and the row carried the horizontal rule above
+       it, so both went together.
+       NOT a navigation dead end: the global navbar's identity dropdown
+       (app-navbar-authenticated-inner) is on this page and carries Account among its links,
+       so there is still a route back without the browser's back button.
+       The sibling pages user/goals.hbs and user/recordings.hbs still have the same row; they
+       were not part of the request, so they are untouched. --}}
 </div>
 {{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>

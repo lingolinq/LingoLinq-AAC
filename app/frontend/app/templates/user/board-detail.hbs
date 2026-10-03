@@ -189,9 +189,11 @@
         {{!-- CATEGORIZE — opens the full-width category-order panel below. Sits
              ABOVE Board Actions: categorising is a board-shaping decision the
              user makes before reaching for the destructive/one-off actions in the
-             gear menu. Gated on the grouping flag so the rail is unchanged when
-             the feature is off. --}}
-        {{#if this.app_state.feature_flags.board_category_grouping}}
+             gear menu.
+             SHOWN WITHOUT THE FLAG (2026-09-28, requested). Grouping is IN PROGRESS and off
+             for everyone (lib/feature_flags.rb), but the button stays as its teaser: the
+             panel it opens shows <BoardCategorizeComingSoon> in place of the controls
+             whenever the flag is off, which is now always -- see that panel below. --}}
         <div class="md-board-edit-panel__group md-board-edit-panel__group--categorize">
           <button type="button"
             class="md-board-edit-panel__row md-board-edit-panel__row--categorize {{if this.category_order_open 'md-board-edit-panel__row--active'}}"
@@ -208,7 +210,6 @@
             <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
           </button>
         </div>
-        {{/if}}
 
         {{!-- BOARD ACTIONS — sits below Categorize (which was moved above it
              2026-08-23). Expandable, mirrors the Filter by Category control:
@@ -501,20 +502,23 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
               </span>
             </button>
-            <span class="md-board-edit-panel__label-collapsed">{{t "Mode" key="mode_short"}}</span>
+            {{!-- "Display", not "Mode" (requested 2026-09-15): this pill is the rail's
+                 stand-in for the expanded "Board Display" toggle in __bottom, so the two
+                 states now name the same control the same way. "Mode" also collided with
+                 the app's other meanings of the word — speak mode, edit mode. --}}
+            <span class="md-board-edit-panel__label-collapsed">{{t "Display" key="display"}}</span>
           </div>
         {{/if}}
 
-        {{!-- ── VIEW STYLE + THEME (bottom of left panel) ───────────
-             View Style: explains the current (Modern) view and offers a
-             single button to switch to Classic, which persists the
-             preference and navigates to the board-alt page (normal mode).
-             Theme: segmented Light/Dark toggle directly beneath, both
-             options always visible. --}}
+        {{!-- ── BOARD DISPLAY (bottom of left panel) ────────────────
+             Segmented Light/Dark toggle, both options always visible. Expanded panel
+             only — `__bottom` is `display: none` on the collapsed rail, which is why the
+             rail carries its own Display pill higher up instead. --}}
         <div class="md-board-edit-panel__bottom">
-          {{!-- View Style (Classic/Modern) was MOVED to the Board Actions modal
-               (components/board-actions) — between Record Messages and Delete
-               Board. The Theme (Board Display) toggle stays here. --}}
+          {{!-- This block no longer holds View Style. The full Classic/Card toggle lives
+               in the Board Actions modal (components/board-actions, between Record
+               Messages and Delete Board); a one-click shortcut to Classic sits just
+               BELOW this block, outside `__bottom` so it survives the collapsed rail. --}}
           <div class="md-board-edit-panel__group md-board-edit-panel__group--theme">
             <div class="md-board-edit-view-style md-board-edit-view-style--theme">
               <div class="md-board-edit-panel__subheader">{{t "Board Display" key="board_detail_board_display_label"}}</div>
@@ -2093,6 +2097,11 @@
         {{!-- Both are already ANDed with grouping_active in the controller, so they are
              inert on an ungrouped board. --}}
         @categoryEnabled={{this.categorize_enabled}}
+        {{!-- PER-BOARD category order. Resolved once in the controller
+             (`board_category_settings`) and passed in, so the grid, the Categorize panel and
+             the move arrows all describe the same board. The grid used to read the
+             account-wide order itself, which no per-board order could ever reach. --}}
+        @categoryOrder={{this.board_category_settings.order}}
         @showCategoryNames={{this.show_category_names}}
         @categoryScrollEnabled={{this.category_scroll_enabled}}
         @softBorders={{this.soft_borders}}
@@ -3719,6 +3728,11 @@
        with no Save, Cancel or undo. --}}
   {{#if (and this.edit_mode this.category_order_open)}}
     <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
+      {{!-- IN PROGRESS (2026-09-28): the grouping controls render only with the flag, which is
+           out of every flag list for now (lib/feature_flags.rb), so today the {{else}} always
+           runs and this panel is the Coming Soon pitch. The controls are kept, not deleted,
+           for when the work resumes. Closing uses the same action as the controls' Done. --}}
+      {{#if this.app_state.feature_flags.board_category_grouping}}
       {{!-- HEADER + two option cards, not one horizontal row.
            The row treated the primary switch, two sub-options, an explanatory
            paragraph, an accessibility note and both page-level actions as six peers on
@@ -3964,6 +3978,9 @@
             {{!-- The preview must show what SHIPS, including whether category names
                  render — that is the whole point of a live preview. --}}
             @categoryEnabled={{this.categorize_enabled}}
+            {{!-- Same per-board order as the real grid above: the preview exists to show
+                 what ships, so it must not resolve the order differently. --}}
+            @categoryOrder={{this.board_category_settings.order}}
             @showCategoryNames={{this.show_category_names}}
             @categoryScrollEnabled={{this.category_scroll_enabled}}
             @softBorders={{this.soft_borders}}
@@ -4009,6 +4026,9 @@
             {{/each}}
           </div>
         </div>
+      {{/if}}
+      {{else}}
+        <BoardCategorizeComingSoon @onDone={{this.ctrlAction "toggle_category_order"}} />
       {{/if}}
     </div>
   {{/if}}
