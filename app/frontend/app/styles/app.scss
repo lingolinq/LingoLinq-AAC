@@ -20228,12 +20228,11 @@ body:-ms-fullscreen {
   .signup_links {
     visibility: hidden;
   }
-  .flash {
-    left: -webkit-calc(100% / 8); 
-    left: calc(100% / 8); 
-    right: -webkit-calc(100% / 8); 
-    right: calc(100% / 8); 
-  }
+  // No `.flash` override here any more (2026-10-02). It set left/right insets from when the notice
+  // spanned the screen, but the base `.flash` rule now centres it with `left: 50%` plus
+  // `translateX(-50%)` and caps it at min(480px, 90vw), so the inset moved a still-translated box
+  // half its width off the left edge (measured: 136px off at 340px, 156px at 390px). The base rule
+  // already fits phones and tablets.
 }
 
 /* When More Resources dropdown is shown: keep left content, put dropdown on far right, hide language/privacy/terms */
@@ -20444,12 +20443,11 @@ body:-ms-fullscreen {
   //     margin-top: 10px;
   //   }
   // }
-  .flash {
-    left: -webkit-calc(100% / 20); 
-    left: calc(100% / 20); 
-    right: -webkit-calc(100% / 20); 
-    right: calc(100% / 20); 
-  }
+  // No `.flash` override here any more (2026-10-02). It set left/right insets from when the notice
+  // spanned the screen, but the base `.flash` rule now centres it with `left: 50%` plus
+  // `translateX(-50%)` and caps it at min(480px, 90vw), so the inset moved a still-translated box
+  // half its width off the left edge (measured: 136px off at 340px, 156px at 390px). The base rule
+  // already fits phones and tablets.
   .big_buttons .big_button {
     font-size: 18px;
   }

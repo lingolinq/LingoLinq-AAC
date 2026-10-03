@@ -145,7 +145,10 @@
   padding: 5px;
   list-style: none;
   border-radius: 13px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+  // OPAQUE (2026-10-02): the stops were white at 0.98 and 0.92, so on a phone, where the menu
+  // spans the screen over the Basic rail, the rail's row titles showed through the option text
+  // (seen at 340px). Same white-to-cool-grey ramp, no alpha.
+  background: linear-gradient(160deg, #FFFFFF 0%, #F6F8FB 100%);
   border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow:
     0 12px 30px rgba($brand-blue-black, 0.16),
@@ -237,8 +240,12 @@
   grid-column: 2;
   grid-row: 1;
   display: flex;
+  // WRAPS (2026-10-02): at 340px "Modern View" plus the RECOMMENDED tag is wider than the option,
+  // and the tag (nowrap) ran 16px past the menu's edge. Now the tag drops to its own line when
+  // there is no room, and stays beside the label when there is.
+  flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
+  gap: 4px 7px;
   font-size: 16px; // 13 -> 16px (2026-10-01): above the 14px group headings and descriptions
   font-weight: 600;
 }
