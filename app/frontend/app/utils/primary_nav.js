@@ -19,11 +19,11 @@
  *
  * THE GATES ARE PART OF THE RULE, not a caller's business. Two pills do not always render:
  * Organizations is gated on `has_management_responsibility` and Updates on the `updates_pill`
- * feature flag (user-pill-nav.hbs:19,53). Naming a pill that the nav will not draw is not a
+ * feature flag (components/user-pill-nav.hbs). Naming a pill that the nav will not draw is not a
  * harmless overshoot -- it would show a nav with nothing active AND, through the rail, assert
  * a current row for a section the user cannot see. Both cases are reachable today:
  * routes/organizations.js has NO permission guard (unlike routes/caseload.js:23-35, which
- * redirects), so a stale link reaches it with the pill hidden; and lib/feature_flags.rb:140
+ * redirects), so a stale link reaches it with the pill hidden; and lib/feature_flags.rb's ENABLED list
  * says `updates_pill` is forced on temporarily and is to be turned off before go-live.
  */
 

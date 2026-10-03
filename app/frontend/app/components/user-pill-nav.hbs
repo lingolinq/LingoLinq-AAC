@@ -81,10 +81,10 @@
     <LinkTo @route="user.extras" @model={{@userName}} class="{{this.pillClass}}" data-tour-pill="extras">{{t "Extras" key="extras"}}</LinkTo>
   {{/if}}
 
-  {{!-- UPDATES — the same item the home dashboard's own nav renders, in the same position,
-       so a user moving between Home and Boards sees one nav rather than two. Goes to the
-       logs page filtered to notes; see the fuller note in
-       components/dashboard/authenticated-view.hbs. --}}
+  {{!-- UPDATES. This is the one primary nav, shared by the home dashboard and every other page
+       that shows it (templates/application.hbs), so Updates sits in the same place everywhere.
+       Goes to the logs page filtered to notes (`?type=note&nav=home`); `nav=home` is read by
+       utils/primary_nav.js and routes/user/logs.js. (Comment corrected 2026-10-02.) --}}
   {{#if this.appState.feature_flags.updates_pill}}
     {{#if (is-equal this.activeKey "updates")}}
       {{!-- A non-link span with `aria-current="page"`, the same shape every other pill uses
