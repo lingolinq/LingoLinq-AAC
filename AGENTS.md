@@ -81,12 +81,14 @@ non-functional, so do not look for it. Before the pass fetches any diff you must
 PII pre-flight yourself, because the deployed skill does not run it for you and the pass
 ships the diff to an external model on a consumer account with NO BAA. Match the form to
 your argument: for a PR number,
-`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`;
-for a branch or the working tree, `bash ~/ai-company-brain/scripts/codex-review-guard.sh
-<base-ref>`. Use `set -o pipefail` on the pipe. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report the flagged paths;
-send nothing. Running the `<base-ref>` form while reviewing a PR number guards a
-local diff that is not the PR and records a pass it did not earn, which is worse than
-skipping it. That guard lives in a private LingoLinq repo: if you cannot reach
+`bash ~/ai-company-brain/scripts/review-preflight.sh pr <n> lingolinq/LingoLinq-AAC`;
+for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> <head>`;
+for the working tree, `bash ~/ai-company-brain/scripts/review-preflight.sh working <base>`.
+Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report the flagged paths;
+send nothing. On exit 0, review only the `DIFF_FILE` the preflight prints (never fetch
+the diff again by another route) and record the full `REVIEWED=` line verbatim. Running the `range` or
+`working` form while reviewing a PR number guards a local diff that is not the PR and
+records a pass it did not earn, which is worse than skipping it. That guard lives in a private LingoLinq repo: if you cannot reach
 `~/ai-company-brain/`, you are not set up to run this pass, so stop and hand it to
 someone who is rather than proceeding without it. When you finish, record the reviewer,
 the head SHA you actually reviewed, and the verdict.
