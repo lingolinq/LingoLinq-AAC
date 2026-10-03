@@ -134,16 +134,26 @@ var ai_word_predictor = {
         _this._cache_put(sentence, words, locale);
         resolve(words);
       }, function(xhr) {
-        // The app's $.ajax wrapper (utils/extras.js) rejects with { fakeXHR }.
-        var status = xhr && ((xhr.fakeXHR && xhr.fakeXHR.status) || xhr.status);
-        if(status === 429 || status === 403) {
-          // Rate limited, or the server declined AI prediction for this
-          // account: stop sending requests for a while either way.
+        if(_this._should_pause(xhr)) {
           _this._backoff_until = Date.now() + BACKOFF_MS;
         }
         resolve([]);
       });
     });
+  },
+
+  // Pause after a rate limit (429), a 403, or the 400 words_controller.rb
+  // sends when AI word prediction is off for the signed-in person. Reads the
+  // shapes the app's $.ajax wrapper (utils/extras.js) rejects with: { fakeXHR,
+  // result: message }, or, for ApplicationCache clients the server answers
+  // with 200, { fakeXHR: { status: 200 }, result: { error, status } }.
+  _should_pause: function(err) {
+    if(!err) { return false; }
+    var body = (err.result && typeof err.result === 'object') ? err.result : null;
+    var status = (body && body.status) || (err.fakeXHR && err.fakeXHR.status) || err.status;
+    var message = body ? body.error : err.result;
+    if(status === 429 || status === 403) { return true; }
+    return status === 400 && message === 'ai_word_prediction is not enabled for this user';
   },
 
   _cache_put: function(sentence, words, locale) {
