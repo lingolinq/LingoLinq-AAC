@@ -9630,5 +9630,13 @@
   "classic_org_rail_aria": "*** Organization navigation",
   "filter_rooms": "*** Filter rooms",
   "filter_rooms_by_name": "*** Filter rooms by name",
-  "filter_rooms_by_name_or_person": "*** Filter rooms by name or person"
+  "filter_rooms_by_name_or_person": "*** Filter rooms by name or person",
+  "remote_modeling_limited": "*** Limited",
+  "caseload_qa_remote": "*** Remote",
+  "remote_modeling_limited_not_enabled": "*** %{user_name} has not turned on Remote Modeling yet. It is turned on in their Settings, under Remote Modeling.",
+  "remote_modeling_limited_access": "*** Your access to %{user_name} is for modeling only. Remote Modeling needs full supervision access, so ask the person who manages %{user_name}'s account to change your access.",
+  "remote_modeling_open_settings": "*** Open Their Settings",
+  "org_admin_tools": "*** Admin tools",
+  "org_section_subscription": "*** Subscription",
+  "subscription_lower": "*** subscription"
 }

@@ -184,7 +184,7 @@ export default Controller.extend({
       'lessons':      i18n.t('trainings', "Trainings"),
       'settings':     i18n.t('settings', "Settings"),
       'extras':       i18n.t('extras', "Extras"),
-      'subscription': i18n.t('subscription', "Subscription")
+      'subscription': i18n.t('org_section_subscription', "Subscription") // own key: `subscription` is "Purchase" (2026-10-02)
     };
     return labels[route] || this.get('model.name') || i18n.t('dashboard', "Dashboard");
   }),
