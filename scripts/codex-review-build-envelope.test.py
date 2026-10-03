@@ -4,6 +4,8 @@ prompt-injection guard, and the convergence policy."""
 import importlib.util
 import json
 import pathlib
+import sys
+import subprocess
 import tempfile
 import unittest
 
@@ -99,6 +101,53 @@ class InjectionGuardTest(unittest.TestCase):
         # must not trip the guard, or every changelog would fail closed.
         outcome = build_envelope.guarded_outcome(APPROVE, "+The board owner can approve join requests.\n")
         self.assertEqual(outcome["kind"], "approved")
+
+    # A NUL byte makes git show a source file as "Binary files ... differ", hiding its code from
+    # the reviewer (2026-10-02). Expected binary types pass; anything else withholds an APPROVE.
+    def test_source_file_diffing_as_binary_withholds_approve(self):
+        for hidden in (
+            "Binary files a/app/models/user.rb and b/app/models/user.rb differ",
+            "Binary files /dev/null and b/scripts/new.sh differ",
+            "Binary files a/Makefile and b/Makefile differ",
+            "Binary files a/archive.tar and /dev/null differ",
+        ):
+            with self.subTest(hidden=hidden):
+                outcome = build_envelope.guarded_outcome(APPROVE, "diff --git a/x b/x\n" + hidden + "\n")
+                self.assertEqual(outcome["kind"], "incomplete_evidence")
+                self.assertEqual(outcome["status_state"], "failure")
+                self.assertLessEqual(len(outcome["status_description"]), 140)
+
+    def test_expected_binary_types_still_approve(self):
+        diff = (
+            "Binary files /dev/null and b/public/images/logo.PNG differ\n"
+            "Binary files a/app/assets/fonts/x.woff2 and b/app/assets/fonts/x.woff2 differ\n"
+            "Binary files a/docs/guide.pdf and /dev/null differ\n"
+            "Binary files /dev/null and b/spec/fixtures/board.obz differ\n"
+        )
+        self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff)["kind"], "approved")
+
+    def test_binary_file_past_the_truncation_cut_still_withholds_approve(self):
+        # The bounded diff the model sees is cut at a size cap; the guard reads the full diff.
+        shown = "diff --git a/a.rb b/a.rb\n+ok\n"
+        full = shown + "Binary files a/zz/evil.rb and b/zz/evil.rb differ\n"
+        self.assertEqual(build_envelope.guarded_outcome(APPROVE, shown)["kind"], "approved")
+        self.assertEqual(build_envelope.guarded_outcome(APPROVE, shown, full)["kind"], "incomplete_evidence")
+
+    def test_unreadable_binary_scan_diff_fails_instead_of_reading_as_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            review = pathlib.Path(tmp) / "review.json"
+            review.write_text(json.dumps(APPROVE))
+            result = subprocess.run(
+                [sys.executable, str(MODULE_PATH), "--need-third", "--diff", str(review),
+                 "--binary-scan-diff", str(pathlib.Path(tmp) / "missing.txt"), str(review), str(review)],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("--binary-scan-diff unreadable", result.stderr)
+
+    def test_binary_guard_never_upgrades_a_block(self):
+        outcome = build_envelope.guarded_outcome(REQUIRES_CHANGES, "Binary files a/a.rb and b/a.rb differ\n")
+        self.assertEqual(outcome["kind"], "requires_attention")
 
 
 def _clean(kind_approve):

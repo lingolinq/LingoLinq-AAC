@@ -42,34 +42,44 @@ on:
         required: true
         type: string
 
+# Nothing by default; each job below grants exactly what it uses.
+permissions: {}
+
+# Dispatch inputs and the per-attempt run identity, shared by all three jobs. GH_TOKEN is set per
+# step, only on the steps that call `gh`, so the reviewer steps (which run a model over PR text)
+# never hold it.
+env:
+  PR_NUMBER: ${{ inputs.pr_number }}
+  HEAD_SHA: ${{ inputs.head_sha }}
+  BASE_SHA: ${{ inputs.base_sha }}
+  LOOP_N: ${{ inputs.loop_n }}
+  CODEX_REVIEW_REQUESTED_EVIDENCE_MODE: ${{ vars.CODEX_REVIEW_EVIDENCE_MODE || 'bounded' }}
+  CODEX_REVIEW_CHUNKED_SCOPE: ${{ vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all' }}
+  # Stable per-ATTEMPT run identity. Every deep-pass status this workflow
+  # writes carries this as target_url, which makes it the join key for the
+  # review job's "did my status land" verification, the final-status job, and
+  # codex-watchdog.yml's staleness anchor.
+  #
+  # It MUST include run_attempt. `runs/<run_id>` alone is identical across
+  # re-runs of the same run, so attempt 2 would match attempt 1's terminal
+  # status (reporting false success in the verify loop) and inherit attempt
+  # 1's created_at (defeating the watchdog's age clock). `/attempts/<n>` is
+  # a real linkable Actions URL, so this costs nothing in usability.
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+
 jobs:
-  codex-review:
+  # THE STATUS LIFECYCLE LIVES OUTSIDE THE ENVIRONMENT. `codex-review` uses the `codex-review`
+  # environment, and GitHub applies its protection rules (deployment branches, reviewers) before
+  # any step of that job runs. If the status writes lived in that job, a refused or abandoned run
+  # would post nothing at all: no pending to fail, no terminal state. These two jobs hold no
+  # environment and no secret, only `statuses: write`, so the pending anchor is always posted and
+  # `status-final` (always()) resolves it whatever happened to the review job.
+  status-pending:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 10
     permissions:
-      contents: read
       statuses: write
       pull-requests: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-      PR_NUMBER: ${{ inputs.pr_number }}
-      HEAD_SHA: ${{ inputs.head_sha }}
-      BASE_SHA: ${{ inputs.base_sha }}
-      LOOP_N: ${{ inputs.loop_n }}
-      CODEX_REVIEW_REQUESTED_EVIDENCE_MODE: ${{ vars.CODEX_REVIEW_EVIDENCE_MODE || 'bounded' }}
-      CODEX_REVIEW_CHUNKED_SCOPE: ${{ vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all' }}
-      # Stable per-ATTEMPT run identity. Every deep-pass status this job writes
-      # carries this as target_url, which makes it the join key for three
-      # consumers: this job's own "did my status land" verification, the
-      # heartbeat in scripts/codex-review-run-chunks.py, and
-      # codex-watchdog.yml's staleness anchor.
-      #
-      # It MUST include run_attempt. `runs/<run_id>` alone is identical across
-      # re-runs of the same run, so attempt 2 would match attempt 1's terminal
-      # status (reporting false success in the verify loop) and inherit attempt
-      # 1's created_at (defeating the watchdog's age clock). `/attempts/<n>` is
-      # a real linkable Actions URL, so this costs nothing in usability.
-      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -88,8 +98,10 @@ jobs:
           fi
 
       - name: Set codex-review/deep-pass = pending (fail-closed anchor, first step able to act)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
             -f state=pending \
             -f context=codex-review/deep-pass \
             -f description="Codex review running (loop ${LOOP_N})" \
@@ -98,7 +110,7 @@ jobs:
       - name: Validate remaining inputs (flip status to failure on bad input, don't just leave it pending)
         run: |
           fail() {
-            gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
               -f state=failure \
               -f context=codex-review/deep-pass \
               -f description="$1" \
@@ -111,6 +123,7 @@ jobs:
           [[ "$LOOP_N" =~ ^[0-9]+$ ]] || fail "loop_n is not numeric"
           [[ "$REVIEWER_ROUTE" =~ ^(codex|claude-deep)$ ]] || fail "reviewer_route must be codex or claude-deep"
         env:
+          GH_TOKEN: ${{ github.token }}
           REVIEWER_ROUTE: ${{ inputs.reviewer_route }}
 
       - name: Bind pr_number to head_sha (refuse a stale/mismatched W1 dispatch)
@@ -121,10 +134,12 @@ jobs:
         # commit status, and now the W2 envelope, on a different SHA. Refuse
         # to proceed -- and flip the status to failure -- if pr_number's
         # actual current head doesn't match the dispatched head_sha.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          ACTUAL_HEAD="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefOid --jq '.headRefOid')"
+          ACTUAL_HEAD="$(gh pr view "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" --json headRefOid --jq '.headRefOid')"
           if [ "$ACTUAL_HEAD" != "$HEAD_SHA" ]; then
-            gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
               -f state=failure \
               -f context=codex-review/deep-pass \
               -f description="pr_number ${PR_NUMBER}'s current head (${ACTUAL_HEAD}) does not match dispatched head_sha" \
@@ -133,13 +148,34 @@ jobs:
             exit 1
           fi
 
+  codex-review:
+    needs: status-pending
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Secrets come from this GitHub environment. Restrict its deployment branches to the branch
+    # n8n dispatches from (and remove the repo-level copies of its secrets), so a run dispatched
+    # from any other ref is refused before a step runs and never receives a secret. The refusal
+    # still resolves deep-pass: see status-final.
+    environment: codex-review
+    permissions:
+      contents: read
+      statuses: write
+      pull-requests: read
+    steps:
       - name: Resolve Codex review evidence mode
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           requested="${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
           scope="${CODEX_REVIEW_CHUNKED_SCOPE}"
           effective="bounded"
-          PR_AUTHOR="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json author --jq '.author.login // ""')"
-          PR_HEAD_REF="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefName --jq '.headRefName // ""')"
+          PR_AUTHOR="$(gh pr view "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" --json author --jq '.author.login // ""')"
+          PR_HEAD_REF="$(gh pr view "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" --json headRefName --jq '.headRefName // ""')"
+          # Both are chosen by the PR author and are written to GITHUB_ENV below. Git ref names and
+          # GitHub logins cannot hold a newline today; keep only a plain charset anyway so this
+          # write never depends on that.
+          PR_AUTHOR="$(printf '%s' "$PR_AUTHOR" | tr -cd 'A-Za-z0-9._-' | cut -c1-64)"
+          PR_HEAD_REF="$(printf '%s' "$PR_HEAD_REF" | tr -cd 'A-Za-z0-9._/-' | cut -c1-200)"
 
           if [ "$requested" = "chunked" ]; then
             case "$scope" in
@@ -175,33 +211,30 @@ jobs:
           echo "PR head ref: ${PR_HEAD_REF}"
           echo "effective evidence mode: ${effective}"
 
-      - name: Checkout PR head
-        uses: actions/checkout@v6
+      # TRUSTED TREE ONLY. The workspace is a checkout of the workflow ref; every helper, prompt,
+      # schema and policy file the job uses comes from it, and every step runs in it. The PR is
+      # fetched as git OBJECTS into this repository and is never checked out: no PR file is ever
+      # written to disk, so nothing in the PR can run as a helper, shadow a module, or set git
+      # attributes for the diffs below (attributes are read from this trusted worktree).
+      - name: Checkout trusted workflow ref
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ inputs.head_sha }}
+          ref: ${{ github.workflow_sha }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Restore Codex review helpers from workflow ref
-        # Older PR heads predate this pipeline, and any PR can modify or
-        # delete these helper files. Run the review using the trusted helper
-        # versions from the workflow ref that GitHub dispatched, while still
-        # reviewing the PR head checkout.
+      - name: Fetch the PR commits (objects only, never checked out)
         run: |
-          git checkout "${{ github.workflow_sha }}" -- \
-            .github/codex \
-            scripts/codex-review-assemble-prompt.py \
-            scripts/codex-review-build-evidence.py \
-            scripts/codex-review-build-envelope.py \
-            scripts/codex-review-run-chunks.py \
-            scripts/codex-review-quiet-exec.py \
-            scripts/codex-review-claude-deep.sh \
-            scripts/codex-review-claude-deep-build-request.py \
-            scripts/codex-review-claude-deep-extract-response.py \
-            scripts/codex-review-path-classifier.sh
+          git fetch --no-tags --no-recurse-submodules --quiet origin "$HEAD_SHA"
+          git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null \
+            || git fetch --no-tags --no-recurse-submodules --quiet origin "$BASE_SHA"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+          git cat-file -e "${BASE_SHA}^{commit}"
 
       - name: Re-classify paths in CI (fail-safe; n8n's classification is not trusted alone)
         id: classify
-        run: scripts/codex-review-path-classifier.sh "${BASE_SHA}" "${HEAD_SHA}"
+        run: |
+          "$GITHUB_WORKSPACE/scripts/codex-review-path-classifier.sh" "${BASE_SHA}" "${HEAD_SHA}"
         env:
           CODEX_COMPLIANCE_PATHS: ${{ vars.CODEX_COMPLIANCE_PATHS || 'allow' }}
 
@@ -210,13 +243,15 @@ jobs:
         # PR title, body and file list are PR content. They go to files, never
         # to a step output or env var: Actions prints a step's env values in the
         # public job log.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           {
             echo "### gh pr view"
-            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
+            gh pr view "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" --json mergeable,mergeStateStatus,headRefOid,title,body
             echo ""
             echo "### gh pr checks"
-            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            gh pr checks "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" || true
             echo ""
             echo "### codex review evidence mode"
             echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
@@ -228,13 +263,9 @@ jobs:
             echo "### changed files (git mode at PR head ${HEAD_SHA})"
             # Source of truth is the PR head COMMIT, so this list agrees with the
             # injected BASE...HEAD diff. Do NOT use `git ls-files -s` here: it
-            # reads the INDEX, and the later "Restore Codex review helpers from
-            # workflow ref" step rewrites the index/working-tree for helper files
-            # to the workflow-ref blobs. That made the mode/blob evidence for
-            # helper files disagree with the diff, which the reviewer correctly
-            # flagged as an evidence mismatch (CR-1). `git ls-tree HEAD_SHA`
-            # reads the head commit's tree object directly and is immune to the
-            # restore regardless of step ordering.
+            # reads the INDEX, which is the trusted workflow ref, not the PR
+            # (the PR is never checked out). `git ls-tree HEAD_SHA` reads the
+            # head commit's tree object directly.
             git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | while read -r f; do
               entry="$(git ls-tree "${HEAD_SHA}" -- "$f" 2>/dev/null)"
               if [ -n "$entry" ]; then
@@ -246,10 +277,10 @@ jobs:
           } > /tmp/live_state_prompt.txt
           {
             echo "### gh pr view"
-            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
+            gh pr view "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" --json mergeable,mergeStateStatus,headRefOid,title,body
             echo ""
             echo "### gh pr checks"
-            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            gh pr checks "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" || true
             echo ""
             echo "### codex review evidence mode"
             echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
@@ -278,7 +309,10 @@ jobs:
         id: pr_diff
         run: |
           MAX_BYTES=60000
-          RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
+          RAW="$(git -c core.quotepath=false diff --no-ext-diff --no-textconv "${BASE_SHA}...${HEAD_SHA}")"
+          # The untruncated diff, for the binary guard in build-envelope.py: a file that diffs as
+          # binary past the size cap below must still withhold an APPROVE.
+          printf '%s\n' "$RAW" > /tmp/pr_diff_full.txt
           TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
           FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
           # Build the bounded diff ONCE into a file. It is used twice: read by
@@ -312,7 +346,7 @@ jobs:
       - name: Build chunked PR evidence
         if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
         run: |
-          python3 scripts/codex-review-build-evidence.py \
+          python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-evidence.py" \
             --base "${BASE_SHA}" \
             --head "${HEAD_SHA}" \
             --out-dir /tmp/codex-review-evidence \
@@ -321,7 +355,7 @@ jobs:
       - name: Assemble prompt
         if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
         id: prompt
-        run: python3 scripts/codex-review-assemble-prompt.py /tmp/prompt.md
+        run: python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-assemble-prompt.py" /tmp/prompt.md
         env:
           LIVE_STATE_FILE: /tmp/live_state_prompt.txt
           PR_DIFF_FILE: /tmp/pr_diff.txt
@@ -329,24 +363,47 @@ jobs:
 
       - name: Install Codex CLI
         if: steps.classify.outputs.reviewer_route == 'codex'
-        run: npm install -g @openai/codex
+        # Exact version: tools, flags and feature names are verified against this release
+        # (.github/codex/codex-exec-args.txt and the codex-review-tests CI job). The package runs
+        # no install scripts; --ignore-scripts keeps it that way.
+        run: |
+          npm install -g --ignore-scripts --no-audit --no-fund @openai/codex@0.160.0
+          codex --version
 
       - name: Authenticate Codex CLI
+        # Keeps this name: docs/process/deep-pass-admin-exception-policy.md condition 1 cites a
+        # failing "Authenticate Codex CLI" step. Nothing is stored: there is no `codex login`, and
+        # the key reaches codex only as CODEX_API_KEY on the reviewer steps, so no credential file
+        # exists for a later step to read.
         if: steps.classify.outputs.reviewer_route == 'codex'
         env:
-          OPENAI_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
-          CODEX_HOME: ${{ runner.temp }}/codex-home
+          CODEX_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
         run: |
-          echo "::add-mask::$OPENAI_API_KEY"
-          mkdir -p "$CODEX_HOME"
-          printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
+          if [ -z "$CODEX_API_KEY" ]; then
+            echo "::error::CODEX_OPENAI_API_KEY is not available to this job" >&2
+            exit 1
+          fi
 
       - name: Run reviewer (codex exec, converge across runs)
         id: review_codex
         if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked'
         env:
-          CODEX_HOME: ${{ runner.temp }}/codex-home
+          CODEX_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
         run: |
+          # A fresh, empty CODEX_HOME and working directory, removed when the step ends: codex
+          # sees no PR files, no stored login and no project config. The hardening arguments
+          # (read-only sandbox, no command/browser/web tools, no session saving) live in one file
+          # shared with scripts/codex-review-run-chunks.py.
+          export CODEX_HOME="$(mktemp -d)"
+          CODEX_WORKDIR="$(mktemp -d)"
+          trap 'rm -rf "$CODEX_HOME" "$CODEX_WORKDIR"' EXIT
+          mapfile -t CODEX_HARDENING < <(grep -v '^#' "$GITHUB_WORKSPACE/.github/codex/codex-exec-args.txt" | sed '/^$/d')
+          if [ "${#CODEX_HARDENING[@]}" -eq 0 ]; then
+            echo "::error::codex hardening arguments are missing; refusing to run the reviewer" >&2
+            exit 1
+          fi
+          SCHEMA="$GITHUB_WORKSPACE/.github/codex/review-schema.json"
+          QUIET="$GITHUB_WORKSPACE/scripts/codex-review-quiet-exec.py"
           run_codex() {
             # $1 = output path for this run's review JSON
             # gpt-5.6-terra per the approved-reviewer registry (CI `codex-review`
@@ -358,21 +415,21 @@ jobs:
             # model output) out of the public job log; on failure it prints
             # only the exit code and a fixed label. --ephemeral stops codex
             # saving the session (the same transcript) under CODEX_HOME.
-            python3 scripts/codex-review-quiet-exec.py -- codex exec \
-              --ephemeral \
-              --sandbox read-only \
+            python3 -I "$QUIET" -- codex exec \
+              "${CODEX_HARDENING[@]}" \
+              -C "$CODEX_WORKDIR" \
               -m gpt-5.6-terra \
-              --output-schema .github/codex/review-schema.json \
+              --output-schema "$SCHEMA" \
               --output-last-message "$1" \
               < /tmp/prompt.md
             # Fallback per build spec section 6: one retry with a stricter
             # instruction if the model still emitted invalid JSON despite
             # --output-schema.
-            if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
+            if ! python3 -I -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
               echo "Run produced invalid JSON; retrying with stricter instruction." >&2
               { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | python3 scripts/codex-review-quiet-exec.py -- codex exec --ephemeral --sandbox read-only -m gpt-5.6-terra \
-                    --output-schema .github/codex/review-schema.json \
+                | python3 -I "$QUIET" -- codex exec "${CODEX_HARDENING[@]}" -C "$CODEX_WORKDIR" -m gpt-5.6-terra \
+                    --output-schema "$SCHEMA" \
                     --output-last-message "$1"
             fi
           }
@@ -385,7 +442,7 @@ jobs:
           # converging straight to fail-closed without a wasted third run).
           run_codex /tmp/review-1.json
           run_codex /tmp/review-2.json
-          NEED_THIRD="$(python3 scripts/codex-review-build-envelope.py --need-third --diff /tmp/pr_diff.txt /tmp/review-1.json /tmp/review-2.json)"
+          NEED_THIRD="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --need-third --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt /tmp/review-1.json /tmp/review-2.json)"
           echo "convergence: third tiebreaker needed? ${NEED_THIRD}"
           if [ "$NEED_THIRD" = "yes" ]; then
             run_codex /tmp/review-3.json
@@ -394,18 +451,22 @@ jobs:
       - name: Run reviewer (codex exec, chunked evidence)
         id: review_codex_chunked
         if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
+        # No GH_TOKEN and no --heartbeat: no process above codex holds a GitHub credential. The
+        # heartbeat only refreshed the pending text; codex-watchdog.yml times a run from its
+        # EARLIEST pending status, so heartbeats never moved its clock.
         env:
-          CODEX_HOME: ${{ runner.temp }}/codex-home
+          CODEX_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
         run: |
-          python3 scripts/codex-review-run-chunks.py \
+          export CODEX_HOME="$(mktemp -d)"
+          trap 'rm -rf "$CODEX_HOME"' EXIT
+          python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-run-chunks.py" \
             --evidence-dir /tmp/codex-review-evidence \
             --live-state-file /tmp/live_state.txt \
             --out-dir /tmp/codex-review-results \
             --head-sha "${HEAD_SHA}" \
             --prior-loop-file /tmp/prior_loop.txt \
-            --repository "${{ github.repository }}" \
-            --run-url "${RUN_URL}" \
-            --heartbeat
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-url "${RUN_URL}"
           # Surface the models actually used so the envelope can record which
           # approved reviewer produced the verdict. These come from constants in
           # the script (not from any repo variable), but are still restricted to
@@ -434,7 +495,7 @@ jobs:
           # is not convergence-looped in this pass. build-envelope treats one
           # review file as a no-op convergence (its outcome passes through), and
           # the injection guard still applies.
-          scripts/codex-review-claude-deep.sh /tmp/prompt.md .github/codex/review-schema.json /tmp/review-1.json
+          "$GITHUB_WORKSPACE/scripts/codex-review-claude-deep.sh" /tmp/prompt.md "$GITHUB_WORKSPACE/.github/codex/review-schema.json" /tmp/review-1.json
 
       - name: Reviewer blocked (Tier 1 data-bearing path)
         id: review_blocked
@@ -482,7 +543,7 @@ jobs:
               echo "::error::chunked review did not produce chunk and synthesis review files"
               exit 1
             fi
-            python3 scripts/codex-review-build-envelope.py \
+            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" \
               --manifest /tmp/codex-review-evidence/manifest.json \
               --evidence-dir /tmp/codex-review-evidence \
               --full-diff /tmp/codex-review-evidence/full.diff \
@@ -490,20 +551,41 @@ jobs:
               --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
               --out /tmp/envelope.json
           else
-            python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
+            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --out /tmp/envelope.json $REVIEWS
           fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}
 
       - name: POST result to n8n W2 and resolve status
+        # The secrets arrive as env values and reach curl and the HMAC through stdin, never through
+        # the step script or a command line.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_CODEX_RESULTS_WEBHOOK_URL }}
+          N8N_HMAC_SECRET: ${{ secrets.N8N_CODEX_RESULTS_HMAC_SECRET }}
         run: |
-          RESULT_JSON="$(cat /tmp/envelope.json)"
-          HTTP_STATUS="$(curl -sS -o /tmp/w2-response.json -w '%{http_code}' \
-            -X POST "${{ secrets.N8N_CODEX_RESULTS_WEBHOOK_URL }}" \
+          # The review text is model output over PR-authored text. Refuse to send it anywhere if
+          # it carries anything shaped like a credential, or this step's own secret values.
+          if ! python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-secret-scan.py" /tmp/envelope.json; then
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="Review withheld: its text matched a credential pattern (needs human)" \
+              -f target_url="${RUN_URL}" || true
+            exit 1
+          fi
+          # Sign and send the exact bytes of the file (no shell round-trip, no size limit from the
+          # command line). The HMAC key is read from the step environment; the URL reaches curl as
+          # a config line on stdin, escaped for curl's quoting.
+          SIGNATURE="$(python3 -I -c 'import hashlib, hmac, os, sys; print(hmac.new(os.environ["N8N_HMAC_SECRET"].encode(), open(sys.argv[1], "rb").read(), hashlib.sha256).hexdigest())' /tmp/envelope.json)"
+          URL_FOR_CURL="${N8N_WEBHOOK_URL//\\/\\\\}"
+          URL_FOR_CURL="${URL_FOR_CURL//\"/\\\"}"
+          HTTP_STATUS="$(printf 'url = "%s"\n' "$URL_FOR_CURL" | curl -sS -K - -o /tmp/w2-response.json -w '%{http_code}' \
+            -X POST \
             -H "Content-Type: application/json" \
-            -H "X-Codex-Signature: $(printf '%s' "$RESULT_JSON" | openssl dgst -sha256 -hmac "${{ secrets.N8N_CODEX_RESULTS_HMAC_SECRET }}" | awk '{print $2}')" \
-            -d "$RESULT_JSON")"
+            -H "X-Codex-Signature: ${SIGNATURE}" \
+            --data-binary @/tmp/envelope.json)"
 
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
             echo "POST to n8n W2 failed with HTTP $HTTP_STATUS" >&2
@@ -512,13 +594,13 @@ jobs:
             exit 1
           fi
 
-          FINAL_STATE="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['state'])")"
-          DESCRIPTION="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['description'])")"
+          FINAL_STATE="$(python3 -I -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['state'])")"
+          DESCRIPTION="$(python3 -I -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['description'])")"
 
           # W2 owns the sticky comment; Actions owns the commit status
           # because this job already has statuses:write and n8n's comment
           # credential intentionally does not need that scope.
-          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
             -f state="$FINAL_STATE" \
             -f context=codex-review/deep-pass \
             -f description="$DESCRIPTION" \
@@ -535,8 +617,8 @@ jobs:
           # RUN_URL is job-level env (attempt-scoped); do not rebuild it here.
           for i in $(seq 1 6); do
             sleep 5
-            gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
-            STATE="$(python3 -c 'import json, sys; run_url = sys.argv[1]; statuses = json.load(open("/tmp/codex-statuses.json")); print(next((status["state"] for status in statuses if status.get("context") == "codex-review/deep-pass" and status.get("target_url") == run_url), ""))' "$RUN_URL")"
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
+            STATE="$(python3 -I -c 'import json, sys; run_url = sys.argv[1]; statuses = json.load(open("/tmp/codex-statuses.json")); print(next((status["state"] for status in statuses if status.get("context") == "codex-review/deep-pass" and status.get("target_url") == run_url), ""))' "$RUN_URL")"
             if [ "$STATE" != "pending" ] && [ -n "$STATE" ]; then
               echo "codex-review/deep-pass resolved to: $STATE"
               exit 0
@@ -546,6 +628,14 @@ jobs:
           echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. The terminal-status step below runs on all exit paths (if: always()) and resolves it. codex-watchdog.yml is only a backstop and cannot act until the status is 30+ minutes old (#710)." >&2
           exit 1
 
+  status-final:
+    needs: [status-pending, codex-review]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      statuses: write
+    steps:
       # ------------------------------------------------------------------
       # Terminal-status lifecycle: this job resolves its OWN status on every
       # exit path.
@@ -574,7 +664,10 @@ jobs:
       - name: Resolve codex-review/deep-pass to a terminal state (all exit paths)
         if: always()
         env:
-          JOB_STATUS: ${{ job.status }}
+          GH_TOKEN: ${{ github.token }}
+          # The REVIEW job's result: success, failure, cancelled, or skipped (it never started
+          # because status-pending failed on bad input).
+          JOB_STATUS: ${{ needs.codex-review.result }}
         run: |
           set -uo pipefail
 
@@ -597,7 +690,7 @@ jobs:
           statuses_json=""
           read_ok=""
           for read_attempt in 1 2 3; do
-            if raw="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses?per_page=100" --paginate 2>/dev/null)"; then
+            if raw="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/statuses?per_page=100" --paginate 2>/dev/null)"; then
               statuses_json="$(printf '%s' "$raw" | jq -s 'add // []' 2>/dev/null)" || statuses_json=""
               if [ -n "$statuses_json" ]; then read_ok=yes; break; fi
             fi
@@ -635,6 +728,9 @@ jobs:
             cancelled)
               description="Review cancelled before producing a verdict"
               ;;
+            skipped)
+              description="Review did not start (input validation failed)"
+              ;;
             success)
               # Reaching here on a green job means the resolve step never wrote
               # a verdict (skipped, or an early `exit 0`). Fail closed: never
@@ -650,7 +746,7 @@ jobs:
           # deep-pass should become `success`.
           posted=""
           for write_attempt in 1 2 3; do
-            if gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            if gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
                  -f state=failure \
                  -f context=codex-review/deep-pass \
                  -f description="$description" \

@@ -1,0 +1,47 @@
+# Arguments every `codex exec` call in the review gets, one per line (blank lines and lines
+# starting with # are skipped). Read by .github/workflows/codex-review.yml (bounded reviewer) and
+# scripts/codex-review-run-chunks.py (chunked reviewer), so the two cannot drift.
+#
+# The model reads PR-authored text, so it gets no way to act on anything: all the evidence it
+# needs is already in the prompt. Verified against @openai/codex 0.160.0 (the pinned version):
+# `features.shell_tool=false` removes both command tools (exec_command and write_stdin); the
+# `unified_exec` feature still reports enabled but only changes how the shell tool runs.
+# Codex accepts unknown keys silently, so the codex-review-tests CI job installs the pinned
+# version and asserts each feature below is really off.
+--ephemeral
+--skip-git-repo-check
+--ignore-user-config
+--sandbox
+read-only
+-c
+web_search="disabled"
+-c
+features.shell_tool=false
+-c
+features.view_image=false
+-c
+features.browser_use=false
+-c
+features.browser_use_external=false
+-c
+features.browser_use_full_cdp_access=false
+-c
+features.computer_use=false
+-c
+features.in_app_browser=false
+-c
+features.apps=false
+-c
+features.plugins=false
+-c
+features.hooks=false
+-c
+features.multi_agent=false
+-c
+features.image_generation=false
+-c
+features.tool_suggest=false
+-c
+features.skill_mcp_dependency_install=false
+-c
+features.workspace_dependencies=false

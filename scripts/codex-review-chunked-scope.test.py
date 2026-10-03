@@ -7,7 +7,9 @@ repo script. This test extracts that `if` condition from the YAML and evaluates
 it in bash, so a revert or a wrong glob fails here rather than only when the
 dormant gate is revived.
 """
+import importlib.util
 import json
+import shutil
 import os
 import pathlib
 import re
@@ -196,6 +198,8 @@ else:
 FAKE_GIT = r'''#!/usr/bin/env python3
 import os, sys
 args = sys.argv[1:]
+while args[:1] == ["-c"]:
+    args = args[2:]
 diff_canary = os.environ["FAKE_DIFF_CANARY"]
 path = "app/" + diff_canary + "_FILE.rb"
 if args[:2] == ["diff", "--name-only"]:
@@ -314,6 +318,8 @@ def run_step(script, tmp, bin_dir, mode="ok", extra_env=None):
     env["FAKE_MODEL_CANARY"] = MODEL_CANARY
     env["FAKE_BODY_CANARY"] = BODY_CANARY
     env["FAKE_DIFF_CANARY"] = DIFF_CANARY
+    # Actions sets this on every step; the workflow runs every helper from it.
+    env["GITHUB_WORKSPACE"] = str(REPO_ROOT)
     env.update(extra_env or {})
     # codex-review.yml sets no `shell:`, so Actions runs each step as
     # `bash -e {0}` (no pipefail).
@@ -340,6 +346,7 @@ class WorkflowLogExposureTest(unittest.TestCase):
             f"### gh pr view\n{{\"body\": \"{BODY_CANARY}\"}}\n+{DIFF_CANARY}\n"
         )
         (pathlib.Path(tmp) / "pr_diff.txt").write_text(f"+{DIFF_CANARY}\n")
+        (pathlib.Path(tmp) / "pr_diff_full.txt").write_text(f"+{DIFF_CANARY}\n")
         return run_step(localize(script, tmp), tmp, bin_dir, mode)
 
     def test_bounded_reviewer_step_keeps_codex_transcript_out_of_the_log(self):
@@ -461,15 +468,160 @@ class WorkflowLogExposureTest(unittest.TestCase):
         # The scan must be finding the writes that exist, or it proves nothing.
         self.assertTrue({"CODEX_REVIEW_EVIDENCE_MODE", "reviewer_route"} <= seen)
 
-    def test_every_helper_the_workflow_runs_is_restored_from_the_workflow_ref(self):
-        restore = extract_step_run("Restore Codex review helpers from workflow ref")
-        restored = set(re.findall(r"scripts/(codex-review-[\w.-]+)", restore))
-        referenced = set(re.findall(r"(codex-review-[\w-]+\.(?:py|sh))\b", WORKFLOW.read_text()))
-        for name in sorted(restored):
-            referenced |= set(re.findall(r"(codex-review-[\w-]+\.(?:py|sh))\b", (REPO_ROOT / "scripts" / name).read_text()))
-        referenced = {name for name in referenced if (REPO_ROOT / "scripts" / name).exists()}
-        self.assertIn("codex-review-run-chunks.py", restored, "restore list not found")
-        self.assertEqual(referenced - restored, set(), "a helper the workflow runs is missing from the restore list")
+    # The PR is fetched as git objects and never checked out (2026-10-02): replaced the test that
+    # every helper was restored from the workflow ref into the PR checkout, which no longer exists.
+    def test_the_pr_is_never_checked_out_and_checkouts_keep_no_credentials(self):
+        text = WORKFLOW.read_text()
+        self.assertNotIn("PR_CHECKOUT", re.sub(r"\s+", " ", text).replace("ref: ${{ inputs.head_sha }}", "PR_CHECKOUT"), "the PR head is checked out")
+        self.assertIn("ref: ${{ github.workflow_sha }}", text, "the trusted checkout is missing")
+        self.assertNotIn("working-directory", text)
+        self.assertNotIn("Restore Codex review helpers", text, "the in-place helper restore is back")
+        for ref in re.findall(r"^\s*ref:\s*(.+)$", text, re.MULTILINE):
+            with self.subTest(ref=ref):
+                self.assertNotRegex(ref, r"(?i)head_sha", "a checkout of the PR head")
+        for i, block in enumerate(run_blocks(text)):
+            with self.subTest(block=i):
+                self.assertNotRegex(block, r"\bgit\s+(?:-\S+\s+\S+\s+)*(?:checkout|switch|worktree|restore|reset|stash)\b",
+                                    "a git command that writes PR files to disk")
+        uses = re.findall(r"^\s*(?:-\s*)?uses:\s*(\S+)", text, re.MULTILINE)
+        self.assertTrue(uses, "no actions found")
+        for ref in uses:
+            with self.subTest(uses=ref):
+                self.assertRegex(ref, r"@[0-9a-f]{40}$", "action not pinned to a commit SHA")
+        checkouts = [m.start() for m in re.finditer(r"^\s*(?:-\s*)?uses:\s*actions/checkout@", text, re.MULTILINE)]
+        self.assertTrue(checkouts, "no checkout found")
+        for start in checkouts:
+            block = text[start:start + 400].split("\n      - name:")[0]
+            with self.subTest(checkout=start):
+                self.assertIn("persist-credentials: false", block)
+
+    def test_every_helper_runs_from_the_trusted_checkout_in_isolated_mode(self):
+        blocks = run_blocks(WORKFLOW.read_text())
+        units = {f"run block {i}": b for i, b in enumerate(blocks)}
+        units["codex-review-claude-deep.sh"] = (REPO_ROOT / "scripts/codex-review-claude-deep.sh").read_text()
+        seen_helpers = 0
+        for name, text in units.items():
+            # Comments and here-doc bodies (the blocked route's JSON names a helper as text) are
+            # not invocations.
+            text = re.sub(r"<<(\w+)\n.*?\n\s*\1\b", "", text, flags=re.S)
+            code = "\n".join(line for line in text.splitlines() if not line.strip().startswith("#"))
+            for call in re.findall(r"python3\b[^\n]*", code):
+                with self.subTest(unit=name, call=call[:60]):
+                    self.assertTrue(call.startswith("python3 -I "), "python3 without -I")
+            for ref in re.finditer(r"(\S*)scripts/codex-review-[\w.-]+", code):
+                seen_helpers += 1
+                with self.subTest(unit=name, ref=ref.group(0)[:80]):
+                    self.assertIn("$GITHUB_WORKSPACE/", ref.group(1), "helper run by a relative path")
+            for ref in re.finditer(r"python3 -I (\S+)", code):
+                with self.subTest(unit=name, script=ref.group(1)):
+                    self.assertTrue(ref.group(1) in ("-c",) or ref.group(1).startswith(('"$GITHUB_WORKSPACE/', '"$QUIET"', '"$HERE/')),
+                                    "helper not addressed by an absolute trusted path")
+            with self.subTest(unit=name, check="secrets in script"):
+                self.assertNotIn("${{ secrets.", text, "a secret is expanded into a step script")
+            with self.subTest(unit=name, check="no login"):
+                self.assertNotIn("codex login", code, "codex login stores a credential on disk")
+        self.assertGreater(seen_helpers, 5, "the helper scan found nothing")
+
+    def test_git_diffs_never_run_configured_drivers(self):
+        checked = 0
+        for i, block in enumerate(run_blocks(WORKFLOW.read_text())):
+            commands = "\n".join(line for line in block.splitlines() if not line.strip().startswith(("#", "echo")))
+            for call in re.findall(r"git (?:-c \S+ )*diff(?! --name-only)[^\n]*", commands):
+                checked += 1
+                with self.subTest(block=i, call=call[:60]):
+                    self.assertIn("--no-ext-diff", call)
+                    self.assertIn("--no-textconv", call)
+        self.assertGreater(checked, 0, "no content diff found to check")
+
+    def test_github_token_is_not_job_wide_and_never_reaches_the_bounded_reviewer(self):
+        text = WORKFLOW.read_text()
+        workflow_env = text.split("\nenv:\n", 1)[1].split("\njobs:\n", 1)[0]
+        self.assertNotIn("GH_TOKEN", workflow_env, "GH_TOKEN is workflow-wide")
+        self.assertIsNone(re.search(r"^    env:", text, re.MULTILINE), "a job-level env block (job-wide values)")
+        for step in ("Run reviewer (codex exec, converge across runs)", "Run reviewer (codex exec, chunked evidence)"):
+            body = text.split(f"- name: {step}", 1)[1].split("\n      - name:", 1)[0]
+            code = "\n".join(line for line in body.splitlines() if not line.strip().startswith("#"))
+            with self.subTest(step=step):
+                self.assertNotIn("GH_TOKEN", code, "a GitHub token sits above the codex process")
+                self.assertNotIn("--heartbeat", code)
+        self.assertIn("environment: codex-review", text, "secrets are not scoped to the codex-review environment")
+
+    def test_status_lifecycle_runs_outside_the_secrets_environment(self):
+        # An environment's protection rules run before any step of the job that names it, so a
+        # refused run must still get its pending anchor and its terminal status (2026-10-02).
+        jobs = {}
+        text = WORKFLOW.read_text().split("\njobs:\n", 1)[1]
+        for match in re.finditer(r"^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)", text, re.MULTILINE | re.DOTALL):
+            jobs[match.group(1)] = match.group(2)
+        self.assertEqual(set(jobs), {"status-pending", "codex-review", "status-final"})
+        self.assertIn("environment: codex-review", jobs["codex-review"])
+        self.assertIn("needs: status-pending", jobs["codex-review"])
+        for name in ("status-pending", "status-final"):
+            with self.subTest(job=name):
+                self.assertNotIn("environment:", jobs[name])
+                self.assertNotIn("secrets.", jobs[name])
+        self.assertIn("state=pending", jobs["status-pending"])
+        self.assertIn("if: always()", jobs["status-final"].split("steps:", 1)[0])
+        self.assertIn("codex-review", jobs["status-final"].split("steps:", 1)[0])
+        self.assertIn("JOB_STATUS: ${{ needs.codex-review.result }}", jobs["status-final"])
+        self.assertIn("skipped)", jobs["status-final"])
+
+    def test_status_final_resolves_every_review_job_result_to_a_terminal_failure(self):
+        # The step uses jq, as on GitHub's runners. Fail clearly rather than through its retry sleeps.
+        self.assertIsNotNone(shutil.which("jq"), "jq is required to run this step (preinstalled on GitHub runners)")
+        script = extract_step_run("Resolve codex-review/deep-pass to a terminal state")
+        cases = {
+            "skipped": "did not start",
+            "failure": "failed before producing a verdict",
+            "cancelled": "cancelled",
+            "success": "wrote no verdict",
+        }
+        for result, expected in cases.items():
+            with self.subTest(result=result), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                install_fake(bin_dir, "gh", STATUS_GH)
+                run = run_step(localize(script, tmp), tmp, bin_dir, extra_env={
+                    "JOB_STATUS": result, "HEAD_SHA": "a" * 40, "RUN_URL": "https://run/1",
+                    "GITHUB_REPOSITORY": "o/r", "GH_TOKEN": "t",
+                })
+                posted = (pathlib.Path(tmp) / "gh-calls").read_text()
+                self.assertIn("state=failure", posted)
+                self.assertIn(expected, posted)
+                # A green review job that wrote no verdict must not leave the run green either.
+                self.assertEqual(run.returncode != 0, result == "success")
+
+    def test_model_calls_get_no_credentials_but_their_own(self):
+        quiet = load_module("codex_review_quiet_exec", REPO_ROOT / "scripts/codex-review-quiet-exec.py")
+        env = quiet.model_env({
+            "PATH": "/bin", "HOME": "/h", "CODEX_HOME": "/c", "CODEX_API_KEY": "k",
+            "GH_TOKEN": "t", "GITHUB_TOKEN": "t", "ACTIONS_RUNTIME_TOKEN": "t",
+            "N8N_HMAC_SECRET": "s", "N8N_WEBHOOK_URL": "u", "ANTHROPIC_API_KEY": "a",
+            "GITHUB_ENV": "/e", "GITHUB_OUTPUT": "/o", "GITHUB_PATH": "/p", "GITHUB_STATE": "/s",
+            "GITHUB_STEP_SUMMARY": "/m",
+        })
+        self.assertEqual(set(env), {"PATH", "HOME", "CODEX_HOME", "CODEX_API_KEY"})
+
+    def test_the_quiet_runner_starts_model_calls_without_the_job_credentials(self):
+        quiet = load_module("codex_review_quiet_exec", REPO_ROOT / "scripts/codex-review-quiet-exec.py")
+        saved = {name: os.environ.get(name) for name in ("GH_TOKEN", "CODEX_API_KEY")}
+        os.environ["GH_TOKEN"] = "gh-token-should-not-reach-the-model"
+        os.environ["CODEX_API_KEY"] = "codex-key"
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                out = pathlib.Path(tmp) / "env.json"
+                child = f"import json, os; open({str(out)!r}, 'w').write(json.dumps(sorted(os.environ)))"
+                returncode, _ = quiet.run_quiet([sys.executable, "-c", child], None)
+                self.assertEqual(returncode, 0)
+                names = json.loads(out.read_text())
+        finally:
+            for name, value in saved.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+        self.assertNotIn("GH_TOKEN", names)
+        self.assertIn("CODEX_API_KEY", names)
 
     def run_assembler(self, tmp, live_state, pr_diff):
         env = dict(os.environ)
@@ -556,12 +708,19 @@ class WorkflowLogExposureTest(unittest.TestCase):
 
     def test_bounded_codex_calls_do_not_save_sessions(self):
         script = extract_step_run("Run reviewer (codex exec, converge across runs)")
-        # Each invocation's arguments run from `codex exec` to its output flag.
+        # Each invocation's arguments run from `codex exec` to its output flag. --ephemeral and
+        # the other hardening arguments come from the shared file both reviewers read (2026-10-02).
         calls = [segment.split("--output-last-message")[0] for segment in script.split("codex exec")[1:]]
         self.assertEqual(len(calls), 2, "expected the first call and the retry")
         for n, call in enumerate(calls, 1):
             with self.subTest(call=n):
-                self.assertIn("--ephemeral", call)
+                self.assertIn('"${CODEX_HARDENING[@]}"', call)
+                self.assertIn('-C "$CODEX_WORKDIR"', call)
+        hardening = (REPO_ROOT / ".github/codex/codex-exec-args.txt").read_text().splitlines()
+        for required in ("--ephemeral", "--skip-git-repo-check", "--ignore-user-config", "read-only",
+                         "features.shell_tool=false", 'web_search="disabled"'):
+            with self.subTest(required=required):
+                self.assertIn(required, hardening)
 
     def test_w2_post_failure_does_not_echo_the_response_body(self):
         script = extract_step_run("POST result to n8n W2 and resolve status")
@@ -575,12 +734,123 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 "review": {"findings": [{"description": MODEL_CANARY}]},
             }))
 
-            result = run_step(localize(script, tmp), tmp, bin_dir)
+            result = run_step(localize(script, tmp), tmp, bin_dir, extra_env=W2_ENV)
 
             self.assertNotEqual(result.returncode, 0, "an HTTP 500 from W2 must fail the step")
             self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "1")
             self.assertIn("500", result.stderr, "the failure must still report the HTTP status")
             self.assert_no_canary(result.stdout + result.stderr)
+
+    def test_w2_post_refuses_an_envelope_carrying_a_credential(self):
+        script = extract_step_run("POST result to n8n W2 and resolve status")
+        leaked = "sk-proj-" + "A1b2C3d4" * 4
+        for why, text in {"key format": leaked, "its own secret": W2_ENV["N8N_HMAC_SECRET"]}.items():
+            with self.subTest(why=why), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                install_fake(bin_dir, "curl", FAKE_CURL)
+                install_fake(bin_dir, "gh", RECORDING_GH)
+                (pathlib.Path(tmp) / "calls").write_text("0")
+                (pathlib.Path(tmp) / "envelope.json").write_text(json.dumps({
+                    "status": {"state": "success", "description": "d"},
+                    "review": {"findings": [{"description": "x " + text}]},
+                }))
+                result = run_step(localize(script, tmp), tmp, bin_dir, extra_env=W2_ENV)
+                self.assertNotEqual(result.returncode, 0, "the envelope was not refused")
+                self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "0", "curl ran")
+                self.assertNotIn(text, result.stdout + result.stderr, "the matched value was printed")
+                posted = (pathlib.Path(tmp) / "gh-calls").read_text()
+                self.assertIn("state=failure", posted, "no specific failure status was posted")
+                self.assertIn("credential pattern", posted)
+
+    def test_bounded_reviewer_refuses_to_run_without_hardening_arguments(self):
+        script = extract_step_run("Run reviewer (codex exec, converge across runs)")
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = pathlib.Path(tmp) / "ws"
+            (workspace / ".github" / "codex").mkdir(parents=True)
+            (workspace / "scripts").symlink_to(REPO_ROOT / "scripts")
+            (workspace / ".github/codex/codex-exec-args.txt").write_text("# nothing left\n")
+            bin_dir = pathlib.Path(tmp) / "bin"
+            bin_dir.mkdir()
+            install_fake(bin_dir, "codex", FAKE_CODEX)
+            (pathlib.Path(tmp) / "calls").write_text("0")
+            (pathlib.Path(tmp) / "prompt.md").write_text("p")
+            result = run_step(localize(script, tmp), tmp, bin_dir, extra_env={"GITHUB_WORKSPACE": str(workspace)})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "0", "codex ran without its hardening")
+
+
+class PathClassifierTest(unittest.TestCase):
+    """scripts/codex-review-path-classifier.sh against a real repository (2026-10-02): a name git
+    quotes (tab, newline, `"`, `\\`) must still match the anchored data-bearing patterns."""
+
+    def classify(self, names):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp) / "repo"
+            repo.mkdir()
+            git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (repo / "README").write_text("base\n")
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "base"], check=True)
+            base = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            for name in names:
+                path = repo / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("x\n")
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "head"], check=True)
+            head = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            output = pathlib.Path(tmp) / "out"
+            output.write_text("")
+            env = dict(os.environ, GITHUB_OUTPUT=str(output), CODEX_COMPLIANCE_PATHS="block")
+            result = subprocess.run(
+                [str(REPO_ROOT / "scripts/codex-review-path-classifier.sh"), base, head],
+                cwd=repo, env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return dict(line.split("=", 1) for line in output.read_text().split())
+
+    def test_ordinary_paths_go_to_codex(self):
+        self.assertEqual(self.classify(["app/models/a.rb"])["reviewer_route"], "codex")
+
+    def test_data_bearing_names_that_git_quotes_are_still_blocked(self):
+        for name in ("db/data/a\tb.json", "dump\"x.sql", "back\\slash.csv", "db/da\nta/x.json".replace("\n", "")):
+            with self.subTest(name=name):
+                self.assertEqual(self.classify([name])["reviewer_route"], "blocked")
+
+    def test_compliance_names_that_git_quotes_still_route_to_claude_deep(self):
+        self.assertEqual(self.classify(["docs/legal/a\tb.md"])["reviewer_route"], "claude-deep")
+
+
+# Records every gh call (one line of arguments each) instead of reaching GitHub.
+RECORDING_GH = r'''#!/usr/bin/env python3
+import os, pathlib, sys
+log = pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls"
+with log.open("a") as handle:
+    handle.write(" ".join(sys.argv[1:]) + "\\n")
+'''
+
+# The status API as status-final sees it: no deep-pass status posted yet; writes are recorded.
+STATUS_GH = r'''#!/usr/bin/env python3
+import os, pathlib, sys
+args = sys.argv[1:]
+if any("/commits/" in a for a in args):
+    print("[]")
+else:
+    with (pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls").open("a") as handle:
+        handle.write(" ".join(args) + "\\n")
+'''
+
+# The W2 step's secrets, as the workflow passes them (env, never the script text).
+W2_ENV = {"N8N_WEBHOOK_URL": "https://n8n.example.invalid/webhook/w2", "N8N_HMAC_SECRET": "hmac-test-secret-value"}
+
+
+def load_module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 if __name__ == "__main__":

@@ -74,24 +74,38 @@ COMPLIANCE_PATTERNS=(
 
 GITQ='git -c core.quotepath=false'
 
-paths="$($GITQ diff --name-only "$BASE_SHA...$HEAD_SHA")" \
+# NUL-separated, matched one name at a time. Newline-separated output quotes any name holding a
+# tab, newline, `"` or `\` (even with core.quotepath=false), and the added quote defeats the `^`
+# and `$` anchors below; a newline inside a name would also split it in two. Written to a file
+# first so a git failure stops this script instead of vanishing inside a pipe.
+names_file="$(mktemp)"
+trap 'rm -f "$names_file"' EXIT
+$GITQ diff -z --name-only "$BASE_SHA...$HEAD_SHA" > "$names_file" \
   || { echo "classifier: git diff $BASE_SHA...$HEAD_SHA failed" >&2; exit 3; }
+mapfile -d '' -t CHANGED_PATHS < "$names_file"
+
+# True when any changed path matches any of the given extended regexes.
+any_path_matches() {
+  local path pat
+  for path in "${CHANGED_PATHS[@]}"; do
+    for pat in "$@"; do
+      if [[ $path =~ $pat ]]; then
+        return 0
+      fi
+    done
+  done
+  return 1
+}
 
 data_bearing=false
-for pat in "${DATA_BEARING_PATTERNS[@]}"; do
-  if printf '%s\n' "$paths" | grep -qE "$pat"; then
-    data_bearing=true
-    break
-  fi
-done
+if any_path_matches "${DATA_BEARING_PATTERNS[@]}"; then
+  data_bearing=true
+fi
 
 compliance_path=false
-for pat in "${COMPLIANCE_PATTERNS[@]}"; do
-  if printf '%s\n' "$paths" | grep -qE "$pat"; then
-    compliance_path=true
-    break
-  fi
-done
+if any_path_matches "${COMPLIANCE_PATTERNS[@]}"; then
+  compliance_path=true
+fi
 
 if [ "$data_bearing" = "true" ]; then
   reviewer_route="blocked"
