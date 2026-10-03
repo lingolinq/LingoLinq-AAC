@@ -17,6 +17,17 @@ export function board_view_route(user) {
   return is_classic(user) ? 'user.board-alt' : 'user.board-detail';
 }
 
+/* WHICH BOARD KEYS LIVE IN THE TWO VIEW ROUTES AT ALL (2026-10-02). A user's board is
+   `<owner>/<name>` and opens in board-alt (Basic) or board-detail (Modern). Keys under `obf/`
+   (Liked Boards, eval, emergency boards) and `integrations/` are not owned by a user: the catch-all
+   board route keeps them on the legacy board page in either view (routes/board.js), and the View
+   menu must leave them there too -- splitting one made "obf" a user name and stranded the page
+   (components/view-switcher.js; scripts/view-switch-obf-board-qa.mjs). */
+export function opens_in_view_route(key) {
+  if(!key || typeof key !== 'string' || key.indexOf('/') === -1) { return false; }
+  return !key.match(/^integrations\//) && !key.match(/^obf\//);
+}
+
 export default board_view_route;
 
 // Where to send a user who should land on a board IN EDIT MODE.

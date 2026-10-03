@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { is_classic, view_style, set_view_style, confirm_view_style_change } from '../utils/view_style';
-import { board_view_route } from '../utils/board_view';
+import { board_view_route, opens_in_view_route } from '../utils/board_view';
 import { basic_landing_for, hand_off_index_nav, is_own_page, modern_landing_for } from '../utils/basic_landing';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
@@ -275,6 +275,9 @@ export default Component.extend({
       // Non-board pages re-render in place — same route, different template.
       var key = this.appState.get('currentBoardState.key');
       if(!key) { return; }
+      // obf/ and integrations/ boards are not in either view route: they stay on the legacy board
+      // page and re-render in place (utils/board_view.js opens_in_view_route, 2026-10-02).
+      if(!opens_in_view_route(key)) { return; }
 
       // On a board, the two styles are different ROUTES. Resolve the target the
       // same way every other board navigation does, so this cannot drift from

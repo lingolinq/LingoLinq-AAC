@@ -7,7 +7,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import session from '../utils/session';
-import { board_view_route } from '../utils/board_view';
+import { board_view_route, opens_in_view_route } from '../utils/board_view';
 import { wait_for_session_user } from '../utils/session_user_wait';
 import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
@@ -22,7 +22,7 @@ export default Route.extend({
     var key = (to && to.parent && to.parent.params && to.parent.params.key) ||
               (to && to.params && to.params.key) ||
               (transition.params && transition.params['board'] && transition.params['board'].key);
-    if(key && key.indexOf('/') !== -1 && !key.match(/^integrations\//) && !key.match(/^obf\//)) {
+    if(opens_in_view_route(key)) { // the View menu applies the same rule (utils/board_view.js)
       var parts = key.split('/');
       var user_id = parts[0];
       var boardname = parts.slice(1).join('/');

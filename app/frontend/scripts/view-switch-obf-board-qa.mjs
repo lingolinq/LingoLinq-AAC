@@ -8,9 +8,11 @@
 // (components/view-switcher.js _apply_view) splits the board key into owner/boardname, so "obf"
 // becomes a user name.
 //
-// FOUND 2026-10-02, both directions: the route becomes `user` while the address stays
-// /obf/stars-self, the header is empty (no logo, menu or View button) and the board tiles are left
-// unstyled -- no navigation but the browser's Back. This script FAILS until that is fixed.
+// FOUND 2026-10-02, both directions: the route became `user` while the address stayed
+// /obf/stars-self, the header was empty (no logo, menu or View button) and the board tiles were left
+// unstyled -- no navigation but the browser's Back. FIXED the same day: the switcher leaves obf/ and
+// integrations/ boards in place (utils/board_view.js opens_in_view_route). Before: 3 passed / 2
+// failed; after: 5 passed.
 //
 // Passes when, after the switch, the page is either still the board (`board.index`) or a normal page
 // whose address matches it -- not `user` at /obf/.... DATA: example's view preference is switched and restored.
