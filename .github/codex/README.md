@@ -11,7 +11,10 @@
 > the sticky comment); (4) re-add `codex-review/deep-pass` to branch protection
 > on develop and staging: OPEN, the check is still not in the required set on
 > develop, staging or main; (5) decide the canary variables (see Evidence
-> modes): OPEN. Until (4) a failing deep pass does not block merge, and the
+> modes): OPEN; (6) the staging copy of `scripts/codex-review-path-classifier.sh`
+> carries the `db/language/` rule: OPEN; (7) W1's data-bearing path list matches
+> the classifier: OPEN; (8) the review step's model input is limited to the PR
+> diff: OPEN. Until (4) a failing deep pass does not block merge, and the
 > `--admin` exception policy in `docs/process/deep-pass-admin-exception-policy.md`
 > has nothing to override. Known gap: simultaneous PR events (for example
 > `opened` plus auto `review_requested`) can each dispatch before W1's

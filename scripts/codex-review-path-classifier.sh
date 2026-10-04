@@ -10,8 +10,8 @@
 #   brain path because CI runners do not have the brain checkout available
 #   (see the build spec's FLAG-2). Keep the pattern list in sync by hand;
 #   if the brain guard's RISKY_PATTERNS changes, update this file's
-#   DATA_BEARING_PATTERNS to match, and the same for LANGUAGE_PATTERN and
-#   LANGUAGE_VENDOR_EXCEPTION, which are copied verbatim.
+#   DATA_BEARING_PATTERNS to match, and the same for LANGUAGE_PATTERN, which is
+#   copied verbatim.
 #
 #   This script additionally classifies Guard B: whether the diff touches a
 #   compliance-path (docs/legal/**, audit-reports/**). Guard B is a Tier 2
@@ -75,16 +75,9 @@ DATA_BEARING_PATTERNS=(
 
 # db/language/ holds generated vocabulary, which is data-bearing (matched in any
 # letter case, since a case-insensitive checkout serves DB/Language/ as db/language/).
-# Vendored from the brain guard's LANGUAGE_PATTERN and LANGUAGE_VENDOR_EXCEPTION.
-# The ONE exception is the pinned upstream vendor directory and its closed file list,
-# as lib/language/schema2_generator.rb pins them: VENDOR_DIR, its two INPUTS
-# (rules-en.json, words-en.json) and NOTICE.md, the attribution file it names. Any
-# other file or subdirectory there, any other vendor directory, and any other letter
-# case stay data-bearing. A new upstream pin is a deliberate change to this line, made
-# in the brain guard and here together. The exception clears this rule only; the
-# patterns above still apply to the vendor files.
+# Every path under it is data-bearing, the vendored upstream files included.
+# Vendored from the brain guard's LANGUAGE_PATTERN.
 LANGUAGE_PATTERN='(^|/)[dD][bB]/[lL][aA][nN][gG][uU][aA][gG][eE](/|$)'
-LANGUAGE_VENDOR_EXCEPTION='^db/language/vendor/openaac-demo-tools-0977e83f/(NOTICE\.md|rules-en\.json|words-en\.json)$'
 
 # Guard B patterns — compliance-path Tier 2 confidentiality preference.
 COMPLIANCE_PATTERNS=(
@@ -140,11 +133,8 @@ for pat in "${DATA_BEARING_PATTERNS[@]}"; do
   fi
 done
 if [ "$data_bearing" = "false" ]; then
-  select_paths lang "$paths" "" "$LANGUAGE_PATTERN"
-  if [ -n "$lang" ]; then
-    select_paths match "$lang" "-v" "$LANGUAGE_VENDOR_EXCEPTION"
-    [ -z "$match" ] || data_bearing=true
-  fi
+  select_paths match "$paths" "" "$LANGUAGE_PATTERN"
+  [ -z "$match" ] || data_bearing=true
 fi
 
 compliance_path=false

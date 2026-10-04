@@ -146,11 +146,11 @@ stub_case blocked "$V/NOTICE.md/../../../en/x.json (stubbed git)" \
 real_case blocked "x/$V/words-en.json"
 real_case blocked 'db/language'
 
-echo "== db/language: the pinned vendor files pass =="
-real_case codex "$V/NOTICE.md"
-real_case codex "$V/rules-en.json"
-real_case codex "$V/words-en.json"
-real_case codex "$V/NOTICE.md" "$V/rules-en.json" "$V/words-en.json"
+echo "== db/language: the vendored upstream files block too =="
+real_case blocked "$V/NOTICE.md"
+real_case blocked "$V/rules-en.json"
+real_case blocked "$V/words-en.json"
+real_case blocked "$V/NOTICE.md" "$V/rules-en.json" "$V/words-en.json"
 
 echo "== db/language: a rename into the vendor tree is classified by its old name too =="
 git -C "$REPO" checkout -q --detach "$BASE"
@@ -164,6 +164,29 @@ git -C "$REPO" mv db/language/en/vocab-en.json "$V/words-en.json"
 git -C "$REPO" commit -q -m 'rename head'
 classify "$RBASE" "$(git -C "$REPO" rev-parse HEAD)"
 report blocked "git mv db/language/en/vocab-en.json -> $V/words-en.json"
+
+echo "== a rename out of a data-bearing path is classified by its old name too =="
+git -C "$REPO" checkout -q --detach "$BASE"
+mkdir -p "$REPO/spec/fixtures"
+printf 'kid: test\n' > "$REPO/spec/fixtures/x.yml"
+git -C "$REPO" add spec/fixtures/x.yml
+git -C "$REPO" commit -q -m 'rename-out base'
+OBASE="$(git -C "$REPO" rev-parse HEAD)"
+mkdir -p "$REPO/app"
+git -C "$REPO" mv spec/fixtures/x.yml app/x.yml
+git -C "$REPO" commit -q -m 'rename-out head'
+OHEAD="$(git -C "$REPO" rev-parse HEAD)"
+# Precondition: the listing the classifier would make without --no-renames (git's own
+# rename config, no -M) holds only app/x.yml, or the case below proves nothing.
+total=$((total + 1))
+if [ "$(git -C "$REPO" diff --name-only "$OBASE...$OHEAD")" = "app/x.yml" ]; then
+  echo "  ok   precondition, git detects the rename out of spec/fixtures/"
+else
+  echo "  FAIL precondition, git detects the rename out of spec/fixtures/"
+  fails=$((fails + 1))
+fi
+classify "$OBASE" "$OHEAD"
+report blocked "git mv spec/fixtures/x.yml -> app/x.yml"
 
 echo "== a large listing (far past a pipe buffer) classifies end to end =="
 BIG="$(for i in $(seq 1 20000); do printf 'app/models/generated_%05d.rb\n' "$i"; done)"
@@ -256,7 +279,6 @@ site_case codex 'no-pattern-contains-this' 'grep site stub passes through when n
 site_case ERR3 '^"' 'grep fails only at the git-quoted check' 'app/models/user.rb'
 site_case ERR3 'fixtures' 'grep fails only at the data-bearing patterns' 'app/models/user.rb'
 site_case ERR3 '[lL][aA]' 'grep fails only at the db/language pattern' 'app/models/user.rb'
-site_case ERR3 'openaac-demo-tools' 'grep fails only at the vendor exception' "$V/words-en.json"
 site_case ERR3 'docs/legal' 'grep fails only at the compliance patterns' 'app/models/user.rb'
 
 echo

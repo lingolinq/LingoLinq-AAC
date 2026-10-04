@@ -27,11 +27,9 @@ regardless of the surrounding task:
   any other name (a purge or scrub task, for example) is NOT caught: name it with one of
   those words, or keep its diff off the consumer route by hand. Do not work around the
   classifier.
-- The one `db/language/` exception is the pinned upstream vendor files, exactly
-  `db/language/vendor/openaac-demo-tools-0977e83f/{NOTICE.md,rules-en.json,words-en.json}`.
-  Any other file in that directory, any other vendor directory, any other letter case, and
-  a rename from elsewhere under `db/language/` into it stay data-bearing. A new upstream
-  pin changes the exception in the classifier and in the brain guard together.
+- Every path under `db/language/` is data-bearing, the vendored upstream files under
+  `db/language/vendor/` included. The rule matches the brain review guard; a change to it
+  is made in the classifier and in the brain guard together.
 - The classifier fails closed: an empty diff, a git-quoted path, or a git or grep failure
   exits 3, writes no route, and stops the review job.
 - Before committing a fixture, cassette, or seed, confirm it holds synthetic data only.
