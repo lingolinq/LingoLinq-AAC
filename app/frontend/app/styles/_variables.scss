@@ -682,14 +682,18 @@ $caseload-model-blue-aa:    #2880C9;  // border only — $brand-dusty-denim-aa r
 // INK is $brand-blue-black (#111A2E) on all five, not LA Navy — a touch deeper, which is
 // what lets the fills be this muted without the labels softening.
 // Measured ink-on-fill at 14px/700 (4.5:1 floor), top corner / bottom corner:
-//   Model 8.63/6.27   Speak 6.64/4.41   Reports 8.24/5.35   Ideas 8.83/6.19   More 9.46/6.79
+//   Remote 8.63/6.27   Speak 6.64/4.41   Reports 8.24/5.35   Ideas 8.83/6.19   More 9.46/6.79
+// (Model and Choose Board are not tiles from this palette: they take the hero surface,
+// focus-hero-background, with white ink; 2026-10-03.)
 // Only Speak's BOTTOM CORNER is under the floor. The label sits mid-ramp, where it
 // measures 5.45:1; #7681A9 would clear the corner too if that matters.
 // BORDERS are derived, not stated: each is its bottom stop darkened L-11.5, which is the
 // same relationship the previous palette's stated borders had (measured L-10.7 average).
-$caseload-tile-model-from:    #A1B9D8;  // Muted Dusty Denim
-$caseload-tile-model-to:      #7D9EC7;
-$caseload-tile-model-border:  #547FB5;
+// Remote Modeling: the Dusty Denim stops Model wore until 2026-10-03 (requested: "make the
+// remote modeling bg the same as the model button"). Model now takes the hero surface.
+$caseload-tile-remote-from:   #A1B9D8;
+$caseload-tile-remote-to:     #7D9EC7;
+$caseload-tile-remote-border: #547FB5;
 $caseload-tile-speak-from:    #969FC3;  // Professional slate-indigo
 // Bottom stop lifted 5% toward the top stop (2026-08-16). At #747FA8 the tile's BOTTOM
 // CORNER measured 4.41:1 against the #111A2E ink — the only part of any tile in this row
@@ -709,7 +713,7 @@ $caseload-tile-more-from:     #B8C0CD;  // Neutral blue-grey
 $caseload-tile-more-to:       #98A3B3;
 $caseload-tile-more-border:   #76859A;
 $caseload-tile-ink:           $brand-blue-black;
-$caseload-tile-model-ink:     $caseload-tile-ink;
+$caseload-tile-remote-ink:    $caseload-tile-ink;
 $caseload-tile-speak-ink:     $caseload-tile-ink;
 $caseload-tile-reports-ink:   $caseload-tile-ink;
 $caseload-tile-ideas-ink:     $caseload-tile-ink;
