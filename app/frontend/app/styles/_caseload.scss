@@ -1051,15 +1051,17 @@
 .md-caseload__list-quick .md-caseload__quick-action--ideas {
   flex: 0 0 86px;
 }
-/* Remote Modeling (2026-10-02): its "Limited" pill sits on the tile's top-right edge, where the
-   lock badge sits on the unavailable tiles, so it does not widen the tile or push the label. */
+/* Remote Modeling (2026-10-02): its "Limited" pill sits centred on the tile's top border
+   (2026-10-03, requested; it was at the top-right corner): its middle on the border line, both
+   ways, whatever the pill's height. It does not widen the tile or push the label. */
 .md-caseload__quick-action--remote {
   position: relative;
 }
 .md-caseload__quick-action--remote .md-limited-badge {
   position: absolute;
-  top: -9px;
-  right: -6px;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
   margin-left: 0;
 }
 /* Choose-Board slot — shown in place of Model when a communicator has no home
