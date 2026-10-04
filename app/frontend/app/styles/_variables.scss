@@ -550,6 +550,20 @@ $focus-hero-center-fallback: cf-srgb($focus-hero-center-color);
 $focus-hero-edge-fallback:   cf-srgb($focus-hero-edge-color);
 // Ink (text / icon / arrow / bevel sheen) sitting ON any dark Focused surface.
 $focus-on-dark:          #ffffff;
+
+// THE HERO SURFACE as a background: the oklab navy radial of the Focused caseload hero
+// (`.md-card--caseload-focused`, app.scss), sRGB fallback first. White ink on it measures 6.95:1
+// at the lit centre and 16.5:1 at the edge. Used by the caseload Model buttons
+// (_caseload-compact.scss, _focused-view.scss) so they cannot drift from the hero.
+@mixin focus-hero-background($important: false) {
+  @if $important {
+    background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%) !important;
+    background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%) !important;
+  } @else {
+    background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%);
+    background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%);
+  }
+}
 // Ink color tinting every Focused elevation shadow (hero + cards + trigger).
 $focus-shadow-ink:       $la-navy;
 // Accent glows around the hero (resting verdigris bloom; hover denim bloom).

@@ -86,20 +86,22 @@
                       <span class="md-cl-row__role">
                         {{#if (is-equal supervisee.edit_permission true)}}{{t "Editor" key="caseload_access_editor"}}{{else if (is-equal supervisee.modeling_only true)}}{{t "Model" key="caseload_access_modeling"}}{{else if (is-equal supervisee.edit_permission false)}}{{t "Viewer" key="caseload_access_viewer"}}{{/if}}
                       </span>
-                    </span>
-                    <span class="md-cl-row__status">
-                      {{#let (attention-badge supervisee) as |att|}}
-                        {{#if att}}
-                          <span class="md-cl-row__status-line md-cl-row__status-line--attention" title={{att.hint}}>
-                            <svg class="md-cl-row__status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{att.label}}
-                          </span>
-                        {{/if}}
-                      {{/let}}
-                      {{#unless supervisee.resolved_home_board_key}}
-                        {{#unless supervisee.modeling_only}}
-                          <span class="md-cl-row__status-line md-cl-row__status-line--setup" title={{t "This communicator has no home board yet — choose one to finish setting them up." key="caseload_board_needed_hint"}}>{{t "Board needed" key="caseload_board_needed"}}</span>
+                      {{!-- The attention status sits under the role (2026-10-03, requested): it takes no space
+                           when there is none (_caseload-compact.scss .md-cl-row__status). --}}
+                      <span class="md-cl-row__status">
+                        {{#let (attention-badge supervisee) as |att|}}
+                          {{#if att}}
+                            <span class="md-cl-row__status-line md-cl-row__status-line--attention" title={{att.hint}}>
+                              <svg class="md-cl-row__status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{att.label}}
+                            </span>
+                          {{/if}}
+                        {{/let}}
+                        {{#unless supervisee.resolved_home_board_key}}
+                          {{#unless supervisee.modeling_only}}
+                            <span class="md-cl-row__status-line md-cl-row__status-line--setup" title={{t "This communicator has no home board yet — choose one to finish setting them up." key="caseload_board_needed_hint"}}>{{t "Board needed" key="caseload_board_needed"}}</span>
+                          {{/unless}}
                         {{/unless}}
-                      {{/unless}}
+                      </span>
                     </span>
                   </button>
                   <div class="md-cl-row__actions" role="group" aria-label={{t "Quick actions" key="quick_actions"}}>
@@ -113,7 +115,10 @@
                     {{!-- Remote Modeling, right of Model: see the note on the same button in the full layout below. --}}
                     {{#if this.appState.feature_flags.remote_modeling}}
                       {{#let (remote-modeling-access supervisee) as |rm|}}
-                        <button type="button" class="md-cl-btn md-cl-btn--remote" {{on "click" rm.open}} aria-label={{concat (t "Remote Modeling" key="remote_modeling") " " supervisee.user_name (if rm.limited (concat " (" (t "Limited" key="remote_modeling_limited") ")"))}} title={{t "Remote Modeling" key="remote_modeling"}}>{{t "Remote" key="caseload_qa_remote"}}{{#if rm.limited}}<span class="md-limited-badge" aria-hidden="true">{{t "Limited" key="remote_modeling_limited"}}</span>{{/if}}</button>
+                        {{!-- Limited (it cannot connect yet): amber, with a warning mark on its corner instead of a
+                             "Limited" pill, so it is the same size as an available Remote button (2026-10-03,
+                             requested). The word stays in the accessible name and the tooltip. --}}
+                        <button type="button" class="md-cl-btn md-cl-btn--remote {{if rm.limited "md-cl-btn--limited"}}" {{on "click" rm.open}} aria-label={{concat (t "Remote Modeling" key="remote_modeling") " " supervisee.user_name (if rm.limited (concat " (" (t "Limited" key="remote_modeling_limited") ")"))}} title={{if rm.limited (concat (t "Remote Modeling" key="remote_modeling") " (" (t "Limited" key="remote_modeling_limited") ")") (t "Remote Modeling" key="remote_modeling")}}>{{t "Remote" key="caseload_qa_remote"}}{{#if rm.limited}}<svg class="md-cl-btn__warning" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{/if}}</button>
                       {{/let}}
                     {{/if}}
                     {{#if supervisee.resolved_home_board_key}}

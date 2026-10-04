@@ -92,11 +92,12 @@
   container: cl-row / inline-size;
 }
 
-// Identity, a real button (opens the expanded panel, like the tiled row's trigger): avatar, name
-// over role, then the attention status in a column of its own so statuses line up across rows.
+// Identity, a real button (opens the expanded panel, like the tiled row's trigger): avatar, then
+// name over role over the attention status (2026-10-03, requested: the status under the role, at
+// every width, and no line when there is none; it was a column of its own, which skewed the row).
 .md-cl-row__identity {
   display: grid;
-  grid-template-columns: 40px minmax(120px, 220px) minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr);
   align-items: center;
   column-gap: 14px;
   flex: 1 1 360px;
@@ -161,6 +162,13 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+// No status to show: take the empty line out, so it adds no height under the role.
+.md-cl-row__status:not(:has(*)) {
+  display: none;
 }
 
 // Status as text; the colour is only in the icon, which reinforces it (the text names it).
@@ -239,24 +247,75 @@
 .md-cl-btn--model:focus-visible {
   border-color: $focus-hero-edge-fallback; // sRGB fallbacks first (_color-fallbacks.scss)
   border-color: $focus-hero-edge;
-  background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%);
-  background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%);
+  @include focus-hero-background;
   color: #ffffff;
 }
 
-// Speak: the brand slate blue with light text, one step quieter than the navy primary (white on
-// $brand-slate-blue is about 5.6:1; hover takes $brand-charcoal-blue, darker still).
-.md-cl-btn--speak {
+// Remote: the brand slate blue with light text, one step quieter than the navy primary (white on
+// $brand-slate-blue is about 5.6:1; hover takes $brand-charcoal-blue, darker still). It had the
+// neutral glass and was hard to see (2026-10-03, requested); a limited Remote keeps its amber
+// (.md-cl-btn--limited, later in this file, so it wins at the same specificity).
+.md-cl-btn--remote {
   border-color: $brand-slate-blue;
   background: $brand-slate-blue;
   color: #ffffff;
 }
 
-.md-cl-btn--speak:hover,
-.md-cl-btn--speak:focus-visible {
+.md-cl-btn--remote:hover,
+.md-cl-btn--remote:focus-visible {
   border-color: $brand-charcoal-blue;
   background: $brand-charcoal-blue;
   color: #ffffff;
+}
+
+// Speak: a light grey, quieter than Remote (2026-10-03, requested twice: lighter, then lighter
+// still). A 50% tint of $brand-cool-steel (#ced1d7) with navy text, 7.9:1; the full
+// $brand-cool-steel keeps the edge. Hover deepens to $brand-cool-steel, navy text 4.8:1.
+.md-cl-btn--speak {
+  border-color: $brand-cool-steel;
+  background: mix($brand-cool-steel, #ffffff, 50%);
+  color: #1b365d;
+}
+
+.md-cl-btn--speak:hover,
+.md-cl-btn--speak:focus-visible {
+  border-color: $brand-cool-steel;
+  background: $brand-cool-steel;
+  color: #1b365d;
+}
+
+// Remote Modeling the supporter cannot use in full yet (utils/remote_modeling.js; the click says
+// why): an amber warning surface with a warning mark on its corner, replacing a "Limited" pill
+// that made this button wider than an available one (2026-10-03, requested). Text #7a4e06 on
+// #fff4e0 is 6.6:1; the #9a6a12 border and mark are 4.3:1 on the fill and 4.7:1 on white.
+.md-cl-btn--limited {
+  position: relative;
+  border-color: #9a6a12;
+  background: #fff4e0;
+  color: #7a4e06;
+}
+
+.md-cl-btn--limited:hover,
+.md-cl-btn--limited:focus-visible {
+  border-color: #7a4e06;
+  background: #ffe9c2;
+  color: #7a4e06;
+}
+
+// Sits over the corner, so it adds no width; the white disc keeps it legible over the border.
+.md-cl-btn__warning {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px #9a6a12;
+  color: #9a6a12;
+  pointer-events: none;
 }
 
 .md-cl-btn--more {
@@ -448,49 +507,26 @@
   }
 }
 
-// ---- Narrow screens: the actions move under the identity, the status under the name ------------
-// ---- Half-width cards (two per row, 1200px and up): status moves under the name --------------
+// ---- Half-width cards (two per row, 1200px and up): equal heights -----------------------------
 // Keyed on the card's own width, so a card that is still full width keeps its one-line layout.
 // Before the narrow-screen block, which owns phones.
 @media (min-width: 1200px) {
   @container cl-row (max-width: 620px) {
     .md-cl-row__identity {
-      grid-template-columns: 40px minmax(0, 1fr);
       // Every half-width card is as tall as one with a status (name, role and one 21px status
       // line, measured 64.5px), so the two cards in a row match; the content centres in that
       // height, so a card with no status centres its name and role on the avatar, with no gap.
       min-height: 64.5px;
       align-content: center;
-      row-gap: 0;
       flex: 1 1 0;
-    }
-
-    .md-cl-row__avatar {
-      grid-row: 1 / span 2;
-    }
-
-    .md-cl-row__status {
-      grid-column: 2;
-      margin-top: 2px;
-      line-height: 1.4;
-    }
-
-    // No status to show: take the empty line out, so it adds no height under the name.
-    .md-cl-row__status:not(:has(*)) {
-      display: none;
     }
   }
 }
 
+// ---- Narrow screens: the actions move under the identity ------------------------------------
 @media (max-width: 640px) {
   .md-cl-row__identity {
-    grid-template-columns: 40px minmax(0, 1fr);
-    row-gap: 4px;
     flex-basis: 100%;
-  }
-
-  .md-cl-row__status {
-    grid-column: 2;
   }
 
   .md-cl-row__actions {
