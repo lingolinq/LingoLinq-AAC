@@ -230,6 +230,84 @@ describe 'User org offboarding parental consent', type: :model do
     end
   end
 
+  describe '#begin_family_offboarding_consents! with skip_if_supported_elsewhere' do
+    # The callers check for another organization's seat before calling, but a claim can land
+    # between that check and this method's lock. The re-check here runs under the user lock,
+    # which Organization#claim_user also takes to seat the student. The interleaving itself
+    # cannot be reproduced in the transactional suite (one connection); this asserts the
+    # re-check exists and decides under the SAME lock as the write that follows it.
+
+    # Number each user-lock entry and record which entry the re-check and each save! ran in, so
+    # a check and a write in two consecutive locks (which reopens the window) can be told apart
+    # from one lock.
+    def spy_on_lock_entries(u)
+      trace = {entries: 0, current: nil, checks: [], saves: []}
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = trace[:current]
+          trace[:current] = (trace[:entries] += 1)
+          begin
+            blk.call
+          ensure
+            trace[:current] = outer
+          end
+        end
+      end
+      allow(License).to receive(:active_seat_elsewhere?).and_wrap_original do |orig, *args|
+        trace[:checks] << trace[:current]
+        orig.call(*args)
+      end
+      allow(u).to receive(:save!).and_wrap_original do |orig, *args|
+        trace[:saves] << trace[:current]
+        orig.call(*args)
+      end
+      trace
+    end
+
+    it 'skips offboarding when another organization supports the student' do
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active')
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: 'recheck')
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+      authorization_before = u.reload.settings['school_authorization']
+      b = under13_birth
+
+      trace = spy_on_lock_entries(u)
+
+      result = u.begin_family_offboarding_consents!(org: morning, birth_month: b[:month], birth_year: b[:year],
+                                                    skip_if_supported_elsewhere: true)
+
+      # The re-check and the attestation write happen in one lock entry.
+      expect(trace[:checks].length).to eq(1)
+      expect(trace[:checks].first).to be_a(Integer)
+      expect(trace[:saves]).to eq([trace[:checks].first])
+      u.reload
+      expect(result).to eq(false)
+      expect(u.settings['coppa']).to be_nil
+      expect(u.settings['school_authorization']).to eq(authorization_before)
+      expect(u.settings['registration']['offboarding_birth_month']).to eq(b[:month])
+    end
+
+    it 'offboards as before when no other organization supports the student' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'recheck_none')
+      b = under13_birth
+      trace = spy_on_lock_entries(u)
+
+      expect(u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year],
+                                                  skip_if_supported_elsewhere: true)).to eq(true)
+
+      # The re-check and the offboarding write happen in one lock entry.
+      expect(trace[:checks].length).to eq(1)
+      expect(trace[:checks].first).to be_a(Integer)
+      expect(trace[:saves]).to eq([trace[:checks].first])
+      expect(u.reload.coppa_parental_consent_pending?).to eq(true)
+    end
+  end
+
   describe '#submit_parental_consent_email!' do
     it 'stamps token and schedules mail from needs_parent_email state' do
       u = school_authorized_user!(suffix: 'sub')
@@ -345,6 +423,117 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.settings['coppa']).to be_nil
     end
 
+    it 'does not offboard while another organization still holds a seat' do
+      # A student may be seated by more than one organization. One of them letting go is not a
+      # hand-back to the family while another still holds an active seat.
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active')
+      afternoon_seat = License.create!(organization: afternoon, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: 'rmsurv')
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+      authorization_before = u.reload.settings['school_authorization']
+      b = under13_birth
+
+      morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(false)
+      expect(u.settings['coppa']).to be_nil
+      expect(u.settings['school_authorization']).to eq(authorization_before)
+      expect(afternoon_seat.reload.user_id).to eq(u.id)
+    end
+
+    it 'offboards on removal when the only other active seat is a supervisor seat' do
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: 'rmsup')
+      morning.claim_user(u)
+      License.create!(organization: afternoon, seat_type: 'supervisor', status: 'active', user: u.reload)
+      b = under13_birth
+
+      morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['coppa']['offboarding']).to eq(true)
+    end
+
+    it 'keeps the age attestation so a 15-year-old is not offboarded later' do
+      # Offboarding is skipped while another seat survives, but the manager's age attestation
+      # is still recorded. Without it the later expiry of the surviving seat sees
+      # school_authorization with no birth date and treats the student as under 13.
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active')
+      afternoon_seat = License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      u = school_authorized_user!(suffix: 'rm15')
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+      b = under16_over13_birth
+
+      morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.settings['coppa']).to be_nil
+      expect(u.settings['registration']['offboarding_birth_month']).to eq(b[:month])
+      expect(u.settings['registration']['offboarding_birth_year']).to eq(b[:year])
+
+      afternoon_seat.update_columns(expires_at: 1.day.ago)
+      License.expire_stale_licenses!
+
+      u.reload
+      expect(afternoon_seat.reload.user_id).to be_nil
+      expect(u.settings['coppa']).to be_nil
+    end
+
+    it 'uses the stored attestation once the surviving seat expires' do
+      # No school_authorization here, so nothing but the stored attestation can mark this
+      # student as under 13 when the last seat goes.
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active')
+      afternoon_seat = License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      u = User.process_new({
+        'user_name' => "plain_rm10_#{SecureRandom.hex(4)}",
+        'email' => "plain_rm10_#{SecureRandom.hex(4)}@example.com",
+        'password' => 'abcdefgh',
+        'terms_agree' => true
+      })
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+      b = under13_birth
+
+      morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.settings['coppa']).to be_nil
+
+      afternoon_seat.update_columns(expires_at: 1.day.ago)
+      License.expire_stale_licenses!
+
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['coppa']['offboarding']).to eq(true)
+    end
+
+    it 'still offboards when the released seat was the last one' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      License.create!(organization: o, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: 'rmlast')
+      o.claim_user(u)
+      b = under13_birth
+
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['coppa']['offboarding_deadline_at']).to be_present
+      expect(u.settings['school_authorization']).to be_nil
+    end
+
     it 'requires birth month/year when COPPA is enabled' do
       o = Organization.create(settings: {'total_licenses' => 1})
       u = school_authorized_user!(suffix: 'nobirth')
@@ -369,6 +558,62 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.settings['school_authorization']).to be_nil
       expect(lic.reload.user_id).to eq(nil)
       expect(lic.status).to eq('expired')
+    end
+
+    it 'does not offboard when another organization still holds an active seat' do
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'licsurv')
+      lic = License.create!(organization: morning, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      survivor = License.create!(organization: afternoon, seat_type: 'student', status: 'active', user: u, expires_at: 1.year.from_now)
+      u.update!(managing_organization_id: morning.id)
+      authorization_before = u.reload.settings['school_authorization']
+
+      expect(License.expire_stale_licenses!).to be >= 1
+
+      u.reload
+      expect(lic.reload.user_id).to eq(nil)
+      expect(u.coppa_parental_consent_pending?).to eq(false)
+      expect(u.settings['coppa']).to be_nil
+      expect(u.settings['school_authorization']).to eq(authorization_before)
+      expect(survivor.reload.user_id).to eq(u.id)
+      expect(u.managing_organization_id).to eq(afternoon.id)
+    end
+
+    it 'offboards when the only other active seat is a supervisor seat' do
+      # A supervisor seat is not support for the student as a communicator, so it must not
+      # hold off the hand-back to the family.
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'licsup')
+      lic = License.create!(organization: morning, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      supervisor_seat = License.create!(organization: afternoon, seat_type: 'supervisor', status: 'active', user: u, expires_at: 1.year.from_now)
+      u.update!(managing_organization_id: morning.id)
+
+      expect(License.expire_stale_licenses!).to be >= 1
+
+      u.reload
+      expect(lic.reload.user_id).to eq(nil)
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['school_authorization']).to be_nil
+      expect(u.managing_organization_id).to be_nil
+      expect(supervisor_seat.reload.user_id).to eq(u.id)
+    end
+
+    it 'offboards once when every seat expires in the same run' do
+      morning = Organization.create(settings: {'total_licenses' => 1})
+      afternoon = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'licboth')
+      License.create!(organization: morning, seat_type: 'student', status: 'active', user: u, expires_at: 2.days.ago)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      u.update!(managing_organization_id: morning.id)
+
+      expect(License.expire_stale_licenses!).to eq(2)
+
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['school_authorization']).to be_nil
+      expect(AuditEvent.where(user_key: u.global_id, event_type: 'parental_consent_offboarding_started').count).to eq(1)
     end
   end
 
