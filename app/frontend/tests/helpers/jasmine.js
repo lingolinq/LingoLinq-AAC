@@ -15,7 +15,7 @@ var all_afters = [[]];
 var all_tests = [];
 var current_test_id = 0;
 var current_afters = [];
-var waiting = {};
+var waiting = {}, wait_deadlines = {}, test_started_at = 0, WAIT_POLL_LIMIT = 120; // wait_deadlines: per test, the latest time a waitsFor timeout asked to wait until; WAIT_POLL_LIMIT backstops it if the clock is stubbed
 
 var assert = null;
 function currentAssert() {
@@ -92,7 +92,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
     var _this = this;
     assert = current_assert;
     var this_arg = lookup || _this;
-    var testDone = assert.async();
+    var testDone = assert.async(); test_started_at = Date.now(); // QUnit's test timeout runs from here
 
     if (!retryOn) {
       // ---- ORIGINAL PATH (all non-persistence-sync tests) — VERBATIM, so the poll
@@ -118,7 +118,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
               });
             };
             if (settleMs > 0) { setTimeout(runCleanup, settleMs); } else { runCleanup(); }
-          } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55)) {
+          } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55) || (wait_deadlines[current_test_id] && pollAttempts < WAIT_POLL_LIMIT && Date.now() < wait_deadlines[current_test_id] + 500)) {
             pollAttempts++;
             var delay = pollAttempts < 10 ? 10 : 100;
             setTimeout(pollUntilIdle, delay);
@@ -369,16 +369,16 @@ var expect = function(data) {
   return expectation;
 };
 
-var lastWaitsFor = null;
-var waitsFor = function(callback) {
-  lastWaitsFor = callback;
+var lastWaitsFor = null, lastWaitsForTimeout = null;
+var waitsFor = function(callback) { // waitsFor(condition[, message][, timeoutMs])
+  lastWaitsFor = callback; var last = arguments[arguments.length - 1]; lastWaitsForTimeout = (arguments.length > 1 && typeof last === 'number') ? last : null;
 };
 
 var runs = function(callback) {
   callback = callback || function() { assert.ok(true); };
   var id = current_test_id;
-  var wait = lastWaitsFor;
-  var attempts = 0;
+  var wait = lastWaitsFor, deadline = lastWaitsForTimeout ? Math.min(Date.now() + lastWaitsForTimeout, test_started_at + ((QUnit.config && QUnit.config.testTimeout) || 15000) - 3000) : 0; // a passed timeout keeps the wait polling until this time, ended 3s before QUnit's test timeout so the harness fails it first
+  var attempts = 0; if(deadline) { wait_deadlines[id] = Math.max(wait_deadlines[id] || 0, deadline); }
   waiting[current_test_id] = waiting[current_test_id] || 0;
   waiting[current_test_id]++;
   var done = function() {
@@ -399,7 +399,7 @@ var runs = function(callback) {
     } else if(id == current_test_id) {
       attempts++;
       var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55;
-      if(attempts >= maxAttempts) {
+      if(attempts >= maxAttempts && !(deadline && attempts < WAIT_POLL_LIMIT && Date.now() < deadline)) { // a passed timeout only extends the wait
         assert.ok(false, 'condition failed for more than ' + (maxAttempts * 100) + 'ms');
         done();
       } else {
