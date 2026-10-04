@@ -5378,7 +5378,7 @@
   "enable_ai_features_blocked_coppa": "AI features require parental consent for this account.",
   "ai_features_eu_consent_needed": "AI features for this account need a parent or guardian's consent first. You can request it in Preferences under AI Features.",
   "enable_ai_features_blocked_flag": "AI board generation is not available for this account.",
-  "ai_features_turn_on_board_generation_hint": "This turns on AI board generation, which suggests words from a topic you describe. Other AI features stay as they are. You can turn it off any time in Preferences under AI Features.",
+  "ai_features_turn_on_board_generation_hint": "This turns on AI features for this account, including AI board generation, which suggests words from a topic you describe. You can turn them off any time in Preferences under AI Features.",
   "ai_features_not_now": "Not now",
   "ai_features_turn_on_button": "Turn on",
   "enable_ai_features_intro": "AI board generation needs to be turned on before you can generate a board with AI.",

@@ -269,7 +269,7 @@
             {{else if this.ai_focus_needs_opt_in}}
               <div class="nb-ai-generate">
                 <p class="nb-ai-generate__lead">{{t "Turn on AI features for this account?" key="ai_features_turn_on_question"}}</p>
-                <p class="md-modal-hint">{{t "This turns on AI board generation, which suggests words from a topic you describe. Other AI features stay as they are. You can turn it off any time in Preferences under AI Features." key="ai_features_turn_on_board_generation_hint"}}</p>
+                <p class="md-modal-hint">{{t "This turns on AI features for this account, including AI board generation, which suggests words from a topic you describe. You can turn them off any time in Preferences under AI Features." key="ai_features_turn_on_board_generation_hint"}}</p>
                 {{#if this.ai_focus_opt_in_error}}
                   <p class="text-danger">{{this.ai_focus_opt_in_error}}</p>
                 {{/if}}
