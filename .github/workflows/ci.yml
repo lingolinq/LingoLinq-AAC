@@ -435,6 +435,12 @@ jobs:
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
 
+      # Guards the last check before the review leaves the runner: each credential format the
+      # scan knows is found (also \u-escaped or split by zero-width characters), ordinary review
+      # text is not, and a hit is reported by check name only, never by value.
+      - name: Run codex-review secret-scan unit tests
+        run: python3 scripts/codex-review-secret-scan.test.py
+
       # Guards the chunked-evidence builder: deterministic diff, structural
       # index (added + removed symbols with real source lines), sub-cap chunk
       # packing, and the MAX_CHUNKS hard-stop that keeps a too-large PR

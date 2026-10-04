@@ -122,9 +122,16 @@ class InjectionGuardTest(unittest.TestCase):
             "Binary files /dev/null and b/public/images/logo.PNG differ\n"
             "Binary files a/app/assets/fonts/x.woff2 and b/app/assets/fonts/x.woff2 differ\n"
             "Binary files a/docs/guide.pdf and /dev/null differ\n"
-            "Binary files /dev/null and b/spec/fixtures/board.obz differ\n"
         )
         self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff)["kind"], "approved")
+
+    # An archive can carry source or data the reviewer never sees, so it is not an expected binary
+    # (2026-10-03; .obz board packages included).
+    def test_an_archive_withholds_approve(self):
+        for archive in ("spec/fixtures/board.obz", "vendor/lib.zip", "data/export.tgz", "dump.sql.gz"):
+            with self.subTest(archive=archive):
+                diff = f"Binary files /dev/null and b/{archive} differ\n"
+                self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff)["kind"], "incomplete_evidence")
 
     def test_binary_file_past_the_truncation_cut_still_withholds_approve(self):
         # The bounded diff the model sees is cut at a size cap; the guard reads the full diff.

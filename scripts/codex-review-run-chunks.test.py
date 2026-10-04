@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,32 @@ MODULE_PATH = pathlib.Path(__file__).with_name("codex-review-run-chunks.py")
 SPEC = importlib.util.spec_from_file_location("codex_review_run_chunks", MODULE_PATH)
 run_chunks = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(run_chunks)
+
+_FIXTURE_DIR = None
+_ORIGINAL_RUNNER_TEMP = None
+
+
+def setUpModule():
+    # Every codex call needs the locked model catalog the workflow writes under $RUNNER_TEMP
+    # (codex_exec_args refuses to build one without it). These tests use a fake codex, so the
+    # catalog is locked from a stub rather than from `codex debug models --bundled`.
+    global _FIXTURE_DIR, _ORIGINAL_RUNNER_TEMP
+    catalog = run_chunks.model_catalog
+    _FIXTURE_DIR = tempfile.TemporaryDirectory()
+    _ORIGINAL_RUNNER_TEMP = os.environ.get("RUNNER_TEMP")
+    stub = {"models": [dict({"slug": slug}, **{field: "set" for field in catalog.TOOL_FIELDS})
+                       for slug in catalog.APPROVED_MODELS]}
+    path = pathlib.Path(_FIXTURE_DIR.name) / catalog.CATALOG_NAME
+    path.write_text(json.dumps(catalog.locked_catalog(stub)))
+    os.environ["RUNNER_TEMP"] = _FIXTURE_DIR.name
+
+
+def tearDownModule():
+    if _ORIGINAL_RUNNER_TEMP is None:
+        os.environ.pop("RUNNER_TEMP", None)
+    else:
+        os.environ["RUNNER_TEMP"] = _ORIGINAL_RUNNER_TEMP
+    _FIXTURE_DIR.cleanup()
 
 
 class RunChunksTest(unittest.TestCase):
@@ -284,6 +311,25 @@ class RunChunksTest(unittest.TestCase):
                     run_chunks.codex_exec_args()
             finally:
                 run_chunks.CODEX_EXEC_ARGS_FILE = original
+
+    def test_refuses_to_build_a_codex_call_without_the_locked_model_catalog(self):
+        self.assertIn("model_provider=\"codex-review\"", run_chunks.codex_exec_args())
+        original = os.environ["RUNNER_TEMP"]
+        with tempfile.TemporaryDirectory() as empty:
+            os.environ["RUNNER_TEMP"] = empty
+            try:
+                with self.assertRaises((RuntimeError, OSError)):
+                    run_chunks.codex_exec_args()
+            finally:
+                os.environ["RUNNER_TEMP"] = original
+
+    def test_the_locked_catalog_holds_exactly_the_models_the_review_runs(self):
+        # The catalog is the only list codex can pick from, so a model the review asks for must be
+        # in it, and nothing else may be.
+        workflow = (MODULE_PATH.parents[1] / ".github/workflows/codex-review.yml").read_text()
+        used = set(re.findall(r"-m (gpt-[\w.-]+)", workflow))
+        used |= {run_chunks.DEFAULT_CHUNK_MODEL, run_chunks.DEFAULT_SYNTHESIS_MODEL}
+        self.assertEqual(used, set(run_chunks.model_catalog.APPROVED_MODELS))
 
     def test_needs_tiebreak_for_approve_block_split(self):
         with tempfile.TemporaryDirectory() as tmp:

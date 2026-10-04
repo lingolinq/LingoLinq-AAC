@@ -8,6 +8,12 @@
 # `unified_exec` feature still reports enabled but only changes how the shell tool runs.
 # Codex accepts unknown keys silently, so the codex-review-tests CI job installs the pinned
 # version and asserts each feature below is really off.
+#
+# The flags alone do not remove every tool: the bundled catalog entry for the model adds exec,
+# apply_patch and the collaboration tools (spawn_agent and others). Each call therefore also
+# selects the `codex-review` provider defined below and a locked model catalog, through the
+# arguments scripts/codex-review-model-catalog.py prints. The CI job checks the result by
+# capturing the request codex sends: the model is offered only request_user_input.
 --ephemeral
 --skip-git-repo-check
 --ignore-user-config
@@ -45,3 +51,7 @@ features.tool_suggest=false
 features.skill_mcp_dependency_install=false
 -c
 features.workspace_dependencies=false
+-c
+features.goals=false
+-c
+model_providers.codex-review={name="OpenAI (codex-review)",base_url="https://api.openai.com/v1",wire_api="responses",env_key="CODEX_API_KEY"}

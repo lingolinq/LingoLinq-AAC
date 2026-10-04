@@ -77,10 +77,12 @@ GITQ='git -c core.quotepath=false'
 # NUL-separated, matched one name at a time. Newline-separated output quotes any name holding a
 # tab, newline, `"` or `\` (even with core.quotepath=false), and the added quote defeats the `^`
 # and `$` anchors below; a newline inside a name would also split it in two. Written to a file
-# first so a git failure stops this script instead of vanishing inside a pipe.
+# first so a git failure stops this script instead of vanishing inside a pipe. --no-renames lists
+# a rename as a delete plus an add, so the old name is classified too: the review diff of a
+# rename carries the old path and its unchanged lines.
 names_file="$(mktemp)"
 trap 'rm -f "$names_file"' EXIT
-$GITQ diff -z --name-only "$BASE_SHA...$HEAD_SHA" > "$names_file" \
+$GITQ diff -z --name-only --no-renames "$BASE_SHA...$HEAD_SHA" > "$names_file" \
   || { echo "classifier: git diff $BASE_SHA...$HEAD_SHA failed" >&2; exit 3; }
 mapfile -d '' -t CHANGED_PATHS < "$names_file"
 

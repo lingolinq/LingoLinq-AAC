@@ -7,11 +7,11 @@ name: Codex Review
 # the reviewer, and reporting a fail-closed commit status.
 #
 # Fail-closed anchor (build spec section 1/6): `codex-review/deep-pass` is
-# designed to be a required branch-protection status check. STATUS 2026-09-12:
+# designed to be a required branch-protection status check. STATUS 2026-10-03:
 # it is NOT in the required set on develop, staging or main (dropped during the
-# 2026-08 reviewer outage) and no run has been dispatched since 2026-08-04;
-# re-adding it to protection and restoring the n8n W1 dispatch are the revival
-# steps (see the status banner in .github/codex/README.md). This workflow sets
+# 2026-08 reviewer outage), and the workflow is disabled in Actions (last run
+# 2026-09-28) until the PR #1103 hardening and its admin steps are done; see the
+# status banner in .github/codex/README.md. This workflow sets
 # the status `pending` as its FIRST step. Only a successful POST-and-verify to n8n W2 (job
 # success), this job's own terminal-status step (all exit paths, PR #702), or
 # codex-watchdog.yml ever resolves it away from pending. A
@@ -265,9 +265,11 @@ jobs:
             # injected BASE...HEAD diff. Do NOT use `git ls-files -s` here: it
             # reads the INDEX, which is the trusted workflow ref, not the PR
             # (the PR is never checked out). `git ls-tree HEAD_SHA` reads the
-            # head commit's tree object directly.
-            git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | while read -r f; do
-              entry="$(git ls-tree "${HEAD_SHA}" -- "$f" 2>/dev/null)"
+            # head commit's tree object directly. NUL-separated names and a literal pathspec: a
+            # quoted name, or one starting `:(`, would otherwise miss its own entry and be listed
+            # as deleted.
+            git -c core.quotepath=false diff --name-only -z "${BASE_SHA}...${HEAD_SHA}" | while IFS= read -r -d '' f; do
+              entry="$(git ls-tree "${HEAD_SHA}" -- ":(literal)$f" 2>/dev/null)"
               if [ -n "$entry" ]; then
                 printf '%s\n' "$entry"
               else
@@ -369,6 +371,9 @@ jobs:
         run: |
           npm install -g --ignore-scripts --no-audit --no-fund @openai/codex@0.160.0
           codex --version
+          # The locked model catalog every reviewer call selects: approved models only, without
+          # the catalog fields that add exec, apply_patch and spawn_agent whatever the flags say.
+          python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-model-catalog.py" write
 
       - name: Authenticate Codex CLI
         # Keeps this name: docs/process/deep-pass-admin-exception-policy.md condition 1 cites a
@@ -402,6 +407,14 @@ jobs:
             echo "::error::codex hardening arguments are missing; refusing to run the reviewer" >&2
             exit 1
           fi
+          # The locked catalog and provider; the script refuses when the catalog is missing or
+          # not locked. Captured first so its failure stops the step instead of vanishing.
+          CODEX_LOCK="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-model-catalog.py" exec-overrides)" || {
+            echo "::error::the locked model catalog is missing; refusing to run the reviewer" >&2
+            exit 1
+          }
+          mapfile -t CODEX_LOCK_ARGS <<< "$CODEX_LOCK"
+          CODEX_HARDENING+=("${CODEX_LOCK_ARGS[@]}")
           SCHEMA="$GITHUB_WORKSPACE/.github/codex/review-schema.json"
           QUIET="$GITHUB_WORKSPACE/scripts/codex-review-quiet-exec.py"
           run_codex() {
@@ -670,6 +683,13 @@ jobs:
           JOB_STATUS: ${{ needs.codex-review.result }}
         run: |
           set -uo pipefail
+
+          # This job also runs when status-pending failed, possibly on the very check that rejects a
+          # malformed head_sha, so check it again before it goes into an API path.
+          if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::head_sha is not a hex SHA: no status can be posted for an unverified ref" >&2
+            exit 1
+          fi
 
           # Read only THIS attempt's own status entries. RUN_URL is
           # attempt-scoped, so a re-run cannot see attempt 1's terminal status

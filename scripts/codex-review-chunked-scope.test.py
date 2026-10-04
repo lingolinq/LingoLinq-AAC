@@ -201,14 +201,32 @@ args = sys.argv[1:]
 while args[:1] == ["-c"]:
     args = args[2:]
 diff_canary = os.environ["FAKE_DIFF_CANARY"]
-path = "app/" + diff_canary + "_FILE.rb"
-if args[:2] == ["diff", "--name-only"]:
-    print(path)
+path = os.environ.get("FAKE_GIT_PATH") or "app/" + diff_canary + "_FILE.rb"
+
+
+def quoted(name):
+    # Like real git: a name holding a tab, newline, `"` or `\` is printed quoted unless -z is given.
+    if any(c in name for c in '\t\n"\\'):
+        escaped = name.replace("\\", "\\\\").replace('"', '\\"').replace("\t", "\\t").replace("\n", "\\n")
+        return '"' + escaped + '"'
+    return name
+
+
+if args[:1] == ["diff"] and "--name-only" in args:
+    sys.stdout.write(path + "\0" if "-z" in args else quoted(path) + "\n")
 elif args[:1] == ["diff"]:
     print("diff --git a/" + path + " b/" + path)
     print("+" + diff_canary)
 elif args[:1] == ["ls-tree"]:
-    print("100644 blob " + "c" * 40 + "\t" + path)
+    # Answers only for the exact name asked about, as a literal pathspec or a plain one.
+    requested = args[-1]
+    if requested.startswith(":(literal)"):
+        requested = requested[len(":(literal)"):]
+    elif requested.startswith(":("):
+        # Real git reads this as pathspec magic, not as the file's name.
+        requested = None
+    if requested == path:
+        print("100644 blob " + "c" * 40 + "\t" + quoted(path))
 else:
     sys.exit(2)
 '''
@@ -336,7 +354,7 @@ class WorkflowLogExposureTest(unittest.TestCase):
     def assert_no_canary(self, log):
         self.assertFalse(CANARY_STEM in log, "PR content or model output reached the job log")
 
-    def bounded_step(self, tmp, mode):
+    def bounded_step(self, tmp, mode, with_catalog=True):
         script = extract_step_run("Run reviewer (codex exec, converge across runs)")
         bin_dir = pathlib.Path(tmp) / "bin"
         bin_dir.mkdir()
@@ -347,7 +365,14 @@ class WorkflowLogExposureTest(unittest.TestCase):
         )
         (pathlib.Path(tmp) / "pr_diff.txt").write_text(f"+{DIFF_CANARY}\n")
         (pathlib.Path(tmp) / "pr_diff_full.txt").write_text(f"+{DIFF_CANARY}\n")
-        return run_step(localize(script, tmp), tmp, bin_dir, mode)
+        if with_catalog:
+            # The locked model catalog the install step writes under $RUNNER_TEMP, locked from a
+            # stub because codex here is a fake.
+            catalog = load_module("codex_review_model_catalog", REPO_ROOT / "scripts/codex-review-model-catalog.py")
+            stub = {"models": [dict({"slug": slug}, **{field: "set" for field in catalog.TOOL_FIELDS})
+                               for slug in catalog.APPROVED_MODELS]}
+            (pathlib.Path(tmp) / catalog.CATALOG_NAME).write_text(json.dumps(catalog.locked_catalog(stub)))
+        return run_step(localize(script, tmp), tmp, bin_dir, mode, extra_env={"RUNNER_TEMP": str(tmp)})
 
     def test_bounded_reviewer_step_keeps_codex_transcript_out_of_the_log(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -364,6 +389,14 @@ class WorkflowLogExposureTest(unittest.TestCase):
                     self.assertIn(BODY_CANARY, received, "the model did not receive the PR body")
             self.assert_no_canary(result.stdout + result.stderr)
 
+    def test_bounded_reviewer_refuses_to_run_without_the_locked_model_catalog(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.bounded_step(tmp, "ok", with_catalog=False)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "0", "codex ran without the locked catalog")
+            self.assert_no_canary(result.stdout + result.stderr)
+
     def test_bounded_reviewer_failure_is_labelled_not_echoed(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = self.bounded_step(tmp, "fail")
@@ -373,7 +406,7 @@ class WorkflowLogExposureTest(unittest.TestCase):
             self.assertIn("model call failed: exit=1 label=", result.stderr)
             self.assert_no_canary(result.stdout + result.stderr)
 
-    def collection_step(self, tmp, step_name):
+    def collection_step(self, tmp, step_name, git_path=None):
         bin_dir = pathlib.Path(tmp) / "bin"
         bin_dir.mkdir()
         install_fake(bin_dir, "gh", FAKE_GH)
@@ -392,6 +425,8 @@ class WorkflowLogExposureTest(unittest.TestCase):
             "CODEX_REVIEW_SCOPE_PR_AUTHOR": "someone",
             "CODEX_REVIEW_SCOPE_PR_HEAD_REF": "fix/x",
         }
+        if git_path:
+            env["FAKE_GIT_PATH"] = git_path
         script = localize(extract_step_run(step_name), tmp)
         return run_step(script, tmp, bin_dir, extra_env=env), output
 
@@ -406,6 +441,17 @@ class WorkflowLogExposureTest(unittest.TestCase):
             self.assertIn(BODY_CANARY, (pathlib.Path(tmp) / "live_state.txt").read_text())
             self.assertFalse(CANARY_STEM in output.read_text(), "PR content written to GITHUB_OUTPUT")
             self.assert_no_canary(result.stdout + result.stderr)
+
+    def test_gather_live_state_finds_a_file_whose_name_git_quotes(self):
+        # A name git quotes (tab, newline, `"`, `\`) was looked up in quoted form, found nothing at
+        # head, and was listed as deleted. `:(` names must not be read as pathspec magic either.
+        for name in ("app/a\tb.rb", "app/x\ny.rb", ":(top)evil.rb"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                result, _output = self.collection_step(tmp, "Gather live state", git_path=name)
+                self.assertEqual(result.returncode, 0, "live-state step did not complete")
+                prompt_state = (pathlib.Path(tmp) / "live_state_prompt.txt").read_text()
+                self.assertIn("100644 blob", prompt_state)
+                self.assertNotIn("(deleted at head)", prompt_state)
 
     def test_gather_pr_diff_writes_the_diff_to_a_file_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -784,16 +830,27 @@ class PathClassifierTest(unittest.TestCase):
     """scripts/codex-review-path-classifier.sh against a real repository (2026-10-02): a name git
     quotes (tab, newline, `"`, `\\`) must still match the anchored data-bearing patterns."""
 
-    def classify(self, names):
+    def classify(self, names, moves=()):
+        """`names` are added at head. Each (old, new) in `moves` is committed at base, then renamed
+        at head with one line appended, so git still pairs the two as a rename."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp) / "repo"
             repo.mkdir()
             git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
             subprocess.run(git + ["init", "-q"], check=True)
             (repo / "README").write_text("base\n")
+            for old, _new in moves:
+                path = repo / old
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("".join("row %d\n" % i for i in range(20)))
             subprocess.run(git + ["add", "-A"], check=True)
             subprocess.run(git + ["commit", "-qm", "base"], check=True)
             base = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            for old, new in moves:
+                (repo / new).parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(git + ["mv", old, new], check=True)
+                with (repo / new).open("a") as handle:
+                    handle.write("edited\n")
             for name in names:
                 path = repo / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -815,12 +872,21 @@ class PathClassifierTest(unittest.TestCase):
         self.assertEqual(self.classify(["app/models/a.rb"])["reviewer_route"], "codex")
 
     def test_data_bearing_names_that_git_quotes_are_still_blocked(self):
-        for name in ("db/data/a\tb.json", "dump\"x.sql", "back\\slash.csv", "db/da\nta/x.json".replace("\n", "")):
+        for name in ("db/data/a\tb.json", "dump\"x.sql", "back\\slash.csv", "db/data/a\nb.json", "notes\nx.sql"):
             with self.subTest(name=name):
                 self.assertEqual(self.classify([name])["reviewer_route"], "blocked")
 
     def test_compliance_names_that_git_quotes_still_route_to_claude_deep(self):
         self.assertEqual(self.classify(["docs/legal/a\tb.md"])["reviewer_route"], "claude-deep")
+
+    def test_renaming_a_data_bearing_file_out_is_still_blocked(self):
+        # A rename's diff carries the old path and its rows, so the old name must be classified too.
+        moved = self.classify([], moves=[("spec/fixtures/users.json", "lib/users.json")])
+        self.assertEqual(moved["reviewer_route"], "blocked")
+
+    def test_renaming_a_compliance_file_out_still_routes_to_claude_deep(self):
+        moved = self.classify([], moves=[("docs/legal/policy.md", "docs/policy.md")])
+        self.assertEqual(moved["reviewer_route"], "claude-deep")
 
 
 # Records every gh call (one line of arguments each) instead of reaching GitHub.

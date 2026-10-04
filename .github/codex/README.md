@@ -1,6 +1,17 @@
 # Codex review pipeline
 
-> **Status 2026-09-26: live again, not yet required.** Dispatch stopped after
+> **Status 2026-10-03: disabled.** `codex-review.yml` is disabled in GitHub
+> Actions (state `disabled_manually`; last run 2026-09-28) until the hardening
+> in PR #1103 lands and its admin steps are done (restrict the `codex-review`
+> environment's deployment branches; remove the repo-level copies of its
+> secrets). 268 of the 296 runs so far were dispatched on the `staging` ref, so
+> `github.workflow_sha` (the trusted checkout) was staging's copy of this
+> workflow. The other 28 (2026-07-16 to 2026-08-04, during development) were
+> dispatched on feature branches and ran that branch's copy with the
+> repo-level secrets: the exact path the environment's branch rule closes. W1
+> must keep dispatching on a protected branch.
+>
+> **Earlier, 2026-09-26: live again, not yet required.** Dispatch stopped after
 > 2026-08-04 because W1's `Debounce Delay` was a Code node sleeping 300s, equal
 > to n8n's 300s task-runner timeout, so every reviewable event timed out there.
 > On 2026-09-26 it was replaced with a native n8n Wait node (same 5-minute
@@ -159,9 +170,11 @@ returns `NEEDS_HUMAN`.
 
 Header-only changes are complete coverage. This includes mode-only changes,
 pure renames, deletions, and binary diffs of expected binary types (images,
-fonts, PDFs, audio/video, archives). Any other path that diffs as binary
-withholds an APPROVE (`incomplete_evidence`, needs human): git decides
-"binary" from file content, so the diff cannot show what changed.
+fonts, PDFs, audio/video). Any other path that diffs as binary withholds an
+APPROVE (`incomplete_evidence`, needs human): git decides "binary" from file
+content, so the diff cannot show what changed. Archives (`.zip`, `.gz`,
+`.tgz`, `.obz` board packages) are in that group on purpose: one can carry
+source or data the reviewer never sees.
 
 The exclusion policy is stored in `.github/codex/evidence-policy.json`, which
 comes from the trusted checkout of the workflow ref. Exclusions are deterministic
@@ -221,16 +234,29 @@ The review job runs PR content only as data:
 - The PR's commits are fetched as git objects and never checked out. Diffs are
   computed from those objects with the trusted worktree's git attributes, and
   the path classifier matches NUL-separated names, so quoting cannot hide a
-  data-bearing path. A file that diffs as binary is checked on the untruncated
-  diff (see Oversized and excluded evidence).
+  data-bearing path. It lists a rename by both names (`--no-renames`), so
+  moving a file out of a data-bearing path does not hide the old one. A file
+  that diffs as binary is checked on the untruncated diff (see Oversized and
+  excluded evidence).
 - `codex exec` runs from an empty directory with a fresh `CODEX_HOME`, the key
   only in `CODEX_API_KEY` on the reviewer step (no `codex login`, no stored
   credential), and the arguments in `.github/codex/codex-exec-args.txt`:
-  read-only sandbox, no command, browser, image, web or plugin tools, no
-  session saving. The CI job `codex-review-tests` installs the pinned codex
-  version and checks that each disabled feature exists in it and is really
-  off, that the other overrides are accepted, and that `codex exec` accepts
-  every flag. The reviewer step refuses to run if the list is empty.
+  read-only sandbox, no command, browser, image, web, plugin or goal tools, no
+  session saving, and an explicit `codex-review` provider for the OpenAI API.
+- The feature flags do not remove every tool: the bundled catalog entry for
+  the model adds `exec`, `apply_patch` and the collaboration tools
+  (`spawn_agent`, which takes a model name, and others). The install step
+  therefore writes a locked catalog (`scripts/codex-review-model-catalog.py`):
+  the approved models only, with the fields that add those tools set to null.
+  Every call selects it and the `codex-review` provider, and refuses to run
+  without it. The model is offered only `request_user_input`, which nobody
+  can answer in `codex exec`.
+- The CI job `codex-review-tests` installs the pinned codex version and checks
+  that each disabled feature exists in it and is really off, that the other
+  overrides are accepted, and that `codex exec` accepts every flag. It also
+  runs the real binary with the review's exact arguments against a local
+  stand-in for the API and checks the tools named in the request it sends.
+  The reviewer step refuses to run if the argument list is empty.
 - Model calls get no other credential and no `GITHUB_*` runtime variable in
   their environment (`scripts/codex-review-quiet-exec.py`). `GH_TOKEN` is set
   only on the steps that call `gh`; neither reviewer step has it.

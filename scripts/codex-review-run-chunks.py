@@ -19,6 +19,14 @@ _QUIET_EXEC_SPEC = importlib.util.spec_from_file_location(
 quiet_exec = importlib.util.module_from_spec(_QUIET_EXEC_SPEC)
 _QUIET_EXEC_SPEC.loader.exec_module(quiet_exec)
 
+# The locked model catalog and provider (approved models only, no catalog-added tools), written by
+# the workflow's install step under $RUNNER_TEMP.
+_MODEL_CATALOG_SPEC = importlib.util.spec_from_file_location(
+    "codex_review_model_catalog", pathlib.Path(__file__).with_name("codex-review-model-catalog.py")
+)
+model_catalog = importlib.util.module_from_spec(_MODEL_CATALOG_SPEC)
+_MODEL_CATALOG_SPEC.loader.exec_module(model_catalog)
+
 # Hardening arguments shared with the bounded reviewer in codex-review.yml: read-only sandbox, no
 # command/browser/web tools, no session saving, no user config.
 CODEX_EXEC_ARGS_FILE = pathlib.Path(__file__).resolve().parents[1] / ".github" / "codex" / "codex-exec-args.txt"
@@ -29,7 +37,8 @@ def codex_exec_args():
     args = [line for line in lines if line and not line.startswith("#")]
     if not args:
         raise RuntimeError(f"{CODEX_EXEC_ARGS_FILE} has no arguments; refusing to run codex unhardened")
-    return args
+    # Raises when the locked catalog is missing or not locked, so no call runs without it.
+    return args + model_catalog.exec_overrides()
 
 
 # codex runs from an empty directory: it needs no files, and the prompt carries all evidence.

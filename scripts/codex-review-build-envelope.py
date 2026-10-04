@@ -151,14 +151,14 @@ def diff_has_injection(diff):
 
 # A file git treats as binary is not shown in the diff: the reviewer sees only "Binary files ...
 # differ". Git decides that from content (a NUL byte), so a PR can make a source file "binary" and
-# hide it. Media, fonts and archives are expected to be binary and are listed as unreviewed; any
-# other path that diffs as binary withholds an APPROVE. (PR-added .gitattributes cannot force
-# this: the workflow diffs from a trusted worktree.)
+# hide it. Media and fonts are expected to be binary and pass; any other path that diffs as binary
+# withholds an APPROVE. Archives (.zip, .gz, .tgz, .obz board packages) are deliberately not on the
+# list: one can carry source or data the reviewer never sees, so a human looks at it. (PR-added
+# .gitattributes cannot force this: the workflow diffs from a trusted worktree.)
 REVIEWABLE_BINARY_EXTENSIONS = frozenset((
     "png", "jpg", "jpeg", "gif", "webp", "ico", "bmp", "tif", "tiff", "avif", "heic",
     "pdf", "woff", "woff2", "ttf", "otf", "eot",
     "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "mp4", "m4v", "webm", "mov",
-    "zip", "gz", "tgz", "obz",
 ))
 _BINARY_DIFF_RE = re.compile(r"^Binary files (.+) and (.+) differ$", re.MULTILINE)
 
