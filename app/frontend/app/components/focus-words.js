@@ -408,7 +408,7 @@ export default Component.extend({
   actions: {
     // Inline turn-on step for AI focus words. Inline rather than the
     // enable-ai-features modal, which would replace this modal and lose what
-    // was typed. Turns on board generation only (applyAiFeaturePrefs).
+    // was typed. Turns on AI features and board generation (applyAiFeaturePrefs).
     enable_ai_focus_words: function() {
       var _this = this;
       var user = aiFeatureGate.authoringUser(this.get('appState'));
