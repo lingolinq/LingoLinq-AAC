@@ -23,8 +23,8 @@
 #   (in GitHub Actions: pass github.event.pull_request.base.sha / head.sha)
 #
 # OUTPUT
-#   Writes reviewer_route to $GITHUB_OUTPUT (or stdout as `key=value` lines
-#   if GITHUB_OUTPUT is unset, e.g. for local testing):
+#   Writes these `key=value` lines to $GITHUB_OUTPUT (with GITHUB_OUTPUT unset they
+#   are discarded; the one-line summary on stderr shows the result for local runs):
 #     data_bearing=true|false
 #     compliance_path=true|false
 #     reviewer_route=codex|claude-deep|blocked

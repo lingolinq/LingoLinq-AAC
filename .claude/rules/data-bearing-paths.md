@@ -23,10 +23,8 @@ regardless of the surrounding task:
   when it touches fixtures, factories, cassettes, `db/seeds*`, `db/migrate/**`, `db/data/`,
   `db/language/**` (generated vocabulary, in any letter case), SQL/CSV/spreadsheet dumps,
   structured-data directories, or a `lib/tasks/*.rake` whose filename contains `seed`,
-  `import`, `export`, `backfill`, `load` or `sync`. A rake task that reads user rows under
-  any other name (a purge or scrub task, for example) is NOT caught: name it with one of
-  those words, or keep its diff off the consumer route by hand. Do not work around the
-  classifier.
+  `import`, `export`, `backfill`, `load` or `sync`. Name every rake task that reads or
+  moves user rows with one of those keywords. Do not work around the classifier.
 - Every path under `db/language/` is data-bearing, the vendored upstream files under
   `db/language/vendor/` included. The rule matches the brain review guard; a change to it
   is made in the classifier and in the brain guard together.

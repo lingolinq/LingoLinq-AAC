@@ -36,6 +36,9 @@ git -C "$REPO" init -q
 git -C "$REPO" config user.email test@example.invalid
 git -C "$REPO" config user.name test
 git -C "$REPO" config commit.gpgsign false
+# Rename detection on in this repo, whatever the caller's git config says, so the rename
+# preconditions below hold on any machine. GIT_CONFIG_* in the environment still overrides it.
+git -C "$REPO" config diff.renames true
 printf 'base\n' > "$REPO/README.md"
 git -C "$REPO" add README.md
 git -C "$REPO" commit -q -m base
@@ -145,6 +148,7 @@ stub_case blocked "$V/NOTICE.md/../../../en/x.json (stubbed git)" \
   "$V/NOTICE.md/../../../en/x.json"$'\n'
 real_case blocked "x/$V/words-en.json"
 real_case blocked 'db/language'
+real_case blocked 'DB/LANGUAGE/EN/X.JSON'
 
 echo "== db/language: the vendored upstream files block too =="
 real_case blocked "$V/NOTICE.md"
@@ -187,6 +191,32 @@ else
 fi
 classify "$OBASE" "$OHEAD"
 report blocked "git mv spec/fixtures/x.yml -> app/x.yml"
+
+echo "== a rename out of db/language/, and a deletion there, are classified by the old name =="
+git -C "$REPO" checkout -q --detach "$BASE"
+mkdir -p "$REPO/db/language/en"
+printf '{"rows":[1]}\n' > "$REPO/db/language/en/x.json"
+git -C "$REPO" add db/language/en/x.json
+git -C "$REPO" commit -q -m 'language base'
+LBASE="$(git -C "$REPO" rev-parse HEAD)"
+mkdir -p "$REPO/lib"
+git -C "$REPO" mv db/language/en/x.json lib/x.json
+git -C "$REPO" commit -q -m 'language rename-out'
+LHEAD="$(git -C "$REPO" rev-parse HEAD)"
+total=$((total + 1))
+if [ "$(git -C "$REPO" diff --name-only "$LBASE...$LHEAD")" = "lib/x.json" ]; then
+  echo "  ok   precondition, git detects the rename out of db/language/"
+else
+  echo "  FAIL precondition, git detects the rename out of db/language/"
+  fails=$((fails + 1))
+fi
+classify "$LBASE" "$LHEAD"
+report blocked "git mv db/language/en/x.json -> lib/x.json"
+git -C "$REPO" checkout -q --detach "$LBASE"
+git -C "$REPO" rm -q db/language/en/x.json
+git -C "$REPO" commit -q -m 'language delete'
+classify "$LBASE" "$(git -C "$REPO" rev-parse HEAD)"
+report blocked "git rm db/language/en/x.json"
 
 echo "== a large listing (far past a pipe buffer) classifies end to end =="
 BIG="$(for i in $(seq 1 20000); do printf 'app/models/generated_%05d.rb\n' "$i"; done)"
