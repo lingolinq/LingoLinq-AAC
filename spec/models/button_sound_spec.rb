@@ -618,22 +618,28 @@ describe ButtonSound, :type => :model do
       expect(bs.settings['transcription_errors']).to eq(nil)
     end
 
-    it "should not schedule transcription when the user has turned off the master AI preference" do
+    # Transcription is a standard Google service, not governed by the personal AI
+    # switch (2026-09-30), so turning AI features off does not stop it.
+    it "should still schedule transcription when the user has turned off the master AI preference" do
       u = User.create(:settings => {'preferences' => {'ai_features_enabled' => false}})
-      expect(FeatureFlags.user_pref_allows_ai?('voice_transcription', u)).to eq(false)
+      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
       bs = ButtonSound.create(:user => u, :settings => {})
       expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
       bs.schedule_transcription
-      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(false)
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(true)
     end
 
-    it "should skip Google when the user has turned off the master AI preference" do
+    it "should still query Google when the user has turned off the master AI preference" do
       u = User.create(:settings => {'preferences' => {'ai_features_enabled' => false}})
       bs = ButtonSound.new(:user => u, :settings => {})
       expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
-      expect(Typhoeus).not_to receive(:get)
-      expect(Typhoeus).not_to receive(:post)
+      expect(Typhoeus).to receive(:get).with("http://www.example.com/sound.wav").and_return(OpenStruct.new({body: 'asdf'}))
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new({
+        body: {results: [{alternatives: [transcript: 'ahem', confidence: 0.45]}]}.to_json
+      }))
+      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/sound.wav").and_return(true)
       bs.schedule_transcription(true)
+      expect(bs.settings['transcription']).to eq('ahem')
     end
 
     it "should schedule transcription when the master AI preference is on" do
