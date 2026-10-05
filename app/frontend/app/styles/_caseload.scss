@@ -43,12 +43,22 @@
 // never in the tile surface — that part still holds for the panel. The row went
 // the other way: four of its five slots now carry a hue in the SURFACE too (see
 // the rank list on `.md-caseload__quick-action`).
-@mixin caseload-action-surface($radius: 12px) {
+// `$darken` scales every solid stop of the ramp toward black by that much, including the
+// radial highlight's white — darkening the ramp but leaving the highlight at full white would
+// invert the material's relief, making it read as a lit dome rather than a tile.
+// A PARAMETER, not a caller-side background override: the whole point of this mixin is that
+// the tiles and anything matching them share one definition, and a second `background` painted
+// over its output is exactly the drift it exists to prevent. Default 0% keeps every existing
+// caller byte-identical.
+@mixin caseload-action-surface($radius: 12px, $darken: 0%) {
   border: 1px solid rgba(76, 134, 216, 0.20);
   border-radius: $radius;
   background:
-    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
-    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
+    radial-gradient(125% 125% at 26% 18%, rgba(color.scale(#ffffff, $lightness: -$darken), 0.95), transparent 60%),
+    linear-gradient(140deg,
+      color.scale(#ffffff, $lightness: -$darken) 0%,
+      color.scale(#eef0f4, $lightness: -$darken) 52%,
+      color.scale(#e2e6ec, $lightness: -$darken) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.90),
     inset 0 -2px 4px rgba(76, 134, 216, 0.06),
@@ -226,8 +236,12 @@
   list-style: none;
   margin: 0 0 20px;
   padding: 0;
-  display: flex;
+  /* Compact Caseload lays the rows out two across on wide screens by setting these tokens
+     (_caseload-compact.scss); the fallbacks are the single column every other view uses. */
+  display: var(--dn-cl-list-display, flex);
   flex-direction: column;
+  grid-template-columns: var(--dn-cl-list-cols, none);
+  align-items: var(--dn-cl-list-align, normal);
   gap: 8px;
 }
 .md-caseload__list-row {
@@ -488,6 +502,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Focused centres a row with no status on the avatar by spanning both of its rows (the
+     --dn-cl-identity-* tokens, _focused-view.scss); the fallbacks are the natural placement. */
+  grid-row: var(--dn-cl-identity-row, auto);
+  align-self: var(--dn-cl-identity-align, auto);
 }
 /* Name + access chip are the whole collapsed row — goals moved to the
    expanded panel, so this is the only block inside .md-caseload__list-identity.
@@ -625,12 +643,16 @@
    one statement instead of spread over two lines in a narrow column.
    Rather than reordering the DOM, the trigger's grid gains a third track and the status
    block is placed into row 1 beside the identity. */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   /* The base layout stacks the role badge UNDER the name (only >=1025px puts them on one
      line). Both stacked variants exist to protect the shared line with the toolbar — which
      is not shared at this width — so the name and its role badge go back onto one line.
      No fixed 200px name slot like the >=1025px rule: that exists to align badges into a
-     column down the list, and there is not enough width here to spend on alignment. */
+     column down the list, and there is not enough width here to spend on alignment.
+     WIDENED FROM 768 TO 1024 (2026-09-21): the request is one identity row from 1300 down,
+     and 769-1024 was the only band still stacking. It is also the band where the reason for
+     stacking has already gone — the toolbar now takes its own row from 1300 — so the line no
+     longer has to be protected. 1025 and up is untouched and keeps its fixed name slot. */
   .md-caseload__list-name-row {
     flex-direction: row;
     align-items: center;
@@ -639,24 +661,137 @@
   .md-caseload__list-name-row .md-caseload__list-name {
     flex: 0 1 auto;
   }
-  /* Full-width flex item — the toolbar always breaks to its own row here rather than
-     only when the badges happen to push it. `margin-left: auto` on the base rule
-     resolves to 0 once this item owns the whole line, so the buttons stay right-aligned
-     via the toolbar's own `justify-content: flex-end`. */
-  .md-caseload__list-header > .md-caseload__list-quick {
-    flex: 0 0 100%;
+  /* 12px of air between the username and the role chip (requested 2026-09-21). Applied to
+     the BADGES wrapper, not to `.md-caseload__list-access` itself: that class is also worn
+     by the status chips ("Board needed", the attention alert), which sit in their own group
+     further along the line and are not what was asked about. The wrapper holds the role
+     badge alone (see the template's note at caseload.hbs), so this cannot reach them.
+     It adds to the row's existing 10px gap rather than replacing it. */
+  .md-caseload__list-badges {
+    margin-left: 12px;
   }
 }
-/* 641-768px: enough width for the attention/status badges to join the username line too,
-   so identity, role and any alert read as one statement. A third grid track carries them,
-   which avoids reordering the DOM. */
-@media (max-width: 768px) and (min-width: 641px) {
+
+/* THE ACTION BUTTONS GET THEIR OWN ROW FROM 1300px DOWN (requested 2026-09-21: "the
+   communicator card layout needs to be avatar, username, role, info badge on one row and
+   action buttons pushed to the next row"). This declaration used to live in the <=768 block
+   below and is lifted here rather than copied -- one rule, a wider breakpoint.
+   `margin-left: auto` on the base rule resolves to 0 once this item owns the whole line, so
+   the buttons stay right-aligned via the toolbar's own `justify-content: flex-end`.
+   Not scoped to a view: the request covers Focused and Gentle alike, and this file is the
+   modern caseload's stylesheet (Classic renders its own page). */
+@media (max-width: 1300px) {
+  .md-caseload__list-header > .md-caseload__list-quick {
+    flex: 0 0 100%;
+    /* A DIVIDER BETWEEN THE IDENTITY ROW AND THE ACTIONS ROW (requested 2026-09-21), which
+       only earns its place once the toolbar is on a line of its own -- above 1300 the two
+       share a line and a rule through the middle would be nonsense. A hairline at 10% navy
+       rather than a full-strength border: it separates two parts of ONE card, so it should
+       read as a fold in the card, not as an edge between two cards.
+       NO TOP MARGIN (requested 2026-09-21: "remove the top margin from
+       md-caseload__list-quick"). The 12px that was here is gone; the divider sits directly
+       under the identity row and keeps its 12px of padding BELOW, so the buttons still do
+       not crowd the rule. */
+    margin-top: 0;
+    padding-top: 12px;
+    border-top: 1px solid rgba($la-navy, 0.10);
+  }
   .md-caseload__list-trigger {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    /* THE SAME GRADIENT AS THE "MORE ACTIONS" BUTTON, 10% LIGHTER (requested 2026-09-21).
+       Both layers are restated from that rule (~2242) rather than approximated, so the row
+       and the button read as the same material: the white gloss pass on top, the grey ramp
+       under it. `color.scale(..., $lightness: 10%)` is the lightening -- a relative scale
+       toward white, which keeps the ramp's shape and its relationship between stops instead
+       of flattening them the way three hand-picked hex values would. 15%, raised from 10%
+       on 2026-09-21 after seeing it on screen.
+       This replaces the account rail's wash, which was the previous request for this
+       surface.
+       IN THE PLAIN <=1300 BAND, NOT THE `min-width: 641px` ONE. It lived there at first,
+       beside the centring rules it was written with, and the consequence was reported as
+       "you didn't extend it all the way - there's a gap": below 641 the wash kept the
+       trigger's own inset box while the card around it did not, so it sat 14px short of
+       each edge with a square corner. The centring rules genuinely need that floor -- below
+       it the status badge drops to its own grid row -- but the wash does not. */
+    background:
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.82) 0%,
+        rgba(255, 255, 255, 0.34) 32%,
+        rgba(255, 255, 255, 0) 60%),
+      linear-gradient(160deg,
+        #{color.scale(#F6F8FA, $lightness: 15%)} 0%,
+        #{color.scale(#EBEFF4, $lightness: 15%)} 55%,
+        #{color.scale(#E2E7EE, $lightness: 15%)} 100%);
+    /* THE WASH BLEEDS TO THE CARD'S EDGES (requested 2026-09-21: "the bg that shows on the
+       list-trigger needs to expand all the way up, all the way left and all the way down to
+       the divider"). Inset, it read as a floating panel inside the card rather than as the
+       identity ROW of it.
+       EVERY OFFSET IS A MEASURED VALUE, not a guess: the header is `padding: 10px 14px`, so
+       -10 clears the top and -14 the left; the toolbar's divider sits 8px below the trigger
+       (the header's 8px row gap), so -8 carries the wash down to meet it. Each negative
+       margin is paired with the same amount of padding, so the avatar, name and badges do
+       not move a pixel -- only the painted box grows.
+       THE RIGHT EDGE BLEEDS TOO, asked for straight after the other three ("it also needs to
+       stretch all the way to the right edge of the card"), so the wash now spans the card's
+       full width.
+       THE TOP-RIGHT CORNER IS ROUNDED TO THE CARD'S OWN 12px (requested straight after):
+       the row is `border-radius: 12px` with `overflow: visible`, so a square corner here
+       poked past the card's curve instead of following it. Top-LEFT stays square -- the
+       gradient accent rail (`.md-caseload__list-row::before`) occupies that edge, and the
+       request named the right. */
+    margin-top: -10px;
+    margin-left: -14px;
+    margin-right: -14px;
+    margin-bottom: -8px;
+    /* Each side's padding EQUALS the negative margin beside it, so the painted box grows and
+       the content does not move at all. The first version added 6px/10px of its own on top
+       and shifted the avatar 10px right, which is the sort of drift that is invisible until
+       you measure the same element before and after. */
+    padding: 10px 14px 8px 14px;
+    border-radius: 0 12px 0 0;
+  }
+}
+/* 641-1300px: enough width for the attention/status badges to join the username line too,
+   so identity, role and any alert read as one statement. A third grid track carries them,
+   which avoids reordering the DOM.
+   WIDENED FROM 768 TO 1300 (2026-09-21) by the same request: with the toolbar now on its own
+   row from 1300 down, the identity line has the whole width to itself and the info badge no
+   longer has to compete with the buttons for it. The 641px floor stays -- below it the badge
+   would squeeze the name to a few ellipsised characters, which is what the <=640 rule that
+   moves it back under the username is for. */
+@media (max-width: 1300px) and (min-width: 641px) {
+  /* Focused keeps the status under the username instead (the --dn-cl-* tokens set in
+     _focused-view.scss); the fallbacks are this band's own layout. */
+  .md-caseload__list-trigger {
+    grid-template-columns: var(--dn-cl-trigger-cols, auto minmax(0, 1fr) auto);
+  }
+  /* THE IDENTITY ROW CARRIES THE SIDE PANEL'S WASH once the actions wrap (requested
+     2026-09-21: "the avatar row needs the same gradient that the side panel has"). The value
+     is `.md-acct-rail`'s own, read off the computed style rather than re-mixed by eye, so the
+     two surfaces stay the same thing: a 160deg wash from a near-white grey into a barely
+     tinted navy. It goes on the TRIGGER, which is the identity line -- the header wraps both
+     rows, so painting there would wash the action buttons too.
+     Only below 1300, because above it the trigger shares its line with the toolbar and a
+     banded background would stop halfway across the card. */
+  /* CENTRED ON THE AVATAR (requested 2026-09-21: "the username, role, and badges need to be
+     centered on the avatar"). The avatar is `grid-row: 1 / span 2` and its 72px is what gives
+     the trigger its height; measured, the tracks come out `22px 41px` and the identity
+     occupied only the first, so the name sat at y-centre 239 against the avatar's 263.
+     `span 2`, NOT `1 / -1`, and the difference is not cosmetic: the trigger declares
+     `grid-template-columns` but no `grid-template-rows`, so every row here is IMPLICIT and
+     `-1` resolves against the EXPLICIT grid's last line -- which is line 1. `1 / -1` therefore
+     collapsed to a single row and changed nothing, which is exactly what the first attempt
+     did. `span 2` counts rows instead of naming an explicit line, so it reaches the implicit
+     second row the avatar created.
+     Bounded at 641 with the rest of this band: below it the status badge moves to row 2 in
+     the same column the identity occupies, and a spanning identity would sit on top of it. */
+  .md-caseload__list-identity {
+    grid-row: var(--dn-cl-identity-row, 1 / span 2);
+    align-self: center;
   }
   .md-caseload__list-status {
-    grid-column: 3;
-    grid-row: 1;
+    grid-column: var(--dn-cl-status-col, 3);
+    grid-row: var(--dn-cl-status-row, 1 / span 2);
+    align-self: center;
     /* Left-aligned now: it sits directly after the role badge on a shared line, so the
        right-anchoring the full-width row needed would open a gap mid-sentence. */
     justify-content: flex-start;
@@ -912,8 +1047,22 @@
    to be one size down the whole list. */
 .md-caseload__list-quick .md-caseload__quick-action--model,
 .md-caseload__list-quick .md-caseload__quick-action--choose-board,
+.md-caseload__list-quick .md-caseload__quick-action--remote,
 .md-caseload__list-quick .md-caseload__quick-action--ideas {
   flex: 0 0 86px;
+}
+/* Remote Modeling (2026-10-02): its "Limited" pill sits centred on the tile's top border
+   (2026-10-03, requested; it was at the top-right corner): its middle on the border line, both
+   ways, whatever the pill's height. It does not widen the tile or push the label. */
+.md-caseload__quick-action--remote {
+  position: relative;
+}
+.md-caseload__quick-action--remote .md-limited-badge {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin-left: 0;
 }
 /* Choose-Board slot — shown in place of Model when a communicator has no home
    board yet. It is the row's PRIMARY action (denim tile, above) because it is
@@ -1710,6 +1859,31 @@
   background: linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.08) 100%);
   color: $la-navy;
 }
+/* AN AVATAR THAT HAS NOT ARRIVED YET STILL SHOWS THE PERSON SYMBOL (reported 2026-09-21:
+   "when the caseload pillnav menu is selected, the avatar symbols don't immediately render").
+   templates/caseload.hbs renders the placeholder <span> only when `avatar_url` is ABSENT, so a
+   communicator WITH a photo got a bare <img> and an empty disc until the bytes landed.
+   Measured on a throttled hop with the cache disabled: the 14 rows painted at t+125ms with
+   `painted=0`, and the last portrait did not finish until t+4.7s -- nearly five seconds of
+   blank circles on the page's primary identifying element.
+   THE <img> ITSELF CARRIES THE PLACEHOLDER, as its background: a background is painted
+   immediately and sits BEHIND the image content, so the symbol is there on the first frame and
+   the photo covers it the moment it decodes, with no class to toggle, no JS, and no second
+   element that could get out of step. It also survives a broken or 404 avatar, which
+   previously left the disc empty for good.
+   The glyph is the same two-tone person the placeholder span draws (circle + shoulders,
+   #46505F / #2A9D8F), inlined so it needs no extra request -- a placeholder that has to be
+   fetched would defeat the point. Sized to 55%, matching the span's 33-in-60 ratio.
+   TRADE-OFF, stated rather than discovered: an avatar with TRANSPARENT areas will show the
+   glyph faintly through them. Portraits are opaque; this is the cost of not adding state. */
+.md-caseload__list-avatar:not(.md-caseload__list-avatar--placeholder) {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4' stroke='%2346505F'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0' stroke='%232A9D8F'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.08) 100%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 55%, cover;
+}
 /* Glyph scales with the disc — 33px in 60px keeps the 22-in-40 ratio the
    placeholder was drawn at, so the person icon does not shrink into a big empty
    circle. Overrides the markup's width/height attributes, which stay at 22 as
@@ -1733,6 +1907,19 @@
      which communicator the row belongs to, and the row has vertical room. */
   overflow-wrap: anywhere;
   word-break: normal;
+}
+/* THE NAME IS 18px ONCE THE TOOLBAR LEAVES THE LINE (requested 2026-09-21: "the username
+   needs to be larger"). Declared HERE, immediately after the base rule, and not up in the
+   <=1300 block with the rest of that change: both selectors are (0,1,0) and a media query
+   adds no specificity, so the winner is whichever comes LAST -- and the base sits at ~1760,
+   far below that block, which is exactly why the first attempt at this had no effect.
+   Adjacency is also the honest place for it: base value, then its one override.
+   The role and status chips stay at 14px, so the name reads as the heading of the row rather
+   than one chip among several. */
+@media (max-width: 1300px) {
+  .md-caseload__list-name {
+    font-size: 18px;
+  }
 }
 /* ── Row action buttons — per-rank glass surfaces ──────────────────────────
      1a. Choose Board — teal→denim, the priority/setup action (halo + deepest ramp)
@@ -1875,16 +2062,21 @@ a.md-caseload__quick-action {
    instead of re-declaring the hexes. They arrive here via `@use "variables" as *`
    at the top of this file; nothing else about their use changed. */
 /* ── 1b. WORKFLOW PRIMARY: Model. Shares the leading slot with Choose Board and
-   wears the same halo one hue over; the ramp is what separates them. */
-.md-caseload__quick-action.md-caseload__quick-action--model {
+   wears the same halo one hue over; the ramp is what separates them.
+   THE BLUE GLASS, ONE SOURCE (2026-10-03): Model and Remote Modeling share this surface, Remote
+   at the original strength and Model `$deepen` darker (requested: "make the remote modeling bg
+   the same as the model button, then make the model button bg darker"). `$deepen` is added to
+   both colour stops of every state. Navy labels on the bottom stop over white, worst case:
+   Remote 8.4:1 (rest) to 7.1:1 (pressed); Model at 0.14 deeper 7.4:1 to 6.2:1. */
+@mixin caseload-blue-glass($deepen: 0) {
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.55) 0%,
       rgba(255, 255, 255, 0.20) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($caseload-model-blue, 0.28) 0%,
-      rgba($caseload-model-blue, 0.38) 100%);
+      rgba($caseload-model-blue, 0.28 + $deepen) 0%,
+      rgba($caseload-model-blue, 0.38 + $deepen) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   color: $la-navy;
   /* Measured border, 3.89:1 on the row. */
@@ -1898,15 +2090,15 @@ a.md-caseload__quick-action {
     0 0 8px rgba($caseload-model-blue-aa, 0.22),
     0 0 18px rgba($caseload-model-blue-aa, 0.30);
 }
-.md-caseload__quick-action.md-caseload__quick-action--model:hover {
+@mixin caseload-blue-glass-hover($deepen: 0) {
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.60) 0%,
       rgba(255, 255, 255, 0.22) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($caseload-model-blue, 0.36) 0%,
-      rgba($caseload-model-blue, 0.48) 100%);
+      rgba($caseload-model-blue, 0.36 + $deepen) 0%,
+      rgba($caseload-model-blue, 0.48 + $deepen) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   border-color: $brand-dusty-denim-aa;
   color: $la-navy;
@@ -1919,19 +2111,15 @@ a.md-caseload__quick-action {
     0 0 10px rgba($caseload-model-blue-aa, 0.30),
     0 0 24px rgba($caseload-model-blue-aa, 0.42);
 }
-/* A rank that overrides :hover MUST override :active too, at >= its own :hover
-   specificity and placed after it — otherwise a mouse-down (which is also a
-   hover) keeps showing hover, and keyboard activation falls through to the
-   shared verdigris :active. */
-.md-caseload__quick-action.md-caseload__quick-action--model:active {
+@mixin caseload-blue-glass-active($deepen: 0) {
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.40) 0%,
       rgba(255, 255, 255, 0.14) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($caseload-model-blue, 0.42) 0%,
-      rgba($caseload-model-blue, 0.54) 100%);
+      rgba($caseload-model-blue, 0.42 + $deepen) 0%,
+      rgba($caseload-model-blue, 0.54 + $deepen) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   border-color: $brand-dusty-denim-aa;
   color: $la-navy;
@@ -1939,6 +2127,34 @@ a.md-caseload__quick-action {
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 1px 3px rgba($la-navy, 0.10),
     0 0 10px rgba($caseload-model-blue-aa, 0.28);
+}
+$caseload-model-glass-deepen: 0.14;
+
+.md-caseload__quick-action.md-caseload__quick-action--model {
+  @include caseload-blue-glass($caseload-model-glass-deepen);
+}
+.md-caseload__quick-action.md-caseload__quick-action--model:hover {
+  @include caseload-blue-glass-hover($caseload-model-glass-deepen);
+}
+/* A rank that overrides :hover MUST override :active too, at >= its own :hover
+   specificity and placed after it — otherwise a mouse-down (which is also a
+   hover) keeps showing hover, and keyboard activation falls through to the
+   shared verdigris :active. */
+.md-caseload__quick-action.md-caseload__quick-action--model:active {
+  @include caseload-blue-glass-active($caseload-model-glass-deepen);
+}
+
+/* ── 1c. Remote Modeling: Model's blue glass at the original strength, when it can connect. A
+   limited Remote (`--limited`, utils/remote_modeling.js) keeps the neutral tile and its "Limited"
+   pill. Same :hover/:active pairing as Model, for the same reason. */
+.md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited) {
+  @include caseload-blue-glass;
+}
+.md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited):hover {
+  @include caseload-blue-glass-hover;
+}
+.md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited):active {
+  @include caseload-blue-glass-active;
 }
 
 /* ── 2. SPEAK — denim. The `:not(--empty)` guard is load-bearing: `--empty`'s
@@ -2004,6 +2220,7 @@ a.md-caseload__quick-action {
 
 /* Two-word labels wrap inside the shared tile width instead of widening it. */
 .md-caseload__quick-action--choose-board .md-caseload__quick-label,
+.md-caseload__quick-action--remote .md-caseload__quick-label,
 .md-caseload__quick-action--ideas .md-caseload__quick-label {
   white-space: normal;
   text-align: center;

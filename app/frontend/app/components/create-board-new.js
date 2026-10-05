@@ -18,8 +18,11 @@ import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import { ensureAiBoardGenerationAccess } from '../utils/ai_board_generation_access';
+import { analyze_grid } from '../utils/board_grid';
 import article50Gate from '../utils/article50_gate';
 import boardsPageListCache from '../utils/boards_page_list_cache';
+import { board_view_route } from '../utils/board_view';
 
 /**
  * Create Board (New) Modal Component
@@ -286,59 +289,25 @@ export default Component.extend({
     return 'width: ' + Math.max(0, Math.min(100, lvl)) + '%;';
   }),
 
-  ai_board_generation_enabled: computed(
-    'appState.feature_flags.ai_board_generation',
-    'appState.currentUser.preferences.ai_features_enabled',
-    'appState.currentUser.preferences.ai_board_generation',
+  // Shown whenever AI board generation is available for the account; the
+  // click goes through _ensureAiBoardGenerationAccess (turn-on step or reason).
+  ai_board_generation_offered: computed(
+    'appState.sessionUser.feature_flags.ai_board_generation',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_board_generation',
+    'appState.sessionUser.permissions',
     function() {
-      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+      return aiFeatureGate.boardGenerationOffered(this.appState);
     }
   ),
 
   /**
-   * UI opt-in before entering AI board generation. Server grandfather is
-   * unchanged; this only decides whether to show the enable popup, the EU
-   * parental-consent modal, or a blocked notice.
-   * Resolves { proceed: true } when generation may continue.
+   * UI step before entering AI board generation; see
+   * utils/ai_board_generation_access.js. Resolves { proceed: true } when
+   * generation may continue.
    */
   _ensureAiBoardGenerationAccess: function() {
-    var appState = this.get('appState');
-    var user = appState && appState.get && appState.get('currentUser');
-    var entry = aiFeatureGate.boardGenerationEntry(appState);
-    var stay = function() { return { proceed: false }; };
-
-    if(entry === 'allowed') {
-      return RSVP.resolve({ proceed: true });
-    }
-
-    if(entry === 'eu_consent') {
-      var parentEmail = '';
-      if(user && user.get) {
-        parentEmail = user.get('eu_ai_parental_consent_parent_email') || '';
-      }
-      return modalUtil.open('eu-ai-parental-consent', {
-        user: user,
-        triggeredPref: 'ai_board_generation',
-        parentEmail: parentEmail
-      }).then(stay, stay);
-    }
-
-    if(entry === 'blocked_flag' || entry === 'blocked_coppa') {
-      return modalUtil.open('enable-ai-features', {
-        blocked: true,
-        blockedReason: entry === 'blocked_coppa' ? 'coppa' : 'flag',
-        triggeredPref: 'ai_board_generation'
-      }).then(stay, stay);
-    }
-
-    return modalUtil.open('enable-ai-features', {
-      user: user,
-      triggeredPref: 'ai_board_generation'
-    }).then(function(result) {
-      var features = result && result.requested_features;
-      var boardGenOn = !!(features && features.ai_board_generation);
-      return { proceed: !!(result && result.saved && boardGenOn) };
-    }, stay);
+    return ensureAiBoardGenerationAccess(this.get('appState'));
   },
 
   _enterAiMode: function() {
@@ -789,7 +758,7 @@ export default Component.extend({
 
   locales: computed(function() {
     var list = i18n.get('locales');
-    var res = [{name: i18n.t('choose_locale', '[Choose a Language]'), id: ''}];
+    var res = [{name: i18n.t('choose_locale', "[Choose a Language]"), id: ''}];
     for(var key in list) {
       res.push({name: list[key], id: key});
     }
@@ -1023,7 +992,60 @@ export default Component.extend({
     return swatches;
   }),
 
-  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'positional_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', 'appState.sessionUser.preferences.skin', function() {
+  /* WHICH board the Board Labels preview imitates. Basic mode previews the board-alt
+     (classic) look; Modern previews board-detail. Note the vocabulary: "Basic View" is
+     the UI label, but the stored value is `'classic'` -- there is no `'basic'` string
+     anywhere in the JS, so grepping for it finds nothing (`utils/view_style.js:21-23`).
+
+     READ OFF `effective_view_user`, NOT `currentUser`. While modelling, `currentUser` is
+     the SUPERVISOR (`services/app-state.js:5122-5138`), so `currentUser` would show a
+     Basic-view communicator the Modern preview. This is the one place in this component
+     that follows the communicator rather than the session user -- the preview's other
+     computeds (`button_text_size_class` and friends) read `appState.sessionUser`
+     directly, which is a pre-existing divergence, not something this introduces.
+
+     ONLY the tile CHROME changes. The cells themselves come from the same `preview_grid`
+     below, and the swap is a modifier class on the grid container rather than a second
+     copy of the markup -- so every editing interaction (click-to-edit, drag-swap, paint,
+     remove, the inline input) is carried by the exact same elements in both modes and
+     cannot diverge between them.
+
+     READ THROUGH `appState.effective_view_style`, NOT `is_classic(effective_view_user)`.
+     The first version of this used the util and the preview stayed Modern for real Basic
+     users. `is_classic` bails to false for anything that is not an Ember record
+     (`utils/view_style.js:22` -- `typeof user.get !== 'function'`), and `currentUser` is
+     assigned a PLAIN OBJECT in several places, which `services/app-state.js:5166-5171`
+     documents as the reason `effective_view_user` itself resolves with `emberGet`. So the
+     util silently answered "modern" for a plain-object user. `effective_view_style`
+     (`app-state.js:5193-5195`) resolves the same preference with a PATH get, which works
+     through a plain object, and falls back to the per-device localStorage mirror before
+     the user record hydrates -- so it is also correct on first paint, which the util is
+     not. It is the same value that drives `body.ll-view-basic`, so the preview and the
+     body class cannot disagree. */
+  /* Destination for the create-method chooser, which is PORTALLED TO <body>.
+     It is `position: fixed; inset: 0` and is meant to cover the viewport, but it sits
+     inside `.md-workspace--create-board-new`, and that card carries
+     `backdrop-filter` in Focused (plus `overflow: hidden` in every view). A
+     `backdrop-filter` makes an element the CONTAINING BLOCK for fixed-position
+     descendants, so the scrim stopped resolving against the viewport and started
+     resolving against the card -- covering only the card's own box and being clipped by
+     its overflow, which is exactly the "dark background does not cover the page" report.
+     Rendering it out of the card entirely puts it back on the viewport and makes it
+     immune to any future filter or transform an ancestor might gain. Same fix the grid
+     picker once carried for the same reason. */
+  chooser_destination: computed(function() {
+    return typeof document !== 'undefined' ? document.body : null;
+  }),
+
+  preview_is_basic: computed('entryViewStyle', 'appState.effective_view_style', function() {
+    /* `entryViewStyle` is resolved by the ROUTE before this page is entered
+       (routes/create-board-new.js) and is the authoritative value on the standalone
+       page. The live read is the fallback for the non-standalone modal, which has no
+       route of its own to resolve it. */
+    return (this.get('entryViewStyle') || this.get('appState.effective_view_style')) === 'classic';
+  }),
+
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'positional_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', '_uploading_labels', 'paint_mode', 'appState.sessionUser.preferences.skin', function() {
     var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
     var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
     rows = Math.max(0, Math.min(20, rows));
@@ -1092,7 +1114,11 @@ export default Component.extend({
         }
         if(color && color.fill && !is_clear_color) {
           var style = 'background-color: ' + color.fill + ';--btn-bg:' + color.fill + ';';
-          if(color.border) { style += ' outline-color: ' + color.border + ';'; }
+          /* `--btn-border` alongside `--btn-bg`: the Fitzgerald palette pairs every fill
+             with a DARKER edge, and Basic view's tile draws that edge as a real border
+             (app.scss, `.md-board-detail-grid--basic`) the way the classic board does.
+             `outline-color` stays for Modern, whose ring is an inset outline instead. */
+          if(color.border) { style += ' outline-color: ' + color.border + ';--btn-border:' + color.border + ';'; }
           bg_style = htmlSafe(style);
         }
         var editing = (editIdx !== null && editIdx !== undefined && editIdx === idx);
@@ -1141,7 +1167,7 @@ export default Component.extend({
           is_duplicate: is_duplicate,
           no_category: no_category,
           bg_style: bg_style,
-          image_url: image_url,
+          image_url: image_url, uploading: !!(label && (this.get('_uploading_labels') || {})[label.toLowerCase()]), // the drop spinner (_set_label_uploading)
           // A near-white POS fill (conjunction/article) counts as no
           // color visually, so the template adds the `--no-color` class
           // and the preview's flat-card rule kicks in. Painted cells
@@ -1635,6 +1661,82 @@ export default Component.extend({
   /** Bakes preview state into model.buttons and persists the board.
    *  Must be a component method (not an action) — saveBoard calls it
    *  from an RSVP callback after symbol lookups finish. */
+  /** SAVE BOARD COMPLETENESS GATE.
+   *
+   *  Resolves when the save should go ahead and REJECTS when the person cancelled, so the
+   *  caller keeps `saveBoard` inside the `.then` and a cancel does nothing at all -- no
+   *  status flag to unwind, no half-started save.
+   *
+   *  A grid that is completely full resolves immediately with NO dialog. That is the
+   *  important half of this: a confirmation people see on every save is one they learn to
+   *  click through, which is precisely what stops the real warning from working.
+   *
+   *  The trim branch writes the smaller grid back to the model BEFORE resolving, and
+   *  `_completeSaveBoard` re-reads `model.grid.*` at call time, so the shrunk board is what
+   *  gets baked and saved.
+   */
+  /** Writes one grid dimension from a stepper's input event and records that the size is now
+   *  the person's own. Shared by `setGridRows` / `setGridColumns` so the two cannot drift. */
+  _set_grid_dimension: function(path, event) {
+    var el = event && event.target;
+    if(!el) { return; }
+    this.set(path, el.value);
+    this.set('grid_size_chosen', true);
+  },
+
+  _confirm_grid_completeness: function() {
+    var _this = this;
+    var grid = analyze_grid({
+      labels: this.get('model.grid.labels'),
+      rows: this.get('model.grid.rows'),
+      columns: this.get('model.grid.columns'),
+      order: this.get('model.grid.labels_order')
+    });
+    if(!grid.is_empty && !grid.is_partial) { return RSVP.resolve(); }
+
+    var cancelled = function() { return RSVP.reject({ reason: 'grid_incomplete_cancelled' }); };
+
+    if(grid.is_empty) {
+      return modalUtil.open('confirm-blank-board', {
+        rows: grid.rows,
+        columns: grid.columns
+      }).then(function(result) {
+        return result === 'save_blank' ? RSVP.resolve() : cancelled();
+      }, cancelled);
+    }
+
+    return modalUtil.open('confirm-partial-board', {
+      rows: grid.rows,
+      columns: grid.columns,
+      filled: grid.filled,
+      total: grid.total,
+      empty_count: grid.empty_count,
+      can_trim: grid.can_trim,
+      empty_rows_count: grid.empty_rows.length,
+      empty_columns_count: grid.empty_columns.length,
+      trim_rows: grid.trimmed ? grid.trimmed.rows : grid.rows,
+      trim_columns: grid.trimmed ? grid.trimmed.columns : grid.columns
+    }).then(function(result) {
+      if(_this.isDestroyed || _this.isDestroying) { return cancelled(); }
+      if(result === 'save_trimmed' && grid.trimmed) {
+        /* ORDER MATTERS. `autoFitGrid` observes `model.grid.labels` and re-shapes the grid
+           to the tightest near-square that holds the labels, so writing the labels LAST
+           would silently overwrite the size the person just agreed to. Labels first, then
+           the size, leaves the chosen shape as the final word -- exactly how a manual
+           stepper edit holds today. */
+        _this.set('model.grid.labels', grid.trimmed.labels);
+        _this.set('model.grid.rows', grid.trimmed.rows);
+        _this.set('model.grid.columns', grid.trimmed.columns);
+        /* They were shown this size and agreed to it, so it is theirs now -- a later label
+           edit must not auto-fit it away. */
+        _this.set('grid_size_chosen', true);
+        return RSVP.resolve();
+      } else if(result === 'save_as_is') {
+        return RSVP.resolve();
+      }
+      return cancelled();
+    }, cancelled);
+  },
   _completeSaveBoard() {
     var _this = this;
     // Bake any manually-painted colors into a `buttons[]` array + a
@@ -1754,7 +1856,10 @@ export default Component.extend({
         // Debounced "Preparing your Board" mask for the post-create board load.
         _this.appState.arm_board_load_overlay(_this.get('router'));
         if (parts.length >= 2) {
-          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          // Honor the user's view preference (utils/board_view.js) instead of
+          // hardcoding the modern shell — a classic user who creates/imports a board
+          // must land on their own board view, not be pushed into modern.
+          _this.get('router').transitionTo(board_view_route(_this.appState.get('effective_view_user')), parts[0], parts.slice(1).join('/'));
         } else {
           _this.get('router').transitionTo('board', key);
         }
@@ -1954,8 +2059,21 @@ export default Component.extend({
   // every label (cols >= rows for a slight landscape lean). Recomputes on
   // every label change; manual stepper edits hold until the next change.
   // Skipped while the user is mid-edit (preserves the inline-edit input).
+  /* Set the moment the person chooses a grid size for themselves -- the wizard's grid step,
+     either stepper, or agreeing to a trim. It is what `autoFitGrid` checks before it
+     re-shapes anything. Starts false, so somebody who never thinks about size still gets the
+     auto-fit that has always been there. */
+  grid_size_chosen: false,
+
   autoFitGrid: observer('model.grid.labels', function() {
     if(this.get('_editIdx') !== null && this.get('_editIdx') !== undefined) { return; }
+    /* A SIZE THE PERSON CHOSE IS NOT A SUGGESTION. Without this, every wizard user who
+       picked a grid at step 2 watched it silently change the moment they typed their first
+       word at step 3, because this observer recomputed the shape from the label count alone
+       and had no idea a choice had been made. Overflow is deliberately NOT an exception:
+       growing the board unasked is the same overrule in the other direction, and
+       `too_many_labels` already warns about it. */
+    if(this.get('grid_size_chosen')) { return; }
     var n = (this.get('parsed_labels') || []).length;
     if(n === 0) { return; }
     var cols = Math.min(20, Math.max(1, Math.ceil(Math.sqrt(n))));
@@ -1973,7 +2091,7 @@ export default Component.extend({
   }),
 
   key_placeholder: computed(function() {
-    return i18n.t('board_key_placeholder', 'board-key');
+    return i18n.t('board_key_placeholder', "board-key");
   }),
 
   updatePreview: observer('model.grid.rows', 'model.grid.columns', function() {
@@ -2145,13 +2263,13 @@ export default Component.extend({
     });
     // Track so Create can wait for the hosted URL before baking buttons.
     if(!this._pending_label_image_uploads) { this._pending_label_image_uploads = []; }
-    this._pending_label_image_uploads.push(upload_promise);
+    this._pending_label_image_uploads.push(upload_promise); this._set_label_uploading(key, true);
     var clear_pending = function() {
       var list = _this._pending_label_image_uploads || [];
       var idx = list.indexOf(upload_promise);
-      if(idx >= 0) { list.splice(idx, 1); }
+      if(idx >= 0) { list.splice(idx, 1); } _this._set_label_uploading(key, false);
     };
-    upload_promise.then(clear_pending, clear_pending);
+    upload_promise.then(clear_pending, function() { clear_pending(); if(!_this.isDestroyed && !_this.isDestroying) { modalUtil.error(i18n.t('upload_failed', "Upload failed")); } });
     return upload_promise;
   },
 
@@ -2159,6 +2277,74 @@ export default Component.extend({
   _clearCellDropHighlight: function(el) {
     if(el && el.classList) { el.classList.remove('md-board-detail-grid__cell--image-drop'); }
   },
+
+  /* ── THE CREATE WIZARD ─────────────────────────────────────────────────
+     The page used to present Basics, grid size, Core Words and "for someone else" as one
+     long form, with Board Labels and Advanced options below it. They are now four steps
+     (requested 2026-09-22), taken in that order, after which the labels and advanced
+     sections appear exactly as before.
+
+     NOTHING ABOUT THOSE SECTIONS MOVED IN THE MODEL -- the same fields write to the same
+     `model` properties through the same actions. This is purely which of them is on screen
+     at a time, so validation, the AI path and save are untouched.
+
+     `wizard_done` is separate from "step 4" on purpose: the last step's button does not
+     advance to a fifth step, it REVEALS the rest of the page, and the two need to be
+     distinguishable so Back from nowhere cannot un-reveal it. */
+  wizard_step: 1,
+  wizard_done: false,
+  WIZARD_LAST_STEP: computed('ai_mode', 'show_user_options', 'appState.sessionUser.supporter_role', function() { return (this.get('show_user_options') && this.get('appState.sessionUser.supporter_role')) ? 4 : (this.get('ai_mode') ? 3 : 2); }), // step 4 only when there is someone to choose (2026-10-02); else the step before it is last and the board is for the user
+
+  /* STEP 3 (Core Words) IS SKIPPED WHEN NOT GENERATING WITH AI, in both directions.
+     `include_core_words` is read in exactly one place -- the `generate_labels` request payload
+     (see `generate_labels_with_ai` below) -- so on the "create my own" path the switch changes
+     nothing that is later read. Showing it there would be a control that does nothing, which is
+     worse than one step fewer. If core words should also seed a hand-made board, that is new
+     behaviour to add deliberately, and this is the single place that would stop skipping.
+     Stepping is centralised here so forward and back cannot disagree about which steps exist. */
+  wizard_adjacent_step: function(step, dir) {
+    var next = step + dir;
+    if(next === 3 && !this.get('ai_mode')) { next = next + dir; }
+    if(next < 1) { next = 1; }
+    if(next > this.WIZARD_LAST_STEP) { next = this.WIZARD_LAST_STEP; }
+    return next;
+  },
+
+  wizard_on_last_step: computed('wizard_step', 'WIZARD_LAST_STEP', function() {
+    return (this.get('wizard_step') || 1) >= this.get('WIZARD_LAST_STEP');
+  }),
+
+  /* Step 1's gate. WHICH field it waits on differs by path, and the step-1 markup already
+     states which: Name carries `required`/`aria-required`, while Description renders a
+     "required" pill in AI mode and an "optional" pill otherwise. So AI waits on the
+     description -- it is the generation prompt, and nothing can be produced without it --
+     and "create my own" waits on the name. Blocking "create my own" on the description
+     contradicted the "optional" pill sitting next to that very field. Either way this is
+     only about reaching step 2; `saveBoard`'s own required-name validation is unchanged
+     and still applies at the end, in both modes. */
+  wizard_next_disabled: computed('wizard_step', 'ai_mode', 'model.name', 'model.description', function() {
+    if((this.get('wizard_step') || 1) !== 1) { return false; }
+    var required = this.get('ai_mode') ? this.get('model.description') : this.get('model.name');
+    return !(required || '').trim();
+  }),
+
+  /* The Basics header caption. It was one static line describing step 1, which then stayed
+     on screen through the grid-size, core-words and audience steps and captioned the wrong
+     control on each. Step 4 renders nothing at all when the supervisee toggle does not
+     apply, so it gets no caption rather than one naming an absent field; the template drops
+     the <p> entirely on an empty string. */
+  wizard_hint: computed('wizard_step', 'show_user_options', 'appState.sessionUser.supporter_role', function() {
+    var step = this.get('wizard_step') || 1;
+    if(step === 2) {
+      return i18n.t('new_board_section_grid_hint', "Choose the grid size of your board.");
+    } else if(step === 3) {
+      return i18n.t('new_board_section_core_words_hint', "Choose whether to include core words.");
+    } else if(step === 4) {
+      if(!(this.get('show_user_options') && this.get('appState.sessionUser.supporter_role'))) { return ''; }
+      return i18n.t('new_board_section_for_user_hint', "Choose who this board is for.");
+    }
+    return i18n.t('new_board_section_basics_hint', "Give your board a name and brief description.");
+  }),
 
   actions: {
     close: function() {
@@ -2235,6 +2421,43 @@ export default Component.extend({
     /** Segmented mode switch: 'regular' or 'ai'. Import stays its own
      *  button. Leaving AI mode keeps any generated labels so toggling
      *  back and forth doesn't lose work. */
+    wizard_next: function() {
+      if(this.get('wizard_next_disabled')) { return; }
+      var step = this.get('wizard_step') || 1;
+      if(step >= this.WIZARD_LAST_STEP) {
+        // Past the last step the wizard does not advance, it opens the rest of the page.
+        this.set('wizard_done', true);
+      } else {
+        this.set('wizard_step', this.wizard_adjacent_step(step, 1));
+      }
+    },
+
+    /* BACK FROM THE POST-HANDOFF PAGE. Once `wizard_done` flips, Basics and the whole
+       Back/Next footer go with it, so from Board Labels there was no route back to the
+       grid size, core-words or audience answers at all -- the only way to revisit them
+       was to close the page and start the board again.
+       Clearing the flag is the entire action. `wizard_step` is deliberately NOT reset:
+       it was never changed on handoff, so the wizard reopens on the step it left from
+       rather than dumping the user back at step 1. Nothing else is touched either, so
+       every field already entered -- name, description, grid, labels -- survives the
+       round trip; this only changes which part of the page is on screen. */
+    wizard_reopen: function() {
+      this.set('wizard_done', false);
+    },
+
+    wizard_back: function() {
+      var step = this.get('wizard_step') || 1;
+      if(step > 1) { this.set('wizard_step', this.wizard_adjacent_step(step, -1)); }
+    },
+
+    /* The AI path's terminal button. It reveals the labels section FIRST and then runs the
+       existing generation action untouched, so the labels arrive into a section the user can
+       already see rather than into one still hidden behind the wizard. */
+    wizard_generate: function() {
+      this.set('wizard_done', true);
+      this.send('generate_labels_with_ai');
+    },
+
     set_create_mode: function(mode) {
       var to_ai = (mode === 'ai');
       /* LEAVING AI mode must clear what AI produced. `model.ai_generated` is the
@@ -2345,7 +2568,7 @@ export default Component.extend({
         value = value + 1;
       }
       value = Math.min(Math.max(1, value), 20);
-      this.set(attribute, value);
+      this.set(attribute, value); if(attribute === 'model.grid.rows' || attribute === 'model.grid.columns') { this.set('grid_size_chosen', true); } // +/- is the person's choice too, so autoFitGrid leaves it (2026-10-02)
     },
     /* Set both dimensions at once from <GridSizePicker>. Clamped to the same 1-20
        range `plus_minus` above enforces, so the picker cannot reach a size the
@@ -2361,6 +2584,20 @@ export default Component.extend({
       if (r === null || c === null) { return; }
       this.set('model.grid.rows', r);
       this.set('model.grid.columns', c);
+      this.set('grid_size_chosen', true);
+    },
+    /* The row/column steppers. These replace a bare `set-field` helper, which wrote the value
+       but left no trace that a PERSON had written it -- so `autoFitGrid` undid it on the next
+       keystroke in the labels field. Bound with `eventAction`, not `ctrlAction`: the latter
+       swallows the event and `event.target.value` is the whole payload here
+       (utils/event_action.js). The raw string is stored rather than parsed, exactly as
+       `set-field` stored it, so a half-typed value still round-trips into the input and every
+       reader's existing `parseInt` keeps doing the coercion. */
+    setGridRows: function(event) {
+      this._set_grid_dimension('model.grid.rows', event);
+    },
+    setGridColumns: function(event) {
+      this._set_grid_dimension('model.grid.columns', event);
     },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
@@ -3160,7 +3397,17 @@ export default Component.extend({
         }
         return;
       }
-      this.send('saveBoard');
+      /* Everything REQUIRED is present; what is left is whether the board is FINISHED, which
+         is a judgement only the person can make. The gate asks when the grid is empty or
+         half-filled and stays silent otherwise. */
+      var _this = this;
+      this._confirm_grid_completeness().then(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.send('saveBoard');
+      }, function() {
+        /* Cancelled, or the dialog was dismissed. Deliberately nothing: the person is back
+           on the page with their work untouched, which is the point of asking. */
+      });
     },
     saveBoard: function(event) {
       var _this = this;
@@ -3398,5 +3645,17 @@ export default Component.extend({
       if(this.get('skin_is_mix_only'))   { this._rebuild_compound_skin('mix_only'); }
       if(this.get('skin_is_mix_prefer')) { this._rebuild_compound_skin('mix_prefer'); }
     }
+  },
+
+  /* THE DROP SPINNER (2026-10-02, requested: "make sure the image drag drop works on board buttons on
+     the create-board-new page"). While a dropped image uploads (_applyDroppedImageToLabel), its label's
+     preview cell carries `uploading`, and the template puts the same `.ll-drop-uploading` veil over the
+     button that board-alt and board-detail show (services/content-grabbers.js drop_spinner_show).
+     Keyed by lower-cased label, like `_label_images`; a new map each time so preview_grid recomputes. */
+  _set_label_uploading: function(key, on) {
+    if(!key || this.isDestroyed || this.isDestroying) { return; }
+    var next_map = Object.assign({}, this.get('_uploading_labels') || {});
+    if(on) { next_map[key] = true; } else { delete next_map[key]; }
+    this.set('_uploading_labels', next_map);
   }
 });

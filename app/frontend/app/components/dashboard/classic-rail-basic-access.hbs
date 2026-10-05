@@ -1,0 +1,24 @@
+{{!-- BASIC ACCESS -- the Basic rail's way to the always-available boards (requested 2026-09-30).
+     Basic had none: the only signed-in entry was the card on Modern's Extras page
+     (components/dashboard/authenticated-view.js `extrasItems`). These boards are bundled with the
+     app and open offline, which board search cannot do, so this is a link to the page itself.
+     ONE ROW, TWO RAILS: rendered by the home page's inline rail (dashboard/classic-view.hbs) and by
+     <Dashboard::ClassicRail />, so the two copies cannot drift on it.
+     `@show` is the `emergency_boards` feature flag, passed by each rail: the same gate as Modern's
+     card and the signed-out navbar's Basic Access link. --}}
+{{#if @show}}
+  <li class="ch-rail__item">
+    <LinkTo @route="offline_boards" class="ch-row ch-row--minor">
+      <span class="ch-row__icon" aria-hidden="true">
+        {{!-- Life ring: charcoal ring, teal bands, in the rail's two-tone glyph style. --}}
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="4" stroke="#46505F"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6" stroke="#2A9D8F"/></svg>
+      </span>
+      <span class="ch-row__short" aria-hidden="true">{{t "Access" key="classic_short_basic_access"}}</span>
+      <span class="ch-row__body">
+        <span class="ch-row__title">{{t "Basic Access" key="critical_access"}}</span>
+        <span class="ch-row__sub">{{t "Offline boards" key="offline_boards_subtitle"}}</span>
+      </span>
+      <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+    </LinkTo>
+  </li>
+{{/if}}

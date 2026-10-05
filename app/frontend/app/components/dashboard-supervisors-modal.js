@@ -116,9 +116,9 @@ export default Component.extend({
             (_this.appState.get('currentUser.supervisees') || []).length > 0) ||
           _this.appState.get('currentUser.communicator_in_supporter_view')
         ) {
-          var prompt = i18n.t('speak_as_which_user', 'Select User to Speak As');
+          var prompt = i18n.t('speak_as_which_user', "Select User to Speak As");
           if (_this.appState.get('currentUser.communicator_in_supporter_view')) {
-            prompt = i18n.t('speak_as_which_mode', 'Select Mode and User for Session');
+            prompt = i18n.t('speak_as_which_mode', "Select Mode and User for Session");
           }
           _this.appState.set('referenced_speak_mode_user', null);
           _this.appState.get('controller').send('switch_communicators', {

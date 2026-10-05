@@ -5,8 +5,37 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <h3>{{t "Board Actions" key="board_actions"}}</h3>
+    {{!-- Up / Down pager for the list below, the same control the Speak Options menu
+         uses (components/speak-menu.hbs). This modal's body caps at 70vh and scrolls
+         (`.la-board-actions-wrap > .modal-body` in app.scss), and the action list runs
+         well past that, so the end of it was reachable only by a scroll gesture.
+
+         Behaviour copied deliberately, not re-invented: icon plus a VISIBLE Up/Down
+         label, and `disabled` at the ends of the range rather than removed — removing
+         one mid-scroll makes the other jump as the row reflows, which on a surface
+         someone is dwelling on moves the target out from under them. The pair renders
+         only when there is something to scroll, so there is no half state.
+
+         Styling comes from the speak-menu pager's own rule, which these selectors were
+         added to rather than copied, so the two pagers cannot drift apart. --}}
+    {{#if this.menu_scrollable}}
+      <div class="la-board-actions__scroll-pager">
+        <button type="button" class="la-board-actions__scroll-btn"
+                id="board_actions_scroll_up_button" disabled={{this.at_scroll_top}}
+                {{on "click" (this.ctrlAction "scroll_actions" "up")}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+          {{t "Up" key="up"}}
+        </button>
+        <button type="button" class="la-board-actions__scroll-btn"
+                id="board_actions_scroll_down_button" disabled={{this.at_scroll_bottom}}
+                {{on "click" (this.ctrlAction "scroll_actions" "down")}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          {{t "Down" key="down"}}
+        </button>
+      </div>
+    {{/if}}
   </div>
-  <div class="modal-body md-modal-body">
+  <div class="modal-body md-modal-body" id="board_actions_body">
     {{#unless this.model.board.permissions.edit}}
       <div class="la-board-actions-notice">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -97,8 +126,8 @@
 
       {{!-- Board Ideas · Button Stash · Set as Home Board — relocated here from
            the board-detail edit left panel's "Board Actions" group, which had
-           grown to seven rows. Placed last, immediately before View Style, which
-           is also a relocated panel row.
+           grown to seven rows. Placed last. (The View Style toggle that followed was
+           removed 2026-10-02: no view switch on a board page.)
 
            These three had NO other render site between them: `suggestions` and
            `open_button_stash` appeared only in that panel, so deleting the rows
@@ -157,35 +186,6 @@
           <svg class="la-board-actions-item__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       {{/if}}
-
-      {{!-- View Style — switch this board between the Modern and Classic layouts.
-           A static panel (icon + header/subheader + the segmented toggle), not a
-           navigation row. Relocated here from the board-detail edit left panel. --}}
-      <div class="la-board-actions-item la-board-actions-item--static la-board-actions-view-style">
-        <div class="la-board-actions-item__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#4C86D8"/><line x1="9" y1="21" x2="9" y2="9" stroke="#4C86D8"/>
-          </svg>
-        </div>
-        <div class="la-board-actions-item__content">
-          <span class="la-board-actions-item__label">{{t "View Style" key="board_view_style_label"}}</span>
-          <span class="la-board-actions-item__desc">{{t "Modern shows panelled tools with a focused button grid; Classic is the full-device grid. Switching reloads the board." key="board_view_style_explainer"}}</span>
-          <div class="md-board-edit-view-style__toggle md-board-edit-view-style__toggle--viewstyle {{if this.is_modern 'md-board-edit-view-style__toggle--viewstyle-modern'}} la-board-actions-view-style__toggle" role="group" aria-label={{t "View Style" key="board_view_style_label"}}>
-            <button type="button"
-              class="md-board-edit-view-style__opt {{unless this.is_modern 'md-board-edit-view-style__opt--active'}}"
-              aria-pressed={{if this.is_modern "false" "true"}}
-              {{on "click" (this.ctrlAction "set_view_style" "classic")}}>
-              {{t "Classic" key="board_view_classic_short"}}
-            </button>
-            <button type="button"
-              class="md-board-edit-view-style__opt {{if this.is_modern 'md-board-edit-view-style__opt--active'}}"
-              aria-pressed={{if this.is_modern "true" "false"}}
-              {{on "click" (this.ctrlAction "set_view_style" "modern")}}>
-              {{t "Modern" key="board_view_modern_short"}}
-            </button>
-          </div>
-        </div>
-      </div>
 
       {{#if this.model.board.permissions.delete}}
         <button type="button" class="la-board-actions-item la-board-actions-item--danger" {{on "click" (this.ctrlAction "delete")}}>

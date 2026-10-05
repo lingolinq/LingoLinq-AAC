@@ -111,7 +111,7 @@ export default Component.extend({
       const board = this.get('board');
       board.set('sharing_key', sharing_key);
       board.save().then(function() {}, function() {
-        modal.error(i18n.t('board_sharing_failed', 'Board sharing action failed'));
+        modal.error(i18n.t('board_sharing_failed', "Board sharing action failed"));
       });
     },
     unshare(id) {
@@ -119,7 +119,7 @@ export default Component.extend({
       const board = this.get('board');
       board.set('sharing_key', 'remove-' + id);
       board.save().then(function() {}, function() {
-        modal.error(i18n.t('unsharing_failed', 'Board unsharing action failed'));
+        modal.error(i18n.t('unsharing_failed', "Board unsharing action failed"));
       });
     },
     make_public(action) {

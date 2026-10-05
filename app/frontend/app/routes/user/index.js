@@ -7,7 +7,7 @@ export default Route.extend({
   appState: service('app-state'),
   model: function() {
     var model = this.modelFor('user');
-    model.set('subroute_name', i18n.t('summary', 'summary'));
+    model.set('subroute_name', i18n.t('summary', "summary"));
     return model;
   },
   setupController: function(controller, model) {

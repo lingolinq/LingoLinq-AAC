@@ -64,19 +64,19 @@ LingoLinq already has a working, if English-shaped, pipeline:
   - `tests[]`: `[prior, word, expected, {rule_id}]` fixtures (195 for EN).
 
 ### Storage & runtime
-(Line references re-verified on develop 2026-09-28.)
+(Line references re-verified on develop 2026-10-02.)
 
 - **Backend** `WordData` (one row per word+locale; secure-serialized `data` blob,
-  `app/models/word_data.rb:23`, holding `word`, `locale`, `types[]`,
+  `app/models/word_data.rb:25`, holding `word`, `locale`, `types[]`,
   `inflection_overrides{}`, `antonyms[]`, `reviews`).
-  `WordData.ingest(url)` (`word_data.rb:85`) loads `words` files into rows and
+  `WordData.ingest(url)` (`word_data.rb:87`) loads `words` files into rows and
   `rules` files into `Setting` records keyed `rules/#{locale}`
-  (`word_data.rb:117`); it keeps only top-level `contractions` and
+  (`word_data.rb:119`); it keeps only top-level `contractions` and
   `default_contractions`, so the upstream `substitutions` block is dropped.
-  `WordData.inflection_locations_for(words, locale)` (`word_data.rb:914`) merges
+  `WordData.inflection_locations_for(words, locale)` (`word_data.rb:916`) merges
   Setting rules with per-word overrides, **with a hardcoded English fallback
   grid** when a locale has no rules (`locale.match(/^en/i)` branches at
-  `word_data.rb:983,1126`). Dataset version: `INFLECTIONS_VERSION = 2`
+  `word_data.rb:985,1128`). Dataset version: `INFLECTIONS_VERSION = 2`
   (`word_data.rb:6`).
 - **Board stamping**: `Board#check_for_parts_of_speech_and_inflections`
   (`app/models/board.rb:2093`) writes `inflection_defaults` (skipped when the
@@ -101,7 +101,7 @@ LingoLinq already has a working, if English-shaped, pipeline:
   is the pair (`label_locale`, `vocalization_locale`) in app_state/stashes.
   Supervisors modeling for a student inherit the student's `preferred.locale`.
 - **Core/fringe**: `lib/core_lists.json` and `lib/fringe_suggestions.json`,
-  loaded by `WordData.core_lists`/`.fringe_lists` (`word_data.rb:1298,1309`) and
+  loaded by `WordData.core_lists`/`.fringe_lists` (`word_data.rb:1300,1311`) and
   filtered per locale; per-user core list overlays exist.
 - **Prediction**: `word_suggestions.js` — locale-aware lookup, but the local
   ngram corpus is English-only (see LEARNINGS: "Word prediction locale has

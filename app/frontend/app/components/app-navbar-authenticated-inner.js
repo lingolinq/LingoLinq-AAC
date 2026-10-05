@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { is_classic } from '../utils/view_style';
 
 /**
  * Reusable authenticated navbar inner: brand, search, identity (with optional
@@ -12,6 +13,17 @@ import { inject as service } from '@ember/service';
 export default Component.extend({
   tagName: '',
   appState: service('app-state'),
+
+  /* True when the user is in Classic. The tour trigger and the Display Style
+     selector are BOTH Card-View concepts and are hidden in Classic:
+       - Classic has its own "Take a tour" row in the rail, so the navbar disc
+         would be a second trigger for the same tour.
+       - Display Style chooses Gentle vs Focused, which are arrangements of the
+         CARD grid. Classic has no card grid, so the control has nothing to act on.
+     Reads through utils/view_style so the preference key has one reader. */
+  isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
 
   /** When true, the mobile drawer (same structure as landing la-mobile-drawer) is open. */
   isDrawerOpen: false,
@@ -64,6 +76,14 @@ export default Component.extend({
     };
     this.onToggleDrawer = () => { send('toggleDrawer'); };
     this.onCloseDrawer = () => { send('closeDrawer'); };
+    /* Dropdown twin of `onCloseDrawerAndNewBoard`. The drawer version has to shut the
+       drawer first; the dropdown closes itself on click, so this one only forwards. Both
+       land on the application route's `newBoard`, which runs the purchase check before
+       transitioning -- which is why neither is a plain LinkTo. */
+    this.onNewBoard = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('newBoard');
+    };
     this.onCloseDrawerAndNewBoard = (event) => {
       if (event && event.preventDefault) { event.preventDefault(); }
       send('closeDrawerAndSend', 'newBoard');
@@ -102,7 +122,9 @@ export default Component.extend({
     openDisplayStyle() {
       var opener = this.get('appState.dashboard_design_opener');
       if (opener) {
-        opener('display_style_display');
+        // The style-chooser page was removed 2026-09-20 (components/display-style.js);
+        // this opener now lands on the customize page, which is the whole flow.
+        opener('display_style_layout');
       } else {
         this.get('appState').set('open_dashboard_design', 'display');
       }
@@ -121,7 +143,13 @@ export default Component.extend({
       this.toggleProperty('isDrawerOpen');
     },
     closeDrawer() {
-      this.set('isDrawerOpen', false);
+      /* Closed after the click, not during it (2026-10-02): the drawer's LinkTos call this before
+         LinkTo's own handler, and closing synchronously re-rendered the link away first, so every
+         drawer link reloaded the page. See closeLandingDrawer in components/app-navbar.js. */
+      var _this = this;
+      window.setTimeout(function() {
+        if(!_this.isDestroyed && !_this.isDestroying) { _this.set('isDrawerOpen', false); }
+      }, 0);
       this.get('application').send('closeThemePicker');
     },
     closeDrawerAndSend(signal) {

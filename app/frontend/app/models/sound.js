@@ -27,7 +27,7 @@ LingoLinq.Sound = BaseModel.extend({
   name: attr('string'),
   tags: attr('raw'),
   tag: attr('string'),
-  transcription: attr('string'),
+  transcription: attr('string'), locale: attr('string'),
   duration: attr('number'),
   pending: attr('boolean'),
   protected: attr('boolean'),

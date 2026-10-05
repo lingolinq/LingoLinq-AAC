@@ -1,5 +1,6 @@
 module SystemFeatureRegistry
   METADATA = {
+    'disable_transcription_alternatives' => { name: 'Disable transcription language hints', category: 'Media', description: 'Kill switch: when on, voice transcription sends only the recording language, without other languages from the boards the owner uses. Off by default (hints are sent).' },
     'subscriptions' => { name: 'Subscriptions', category: 'Billing', description: 'Subscription and billing UI' },
     'assessments' => { name: 'Assessments', category: 'Evaluations', description: 'Assessment tools' },
     'custom_sidebar' => { name: 'Custom sidebar', category: 'Boards', description: 'Customizable board sidebar' },
@@ -66,7 +67,8 @@ module SystemFeatureRegistry
     'article_50_disclosure' => { name: 'Article 50 disclosure', category: 'Compliance', description: 'EU AI Act Article 50(1) first-AI-use disclosure modal' },
     'compliance_workflow_kernel' => { name: 'Compliance workflow kernel', category: 'Compliance', description: 'Segment/jurisdiction/digital-consent-age Compliance::Profile (lib/compliance/)' },
     'text_symbol_fallback' => { name: 'Text symbol fallback', category: 'Boards', description: 'Render text-only buttons (label, no image) with their label as the symbol in speak/view mode, instead of a square.svg placeholder plus a duplicate label below' },
-    'multilingual_grammar' => { name: 'Multilingual grammar', category: 'Language', description: 'Reserved for schema-2 language data (db/language/). Nothing reads it yet; turning it on changes nothing' }
+    'multilingual_grammar' => { name: 'Multilingual grammar', category: 'Language', description: 'Reserved for schema-2 language data (db/language/). Nothing reads it yet; turning it on changes nothing' },
+    'location_maps' => { name: 'Location maps', category: 'Reports', description: 'Show session locations on a map on the stats and log pages' }
   }.freeze
 
   ENV_LOCKED = {

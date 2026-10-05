@@ -11,6 +11,7 @@ import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
 import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
+import { badge_snapshot } from '../../utils/badge_display';
 import Log from '../../models/log';
 import session from '../../utils/session';
 import modal from '../../utils/modal';
@@ -19,7 +20,7 @@ import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
-import { homePillLabel } from '../../helpers/home-pill-label';
+import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates';
 
 export default Component.extend({
   tagName: '',
@@ -124,20 +125,13 @@ export default Component.extend({
     });
   }),
 
-  // "Reports" appears in the primary pill-nav (and its responsive dropdown) for
-  // EVERYONE — supporters and communicators alike, on every layout including Focused
-  // View. Communicators ALSO keep a Reports card in Extras (see extrasItems), so for
-  // them it's reachable from both places. Constant for now; left as a named hook so
-  // the template guards stay in place if visibility ever needs gating again.
-  showReportsPill: true,
+  // (`showReportsPill` is gone with the pill it gated — Reports left the primary nav on
+  // 2026-09-18. Removed rather than left as an always-true hook: a flag no template reads
+  // is a trap for the next person, who cannot tell from here that nothing consults it.)
 
   // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
   // identity dropdown).
-  showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'focused';
-  }),
-
   // Visibility map for the home dashboard cards, keyed by section key
   // (boards/speak/extras/caseload/org). A key is present+true only when the
   // section is BOTH available to this user type AND not hidden by their saved
@@ -150,14 +144,14 @@ export default Component.extend({
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
     'appState.currentUser.managing_supervision_orgs',
-    'appState.currentUser.supervisees',
+    'appState.currentUser.supervisees', 'appState.compressed_view_active',
     function() {
       // Derived by the shared layout description, which the two preview surfaces
       // also call — so a section the previews hide is a section this page hides.
       // (That includes Focused View's forced-off Extras: Speak takes the focal
       // full-width hero slot, and a visible-but-unplaced card would land in an
       // implicit grid row of its own.)
-      return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis;
+      return this._compressVisibility(layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis);
     }
   ),
 
@@ -268,9 +262,9 @@ export default Component.extend({
   // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
   // GREETING hero — on the Extras tab the same <header> is the page header, which
   // the toggle must never hide.
-  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', function() {
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', 'compressedHomeLabel', function() {
     if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
-    return sectionHidden(this.get('appState.currentUser'), 'hero') ? htmlSafe('display: none !important;') : htmlSafe('');
+    return (this.get('compressedHomeLabel') || sectionHidden(this.get('appState.currentUser'), 'hero')) ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
@@ -278,7 +272,6 @@ export default Component.extend({
   initialActiveTab: null,
   isSearchOpen: false,
   showNewBoardForm: false,
-  pillnavDropdownOpen: false,
 
   init() {
     this._super(...arguments);
@@ -305,7 +298,6 @@ export default Component.extend({
       self.send.apply(self, [action].concat(args));
     };
     this.onGoTab = function(tab) { send('goTab', tab); };
-    this.onSelectTab = function(tab) { send('selectTab', tab); };
     this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
     this.onGo = function(dest) { send('go', dest); };
     this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
@@ -316,7 +308,6 @@ export default Component.extend({
     };
     this.onRecordNoteFor = function(supervisee) { send('recordNoteFor', supervisee); };
     this.onQuickAssessmentFor = function(supervisee) { send('quickAssessmentFor', supervisee); };
-    this.onTogglePillnavDropdown = function() { send('togglePillnavDropdown'); };
     this.onGettingStarted = function() { send('getting_started'); };
     this.onGoOrganizations = function() { send('goOrganizations'); };
     this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
@@ -524,27 +515,18 @@ export default Component.extend({
       return res;
     }
   ),
+  /* The arithmetic moved to utils/pending_updates (2026-09-14) when the modern pill-nav
+     started showing the same counter — one definition, two callers, so the two badges
+     cannot come to disagree about what the number means. Behaviour here is unchanged.
+     NOTE the dependent keys now also include `parsed_notifications` and
+     `read_notifications`, which this computed READ but never WATCHED: a notification
+     arriving, or the user marking them read, did not recompute the badge until something
+     else on the list changed. That was a real bug and PENDING_UPDATE_KEYS fixes it for
+     both callers at once. */
   pending_updates: computed(
-    'appState.currentUser.pending_org',
-    'appState.currentUser.pending_supervision_org',
-    'appState.currentUser.pending_board_shares',
-    'appState.currentUser.unread_messages',
+    ...PENDING_UPDATE_KEYS.map(function(k) { return 'appState.currentUser.' + k; }),
     function() {
-      var important = this.appState.get('currentUser.pending_org') ||
-                  this.appState.get('currentUser.pending_supervision_org') ||
-                  (this.appState.get('currentUser.pending_board_shares') || []).length > 0 ||
-                  this.appState.get('currentUser.unread_messages');
-      var normal_new = this.appState.get('currentUser.unread_messages.length') || 0;
-      var unread_notifications = (this.appState.get('currentUser.parsed_notifications') || []).filter(function(n) { return n.unread; }).length;
-      normal_new = normal_new + (unread_notifications || 0);
-
-      if(normal_new && !this.appState.get('currentUser.read_notifications')) {
-        return {count: normal_new};
-      } else if(important) {
-        return true;
-      } else {
-        return null;
-      }
+      return pendingUpdates(this.appState.get('currentUser'));
     }
   ),
   update_selected: observer('selected', 'persistence.online', function() {
@@ -683,8 +665,16 @@ export default Component.extend({
             b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id)
           }
         }
-        emberSet(model, 'current_badge', b);
-        emberSet(model, 'earned_badge', eb);
+        /* SNAPSHOTS, NOT RECORDS (2026-09-25). See utils/badge_display.js for the defect: a live
+           Badge record written into a JSON payload takes the Ember Data Store with it and the
+           payload stops being serializable.
+           These two write onto the user RECORD rather than onto `attr('raw')` data, so they were
+           not part of the crash. They are snapshotted anyway because a grep of app/ and tests/
+           found NO reader of `model.current_badge` or `model.earned_badge` -- so there is nothing
+           to break -- and leaving them as records would give one field name two shapes depending
+           on which object carries it, which is the trap the next reader falls into. */
+        emberSet(model, 'current_badge', badge_snapshot(b));
+        emberSet(model, 'earned_badge', badge_snapshot(eb));
       }
       var sups = [];
       // Use known_supervisees from currentUser first (since that's what we check for tab visibility), then sessionUser
@@ -698,10 +688,20 @@ export default Component.extend({
       }
       supervisees_list.forEach(function(sup) {
         if(for_users[emberGet(sup, 'id')] && emberGet(sup, 'premium')) {
+          /* THE CRASH SITE. `sup` is an element of `user.supervisees`, which is `attr('raw')`
+             (models/user.js:183) and is handed to local storage by reference
+             (services/persistence.js:706 -> utils/dbman.js:158 -> JSON.stringify). The value
+             here used to be the live Badge record returned by `Badge.best_next_badge`
+             (models/badge.js:319), whose `.store` closes a circle through
+             `store.notifications.store`, so every write of the user record threw
+             "Converting circular structure to JSON" and the record never reached local storage.
+             Decorating these entries for display is established practice -- `online`
+             (models/user.js:877), `local_avatar_url` below, `goal` -- and every other decoration
+             is a JSON-safe value. These two now are as well. */
           var b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id);
-          emberSet(sup, 'current_badge', b);
+          emberSet(sup, 'current_badge', badge_snapshot(b));
           var eb = _this.earned_badge(for_users[emberGet(sup, 'id')]);
-          emberSet(sup, 'earned_badge', eb);
+          emberSet(sup, 'earned_badge', badge_snapshot(eb));
         }
         if(LingoLinq.remote_url(sup.avatar_url) && !sup.local_avatar_url) {
           _this.persistence.find_url(sup.avatar_url, 'image').then(function(url) {
@@ -905,21 +905,6 @@ export default Component.extend({
   // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
   sectionBorderMode: 'off',
 
-  // Feeds the responsive .md-pillnav-dropdown trigger, so the label it shows for
-  // the home tab has to match the pill itself — supporters read "Dashboard" —
-  // hence the shared homePillLabel rather than a second copy of that rule.
-  // (Defaults are double-quoted per the i18n convention: a single-quoted default
-  // is silently DELETED by the next i18n_generator.rb run.)
-  // `has_management_responsibility` is READ below and must be a dependent key, or the
-  // dropdown trigger keeps a stale label when org-manager status resolves after first
-  // render (late org payload, or a role change in-session) — the pill row beside it
-  // would say "Home" while this said "Dashboard", the exact disagreement homePillLabel
-  // exists to prevent.
-  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
-    var tab = this.get('activeTab');
-    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role'), this.get('appState.currentUser.has_management_responsibility')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
-    return labels[tab] || labels.home;
-  }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
   boardsEmbedUser: computed('model', 'appState.currentUser', function() {
     return this.get('model') || this.get('appState.currentUser');
@@ -1154,7 +1139,26 @@ export default Component.extend({
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
     var _this = this;
-    _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
+    // `per_page: 50` — the server's MAX_PAGE for boards (lib/json_api/board.rb:10; anything
+    // larger is clamped there, so 50 is the ceiling rather than a guess). Without it these
+    // follow-up pages take DEFAULT_PAGE = 25, so walking a large library costs twice the
+    // round-trips it needs to.
+    //
+    // THIS IS A COST REDUCTION, NOT A FIX for the real problem: `_previewBoardsLoaded` is
+    // instance state and this component is rebuilt on every home/extras/index arrival, so the
+    // whole walk re-runs per navigation. The fix for THAT is a cache outliving the component,
+    // which was deliberately NOT done — nothing invalidates a board list on create/copy/delete
+    // (searched for a signal; `boardsPageListCache` only clears on sign-out), so a cache would
+    // show a stale count and stale preview tiles until reload. Halving the requests is the
+    // largest change available here that cannot alter what the user sees.
+    //
+    // Safe at 50, checked rather than assumed: the per-board N+1 this endpoint used to have is
+    // eager-loaded away (`includes(:board_content, :parent_board)`,
+    // app/controllers/api/boards_controller.rb:51, with a regression spec), so a bigger page
+    // does the same total work in fewer requests; and the endpoint's Redis cache only engages
+    // for public search (`['locale','q','sort']`), never for this `user_id`+`offset` shape, so
+    // there is no cache key to mismatch.
+    _this.get('store').query('board', { user_id: userId, offset: offset, per_page: 50 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var combined = accumulated.concat(boards.map(function(b) { return b; }));
       var meta = _this.get('persistence').meta('board', boards);
@@ -1193,9 +1197,12 @@ export default Component.extend({
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
     var supporterRole = user && user.get('supporter_role');
-    // Communicators keep a Reports card in Extras IN ADDITION to the pill-nav (which
-    // now shows Reports for everyone — see showReportsPill), so they can reach it from
-    // either place. Supporters get Reports in the pill only, not duplicated in Extras.
+    // Communicators reach Reports from THIS card. It used to be "in addition to the
+    // pill-nav"; the nav entry went on 2026-09-18, so for a communicator this card is now
+    // the home page's only route to Reports.
+    // SUPPORTERS still do not get the card (`!supporterRole`), which is deliberate and
+    // unchanged: their Reports lives per-communicator on the caseload, and account-wide on
+    // the account rail's Reports row. Both survive the nav removal.
     var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
@@ -1279,7 +1286,7 @@ export default Component.extend({
         if(parts.length === 2) {
           // Open in the user's preferred view: board-detail (modern) by default,
           // board-alt (classic) only when board_view_style === 'classic'.
-          this.get('router').transitionTo(board_view_route(this.get('appState.currentUser')), parts[0], parts[1]);
+          this.get('router').transitionTo(board_view_route(this.get('appState.effective_view_user')), parts[0], parts[1]);
         } else {
           // Canonical /key route — routes/board.js already redirects by preference.
           this.get('router').transitionTo('board', boardKey);
@@ -1314,12 +1321,11 @@ export default Component.extend({
       this.set('isSearchOpen', false);
     },
     onSearchKeydown: function(event) {
+      // Escape used to close the pill-nav dropdown FIRST and the search only if the
+      // dropdown was shut. That dropdown now belongs to UserPillNav, which is a native
+      // <details> and closes itself on Escape, so this only has the search to handle.
       if (event && event.key === 'Escape') {
-        if (this.get('pillnavDropdownOpen')) {
-          this.set('pillnavDropdownOpen', false);
-        } else {
-          this.set('isSearchOpen', false);
-        }
+        this.set('isSearchOpen', false);
       }
     },
     goTab: function(tab) {
@@ -1363,15 +1369,8 @@ export default Component.extend({
       }
       this.set('activeTab', tab);
     },
-    togglePillnavDropdown: function() {
-      this.set('pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
-    },
     toggleOrgDropdown: function() {
       this.toggleProperty('orgDropdownOpen');
-    },
-    selectTab: function(tab) {
-      this.send('goTab', tab);
-      this.set('pillnavDropdownOpen', false);
     },
     go: function(dest) {
       if (dest === 'speak') {
@@ -1386,7 +1385,11 @@ export default Component.extend({
         if (target && target.key) {
           var parts = target.key.split('/');
           if(parts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+            // Route by the user's view preference, not hardcoded to the modern shell —
+            // same resolution `goToBoard` above already uses. A classic-preference user
+            // tapping Continue Speaking was landing in `user.board-detail`, the exact
+            // ejection utils/board_view.js exists to prevent.
+            this.get('router').transitionTo(board_view_route(user), parts[0], parts[1]);
           } else {
             this.get('router').transitionTo('board', target.key);
             this.appState.toggle_mode('speak', {force: true, override_state: target});
@@ -1409,7 +1412,8 @@ export default Component.extend({
         if (lb && lb.key) {
           var lbp = lb.key.split('/');
           if (lbp.length === 2) {
-            this.get('router').transitionTo('user.board-detail', lbp[0], lbp[1]);
+            // View-preference routing, as in `goToBoard` and the 'speak' branch above.
+            this.get('router').transitionTo(board_view_route(u2), lbp[0], lbp[1]);
           } else {
             this.get('router').transitionTo('board', lb.key);
             this.appState.toggle_mode('speak', {force: true, override_state: lb});
@@ -1467,7 +1471,9 @@ export default Component.extend({
     editDashboard: function() {
       var opener = this.get('appState.dashboard_design_opener');
       if (opener) {
-        opener('display_style_display');
+        // The style-chooser page was removed 2026-09-20 (components/display-style.js);
+        // this opener now lands on the customize page, which is the whole flow.
+        opener('display_style_layout');
       } else {
         this.get('appState').set('open_dashboard_design', 'display');
       }
@@ -1594,16 +1600,9 @@ export default Component.extend({
           user = this.appState.get('currentUser');
         }
       }
-      this.appState.check_for_currently_premium(user, 'eval', false, true).then(function() {
-        this.appState.set_speak_mode_user(emberGet(user, 'id'), false, false, 'obf/eval');
-      }.bind(this));
-    },
-    remote_model: function(user) {
-      if(user.premium || emberGet(user, 'currently_premium')) {
-        modal.open('modals/remote-model', {user_id: user.id});
-      } else {
-        modal.open('premium-required', {user_name: user.user_name, action: 'evaluation', reason: 'not_currently_premium'});
-      }
+      this._eval_user_record(user).then((record) => this.appState.check_for_currently_premium(record, 'eval', false, true).then(() => {
+        this.appState.set_speak_mode_user(emberGet(record, 'id'), false, false, 'obf/eval');
+      }), () => { modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user")); });
     },
     support: function() {
       modal.open('support');
@@ -1845,5 +1844,56 @@ export default Component.extend({
     home_board: function(key) {
       this.get('router').transitionTo('board', key);
     }
+  },
+
+  /* COMPRESSED VIEW (services/app-state.js#compressed_view_active). Kept at the end of the
+     component so no line of the line-anchored ESLint baseline shifts.
+
+     On the home tab the greeting hero, the My Caseload card and the Create a Board / Edit
+     Dashboard cards give way to one heading row with those actions as a toolbar
+     (authenticated-view.hbs, `md-compact-head`). The three cards are removed from the grid
+     through the same visibility map the Dashboard Design preferences use, so the shared layout
+     engine reflows the rest (Need Attention, then Rooms) exactly as if the user had hidden them;
+     they stay in the DOM, hidden, like any turned-off card. */
+  compressedHome: computed('appState.compressed_view_active', 'activeTab', function() {
+    return this.get('appState.compressed_view_active') === true && this.get('activeTab') === 'home';
+  }),
+
+  /* The Dashboard page label in place of the greeting hero: Compressed View in FOCUSED only.
+     Compressed Gentle keeps the same "Welcome back" hero as Gentle without Compressed View
+     (requested 2026-09-30); the rest of compressedHome's changes still apply there. */
+  compressedHomeLabel: computed('compressedHome', 'effectiveLayout', function() {
+    return this.get('compressedHome') === true && this.get('effectiveLayout') === 'focused';
+  }),
+
+  _compressVisibility: function(vis) {
+    if (!this.get('appState.compressed_view_active') || !vis) { return vis; }
+    var out = Object.assign({}, vis);
+    ['caseload', 'createboard', 'editdashboard'].forEach(function(k) { out[k] = false; });
+    return out;
+  },
+
+  /* The Need Attention card lists the first few flagged communicators, in Compressed View or not
+     (requested 2026-09-29), and "View all communicators" links to the caseload for the rest. */
+  attentionShown: computed('attentionCommunicators.[]', function() {
+    return (this.get('attentionCommunicators') || []).slice(0, ATTENTION_ROWS);
+  }),
+  attentionOverflow: computed('attentionCommunicators.[]', 'attentionShown.[]', function() {
+    return (this.get('attentionCommunicators') || []).length > (this.get('attentionShown') || []).length;
+  }),
+
+  /* THE USER RECORD FOR RUN EVALUATION (fixed 2026-09-30). The Basic Communicators card passes a
+     supervisee ENTRY, a plain object from `known_supervisees` (models/user.js, the raw
+     `supervisees` attribute), and `appState.check_for_currently_premium` reads computeds only a
+     user record has (`currently_premium`, `currently_premium_or_premium_supporter`), through
+     `.get` -- a TypeError on the plain object, so the eval never started. A record is used as
+     it is; an entry is loaded by id first, as controllers/caseload.js#run_eval does. Kept last
+     so no line of the line-anchored ESLint baseline shifts. */
+  _eval_user_record(user) {
+    if(user && typeof user.get === 'function') { return Promise.resolve(user); }
+    return this.get('store').findRecord('user', emberGet(user, 'id'));
   }
 });
+
+// Rows the Need Attention card shows before "View all communicators".
+const ATTENTION_ROWS = 3;

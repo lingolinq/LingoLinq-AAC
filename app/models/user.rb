@@ -1963,14 +1963,25 @@ class User < ApplicationRecord
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
         'board_view_style' => 'modern',
-        # Home-page dashboard arrangement: 'gentle' (default) or 'focused'.
-        # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
-        # modifier on the dashboard grid.
+        # Home-page dashboard arrangement: 'gentle' or 'focused'. Chosen during the
+        # Dashboard Design flow or from the navbar View menu; drives the
+        # md-grid--layout-* modifier on the dashboard grid and the app-wide
+        # body.ll-layout-focused overlay.
+        #
+        # THIS BUCKET VALUE IS THE BACKFILL DEFAULT, NOT THE NEW-ACCOUNT DEFAULT, and the
+        # two deliberately differ. NEW accounts get 'focused' — seeded under `new_record?`
+        # in generate_defaults. This entry stays 'gentle' because the bucket loop has no
+        # new_record? guard and runs on every save, so changing it would restyle every
+        # existing account that has never been saved since this key was introduced.
+        # Both halves are pinned in spec/models/user_spec.rb.
+        #
         # NOTE (adversarial-review false positive — "client/server default mismatch"):
-        # this server default is 'gentle', matching the frontend default
-        # (dashboard/authenticated-view.js#effectiveLayout). They are aligned; new users
-        # get 'gentle' from both sides. (sanitize_dashboard_preferences! below also coerces
-        # any out-of-range stored value back to a known variant.)
+        # the frontend `|| 'gentle'` fallbacks (dashboard/authenticated-view.js and
+        # app-state.js #effectiveLayout) match THIS value, and both describe the same
+        # case — a stored preference that is absent. A new account never reaches either,
+        # because registration persists an explicit 'focused'.
+        # (sanitize_dashboard_preferences! below also coerces any out-of-range stored
+        # value back to a known variant.)
         'dashboard_layout' => 'gentle',
         # Per-section visibility for the home dashboard cards, e.g.
         # {'boards' => true, 'extras' => false}. Chosen during the Getting
@@ -2060,6 +2071,20 @@ class User < ApplicationRecord
     if self.new_record?
       self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
       self.settings['preferences']['word_suggestion_position'] = 'side_rail' if self.settings['preferences']['word_suggestion_position'] == nil
+      # Focused is the home style NEW accounts land on — the stronger-contrast, bolder-cue
+      # arrangement, which is what the View menu now presents first and badges "Default".
+      #
+      # Seeded HERE, under new_record?, and NOT by changing the 'gentle' entry in the
+      # preference_defaults['any_user'] bucket below. That bucket loop runs on every save with
+      # no new_record? guard, so flipping its value would restyle every EXISTING account that
+      # has not been saved since the key was introduced — the silent-behaviour-change trap the
+      # note on `board_category_grouping` in preference_defaults spells out. This block runs
+      # BEFORE the bucket loop, so a record seeded here is already non-nil and the bucket
+      # skips it; an existing user still falls to the bucket's 'gentle'.
+      #
+      # `== nil`, so an explicit choice made before the first save (a registration flow, or
+      # the Dashboard Design step) always wins.
+      self.settings['preferences']['dashboard_layout'] = 'focused' if self.settings['preferences']['dashboard_layout'] == nil
     end
     if !FeatureFlags.user_created_after?(self, 'battery_sounds')
       self.settings['preferences']['battery_sounds'] = true if self.settings['preferences']['battery_sounds'] == nil
@@ -2495,6 +2520,11 @@ class User < ApplicationRecord
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
       'board_dark_mode',
+      # Compressed View (feature flag compressed_view): tighter app shell and Modern home
+      # page. Boolean, no server default (absent = off), coerced in
+      # sanitize_dashboard_preferences!. Read with `=== true` in
+      # app/frontend/app/utils/compressed_view_state.js.
+      'compressed_view',
       # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
       # or 'top-down' (the original stacked order). Persisted per USER, not per
       # device, so the choice follows the user to a new login/browser — localStorage
@@ -2505,7 +2535,7 @@ class User < ApplicationRecord
       # failure mode called out on 'dashboard_layout' above.
       # Values are constrained on write by sanitize_boards_layout_preference!.
       'boards_layout',
-      # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
+      # AI feature prefs (master + per-feature). Master nil = off (AI defaults off);
       # for EU under-16 without parental consent these are forced false on write.
       'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
       'ai_board_suggestions', 'ai_symbol_search'
@@ -2808,6 +2838,7 @@ class User < ApplicationRecord
     if params['preferences'] && !(non_user_params['updater'] && non_user_params['updater'].admin?)
       params['preferences'].delete('beta_program_access')
     end
+    ai_prefs_before = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     PREFERENCE_PARAMS.each do |attr|
       if params['preferences'] && params['preferences'][attr] != nil
         val = params['preferences'][attr]
@@ -2827,6 +2858,7 @@ class User < ApplicationRecord
         self.settings['preferences'][attr] = val
       end
     end
+    ai_prefs_requested = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     # EU under-16 without active AI parental consent: default AI prefs off on
     # create, and silently force false if the client tries to enable any.
     # Also never allow product-improvement / telemetry opt-in for EU under-16.
@@ -2840,6 +2872,35 @@ class User < ApplicationRecord
     end
     if eu_under_16?
       product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
+    # Record each AI preference whose STORED value changed in this save, with who,
+    # when, and the old and new value. Compared after normalization and the EU
+    # override above, so a save that omits the keys, repeats a value, or sends a
+    # dropped blank records nothing. A value the EU rule set, rather than the
+    # one this save asked for, is marked 'source' => 'eu_forced'.
+    EU_AI_PREF_KEYS.each do |key|
+      before = ai_prefs_before[key]
+      after = self.settings['preferences'][key]
+      next if before == after
+      forced = ai_prefs_requested[key] != after
+      # With no editor, an EU-rule value is credited to the rule itself, and a
+      # request with no signed-in user (a sign-up) to a fixed system actor.
+      whodunnit = PaperTrail.request.whodunnit
+      updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
+                   elsif forced then 'system:eu_rule'
+                   elsif whodunnit.to_s.start_with?('unauthenticated') then 'system:unauthenticated'
+                   else whodunnit end
+      entry = {
+        'updater' => updater_id,
+        'setting' => key,
+        'from' => before,
+        'to' => after,
+        'timestamp' => Time.now.utc.iso8601
+      }
+      entry['source'] = 'eu_forced' if forced
+      entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
+      self.settings['confirmation_log'] ||= []
+      self.settings['confirmation_log'] << entry
     end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe
@@ -3286,6 +3347,18 @@ class User < ApplicationRecord
     written = entry.call(
       val.merge('enabled' => enabled, 'order' => order), true
     ).merge('boards' => clean_boards)
+    # IN PROGRESS GUARD (2026-09-28). Only a user with the board_category_grouping flag may
+    # store grouping as on; while the flag is out of every list (lib/feature_flags.rb) that is
+    # nobody. A stale or offline client re-sends its whole preferences hash on any save, so a
+    # stored "on" from before this guard is turned off on that save (no migration resets them;
+    # see lib/board_category_grouping_reset.rb). Checked on the REBUILT value so 'true',
+    # 1 and '1' are caught, and only when it is on, so ordinary saves skip the flag lookup.
+    # The check is on THIS user (the preference's owner), not on whoever is editing it, so
+    # during a beta a flagged supervisor cannot switch it on for an unflagged communicator.
+    # Remove together with lib/board_category_grouping_reset.rb once the feature ships.
+    if written['enabled'] == true && !FeatureFlags.feature_enabled_for?('board_category_grouping', self)
+      written['enabled'] = false
+    end
     log_board_category_grouping_enable!(written)
     prefs['board_category_grouping'] = written
   end
@@ -3354,6 +3427,12 @@ class User < ApplicationRecord
     # dashboard_layout: a single known variant, else fall back to default.
     if prefs.has_key?('dashboard_layout') && !['gentle', 'focused'].include?(prefs['dashboard_layout'])
       prefs.delete('dashboard_layout')
+    end
+
+    # compressed_view: a real boolean. The PREFERENCE_PARAMS loop already turns 'true' and
+    # 'false' into booleans; anything else is stored as off.
+    if prefs.has_key?('compressed_view')
+      prefs['compressed_view'] = (prefs['compressed_view'] == true)
     end
 
     # dashboard_sections: { known_key => boolean }.

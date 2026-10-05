@@ -26,6 +26,7 @@
 
 @use "sass:color";
 @use "sass:list";
+@use "color-fallbacks" as *;
 
 // -----------------------------------------------------------------------------
 // Brand colors
@@ -51,6 +52,37 @@ $brand-slate-gray:         #6B7280;
 $brand-slate-blue:         #5A6A85;
 $brand-cool-steel:         #9CA3AF;
 $brand-danger:             #C0392B;
+// Salmon/coral accent. SCSS twin of the `--md-coral` custom property the modern
+// pages use (app.scss :root), declared here so SCSS colour functions (rgba(),
+// color.adjust()) can reach it — a CSS custom property cannot be passed to them.
+// app.scss interpolates this into --md-coral, so the two cannot drift.
+$brand-coral:              #F06A5B;
+// Peach — warmer and lighter than the coral above. Used for the classic home's
+// Reports tile. Its own token rather than a lightened $brand-coral because
+// $brand-coral is interpolated into --md-coral and shared with the modern pages;
+// nudging it there would move a colour those pages depend on.
+$brand-peach:              #F5A184;
+// Teal-blue — the midpoint of $brand-verdigris (#2A9D8F) and $brand-dusty-denim
+// (#4C86D8): rgb(59, 146, 180). Used for the classic home's My Account tile.
+// Written as a LITERAL hex rather than `color.mix($brand-verdigris,
+// $brand-dusty-denim, 50%)` on purpose: the mix keeps fractional channels, and Sass
+// then emits `rgba(59, 145.5, 179.5, …)`. Fractional rgb() is valid CSS Color 4 and
+// fine in current browsers, but this app also ships in Cordova/Electron webviews,
+// and a webview that cannot parse it drops the whole declaration — leaving the tile
+// with no tint at all. If either brand colour changes, recompute this by hand.
+$brand-teal-blue:          #3B92B4;
+
+// -----------------------------------------------------------------------------
+// Page wash — the three-stop top-down gradient behind the authenticated page
+// surface. It was repeated as five identical literal gradients (app.scss ~665,
+// ~774, ~827, ~25888, ~60525: index-with-footer, find-board, bento shell, search),
+// which have to stay in lockstep, so the stops live here instead.
+// -----------------------------------------------------------------------------
+$page-wash-blue:           rgb(126, 184, 224);   // unchanged
+// Desaturated ~15% from the original #D4A84B (S 0.61 -> 0.46), hue and lightness
+// held, on request 2026-09-02 — the gold read too warm against the classic panel.
+$page-wash-gold:           rgb(195, 162, 92);
+$page-wash-green:          rgb(61, 122, 92);     // unchanged
 
 $brand-blue-black:         #111A2E;
 
@@ -77,6 +109,11 @@ $brand-dusty-denim-aa:     #2860C9;  // 4.65:1 on white
 // most transparent, both under the 4.5:1 that 11px text needs. This one holds 5.4:1 at that
 // same worst case and 7.76:1 on white.
 $brand-verdigris-ink:      #115C5B;  // 7.76:1 on white, 5.41:1 worst case on the nav glass
+// The denim twin of the swatch above, and it exists for the same reason. $brand-dusty-denim-aa
+// is measured against #fff (5.82:1) and drops to 4.13:1 on the shared chip surface
+// (`_chips.scss`, darkest stop #D2DAE5) — under the 4.5:1 body text owes. This one holds
+// 5.49:1 there. Use it for a link on any surface that is not pure white.
+$brand-dusty-denim-ink:    #1F4EA8;  // 7.74:1 on white, 5.49:1 on the chip
 
 // Stone scale (warm neutral background gradient — used by hero/landing-alt)
 $brand-stone-100:          #F4F3F0;
@@ -503,8 +540,30 @@ $focus-hero-base:        color-mix(in oklch, $brand-navy, gray 28%);
 // Glossy radial gradient stops: lit center (a hair of white) → deep muted edge.
 $focus-hero-center:      color-mix(in oklch, $focus-hero-base 84%, white);
 $focus-hero-edge:        color-mix(in oklch, $focus-hero-base, black 34%);
+// sRGB fallbacks for the two stops, computed from the same anchors (_color-fallbacks.scss). Place a
+// declaration using these BEFORE any modern one that uses the color-mix tokens above.
+$focus-hero-base-color:      cf-oklch-mix($brand-navy, gray, 72%);
+$focus-hero-center-color:    cf-oklch-mix($focus-hero-base-color, white, 84%);
+$focus-hero-edge-color:      cf-oklch-mix($focus-hero-base-color, black, 66%);
+$focus-hero-base-fallback:   cf-srgb($focus-hero-base-color);
+$focus-hero-center-fallback: cf-srgb($focus-hero-center-color);
+$focus-hero-edge-fallback:   cf-srgb($focus-hero-edge-color);
 // Ink (text / icon / arrow / bevel sheen) sitting ON any dark Focused surface.
 $focus-on-dark:          #ffffff;
+
+// THE HERO SURFACE as a background: the oklab navy radial of the Focused caseload hero
+// (`.md-card--caseload-focused`, app.scss), sRGB fallback first. White ink on it measures 6.95:1
+// at the lit centre and 16.5:1 at the edge. Used by the caseload Model buttons
+// (_caseload-compact.scss, _focused-view.scss) so they cannot drift from the hero.
+@mixin focus-hero-background($important: false) {
+  @if $important {
+    background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%) !important;
+    background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%) !important;
+  } @else {
+    background: radial-gradient(ellipse at center, $focus-hero-center-fallback 0%, $focus-hero-edge-fallback 100%);
+    background: radial-gradient(ellipse at center in oklab, #{$focus-hero-center} 0%, #{$focus-hero-edge} 100%);
+  }
+}
 // Ink color tinting every Focused elevation shadow (hero + cards + trigger).
 $focus-shadow-ink:       $la-navy;
 // Accent glows around the hero (resting verdigris bloom; hover denim bloom).
@@ -522,11 +581,13 @@ $focus-pill-accent-to:   $focus-accent;
 
 // — Focused View ACTIVE PILL fill —
 // The active pill carries ONE gradient across every page that has a pill-nav: the
-// dashboard (.md-shell--layout-focused), the caseload, Boards/Reports
-// (.md-shell--reports-view) and the account pages (.md-pillnav--user). That gradient
-// was written out as a literal at all four sites, with a "change them together" comment
-// standing in for the link — so these tokens exist to make the link real. Change here
-// and all four move; there is nowhere left for them to drift apart.
+// dashboard (.md-shell--layout-focused), the caseload, and Boards/Reports
+// (.md-shell--reports-view). That gradient was written out as a literal at each site,
+// with a "change them together" comment standing in for the link — so these tokens exist
+// to make the link real. Change here and they all move; there is nowhere left for them
+// to drift apart.
+// There was a FOURTH site, the account pages (.md-pillnav--user); it went with the
+// account pill row on 2026-09-21, replaced by the account rail.
 //
 // DESATURATED 10 POINTS from the chrome accents above (2026-08-16). They get their own
 // tokens rather than a change to `$focus-accent-from` / `$focus-pill-accent-to` because
@@ -560,6 +621,14 @@ $focus-text-muted:       #8A97A8;
 // color-mix() values — use ONLY via #{} interpolation in gradients (not rgba()).
 $focus-btn-base:         color-mix(in oklch, $brand-dusty-denim, gray 22%);
 $focus-btn-edge:         color-mix(in oklch, $focus-btn-base, black 14%);
+// sRGB fallbacks for the Focused primary buttons' gradient, which darkens each stop 10% in oklab
+// (`color-mix(in oklab, <stop> 90%, black)` at each use site).
+$focus-btn-base-color:          cf-oklch-mix($brand-dusty-denim, gray, 78%);
+$focus-btn-edge-color:          cf-oklch-mix($focus-btn-base-color, black, 86%);
+$focus-btn-base-fallback:       cf-srgb($focus-btn-base-color);
+$focus-btn-edge-fallback:       cf-srgb($focus-btn-edge-color);
+$focus-btn-base-dark-fallback:  cf-srgb(cf-oklab-mix($focus-btn-base-color, black, 90%));
+$focus-btn-edge-dark-fallback:  cf-srgb(cf-oklab-mix($focus-btn-edge-color, black, 90%));
 
 // =============================================================================
 // CASELOAD — quick-action fill tints
@@ -613,14 +682,18 @@ $caseload-model-blue-aa:    #2880C9;  // border only — $brand-dusty-denim-aa r
 // INK is $brand-blue-black (#111A2E) on all five, not LA Navy — a touch deeper, which is
 // what lets the fills be this muted without the labels softening.
 // Measured ink-on-fill at 14px/700 (4.5:1 floor), top corner / bottom corner:
-//   Model 8.63/6.27   Speak 6.64/4.41   Reports 8.24/5.35   Ideas 8.83/6.19   More 9.46/6.79
+//   Remote 8.63/6.27   Speak 6.64/4.41   Reports 8.24/5.35   Ideas 8.83/6.19   More 9.46/6.79
+// (Model and Choose Board are not tiles from this palette: they take the hero surface,
+// focus-hero-background, with white ink; 2026-10-03.)
 // Only Speak's BOTTOM CORNER is under the floor. The label sits mid-ramp, where it
 // measures 5.45:1; #7681A9 would clear the corner too if that matters.
 // BORDERS are derived, not stated: each is its bottom stop darkened L-11.5, which is the
 // same relationship the previous palette's stated borders had (measured L-10.7 average).
-$caseload-tile-model-from:    #A1B9D8;  // Muted Dusty Denim
-$caseload-tile-model-to:      #7D9EC7;
-$caseload-tile-model-border:  #547FB5;
+// Remote Modeling: the Dusty Denim stops Model wore until 2026-10-03 (requested: "make the
+// remote modeling bg the same as the model button"). Model now takes the hero surface.
+$caseload-tile-remote-from:   #A1B9D8;
+$caseload-tile-remote-to:     #7D9EC7;
+$caseload-tile-remote-border: #547FB5;
 $caseload-tile-speak-from:    #969FC3;  // Professional slate-indigo
 // Bottom stop lifted 5% toward the top stop (2026-08-16). At #747FA8 the tile's BOTTOM
 // CORNER measured 4.41:1 against the #111A2E ink — the only part of any tile in this row
@@ -640,7 +713,7 @@ $caseload-tile-more-from:     #B8C0CD;  // Neutral blue-grey
 $caseload-tile-more-to:       #98A3B3;
 $caseload-tile-more-border:   #76859A;
 $caseload-tile-ink:           $brand-blue-black;
-$caseload-tile-model-ink:     $caseload-tile-ink;
+$caseload-tile-remote-ink:    $caseload-tile-ink;
 $caseload-tile-speak-ink:     $caseload-tile-ink;
 $caseload-tile-reports-ink:   $caseload-tile-ink;
 $caseload-tile-ideas-ink:     $caseload-tile-ink;
@@ -682,3 +755,32 @@ $caseload-badge-sel-border:    #83A8DF;
 $caseload-badge-model-ink:     #26407F;
 $caseload-badge-model-bg:      #D2DBF3;
 $caseload-badge-model-border:  #95ABE2;
+
+// — Focused View dark icon tile (glass) —
+// ONE recipe, shared by the dashboard's badge-action cards (Create a Board / Edit
+// Dashboard / Account / Reports) and the Extras page's setup cards.
+// WHY A TOKEN: these were hand-copied and DRIFTED. `_focused-view.scss`'s
+// `.md-extras-card__icon-wrap` carried a comment saying it mirrored the badge-action
+// tile while actually still painting the original OPAQUE ramp — it missed the
+// 2026-09-20 glass pass and the 2026-09-21 darkening entirely, so the two surfaces had
+// visibly diverged. Both now read from here.
+// TRANSLUCENCY IS LOAD-BEARING: take the alphas to 1 and the backdrop blur below becomes
+// a no-op and the tile stops being glass at all. The three stops are the app's dark
+// icon-tile ramp expressed as rgba, deepened ~20% on 2026-09-21, not replaced.
+$focus-icon-tile-bg:
+  linear-gradient(158deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 44%,
+    rgba(255, 255, 255, 0) 72%),
+  radial-gradient(circle at 50% 46%,
+    rgba(29, 35, 48, 0.94) 0%,
+    rgba(40, 48, 60, 0.92) 48%,
+    rgba(65, 75, 92, 0.87) 100%);
+// `-webkit-` twin is required at every call site: without it the effect is silently
+// dropped on older iOS/iPadOS, a very common AAC device population.
+$focus-icon-tile-blur: blur(14px) saturate(1.3);
+$focus-icon-tile-border: 1px solid rgba(255, 255, 255, 0.24);
+$focus-icon-tile-shadow:
+  inset 0 1px 0 rgba(255, 255, 255, 0.30),
+  inset 0 -2px 6px rgba(15, 23, 42, 0.24),
+  0 6px 16px rgba(15, 23, 42, 0.18);

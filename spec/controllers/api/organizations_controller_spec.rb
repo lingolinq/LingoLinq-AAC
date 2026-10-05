@@ -902,7 +902,7 @@ describe Api::OrganizationsController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json).to eq({'weeks' => [], 
-        'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
+        'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_total_users"=>0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
       })
       
       LogSession.process_new({
@@ -922,7 +922,7 @@ describe Api::OrganizationsController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json).to eq({'weeks' => [], 
-        'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
+        'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_total_users"=>0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
       })
       
       o.add_user(user.user_name, false, false)
@@ -937,6 +937,45 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json[1]['timestamp']).to be > 0
     end
     
+    # THE ORG PAGE'S "RECENT SESSIONS" PIE subtracts recent users from a total, so the two must count
+    # the same people (2026-10-02). On the site-admin org the recent count is system-wide (the
+    # `org.admin?` bypass below), so its total is too; everywhere else both are the approved users.
+    # The pie read the org's own link count instead, and drew "Negative values are invalid for a
+    # pie chart" on the admin org (3 users, 90 recent).
+    it "should count recent sessions against a total of the same users" do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      outsider = User.create
+      d = Device.create(:user => outsider)
+      LogSession.process_new({
+        :events => [
+          {'timestamp' => 4.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+          {'timestamp' => 3.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+        ]
+      }, {:user => outsider, :device => d, :author => outsider})
+      Worker.process_queues
+      get :stats, params: {:organization_id => o.global_id}
+      expect(response).to be_successful
+      counts = JSON.parse(response.body)['user_counts']
+      expect(counts['recent_session_user_count']).to be >= 1
+      expect(counts['recent_session_total_users']).to eq(User.count)
+      expect(counts['recent_session_total_users']).to be >= counts['recent_session_user_count']
+    end
+
+    it "should count an ordinary org's recent sessions against its approved users" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name, true)
+      user = User.create
+      o.add_user(user.user_name, false, false)
+      get :stats, params: {:organization_id => o.global_id}
+      expect(response).to be_successful
+      counts = JSON.parse(response.body)['user_counts']
+      expect(counts['recent_session_total_users']).to eq(o.reload.approved_users(false).count)
+      expect(counts['recent_session_total_users']).to eq(counts['total_users'])
+    end
+
     it "should include goal stats" do
       token_user
       user = User.create
@@ -954,7 +993,7 @@ describe Api::OrganizationsController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json).to eq({'weeks' => [], 
-        'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
+        'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_total_users"=>0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
       })
       
       get :stats, params: {:organization_id => o.global_id}
@@ -974,6 +1013,7 @@ describe Api::OrganizationsController, :type => :controller do
         "total_words" => 0,
         "word_counts" => [],
         'recent_session_hours' => 0.0,
+        'recent_session_total_users' => 0,
         'total_users' => 0
       })
       
@@ -996,6 +1036,7 @@ describe Api::OrganizationsController, :type => :controller do
         "total_words" => 0,
         "word_counts" => [],
         'recent_session_hours' => 0.0,
+        'recent_session_total_users' => 1,
         'total_users' => 1
       })
     end
