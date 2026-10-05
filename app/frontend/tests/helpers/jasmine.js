@@ -15,7 +15,7 @@ var all_afters = [[]];
 var all_tests = [];
 var current_test_id = 0;
 var current_afters = [];
-var waiting = {}, wait_deadlines = {}, test_started_at = 0, WAIT_POLL_LIMIT = 120; // wait_deadlines: per test, the latest time a waitsFor timeout asked to wait until; WAIT_POLL_LIMIT backstops it if the clock is stubbed
+var waiting = {}, wait_deadlines = {}, test_started_at = 0, WAIT_POLL_LIMIT = 135; // wait_deadlines: per test, the latest time a waitsFor timeout asked to wait until; WAIT_POLL_LIMIT (~12.6s of polls) backstops it if the clock is stubbed
 
 var assert = null;
 function currentAssert() {
