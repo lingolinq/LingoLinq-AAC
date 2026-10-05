@@ -3242,7 +3242,9 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms {
 // divider-to-tiles spacing it also sets) alone.
 // NOT IN COMPRESSED VIEW: Compressed sets `--dn-card-pad` and the header padding on
 // `.md-shell--home` (_compressed-view.scss); setting the token on the card would override it.
-body.ll-layout-focused:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms {
+// `section.` because the Supervisors tab's "rooms:" list is an `article.md-card--rooms` in the
+// same `.md-grid` (authenticated-view.hbs) and reads the same padding token.
+body.ll-layout-focused:not(.ll-density-compressed) .md-grid section.md-card.md-card--rooms {
   --dn-card-pad: 10px 24px 20px;
   // ROOM TILES CONDENSED (requested 2026-10-05): the door 69 -> 46px (the base size, now with
   // no tile around it) and the tile's top/bottom padding 10 -> 6px, so a tile goes from about

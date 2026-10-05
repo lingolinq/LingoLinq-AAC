@@ -49262,6 +49262,11 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   .md-card--attention .md-attention__all {
     margin-right: auto;
   }
+  /* Compressed View's slim header link (`.md-card__view-all--head`, `margin-left: auto`) would
+     sit at the right edge under the centred title; centre it the same way. */
+  .md-card--attention .md-card--attention__head .md-card__view-all--head {
+    margin-right: auto;
+  }
 }
 /* Rooms header stacks earlier — at ≤640px — icon on top, title + subtitle centered
    below (same treatment as the Communicators Need Attention header, just at a wider

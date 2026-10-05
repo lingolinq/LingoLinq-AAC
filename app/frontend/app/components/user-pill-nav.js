@@ -45,7 +45,7 @@ export default Component.extend({
   }),
   navClass: computed('isClassic', function() {
     // `md-pillnav--primary` marks THIS nav (system-settings, board-picker and others also wear
-    // `md-pillnav--dashboard`) so its <=550px swap to the dropdown below can target it alone.
+    // `md-pillnav--dashboard`) so its <=640px swap to the dropdown below can target it alone.
     return this.get('isClassic') ? 'ch-tabs ch-tabs--primary' : 'md-pillnav md-pillnav--dashboard md-pillnav--primary';
   }),
   pillClass: computed('isClassic', function() {
