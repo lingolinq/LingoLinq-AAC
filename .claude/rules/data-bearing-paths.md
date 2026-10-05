@@ -13,8 +13,9 @@ paths:
 
 # Data-bearing paths (Tier 1 boundary)
 
-Fixtures, factories, cassettes, seeds, data migrations and data rake tasks can hold real
-user rows. Content that could contain identifiable student or patient data is **Tier 1**
+Fixtures, factories, cassettes, seeds, data migrations, data rake tasks and generated
+vocabulary under `db/language/` can hold real user rows. Content that could contain
+identifiable student or patient data is **Tier 1**
 regardless of the surrounding task:
 
 - Never paste rows from these paths into a prompt for a reviewer that has no BAA

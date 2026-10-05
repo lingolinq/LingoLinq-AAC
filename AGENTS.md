@@ -30,7 +30,7 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **Feature flags** (`lib/feature_flags.rb`) for every NEW user-facing feature. Small
   changes to shipped features and bug fixes do not need one.
 - **PII never leaves the platform.** Every AI or external-service call goes through
-  `lib/pii_scrubber.rb`. Never paste fixtures, seeds, cassettes, migrations or logs that
+  `lib/pii_scrubber.rb`. Never paste fixtures, seeds, cassettes, migrations, `db/language/` files or logs that
   could hold real student or patient rows into a prompt for a reviewer without a BAA.
 - **Node 22** (`.nvmrc`), **Ruby 3.4.4** (`.ruby-version`). No TypeScript conversion.
 - **Never suppress a deprecation**; fix the root cause. Edit existing SCSS selectors in
@@ -118,7 +118,7 @@ it. A green CI run is not the dual review.
 Path-scoped rules that Claude loads by file path and Codex does not: before editing
 under `docs/legal/` or `audit-reports/` read `.claude/rules/compliance-docs.md`
 (registers are the source of truth; attested bytes are frozen); before touching
-fixtures, factories, cassettes, seeds, migrations or `lib/tasks/` read
+fixtures, factories, cassettes, seeds, migrations, `db/language/` or `lib/tasks/` read
 `.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
 deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 `config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`.

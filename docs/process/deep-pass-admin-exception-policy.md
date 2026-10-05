@@ -87,7 +87,7 @@ All five must hold. If any fails, the merge waits.
    `codex-review-tests`.
 3. The PR is **not on a data-bearing path** as classified by
    `scripts/codex-review-path-classifier.sh` (fixtures, seeds, factories, data
-   migrations, cassettes, SQL/CSV dumps). A Tier 1 data-bearing PR does not merge
+   migrations, cassettes, SQL/CSV dumps, every path under `db/language/`). A Tier 1 data-bearing PR does not merge
    without review under any circumstance.
 4. A **named human has actually reviewed the diff**. The override replaces the
    model reviewer, not review itself. Record who.
