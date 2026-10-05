@@ -384,10 +384,11 @@ class Organization < ApplicationRecord
 
   def effective_data_policy
     @effective_data_policy ||= begin
-      policy = data_policy.dup
+      policy = Organization.normalize_data_policy_limits(data_policy, self)
       if self.parent_organization_id
         parent = Organization.find_by(id: self.parent_organization_id)
         if parent
+          # Already normalized: it is the result of this method.
           parent_policy = parent.effective_data_policy
           %w[logging_allowed geo_logging_allowed log_reports_allowed
              log_publishing_allowed research_opt_in_allowed].each do |key|
@@ -419,7 +420,7 @@ class Organization < ApplicationRecord
   # A numeric data-policy value as an Integer: nil stays nil, a whole number of 0 or more (an
   # Integer, or a String of digits with optional surrounding spaces) is returned, and anything
   # else raises ArgumentError. Used on write (update_data_policy refuses the request) and on
-  # read (DataPolicyEnforcer skips the organization), so a malformed value is never read as 0.
+  # read (normalize_data_policy_limits), so a malformed value is never read as 0 retention_months.
   # It used to be coerced with to_i, which turned "abc" into 0, and DataPolicyEnforcer treats 0
   # retention_months as "no retention policy", so the purge stopped with no error.
   WHOLE_NUMBER = /\A\s*\d+\s*\z/.freeze
@@ -430,6 +431,42 @@ class Organization < ApplicationRecord
     return value.strip.to_i if value.is_a?(String) && value.match?(WHOLE_NUMBER)
 
     raise ArgumentError, "#{value.inspect} is not a whole number of 0 or more"
+  end
+
+  # The numeric limits of org's stored policy, read for the strictest-wins merges here and in
+  # User#effective_data_policy, which compare them with `<`. update_data_policy casts on write,
+  # but a policy stored before it did can hold a String or a value that is not a whole number.
+  # A whole number is read as its Integer. retention_months is kept only when it is above 0:
+  # DataPolicyEnforcer purges only for a positive number of months, so 0 means no retention
+  # policy and must not win the merge, and a malformed value is left out rather than allowed to
+  # start an irreversible purge. A malformed max_logging_cutoff_hours is read as 0, the strictest
+  # cutoff, because hiding log history is reversible. A malformed value is logged with the
+  # organization, the key and the value. Returns a copy; the stored policy is not changed.
+  def self.normalize_data_policy_limits(policy, org)
+    normalized = policy.dup
+    DATA_POLICY_NUMERIC_KEYS.each do |key|
+      next if normalized[key].nil?
+
+      number = begin
+        data_policy_number(normalized[key])
+      rescue ArgumentError
+        Rails.logger.warn(
+          "Organization data policy: org #{org.global_id} #{key} #{normalized[key].inspect} " \
+          "is not a whole number"
+        )
+        nil
+      end
+      if key == 'retention_months'
+        if number && number > 0
+          normalized[key] = number
+        else
+          normalized.delete(key)
+        end
+      else
+        normalized[key] = number || 0
+      end
+    end
+    normalized
   end
 
   # A boolean data-policy value: nil stays nil, a recognised true or false value is returned as
