@@ -18,6 +18,7 @@ import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import { ensureAiBoardGenerationAccess } from '../utils/ai_board_generation_access';
 import { analyze_grid } from '../utils/board_grid';
 import article50Gate from '../utils/article50_gate';
 import boardsPageListCache from '../utils/boards_page_list_cache';
@@ -288,59 +289,25 @@ export default Component.extend({
     return 'width: ' + Math.max(0, Math.min(100, lvl)) + '%;';
   }),
 
-  ai_board_generation_enabled: computed(
-    'appState.feature_flags.ai_board_generation',
-    'appState.currentUser.preferences.ai_features_enabled',
-    'appState.currentUser.preferences.ai_board_generation',
+  // Shown whenever AI board generation is available for the account; the
+  // click goes through _ensureAiBoardGenerationAccess (turn-on step or reason).
+  ai_board_generation_offered: computed(
+    'appState.sessionUser.feature_flags.ai_board_generation',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_board_generation',
+    'appState.sessionUser.permissions',
     function() {
-      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+      return aiFeatureGate.boardGenerationOffered(this.appState);
     }
   ),
 
   /**
-   * UI opt-in before entering AI board generation. Server grandfather is
-   * unchanged; this only decides whether to show the enable popup, the EU
-   * parental-consent modal, or a blocked notice.
-   * Resolves { proceed: true } when generation may continue.
+   * UI step before entering AI board generation; see
+   * utils/ai_board_generation_access.js. Resolves { proceed: true } when
+   * generation may continue.
    */
   _ensureAiBoardGenerationAccess: function() {
-    var appState = this.get('appState');
-    var user = appState && appState.get && appState.get('currentUser');
-    var entry = aiFeatureGate.boardGenerationEntry(appState);
-    var stay = function() { return { proceed: false }; };
-
-    if(entry === 'allowed') {
-      return RSVP.resolve({ proceed: true });
-    }
-
-    if(entry === 'eu_consent') {
-      var parentEmail = '';
-      if(user && user.get) {
-        parentEmail = user.get('eu_ai_parental_consent_parent_email') || '';
-      }
-      return modalUtil.open('eu-ai-parental-consent', {
-        user: user,
-        triggeredPref: 'ai_board_generation',
-        parentEmail: parentEmail
-      }).then(stay, stay);
-    }
-
-    if(entry === 'blocked_flag' || entry === 'blocked_coppa') {
-      return modalUtil.open('enable-ai-features', {
-        blocked: true,
-        blockedReason: entry === 'blocked_coppa' ? 'coppa' : 'flag',
-        triggeredPref: 'ai_board_generation'
-      }).then(stay, stay);
-    }
-
-    return modalUtil.open('enable-ai-features', {
-      user: user,
-      triggeredPref: 'ai_board_generation'
-    }).then(function(result) {
-      var features = result && result.requested_features;
-      var boardGenOn = !!(features && features.ai_board_generation);
-      return { proceed: !!(result && result.saved && boardGenOn) };
-    }, stay);
+    return ensureAiBoardGenerationAccess(this.get('appState'));
   },
 
   _enterAiMode: function() {
