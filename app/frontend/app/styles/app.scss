@@ -421,12 +421,14 @@
    `body.ll-layout-focused .md-grid .md-card.md-card--attention`), and its "View all
    communicators" link (under the list, and in the header in Compressed View) sits straight on
    it. Measured 2026-10-01: the navy ring there was invisible against the card. Only that link
-   is listed: the attention ROWS are light and keep their own ring (_focused-view.scss,
+   and its Focused header-button form (`.md-attention__all`, 2026-10-05; its own 16px
+   `.md-btn` radius outranks the 6px here) are listed: the attention ROWS are light and keep their own ring (_focused-view.scss,
    `.md-attention-item:focus-visible`), and the Rooms card is a light panel. */
 body.ll-layout-focused #within_ember .ch-card:not(.ch-card--intro) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 body.ll-layout-focused #within_ember .ch-comm *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 body.ll-layout-focused #within_ember .ch-menu *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
-body.ll-layout-focused #within_ember .md-card--attention .md-card__view-all:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+body.ll-layout-focused #within_ember .md-card--attention .md-card__view-all:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+body.ll-layout-focused #within_ember .md-card--attention .md-attention__all:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
   border-radius: 6px;
 }
@@ -48422,14 +48424,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      Edit Dashboard, Reports, Extras — at ≤640px in EVERY dashboard layout (was
      scoped to gentle only). Icon on top, title + subtitle centered below. (The
      icon→title gap is unified to Extras' 28px in a dedicated rule later in the
-     file, so it's not set here.) */
-  .md-grid--dashboard .md-card.md-card--as-button .md-card__head,
+     file, so it's not set here.)
+     EXCEPT Focused's badge-action cards (Create a Board / Edit Dashboard), which keep their
+     desktop row -- icon left, text beside it, arrow pinned right (requested 2026-10-05). The
+     first two selectors are the old `.md-grid--dashboard .md-card.md-card--as-button` split
+     into "not Focused" and "not badge-action", which between them cover every card except
+     that pair. */
+  .md-grid--dashboard:not(.md-grid--layout-focused) .md-card.md-card--as-button .md-card__head,
+  .md-grid--dashboard .md-card.md-card--as-button:not(.md-card--badge-action) .md-card__head,
   .md-grid--dashboard .md-card.md-card--speak-as-button .md-card__head {
     flex-direction: column !important;
     align-items: center !important;
     text-align: center !important;
   }
-  .md-grid--dashboard .md-card.md-card--as-button .md-card__titles,
+  .md-grid--dashboard:not(.md-grid--layout-focused) .md-card.md-card--as-button .md-card__titles,
+  .md-grid--dashboard .md-card.md-card--as-button:not(.md-card--badge-action) .md-card__titles,
   .md-grid--dashboard .md-card.md-card--speak-as-button .md-card__titles {
     text-align: center !important;
   }
@@ -48895,6 +48904,28 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Organizations directory "Available Organizations": a lone org tile spans the
    full grid width instead of sitting at ~360px with empty auto-fill tracks beside
    it. (Mirrors the home My-Organizations card's single-org behavior below.) */
+/* HOME ROOMS CARD: SEVERAL ROOMS TO A ROW WHEN THEY FIT (requested 2026-10-05, Focused first,
+   then Gentle the same day). The 360px track above suits the org pages' wide room cards; on the
+   home card it left one room per row in Gentle's column. 220px fits the room tile (door, name,
+   arrow, padding) with the name still readable, and auto-fill adds a column whenever another
+   220px track fits. `min()` keeps a single track from overflowing a narrow card. Not in
+   Compressed View, which sizes this card itself. */
+body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+}
+/* CAPPED AT NARROWER WIDTHS (requested 2026-10-05): at most two rooms per row at <=1024px and
+   one at <=640px, so a long room name has room before it ellipsizes. Above 1024px auto-fill
+   still adds a column whenever another 220px track fits. */
+@media (max-width: 1024px) {
+  body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .md-shell--org-directory .md-rooms__grid .md-room-card:only-child {
   grid-column: 1 / -1;
 }
@@ -49157,9 +49188,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.md-rooms__all {
+.md-rooms__all,
+.md-attention__all {
   flex-shrink: 0;
 }
+/* "View all communicators" as a header button (Modern Focused only, requested 2026-10-05): it
+   matches "View all rooms" and sits at the right of the Need Attention header. That header has
+   no space-between wrapper like `.md-card--rooms__top`, so `margin-left: auto` pushes it right.
+   Outside Focused the header button is hidden and the link under the list stays; in Focused the
+   reverse. Gated on the grid's layout class (as the caseload hero is) so the Dashboard Design
+   preview clone follows the layout it previews. */
+.md-attention__all { margin-left: auto; }
+.md-grid:not(.md-grid--layout-focused) .md-card--attention .md-attention__all,
+.md-grid.md-grid--layout-focused .md-card--attention .md-attention__list + .md-card__view-all { display: none; }
 /* Room count — a styled pill sitting to the right of the "Rooms" header. */
 /* .md-rooms__count is styled together with .md-attention__count below (shared
    pill rule) so the two counts stay in lockstep. */
@@ -49200,11 +49241,26 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    sets no flex-direction, so this wins). */
 @media (max-width: 460px) {
   .md-card--org-management .md-card--rooms__head,
-  .md-card--attention .md-card--attention__head,
   .md-card--caseload .md-card__head {
     flex-direction: column !important;
     align-items: center !important;
     text-align: center !important;
+  }
+}
+/* ≤768px (requested 2026-10-05): the Communicators Need Attention header stacks — the
+   illustration on top, title and subtitle centred below, then the Focused "View all
+   communicators" button centred under them (margin-right joins its margin-left: auto). Was
+   ≤460px with the other heads above; the header button added 2026-10-05 made the row too
+   cramped well before that. The communicator cards go to one column at the same width
+   (_focused-view.scss, Focused's card grid; Gentle's list is already a single column). */
+@media (max-width: 768px) {
+  .md-card--attention .md-card--attention__head {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .md-card--attention .md-attention__all {
+    margin-right: auto;
   }
 }
 /* Rooms header stacks earlier — at ≤640px — icon on top, title + subtitle centered
@@ -56303,28 +56359,24 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-card--speak-focused__icon,
 .md-card--caseload-focused__icon { color: $focus-on-dark; line-height: 0; }
-/* Caseload badge — 132px wide, 123px tall. Slightly wider than the 126px Speak badge below
-   (requested 2026-09-20: 5% wider than the original 126, = 132.3 -> 132. A 15% widening to
-   145 was tried the same day and reverted).
-   WHY `object-fit: fill` AND NOT the `contain` the Speak badge uses: the height is a
-   deliberate stretch, added 2026-09-18 to close a band of dead space against the text beside
-   it. The caseload-folder artwork is 252x214, so at 132px wide its natural height is 112.1px
-   against this 123px box -- a 9.7% vertical stretch.
-   THAT PERCENTAGE MOVES WITH THE WIDTH, which is worth knowing before tuning either number:
-   the stretch was 15% at 126px wide, 0.1% (i.e. none) at 145px, and is 9.7% here. Height was
-   left at 123px because only the width was asked to change; if the intent is to hold a fixed
-   15% stretch, the height has to be recomputed each time the width moves.
-   KEPT AS `fill` WITH EXPLICIT DIMENSIONS rather than `contain`, which would letterbox to the
-   natural ratio and silently discard the stretch.
-   Both numbers are tied to the 252x214 source, NOT to a ratio the browser works out, so
-   swapping the artwork means recomputing them. (The attention tile's `inset: 7.5%` in
-   _focused-view.scss is the orientation-independent form and needs no such recompute --
-   the difference is deliberate: this box has to line up with text beside it.)
+/* Caseload badge — 144px wide, 148px tall: the caseload-folders artwork (288x296, 2x this
+   box) at its natural ratio, so `fill` here applies no stretch. Enlarged 20% on 2026-10-05
+   from 120x123, the size first chosen to keep the 123px height of the old art.
+   HISTORY: the previous caseload-folder artwork (252x214, landscape) sat in a 132x123 box,
+   a deliberate ~9.7% vertical stretch added 2026-09-18 to close dead space against the text
+   beside it. The 2026-10-05 replacement is near-square and carries lettering ("CASELOAD"),
+   so keeping 132px would have stretched it ~10% horizontally and visibly distorted the
+   text, so the width was set to follow the art instead.
+   KEPT AS `fill` WITH EXPLICIT DIMENSIONS rather than `contain`: both numbers are tied to
+   the 288x296 source, NOT to a ratio the browser works out, so swapping the artwork means
+   recomputing them. (The attention tile's `inset: 7.5%` in _focused-view.scss is the
+   orientation-independent form and needs no such recompute -- the difference is
+   deliberate: this box has to line up with text beside it.)
    The height difference against the Speak badge is not visible anywhere: the two never
    render together. `focusedHeroKey` (utils/dashboard_sections.js) returns exactly ONE key
    and stamps a single `md-grid--hero-*` on the grid, so a supporter sees the caseload hero
    and a communicator sees the Speak one. */
-.md-card--caseload-focused__img { width: 132px; height: 123px; display: block; object-fit: fill; }
+.md-card--caseload-focused__img { width: 144px; height: 148px; display: block; object-fit: fill; }
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
    becomes the hero's unmistakable focal point. */
 .md-card--speak-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
@@ -57111,6 +57163,11 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   height: 2.5px !important;
   -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%) !important;
   mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%) !important;
+  /* Title -> divider 8 -> 4px (requested 2026-10-05, tighter with the condensed card); the
+     sub's matching 7 -> 4px is on the Focused sub rule below. Margins, not a grid gap: the
+     divider is this pseudo-element INSIDE the title, so no container gap can reach it. Same
+     (0,5,1) as the base rule, which sets 8px without !important; later in source wins. */
+  margin-top: 4px;
 }
 /* Speak Mode now always shows its card-as-button variant (--speak-as-button /
    --speak-narrow-only) at EVERY screen size; the wide variant with a separate
@@ -57509,17 +57566,38 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      Dashboard::ClassicView with `.ch-*` markup), so this is focused + modern without any extra
      gate. It reaches the SMALL 41px badge-action tiles sized by the rule further down — not
      the full-width hero showcases, which are images rather than tiles. */
-  /* The whole recipe now lives in `$focus-icon-tile-*` (_variables.scss) so the Extras
-     page's setup-card tiles render the identical surface instead of a hand-copy that
-     drifted. Darkened ~20% on 2026-09-21 by deepening the ramp rather than the alphas. */
-  background: $focus-icon-tile-bg !important;
-  backdrop-filter: $focus-icon-tile-blur !important;
-  -webkit-backdrop-filter: $focus-icon-tile-blur !important;
-  border: $focus-icon-tile-border !important;
-  box-shadow: $focus-icon-tile-shadow !important;
+  /* LIGHT GLASS (requested 2026-10-05: "more glassmorphism, less dark"). Until then this took
+     the shared dark slate `$focus-icon-tile-*` recipe (_variables.scss), which the Extras
+     setup-card tiles still use; only these two home buttons move off it, so the variables are
+     untouched. A light white glass was tried first the same day and was too light ("they do need
+     some dark bg, just not as dark"), so this is the SAME slate ramp as the variables, at
+     roughly half their alpha (0.94/0.92/0.87 -> 0.58/0.52/0.44): still a dark tile, but the
+     card shows through it and the 14px backdrop blur has something to frost. The white sheen
+     and rim are raised (sheen 0.12 -> 0.30, rim 0.24 -> 0.45, top highlight 0.30 -> 0.55) so
+     it reads as glass rather than as a faded chip.
+     NO FUZZ (requested 2026-10-05, "remove the fuzzy look"): the backdrop blur, the blurred
+     inner lower lip (inset 0 -2px 6px) and the 12px drop are gone. What is left is all hard-edged:
+     the 1px rim, a 1px top highlight and a 1px contact shadow. */
+  /* THE NEED ATTENTION CARD'S DARK TONE, FLAT (requested 2026-10-05: "the same bg color as the
+     communicators need attention", then "remove the lighter part of that gradient"). That card
+     is `focus-glass-slate-card($centre-shift: 55%, $edge-shift: -45%, $gloss: 0.08,
+     $lighten: 32.5%, ...)` (_focused-view.scss): a light centre fading to a darker rim, under a
+     white gloss. This is its RIM stop alone, computed by the mixin's own formula from the same
+     arguments (#515d70, edge-shift -45%, lighten 32.5%; the base $lightness is 0), so it keeps
+     the card's colour without the light centre or the gloss. If the card's arguments change,
+     change these two numbers with them. The card's Compressed-View token override does not
+     apply: Compressed does not show these two cards. */
+  background: color.scale(color.scale(#515d70, $lightness: -45%), $lightness: 32.5%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 1px rgba(15, 23, 42, 0.16) !important;
 }
+/* Glyph lift for the dark tile: 1.4 on the full-strength slate, 1.25 now the tile is lighter. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
-  filter: brightness(1.4) saturate(1.05);
+  filter: brightness(1.25) saturate(1.05);
 }
 
 /* Focused View — the four action cards (Account / Create a Board / Reports / Edit
@@ -57541,12 +57619,35 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   min-height: 0 !important;
-  /* ~7% more compact (14/16 → 13/15) — a very small reduction. */
-  padding: 13px 15px !important;
+  /* ~7% more compact (14/16 → 13/15) — a very small reduction. Then 13/15 → 9/14
+     (requested 2026-10-05, "more condensed", with the 54 → 44px icon below): the card goes
+     from ~80px to ~62px tall, still well clear of the 44px AAC tap target. */
+  padding: 9px 14px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__head {
-  /* 11 → 14px: the tile grew 41 → 54px and the old gap left the title crowded against it. */
-  gap: 14px !important;
+  /* 11 → 14px: the tile grew 41 → 54px and the old gap left the title crowded against it.
+     14 → 12px with the tile's 54 → 44px (2026-10-05), keeping the gap in proportion. */
+  gap: 12px !important;
+  /* Room for the title's arrow, pinned to this head's right edge below, so the title and
+     the sub never run underneath it. */
+  padding-right: 32px !important;
+}
+/* TITLE ARROW RIGHT-ALIGNED AND VERTICALLY CENTRED ON THE BUTTON (requested 2026-10-05).
+   The arrow is the title's bare <span> (the base "→ affordance" rule, same (0,5,1) selector,
+   earlier in source). It positions against the HEAD, which is `position: relative` (the
+   `.md-card--badge-action .md-card__head` rule that lifts it over the gloss) and is the
+   card's only child, filling it inside even 9px top/bottom padding -- so centred on the head
+   is centred on the button. Centred with top/bottom 0 + flex rather than translateY(-50%):
+   the base hover rule's `transform: translateX(4px)` slide would replace a centring
+   transform and drop the arrow on hover. The slide still works as before. */
+.md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__title > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  margin-left: 0;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__title {
   /* 16 → 17 → 20px. The 17px step was to hold the title against the icon block; 20px is
@@ -57575,24 +57676,29 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-grid.md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__sub {
   font-size: 14px !important;
   margin-left: 0 !important;
+  /* Divider -> sub 7 -> 4px (2026-10-05), with the title -> divider 4px above. */
+  margin-top: 4px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon {
   /* 41 → 54px, and radius 13 → 16px to match the Caseload/Speak icon tiles on this page.
      The small dark tile was the main reason these two cards read as secondary next to
-     them; the glyph grows with it below. */
-  width: 54px !important;
-  height: 54px !important;
-  border-radius: 16px !important;
+     them; the glyph grows with it below.
+     54 → 44px, radius 16 → 14px (requested 2026-10-05, "more condensed"): the tile sets the
+     card's height, so this is the main lever. Still larger than the original 41px. */
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
   /* The head is a flex row; without this the icon shrinks by different amounts
      per card (longer descriptive text squeezes it more), so the four tiles ended
      up different widths. Pin to a fixed size so all four match. */
-  flex: 0 0 54px !important;
+  flex: 0 0 44px !important;
   min-width: 41px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
-  /* 20 → 26px, keeping the glyph at roughly half the 54px tile as before. */
-  width: 26px !important;
-  height: 26px !important;
+  /* 20 → 26px, keeping the glyph at roughly half the 54px tile as before.
+     26 → 22px with the 44px tile (2026-10-05), the same half. */
+  width: 22px !important;
+  height: 22px !important;
 }
 
 /* ≤1024px — the dashboard "card as button" view: widen the icon→text gap (the icon
@@ -57830,13 +57936,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    curvature, a tight contact shadow, and a soft diffuse denim-tinted lift, so
    each reads as a tappable CTA rather than a flat wash. Navy-on-light AAC
    contrast preserved. (The New Board pill is carved out below to follow the
-   Change Home Board button instead.) */
+   Change Home Board button instead.) The Need Attention card is listed so its Focused
+   "View all communicators" header button matches "View all rooms" (2026-10-05). */
 .md-grid--dashboard .md-card--speak .md-btn--primary,
 .md-grid--dashboard .md-card--boards .md-btn--primary,
 .md-grid--dashboard .md-card--caseload .md-btn--primary,
 .md-grid--dashboard .md-card--rooms .md-btn--primary,
+.md-grid--dashboard .md-card--attention .md-btn--primary,
 .md-grid--dashboard .md-card--org-management .md-btn--primary {
-  background: rgba($brand-dusty-denim, 0.3) !important;
+  /* The two backgrounds read custom properties so one button can retint without an override
+     rule: Focused's "View all communicators" sets them 50% lighter (_focused-view.scss). */
+  background: var(--md-dash-btn-bg, rgba($brand-dusty-denim, 0.3)) !important;
 
   color: $la-navy !important;
 
@@ -57857,8 +57967,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--boards .md-btn--primary:hover,
 .md-grid--dashboard .md-card--caseload .md-btn--primary:hover,
 .md-grid--dashboard .md-card--rooms .md-btn--primary:hover,
+.md-grid--dashboard .md-card--attention .md-btn--primary:hover,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:hover {
-  background: rgba($brand-dusty-denim, 0.4) !important;
+  background: var(--md-dash-btn-bg-hover, rgba($brand-dusty-denim, 0.4)) !important;
   text-decoration: none !important;
   transform: translateY(-1px) !important;
   box-shadow:
@@ -57871,6 +57982,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--boards .md-btn--primary:active,
 .md-grid--dashboard .md-card--caseload .md-btn--primary:active,
 .md-grid--dashboard .md-card--rooms .md-btn--primary:active,
+.md-grid--dashboard .md-card--attention .md-btn--primary:active,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:active {
   transform: translateY(0) !important;
 }
@@ -57878,6 +57990,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--boards .md-btn--primary:focus-visible,
 .md-grid--dashboard .md-card--caseload .md-btn--primary:focus-visible,
 .md-grid--dashboard .md-card--rooms .md-btn--primary:focus-visible,
+.md-grid--dashboard .md-card--attention .md-btn--primary:focus-visible,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:focus-visible {
   outline: none !important;
   box-shadow:
@@ -68057,19 +68170,55 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     margin: 40px auto 0 !important;
   }
 }
+/* MODERN PRIMARY NAV (UserPillNav) COLLAPSES AT <=640px FOR EVERY USER (requested 2026-10-05;
+   550px first, moved to 640px the same day).
+   This block used to be `.md-pillnav--org-menu` / `.md-pillnav-dropdown--org-menu`, org managers
+   only, and its dropdown half NEVER WON: the <=550px block above hides
+   `.md-pillnav-dropdown:not(.md-pillnav-dropdown--fit)` at (0,2,0) !important, which outranks a
+   one-class (0,1,0) !important show. Measured 2026-10-05 (org manager, Focused, home and
+   caseload, 461-550px and 440px): pill row hidden, dropdown hidden, NO NAV AT ALL. Two-class
+   selectors fix the tie on specificity and source order. The `--primary` hooks are emitted only
+   by components/user-pill-nav (modern, not Classic, which has its own tab dropdown), so the
+   other `md-pillnav--dashboard` navs (system settings, board picker) are untouched.
+   Non-org users collapsed at 460px (the block above, still in place for the other navs) and
+   their pills wrapped between 461 and 550; this brings everyone to 640.
+   `position: relative` is restated because the <=550px container rule above that supplies it
+   (the anchor for the absolutely positioned option list) does not reach 551-640px. */
 @media (max-width: 550px) {
+  /* The old org-manager hide, kept as it was and at its old width: in Classic the same nav
+     renders as `.ch-tabs` and still carries `--org-menu`, and this change is not meant to alter
+     Classic. */
   .md-pillnav--org-menu {
     display: none !important;
   }
-  .md-pillnav-dropdown--org-menu {
+}
+@media (max-width: 640px) {
+  .md-pillnav.md-pillnav--primary {
+    display: none !important;
+  }
+  .md-pillnav-dropdown.md-pillnav-dropdown--primary {
     display: block !important;
+    position: relative !important;
     width: 52% !important;
-    /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this
-       codebase (`html { font-size: 10px }`), so 2rem is 20px — see the rem trap in
-       docs/task-management/LEARNINGS.md. The ACCOUNT-pages nav
-       (`.md-pillnav-dropdown--user` further down) keeps its original 20px: it is a
-       different surface and was not part of this request. */
-    margin: 40px auto 0 !important;
+    /* No top margin (requested 2026-10-05: it sat too far below the menu above it). Was
+       40px, "the original 20px + 2rem" from 2026-08-16. */
+    margin: 0 auto !important;
+  }
+  /* NO SPACE ABOVE THE DROPDOWN (requested 2026-10-05: "too far away from the other menu
+     items"). Besides the 40px top margin dropped above, two gaps stacked between the stacked
+     account rail's last row and this dropdown (measured at 600px and 400px, home and caseload):
+     the rail's 20px bottom margin (the <=900px `.md-acct-rail` rule, `margin: 22px 0 20px`)
+     and the navbar's 16px top padding (the <=900px `.ll-appshell__navbar` rule). Both are
+     zeroed only while the collapsed dropdown is what the navbar holds, so the pill row above
+     640px and pages without this nav keep them. `:has()` needs Safari 15.4 / Chrome 105; an
+     older engine keeps the two gaps, which is today's layout. */
+  .md-acct-rail:has(~ .ll-appshell__main .md-pillnav-dropdown--primary) {
+    margin-bottom: 0;
+  }
+  /* 8px, not 0 (requested 2026-10-05: 18px down from the menu): with the rail's own 10px
+     bottom padding that puts the dropdown 18px below the last account row. */
+  .ll-appshell__navbar:has(> .md-pillnav-dropdown--primary) {
+    padding-top: 8px;
   }
 }
 

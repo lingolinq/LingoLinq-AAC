@@ -115,7 +115,7 @@
      breakpoint comes from `--org-menu` (or its absence) below.
      Mirrors the pill row above one-for-one, including the same role gates — a link that
      is not offered as a pill must not appear here either. --}}
-<details class="md-pillnav-dropdown md-pillnav-dropdown--user {{if this.hasSlotPill "md-pillnav-dropdown--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+<details class="md-pillnav-dropdown md-pillnav-dropdown--user {{if this.hasSlotPill "md-pillnav-dropdown--org-menu"}} {{unless this.isClassic "md-pillnav-dropdown--primary"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
   <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
     <span class="md-pillnav-dropdown__label">{{this.activeLabel}}</span>
     <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>

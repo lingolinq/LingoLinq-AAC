@@ -2955,19 +2955,19 @@ body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon-
 // 2026-09-18: those were removed with the previous artwork and have not been asked for again.
 // The base rule's "the image IS the icon — no tile, border, or shadow" therefore still holds.
 //
-// ASSETS (`communicators-glassy-2`, in use since 2026-09-20): 244x223 — the 122px box at 2x —
-// from a 1312x1199 815KB source (artwork revised 2026-09-20; same dimensions, redrawn).
-// 8.4KB WebP primary, 29.2KB PNG fallback. 512 colours, for the
-// same reason every glassy artwork here has needed them: at 256 (12.0KB) the gradients speckle
-// visibly, and this one adds a blue→purple ramp in the speech bubble that quantizes worst of
-// all. Inspected and rejected. Above 256 ImageMagick writes truecolour anyway, and the fallback
-// is reached only by an engine with no WebP support, so the extra bytes are theoretical.
+// ASSETS (`communicators-folders`, in use since 2026-10-05): 244x233 -- the 122px box at 2x --
+// trimmed and scaled from an 806x762 577KB source. 9.6KB WebP primary, 83KB PNG fallback.
+// 512 colours, for the same reason every glassy artwork here has needed them: at 256 (28.7KB)
+// the orange warning badge's gradient speckles visibly. Inspected and rejected. Above 256
+// ImageMagick writes truecolour anyway, and the fallback is reached only by an engine with no
+// WebP support, so the extra bytes are theoretical.
 //
-// `communicators-glassy` (the previous artwork, 222x244 portrait, 10.4KB/36.3KB) IS STILL ON
-// DISK in both asset roots, kept deliberately so this can be switched back — see the note at
-// the URLs below. It is referenced by nothing while `-2` is in use.
+// `communicators-glassy-2` (in use 2026-09-20 to 2026-10-05, 244x223, 8.4KB/29.2KB) and
+// `communicators-glassy` (before that, 222x244 portrait, 10.4KB/36.3KB) ARE STILL ON DISK in
+// both asset roots, kept deliberately so this can be switched back -- see the note at the URLs
+// below. Neither is referenced while `communicators-folders` is in use.
 //
-// ORIENTATION IS FREE HERE. `-2` is landscape (244x223) where the one it replaced was portrait
+// ORIENTATION IS FREE HERE. `-2` was landscape (244x223) where the one it replaced was portrait
 // (222x244), and no number in this rule changed: `contain` re-fits and `inset: 7.5%` shrinks in
 // both axes. Contrast `.md-card--caseload-focused__img` (app.scss), whose explicit box IS tied
 // to its source's ratio and must be recomputed on every swap.
@@ -3057,7 +3057,8 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention {
     $shape: ellipse 60% 40% at 50% 70%);
 }
 
-// INDIVIDUAL ROOM CARDS -> the glassy door on its own light slate tile (requested 2026-09-20).
+// INDIVIDUAL ROOM CARDS -> the door on its own light slate tile (requested 2026-09-20; the
+// art went from `door-glassy` back to the flat `door.png` on 2026-10-05, the image Gentle uses).
 //
 // SCOPED TO `.md-card--rooms`, NOT to `.md-room-card__icon` generally. That class is SHARED:
 // the org-management card reuses the same room-tile chrome and already has its own focused
@@ -3076,11 +3077,19 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention {
 // never needed one while the art sat on the page with no tile behind it — so without this the
 // card would be a hard square, and the pseudo's `border-radius: inherit` would inherit 0.
 //
-// `filter: none` clears the base rule's `brightness(1.10) saturate(0.8)`, which was tuned for
-// the old flat `door.png`. The same lift on glass artwork muddies it — exactly what the org
-// tile's own comment records about its swap.
+// `filter: none` clears the base rule's `brightness(1.10) saturate(0.8)` from the ELEMENT,
+// where it would also tint the slate tile. That filter was tuned for the flat `door.png`, so
+// since 2026-10-05 it is restated on the pseudo below, where it reaches the art only.
 body.ll-layout-focused .md-card--rooms .md-room-card__icon {
-  @include focus-glass-slate-card(75%);
+  // NO TILE (requested 2026-10-05: "remove the icon bg"): the door sits straight on the room
+  // card. Was `@include focus-glass-slate-card(75%);` -- restore that line to bring the slate
+  // tile back. `background: transparent` is still needed: the base rule paints `door.png` on
+  // this element, and the art is drawn on the ::before, so leaving it would draw the door twice.
+  // `position: relative` was the mixin's; the ::before is positioned against it.
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  position: relative;
   // 46px -> 92px (doubled, requested 2026-09-20) -> 69px (reduced 25% the same day).
   // The base `.md-card--rooms .md-room-card__icon` sets 46px; this overrides both axes.
   // The ASSET was rebuilt to match at each step and is 2x the display size (138px for 69px) —
@@ -3093,40 +3102,44 @@ body.ll-layout-focused .md-card--rooms .md-room-card__icon {
   // height is exactly the extra icon.
   width: var(--dn-room-icon-focused, 69px);
   height: var(--dn-room-icon-focused, 69px);
-  // Radius scaled with the tile so the corner keeps its proportion
-  // (12px on 46 -> 24px on 92 -> 18px on 69).
-  border-radius: 18px;
+  // (The 18px radius that scaled with the tile went with the tile, 2026-10-05.)
   filter: none;
 }
 body.ll-layout-focused .md-card--rooms .md-room-card__icon::before {
-  @include focus-glass-card-art('door-glassy');
+  // `door` = the 192x192 `door.png` (15.9KB) plus a 4.0KB WebP generated from it on
+  // 2026-10-05 for the mixin's image-set(). `door-glassy` (2026-09-20 to 2026-10-05) is still
+  // on disk in both asset roots; switching back is this one word, and then drop the filter.
+  @include focus-glass-card-art('door');
+  // No tile to sit inside any more, so the art fills the box rather than the mixin's 7.5% inset.
+  inset: 0;
+  // The base rule's lift for this artwork, so it reads as it does in Gentle View.
+  filter: brightness(1.10) saturate(0.8);
 }
 
-// ROOMS ICON -> THE GLASSY ILLUSTRATION (requested 2026-09-20), Focused View only.
+// ROOMS ICON -> THE CLASSROOM ILLUSTRATION, Focused View. (2026-09-20 to 2026-10-05 this
+// tile showed the `room-glassy-2` glass artwork; on 2026-10-05 it went back to `classroom`,
+// the same art Gentle shows, drawn through the Focused mixin.)
 // The base rule (`.md-grid .md-card.md-card--rooms .md-card__icon--rooms`, app.scss) paints
-// this 122px tile with `classroom.png` and is NOT view-scoped, so the swap goes here and Gentle
-// keeps the illustration it has. Only `background-image` is restated: the base `background:`
-// shorthand still supplies `center / contain no-repeat` and the box, and the cascade resolves
-// per longhand.
+// this 122px tile with `classroom.png` and is NOT view-scoped. Focused does not use that
+// background: the element is made transparent below and the art is drawn on the ::before,
+// so the 7.5% inset matches the other Focused tiles.
 //
 // `filter: none` IS LOAD-BEARING, not tidiness. The base rule ends with `filter:
-// brightness(1.05)`, added to lift the older flat classroom art off the card. This artwork is
-// already pale glass — leaving that lift on washed the highlights toward white and cost the
-// glass its edges. Same reasoning, and the same one-line fix, as the org tile further up this
-// file.
+// brightness(1.05)`. On this element it would also brighten the card surface, and it would
+// compound with the pseudo's own 1.05 to 1.1025. So the element clears it and the pseudo
+// carries the only lift. Same pattern as the org tile further up this file.
 //
-// ASSETS: 244x244 — the 122px box at 2x — from a 1254x1254 1.48MB source (room-glassy-2).
-// 11.2KB WebP primary, 51.3KB PNG fallback, 512 colours: at 256 the pale blue gradients
-// speckle visibly, which is why this tile has stayed at 512 through every revision.
-// Alpha verified genuine before publishing — corners read srgba(0,0,0,0) and compositing onto
-// a solid fill leaves it unchanged, i.e. no baked-in checkerboard (the defect that disqualified
-// an earlier candidate for this same card).
+// ASSETS (`classroom`, since 2026-10-05): the existing 254x256 `classroom.png` (23.7KB, 246
+// colours), plus a 7.1KB WebP generated from it the same day for the mixin's image-set().
+// Alpha verified genuine -- corners read srgba(0,0,0,0).
+// `room-glassy-2` (244x244, 11.2KB/51.3KB) is still on disk in both asset roots and unreferenced;
+// switching back is a one-word edit at the mixin call below.
 //
 // PLAIN url() FIRST for the same reason as every other image-set in this file: `type()` inside
 // image-set() needs Safari 17+ / Chrome 113+ and legacy -webkit-image-set() never supported it,
 // so on an older iPad both set forms are dropped and that line carries the swap alone.
 //
-// `classroom.png` is untouched and still serves Gentle View.
+// `classroom.png` is untouched and still serves Gentle View through the base rule.
 // ROOMS PANEL, 10% DARKER (requested 2026-09-20) — half the attention card's 20%, so the two
 // are deliberately different depths rather than an oversight. Same base gradient, same idiom;
 // see the mixin.
@@ -3221,6 +3234,28 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms {
     linear-gradient(180deg, rgba($rooms-top, 0.98), rgba($rooms-bottom, 0.95)) !important;
 }
 
+// ROOMS HEADER, TOP AND BOTTOM SPACING HALVED (requested 2026-10-05), Modern Focused only.
+// Above the header is the card's top padding (`--dn-card-pad`, 20px by default in app.scss's
+// `.md-grid .md-card.md-card--rooms`); below it is the card's 8px flex gap before the divider.
+// Top: the token is set on the card, 20 -> 10px, with the sides and bottom restated unchanged.
+// Bottom: the divider pulls up 4px into that gap, 8 -> 4px, leaving the gap itself (and the
+// divider-to-tiles spacing it also sets) alone.
+// NOT IN COMPRESSED VIEW: Compressed sets `--dn-card-pad` and the header padding on
+// `.md-shell--home` (_compressed-view.scss); setting the token on the card would override it.
+body.ll-layout-focused:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms {
+  --dn-card-pad: 10px 24px 20px;
+  // ROOM TILES CONDENSED (requested 2026-10-05): the door 69 -> 46px (the base size, now with
+  // no tile around it) and the tile's top/bottom padding 10 -> 6px, so a tile goes from about
+  // 91px to 60px tall. Set on this card, not the shell, because the Need Attention rows read
+  // the same two tokens for their height and are not part of this change.
+  --dn-room-icon-focused: 46px;
+  --dn-room-pad-y: 6px;
+}
+// SEVERAL ROOMS TO A ROW: app.scss, the home Rooms card's `.md-rooms__grid` rule (both views).
+body.ll-layout-focused:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-card--boards__divider {
+  margin-top: -4px;
+}
+
 body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms {
   // 50%, set DIRECTLY (requested 2026-09-20) — an absolute argument to the mixin, not a
   // relative step, so nothing compounds here. Half way from the slate ramp to white, against
@@ -3243,15 +3278,24 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms {
   // slate card AND the artwork on the pseudo above it, and on pale glass it blows the
   // highlights toward white — verified by rendering both ways. Cleared, not inherited.
   filter: none !important;
+  // ROOMS TOP ROW 18px SHORTER (requested 2026-10-05). This 122px box is the tallest thing in
+  // `.md-card--rooms__top`, so it sets the row's height, and the art on the ::before sits
+  // `inset: 7.5%` inside it -- 9.15px of empty box above and below. Pulling 9px off each side
+  // trims exactly that empty band: the row loses 18px and the artwork keeps its size and its
+  // place against the title. Shrinking the box instead would have shrunk the art with it.
+  margin-block: -9px;
 }
 body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms::before {
-  // ROOM-GLASSY-2 (2026-09-20). New artwork supplied under this name; the previous
-  // `room-glassy.png`/`.webp` pair was REMOVED from both image roots in the same change, so
-  // this name is the only one that resolves — reverting means restoring those two files from
-  // be9edf209 as well as changing this line.
-  @include focus-glass-card-art('room-glassy-2');
-  // BRIGHTNESS 1.05 — a 5% lift (requested 2026-09-20), applied to room-glassy-2.
+  // CLASSROOM (2026-10-05). `room-glassy-2` (2026-09-20 to 2026-10-05) is still on disk in
+  // both image roots, so switching back is this one word. The older `room-glassy` pair was
+  // REMOVED in 62031d5af; restoring it means recovering those files from be9edf209.
+  @include focus-glass-card-art('classroom');
+  // BRIGHTNESS 1.05 — a 5% lift (requested 2026-09-20 for room-glassy-2), KEPT for classroom
+  // after re-measuring (2026-10-05): all 44,444 non-transparent pixels of classroom.png at
+  // 244x244, 3.48% already >= 250 (the floor), 5.32% at 1.05. It is also the same lift the base
+  // rule gives this artwork in Gentle View, so the two views render it alike.
   //
+  // HISTORICAL — the room-glassy-2 measurement that first set 1.05:
   // CLIPPING RE-MEASURED AGAINST THIS ARTWORK, and the result is very different from the file
   // it replaced. All 40,207 non-transparent pixels sampled at the published 244x244:
   //     already >= 250 before any lift : 6.20%   <- the floor; unavoidable at any lift
@@ -3290,40 +3334,72 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__icon--rooms::b
   filter: brightness(1.05);
 }
 
-// LONG STATUS BADGES STAY IN THEIR OWN COLUMN (requested 2026-09-20). A badge like "Waiting for
-// Recommendation from Eval" was dropping to a full-width second row that started at x=0, under
-// the USERNAME, leaving the divider dangling at the end of line one. It should stay to the
-// RIGHT of the divider and wrap underneath itself there.
+// THE REASON SITS UNDER THE USERNAME, AND THE CARDS PACK SEVERAL TO A ROW (requested
+// 2026-10-05). Replaces the 2026-09-20 three-column grid (160px name | divider | status), which
+// kept a long status to the right of the name. That layout made each card wide: the fixed name
+// slot plus the status column left room for one card per row. Stacked, a card needs only the
+// avatar, the wider of name and reason, and the arrow, so the list below becomes an auto-fill
+// grid like the Rooms tiles and up to three cards (ATTENTION_ROWS) share a row.
 //
-// FLEX-WRAP CANNOT EXPRESS THIS. The base rule makes `__text` a `flex-wrap: wrap` row, and a
-// flex item that wraps starts at the container's left edge — there is no way to say "indent the
-// wrapped line to the third column". CSS grid can, because the columns exist independently of
-// how tall any cell grows:
-//   160px  the name (`__name` is already a fixed `width: 160px`)
-//   auto   the divider (1px rule + its 13px side margins = 27px)
-//   1fr    the badge, which now wraps INSIDE its own column instead of escaping the row
+// `__text` stays a grid, now one `minmax(0, 1fr)` column: the 0 minimum lets a long name or
+// reason shrink inside the card instead of pushing it wider than its track. The name drops the
+// base rule's fixed 160px (that width only existed to line the divider up down a column) and
+// ellipsizes in its own width. The divider turns HORIZONTAL between the two lines (requested
+// 2026-10-05): the same element as the base vertical rule, as a solid 1px navy hairline. The status keeps `justify-self: start` so it hugs its text, and
+// wraps under itself if long.
 //
-// `minmax(0, 1fr)` rather than `1fr`: a bare `1fr` is `minmax(auto, 1fr)`, whose auto minimum
-// is the pill's min-content width, so a long badge would push the row wider than the card. The
-// explicit 0 minimum lets the column shrink and the badge wrap instead — which preserves the
-// anti-overflow property the base rule's comment says the old wrap-under-the-name behaviour
-// existed to provide. That behaviour is replaced here, not discarded.
-//
-// The pill is `display: inline-flex` with `flex: none`, both inert on a grid item, so it needs
-// `justify-self: start` to stay hugged to its text rather than stretching across the column.
-//
-// SCOPED TO FOCUSED VIEW, matching the requests either side of it. Gentle View keeps the
-// wrap-under-the-name layout its base comment describes. If this should apply in both, the
-// base `.md-attention-item__text` rule is the place — not a second copy here.
+// SCOPED TO FOCUSED VIEW. Gentle keeps the single-column list with the name | divider | status
+// row its base comment describes. If this should apply in both, the base rules are the place,
+// not a second copy here.
+// "VIEW ALL COMMUNICATORS", 50% LIGHTER (requested 2026-10-05). The button wears the shared
+// dashboard pill (app.scss, `.md-grid--dashboard .md-card--rooms .md-btn--primary` and siblings),
+// whose rest and hover backgrounds read these two properties. `color.scale(..., $lightness: 50%)`
+// moves dusty denim half its remaining distance to white, the repo's idiom for "N% lighter".
+// "View all rooms" keeps the unlightened pill.
+// LESS TRANSPARENT (requested 2026-10-05, "a bit less", twice): alpha 0.3 -> 0.45 -> 0.6 at
+// rest and 0.4 -> 0.55 -> 0.7 on hover, so the hover step stays the same +0.1.
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__all {
+  --md-dash-btn-bg: #{color.scale(rgba($brand-dusty-denim, 0.6), $lightness: 50%)};
+  --md-dash-btn-bg-hover: #{color.scale(rgba($brand-dusty-denim, 0.7), $lightness: 50%)};
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list {
+  display: grid;
+  // 260px: avatar, a readable name, and the arrow, with the room card's padding. min() keeps a
+  // single track from overflowing a card narrower than that.
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+}
+// <=768px: one card per row (requested 2026-10-05), with the header stacking at the same width
+// (app.scss, the <=768px `.md-card--attention__head` rule).
+@media (max-width: 768px) {
+  body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__text {
   display: grid;
-  grid-template-columns: 160px auto minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__name {
+  width: auto;
+}
+body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__divider {
+  width: 100%;
+  height: 1px;
+  // The grid's 4px gap sits either side of it; the base rule's 13px side margins were the
+  // vertical divider's spacing and are cleared.
+  margin: 0;
+  // Plain solid hairline (requested 2026-10-05: "remove the gradient ... make it cleaner"),
+  // replacing the both-ends fade. 0.18 navy: visible on the light glass row without reading
+  // as a rule across it.
+  background: rgba($la-navy, 0.18);
 }
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item__status {
   justify-self: start;
   max-width: 100%;
   text-align: left;
+  // 15 -> 14px (requested 2026-10-05), now that it is the secondary line under the name.
+  font-size: 14px;
 }
 
 // MD-MAIN BLEEDS TO THE WORKSPACE EDGES (requested 2026-09-20), so its area covers
@@ -3684,9 +3760,9 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--atte
 // The artwork, above the card. No `!important` anywhere: nothing else in the app targets this
 // pseudo-element, so there is no cascade to win.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--attention::before {
-  // SWITCHING BACK to the previous artwork is a one-word edit: drop the `-2`. Both are on disk
-  // in both asset roots.
-  @include focus-glass-card-art('communicators-glassy-2');
+  // SWITCHING BACK to a previous artwork is a one-word edit: `communicators-glassy-2` or
+  // `communicators-glassy`. All three are on disk in both asset roots.
+  @include focus-glass-card-art('communicators-folders');
 }
 
 // ...LIGHTENED 10% (2026-08-16, requested). The tiles no longer take `$focus-boards-bg`
@@ -5833,7 +5909,14 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__sub::befor
 // $la-navy text on the most transparent stop over the darkest card behind it (the Compressed
 // View navy, ~#1A2340) measures 5.29:1; over the slate card, 8.4:1.
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item {
-  min-height: calc(var(--dn-room-icon-focused, 69px) + 2 * var(--dn-room-pad-y, 10px) + 2px);
+  // TOP AND BOTTOM SPACE HALVED (requested 2026-10-05). This was
+  //   min-height: calc(var(--dn-room-icon-focused, 69px) + 2 * var(--dn-room-pad-y, 10px) + 2px);
+  // i.e. ~91px, the height of a room tile with its 69px icon. The rows have no icon, so with
+  // the reason stacked under the name (~48px of content) that floor, not the 10px padding, was
+  // most of the space: ~21px above and below. Dropping it leaves the padding as the space,
+  // ~10px each side, about half. (Halving the padding token instead would have taken only ~5px
+  // off, since the floor would still have set the height.) Restore the line to bring it back.
+  min-height: 0;
   background:
     radial-gradient(120% 160% at 10% 0%,
       rgba(255, 255, 255, 0.55) 0%,
