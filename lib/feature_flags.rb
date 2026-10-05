@@ -353,9 +353,10 @@ module FeatureFlags
     nil
   end
 
-  # Per-user AI preference gate.
-  # - Master (ai_features_enabled) ABSENT (nil) => grandfathered allowed. These
-  #   rows predate the consent UI and have never carried a value.
+  # Per-user AI preference gate. AI features are OFF until they are turned on for
+  # the account, the same default as usage logging (product direction 2026-09-30).
+  # - No user, no preferences Hash, or master (ai_features_enabled) ABSENT (nil)
+  #   => off.
   # - Master an explicit opt-out (false/'false'/0/'0') => block all AI.
   # - Master PRESENT but unrecognized ("", "maybe", a stray Hash) => block all
   #   AI. A value we cannot read is not consent.
@@ -368,9 +369,8 @@ module FeatureFlags
   # decided" and grandfather it — converts an unreadable value into an ALLOW.
   # PaperTrail cannot say how those rows reached ""; `object_changes` is absent
   # from the schema and `reify` raises on secure_serialize'd settings, so the
-  # intent behind the value is not merely unknown, it is unrecoverable. Writing
-  # "" back to nil has the same effect by another route: it lands the row in the
-  # grandfather bucket above. Neither is consent-preserving, so neither ships.
+  # intent behind the value is not merely unknown, it is unrecoverable. (Absent
+  # was grandfathered as allowed until 2026-09-30; it is now off, like "".)
   # The recovery path is the user checking the box in preferences, which writes
   # a real boolean — an affirmative act, which is what consent has to be.
   #
@@ -378,11 +378,11 @@ module FeatureFlags
   # BLOCKED: that state is an INCOMPLETE opt-in, and reading it as permission
   # would manufacture consent for a specific AI feature the user never gave.
   def self.user_pref_allows_ai?(feature, user)
-    return true unless user
+    return false unless user
     prefs = user.settings && user.settings['preferences']
-    return true unless prefs.is_a?(Hash)
+    return false unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
-    return true if master.nil?
+    return false if master.nil?
     # `unless == true` (not `if == false`) so that BOTH an explicit opt-out and
     # an unrecognized value deny, and they deny for EVERY AI feature. An earlier
     # revision returned only on an explicit false, which let an unrecognized

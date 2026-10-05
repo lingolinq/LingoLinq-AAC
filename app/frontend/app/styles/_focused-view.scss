@@ -1832,7 +1832,11 @@ body.ll-layout-focused {
   // themselves CSS `color-mix()` values (_variables.scss:498-499), not Sass colours, so
   // Sass colour functions cannot operate on them — hence the interpolation the original
   // stops already used. White text contrast at these lighter stops is measured below.
-  .md-caseload__quick-action.md-caseload__quick-action--model {
+  // THE BLUE TILE (2026-10-03): Remote Modeling wears the Dusty Denim tile Model wore until that
+  // day ($caseload-tile-remote-*, _variables.scss; requested: "make the remote modeling bg the same
+  // as the model button"). The body below is that Model rule, unchanged apart from the token
+  // parameters. Model itself now takes the hero surface (below).
+  @mixin caseload-focused-blue-tile($from, $to, $border, $ink) {
     // Blue, through the same mixin as its neighbours. It stays the anchor of the row via
     // a deeper $light and a firmer border, not via a different hue family.
     // The ACTIVE PILL-NAV gradient, verbatim (see the caseload pill rule above) — the row's
@@ -1841,12 +1845,10 @@ body.ll-layout-focused {
     // LITERAL STOPS (2026-08-16, Traci's palette) — "confident professional blue". The
     // derivation from $caseload-model-blue is gone from this tile; the chosen hexes are
     // stated in _variables.scss and painted verbatim.
-    // CONTRAST: 4.88:1 centre / 3.55:1 edge against the navy ink below. The edge is under
-    // the 4.5:1 floor for the 14px/700 label — see the note on the tokens.
-    @include caseload-focused-tile-bg($from: $caseload-tile-model-from, $to: $caseload-tile-model-to);
-    border-color: $caseload-tile-model-border !important;
-    // WHITE ink (2026-08-16) — Dusty Denim is deep enough to carry it.
-    color: $caseload-tile-model-ink !important;
+    // CONTRAST: measured per tile in _variables.scss (ink-on-fill, top / bottom corner).
+    @include caseload-focused-tile-bg($from: $from, $to: $to);
+    border-color: $border !important;
+    color: $ink !important;
     // Same restrained stack as every sibling (the tile mixin) — restated because this
     // rule sets its own; a glow here would single Model out as glossier than the row.
     box-shadow:
@@ -1854,14 +1856,7 @@ body.ll-layout-focused {
       inset 0 -1px 0 rgba($la-navy, 0.10),
       0 3px 7px rgba($la-navy, 0.16) !important;
   }
-  // The glyph's strokes are INLINE presentation attributes (`stroke="#46505F"` in
-  // caseload.hbs), which any CSS declaration outranks. Matched by value so the one
-  // `stroke="none"` element — the teal screen rect — is left alone; targeting `svg *`
-  // would give that rect a stroke it is explicitly meant not to have.
-  .md-caseload__quick-action.md-caseload__quick-action--model svg [stroke="#46505F"] {
-    stroke: currentColor;
-  }
-  .md-caseload__quick-action.md-caseload__quick-action--model:hover {
+  @mixin caseload-focused-blue-tile-hover {
     // NO BACKGROUND OVERRIDE (2026-08-16). This used to repaint the tile with the old
     // glossy navy CTA radial on hover, which — now that the resting tile is the Dusty
     // Denim linear ramp — meant hovering jumped to a different palette AND a different
@@ -1874,6 +1869,50 @@ body.ll-layout-focused {
       0 5px 11px rgba($la-navy, 0.22) !important;
     // No lift — matches the CTA, which deliberately drops the base hover's translateY.
     transform: none;
+  }
+  // MODEL and CHOOSE BOARD take the Focused caseload hero's surface, with light text and icon
+  // (2026-10-03, requested: "make the model button the same bg as the modern focused caseload
+  // card bg", then "make the model font light ... and icon"): the navy radial of
+  // `.md-card--caseload-focused` via focus-hero-background, white ink 6.95:1 at the lit centre.
+  // Choose Board shares Model's leading slot (the "has this communicator got a home board yet"
+  // branch), and that slot must not change appearance with the branch, so it follows Model.
+  // WEIGHT: the row's dark-ink rules above (`color: #0F172A !important` at (0,4,0) and the
+  // `svg *` stroke at (0,6,0), both under .md-caseload__list-header .md-caseload__list-quick)
+  // would otherwise paint navy on navy, so these selectors carry that path plus the slot class.
+  .md-shell--caseload .md-caseload__list-header .md-caseload__list-quick .md-caseload__quick-action.md-caseload__quick-action--model,
+  .md-shell--caseload .md-caseload__list-header .md-caseload__list-quick .md-caseload__quick-action.md-caseload__quick-action--choose-board {
+    @include focus-hero-background($important: true);
+    border-color: $focus-hero-edge-fallback !important; // sRGB fallback first (_color-fallbacks.scss)
+    border-color: $focus-hero-edge !important;
+    color: $focus-on-dark !important;
+    // Same restrained stack as every sibling (the tile mixin): a glow would single it out.
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 rgba($la-navy, 0.10),
+      0 3px 7px rgba($la-navy, 0.16) !important;
+  }
+  .md-shell--caseload .md-caseload__list-header .md-caseload__list-quick
+    .md-caseload__quick-action.md-caseload__quick-action--model:not(.md-caseload__quick-action--empty) svg *:not([stroke="none"]),
+  .md-shell--caseload .md-caseload__list-header .md-caseload__list-quick
+    .md-caseload__quick-action.md-caseload__quick-action--choose-board:not(.md-caseload__quick-action--empty) svg *:not([stroke="none"]) {
+    stroke: $focus-on-dark !important;
+  }
+  // Remote Modeling when it can connect. A limited Remote (`--limited`, utils/remote_modeling.js)
+  // keeps its own tile and "Limited" pill.
+  .md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited) {
+    @include caseload-focused-blue-tile($caseload-tile-remote-from, $caseload-tile-remote-to, $caseload-tile-remote-border, $caseload-tile-remote-ink);
+  }
+  // The glyph's strokes are INLINE presentation attributes (`stroke="#46505F"` in
+  // caseload.hbs), which any CSS declaration outranks. Matched by value so the one
+  // `stroke="none"` element — the teal screen rect — is left alone; targeting `svg *`
+  // would give that rect a stroke it is explicitly meant not to have.
+  .md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited) svg [stroke="#46505F"] {
+    stroke: currentColor;
+  }
+  .md-caseload__quick-action.md-caseload__quick-action--model:hover,
+  .md-shell--caseload .md-caseload__quick-action--choose-board:hover,
+  .md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited):hover {
+    @include caseload-focused-blue-tile-hover;
   }
   .md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty) {
     // Back to the unrotated denim source. Successive hue rotations (55deg -> 42 -> 34 ->
@@ -1905,44 +1944,6 @@ body.ll-layout-focused {
     @include caseload-focused-tile-hover;
   }
 
-  // CHOOSE BOARD takes MODEL's exact treatment — the navy CTA, not its own teal/blue —
-  // because the two share the leading slot (the "has this communicator got a home board
-  // yet" branch) and that slot must not change appearance depending on which branch is
-  // showing. It adds a soft halo behind the tile so the row's setup action still reads as
-  // the one to attend to, which is the job the old teal/blue fill was doing.
-  .md-shell--caseload .md-caseload__quick-action--choose-board {
-    // The ACTIVE PILL-NAV gradient, verbatim (see the caseload pill rule above) — the row's
-    // primary action and the nav's current page now read as one surface. Restated rather
-    // than tokenised because the pill rule states it literally too; change both together.
-    // MODEL'S NEW STOPS, deliberately. This tile and Model share the leading slot (the
-    // "has this communicator got a home board yet" branch) and that slot must not change
-    // appearance depending on which branch is showing — so the palette change carries
-    // here too, even though Choose Board was not itemised in the request.
-    @include caseload-focused-tile-bg($from: $caseload-tile-model-from, $to: $caseload-tile-model-to);
-    border-color: $caseload-tile-model-border !important;
-    color: $caseload-tile-model-ink !important;
-    // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
-    // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
-    // shippable — the same trade Gentle View already makes.
-    color: $la-navy !important;
-    // NO HALO. It marked this as the row's setup action, but read as a second emphasis
-    // competing with the tiles — and the "Board needed" badge beside the name already
-    // carries that message. Plain tile shadow, same as every neighbour.
-    // Same restrained stack as every sibling (the tile mixin) — restated because this
-    // rule sets its own; a glow here would single Model out as glossier than the row.
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 0 rgba($la-navy, 0.10),
-      0 3px 7px rgba($la-navy, 0.16) !important;
-  }
-  .md-shell--caseload .md-caseload__quick-action--choose-board:hover {
-    border-color: rgba($focus-on-dark, 0.2) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.65),
-      inset 0 -1px 0 rgba($la-navy, 0.12),
-      0 5px 11px rgba($la-navy, 0.22) !important;
-    transform: none;
-  }
 
   // The neutral "more" chevron button is a literal grey ramp (no $caseload-* token
   // behind it), so its stops are scaled in place. TWO LAYERS like the four workflow

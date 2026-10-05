@@ -1051,15 +1051,17 @@
 .md-caseload__list-quick .md-caseload__quick-action--ideas {
   flex: 0 0 86px;
 }
-/* Remote Modeling (2026-10-02): its "Limited" pill sits on the tile's top-right edge, where the
-   lock badge sits on the unavailable tiles, so it does not widen the tile or push the label. */
+/* Remote Modeling (2026-10-02): its "Limited" pill sits centred on the tile's top border
+   (2026-10-03, requested; it was at the top-right corner): its middle on the border line, both
+   ways, whatever the pill's height. It does not widen the tile or push the label. */
 .md-caseload__quick-action--remote {
   position: relative;
 }
 .md-caseload__quick-action--remote .md-limited-badge {
   position: absolute;
-  top: -9px;
-  right: -6px;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
   margin-left: 0;
 }
 /* Choose-Board slot — shown in place of Model when a communicator has no home
@@ -2060,16 +2062,21 @@ a.md-caseload__quick-action {
    instead of re-declaring the hexes. They arrive here via `@use "variables" as *`
    at the top of this file; nothing else about their use changed. */
 /* ── 1b. WORKFLOW PRIMARY: Model. Shares the leading slot with Choose Board and
-   wears the same halo one hue over; the ramp is what separates them. */
-.md-caseload__quick-action.md-caseload__quick-action--model {
+   wears the same halo one hue over; the ramp is what separates them.
+   THE BLUE GLASS, ONE SOURCE (2026-10-03): Model and Remote Modeling share this surface, Remote
+   at the original strength and Model `$deepen` darker (requested: "make the remote modeling bg
+   the same as the model button, then make the model button bg darker"). `$deepen` is added to
+   both colour stops of every state. Navy labels on the bottom stop over white, worst case:
+   Remote 8.4:1 (rest) to 7.1:1 (pressed); Model at 0.14 deeper 7.4:1 to 6.2:1. */
+@mixin caseload-blue-glass($deepen: 0) {
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.55) 0%,
       rgba(255, 255, 255, 0.20) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($caseload-model-blue, 0.28) 0%,
-      rgba($caseload-model-blue, 0.38) 100%);
+      rgba($caseload-model-blue, 0.28 + $deepen) 0%,
+      rgba($caseload-model-blue, 0.38 + $deepen) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   color: $la-navy;
   /* Measured border, 3.89:1 on the row. */
@@ -2083,15 +2090,15 @@ a.md-caseload__quick-action {
     0 0 8px rgba($caseload-model-blue-aa, 0.22),
     0 0 18px rgba($caseload-model-blue-aa, 0.30);
 }
-.md-caseload__quick-action.md-caseload__quick-action--model:hover {
+@mixin caseload-blue-glass-hover($deepen: 0) {
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.60) 0%,
       rgba(255, 255, 255, 0.22) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($caseload-model-blue, 0.36) 0%,
-      rgba($caseload-model-blue, 0.48) 100%);
+      rgba($caseload-model-blue, 0.36 + $deepen) 0%,
+      rgba($caseload-model-blue, 0.48 + $deepen) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   border-color: $brand-dusty-denim-aa;
   color: $la-navy;
@@ -2104,19 +2111,15 @@ a.md-caseload__quick-action {
     0 0 10px rgba($caseload-model-blue-aa, 0.30),
     0 0 24px rgba($caseload-model-blue-aa, 0.42);
 }
-/* A rank that overrides :hover MUST override :active too, at >= its own :hover
-   specificity and placed after it — otherwise a mouse-down (which is also a
-   hover) keeps showing hover, and keyboard activation falls through to the
-   shared verdigris :active. */
-.md-caseload__quick-action.md-caseload__quick-action--model:active {
+@mixin caseload-blue-glass-active($deepen: 0) {
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.40) 0%,
       rgba(255, 255, 255, 0.14) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($caseload-model-blue, 0.42) 0%,
-      rgba($caseload-model-blue, 0.54) 100%);
+      rgba($caseload-model-blue, 0.42 + $deepen) 0%,
+      rgba($caseload-model-blue, 0.54 + $deepen) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   border-color: $brand-dusty-denim-aa;
   color: $la-navy;
@@ -2124,6 +2127,34 @@ a.md-caseload__quick-action {
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 1px 3px rgba($la-navy, 0.10),
     0 0 10px rgba($caseload-model-blue-aa, 0.28);
+}
+$caseload-model-glass-deepen: 0.14;
+
+.md-caseload__quick-action.md-caseload__quick-action--model {
+  @include caseload-blue-glass($caseload-model-glass-deepen);
+}
+.md-caseload__quick-action.md-caseload__quick-action--model:hover {
+  @include caseload-blue-glass-hover($caseload-model-glass-deepen);
+}
+/* A rank that overrides :hover MUST override :active too, at >= its own :hover
+   specificity and placed after it — otherwise a mouse-down (which is also a
+   hover) keeps showing hover, and keyboard activation falls through to the
+   shared verdigris :active. */
+.md-caseload__quick-action.md-caseload__quick-action--model:active {
+  @include caseload-blue-glass-active($caseload-model-glass-deepen);
+}
+
+/* ── 1c. Remote Modeling: Model's blue glass at the original strength, when it can connect. A
+   limited Remote (`--limited`, utils/remote_modeling.js) keeps the neutral tile and its "Limited"
+   pill. Same :hover/:active pairing as Model, for the same reason. */
+.md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited) {
+  @include caseload-blue-glass;
+}
+.md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited):hover {
+  @include caseload-blue-glass-hover;
+}
+.md-caseload__quick-action.md-caseload__quick-action--remote:not(.md-caseload__quick-action--limited):active {
+  @include caseload-blue-glass-active;
 }
 
 /* ── 2. SPEAK — denim. The `:not(--empty)` guard is load-bearing: `--empty`'s
