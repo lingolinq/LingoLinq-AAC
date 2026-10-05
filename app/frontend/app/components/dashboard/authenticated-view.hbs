@@ -175,18 +175,20 @@
            it for free. --}}
       <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-focused" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
         <span class="md-card--caseload-focused__icon" aria-hidden="true">
-          {{!-- Optimized 288x296 (2x the 144x148 display box) assets, trimmed and scaled
-               from a 1024x1024 851KB source: a 13KB lossy WebP primary with a 45KB
-               256-colour PNG fallback. This artwork is flat enough that 256 colours does
-               not band (the previous gradient-heavy caseload-folder art needed 512).
+          {{!-- caseload-files (since 2026-10-05, replacing caseload-folders the same day;
+               both pairs are on disk in both asset roots). Optimized 288x294 (2x the 144x148
+               display box) assets, trimmed and scaled from a 1024x1024 846KB source: a 13.5KB
+               lossy WebP primary with a 137KB PNG fallback at 512 colours. At 256 the silver
+               badge speckled yellow; above 256 ImageMagick writes truecolour, hence the size.
+               The fallback is reached only by an engine with no WebP support.
                Mirrors the Speak hero exactly: decoding="sync" forces a full decode before
                painting so the preloaded image renders atomically rather than top-down,
                and the bytes are already in cache from the rel="preload" in
                app/index.html (Ember) and app/views/boards/index.html.erb (Rails-served
                production) -- keep all three in sync. --}}
           <picture>
-            <source srcset={{path "images/caseload-folders.webp"}} type="image/webp">
-            <img src={{path "images/caseload-folders.png"}} class="md-card--caseload-focused__img" alt="" decoding="sync" fetchpriority="high">
+            <source srcset={{path "images/caseload-files.webp"}} type="image/webp">
+            <img src={{path "images/caseload-files.png"}} class="md-card--caseload-focused__img" alt="" decoding="sync" fetchpriority="high">
           </picture>
         </span>
         <span class="md-card--caseload-focused__text">

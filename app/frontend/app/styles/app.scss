@@ -56359,8 +56359,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-card--speak-focused__icon,
 .md-card--caseload-focused__icon { color: $focus-on-dark; line-height: 0; }
-/* Caseload badge — 144px wide, 148px tall: the caseload-folders artwork (288x296, 2x this
-   box) at its natural ratio, so `fill` here applies no stretch. Enlarged 20% on 2026-10-05
+/* Caseload badge — 144px wide, 148px tall: the caseload-files artwork (288x294, 2x this box;
+   it replaced the near-identical caseload-folders 288x296 on 2026-10-05) at its natural ratio
+   to within 0.4%, so `fill` here applies no visible stretch. Enlarged 20% on 2026-10-05
    from 120x123, the size first chosen to keep the 123px height of the old art.
    HISTORY: the previous caseload-folder artwork (252x214, landscape) sat in a 132x123 box,
    a deliberate ~9.7% vertical stretch added 2026-09-18 to close dead space against the text
@@ -56368,7 +56369,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    so keeping 132px would have stretched it ~10% horizontally and visibly distorted the
    text, so the width was set to follow the art instead.
    KEPT AS `fill` WITH EXPLICIT DIMENSIONS rather than `contain`: both numbers are tied to
-   the 288x296 source, NOT to a ratio the browser works out, so swapping the artwork means
+   the 288x294 source, NOT to a ratio the browser works out, so swapping the artwork means
    recomputing them. (The attention tile's `inset: 7.5%` in _focused-view.scss is the
    orientation-independent form and needs no such recompute -- the difference is
    deliberate: this box has to line up with text beside it.)
