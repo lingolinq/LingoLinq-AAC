@@ -244,10 +244,13 @@ jobs:
         working-directory: app/frontend
         run: npx puppeteer browsers install chrome
 
-      - name: Build Ember app
+      # Build once, in the test environment, and run the tests against that output.
+      # `ember test` without --path rebuilds the whole app (~1 min); the old development-env
+      # build here was discarded, and the test build compiles the same app code.
+      - name: Build Ember app (test env)
         if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
-        run: npx ember build
+        run: npx ember build --environment=test --output-path=dist-test
 
       - name: Run Ember tests (Chrome Headless)
         if: steps.frontend.outputs.run == 'true'
@@ -256,7 +259,7 @@ jobs:
         # runner (e.g. testem's iframe channel corrupted by a post-teardown
         # stack overflow) fails fast instead of burning the 6h Actions ceiling.
         timeout-minutes: 50
-        run: npx ember test
+        run: npx ember test --path dist-test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
   # are deterministic, stdlib-only checks (no gems, no network): render checks that

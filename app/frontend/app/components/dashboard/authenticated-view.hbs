@@ -175,22 +175,20 @@
            it for free. --}}
       <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-focused" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
         <span class="md-card--caseload-focused__icon" aria-hidden="true">
-          {{!-- Optimized 252px (2× the 126px display box) assets: a 6.3KB lossy WebP
-               primary with a 47.6KB PNG fallback, down from a 542x460 210KB source.
-               The PNG is heavier than the caseload-dark one it replaced (19KB) on
-               purpose: this artwork is gradient-heavy, and a 256-colour palette -- what
-               got that one to 19KB -- bands visibly across the blues. 512 colours is the
-               smallest quantization that stays clean. It costs nothing in practice: the
-               fallback is reached only by a browser with no WebP support, and it is not
-               the file that gets preloaded.
+          {{!-- caseload-files (since 2026-10-05, replacing caseload-folders the same day;
+               both pairs are on disk in both asset roots). Optimized 288x294 (2x the 144x148
+               display box) assets, trimmed and scaled from a 1024x1024 846KB source: a 13.5KB
+               lossy WebP primary with a 137KB PNG fallback at 512 colours. At 256 the silver
+               badge speckled yellow; above 256 ImageMagick writes truecolour, hence the size.
+               The fallback is reached only by an engine with no WebP support.
                Mirrors the Speak hero exactly: decoding="sync" forces a full decode before
                painting so the preloaded image renders atomically rather than top-down,
                and the bytes are already in cache from the rel="preload" in
                app/index.html (Ember) and app/views/boards/index.html.erb (Rails-served
                production) -- keep all three in sync. --}}
           <picture>
-            <source srcset={{path "images/caseload-folder.webp"}} type="image/webp">
-            <img src={{path "images/caseload-folder.png"}} class="md-card--caseload-focused__img" alt="" decoding="sync" fetchpriority="high">
+            <source srcset={{path "images/caseload-files.webp"}} type="image/webp">
+            <img src={{path "images/caseload-files.png"}} class="md-card--caseload-focused__img" alt="" decoding="sync" fetchpriority="high">
           </picture>
         </span>
         <span class="md-card--caseload-focused__text">
@@ -207,6 +205,23 @@
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}} <span aria-hidden="true">&rarr;</span></h3>
+            <div class="md-card__sub">{{t "Manage your communicators" key="view_manage_communicators"}}</div>
+          </div>
+        </div>
+      </LinkTo>
+      {{!-- Focused View, ordinary (non-hero) Caseload: a third sibling in the same
+           badge-action markup as Create a Board / Edit Dashboard, so it takes their
+           Focused style from the shared badge-action rules. Always rendered; app.scss
+           shows it (and hides --caseload-as-button) only under .md-grid--layout-focused,
+           so the Display Style preview clone picks the right variant from the swapped
+           layout class alone. --}}
+      <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-action md-card--badge-action md-card--as-button" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "My Caseload" key="my_caseload"}} <span aria-hidden="true">→</span></div>
             <div class="md-card__sub">{{t "Manage your communicators" key="view_manage_communicators"}}</div>
           </div>
         </div>
@@ -285,6 +300,15 @@
           {{#if (and this.attentionOverflow this.compressedHome)}}
             <LinkTo @route="caseload" class="md-card__view-all md-card__view-all--head" aria-label={{t "View all communicators" key="view_all_communicators_label"}}>{{t "View all →" key="view_all_short"}}</LinkTo>
           {{/if}}
+          {{!-- Modern Focused (requested 2026-10-05): the same primary button as "View all rooms",
+               right-aligned in this header. Always rendered outside Compressed View; CSS shows it
+               ONLY under .md-grid--layout-focused and hides the under-list link there, so Gentle
+               keeps the link below and the Dashboard Design preview clone follows the layout. --}}
+          {{#if (and this.attentionOverflow (not this.compressedHome))}}
+            <LinkTo @route="caseload" class="md-btn md-btn--primary md-attention__all">
+              {{t "View all communicators" key="view_all_communicators_label"}}<span aria-hidden="true">&nbsp;→</span>
+            </LinkTo>
+          {{/if}}
         </div>
         <div class="md-card--boards__divider" aria-hidden="true"></div>
         <div class="md-attention__list">
@@ -353,6 +377,22 @@
           </div>
         </div>
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
+      </button>
+      {{!-- Focused View, ordinary (non-hero) Speak: the Speak counterpart of
+           --caseload-action above, in the same badge-action markup as Create a Board /
+           Edit Dashboard (a plain sub line, no status dot span, no wave). Always
+           rendered; app.scss shows it only under .md-grid--layout-focused.md-grid--hero-org,
+           where it replaces --speak-as-button. --}}
+      <button type="button" class="md-card md-card--speak md-card--speak-action md-card--badge-action md-card--as-button" style={{this.cardHideStyle.speak}} aria-label={{t "Speak Mode" key="speak_mode"}} {{on "click" (fn this.onGo "speak")}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/><path d="M15.6 8.5a5 5 0 0 1 0 7"/><path d="M18.7 5.8a9 9 0 0 1 0 12.4"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}} <span aria-hidden="true">→</span></div>
+            <div class="md-card__sub">{{t "Ready to communicate" key="ready_to_communicate"}}</div>
+          </div>
+        </div>
       </button>
 
       {{!-- Focused layout hero — the greeting BAR ("Hey <name>") that replaces the
