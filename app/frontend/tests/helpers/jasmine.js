@@ -179,11 +179,11 @@ function test_wrap(name, instance, befores, afters, lookup) {
         runOnce(function onIdle() {
           cleanupAttempt();
           var failed = buffered.some(function(r) { return r && r.result === false; });
-          if (failed && n < MAX_ATTEMPTS) { attempt(n + 1); return; }
+          if (failed && n < MAX_ATTEMPTS) { console.warn('[RETRY] ' + name + ' :: attempt ' + n + ' failed: ' + buffered.filter(function(r) { return r && r.result === false; }).map(function(r) { return r.message; }).join(' | ')); attempt(n + 1); return; }
           finalize(false);
         }, function onHung() {
           cleanupAttempt();
-          if (n < MAX_ATTEMPTS) { attempt(n + 1); return; }
+          if (n < MAX_ATTEMPTS) { console.warn('[RETRY] ' + name + ' :: attempt ' + n + ' hung'); attempt(n + 1); return; }
           finalize(true);
         }, 110); // ~10s/attempt, under the raised QUnit timeout
       });
