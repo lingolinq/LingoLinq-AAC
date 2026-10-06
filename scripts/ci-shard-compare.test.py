@@ -95,5 +95,42 @@ class ShardCompareTest(unittest.TestCase):
             self.assertEqual(run("full", "a", "empty"), 2)
 
 
+class CoverageTest(unittest.TestCase):
+    """--coverage: what the shards prove on their own, with no full run to compare against."""
+
+    def cover(self, *shards):
+        return compare_mod.coverage([compare_mod.parse(s) for s in shards])
+
+    def test_a_complete_disjoint_split_passes(self):
+        self.assertEqual(self.cover(tap(A, shard=(6, 10)), tap(B, shard=(4, 10))), [])
+
+    def test_both_shards_wired_to_the_same_half_fails(self):
+        problems = self.cover(tap(A, shard=(6, 10)), tap(A, shard=(6, 10)))
+        self.assertIn("shard selections add up to 12, but 10 tests are registered", problems)
+        self.assertIn("run by more than one shard (shard 1, shard 2): %s" % A[0], problems)
+
+    def test_a_test_in_both_shards_fails_even_when_the_counts_add_up(self):
+        a_with_overlap = A[:-1] + [B[0]]  # A[-1] dropped, B[0] doubled: counts still 6 + 4
+        problems = self.cover(tap(a_with_overlap, shard=(6, 10)), tap(B, shard=(4, 10)))
+        self.assertIn("run by more than one shard (shard 1, shard 2): %s" % B[0], problems)
+
+    def test_an_incomplete_shard_fails(self):
+        self.assertIn("shard 2 ran 3 tests but selected 4", self.cover(tap(A, shard=(6, 10)), tap(B[:3], shard=(4, 10))))
+
+    def test_a_shard_without_its_selection_line_fails(self):
+        self.assertIn("shard 2 logged no [SHARD] selection line", self.cover(tap(A, shard=(6, 10)), tap(B)))
+
+    def test_the_command_exits_by_outcome(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = {}
+            for name, text in {"a": tap(A, shard=(6, 10)), "b": tap(B, shard=(4, 10))}.items():
+                paths[name] = pathlib.Path(tmp) / name
+                paths[name].write_text(text)
+            run = lambda *names: subprocess.run([sys.executable, str(SCRIPT), "--coverage"] + [str(paths[n]) for n in names],
+                                                capture_output=True, text=True).returncode
+            self.assertEqual(run("a", "b"), 0)
+            self.assertEqual(run("a", "a"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

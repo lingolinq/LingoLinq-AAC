@@ -406,6 +406,36 @@ jobs:
           fi
           exit "$status"
 
+  # What the shards can prove WITHOUT a full run: each ran exactly what it selected, both saw the
+  # same registered total, their selections add up to it, and no test ran in more than one shard.
+  # This is the check that must become required when build-and-test stops running the suite
+  # itself (a shard only checks itself, so two shards mis-wired to the same half each pass).
+  ember-shard-coverage:
+    needs: [ember-shard-scope, ember-shard]
+    if: always() && needs.ember-shard-scope.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check the shards cover every registered test exactly once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
+          for name in ember-shard-pool ember-shard-main; do
+            id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
+            if [ -z "$id" ]; then
+              echo "::error::job ${name} not found in this run"
+              exit 1
+            fi
+            gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
+          done
+          python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
+
   # Shadow-mode evidence: the shard totals must add up to build-and-test's total and the same
   # tests must fail in both. A test that fails in only one of them depends on what ran before
   # it. Not required; read with scripts/ci-shard-compare.py.
