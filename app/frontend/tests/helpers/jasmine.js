@@ -36,7 +36,7 @@ function async_test_wrap(name, instance, befores, afters, lookup) {
   });
   QUnit.test(name, async function(current_assert) {
     var _this = this;
-    assert = current_assert;
+    assert = current_assert; reportLateAssertions(assert);
     try {
       emberRun(function() {
         pre.forEach(function(callback) {
@@ -90,7 +90,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
   var retryOn = name.indexOf('persistence-sync') !== -1;
   QUnit.test(name, function(current_assert) {
     var _this = this;
-    assert = current_assert;
+    assert = current_assert; reportLateAssertions(assert);
     var this_arg = lookup || _this;
     var testDone = assert.async(); test_started_at = Date.now(); // QUnit's test timeout runs from here
 
@@ -270,7 +270,7 @@ var xdescribe = function(name, lookup, callback) {
   }
 };
 var expect = function(data) {
-  var expectation = {};
+  var expectation = {}; if (!assert) { recordLateAssertion(data); } // see recordLateAssertion
   expectation.toEqual = function(arg) {
     if((data === undefined && arg === null) || (data === null && arg === undefined)) {
       assert.ok(true, 'both empty values');
@@ -604,4 +604,30 @@ function trackReturnedPromise(result) {
   });
 }
 
-export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};
+// expect() called when no test is running (`assert` is null) means an assertion ran after its
+// test had ended. It then throws a TypeError, and if app code or a promise chain catches that,
+// the assertion would vanish without failing anything. So it is recorded here first, and the
+// next test to start fails, naming where the late call came from. A late call after the very
+// last test can only be logged.
+var late_assertions = [];
+function recordLateAssertion(data) {
+  var frame = (new Error().stack || '').split('\n').filter(function(line) { return /\/tests\//.test(line) && !/helpers\/jasmine/.test(line); })[0] || '';
+  var value;
+  try { value = JSON.stringify(data); } catch (e) { value = String(data); }
+  var entry = 'expect(' + String(value).slice(0, 80) + ') at ' + (frame.trim() || 'an unknown test file');
+  late_assertions.push(entry);
+  console.error('[TEST] late assertion, will fail the next test: ' + entry);
+}
+function reportLateAssertions(current) {
+  if (!late_assertions.length || !current) { return; }
+  var entries = late_assertions.splice(0, late_assertions.length);
+  current.ok(false, 'expect() ran after its test had ended (a late assertion from an earlier test, so its result never counted): ' + entries.join(' | '));
+}
+// Test-only access, for tests/utils/jasmine_waitsfor-test.js.
+var lateAssertionTesting = {
+  pending: function() { return late_assertions.slice(); },
+  withoutAssert: function(callback) { var saved = assert; assert = null; try { callback(); } finally { assert = saved; } },
+  report: reportLateAssertions
+};
+
+export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting};

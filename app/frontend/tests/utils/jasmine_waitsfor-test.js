@@ -8,7 +8,8 @@ import {
   waitsFor,
   runs,
   stub,
-  currentAssert
+  currentAssert,
+  lateAssertionTesting
 } from 'frontend/tests/helpers/jasmine';
 
 // waitsFor(condition[, message][, timeoutMs]): a timeout the caller passes
@@ -89,5 +90,31 @@ describe('harness timeout cleanup', function() {
   it('runs that test\'s afterEach hooks before the next test starts', function() {
     cleanup_seen_by_next_test = cleaned_up_after.slice();
     expect(cleanup_seen_by_next_test.length).toEqual(1);
+  });
+});
+
+// An expect() that runs after its test has ended throws a TypeError (no live assert). If the
+// caller swallows that, the assertion would vanish; the harness records it and fails the next
+// test instead.
+describe('late assertion reporting', function() {
+  it('records an expect() made after its test ended even when the error is swallowed', function() {
+    var before = lateAssertionTesting.pending().length;
+    lateAssertionTesting.withoutAssert(function() {
+      try {
+        expect('a late value').toEqual('a late value');
+      } catch (e) {
+        // swallowed, as an app-level catch or promise chain might
+      }
+    });
+    var pending = lateAssertionTesting.pending();
+    expect(pending.length).toEqual(before + 1);
+    expect(/a late value/.test(pending[pending.length - 1])).toEqual(true);
+
+    var reported = [];
+    lateAssertionTesting.report({ ok: function(result, message) { reported.push([result, message]); } });
+    expect(reported.length).toEqual(1);
+    expect(reported[0][0]).toEqual(false);
+    expect(/after its test had ended/.test(reported[0][1])).toEqual(true);
+    expect(lateAssertionTesting.pending()).toEqual([]);
   });
 });
