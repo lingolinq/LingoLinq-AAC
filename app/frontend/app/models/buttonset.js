@@ -1414,8 +1414,11 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
     }
   });
   LingoLinq.Buttonset.pending_promises[id] = res;
-  res.then(function() { delete LingoLinq.Buttonset.pending_promises[id]; }, function() { delete LingoLinq.Buttonset.pending_promises[id]; });
-  runLater(function() {
+  // Backstop for a load that never settles. A native timer, cleared on settle: as a run-loop
+  // timer it held every settled() (each `await visit`) for the full 30s after a load finished.
+  var backstop = null;
+  res.then(function() { clearTimeout(backstop); delete LingoLinq.Buttonset.pending_promises[id]; }, function() { clearTimeout(backstop); delete LingoLinq.Buttonset.pending_promises[id]; });
+  backstop = setTimeout(function() {
     if(LingoLinq.Buttonset.pending_promises[id] == res) {
       delete LingoLinq.Buttonset.pending_promises[id];
     }

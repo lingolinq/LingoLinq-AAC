@@ -7,6 +7,10 @@ import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
 
 QUnit.config.testTimeout = 15000;
+// Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+
+// DOM nodes and every later test slowed with them (per-test floor ~40 ms -> ~1.5 s in CI;
+// suite 46.9 -> 20.3 min with this set). Failed tests are still listed.
+QUnit.config.hidepassed = true;
 
 // Skip deferred readiness in tests so the app boots immediately instead of waiting
 // for IndexedDB/lang/extras (which can hang in headless Chromium on WSL2).
