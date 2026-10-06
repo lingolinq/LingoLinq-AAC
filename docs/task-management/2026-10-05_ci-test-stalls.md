@@ -259,6 +259,48 @@ Method: build once (`npx ember build --environment=test --output-path=<dir>`), t
     releasing now leaves `triggerEvent` set into the next test for up to 5 s (only effect:
     `dwell_linger` returns early on a held touchstart). No current test does this. If one is
     added, reset it in `tests/helpers/ember_helper.js` beside `scanning_enabled = false`.
+- CORRECTION to the MEASURED table above: "floor set by the boot timers (stashes flush 1500)"
+  was wrong. The analysis picked the longest SINGLE timer, not the longest CHAIN. The ~2 s
+  rendering-test setup floor is the `check_scanning` chain: `runLater(…, 1000)`
+  (`app/services/app-state.js:2038`/2127) whose body schedules `retry_images` after another
+  1000 ms (2083-2085); setup ended at +2,038-2,067 ms in the probe. The stashes flush backstop
+  (`app/services/stashes.js:241-243`, 1500 ms) ends inside that window, so fixing it alone
+  saves nothing for rendering tests.
+- FIX 3 PAUSED for Traci (2026-10-06): `check_scanning` is REAL deferred work (configures
+  scanning/dwell/eye-gaze/head tracking, starts the scanner, closes modals, then retries
+  images), not a backstop. Moving it off the run loop changes when that work runs relative
+  to Ember state in the switch-access/eye-gaze path; wrapping it in `run()` adds a new
+  `ember/no-runloop` finding (re-baseline needs approval). Both of its runLater calls are
+  baselined rows (2038, 2083) and app-state.js has 76 rows. 5 tests reference check_scanning.
+- FIX 3 INVESTIGATION (Traci chose "investigate deeper first"):
+  - The 1000 ms delay is in the first public commit (`869c59c2f`, 2016, `Ember.run.later`),
+    inherited, never commented. It acts as a WALL-CLOCK wait for the board to render:
+    `scanner.start` reads the live DOM and stops if `#speak` is missing
+    (`app/utils/scanner.js:185-188`); `retry_images` queries `img.broken_image`.
+  - Callers (subagent map; key ones re-read): `monitor_scanning` observer on speak_mode and
+    currentBoardState (app-state.js ~2908, fires before the new board renders, so PLAUSIBLY
+    relies on the delay); `routes/user/board-detail.js:619-623` (500 ms + the 1000 ms as a
+    render wait, CONFIRMED by its comment); `possible_auto_home` jump-to-root (~4949);
+    `edit_manager.js:2061` already polls for the board in the DOM first. The comment at
+    `routes/user/board-detail.js:86-90` documents this exact race ("a wall-clock race that can
+    capture a chrome-only list again on a slow device"); its `app-state.js:2031` reference is
+    stale (now 2038).
+  - Tests: app_state-test.js:1274-1318 assert the deferral itself but poll in real time
+    (jasmine `runs`/`waitsFor`), so they do not depend on settled(). No test found that relies
+    on settled() waiting for it (acceptance tests not enumerated).
+  - Why a native-timer conversion is NOT like fixes 1-2: rendering-test teardown awaits
+    settled() (`tests/helpers/index.js`, only `setupTest` disables it), which today drains this
+    timer INSIDE the test. A native 1 s timer would outlive the test and fire during the next
+    one, calling `scanner.stop()/start()` and `modal.close()` on shared singletons: the same
+    cross-test bleed class as the modal scanning failure and issue #589. Backstops in fixes 1-2
+    were no-ops when they fired late; this body does real work.
+  - The alternative that removes the wall clock (schedule after render, as
+    board-detail.js:86-90 does) changes user-facing timing in the switch-access/eye-gaze path
+    and needs real-device QA. Not a CI-time fix.
+  - Pre-existing, noted only: on entering speak mode or switching user, buttonTracker flags
+    (scanning/dwell/switch keys) keep the previous session's values for up to 1 s (PLAUSIBLE,
+    subagent; readers go through `buttonTracker.check()`, raw_events.js:879-885).
+  - RECOMMENDATION: do not change check_scanning in this PR.
 - Not yet explained: bound-select paging (22 s, 17 s; integration, so inside the measured
   set above, PLAUSIBLY several clicks x 5 s, not checked per test); the Jasmine drag (the
   largest bucket).
