@@ -86,7 +86,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
   // + wait-gate fixes cut this to a low single-digit residual on one real-boards test;
   // this bounded auto-retry absorbs that residual so it can't fail CI on good PRs.
   // A genuinely broken test still fails all attempts and is reported. All OTHER modules
-  // take the general path below (no retry; it waits for returned promises, no fixed settle).
+  // take the general path below (no retry; it waits for returned promises).
   var retryOn = name.indexOf('persistence-sync') !== -1;
   QUnit.test(name, function(current_assert) {
     var _this = this;
@@ -105,7 +105,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            // No fixed post-test settle: tests wait for their own async work (returned promises, runs/waitsFor). persistence-sync keeps 500 ms on its path below.
+            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0; // kept for now: removing it exposed a leaking Ember Data fetch (#1111 CI); removal is a follow-up
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -117,7 +117,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
                 if (typeof LingoLinq !== 'undefined') { LingoLinq.sync_testing = false; }
               });
             };
-            runCleanup();
+            if (settleMs > 0) { setTimeout(runCleanup, settleMs); } else { runCleanup(); }
           } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55) || (wait_deadlines[current_test_id] && pollAttempts < WAIT_POLL_LIMIT && Date.now() < wait_deadlines[current_test_id] + 500)) {
             pollAttempts++;
             var delay = pollAttempts < 10 ? 10 : 100;
