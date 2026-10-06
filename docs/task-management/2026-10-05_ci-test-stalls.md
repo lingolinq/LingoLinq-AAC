@@ -301,6 +301,20 @@ Method: build once (`npx ember build --environment=test --output-path=<dir>`), t
     (scanning/dwell/switch keys) keep the previous session's values for up to 1 s (PLAUSIBLE,
     subagent; readers go through `buttonTracker.check()`, raw_events.js:879-885).
   - RECOMMENDATION: do not change check_scanning in this PR.
+- ITEM 1 (500 ms settle) LANDED: measured before changing. Sync-heavy modules (689 tests,
+  `--filter "/^(app_state|capabilities|persistence|word_suggestions|Board|frame_listener|speecher|Utterance|User|stashes|dbman|session)/"`):
+  500 ms everywhere: 0 fail, 4.8 min. Settle 0 everywhere: 1 and 2 fails, all persistence-sync,
+  a different test each run, all the same uncaught error: "calling set on destroyed object:
+  <service:persistence>.last_sync_at" from the PREVIOUS test's sync() chain finishing after
+  teardown (charged by QUnit to the running test; the retry never sees it because it only
+  buffers assertions, so 0 [RETRY] lines). The other 12 modules were clean at 0 in both runs.
+  Change: general path (`tests/helpers/jasmine.js:108`) settle 0, in place; persistence-sync
+  path (151) keeps 500 ms. Validation x2: 0 fail, 1.3 min (persistence-sync 0.5 min, i.e. it
+  does take the 151 path).
+  - Root cause left in place: sync() writes `last_sync_at` without an isDestroyed guard at
+    several sites (`app/services/persistence.js:246, 259, 264, 274, 277, 2416, 2449`; utils
+    copy 253-269). Harmless in production (services are not destroyed mid-session). A guard
+    would let persistence-sync drop its settle too: app code, own fix-proposal.
 - Not yet explained: bound-select paging (22 s, 17 s; integration, so inside the measured
   set above, PLAUSIBLY several clicks x 5 s, not checked per test); the Jasmine drag (the
   largest bucket).

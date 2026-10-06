@@ -105,7 +105,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0;
+            var settleMs = 0; // no fixed settle here: removing it was measured clean in 12 sync-heavy modules (task log 2026-10-06); persistence-sync keeps its 500 ms on the retry path below
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
