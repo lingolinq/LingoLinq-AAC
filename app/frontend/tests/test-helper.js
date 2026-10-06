@@ -34,18 +34,28 @@ if (req && req.entries && typeof req === 'function') {
   const testMods = all.filter((n) => n.match(/[-_]test$/));
   let loaded = 0;
   let failed = 0;
+  const loadFailures = [];
   testMods.forEach(function(mod) {
     try {
       req(mod);
       loaded++;
     } catch (e) {
       failed++;
+      loadFailures.push(mod + ': ' + e.message);
       console.warn('[TEST] Failed to load', mod, e.message);
     }
   });
   if (failed > 0) {
     console.warn('[TEST] Pre-loaded', loaded, 'modules,', failed, 'failed');
   }
+  // A test module that throws while loading registers none of its tests, so it dropped out of
+  // every run while CI stayed green. This always-registered test turns that into a failure that
+  // names the module.
+  QUnit.module('Test loading', function() {
+    QUnit.test('every test module loads', function(assert) {
+      assert.deepEqual(loadFailures, [], 'test modules that failed to load (none of their tests ran)');
+    });
+  });
 }
 
 // Log summary when run completes (browser console; Testem shows "X tests complete" in terminal)
