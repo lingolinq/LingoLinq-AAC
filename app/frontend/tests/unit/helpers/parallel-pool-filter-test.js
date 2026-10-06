@@ -1,4 +1,4 @@
-import { module, test } from 'qunit';
+import QUnit, { module, test } from 'qunit';
 import { poolFilter, poolSelection } from 'frontend/tests/helpers/parallel-pool-filter';
 import parallelPool from 'frontend/tests/parallel-pool';
 
@@ -38,12 +38,21 @@ module('Unit | Helper | parallel-pool-filter', function() {
   });
 
   test('the committed pool list is well formed', function(assert) {
-    assert.expect(2 + parallelPool.length * 2);
+    assert.expect(2);
     assert.ok(parallelPool.length > 0, 'lists at least one module');
     assert.strictEqual(new Set(parallelPool).size, parallelPool.length, 'no module is listed twice');
+  });
+
+  // The filter matches `<listed name>: ` at the start of a test's full name. A listed name that
+  // is not a real module, or a real module named `<listed name>: <more>`, would pull unlisted
+  // (unproven) tests into the pool; a stale name would silently drop a module to main.
+  test('every listed name is exactly one registered module, and no other module extends it', function(assert) {
+    const registered = QUnit.config.modules.map((m) => m.name);
+    assert.expect(parallelPool.length * 2);
     parallelPool.forEach((name) => {
-      assert.ok(name.length > 0, 'not empty: ' + name);
-      assert.strictEqual(name.indexOf(': '), -1, 'no ": " (ambiguous in a test name): ' + name);
+      assert.strictEqual(registered.filter((r) => r === name).length, 1, 'registered exactly once: ' + name);
+      assert.deepEqual(registered.filter((r) => r.indexOf(name + ': ') === 0), [],
+        'no unlisted module whose name starts with "' + name + ': "');
     });
   });
 });

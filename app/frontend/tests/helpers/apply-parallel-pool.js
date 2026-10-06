@@ -13,4 +13,13 @@ import { poolSelection } from './parallel-pool-filter';
 const poolFilter = poolSelection(window.location.search, parallelPool);
 if (poolFilter) {
   QUnit.config.filter = poolFilter;
+  // Completeness evidence for CI, so a shard can prove it ran everything it selected without a
+  // full run to compare against: `selected` is what QUnit will run in this shard, `registered`
+  // every test registered (selected or not). ci.yml checks selected == the shard's `# tests`,
+  // and ci-shard-compare.py checks both shards saw the same registered total and that their
+  // selections add up to it.
+  QUnit.on('runStart', function(details) {
+    const registered = QUnit.config.modules.reduce((sum, mod) => sum + mod.tests.length, 0);
+    console.log('[SHARD] selected=' + details.testCounts.total + ' registered=' + registered);
+  });
 }

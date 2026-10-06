@@ -3,55 +3,86 @@
 
 Usage: ci-shard-compare.py FULL_LOG SHARD_LOG [SHARD_LOG ...]
 
-Each log is a job log holding testem's TAP output (`ok N ...`, `not ok N ...`, `# tests N`).
-Exit 0 when the shards are a faithful split of the full run: every shard ran at least one test,
-the shard totals add up to the full total, and the same tests failed. Exit 1 otherwise, printing
-why. Exit 2 when a log cannot be read or holds no TAP summary.
+Each log is a job log holding testem's TAP output (`ok N ...`, `not ok N ...`, `skip N ...`,
+`# tests N`); shard logs also carry the `[SHARD] selected=N registered=M` line written by
+app/frontend/tests/helpers/apply-parallel-pool.js.
 
-The shards use complementary QUnit filters, so a count mismatch means a filter was mangled on
-its way to the test page; a failure that appears in only one of the two runs means a test's
-result depends on which tests ran before it.
+Exit 0 when the shards are a faithful split of the full run:
+- the same tests ran, with the same results: the multiset of (status, test name) over all shard
+  logs equals the full run's (so a test run twice and another never cannot cancel out);
+- every shard ran at least one test and exactly the number it selected;
+- every shard saw the same number of registered tests, and the selections add up to it.
+Exit 1 otherwise, printing why. Exit 2 when a log cannot be read or holds no TAP summary.
 """
+import collections
 import re
 import sys
 
 SUMMARY_RE = re.compile(r"# (tests|pass|skip|todo|fail)\s+(\d+)\s*$")
-NOT_OK_RE = re.compile(r"not ok \d+ \S+ [\d.]+ - \[\d+ ms\] - (.+?)\s*$")
+# A TAP result line, after GitHub's timestamp prefix if any. Browser-level errors print
+# `[undefined ms]` and may have no browser version, so neither is assumed.
+RESULT_RE = re.compile(r"(?:^|Z )(not ok|ok|skip|todo) \d+ (?:.+?) - \[(?:\d+|undefined) ms\] - (.+?)\s*$")
+SHARD_RE = re.compile(r"\[SHARD\] selected=(\d+) registered=(\d+)")
+MAX_LISTED = 20
 
 
 def parse(text):
-    """Return ({'tests': n, 'pass': n, ...}, set of failed test names) from TAP output."""
+    """Return (summary counts, Counter of (status, name), (selected, registered) or None)."""
     counts = {}
-    failed = set()
+    results = collections.Counter()
+    shard = None
     for line in text.splitlines():
         summary = SUMMARY_RE.search(line)
         if summary:
             counts[summary.group(1)] = int(summary.group(2))
             continue
-        not_ok = NOT_OK_RE.search(line)
-        if not_ok:
-            failed.add(not_ok.group(1))
-    return counts, failed
+        result = RESULT_RE.search(line)
+        if result:
+            results[(result.group(1), result.group(2))] += 1
+            continue
+        selection = SHARD_RE.search(line)
+        if selection and shard is None:
+            shard = (int(selection.group(1)), int(selection.group(2)))
+    return counts, results, shard
 
 
 def compare(full, shards):
-    """`full` and each of `shards` are (counts, failed). Returns a list of problems."""
+    """`full` and each of `shards` are parse() results. Returns a list of problems."""
     problems = []
-    full_counts, full_failed = full
-    shard_total = 0
-    shard_failed = set()
-    for index, (counts, failed) in enumerate(shards):
+    full_counts, full_results, _ = full
+    combined = collections.Counter()
+    registered = set()
+    selected_total = 0
+    for index, (counts, results, shard) in enumerate(shards):
+        label = "shard %d" % (index + 1)
         ran = counts.get("tests", 0)
         if ran == 0:
-            problems.append("shard %d ran 0 tests" % (index + 1))
-        shard_total += ran
-        shard_failed |= failed
+            problems.append("%s ran 0 tests" % label)
+        if shard is None:
+            problems.append("%s logged no [SHARD] selection line" % label)
+        else:
+            selected, total = shard
+            if ran != selected:
+                problems.append("%s ran %d tests but selected %d" % (label, ran, selected))
+            registered.add(total)
+            selected_total += selected
+        combined += results
+    if len(registered) > 1:
+        problems.append("shards saw different registered totals: %s" % sorted(registered))
+    elif registered and selected_total != next(iter(registered)):
+        problems.append("shard selections add up to %d, but %d tests are registered" % (selected_total, next(iter(registered))))
+    shard_total = sum(c.get("tests", 0) for c, _r, _s in shards)
     if shard_total != full_counts.get("tests", 0):
         problems.append("shards ran %d tests, the full run %d" % (shard_total, full_counts.get("tests", 0)))
-    for name in sorted(full_failed - shard_failed):
-        problems.append("failed only in the full run: %s" % name)
-    for name in sorted(shard_failed - full_failed):
-        problems.append("failed only in a shard: %s" % name)
+    only_full = full_results - combined
+    only_shards = combined - full_results
+    for (status, name), count in sorted(only_full.items())[:MAX_LISTED]:
+        problems.append("in the full run only: %s %s%s" % (status, name, " (x%d)" % count if count > 1 else ""))
+    for (status, name), count in sorted(only_shards.items())[:MAX_LISTED]:
+        problems.append("in a shard only: %s %s%s" % (status, name, " (x%d)" % count if count > 1 else ""))
+    hidden = len(only_full) + len(only_shards) - min(len(only_full), MAX_LISTED) - min(len(only_shards), MAX_LISTED)
+    if hidden > 0:
+        problems.append("... and %d more result differences" % hidden)
     return problems
 
 
@@ -63,15 +94,18 @@ def main(argv):
     for path in argv[1:]:
         try:
             with open(path, encoding="utf-8", errors="replace") as handle:
-                counts, failed = parse(handle.read())
+                result = parse(handle.read())
         except OSError as error:
             print("cannot read %s: %s" % (path, error), file=sys.stderr)
             return 2
-        if "tests" not in counts:
+        if "tests" not in result[0]:
             print("no TAP summary in %s" % path, file=sys.stderr)
             return 2
-        parsed.append((counts, failed))
-        print("%s: %s" % (path, " ".join("%s=%d" % item for item in sorted(counts.items()))))
+        parsed.append(result)
+        counts, results, shard = result
+        print("%s: %s | %d results%s" % (path, " ".join("%s=%d" % item for item in sorted(counts.items())),
+                                         sum(results.values()),
+                                         " | selected=%d registered=%d" % shard if shard else ""))
     problems = compare(parsed[0], parsed[1:])
     for problem in problems:
         print("MISMATCH: " + problem)

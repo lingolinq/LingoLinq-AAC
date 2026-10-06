@@ -8,7 +8,7 @@
  * safe there. If a listed module fails only in the pool, remove it from this list rather than
  * retrying. A renamed module silently drops out of the pool into main, which is the safe side.
  *
- * Seeded 2026-10-06 from PR #1110's first shadow run: the 287 modules whose tests all passed in
+ * Seeded 2026-10-06 from PR #1110's first shadow run: the 288 modules whose tests all passed in
  * shard A (`/^[bhinpu]/i`) without the other modules before them. Not listed (order-dependent
  * there): Button, pictureGrabber, persistence, Unit | Route | terms-agree gate (index + bento),
  * Unit | Service | app-state effective view, Unit | Service | app-state modelling ends with
@@ -228,7 +228,7 @@ export default [
   "Unit | Utility | admin_nav",
   "Unit | Utility | api error message",
   "Unit | Utility | ai_word_predictor article50 degrade",
-  "Unit | Utility | ai_word_predictor article50 degrade > speak mode",
+  "Unit | Utility | ai_word_predictor article50 degrade > speak mode: supporter modeling for a communicator",
   "Unit | Utility | article50 gate > needsAcknowledgement",
   "Unit | Utility | article50 gate > presentBlockingGate",
   "Unit | Utility | article50 gate > maybeShowSessionEntryGate",
@@ -254,7 +254,8 @@ export default [
   "Unit | Utility | board_picker_landing",
   "Unit | Utility | boards-page-list-cache",
   "Unit | Utility | compressed_view_state",
-  "Unit | Utility | dashboard sections",
+  "Unit | Utility | dashboard sections: per-layout availability",
+  "Unit | Utility | dashboard sections: retired cards",
   "Unit | Utility | eval_auto_score",
   "Unit | Utility | eval_grid_sweep",
   "Unit | Utility | eval_prompt_hierarchy",

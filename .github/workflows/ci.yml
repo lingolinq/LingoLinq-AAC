@@ -386,9 +386,22 @@ jobs:
           status=0
           npx ember test --path dist-test --query "$SHARD_QUERY" 2>&1 | tee ember-test.log || status=$?
           tests=$(grep -oE '^# tests [0-9]+' ember-test.log | tail -1 | awk '{print $3}' || true)
-          echo "### Ember shard ${SHARD}: ${tests:-0} tests in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
+          # tests/helpers/apply-parallel-pool.js logs what QUnit selected for this shard and how many
+          # tests are registered in all. The shard must run exactly what it selected.
+          shard_line=$(grep -oE '\[SHARD\] selected=[0-9]+ registered=[0-9]+' ember-test.log | head -1 || true)
+          selected=$(printf '%s' "$shard_line" | sed -nE 's/.*selected=([0-9]+).*/\1/p')
+          registered=$(printf '%s' "$shard_line" | sed -nE 's/.*registered=([0-9]+).*/\1/p')
+          echo "### Ember shard ${SHARD}: ran ${tests:-0} of ${selected:-?} selected (${registered:-?} registered) in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
           if [ "${tests:-0}" -eq 0 ]; then
             echo "::error::shard ${SHARD} ran 0 tests: the pool selection matched nothing"
+            exit 1
+          fi
+          if [ -z "$selected" ]; then
+            echo "::error::shard ${SHARD} logged no [SHARD] selection line: the pool selection did not run"
+            exit 1
+          fi
+          if [ "$tests" -ne "$selected" ]; then
+            echo "::error::shard ${SHARD} ran ${tests} tests but selected ${selected}: the run is incomplete"
             exit 1
           fi
           exit "$status"
