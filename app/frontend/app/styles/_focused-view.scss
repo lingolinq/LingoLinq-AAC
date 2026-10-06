@@ -3335,8 +3335,10 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__all {
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list {
   display: grid;
   // 260px: avatar, a readable name, and the arrow, with the room card's padding. min() keeps a
-  // single track from overflowing a card narrower than that.
-  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  // single track from overflowing a card narrower than that. Compressed View sets
+  // --dn-attention-track to the Rooms card's track so the two cards' columns line up
+  // (_compressed-view.scss; checked by scripts/compressed-attention-columns-qa.mjs).
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--dn-attention-track, 260px), 100%), 1fr));
 }
 // <=768px: one card per row (requested 2026-10-05), with the header stacking at the same width
 // (app.scss, the <=768px `.md-card--attention__head` rule).

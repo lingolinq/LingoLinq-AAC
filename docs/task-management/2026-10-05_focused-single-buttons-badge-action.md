@@ -100,3 +100,33 @@ computed-style snapshots before/after at 1400/1000/800 must differ only in the t
 ## Status
 
 Done, uncommitted.
+
+## Follow-up: PR #1108 "Not covered" items
+
+Each fix has a committed UI test (`app/frontend/scripts/*-qa.mjs`), red before and green after.
+
+1. Collapsed primary nav stayed open after a choice. Cause: the `<details>` in
+   `components/user-pill-nav.hbs` lacked the existing `{{details-autoclose}}` modifier (the
+   org switcher at `templates/organization.hbs:99` already uses it). Test
+   `pillnav-dropdown-close-qa.mjs`: red 3/6 (choice, Escape, outside click left it open) for
+   `marcus_williams_slp` and `example`; green 6/6 for both. Also covers the PR's manual
+   click-test request (600px dropdown, choice navigates, 641px pills back).
+2. 28px icon gap at 461-640px. Cause: the <=640px "unify every action button at 28px" rule
+   (`app.scss`, (0,5,0), later in source) beat Focused's 12px. Excluded Focused with
+   `.md-grid:where(:not(.md-grid--layout-focused))` so specificity stays (0,5,0) and the
+   <=460px 12px rule still wins in Gentle. Test `focused-action-gap-qa.mjs`: red 16 FAIL in
+   461-640; green at 9 widths for both users. Gentle snapshot 640/600/500/460/400: 0 diffs.
+3. Glyph contrast. Measured 2.25:1 (verdigris) and 1.98:1 (denim) on the slate tile.
+   Replaced `filter: brightness(1.25)` with each brand colour mixed 70% to white: 3.51:1 and
+   3.45:1. Test `focused-action-glyph-contrast-qa.mjs` (computed colours, not pixels): red
+   4 FAIL, green both users. Gentle snapshot 1400/1000/800: 0 diffs.
+4. Compressed + Focused attention card: subagent review, key claim verified
+   (`_focused-view.scss:3335` has no Compressed exclusion; Rooms has one at `app.scss:48861`).
+   No overflow or clipping at 1400-400; the list packed more columns than Rooms (3 vs 2 at
+   1400, 2 vs 1 at 800). Traci chose option B: the list's track minimum reads
+   `--dn-attention-track` (fallback 260px), which `_compressed-view.scss` sets to 360px, the
+   track Compressed Rooms uses. Test `compressed-attention-columns-qa.mjs` (Compressed switched
+   on in memory, never saved): red 5 FAIL (1400/1200/900/800/769), green at 9 widths.
+   Non-Compressed Focused unchanged (3 / 2 / 2 columns at 1400 / 900 / 800).
+5. No change: My Account / Reports are retired from the grid; Classic is intentionally
+   unchanged; engines without `:has()` are outside `config/targets.js` (last 1 version).
