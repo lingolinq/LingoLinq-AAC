@@ -86,7 +86,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
   // + wait-gate fixes cut this to a low single-digit residual on one real-boards test;
   // this bounded auto-retry absorbs that residual so it can't fail CI on good PRs.
   // A genuinely broken test still fails all attempts and is reported. All OTHER modules
-  // take the byte-identical original path below — zero blast radius.
+  // take the general path below (no retry; it waits for returned promises, no fixed settle).
   var retryOn = name.indexOf('persistence-sync') !== -1;
   QUnit.test(name, function(current_assert) {
     var _this = this;
@@ -95,7 +95,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
     var testDone = assert.async(); test_started_at = Date.now(); // QUnit's test timeout runs from here
 
     if (!retryOn) {
-      // ---- ORIGINAL PATH (all non-persistence-sync tests) — VERBATIM, so the poll
+      // ---- GENERAL PATH (all non-persistence-sync tests). Its poll loop is unchanged, so the poll
       // cap stays dynamically re-evaluated each iteration (some tests, e.g. capabilities
       // timeout/sensor tests, legitimately poll ~4.8s and must not be cut off early). ----
       emberRun(function() {
@@ -105,7 +105,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            var settleMs = 0; // no fixed post-test settle: tests now wait for their own async work (returned promises, runs/waitsFor). persistence-sync keeps 500 ms on its path below.
+            // No fixed post-test settle: tests wait for their own async work (returned promises, runs/waitsFor). persistence-sync keeps 500 ms on its path below.
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -117,17 +117,17 @@ function test_wrap(name, instance, befores, afters, lookup) {
                 if (typeof LingoLinq !== 'undefined') { LingoLinq.sync_testing = false; }
               });
             };
-            if (settleMs > 0) { setTimeout(runCleanup, settleMs); } else { runCleanup(); }
+            runCleanup();
           } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55) || (wait_deadlines[current_test_id] && pollAttempts < WAIT_POLL_LIMIT && Date.now() < wait_deadlines[current_test_id] + 500)) {
             pollAttempts++;
             var delay = pollAttempts < 10 ? 10 : 100;
             setTimeout(pollUntilIdle, delay);
           } else {
-            assert.ok(false, 'async work did not finish in time');
-            cancelHarnessAsyncWork();
-            restoreStubs();
+            assert.ok(false, 'async work did not finish in time'); // then the SAME cleanup as a normal end, so a stuck test cannot leave its state to the tests after it
+            cancelHarnessAsyncWork(); current_afters = []; try { post.forEach(function(callback) { callback.call(_this); }); } catch (e) { assert.ok(false, 'afterEach failed after the timeout: ' + ((e && e.message) || e)); } finally { restoreStubs(); }
             assert = null;
             testDone();
+            if (typeof LingoLinq !== 'undefined') { LingoLinq.sync_testing = false; }
           }
         };
         pollUntilIdle();

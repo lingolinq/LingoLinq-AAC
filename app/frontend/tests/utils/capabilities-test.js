@@ -107,7 +107,7 @@ describe("capabilities", function() {
     it("should try flushing databases on error", function() {
       db_wait(function() {
         var db_req = { };
-        var attempt = 0;
+        var attempt = 0, last_check_ran = false; // the attempt-4 check runs in a later(); wait for it, not just for attempt 4 to start
         var deleted_databases = [];
         var other = "lingolinqStorage::bacon===abcdefg";
         var db_key = null;
@@ -123,12 +123,12 @@ describe("capabilities", function() {
             if(attempt == 2) {
               expect(deleted_databases).toEqual([key]);
             } else if(attempt == 4) {
-              expect(deleted_databases).toEqual([key, other]);
+              expect(deleted_databases).toEqual([key, other]); last_check_ran = true;
             }
           }, 10);
           return db_req;
         });
-        waitsFor(function() { return attempt >= 4; });
+        waitsFor(function() { return attempt >= 4 && last_check_ran; });
         runs(function() {
           expect(deleted_databases).toEqual([db_key, other]);
           expect((capabilities.dbman.db_error_event || {}).attempt >= 3).toEqual(true);

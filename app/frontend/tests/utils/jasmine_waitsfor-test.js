@@ -1,7 +1,9 @@
 import QUnit from 'qunit';
+import RSVP from 'rsvp';
 import {
   describe,
   it,
+  afterEach,
   expect,
   waitsFor,
   runs,
@@ -59,5 +61,33 @@ describe('waitsFor timeout', function() {
     });
     waitsFor(function() { return false; }, 60000);
     runs(function() {});
+  });
+});
+
+// When a test's pending work never finishes, the harness fails it and must still run the same
+// cleanup as a normal end (afterEach hooks, stub restore), or one stuck test leaves its state to
+// the tests after it and a single problem shows up as a cascade of failures.
+describe('harness timeout cleanup', function() {
+  var cleaned_up_after = [];
+  var cleanup_seen_by_next_test = null;
+  afterEach(function() {
+    cleaned_up_after.push(currentAssert() ? currentAssert().test.testName : 'unknown');
+  });
+
+  it('a test whose returned promise never settles fails on its own', function() {
+    var a = currentAssert();
+    var push = a.pushResult;
+    stub(a, 'pushResult', function(result) {
+      if(result && result.result === false && /async work did not finish in time/.test(result.message)) {
+        return push.call(a, { result: true, actual: result.message, expected: result.message, message: 'the harness failed the stuck test' });
+      }
+      return push.call(a, result);
+    });
+    return new RSVP.Promise(function() {});
+  });
+
+  it('runs that test\'s afterEach hooks before the next test starts', function() {
+    cleanup_seen_by_next_test = cleaned_up_after.slice();
+    expect(cleanup_seen_by_next_test.length).toEqual(1);
   });
 });
