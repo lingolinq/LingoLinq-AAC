@@ -3865,22 +3865,32 @@ describe Organization, :type => :model do
 
         expect(org_with_policy({'retention_months' => zero}).effective_data_policy.key?('retention_months')).to eq(false)
       end
+
+      it "applies the parent's retention_months to a child that stores #{zero.inspect}" do
+        parent = org_with_policy({'retention_months' => 3})
+        child = org_with_policy({'retention_months' => zero}, parent: parent)
+        expect(child.effective_data_policy['retention_months']).to eq(3)
+      end
     end
 
-    # max_logging_cutoff_hours: hiding history is reversible, so a malformed value is read as
-    # 0 hours, the strictest cutoff, and is never looser than a well-formed one.
+    # max_logging_cutoff_hours: hiding history is reversible, so a malformed value is read as a
+    # one-hour cutoff, stricter than any well-formed value it is merged with except 0.
     malformed_limits.each do |malformed|
-      it "reads a stored max_logging_cutoff_hours of #{malformed.inspect} as 0, the strictest cutoff" do
+      it "reads a stored max_logging_cutoff_hours of #{malformed.inspect} as a one-hour cutoff" do
         parent = org_with_policy({'max_logging_cutoff_hours' => malformed})
         child = org_with_policy({'max_logging_cutoff_hours' => 6}, parent: parent)
-        expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(0)
+        expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(1)
 
         parent = org_with_policy({'max_logging_cutoff_hours' => 6})
+        child = org_with_policy({'max_logging_cutoff_hours' => malformed}, parent: parent)
+        expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(1)
+
+        parent = org_with_policy({'max_logging_cutoff_hours' => 0})
         child = org_with_policy({'max_logging_cutoff_hours' => malformed}, parent: parent)
         expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(0)
 
         alone = org_with_policy({'max_logging_cutoff_hours' => malformed})
-        expect(alone.effective_data_policy['max_logging_cutoff_hours']).to eq(0)
+        expect(alone.effective_data_policy['max_logging_cutoff_hours']).to eq(1)
       end
     end
 

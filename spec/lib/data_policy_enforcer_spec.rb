@@ -191,6 +191,17 @@ describe DataPolicyEnforcer do
         end
       end
 
+      it "applies the parent's limit to an organization that stores retention_months 0" do
+        child, child_user = sponsored_org(0)
+        attach_parent(child, parent_with_months(3))
+        stale = log(child_user, 'session', 4.months.ago)
+        fresh = log(child_user, 'session', 1.month.ago)
+
+        expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+        expect(LogSession.where(id: stale.id).count).to eq(0)
+        expect(LogSession.where(id: fresh.id).count).to eq(1)
+      end
+
       it "applies the parent's limit when the organization's own stored limit is malformed" do
         child, child_user = sponsored_org(12)
         child.settings['data_policy']['retention_months'] = 'abc'

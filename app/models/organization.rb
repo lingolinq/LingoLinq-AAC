@@ -439,9 +439,13 @@ class Organization < ApplicationRecord
   # A whole number is read as its Integer. retention_months is kept only when it is above 0:
   # DataPolicyEnforcer purges only for a positive number of months, so 0 means no retention
   # policy and must not win the merge, and a malformed value is left out rather than allowed to
-  # start an irreversible purge. A malformed max_logging_cutoff_hours is read as 0, the strictest
-  # cutoff, because hiding log history is reversible. A malformed value is logged with the
-  # organization, the key and the value. Returns a copy; the stored policy is not changed.
+  # start an irreversible purge. A malformed max_logging_cutoff_hours is read as
+  # MALFORMED_CUTOFF_HOURS, a short cutoff, because hiding log history is reversible; it is not 0,
+  # which Api::LogsController#index waives for a user viewing their own logs. A malformed value is
+  # logged with the organization, the key and the value. Returns a copy; the stored policy is not
+  # changed.
+  MALFORMED_CUTOFF_HOURS = 1
+
   def self.normalize_data_policy_limits(policy, org)
     normalized = policy.dup
     DATA_POLICY_NUMERIC_KEYS.each do |key|
@@ -463,7 +467,7 @@ class Organization < ApplicationRecord
           normalized.delete(key)
         end
       else
-        normalized[key] = number || 0
+        normalized[key] = number || MALFORMED_CUTOFF_HOURS
       end
     end
     normalized

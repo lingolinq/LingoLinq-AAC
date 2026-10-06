@@ -513,6 +513,30 @@ describe Api::LogsController, :type => :controller do
       expect(json['meta']['logging_cutoff_min']).to eq(nil)
     end
 
+    it "applies a malformed organization cutoff as one hour alongside another organization's cutoff" do
+      # Stored straight into settings because update_data_policy casts on write.
+      token_user
+      [24, 'abc'].each do |hours|
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.settings['data_policy'] = {'max_logging_cutoff_hours' => hours}
+        o.save!
+        o.add_user(@user.reload.user_name, false, false, false)
+      end
+      [48.hours.ago, 30.minutes.ago].each do |at|
+        LogSession.process_new({
+          :events => [
+            {'timestamp' => at.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+            {'timestamp' => at.to_i + 1, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          ]
+        }, {:user => @user, :device => @device, :author => @user})
+      end
+
+      get :index, params: {:user_id => @user.global_id}
+      json = assert_success_json
+      expect(json['log'].length).to eq(1)
+      expect(json['meta']['logging_cutoff_min']).to eq(1)
+    end
+
     it "should allow overriding logging_cutoff with a valid logging code" do
       token_user
       @user.settings['preferences']['logging_cutoff'] = 12

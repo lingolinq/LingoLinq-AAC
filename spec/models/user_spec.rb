@@ -6010,7 +6010,7 @@ describe User, :type => :model do
 
       policy = User.find_by(id: u.id).effective_data_policy
       expect(policy['retention_months']).to eq(6)
-      expect(policy['max_logging_cutoff_hours']).to eq(0)
+      expect(policy['max_logging_cutoff_hours']).to eq(1)
     end
 
     it "takes the other organization's retention_months when one stores 0" do
@@ -6031,12 +6031,12 @@ describe User, :type => :model do
       expect(cutoff).to eq(24)
     end
 
-    it "returns a cutoff of 0 hours for a malformed stored cutoff" do
+    it "returns a one-hour cutoff for a malformed stored cutoff" do
       u = User.create
       governing_org({'max_logging_cutoff_hours' => 'abc'}, u)
       viewer = User.create
 
-      expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(0)
+      expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(1)
     end
   end
 end
