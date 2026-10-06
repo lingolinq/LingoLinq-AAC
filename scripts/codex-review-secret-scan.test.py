@@ -49,6 +49,27 @@ class SecretScanTest(unittest.TestCase):
             with self.subTest(check=name):
                 self.assertIn(name, secret_scan.scan(f"the finding quotes {value} here", {}))
 
+    def test_every_pattern_stays_fast_on_large_adversarial_input(self):
+        # The scan runs on the whole review envelope before it is sent. A pattern that is
+        # quadratic on a long run of near-matches can stall the step (url_with_password took
+        # ~3 s on 200k chars and ~12.6 s on 400k). Each pattern must stay far under 0.25 s on
+        # 200k characters built to provoke backtracking.
+        import time
+        inputs = {
+            "slack-prefix runs": "xoxb-" * 40000,
+            "dotted words": "a." * 100000,
+            "scheme-like runs": "ab+c.d-" * 28572,
+            "repeated scheme starts": "a://b:" * 33334,
+            "jwt-like runs": "eyJabcdefgh." * 16667,
+            "labelled-key runs": "aws_secret_key= " * 12500,
+        }
+        for name, pattern in secret_scan.PATTERNS.items():
+            for label, text in inputs.items():
+                with self.subTest(pattern=name, input=label):
+                    start = time.perf_counter()
+                    pattern.search(text)
+                    self.assertLess(time.perf_counter() - start, 0.25)
+
     def test_a_restricted_stripe_key_is_found(self):
         self.assertIn("stripe_key", secret_scan.scan(fake("rk", "_live_", ALNUM), {}))
 

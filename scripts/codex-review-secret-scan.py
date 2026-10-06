@@ -46,7 +46,9 @@ PATTERNS = {
     "slack_token": re.compile(r"\bxox[abposr]-[0-9A-Za-z-]{10,}"),
     "slack_webhook": re.compile(r"hooks\.slack\.com/services/[0-9A-Za-z/_-]{10,}"),
     "jwt": re.compile(r"\beyJ[0-9A-Za-z_-]{8,}\.eyJ[0-9A-Za-z_-]{8,}\.[0-9A-Za-z_-]{8,}"),
-    "url_with_password": re.compile(r"\b[a-z][a-z0-9+.-]*://[^/\s:@\"']+:[^/\s@\"']+@"),
+    # Scheme capped at 32 characters: unbounded, the scan restarted a long forward run at every
+    # word boundary and went quadratic (~3 s on 200k chars). Registered schemes are far shorter.
+    "url_with_password": re.compile(r"\b[a-z][a-z0-9+.-]{0,31}://[^/\s:@\"']+:[^/\s@\"']+@"),
 }
 CREDENTIAL_NAME_RE = re.compile(r"(TOKEN|SECRET|PASSWORD|_KEY$|WEBHOOK)")
 MIN_VALUE_LENGTH = 8
