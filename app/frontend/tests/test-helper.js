@@ -5,7 +5,6 @@ import { setApplication } from '@ember/test-helpers';
 import { setup } from 'qunit-dom';
 import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
-import { installSuiteDiagnostics } from './helpers/suite-diagnostics';
 
 QUnit.config.testTimeout = 15000;
 // Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+
@@ -19,10 +18,7 @@ if (isTesting()) {
   window.cough_drop_readiness = true;
 }
 
-// TEMPORARY CI diagnostics (traci/test/ci-test-stalls): see tests/helpers/suite-diagnostics.js.
-const testApplication = Application.create(config.APP);
-installSuiteDiagnostics(testApplication);
-setApplication(testApplication);
+setApplication(Application.create(config.APP));
 
 setup(QUnit.assert);
 

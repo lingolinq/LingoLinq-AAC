@@ -202,9 +202,9 @@ describe('modal', function() {
         scanner.scanning = true;
       });
       var is_open = true;
-      var open_checks = 0, diag_t0 = Date.now(); // TEMPORARY CI diagnostics (traci/test/ci-test-stalls)
+      var open_checks = 0;
       stub(modal, 'is_open', function() {
-        open_checks++; console.log('[DIAG] modal-test is_open check #' + open_checks + ' at +' + (Date.now() - diag_t0) + 'ms ' + JSON.stringify(window.__llSuiteSnapshot ? window.__llSuiteSnapshot() : {}));
+        open_checks++;
         return is_open;
       });
 
