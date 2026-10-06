@@ -101,11 +101,11 @@ function test_wrap(name, instance, befores, afters, lookup) {
       emberRun(function() {
         pre.forEach(function(callback) { callback.call(_this); });
         current_test_id++;
-        instance.call(this_arg);
+        trackReturnedPromise(instance.call(this_arg));
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0;
+            var settleMs = 0; // no fixed post-test settle: tests now wait for their own async work (returned promises, runs/waitsFor). persistence-sync keeps 500 ms on its path below.
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -583,5 +583,25 @@ function restoreStubs() {
   stub.stubs = [];
 }
 
+
+// An it() callback may return a promise (`return c.confirm().then(function() { expect(...) })`).
+// Count it as pending work, like a runs() block, so the test ends only after it settles and its
+// assertions land inside the test. Ignoring it let those assertions run after cleanup had nulled
+// `assert`, which only a fixed post-test settle used to hide (task log 2026-10-05_ci-test-stalls).
+// A rejection fails the test instead of vanishing.
+function trackReturnedPromise(result) {
+  if (!result || typeof result.then !== 'function') { return; }
+  var id = current_test_id;
+  waiting[id] = (waiting[id] || 0) + 1;
+  var settle = function() {
+    if (id == current_test_id) { waiting[id]--; }
+  };
+  result.then(settle, function(error) {
+    if (id == current_test_id && assert) {
+      assert.ok(false, 'the promise returned by the test rejected: ' + ((error && error.message) || error));
+    }
+    settle();
+  });
+}
 
 export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};

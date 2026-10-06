@@ -130,12 +130,12 @@ describe("contentGrabbers", function() {
       expect(obj.get('url')).toEqual("data:image/png;...");
       expect(obj.get('data_url')).toEqual("data:image/png;...");
       defer.resolve(obj);
-      res.then(function(result) {
-        expect(result).toEqual(obj);
-      });
+      var saved = null;
+      res.then(function(result) { saved = result; });
 
-      waitsFor(function() { return obj.get('url'); });
+      waitsFor(function() { return saved; });
       runs(function() {
+        expect(saved).toEqual(obj);
         expect(obj.get('data_url')).toEqual("data:image/png;...");
         expect(obj.get('url')).toEqual("data:image/png;...");
       });
