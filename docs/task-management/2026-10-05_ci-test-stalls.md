@@ -235,6 +235,30 @@ Method: build once (`npx ember build --environment=test --output-path=<dir>`), t
   was the QUnit reporter DOM of passed-test rows. The modal scanning test PASSED (57 ms):
   consistent with it being a casualty of the slowdown (one run; confirm over more runs).
   Integration/Acceptance unchanged, as expected: they are bound by the app timers above.
+- FIX 1 LANDED (`23f2c6fe8`, Traci: "fix it all here", 2026-10-06): button set backstop is a
+  native `setTimeout`, cleared on settle (`app/models/buttonset.js:1416-1426`). Rejected:
+  runLater + `cancel()` (new `ember/no-runloop` finding, would need a re-baseline); test-env
+  shorter delay (changes code under test). Red test fails before (one extra 6-slot backburner
+  timer), passes after; mutation back to runLater red 2/2 runs on the whole Buttonset module.
+  Adversarial review: APPROVE WITH CHANGES (assertion hardened to compare new timer ids due
+  > now+20 s, since a count compare can be masked by an unrelated timer expiring). Acceptance
+  19/19 pass locally; 4.3 -> ~0.6 min (30.9 -> 2.7 s, board lock 65.6/34.9/34.3 -> 9.1/6.6/6.1 s).
+  Stale baseline row `app/models/buttonset.js|ember/no-runloop|1418` is harmless (gate header).
+  - PRE-EXISTING, NOT FIXED (reviewer, CONFIRMED by reading): force reload deletes the entry
+    (line 1258) and stores a new promise; when the OLD promise settles, its handler deletes
+    the NEW entry unconditionally, so dedupe is lost for the rest of the new load. Guarding the
+    settle handlers with `== res` is a behaviour change: own red test, own commit.
+- FIX 2 LANDED: press backstop in `touch_start` is a native `setTimeout`
+  (`app/utils/raw_events.js:960`, one line swapped in place so the 24 other baselined rows do
+  not shift; the row for 960 is now stale). Red test
+  `tests/integration/raw-events-press-backstop-test.js` (non-awaited mousedown, no new
+  backburner timer due > now+3 s): red before, green after, red again on mutation. Review:
+  APPROVE WITH CHANGES (added `_timers` layout guard). Integration suite locally: 99 pass,
+  0 fail; 5.9 -> 3.4 min; slowest test 4.1 s.
+  - Reviewer note, NOT applied: `buttonTracker` is a singleton, so a test that presses without
+    releasing now leaves `triggerEvent` set into the next test for up to 5 s (only effect:
+    `dwell_linger` returns early on a held touchstart). No current test does this. If one is
+    added, reset it in `tests/helpers/ember_helper.js` beside `scanning_enabled = false`.
 - Not yet explained: bound-select paging (22 s, 17 s; integration, so inside the measured
   set above, PLAUSIBLY several clicks x 5 s, not checked per test); the Jasmine drag (the
   largest bucket).
