@@ -301,6 +301,25 @@ Method: build once (`npx ember build --environment=test --output-path=<dir>`), t
     (scanning/dwell/switch keys) keep the previous session's values for up to 1 s (PLAUSIBLE,
     subagent; readers go through `buttonTracker.check()`, raw_events.js:879-885).
   - RECOMMENDATION: do not change check_scanning in this PR.
+- ITEM 1 REVERTED (`0fa3c883a`). CI on `07f12d5cc` (job 112346037413): 3,322 tests, 3 fail,
+  all OUTSIDE the 12 validated modules: CreateBoardNewComponent "treats agreeing to a trim..."
+  and contentGrabbers save_record died with "Cannot read properties of null (reading
+  'equal'/'deepEqual')" (an expectation inside a promise callback ran after cleanup nulled
+  `assert`); soundGrabber "should initialize recording process" ran `stream_ready` after its
+  MediaRecorder stubs were restored. sync_testing is also switched on by other helpers
+  (`setupGrabberTestHarness` ember_helper.js:1272, `setupStashesGeoTestHarness` 1245) and by
+  tests directly (stashes-test:84, speecher-test:478, persistence-test, utterance-test), so
+  the general-path settle also covered late assertions there.
+  LESSON: validate a harness change against EVERY test that reaches the changed branch (here:
+  every test that runs with sync_testing true), not against the module list that names the
+  branch. The 3 failures are tests with un-awaited expectations; the settle hid them.
+  Same run otherwise: test time 7.6 min (includes the reverted change), modal scanning test
+  green again (2nd CI run), single build OK, 0 [RETRY] lines.
+- GREEN RUN with all kept changes (`0fa3c883a`, job 112361148996): `success`, 3,322 tests,
+  3,280 pass, 37 skip, 5 todo, 0 fail; 0 [RETRY] lines; modal scanning test green (3rd CI run).
+  Steps: lint hbs 1.6, lint js 0.5, build (test env, once) 0.8, tests 14.3 min; job 17.8 min
+  (was ~51-52). Test time 14.1 min: Jasmine-style 9.4, Integration 3.5, Unit 0.7, Acceptance 0.5
+  (was 46.9: 33.7 / 6.1 / 2.7 / 4.3).
 - Not yet explained: bound-select paging (22 s, 17 s; integration, so inside the measured
   set above, PLAUSIBLY several clicks x 5 s, not checked per test); the Jasmine drag (the
   largest bucket).
