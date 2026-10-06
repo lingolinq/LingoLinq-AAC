@@ -48604,11 +48604,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    BOUNDED BY `min-width: 475px` ON PURPOSE. Below 474px a responsive rule (~62755) drops
    every dashboard title to 18px so headings fit a phone; an unbounded rule here would
    outrank it and force 24px onto a 375px screen. This keeps the org sizing to the widths
-   it was asked for and leaves the small-screen behaviour intact. */
+   it was asked for and leaves the small-screen behaviour intact.
+   ORGANIZATIONS ONLY SINCE 2026-10-05: on an org dashboard Caseload and Speak now render as
+   the badge-action `--caseload-action` / `--speak-action` cards and take the Create a Board
+   18px title, so the as-button selectors that used to share this rule are gone. */
 @media (min-width: 475px) {
-  .md-grid.md-grid--hero-org .md-card.md-card--org-management .md-card__title,
-  .md-grid.md-grid--hero-org .md-card.md-card--caseload.md-card--caseload-as-button .md-card__title,
-  .md-grid.md-grid--hero-org .md-card.md-card--speak.md-card--speak-as-button .md-card__title {
+  .md-grid.md-grid--hero-org .md-card.md-card--org-management .md-card__title {
     font-size: 24px !important;
   }
 }
@@ -48637,59 +48638,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: -10px !important;
 }
 
-/* ORG USERS — the Caseload|Speak pair: LEVEL with each other, and set down from the row
-   above (2026-08-16, requested "more space above the caseload and speak button row").
-   THE AUTHORITATIVE RULE for this pair's vertical placement — put any further adjustment
-   HERE rather than in a competing selector.
-
-   A grid `row-gap` cannot be varied per row, so the extra space above this ONE row comes
-   from a margin on the two cards in it, the same mechanism the boards exemption above uses
-   in the other direction. 24px row-gap + 16px = 40px above the pair.
-
-   BOTH cards carry the SAME margin, which is what keeps them level: under the grid's
-   default `align-items: stretch` each item is sized so its MARGIN box fills the row, so an
-   equal margin moves both tops down together and leaves the two the same height — the
-   "Speak must match Caseload's height" requirement still holds.
-   RECORDED so the earlier 10px LIFT is not reintroduced casually: `margin-top: -10px` alone
-   made the card 10px TALLER rather than higher (same stretch behaviour, opposite sign), and
-   then needed either a cancelling `margin-bottom` or `align-self: start` + `height: 100%` to
-   restore equal heights. See the LEARNINGS entry "align-items: stretch absorbs a negative
-   margin by GROWING the item". A POSITIVE margin on both is the well-behaved direction. */
-.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--caseload.md-card--caseload-as-button,
-.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--speak.md-card--speak-as-button {
-  margin-top: 16px !important;
-}
-
-/* ORG USERS — a quieter halo (2026-08-16, requested). On an org dashboard the
-   Organizations card is the hero, so My Caseload is a peer card rather than the showcase
-   action; at the shared 38px/0.32 verdigris halo it competed with the hero for attention.
-   Reduced to 24px/0.18 resting and 32px/0.26 hover — roughly a third off each, keeping the
-   hover step proportional so the card still visibly responds.
-   THE WHOLE STACK IS RESTATED, not just the halo, because the base rule declares its six
-   layers as ONE atomic `box-shadow` (see the note there): a second declaration listing only
-   the halo would replace the bevels and lift as well, flattening the card. The first five
-   layers are therefore identical to the base by design — change them together.
-   Scoped to `.md-grid--hero-org`, which is only applied on the home tab, so this cannot
-   reach the Caseload card anywhere else. */
-.md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba($la-navy, 0.06),
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 10px rgba($la-navy, 0.08),
-    0 12px 28px rgba($la-navy, 0.10),
-    0 0 24px rgba($brand-verdigris, 0.18) !important;
-}
-.md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button:hover,
-.md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button:focus-visible {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba($la-navy, 0.07),
-    0 2px 4px rgba($la-navy, 0.06),
-    0 8px 18px rgba($la-navy, 0.10),
-    0 20px 44px rgba($la-navy, 0.14),
-    0 0 32px rgba($brand-verdigris, 0.26) !important;
-}
 .md-grid .md-card.md-card--caseload-as-button:active {
   transform: translateY(0.5px);
   box-shadow:
@@ -49238,10 +49186,12 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
    first child, so column direction lifts it above), title + subtitle centered
    below. Overrides the row layout from the base head rules above (same 0,2,0
    specificity + !important, later in source; the caseload head's own 0,2,0 rule
-   sets no flex-direction, so this wins). */
+   sets no flex-direction, so this wins).
+   NOT the badge-action Caseload (`--caseload-action`, Focused org dashboard, 2026-10-05):
+   that card keeps the Create a Board row at every width, so it is excluded here. */
 @media (max-width: 460px) {
   .md-card--org-management .md-card--rooms__head,
-  .md-card--caseload .md-card__head {
+  .md-card--caseload:not(.md-card--badge-action) .md-card__head {
     flex-direction: column !important;
     align-items: center !important;
     text-align: center !important;
@@ -49694,7 +49644,8 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
 /* My Caseload now always shows its card-as-button variant (--caseload-as-button
    / --caseload-narrow-only) at EVERY screen size; the wide variant with a
    separate "Manage" button (--caseload-wide-only) is retired from display. */
-.md-grid .md-card.md-card--caseload-wide-only { display: none !important; }
+.md-grid .md-card.md-card--caseload-wide-only,
+.md-grid .md-card.md-card--caseload-action { display: none !important; }
 /* The card-as-button variants (speak / caseload / extras) now render at ALL
    widths and their glow feathers outward — keep the dashboard grid from
    clipping it at any size (0,2,0 beats the base `.md-grid { overflow:hidden }`).
@@ -56349,9 +56300,15 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    bar, so an org user saw two heroes competing.
    NEGATIVE scoping (`:not(hero-org)`), not a positive `.md-grid--hero-speak`, for the
    reason given above the hero rule: the hero class is only applied on the home tab, so a
-   positive scope would silently drop the Speak hero everywhere else. */
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-as-button { display: none !important; }
-.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-as-button { display: none !important; }
+   positive scope would silently drop the Speak hero everywhere else.
+   FOCUSED NEVER SHOWS THE PLAIN AS-BUTTON CARDS (2026-10-05): where an ordinary Caseload
+   or Speak card belongs, Focused shows the badge-action sibling (`--caseload-action` /
+   `--speak-action`, authenticated-view.hbs) so it matches Create a Board / Edit Dashboard.
+   The show conditions are the ones the as-button cards had here before. */
+.md-grid.md-grid--layout-focused .md-card.md-card--speak-as-button,
+.md-grid.md-grid--layout-focused .md-card.md-card--caseload-as-button { display: none !important; }
+.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--speak-action,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--caseload-action { display: flex !important; }
 /* Larger screens only (above the wrap breakpoint): nudge the centered icon+text
    group 8px to the LEFT via asymmetric padding (24/40 keeps the 64px total, so
    the justify-center group shifts left 8px). Small screens keep their centering. */
@@ -57182,7 +57139,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    hide rule, so it shows at all widths. MUST stay AFTER
    `.md-grid .md-card.md-card--speak` so the source-order tiebreak goes to this
    hide rule (both (0,3,0) + !important). */
-.md-grid .md-card.md-card--speak-wide-only { display: none !important; }
+.md-grid .md-card.md-card--speak-wide-only,
+.md-grid .md-card.md-card--speak-action { display: none !important; }
 .md-card--speak .md-card__head,
 .md-card--speak .md-card__row,
 .md-card--speak .md-card__org-list {
@@ -68361,7 +68319,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      org areas (last row). `flex: 1 1 100%` for the same reason as its siblings above: once
      `display:flex` makes the inline grid-template inert, a card with no basis shrinks to
      its content. */
-  .md-grid--layout-focused > .md-card--speak-as-button { order: var(--ord-speak, 7) !important; flex: 1 1 100% !important; }
+  .md-grid--layout-focused > .md-card--speak-as-button,
+  .md-grid--layout-focused > .md-card--speak-action { order: var(--ord-speak, 7) !important; flex: 1 1 100% !important; }
   /* ORG DASHBOARDS keep the Caseload | Speak pair SIDE BY SIDE here, matching the wide
      layout (2026-08-16, requested). The rules above give every full-width card
      `flex: 1 1 100%`, which would stack this pair — so the org case overrides the basis to
@@ -68374,7 +68333,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      on whether Caseload is the hero, and on an org dashboard it is the ordinary card. */
   .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload-as-button,
   .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload,
-  .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-as-button {
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-as-button,
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-action {
     flex: 1 1 calc(50% - 12px) !important;
   }
   .md-grid--layout-focused > .md-card--account { order: var(--ord-account, 2) !important; }
@@ -68393,11 +68353,16 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   }
 }
 @media (max-width: 640px) {
-  /* Single column — the four action cards each take the full row. */
+  /* Single column — the four action cards each take the full row. The org dashboard's
+     Caseload | Speak pair joins them (2026-10-05): it shares their badge-action layout,
+     which clips at the half width the <=1024px block above gives it. The two hero-org
+     selectors carry (0,3,0) to match that half-width rule and win on source order. */
   .md-grid--layout-focused > .md-card--account,
   .md-grid--layout-focused > .md-card--create-board,
   .md-grid--layout-focused > .md-card--reports,
-  .md-grid--layout-focused > .md-card--edit-dashboard {
+  .md-grid--layout-focused > .md-card--edit-dashboard,
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload-action,
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-action {
     flex: 1 1 100% !important;
   }
   /* "View All Boards" is pinned to the card's top-right on Focused View

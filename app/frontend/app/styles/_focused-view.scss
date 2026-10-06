@@ -2837,38 +2837,6 @@ body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-manageme
 // over a tinted base), which is why this sets `background` and not `background-color`.
 // Scoped INSIDE `.md-card--org-management`: `.md-room-card` is shared with the Rooms card,
 // which is not part of this request.
-// ORG HOME — the Caseload icon tile matches the Speak one (2026-08-16, requested). The two
-// cards sit side by side on the bottom row, so a 46px tile beside a 64px one read as a
-// mistake rather than a hierarchy.
-// VALUES ARE COPIED FROM THE SPEAK TILE AS MEASURED ON THE PAGE, not re-derived: 64px,
-// 22px radius, and the four-layer shadow (white top bevel, verdigris inner shade, slate
-// drop, verdigris glow). Reading them off the rendered element is what makes them exact —
-// the Speak tile's size comes from a different rule than the one that styles it, so
-// copying from a source selector risked matching the wrong declaration.
-// The RADIUS moves with the size on purpose: 16px on a 64px tile is a visibly different
-// shape from 22px, so matching size alone would not have matched the tile.
-// The BORDER is matched too — it is part of the glow's read at this size.
-// The card's own fill is left alone; only the icon tile is being aligned.
-// Scoped to `.md-grid--hero-org`, so a supervisor's Caseload icon keeps its own 46px tile.
-body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button .md-card__icon {
-  width: 64px !important;
-  height: 64px !important;
-  border-radius: 22px !important;
-  border: 1px solid rgba($brand-verdigris, 0.2) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -3px 5px rgba($brand-verdigris, 0.10),
-    0 4px 12px rgba(15, 23, 42, 0.14),
-    0 0 16px rgba($brand-verdigris, 0.16) !important;
-}
-// The glyph scales with its tile — 34px in 64px, the same ratio Speak uses. Without this
-// the icon would sit small inside a larger tile and look off-centre by weight.
-body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button .md-card__icon > svg,
-body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button .md-card__icon-glyph {
-  width: 34px !important;
-  height: 34px !important;
-}
-
 // FOCUSED-ONLY organization TILE illustration (2026-08-16) — the per-organization buttons
 // inside the card, which reuse `.md-room-card` chrome and swap the room door for the
 // SINGULAR organization art (app.scss ~46327). Gentle keeps `organization.png`.
