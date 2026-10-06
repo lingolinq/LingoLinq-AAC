@@ -4,7 +4,8 @@ import { computed, get } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { scheduleOnce, debounce, cancel } from '@ember/runloop';
 import labelFit from '../utils/label_fit';
-import { group_buttons, normalize_order, assign_columns, compact_order, pack_category_tiles, GROUP_INNER_COLUMNS } from '../utils/board_categories';
+import { group_buttons, normalize_order, assign_columns, compact_order, pack_category_tiles, GROUP_INNER_COLUMNS, category_for_key } from '../utils/board_categories';
+import { resolve_category_layout, is_keyboard_board_key } from '../utils/category_layout';
 
 // Throttle window resize re-fits to ~250ms. Resizing fires many events
 // per drag; we only need the last one's measurement.
@@ -116,18 +117,12 @@ export default Component.extend({
          regrouped keyboard either. */
       if(this.get('isKeyboardBoard')) { return false; }
       if(this.get('forceGrouping')) { return true; }
-      /* Edit mode used to bail here, so the edit page always showed the authored grid
-         while the communicator saw a regrouped one — two different boards, and no way to
-         see the shipped layout without leaving edit mode. It groups now: what the editor
-         works on is what the user gets.
-         Two consequences, both deliberate and neither silent:
-           - EMPTY cells are not rendered while grouped (`group_buttons` skips them), so
-             the "click an empty slot to add a button" affordance is unavailable until
-             Categorize is switched off. The order and colour of the real buttons is what
-             the grouped view is for.
-           - DRAG to rearrange is turned off while grouped (see `editDraggable`): a drop
-             target's position is derived by the packer, not authored, so a swap would
-             land the button somewhere other than where it was dropped. */
+      /* EDIT MODE SHOWS THE BOARD WITHOUT CATEGORIES (2026-10-05, Traci). Swap, drag and paint
+         edit the board's own grid, which only applies while categories are off; a categorized
+         board's arrangement is changed through Categorize. The edit page says so
+         (templates/user/board-detail.hbs, the categorized-edit notice). This reverses the
+         earlier "group in edit mode too", which left drag disabled and empty slots hidden. */
+      if(this.get('editMode')) { return false; }
       /* `=== true`, NOT `!== false`. The permissive form treated an ABSENT preference as
          ON, so every user who had never opted in got their board regrouped the moment
          the feature flag was enabled — and it could not distinguish "chose it" from
@@ -154,8 +149,7 @@ export default Component.extend({
      `key.match(/keyboard$/)`) and the same test category_for_button applies to a folder
      that OPENS one — one rule, two callers, rather than two drifting definitions. */
   isKeyboardBoard: computed('board.key', function() {
-    var key = this.get('board.key');
-    return typeof key === 'string' && /(^|[-_/])keyboard$/i.test(key);
+    return is_keyboard_board_key(this.get('board.key'));
   }),
 
   /* COMPACT mode: grouping ON, scrolling OFF.
@@ -168,8 +162,8 @@ export default Component.extend({
      buttons, is what pushed it past the fold.
      Scrolling ON keeps the panel layout, which is the richer presentation when there is
      room to scroll. */
-  compactCategories: computed('groupingEnabled', function() {
-    return !!this.get('groupingEnabled');
+  compactCategories: computed('groupingEnabled', 'savedLayout', function() {
+    return !!this.get('groupingEnabled') && !this.get('savedLayout');
   }),
 
   /* Grouping ON with scrolling ALLOWED. Same tiling as above — one rectangle per
@@ -179,8 +173,56 @@ export default Component.extend({
      gets shorter buttons and always fits. With it on the rows hold a floor instead and
      the grid scrolls past the fold, which is the trade a user who CAN scroll may prefer:
      full-size buttons over seeing everything at once. */
-  compactScroll: computed('groupingEnabled', 'categoryScrollEnabled', function() {
-    return !!this.get('groupingEnabled') && !!this.get('categoryScrollEnabled');
+  compactScroll: computed('groupingEnabled', 'categoryScrollEnabled', 'savedLayout', function() {
+    return !!this.get('groupingEnabled') && !!this.get('categoryScrollEnabled') && !this.get('savedLayout');
+  }),
+
+  /* The board's SAVED category layout (2026-10-05), resolved against the buttons on show
+     (utils/category_layout.js). When the board has one, it replaces the packer entirely: every
+     button sits at its saved row and column on the board's own grid, each cell carries its
+     category's tint and an outline on the sides where the block changes. It ignores the
+     scrolling preference (always the board's own tracks) and takes none of the --compact /
+     --grouped classes or the QWERTY kb_row placement, which would fight it.
+     controllers/user/board-detail.js#category_layout_grid mirrors this condition for
+     switch scanning; keep the two in step. */
+  savedLayout: computed('groupingEnabled', 'board.category_layout', 'orderedButtons', function() {
+    if(!this.get('groupingEnabled')) { return null; }
+    return resolve_category_layout(this.get('board.category_layout'), this.get('orderedButtons'));
+  }),
+
+  /* The one group the layout renders as: every cell in reading order, so DOM order is visual
+     order (screen readers, tab order). `cell_styles` / `cell_classes` are parallel to
+     `buttons` and read by index in the template, which keeps the shared cell block written
+     once. `key: null` leaves the group `display: contents`, so cells are items of the board
+     grid and land at their grid-row / grid-column. */
+  layoutGroup: computed('savedLayout', function() {
+    var layout = this.get('savedLayout');
+    if(!layout) { return null; }
+    var styles = [];
+    var classes = [];
+    var buttons = layout.cells.map(function(cell) {
+      var cat = category_for_key(cell.category) || category_for_key('extra');
+      styles.push('grid-row:' + (cell.row + 1) + ';grid-column:' + (cell.col + 1) +
+                  ';--bd-cell-fill:var(' + cat.fillVar + ');--bd-cell-text:var(' + cat.textVar + ')');
+      var cls = ['md-board-detail-grid__cell--layout', 'md-board-detail-grid__cell--cat-' + cell.category];
+      ['top', 'right', 'bottom', 'left'].forEach(function(side) {
+        if(cell.edges[side]) { cls.push('md-board-detail-grid__cell--edge-' + side); }
+      });
+      /* The board's own outer sides: the backing stays inside the board there instead of
+         reaching half a gap past it, which made the grid overflow by a few pixels. */
+      if(cell.row === 0) { cls.push('md-board-detail-grid__cell--board-top'); }
+      if(cell.col === layout.columns - 1) { cls.push('md-board-detail-grid__cell--board-right'); }
+      if(cell.row === layout.rows - 1) { cls.push('md-board-detail-grid__cell--board-bottom'); }
+      if(cell.col === 0) { cls.push('md-board-detail-grid__cell--board-left'); }
+      classes.push(cls.join(' '));
+      return cell.btn;
+    });
+    return { key: null, each_key: 'category_layout', is_layout: true, buttons: buttons, cell_styles: styles, cell_classes: classes };
+  }),
+
+  /* `--grouped-no-scroll` (overflow hidden for the packed tiles) belongs to the packer only. */
+  groupedNoScroll: computed('groupingEnabled', 'categoryScrollEnabled', 'savedLayout', function() {
+    return !!this.get('groupingEnabled') && !this.get('categoryScrollEnabled') && !this.get('savedLayout');
   }),
 
   /* Panel layout is the grouped-with-scrolling case only. The template keys the
@@ -470,7 +512,9 @@ export default Component.extend({
     return this.get('compactTiles.rows') || 0;
   }),
 
-  renderColumns: computed('renderGroups', 'groupingEnabled', 'columnCount', 'keyboardGroup', 'compactCategories', 'compactTiles.columns', function() {
+  renderColumns: computed('renderGroups', 'groupingEnabled', 'columnCount', 'keyboardGroup', 'compactCategories', 'compactTiles.columns', 'layoutGroup', function() {
+    var layout_group = this.get('layoutGroup');
+    if(layout_group) { return [[layout_group]]; }
     var groups = this.get('renderGroups') || [];
     if(!this.get('groupingEnabled')) { return [groups]; }
     /* Compact: ONE pseudo-column holding every tile, in reading order. The column

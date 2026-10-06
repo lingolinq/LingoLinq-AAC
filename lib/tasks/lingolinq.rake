@@ -101,6 +101,25 @@ namespace :lingolinq do
     end
   end
 
+  desc 'Write a curated category layout (lib/category_layouts/*.json) onto boards. ' \
+       'FILE=lib/category_layouts/vocal_flair_112.json [BOARDS=key1,key2] (default: the file board_key). ' \
+       'Not audited: in a deployed environment use bin/audit_console runner CategoryLayoutSeeder.run(...)'
+  task seed_category_layout: :environment do
+    file = ENV['FILE'].to_s
+    abort 'Usage: FILE=lib/category_layouts/<name>.json [BOARDS=key1,key2] rake lingolinq:seed_category_layout' if file.empty? || !File.exist?(file)
+    data = JSON.parse(File.read(file))
+    keys = ENV['BOARDS'].to_s.split(',').map(&:strip).reject(&:empty?)
+    keys = [data['board_key']] if keys.empty?
+    failed = false
+    keys.each do |key|
+      res = CategoryLayoutSeeder.apply(key, data)
+      puts "#{key}: #{res[:ok] ? 'layout written' : 'REFUSED'}"
+      res[:errors].first(10).each { |e| puts "  #{e}" }
+      failed ||= !res[:ok]
+    end
+    abort 'One or more boards were refused; nothing was written to them.' if failed
+  end
+
   desc 'Apply per-board category DISPLAY settings for users, keyed by BOARD KEY so it ' \
        'ports between environments. Cannot turn grouping on or off -- that is per-user. ' \
        'BOARDS=key1,key2 USERS=a,b|all [SCROLL=1] [NAMES=1] [ORDER=people,actions,…] [DRY_RUN=1]'

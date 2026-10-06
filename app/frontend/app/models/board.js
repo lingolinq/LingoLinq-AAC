@@ -905,6 +905,11 @@ LingoLinq.Board = BaseModel.extend({
   hide_empty: attr('boolean'),
   buttons: attr('raw'),
   grid: attr('raw'),
+  /* The board's saved category layout (2026-10-05): where each button sits in the categorized
+     grid and which outlined block it belongs to. Read-only on the client: serializers/board.js
+     never sends it (a stale session must not overwrite a newer one), and the server carries it
+     onto copies. Shape and validation: Board#sanitize_category_layout (app/models/board.rb). */
+  category_layout: attr('raw'),
   /* Rows/columns only, and present on LIST payloads where `grid` is not (lib/json_api/board.rb
      omits grid/buttons/intro/background when paginated). The board-collection panel reads this
      so its grid-size pill works for listed boards, not just ones already fully fetched. */

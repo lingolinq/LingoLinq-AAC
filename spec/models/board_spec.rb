@@ -1131,6 +1131,130 @@ describe Board, :type => :model do
     end
   end
 
+  # A board-own, saved category layout (2026-10-05): where each button sits in the categorized
+  # grid and which outlined block (and so which category) each cell belongs to. Saved with the
+  # board and copied with it; see docs/task-management/2026-10-05_category-layout-on-board.md.
+  describe "category_layout" do
+    def layout_board
+      u = User.create
+      b = Board.create(:user => u)
+      b.process({
+        'buttons' => [{'id' => 1, 'label' => 'I'}, {'id' => 2, 'label' => 'go'}, {'id' => '3', 'label' => 'big'}],
+        'grid' => {'rows' => 2, 'columns' => 2, 'order' => [[1, 2], ['3', nil]]}
+      })
+      b
+    end
+
+    def valid_layout
+      {
+        'rows' => 2, 'columns' => 2,
+        'order' => [[2, 1], [nil, '3']],
+        'cells' => [[1, 0], [nil, 2]],
+        'blocks' => [{'category' => 'people'}, {'category' => 'actions'}, {'category' => 'describe'}]
+      }
+    end
+
+    it "stores a valid layout, keeping the board's own button ids" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout})
+      layout = b.settings['category_layout']
+      expect(layout['version']).to eq(1)
+      expect(layout['rows']).to eq(2)
+      expect(layout['columns']).to eq(2)
+      expect(layout['order']).to eq([[2, 1], [nil, '3']])
+      expect(layout['cells']).to eq([[1, 0], [nil, 2]])
+      expect(layout['blocks']).to eq([{'category' => 'people'}, {'category' => 'actions'}, {'category' => 'describe'}])
+    end
+
+    it "accepts the layout as a JSON string, like grid" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout.to_json})
+      expect(b.settings['category_layout']['order']).to eq([[2, 1], [nil, '3']])
+    end
+
+    it "drops ids that are not buttons on the board and ids placed twice" do
+      b = layout_board
+      layout = valid_layout.merge('order' => [[2, 99], [2, '3']])
+      b.process({'category_layout' => layout})
+      expect(b.settings['category_layout']['order']).to eq([[2, nil], [nil, '3']])
+    end
+
+    it "files an unknown category as extra and drops a block index that does not exist" do
+      b = layout_board
+      layout = valid_layout.merge('cells' => [[7, 0], [nil, 2]], 'blocks' => [{'category' => 'people'}, {'category' => 'actions'}, {'category' => 'nonsense'}])
+      b.process({'category_layout' => layout})
+      expect(b.settings['category_layout']['cells']).to eq([[nil, 0], [nil, 2]])
+      expect(b.settings['category_layout']['blocks'][2]).to eq({'category' => 'extra'})
+    end
+
+    it "accepts the small_words category" do
+      b = layout_board
+      layout = valid_layout.merge('blocks' => [{'category' => 'people'}, {'category' => 'small_words'}, {'category' => 'describe'}])
+      b.process({'category_layout' => layout})
+      expect(b.settings['category_layout']['blocks'][1]).to eq({'category' => 'small_words'})
+    end
+
+    it "rejects a layout whose size is not the board's grid, keeping the saved one" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout})
+      b.process({'category_layout' => valid_layout.merge('rows' => 3)})
+      expect(b.settings['category_layout']['rows']).to eq(2)
+      expect(b.settings['category_layout']['order']).to eq([[2, 1], [nil, '3']])
+    end
+
+    it "treats null, blank and an absent key as unchanged; only an explicit clear removes it" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout})
+      b.process({'category_layout' => nil})
+      expect(b.settings['category_layout']).not_to eq(nil)
+      b.process({'category_layout' => ''})
+      expect(b.settings['category_layout']).not_to eq(nil)
+      b.process({'name' => 'renamed'})
+      expect(b.settings['category_layout']).not_to eq(nil)
+      b.process({'category_layout' => {'clear' => true}})
+      expect(b.settings['category_layout']).to eq(nil)
+    end
+
+    it "drops the id of a button deleted after the layout was saved" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout})
+      b.process({
+        'buttons' => [{'id' => 1, 'label' => 'I'}, {'id' => '3', 'label' => 'big'}],
+        'grid' => {'rows' => 2, 'columns' => 2, 'order' => [[1, nil], ['3', nil]]}
+      })
+      expect(b.settings['category_layout']['order']).to eq([[nil, 1], [nil, '3']])
+      expect(b.settings['category_layout']['cells']).to eq([[nil, 0], [nil, 2]])
+    end
+
+    it "changes the board's revision when only the layout changes, so cached copies refresh" do
+      b = layout_board
+      before = b.current_revision
+      b.process({'category_layout' => valid_layout})
+      expect(b.reload.current_revision).not_to eq(before)
+    end
+
+    it "is carried onto a copy, with the same button ids" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout})
+      u2 = User.create
+      copy = b.copy_for(u2)
+      expect(copy.settings['category_layout']).to eq(b.settings['category_layout'])
+      expect(copy.settings['category_layout']).not_to equal(b.settings['category_layout'])
+    end
+
+    it "is carried onto a copy created from the client with parent_board_id (the client never sends it)" do
+      b = layout_board
+      b.process({'category_layout' => valid_layout})
+      u2 = User.create
+      copy = Board.process_new({
+        'parent_board_id' => b.global_id,
+        'buttons' => b.buttons,
+        'grid' => b.settings['grid']
+      }, {:user => u2})
+      expect(copy.settings['category_layout']).to eq(b.settings['category_layout'])
+    end
+  end
+
   describe "populate_buttons_from_labels" do
     it "should add new buttons with the specified labels" do
       b = Board.new

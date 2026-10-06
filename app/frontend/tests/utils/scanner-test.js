@@ -237,6 +237,31 @@ describe('scanner', function() {
         ]
       });
     });
+
+    /* A SAVED CATEGORY LAYOUT MOVES THE BUTTONS (2026-10-05), so scanning has to follow what is
+       on screen, not the board's own grid order: a switch user's "row 1" must be the first row
+       they see. The board page exposes that placement as `category_layout_grid` while the
+       layout is showing (controllers/user/board-detail.js, utils/category_layout.js). */
+    it("should scan a saved category layout in its displayed order when the layout is showing", function() {
+      stub(frame_listener, 'visible', function() { return false; });
+      stub(editManager, 'controller', EmberObject.create({
+        category_layout_grid: { rows: 1, columns: 3, order: [[3, 1, 2]] },
+        model: EmberObject.create({
+          grid: { rows: 1, columns: 3, order: [[1, 2, 3]] }
+        })
+      }));
+      stub(editManager, 'find_button', function(id) { return EmberObject.create({label: 'b' + id}); });
+      stub(scanner, 'find_elem', function(search) {
+        var idMatch = search && search.match(/data-id='([^']+)'/);
+        var elem = { length: 1, label: '', sound: null };
+        elem[idMatch[1]] = true;
+        return elem;
+      });
+      var res = scanner.scan_content();
+      expect(res.rows).toEqual(1);
+      expect(res.columns).toEqual(3);
+      expect(res.order[0].map(function(e) { return e.label; })).toEqual(['b3', 'b1', 'b2']);
+    });
   });
 
   describe("start", function() {

@@ -209,6 +209,14 @@
             </svg>
             <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
           </button>
+          {{!-- CATEGORIZED EDIT NOTICE (2026-10-05, Traci). With categories on, edit mode shows
+               the board WITHOUT categories (BoardDetailGrid#groupingEnabled bails in edit
+               mode), because swap, drag and paint edit the board's own grid. Say so, and where
+               the categorized arrangement is changed instead. Same note style as the
+               folder-style lock below, which is the other grouping-driven edit message. --}}
+          {{#if this.grouping_active}}
+            <p class="md-folder-style-locked-note md-board-edit-panel__categorized-note" role="note">{{t "Categories are on. Editing here is done without categories, and changes apply to this board when categories are turned off. To change the category layout, use Categorize." key="board_detail_categorized_edit_note"}}</p>
+          {{/if}}
         </div>
 
         {{!-- BOARD ACTIONS — sits below Categorize (which was moved above it

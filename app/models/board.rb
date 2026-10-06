@@ -956,12 +956,21 @@ class Board < ApplicationRecord
       end
     end
     self.settings['grid'] = grid
+    # A button deleted after the category layout was saved leaves a dead id; drop it on every
+    # save rather than leaving the client to hide it (the layout is not refused here, so a grid
+    # resize cannot discard a curated layout; see sanitize_category_layout).
+    if self.settings['category_layout'].is_a?(Hash)
+      pruned = sanitize_category_layout(self.settings['category_layout'], false)
+      pruned ? (self.settings['category_layout'] = pruned) : self.settings.delete('category_layout')
+    end
     update_immediately_downstream_board_ids
     # Clip huge downstream lists
     self.settings['downstream_board_ids'] = self.settings['downstream_board_ids'][0, 500] if self.settings['downstream_board_ids']
     
     translations = (BoardContent.load_content(self, 'translations') || {})
-    data_hash = Digest::MD5.hexdigest(self.global_id.to_s + "_" + grid.to_json + "_" + self.buttons.to_json + "_" + self.public.to_s + "_" + self.settings['unlisted'].to_s + "_" + translations.to_json)
+    # The category layout joins the hash only when present, so a layout change refreshes cached
+    # copies while boards without one keep the exact revision they had (no re-download storm).
+    data_hash = Digest::MD5.hexdigest(self.global_id.to_s + "_" + grid.to_json + "_" + self.buttons.to_json + "_" + self.public.to_s + "_" + self.settings['unlisted'].to_s + "_" + translations.to_json + (self.settings['category_layout'] ? "_" + self.settings['category_layout'].to_json : ""))
     self.settings['revision_hashes'] ||= []
     if !self.settings['revision_hashes'].last || self.settings['revision_hashes'].last[0] != data_hash
       @track_revision = [data_hash, Time.now.to_i]
@@ -1756,6 +1765,60 @@ class Board < ApplicationRecord
     (self.key || "").split(/\//)[0]
   end
 
+  CATEGORY_LAYOUT_MAX_CELLS = 2500
+  CATEGORY_LAYOUT_MAX_BLOCKS = 500
+
+  # The saved category layout, cleaned (2026-10-05). Shape:
+  #   {version: 1, rows, columns, order: [[button_id|nil]...], cells: [[block_index|nil]...],
+  #    blocks: [{category: <User::BOARD_CATEGORY_KEYS>}...]}
+  # `order` places each button; `cells` names the outlined block each cell belongs to, and the
+  # block names its category. Ids must be buttons on this board, each placed once, and are
+  # stored as the board's own id values. A cell whose id is dropped loses its block too.
+  # With `match_grid`, rows/columns must equal the board's grid (the categorized view keeps the
+  # board's size) or the whole layout is refused (nil). Without it (the prune on every save)
+  # only dead ids are dropped, so a later grid resize never discards a curated layout.
+  def sanitize_category_layout(raw, match_grid)
+    return nil unless raw.is_a?(Hash)
+    rows = raw['rows'].to_i
+    columns = raw['columns'].to_i
+    return nil if rows < 1 || columns < 1 || rows * columns > CATEGORY_LAYOUT_MAX_CELLS
+    if match_grid
+      grid = self.settings['grid'].is_a?(Hash) ? self.settings['grid'] : (BoardContent.load_content(self, 'grid') || {})
+      return nil if grid['rows'].to_i != rows || grid['columns'].to_i != columns
+    end
+    as_rows = lambda do |val|
+      val = val.keys.sort_by(&:to_i).map { |k| val[k] } if val.is_a?(Hash)
+      val.is_a?(Array) ? val : []
+    end
+    blocks = as_rows.call(raw['blocks'])[0, CATEGORY_LAYOUT_MAX_BLOCKS].map do |blk|
+      cat = blk.is_a?(Hash) ? blk['category'].to_s : ''
+      {'category' => User::BOARD_CATEGORY_KEYS.include?(cat) ? cat : 'extra'}
+    end
+    ids = {}
+    self.buttons.each { |btn| ids[btn['id'].to_s] = btn['id'] if btn['id'] }
+    seen = {}
+    raw_order = as_rows.call(raw['order'])
+    raw_cells = as_rows.call(raw['cells'])
+    order = []
+    cells = []
+    rows.times do |r|
+      order_row = as_rows.call(raw_order[r])
+      cell_row = as_rows.call(raw_cells[r])
+      order << []
+      cells << []
+      columns.times do |c|
+        key = order_row[c].nil? ? nil : order_row[c].to_s
+        id = (key && ids.key?(key) && !seen[key]) ? ids[key] : nil
+        seen[key] = true if id
+        block = cell_row[c]
+        block = nil unless id && block.to_s.match?(/\A\d+\z/) && block.to_i < blocks.length
+        order[r] << id
+        cells[r] << (block.nil? ? nil : block.to_i)
+      end
+    end
+    {'version' => 1, 'rows' => rows, 'columns' => columns, 'order' => order, 'cells' => cells, 'blocks' => blocks}
+  end
+
   def buttons
     res = BoardContent.load_content(self, 'buttons') || []
     if @sub_id && @sub_global
@@ -1824,6 +1887,12 @@ class Board < ApplicationRecord
       end
       if self.parent_board_id != parent_board.id
         self.parent_board = parent_board
+        # A client-side copy (models/board.js create_copy) posts the parent's buttons and grid
+        # but never the category layout (the client does not serialize it, so a stale session
+        # cannot overwrite a newer one); carry the parent's here. Button ids come over as posted.
+        if parent_board.settings['category_layout'] && !self.settings['category_layout']
+          self.settings['category_layout'] = parent_board.settings['category_layout'].deep_dup
+        end
         @shallow_source_changed = true
         self.settings['shallow_source'] = nil
         if parent_board.instance_variable_get('@sub_id')
@@ -1977,6 +2046,24 @@ class Board < ApplicationRecord
         grid_val = JSON.parse(grid_val) rescue nil
       end
       self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
+    end
+    # Saved category layout (2026-10-05). After the buttons and the grid above, so ids and the
+    # size are checked against what this same request saves. Absent, null or blank leaves the
+    # saved layout alone: the client's raw attr re-sends it on every board save, so a stale
+    # session must not be able to wipe it. Only an explicit {clear: true} removes it.
+    if params.key?('category_layout')
+      layout_val = params['category_layout']
+      layout_val = (JSON.parse(layout_val) rescue nil) if layout_val.is_a?(String) && layout_val.present?
+      if layout_val.is_a?(Hash) && ['true', true].include?(layout_val['clear'])
+        self.settings.delete('category_layout')
+        @edit_notes << "cleared the category layout"
+      elsif layout_val.is_a?(Hash)
+        clean = sanitize_category_layout(layout_val, true)
+        if clean && clean != self.settings['category_layout']
+          self.settings['category_layout'] = clean
+          @edit_notes << "changed the category layout"
+        end
+      end
     end
     if params['visibility'] != nil && !self.unshareable?
       # process_params runs before save. Defer a new board's cascade until

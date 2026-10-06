@@ -569,7 +569,10 @@ var scanner = EmberObject.extend({
       });
       return res;
     } else {
-      var grid = editManager.controller && editManager.controller.get('model.grid');
+      /* While a saved category layout is on screen the buttons are not where the board's own
+         grid puts them, so scan the DISPLAYED placement (controllers/user/board-detail.js
+         #category_layout_grid, from utils/category_layout.js); otherwise the board's grid. */
+      var grid = editManager.controller && (editManager.controller.get('category_layout_grid') || editManager.controller.get('model.grid'));
       if(!grid) { return { rows: 0, columns: 0, order: [] }; }
       var res = {};
       res.rows = grid.rows;

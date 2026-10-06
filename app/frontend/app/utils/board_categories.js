@@ -225,6 +225,18 @@ export const BOARD_CATEGORIES = [
     textVar: '--fitzgerald-conjunction-white-text'
   },
   {
+    // A board's "small words" folder and its kin, as a block of their own in a saved category
+    // layout (2026-10-05, Traci's Vocal Flair 112 map). No part of speech maps here: it is
+    // assigned by the layout, so `category_for_button` never produces it. Before Things, which
+    // stays last in the default sequence (see its note).
+    key: 'small_words',
+    labelKey: 'board_category_small_words',
+    defaultLabel: "Small Words",
+    types: [],
+    fillVar: '--fitzgerald-conjunction-white',
+    textVar: '--fitzgerald-conjunction-white-text'
+  },
+  {
     // Deliberately LAST in the default sequence, not third.
     // Columns are filled with consecutive runs of this order, so the final entry
     // lands at the bottom of the final column. Things is a large category on a
@@ -273,6 +285,7 @@ export const BOARD_CATEGORIES = [
  *   i18n.t('board_category_time', "More Time");
  *   i18n.t('board_category_controls', "Controls");
  *   i18n.t('board_category_extra', "Extra");
+ *   i18n.t('board_category_small_words', "Small Words");
  *   i18n.t('board_category_things', "Things");
  */
 

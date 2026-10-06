@@ -113,6 +113,9 @@ class BoardCloner < Clowne::Cloner
     # Remaining settings (relinking.rb:117-121)
     record.settings['word_suggestions'] = source.settings['word_suggestions']
     record.settings['categories'] = source.settings['categories']
+    # The saved category layout is the board's default arrangement and travels with it; button
+    # ids are copied verbatim above, so its ids stay valid (2026-10-05).
+    record.settings['category_layout'] = source.settings['category_layout'].deep_dup if source.settings['category_layout']
     record.settings['license'] = source.settings['license']
     # EU AI Act Article 50(2): carry the AI-generation provenance marker onto copies.
     # The marker is provenance-bound (it attests the content originated from AI

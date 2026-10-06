@@ -3254,7 +3254,7 @@ class User < ApplicationRecord
   BOARD_CATEGORY_KEYS = ['people', 'actions', 'describe', 'how_when', 'places',
                          'questions', 'social', 'no_not', 'words', 'keyboard',
                          'predictions', 'clock', 'yes', 'time', 'controls',
-                         'extra', 'things']
+                         'extra', 'things', 'small_words']
 
   # `board_category_grouping` is a nested hash written verbatim by the PREFERENCE_PARAMS
   # loop, which coerces only TOP-LEVEL values — so its members were entirely unvalidated:

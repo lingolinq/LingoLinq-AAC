@@ -25,6 +25,8 @@ module JsonApi::Board
       ['grid', 'intro', 'background'].each do |key|
         json[key] = BoardContent.load_content(board, key)
       end
+      # Board-own, not content-shared; full board only, like grid (2026-10-05).
+      json['category_layout'] = board.settings['category_layout'] if board.settings['category_layout']
     end
     # Grid DIMENSIONS on every response, list included. The board-collection panel shows a
     # "3 x 4" pill per row, and it was blank for every listed board because `grid` above is

@@ -85917,6 +85917,47 @@ span.md-board-detail-modeling-btn--badge {
   min-height: 0;
 }
 
+/* SAVED CATEGORY LAYOUT (2026-10-05; BoardDetailGrid#layoutGroup, utils/category_layout.js).
+   The board keeps its own grid (rows, columns and gap are untouched); every cell is placed at
+   its saved row/column inline. Each cell paints a backing in its category's Fitzgerald tint
+   that reaches half the gap on every side, so a block of cells reads as one continuous tinted
+   area, and draws the block's outline only on the sides where the neighbouring cell belongs to
+   another block (the --edge-* classes). The backing is a pseudo-element BEHIND the button with
+   `pointer-events: none`, so a tap or dwell lands exactly where it does on the plain board.
+   The cell's own stacking context (`z-index: 0`) keeps the backing above the board surface. */
+.md-board-detail-grid--category-layout {
+  --bd-layout-edge: 3px;
+  --bd-layout-radius: 10px;
+}
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--layout {
+  position: relative;
+  z-index: 0;
+}
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--layout::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--bd-button-gap, 8px) / -2);
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bd-cell-fill, transparent);
+  border: 0 solid var(--bd-cell-text, #1B365D);
+}
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-top::before { border-top-width: var(--bd-layout-edge); }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-right::before { border-right-width: var(--bd-layout-edge); }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-bottom::before { border-bottom-width: var(--bd-layout-edge); }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-left::before { border-left-width: var(--bd-layout-edge); }
+/* On the board's outer sides the backing ends at the cell, not half a gap beyond it, so the
+   layout never makes the grid taller or wider than the board (it overflowed by 3px). */
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--board-top::before { top: 0; }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--board-right::before { right: 0; }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--board-bottom::before { bottom: 0; }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--board-left::before { left: 0; }
+/* A block's outer corners round; inner corners (where the block continues) stay square. */
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-top.md-board-detail-grid__cell--edge-left::before { border-top-left-radius: var(--bd-layout-radius); }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-top.md-board-detail-grid__cell--edge-right::before { border-top-right-radius: var(--bd-layout-radius); }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-bottom.md-board-detail-grid__cell--edge-left::before { border-bottom-left-radius: var(--bd-layout-radius); }
+.md-board-detail-grid--category-layout .md-board-detail-grid__cell--edge-bottom.md-board-detail-grid__cell--edge-right::before { border-bottom-right-radius: var(--bd-layout-radius); }
+
 .md-board-detail-grid--grouped .md-board-detail-grid__group {
   /* A stack: header, then the button container. The button grid itself moved to
      __group-body so the buttons can sit on their own surface.

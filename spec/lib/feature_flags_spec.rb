@@ -51,6 +51,48 @@ describe FeatureFlags do
       flags = FeatureFlags.frontend_flags_for(u)
       expect(flags).to eq({'b' => true})
     end
+
+    # DEVELOPMENT-ONLY SWITCH (2026-10-05). Lets a developer work on a flag that is in neither
+    # list (board_category_grouping) on their own machine without registering it, which would
+    # open the canary / beta / org / default-Setting routes everywhere. Every deployed
+    # environment runs RAILS_ENV=production (Dockerfile), so the switch cannot apply there.
+    describe "DEV_FEATURE_FLAGS" do
+      around(:each) do |example|
+        prior = ENV['DEV_FEATURE_FLAGS']
+        ENV['DEV_FEATURE_FLAGS'] = 'board_category_grouping, other_flag'
+        example.run
+      ensure
+        ENV['DEV_FEATURE_FLAGS'] = prior
+      end
+
+      it "turns the listed flags on in development, even when they are in neither list" do
+        allow(Rails.env).to receive(:development?).and_return(true)
+        flags = FeatureFlags.frontend_flags_for(nil)
+        expect(flags['board_category_grouping']).to eq(true)
+        expect(flags['other_flag']).to eq(true)
+        expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).not_to include('board_category_grouping')
+      end
+
+      it "is what feature_enabled_for? reads, so the server-side guards agree in development" do
+        allow(Rails.env).to receive(:development?).and_return(true)
+        expect(FeatureFlags.feature_enabled_for?('board_category_grouping', User.new(:settings => {}))).to eq(true)
+      end
+
+      it "does nothing outside development" do
+        allow(Rails.env).to receive(:development?).and_return(false)
+        expect(FeatureFlags.frontend_flags_for(nil)['board_category_grouping']).to eq(nil)
+        expect(FeatureFlags.feature_enabled_for?('board_category_grouping', User.new(:settings => {}))).to eq(false)
+      end
+
+      it "ignores names that are not flag-shaped" do
+        allow(Rails.env).to receive(:development?).and_return(true)
+        ENV['DEV_FEATURE_FLAGS'] = 'board_category_grouping,Bad Name!,'
+        flags = FeatureFlags.frontend_flags_for(nil)
+        expect(flags.keys).to include('board_category_grouping')
+        expect(flags.keys).not_to include('Bad Name!')
+        expect(flags.keys).not_to include('')
+      end
+    end
   end
   
   describe "user_created_after?" do

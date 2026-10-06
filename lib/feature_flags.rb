@@ -211,7 +211,19 @@ module FeatureFlags
         flags[feature] = true
       end
     end
+    dev_feature_flags.each { |feature| flags[feature] = true }
     flags
+  end
+
+  # DEVELOPMENT ONLY: a comma-separated DEV_FEATURE_FLAGS turns those flags on locally, even
+  # one in neither list (board_category_grouping, 2026-10-05). Registering a flag in AVAILABLE
+  # would open the canary / beta / org / default-Setting routes in every environment
+  # (lib/system_feature_settings.rb); this cannot, because every deployed environment runs
+  # RAILS_ENV=production (Dockerfile). Kept outside the AVAILABLE loop above so the list
+  # invariants in spec/lib/feature_flags_spec.rb still hold.
+  def self.dev_feature_flags
+    return [] unless Rails.env.development?
+    ENV['DEV_FEATURE_FLAGS'].to_s.split(',').map(&:strip).select { |name| name.match?(/\A[a-z0-9_]+\z/) }
   end
   
   def self.user_created_after?(user, feature)

@@ -40,6 +40,7 @@ import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
 import buildEventAction from '../../utils/event_action';
 import { is_copy_decision } from '../../utils/copy_decision';
+import { resolve_category_layout, is_keyboard_board_key } from '../../utils/category_layout';
 
 // Catalog of speak-mode options-menu entries the user can show/hide
 // via the "Customize Menu" preference (right panel → Board Settings).
@@ -4411,6 +4412,18 @@ export default Controller.extend(prefClasses, {
      preference alone is meaningless when the feature is not deployed. */
   grouping_active: computed('app_state.feature_flags.board_category_grouping', 'categorize_enabled', function() {
     return !!this.get('app_state.feature_flags.board_category_grouping') && !!this.get('categorize_enabled');
+  }),
+
+  /* The placement switch scanning follows while the board's SAVED category layout is on
+     screen (utils/scanner.js scan_content reads this before model.grid). Present under exactly
+     the conditions BoardDetailGrid#savedLayout renders the layout: grouping in force, not edit
+     mode (which shows the board without categories), not a keyboard board, and a usable layout.
+     Null otherwise, so scanning keeps the board's own grid order. */
+  category_layout_grid: computed('grouping_active', 'edit_mode', 'model.key', 'model.category_layout', 'ordered_buttons', function() {
+    if(!this.get('grouping_active') || this.get('edit_mode')) { return null; }
+    if(is_keyboard_board_key(this.get('model.key'))) { return null; }
+    var res = resolve_category_layout(this.get('model.category_layout'), this.get('ordered_buttons'));
+    return res ? { rows: res.rows, columns: res.columns, order: res.order } : null;
   }),
 
   /* Category grouping already communicates a button's category through its PANEL, and

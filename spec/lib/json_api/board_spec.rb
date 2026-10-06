@@ -88,6 +88,17 @@ describe JsonApi::Board do
       expect(full['buttons']).to eq([{'id' => 1, 'label' => 'asdf'}])
     end
 
+    it "should include the saved category layout on the full board, not on the list summary" do
+      u = User.create
+      b = Board.create(:user => u)
+      layout = {'version' => 1, 'rows' => 1, 'columns' => 1, 'order' => [[1]], 'cells' => [[0]], 'blocks' => [{'category' => 'people'}]}
+      b.settings['buttons'] = [{'id' => 1, 'label' => 'I'}]
+      b.settings['category_layout'] = layout
+      b.save
+      expect(JsonApi::Board.build_json(b)['category_layout']).to eq(layout)
+      expect(JsonApi::Board.build_json(b, :paginated => true)).not_to have_key('category_layout')
+    end
+
     it "should include grid_size on paginated payloads even though grid itself is omitted" do
       # The board-collection panel renders a "rows x columns" pill per listed board. `grid` is
       # excluded from list payloads on purpose (above), so without a separate dimensions key
