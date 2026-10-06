@@ -68461,12 +68461,17 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    Edit Dashboard) and Speak were landing on a tighter gap than Extras (which is pinned
    to 28px by a higher-specificity ≤1024px rule). 0,5,0 selectors + !important + this
    late source order beat every per-card gap (the 6px centering value, the Focused 11px,
-   the 30px speak, the per-card 28px). */
+   the 30px speak, the per-card 28px).
+   NOT FOCUSED (2026-10-05): Focused's badge-action cards keep their own 12px at every width
+   (the `.md-grid--layout-focused ... .md-card__head` rule). The exclusion is wrapped in
+   `:where()` so it adds no specificity: at (0,6,0) this rule would outrank the <=460px 12px
+   rule below, which only wins on source order at the same (0,5,0).
+   Checked by scripts/focused-action-gap-qa.mjs. */
 @media (max-width: 640px) {
   .md-grid .md-card.md-card--speak-as-button .md-card__head,
   .md-grid .md-card.md-card--caseload-as-button .md-card__head,
   .md-grid .md-card.md-card--extras.md-card--as-button .md-card__head,
-  .md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__head {
+  .md-grid:where(:not(.md-grid--layout-focused)) .md-card.md-card--badge-action.md-card--as-button .md-card__head {
     gap: 28px !important;
   }
 }
