@@ -86,16 +86,21 @@ $GITQ diff -z --name-only --no-renames "$BASE_SHA...$HEAD_SHA" > "$names_file" \
   || { echo "classifier: git diff $BASE_SHA...$HEAD_SHA failed" >&2; exit 3; }
 mapfile -d '' -t CHANGED_PATHS < "$names_file"
 
-# True when any changed path matches any of the given extended regexes.
+# True when any changed path matches any of the given extended regexes. Case-insensitive: an
+# export named STUDENTS.CSV or a Fixtures/ directory is the same data to the reviewer, and the
+# bias here is toward over-blocking.
 any_path_matches() {
   local path pat
+  shopt -s nocasematch
   for path in "${CHANGED_PATHS[@]}"; do
     for pat in "$@"; do
       if [[ $path =~ $pat ]]; then
+        shopt -u nocasematch
         return 0
       fi
     done
   done
+  shopt -u nocasematch
   return 1
 }
 

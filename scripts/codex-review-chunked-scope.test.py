@@ -888,6 +888,15 @@ class PathClassifierTest(unittest.TestCase):
         moved = self.classify([], moves=[("docs/legal/policy.md", "docs/policy.md")])
         self.assertEqual(moved["reviewer_route"], "claude-deep")
 
+    def test_an_uppercase_data_file_extension_is_still_blocked(self):
+        # Excel and Windows exports are often named STUDENTS.CSV / Roster.XLSX; case must not
+        # route a data file to the no-BAA model.
+        for name in ("tmp/students.CSV", "Exports.XLSX", "dump/Patients.Sql"):
+            self.assertEqual(self.classify([name])["reviewer_route"], "blocked", name)
+
+    def test_an_uppercase_data_directory_is_still_blocked(self):
+        self.assertEqual(self.classify(["spec/Fixtures/users.json"])["reviewer_route"], "blocked")
+
 
 # Records every gh call (one line of arguments each) instead of reaching GitHub.
 RECORDING_GH = r'''#!/usr/bin/env python3
