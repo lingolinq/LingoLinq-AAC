@@ -8,8 +8,9 @@ import { isTesting } from '@ember/debug';
 import { installSuiteDiagnostics } from './helpers/suite-diagnostics';
 
 QUnit.config.testTimeout = 15000;
-// TEMPORARY CI experiment 1 (traci/test/ci-test-stalls): drop passed-test rows from the
-// reporter DOM, the one variable changed against #1109's diagnostics run.
+// Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+
+// DOM nodes and every later test slowed with them (per-test floor ~40 ms -> ~1.5 s in CI;
+// suite 46.9 -> 20.3 min with this set). Failed tests are still listed.
 QUnit.config.hidepassed = true;
 
 // Skip deferred readiness in tests so the app boots immediately instead of waiting

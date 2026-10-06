@@ -225,6 +225,16 @@ Method: build once (`npx ember build --environment=test --output-path=<dir>`), t
   2,732 (15k listeners, 53k DOM nodes). PLAUSIBLE: the failure is a timing casualty of the
   suite-wide slowdown (slow run loop lets another timer interleave), not a modal bug. Test it
   with the drag experiments: if the drag goes, does this test pass in CI?
+- EXPERIMENT 1 RESULT (commit `4c75987f7`, `QUnit.config.hidepassed = true` only, job
+  112116703750): job `success` in 24 min (vs 52). Same 3,319 tests, same 37 skip / 5 todo,
+  3,277 pass, 0 fail; same test-name set. Test time 46.9 -> 20.3 min:
+  Jasmine-style 33.7 -> 9.3, Unit 2.7 -> 0.7, Integration 6.1 -> 5.9, Acceptance 4.3 -> 4.3.
+  Per-100 Jasmine-style floor stays ~20-38 ms to the end (was ~1,000-1,550 ms). qunitDom
+  flat ~330; listeners STILL grow to 16,348 and heap still ~1.1 GB, with no slowdown, so
+  neither listeners nor heap is the driver. CONFIRMED by experiment: the accumulated slowdown
+  was the QUnit reporter DOM of passed-test rows. The modal scanning test PASSED (57 ms):
+  consistent with it being a casualty of the slowdown (one run; confirm over more runs).
+  Integration/Acceptance unchanged, as expected: they are bound by the app timers above.
 - Not yet explained: bound-select paging (22 s, 17 s; integration, so inside the measured
   set above, PLAUSIBLY several clicks x 5 s, not checked per test); the Jasmine drag (the
   largest bucket).
