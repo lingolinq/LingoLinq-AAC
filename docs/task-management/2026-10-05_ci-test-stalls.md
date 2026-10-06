@@ -144,6 +144,93 @@ Never echo the token (`.claude/rules/github-pr.md`). Per-test timings: lines
 - Don't run the full Ember suite locally (memory). Use `--filter` regexes, e.g.
   `npx ember test --filter "/^(app_state|scanner|modal):/"`.
 
+### Session 2 findings (2026-10-05, measured locally, nothing pushed)
+Method: build once (`npx ember build --environment=test --output-path=<dir>`), then
+`npx ember test --path <dir> --filter "..."`. Probes were temporary test files, deleted after.
+- Cost split of PR #1108's run (job 112062222466, no diagnostics), by suite type:
+  Jasmine-style 1,986 tests 33.4 min; Integration 98 tests 6.1 min (median 2.2 s, min 1.5 s);
+  Acceptance 19 tests 4.3 min (7 tests carry it); Unit 1,174 tests 2.8 min.
+  Rolling-minimum floor rise across the run (accumulated drag estimate): ~19 min of 46.6.
+- CONFIRMED: every `await click()` waits ~5 s. `touch_start` schedules a 5000 ms `runLater`
+  safety reset of `buttonTracker.triggerEvent` (`app/utils/raw_events.js:960-964`), and
+  `settled()` waits for all run-loop timers. Probe: click on a bare button took 5,014 ms with
+  that timer at +4,952 ms. `mut-action-arg-test.js` in isolation: render+1 click 7.1 s,
+  render+2 clicks 12.1 s, matching CI.
+- CONFIRMED: every rendering test pays ~2.0 s in `setupRenderingTest` setup (empty test
+  2,039 ms, setup 2,030 ms, render 5 ms). Setup waits on boot-time run-loop timers; the last
+  chain is `app-state` `monitor_scanning` observer -> `check_scanning` -> `runLater(1000)`
+  (`app/services/app-state.js:2034`), re-armed once at +1,038 ms; stashes `flush` 1,500 ms
+  in parallel. Which hook awaits settled() during setup: not yet traced.
+- CONFIRMED: the ~30.9 s acceptance tests (board-detail empty state, global header) are one
+  30,000 ms `runLater` in `LingoLinq.Buttonset.load_button_set` (`app/models/buttonset.js:1418-1422`,
+  backstop that clears `pending_promises[id]`). In isolation: 30,912 ms; `visit()` took
+  30,841 ms with 3 timers pending throughout; probe logged that later() x3 during the visit.
+  NOTE: a `--filter` regex with `\|` produced a "global failure" with 0 tests run; use a
+  plain-string filter.
+- PATTERN (both CONFIRMED cases): a long backstop/cleanup timer scheduled with `runLater`
+  makes every `settled()` wait out its full delay. Candidates to inventory next: every
+  `runLater(..., >=1000)` reachable from boot, click or visit.
+- CONFIRMED: fixed 500 ms per test in "sync-heavy" modules. `isSyncHeavyTestModule`
+  (`tests/helpers/ember_helper.js:1152-1168`, substring match on Acceptance, app_state,
+  capabilities, persistence(-sync), word_suggestions, Board, frame_listener, speecher, Utterance,
+  User, stashes, dbman, session) -> `setupSyncHeavyTestHarness` sets `LingoLinq.sync_testing`
+  -> harness waits `settleMs = 500` after every test (`tests/helpers/jasmine.js:108`).
+  Locally app_state: 149/154 tests at ~520 ms; an empty Jasmine-style test outside those
+  modules: 16-45 ms. Test names matching the list in #1108: 680 (substring module match may
+  cover more) => >= 5.7 min. The settle was added to stop cross-test async bleed (comment at
+  ember_helper.js:1153-1160), so any change must keep that guarantee (e.g. settle until idle
+  instead of a fixed 500 ms) and needs Traci's approval (test harness).
+- Inventory (subagent, code-read; evidence to verify, not findings): ~120 run-loop timers
+  >= 1000 ms in app/. Note `utils/persistence.js` and `utils/_stashes.js` proxy to the service
+  instances after boot, EXCEPT `utils/persistence.DSExtend`, mixed into the adapter at load
+  (`adapters/application.js:48`). Top suspects by reach: `utils/persistence.js:4416-4422`
+  15 s timeout backstop on every remote `findRecord` (code CONFIRMED; whether tests wait on it
+  NOT yet measured); modal flash fade 1.5/3.5 s (`utils/modal.js:554`, `services/modal.js:194`);
+  `raw_events.js:1137` long-press 1.5 s not cancelled on release; `app-state.js:4908/4911`
+  selected-button fade 1.5-5 s + 3 s; `stashes.js:930` 15 min push_log re-armed on each
+  logged event. Next: one probe that records every later()/debounce >= 1000 ms per test across
+  the integration + acceptance modules, so impact is measured, not ranked by reading.
+- MEASURED (local, temporary global probe wrapping `_backburner.later/debounce/throttle`,
+  logging every timer >= 1000 ms per test; all 98 integration + 19 acceptance passed):
+  Integration 5.9 min locally (CI 6.1): every test hit stashes `flush` 1500 + `check_scanning`
+  1000 (+ nested 1000); the test's floor is set by `touch_start` 5000 in 19 tests (189.5 s)
+  and by the boot timers in 79 tests (162.5 s). The 15 s `findRecord` backstop never appeared.
+  Acceptance 4.3 min locally (CI 4.3): 6 tests gated by the 30 s `load_button_set` backstop
+  = 227.4 s, incl. board lock (Back test 65.6 s: x5 loads, two serial waits); board-lock tests
+  also run `check_scanning` 17-25x each.
+- #1109 RESULT (commit `2a6b3d3ec`, job 112102600437): completed `failure`, only test #2732
+  (the modal scanning test) failed, 3,276 passed; tests 46.9 min vs 46.6 baseline, so the
+  diagnostics' own overhead is small. 34 `[DIAG]` snapshots (every 100 tests):
+  - dom grows ~20 nodes/test to 67,633; qunitDom (QUnit reporter rows) is 65,630 of that.
+  - native window/document listeners grow ~4.6/test to 15,176. At #2732 the sources were
+    `window:lingolinq-domain-settings-sync` (app-state setup) 2,719; `document:keydown`
+    (keyboard-activation initializer) 2,715; `document:ajaxSend` / `ajaxComplete`
+    (@ember/test-helpers `_setupAJAXHooks`) 2,715 each; `window:online` / `offline`
+    (persistence `_setupOnlineListeners`) 2,416 each.
+  - heap climbs to ~1,065 MB by #1100 then stays flat at ~1,070-1,110 MB to the end, while
+    the per-test floor keeps rising (Jasmine-style min per 100: ~40 ms early, 418 at #1800,
+    809 at #2100, ~1,000-1,550 after #2600). Heap growth alone does not track the late rise;
+    dom/qunitDom and listeners rise steadily the whole way. Correlation only: not a cause.
+  - runloopTimers / overdue / liveAppInstances: no monotonic growth.
+- MODAL TEST, CORRECTED: the first `waitsFor(open_checks >= 1)` PASSED (is_open check #1 at
+  +545 ms). The failure is the SECOND wait, `waitsFor(scanner.scanning, 10000)` (11.3 s total;
+  message says 5500 ms because of the harness print bug). Checks #4-6 ran together at
+  +1,102-1,109 ms. Open question: does close()'s `runLater` (`app/utils/modal.js:436-443`)
+  start the scanner and something then stops it (e.g. app-state `check_scanning` non-scanning
+  branch calls `scanner.stop()`, `app/services/app-state.js:2076-2081`), or does the resume
+  never run? PLAUSIBLE, unverified. Local repro in CI order
+  (`--filter "/^(editManager|extras|filesystem|frame_listener|geo|i18n|waitsFor timeout|misc|modal):/"`,
+  197 tests, 0 failed) did NOT reproduce: the test took 47 ms, is_open checks #1-#6 at
+  +5..+16 ms, vs +545..+1,109 ms in CI. Same six checks, ~100x slower in CI at position
+  2,732 (15k listeners, 53k DOM nodes). PLAUSIBLE: the failure is a timing casualty of the
+  suite-wide slowdown (slow run loop lets another timer interleave), not a modal bug. Test it
+  with the drag experiments: if the drag goes, does this test pass in CI?
+- Not yet explained: bound-select paging (22 s, 17 s; integration, so inside the measured
+  set above, PLAUSIBLY several clicks x 5 s, not checked per test); the Jasmine drag (the
+  largest bucket).
+- Fix candidates (NOT applied, need /fix-proposal + Traci's OK; eye-gaze safety behaviour must
+  be preserved): make the triggerEvent reset a non-run-loop timer so settled() stops waiting.
+
 ---
 
 ## 2. PR #1108 (styling touch-ups), branch `traci/styling/styling-touchups`

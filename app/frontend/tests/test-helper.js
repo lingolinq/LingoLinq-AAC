@@ -8,6 +8,9 @@ import { isTesting } from '@ember/debug';
 import { installSuiteDiagnostics } from './helpers/suite-diagnostics';
 
 QUnit.config.testTimeout = 15000;
+// TEMPORARY CI experiment 1 (traci/test/ci-test-stalls): drop passed-test rows from the
+// reporter DOM, the one variable changed against #1109's diagnostics run.
+QUnit.config.hidepassed = true;
 
 // Skip deferred readiness in tests so the app boots immediately instead of waiting
 // for IndexedDB/lang/extras (which can hang in headless Chromium on WSL2).
