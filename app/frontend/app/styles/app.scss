@@ -57559,9 +57559,21 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     0 1px 1px rgba(15, 23, 42, 0.16) !important;
 }
-/* Glyph lift for the dark tile: 1.4 on the full-strength slate, 1.25 now the tile is lighter. */
+/* Glyph lift for the dark tile. Was `filter: brightness(1.25) saturate(1.05)`, which left the
+   glyphs at 2.25:1 (verdigris) and 1.98:1 (dusty denim) against the slate tile. A brighter
+   filter clips the channels and pushes both hues toward the same cyan, so the glyph is instead
+   stroked with its own brand colour 70% of the way to white: 3.51:1 and 3.45:1, past the 3:1
+   that WCAG 1.4.11 uses for graphics, and each card keeps its hue. CSS `stroke` outranks the
+   svg's `stroke` presentation attribute, so the markup is untouched. Verdigris is the default
+   (Create a Board, My Caseload, Speak Mode); the denim-glyph cards are listed below it.
+   Checked by scripts/focused-action-glyph-contrast-qa.mjs. */
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
-  filter: brightness(1.25) saturate(1.05);
+  stroke: color.mix(#FFFFFF, $brand-verdigris, 70%);
+}
+.md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon--edit-dashboard .md-card__icon-glyph,
+.md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon--account .md-card__icon-glyph,
+.md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button .md-card__icon--reports .md-card__icon-glyph {
+  stroke: color.mix(#FFFFFF, $brand-dusty-denim, 70%);
 }
 
 /* Focused View — the four action cards (Account / Create a Board / Reports / Edit
