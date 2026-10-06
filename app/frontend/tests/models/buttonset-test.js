@@ -17,7 +17,7 @@ import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
-import { run as emberRun, later } from '@ember/runloop';
+import { run as emberRun, later, _backburner } from '@ember/runloop';
 
 describe('Buttonset', function() {
   beforeEach(function() {
@@ -981,6 +981,46 @@ describe('Buttonset', function() {
     xit('should try to regenerate if an expected button set is missing', function() {
       expect('test').toEqual('todo');
     })
+
+    // settled() (every await visit/click) waits for ALL pending run-loop timers, so a 30s
+    // backstop left in the run loop held acceptance tests for 30s after the load finished.
+    it('should not leave a run-loop timer pending once the load has settled', function() {
+      var bs = LingoLinq.store.createRecord('buttonset', {id: '1_901', buttons: [{label: 'a'}]});
+      stub(LingoLinq.store, 'findRecord', function() { return RSVP.resolve(bs); });
+      stub(bs, 'load_buttons', function() { return RSVP.resolve(bs); });
+      // Backburner keeps timers as flat 6-slot records: [executeAt, id, target, method, args, stack].
+      var long_timer_ids = function() {
+        var ids = [], t = _backburner._timers, soon = Date.now() + 20000;
+        for(var i = 0; i < t.length; i += 6) { if(t[i] > soon) { ids.push(t[i + 1]); } }
+        return ids;
+      };
+      var ids_before = long_timer_ids();
+      var done = false;
+      LingoLinq.Buttonset.load_button_set('1_901', true, null, true).then(function() { done = true; }, function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
+        var added = long_timer_ids().filter(function(id) { return ids_before.indexOf(id) == -1; });
+        expect(added).toEqual([]);
+        expect(LingoLinq.Buttonset.pending_promises['1_901']).toEqual(undefined);
+      });
+    });
+
+    it('should hand back the same in-flight promise until the load settles', function() {
+      var bs = LingoLinq.store.createRecord('buttonset', {id: '1_902', buttons: [{label: 'a'}]});
+      var finish = null;
+      stub(LingoLinq.store, 'findRecord', function() { return new RSVP.Promise(function(resolve) { finish = function() { resolve(bs); }; }); });
+      stub(bs, 'load_buttons', function() { return RSVP.resolve(bs); });
+      var first = LingoLinq.Buttonset.load_button_set('1_902', true, null, true);
+      var second = LingoLinq.Buttonset.load_button_set('1_902');
+      expect(second).toBe(first);
+      var done = false;
+      first.then(function() { done = true; });
+      finish();
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(LingoLinq.Buttonset.pending_promises['1_902']).toEqual(undefined);
+      });
+    });
   });
 
   describe('load_buttons remote fallback', function() {
