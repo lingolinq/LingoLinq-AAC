@@ -5,6 +5,8 @@ import { setApplication } from '@ember/test-helpers';
 import { setup } from 'qunit-dom';
 import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
+// First of the local imports: CI shard selection must be in place before any test module registers.
+import './helpers/apply-parallel-pool';
 
 QUnit.config.testTimeout = 15000;
 // Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+

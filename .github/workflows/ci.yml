@@ -266,9 +266,12 @@ jobs:
   # build-and-test above is unchanged and is still the required check on develop and main
   # (and main's deploy gate). These jobs are NOT required: they only gather evidence that the
   # split is faithful before a later PR makes build-and-test wait on them instead.
-  # The shards use complementary QUnit filters (`/re/` and `!/re/`, QUnit 2.24 test.js
-  # regexFilter), so every test runs in exactly one shard; the letter set balances time.
-  # Reproduce a shard locally: npx ember test --filter "/^[bhinpu]/i" (or "!/^[bhinpu]/i").
+  # OPT-IN POOL: `pool` runs the modules listed in app/frontend/tests/parallel-pool.js (each
+  # proven to pass without the rest of the suite before it); `main` runs everything else in the
+  # original order, including every new module. tests/helpers/parallel-pool-filter.js turns
+  # ?pool=include|exclude into exact, complementary QUnit filters (not `--filter`: ember-cli
+  # lowercases it and the full list overflows the URL).
+  # Reproduce a shard locally: npx ember test --query pool=include (or pool=exclude).
   # ---------------------------------------------------------------------------------------
   ember-shard-scope:
     runs-on: ubuntu-latest
@@ -332,10 +335,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: A
-            filter: '/^[bhinpu]/i'
-          - shard: B
-            filter: '!/^[bhinpu]/i'
+          - shard: pool
+            query: pool=include
+          - shard: main
+            query: pool=exclude
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -369,23 +372,23 @@ jobs:
         working-directory: app/frontend
         run: npx ember build --environment=test --output-path=dist-test
 
-      # Fails if the tests fail OR if the filter selected no tests at all, so a mangled
-      # filter can never pass as an empty green shard.
+      # Fails if the tests fail OR if the shard selected no tests at all, so a broken
+      # selection can never pass as an empty green shard.
       - name: Run Ember tests, shard ${{ matrix.shard }}
         working-directory: app/frontend
         timeout-minutes: 50
         shell: bash
         env:
           SHARD: ${{ matrix.shard }}
-          SHARD_FILTER: ${{ matrix.filter }}
+          SHARD_QUERY: ${{ matrix.query }}
         run: |
           start=$(date +%s)
           status=0
-          npx ember test --path dist-test --filter "$SHARD_FILTER" 2>&1 | tee ember-test.log || status=$?
+          npx ember test --path dist-test --query "$SHARD_QUERY" 2>&1 | tee ember-test.log || status=$?
           tests=$(grep -oE '^# tests [0-9]+' ember-test.log | tail -1 | awk '{print $3}' || true)
-          echo "### Ember shard ${SHARD}: ${tests:-0} tests in $(( ($(date +%s) - start) / 60 )) min (filter \`${SHARD_FILTER}\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Ember shard ${SHARD}: ${tests:-0} tests in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
           if [ "${tests:-0}" -eq 0 ]; then
-            echo "::error::shard ${SHARD} ran 0 tests: the filter selected nothing"
+            echo "::error::shard ${SHARD} ran 0 tests: the pool selection matched nothing"
             exit 1
           fi
           exit "$status"
@@ -412,15 +415,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
-          for name in build-and-test ember-shard-A ember-shard-B; do
+          for name in build-and-test ember-shard-pool ember-shard-main; do
             id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
             if [ -z "$id" ]; then
               echo "::error::job ${name} not found in this run"
               exit 1
             fi
-            gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
+            # Job logs carry terminal colour codes; gh refuses to print them without this flag.
+            gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
           done
-          python3 scripts/ci-shard-compare.py build-and-test.log ember-shard-A.log ember-shard-B.log
+          python3 scripts/ci-shard-compare.py build-and-test.log ember-shard-pool.log ember-shard-main.log
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
   # are deterministic, stdlib-only checks (no gems, no network): render checks that
