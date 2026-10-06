@@ -612,6 +612,33 @@ class WorkflowLogExposureTest(unittest.TestCase):
         self.assertIn("JOB_STATUS: ${{ needs.codex-review.result }}", jobs["status-final"])
         self.assertIn("skipped)", jobs["status-final"])
 
+    def test_base_sha_must_be_on_the_prs_base_branch_and_leave_a_non_empty_diff(self):
+        # base_sha decides what the reviewer sees (every check diffs BASE_SHA...HEAD_SHA). A
+        # dispatch with base_sha = head_sha (empty diff) or a commit on the PR branch (only the
+        # tail of the PR) must fail instead of producing an APPROVE for the real head.
+        script = extract_step_run("Bind base_sha to the PR's base branch (refuse a diff that hides part of the PR)")
+        cases = {
+            # name: (status of base_sha...baseRefOid, ahead_by of base_sha...head_sha, should pass)
+            "base commit of the PR": ("identical", "3", True),
+            "older commit on the base branch": ("ahead", "3", True),
+            "base_sha is the head itself": ("ahead", "0", False),
+            "commit only on the PR branch": ("diverged", "1", False),
+            "base_sha past the base tip": ("behind", "3", False),
+        }
+        for name, (to_base, ahead_by, ok) in cases.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                install_fake(bin_dir, "gh", COMPARE_GH)
+                run = run_step(localize(script, tmp), tmp, bin_dir, extra_env={
+                    "FAKE_TO_BASE": to_base, "FAKE_AHEAD_BY": ahead_by,
+                    "PR_NUMBER": "7", "BASE_SHA": "b" * 40, "HEAD_SHA": "a" * 40,
+                    "RUN_URL": "https://run/1", "GITHUB_REPOSITORY": "o/r", "GH_TOKEN": "t",
+                })
+                calls = (pathlib.Path(tmp) / "gh-calls").read_text() if (pathlib.Path(tmp) / "gh-calls").exists() else ""
+                self.assertEqual(run.returncode == 0, ok, run.stderr)
+                self.assertEqual("state=failure" in calls, not ok, calls)
+
     def test_status_final_resolves_every_review_job_result_to_a_terminal_failure(self):
         # The step uses jq, as on GitHub's runners. Fail clearly rather than through its retry sleeps.
         self.assertIsNotNone(shutil.which("jq"), "jq is required to run this step (preinstalled on GitHub runners)")
@@ -915,6 +942,22 @@ if any("/commits/" in a for a in args):
 else:
     with (pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls").open("a") as handle:
         handle.write(" ".join(args) + "\\n")
+'''
+
+# The PR and compare APIs as the base_sha binding sees them; status writes are recorded.
+COMPARE_GH = r'''#!/usr/bin/env python3
+import os, pathlib, sys
+args = sys.argv[1:]
+joined = " ".join(args)
+if "baseRefOid" in joined:
+    print("c" * 40)
+elif "/compare/" in joined and joined.count("c" * 40):
+    print(os.environ["FAKE_TO_BASE"])
+elif "/compare/" in joined:
+    print(os.environ["FAKE_AHEAD_BY"])
+else:
+    with (pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls").open("a") as handle:
+        handle.write(joined + "\\n")
 '''
 
 # The W2 step's secrets, as the workflow passes them (env, never the script text).

@@ -148,6 +148,38 @@ jobs:
             exit 1
           fi
 
+      - name: Bind base_sha to the PR's base branch (refuse a diff that hides part of the PR)
+        # Every check (classifier, bounded diff, chunked evidence, binary guard) diffs
+        # BASE_SHA...HEAD_SHA, and base_sha was only checked to be hex. A dispatch with
+        # base_sha = head_sha (empty diff) or a commit on the PR branch (only the PR's tail)
+        # would have the model review a fraction of the PR and post its verdict on the real
+        # head. base_sha must be on the PR's base branch (an ancestor of, or equal to, its
+        # current tip), and the head must be at least one commit ahead of it.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fail() {
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="$1" \
+              -f target_url="${RUN_URL}"
+            echo "::error::$1" >&2
+            exit 1
+          }
+          BASE_TIP="$(gh pr view "$PR_NUMBER" -R "${GITHUB_REPOSITORY}" --json baseRefOid --jq '.baseRefOid')"
+          [[ "$BASE_TIP" =~ ^[0-9a-f]{40}$ ]] || fail "could not read the base branch tip of PR ${PR_NUMBER}"
+          TO_BASE="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${BASE_TIP}" --jq '.status')" \
+            || fail "could not compare base_sha with the PR's base branch"
+          case "$TO_BASE" in
+            ahead|identical) ;;
+            *) fail "base_sha ${BASE_SHA} is not on PR ${PR_NUMBER}'s base branch (${TO_BASE})" ;;
+          esac
+          AHEAD_BY="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${HEAD_SHA}" --jq '.ahead_by')" \
+            || fail "could not compare base_sha with head_sha"
+          [[ "$AHEAD_BY" =~ ^[0-9]+$ ]] && [ "$AHEAD_BY" -gt 0 ] \
+            || fail "head_sha is not ahead of base_sha: nothing to review"
+
   codex-review:
     needs: status-pending
     runs-on: ubuntu-latest
