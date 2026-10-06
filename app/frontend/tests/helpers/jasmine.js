@@ -36,7 +36,7 @@ function async_test_wrap(name, instance, befores, afters, lookup) {
   });
   QUnit.test(name, async function(current_assert) {
     var _this = this;
-    assert = current_assert;
+    assert = current_assert; reportLateAssertions(assert);
     try {
       emberRun(function() {
         pre.forEach(function(callback) {
@@ -86,26 +86,26 @@ function test_wrap(name, instance, befores, afters, lookup) {
   // + wait-gate fixes cut this to a low single-digit residual on one real-boards test;
   // this bounded auto-retry absorbs that residual so it can't fail CI on good PRs.
   // A genuinely broken test still fails all attempts and is reported. All OTHER modules
-  // take the byte-identical original path below — zero blast radius.
+  // take the general path below (no retry; it waits for returned promises).
   var retryOn = name.indexOf('persistence-sync') !== -1;
   QUnit.test(name, function(current_assert) {
     var _this = this;
-    assert = current_assert;
+    assert = current_assert; reportLateAssertions(assert);
     var this_arg = lookup || _this;
     var testDone = assert.async(); test_started_at = Date.now(); // QUnit's test timeout runs from here
 
     if (!retryOn) {
-      // ---- ORIGINAL PATH (all non-persistence-sync tests) — VERBATIM, so the poll
+      // ---- GENERAL PATH (all non-persistence-sync tests). Its poll loop is unchanged, so the poll
       // cap stays dynamically re-evaluated each iteration (some tests, e.g. capabilities
       // timeout/sensor tests, legitimately poll ~4.8s and must not be cut off early). ----
       emberRun(function() {
         pre.forEach(function(callback) { callback.call(_this); });
         current_test_id++;
-        instance.call(this_arg);
+        trackReturnedPromise(instance.call(this_arg));
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0;
+            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0; // kept for now: removing it exposed a leaking Ember Data fetch (#1111 CI); removal is a follow-up
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -123,11 +123,11 @@ function test_wrap(name, instance, befores, afters, lookup) {
             var delay = pollAttempts < 10 ? 10 : 100;
             setTimeout(pollUntilIdle, delay);
           } else {
-            assert.ok(false, 'async work did not finish in time');
-            cancelHarnessAsyncWork();
-            restoreStubs();
+            assert.ok(false, 'async work did not finish in time'); // then the SAME cleanup as a normal end, so a stuck test cannot leave its state to the tests after it
+            cancelHarnessAsyncWork(); current_afters = []; try { post.forEach(function(callback) { callback.call(_this); }); } catch (e) { assert.ok(false, 'afterEach failed after the timeout: ' + ((e && e.message) || e)); } finally { restoreStubs(); }
             assert = null;
             testDone();
+            if (typeof LingoLinq !== 'undefined') { LingoLinq.sync_testing = false; }
           }
         };
         pollUntilIdle();
@@ -270,7 +270,7 @@ var xdescribe = function(name, lookup, callback) {
   }
 };
 var expect = function(data) {
-  var expectation = {};
+  var expectation = {}; if (!assert) { recordLateAssertion(data); } // see recordLateAssertion
   expectation.toEqual = function(arg) {
     if((data === undefined && arg === null) || (data === null && arg === undefined)) {
       assert.ok(true, 'both empty values');
@@ -584,4 +584,50 @@ function restoreStubs() {
 }
 
 
-export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};
+// An it() callback may return a promise (`return c.confirm().then(function() { expect(...) })`).
+// Count it as pending work, like a runs() block, so the test ends only after it settles and its
+// assertions land inside the test. Ignoring it let those assertions run after cleanup had nulled
+// `assert`, which only a fixed post-test settle used to hide (task log 2026-10-05_ci-test-stalls).
+// A rejection fails the test instead of vanishing.
+function trackReturnedPromise(result) {
+  if (!result || typeof result.then !== 'function') { return; }
+  var id = current_test_id;
+  waiting[id] = (waiting[id] || 0) + 1;
+  var settle = function() {
+    if (id == current_test_id) { waiting[id]--; }
+  };
+  result.then(settle, function(error) {
+    if (id == current_test_id && assert) {
+      assert.ok(false, 'the promise returned by the test rejected: ' + ((error && error.message) || error));
+    }
+    settle();
+  });
+}
+
+// expect() called when no test is running (`assert` is null) means an assertion ran after its
+// test had ended. It then throws a TypeError, and if app code or a promise chain catches that,
+// the assertion would vanish without failing anything. So it is recorded here first, and the
+// next test to start fails, naming where the late call came from. A late call after the very
+// last test can only be logged.
+var late_assertions = [];
+function recordLateAssertion(data) {
+  var frame = (new Error().stack || '').split('\n').filter(function(line) { return /\/tests\//.test(line) && !/helpers\/jasmine/.test(line); })[0] || '';
+  var value;
+  try { value = JSON.stringify(data); } catch (e) { value = String(data); }
+  var entry = 'expect(' + String(value).slice(0, 80) + ') at ' + (frame.trim() || 'an unknown test file');
+  late_assertions.push(entry);
+  console.error('[TEST] late assertion, will fail the next test: ' + entry);
+}
+function reportLateAssertions(current) {
+  if (!late_assertions.length || !current) { return; }
+  var entries = late_assertions.splice(0, late_assertions.length);
+  current.ok(false, 'expect() ran after its test had ended (a late assertion from an earlier test, so its result never counted): ' + entries.join(' | '));
+}
+// Test-only access, for tests/utils/jasmine_waitsfor-test.js.
+var lateAssertionTesting = {
+  pending: function() { return late_assertions.slice(); },
+  withoutAssert: function(callback) { var saved = assert; assert = null; try { callback(); } finally { assert = saved; } },
+  report: reportLateAssertions
+};
+
+export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting};
