@@ -291,10 +291,17 @@ describe("capabilities", function() {
   });
 
   describe("sensors", function() {
+    // Each sensor_listen() call starts its own intervals and listeners; stop the ones this test
+    // started, or they keep ticking (and writing capabilities/stashes) through every later test.
+    var stopSensors = [];
+    afterEach(function() {
+      stopSensors.forEach(function(stop) { stop(); });
+      stopSensors = [];
+    });
     it("should track orientation", function() {
       capabilities.last_orientation = null;
       if(!window.DeviceOrientationEvent) { window.DeviceOrientationEvent = {}; }
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       var e = new window.CustomEvent('deviceorientation');
       e.alpha = 1;
       e.beta = 2;
@@ -316,7 +323,7 @@ describe("capabilities", function() {
         }
       });
       capabilities.last_volume = null;
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       expect(callback).toNotEqual(null);
       callback(75);
       expect(capabilities.last_volume).toEqual(75);
@@ -332,7 +339,7 @@ describe("capabilities", function() {
         }
       });
       capabilities.last_lux = null;
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       waitsFor(function() { return callback; });
       runs(function() {
         callback("1200");
@@ -352,7 +359,7 @@ describe("capabilities", function() {
         }
       });
       capabilities.last_brightness = null;
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       waitsFor(function() { return callback; });
       runs(function() {
         callback("75");
@@ -367,7 +374,7 @@ describe("capabilities", function() {
         sensor = this;
       }
       stub(window, 'LightSensor', LightSensor);
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       expect(sensor).toNotEqual(null);
       capabilities.last_lux = null;
       sensor.onchange({reading: {illuminance: 6200}});

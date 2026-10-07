@@ -447,19 +447,19 @@ describe("contentGrabbers", function() {
 
   describe("file_dropped", function() {
     beforeEach(function() {
-      stub(contentGrabbers, 'check_for_dropped_file', function() {});
+      checked = false; stub(contentGrabbers, 'check_for_dropped_file', function() { checked = true; });
     });
 
-    /* `file_dropped` schedules `runLater(check_for_dropped_file, 100)`. That timer outlives the
-       test: `restoreStubs` puts the REAL handler back at test end and nothing cancels the timer
-       (`cancelHarnessAsyncWork` only cancels sync-harness work), so it fires against whatever
-       `droppedFile` is still on the singleton -- `{a: 1}`, which is not a Blob. `read_file`
-       builds its FileReader INSIDE an RSVP executor, so the `readAsDataURL` TypeError surfaces
-       as an unhandled rejection, which QUnit charges to whichever unrelated test is running.
+    /* `file_dropped` schedules `runLater(check_for_dropped_file, 100)`. Each test waits for that
+       call (the stub records it in `checked`), so the timer cannot fire in a LATER test, where
+       `restoreStubs` has put the real handler back and it would act on whatever `droppedFile`
+       is still on the singleton (`{a: 1}` is not a Blob: `read_file`'s FileReader TypeError
+       surfaced as an unhandled rejection that QUnit charged to an unrelated test).
 
-       This leak is PRE-EXISTING, not introduced here: the two original tests in this block
-       strand `{a: 1}` the same way. Nulling makes the late call a no-op, because
-       `check_for_dropped_file` is guarded by `if(drop)` (services/content-grabbers.js:414). */
+       The afterEach also nulls `droppedFile`, so even a late call stays a no-op
+       (`check_for_dropped_file` is guarded by `if(drop)`, services/content-grabbers.js:414).
+       Kept to the same line count: baselined lint rows below are line-anchored. */
+    var checked = false;
     afterEach(function() {
       contentGrabbers.droppedFile = null;
     });
@@ -469,13 +469,13 @@ describe("contentGrabbers", function() {
       contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
       expect(contentGrabbers.droppedFile.type).toEqual('image');
-      expect(contentGrabbers.droppedFile.file).toEqual(file);
+      expect(contentGrabbers.droppedFile.file).toEqual(file); waitsFor(function() { return checked; }); runs();
     });
     it("should trigger the button dialog, which will then check for a dropped file", function() {
       var file = {a: 1};
       contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
-      expect(controller.get('board').sentMessages['buttonSelect']).not.toEqual(null);
+      expect(controller.get('board').sentMessages['buttonSelect']).not.toEqual(null); waitsFor(function() { return checked; }); runs();
     });
 
     /* `file_dropped` reads `board_controller` as its FIRST statement and calls `.send()` on it
@@ -507,7 +507,7 @@ describe("contentGrabbers", function() {
       contentGrabbers.board_controller = live;
       contentGrabbers.file_dropped('abc', 'image', {a: 1});
       expect(live.sentMessages['buttonSelect']).toBeTruthy();
-      expect(contentGrabbers.droppedFile.type).toEqual('image');
+      expect(contentGrabbers.droppedFile.type).toEqual('image'); waitsFor(function() { return checked; }); runs();
     });
 
     it("does not send to a destroying board_controller, and strands no file", function() {
