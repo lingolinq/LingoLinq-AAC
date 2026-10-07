@@ -380,3 +380,51 @@ edit-mode note. QA: `app/frontend/scripts/category-layout-vf112-qa.mjs` 8/8 PASS
    moves.
 3. i18n: new keys `board_category_small_words`, `board_detail_categorized_edit_note` not yet
    generated into locales (`i18n_generator.rb`).
+
+## Session 3 (2026-10-06/07): wall-clock poller flake fixed; leak survey for removing the 500 ms settle
+
+### Persistence offline flake: ROOT CAUSE FIXED (`db0c77db1`, on #1110)
+- Symptom: `persistence DSAdapter updateRecord - should update a locally-created record that hasn't
+  been persisted yet` failed in #1110's main shard (passed in the full run on the same commit).
+  Browser log: `ember ajax error: 404: Not Found (POST /api/v1/boards)` although the test had set
+  persistence offline. Same family as the "wandering waitsFor timeout" in
+  `2026-08-08-qunit-wandering-waitsfor-timeout.md` (this test was a named victim there).
+- CONFIRMED mechanism: two never-cleared 30 s wall-clock pollers rewrite persistence `online` to
+  match the browser (online in tests): `_setupOnlineListeners` in app/services/persistence.js and a
+  module-level duplicate in app/utils/persistence.js (Brian Whitmer 2018; the service copy came with
+  the Jan 2026 service migration) that writes via `window.persistence`. Firing the captured tick
+  right after `setPersistenceOnline(false)` reproduced the CI failure exactly (4761 ms vs 4752 ms,
+  same POST 404). 32 test sites put persistence offline (all exposed).
+- Fix: both pollers keep their handle (in-place one-liners); the harness stops both before every
+  test (global QUnit beforeEach in tests/helpers/jasmine.js). Red test
+  `Unit | Utility | persistence online pollers`: red without the handle, red without the harness
+  stop. CI on db0c77db1: all 11 checks green (shards + compare included). The second poller was
+  found by adversarial review of the proposal.
+
+### Leak survey (removing the 500 ms settle), status: IN PROGRESS, nothing changed in the PR
+- Method that works: tag every scheduled callback (Ember `_backburner.later`, native setTimeout)
+  with the test that scheduled it; log a crossing when it runs during another test. Full suite,
+  settle removed, local: 3,332 tests, 0 failures, 52,760 crossings from 78 code locations, dominated
+  by app background timers (check_scanning 1000, capabilities fullscreen setTimeout 500, stashes
+  persist_object/flush/flush_db_id/setup). No crossing caused a local failure. A "pending at test
+  end" snapshot was misleading (timers accumulate across tests); do not use it.
+- The CI-only failure ("store instance has already been destroyed", charged to app_state
+  toggle_speak_mode test 2007 in #1111's full run) did NOT reproduce locally with the settle removed.
+- DISPROVED: (1) the 38 check_scanning timers left by `speak_mode_handlers - should poll for geo`
+  (they cross into tests 2006/2007; delaying them +1.5 s did not reproduce, 0/2 runs);
+  (2) a fetch queued on a destroyed store inside app_state when run filtered (all live).
+- CURRENT HYPOTHESIS (unproven): `window.LingoLinq.store` is set per app instance
+  (app/instance-initializers/store-setter.js) and is left pointing at a torn-down instance's store
+  after app-booting (acceptance/rendering) tests; setupTest teardown does not wait
+  (`waitForSettled: false`). A later Jasmine-style test that fetches through LingoLinq.store then
+  hits a store whose destruction may or may not have completed: timing-dependent.
+  [STORE] lines from a full-order run (valid) show LingoLinq.store observed DESTROYED after each
+  acceptance test.
+- PROBE BUG (do not reuse its fetch data): the FetchManager keeps its store in `this._store`, not
+  `this.store`; the first full-order store probe therefore mis-attributed every fetch to store #1
+  and could not detect destroyed-store flushes. Rerun with `this._store`.
+- NEXT: rerun the full-order store probe with `this._store`; if fetches are queued on non-live
+  stores, find which code reads LingoLinq.store and which test leaves it stale; fix at the source
+  (e.g. reset/restore LingoLinq.store in teardown), red test first, then remove the settle and
+  re-run the full suite in CI. Ports: use a free --test-port (7381 was left held by an `ember`
+  process that could not be confirmed as this session's; left alone).
