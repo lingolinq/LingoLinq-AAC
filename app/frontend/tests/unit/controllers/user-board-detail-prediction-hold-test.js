@@ -5,6 +5,7 @@ import wordSuggestions from 'frontend/utils/word_suggestions';
 import buttonTracker from 'frontend/utils/raw_events';
 import scanner from 'frontend/utils/scanner';
 import aiPredictor from 'frontend/utils/ai_word_predictor';
+import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
 
 /* Coverage for the two prediction-panel behaviours that three rounds of adversarial
    review found broken and that no existing harness reaches: the symbol-image memo, and
@@ -52,6 +53,18 @@ function buildController() {
 }
 
 module('Unit | Controller | user/board-detail prediction hold', function(hooks) {
+  /* No app is booted here, but this code reads the app's globals: buttonTracker.check() falls back
+     to LingoLinq.appState (whether dwell is on decides the hold time), word_suggestions reads the
+     store, and `_locally_cached_image_url` reads persistence.url_cache. Left alone those were an
+     earlier test's torn-down app, so its settings (dwell!) could change these results. Neutral
+     stand-ins: no dwell, nothing in the store, nothing cached. Tests that need dwell patch
+     `buttonTracker._services.appState` (the raw slot: patching through the getter saved the
+     getter's fallback and wrote it back INTO the slot on restore). */
+  standInGlobals(hooks, {
+    appState: () => EmberObject.create({}),
+    store: () => ({ peekRecord() { return null; }, peekAll() { return []; } }),
+    persistence: () => ({ url_cache: {} })
+  });
   let restore = [];
   const patch = (obj, key, value) => {
     restore.push([obj, key, obj[key]]);
@@ -168,7 +181,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     assert.expect(4);
     const tile = railFixture();
 
-    patch(buttonTracker, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
+    patch(buttonTracker._services, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
     patch(buttonTracker, 'dwell_enabled', true);
     patch(buttonTracker, 'dwell_timeout', 1000);
     patch(buttonTracker, 'dwell_selection', 'dwell');
@@ -280,7 +293,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const tile = railFixture();
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
 
     const controller = buildController();
@@ -306,7 +319,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const tile = railFixture();
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
 
     const controller = buildController();
@@ -347,7 +360,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const tile = railFixture();
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
 
     const controller = buildController();
@@ -370,7 +383,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        or buttonTracker.check() returns null and everything collapses to the standard bound
        silently. dwell_timeout is set explicitly because it is a sticky module singleton with no
        declared default — otherwise case 1 is order-dependent on whatever ran before it. */
-    patch(buttonTracker, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
+    patch(buttonTracker._services, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
     patch(buttonTracker, 'dwell_enabled', true);
     patch(buttonTracker, 'dwell_timeout', 1000);
     patch(buttonTracker, 'dwell_selection', 'dwell');
@@ -428,7 +441,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const tile = railFixture();
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
 
     const controller = buildController();
@@ -469,7 +482,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const tile = railFixture();
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
 
     const controller = buildController();
@@ -500,7 +513,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     speakRow.appendChild(group);
     document.body.appendChild(speakRow);
 
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
     patch(scanner, 'actively_scanning', function() { return true; });
     patch(scanner, 'current_element', { dom: [speakRow] });
@@ -559,7 +572,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        one lookup generation, not a scanner index: this runs at element_index 1, where the
        old position-based guard exempted nothing at all. */
     const tile = railFixture();
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
     patch(scanner, 'actively_scanning', function() { return true; });
     patch(scanner, 'current_element', { dom: [tile] });
@@ -596,7 +609,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     });
     controller._word_prediction_locale = function() { return 'en'; };
     controller._decorate_suggestion_images = function(l) { return l; };
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
@@ -676,7 +689,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        wraps each cycle (scanner.js:1228), so the freeze was disabled exactly on prediction
        tile #1 — the tile a user is most likely committing to. */
     const tile = railFixture();
-    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker._services, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
     patch(scanner, 'actively_scanning', function() { return true; });
     patch(scanner, 'current_element', { dom: [tile] });
@@ -706,7 +719,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const tile = railFixture();
     patch(scanner, 'actively_scanning', function() { return false; });
     patch(scanner, 'current_element', { dom: [tile] });
-    patch(buttonTracker, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
+    patch(buttonTracker._services, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
     patch(buttonTracker, 'dwell_enabled', true);
     patch(buttonTracker, 'dwell_timeout', 1000);
     patch(buttonTracker, 'dwell_selection', 'dwell');

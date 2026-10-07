@@ -334,6 +334,11 @@ describe('editManager', function() {
       testBoardDom.parentNode.removeChild(testBoardDom);
       testBoardDom = null;
     }
+    // get_edited_image / retrieve_badge leave a pending-request callback on the singleton (holding
+    // that test's promise) until the editor answers; drop it so no later test's editor message can
+    // resolve this test's request.
+    editManager.imageEditingCallback = null;
+    editManager.badgeEditingCallback = null;
   });
 
   describe("setup", function() {
