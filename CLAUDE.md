@@ -7,7 +7,7 @@ is kept under 200 lines. Everything else loads on demand:
 |---|---|---|
 | `app/frontend/CLAUDE.md` | you read files under `app/frontend/` | Ember commands, test-run discipline, 5.12 gotchas, frontend map |
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
-| `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations | the Tier 1 data boundary |
+| `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
 | `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
 | `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
@@ -201,11 +201,14 @@ Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
 `/adversary-review` (red team). A Critical or High finding from either blocks the PR.
 The senior-dev pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
-`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`
-(with `set -o pipefail`); for a branch or the working tree,
-`bash ~/ai-company-brain/scripts/codex-review-guard.sh <base-ref>`. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
-the flagged paths rather than sending anything. The `<base-ref>` form run against a PR
-number guards the wrong diff and records a pass it did not earn. That guard lives at a
+`bash ~/ai-company-brain/scripts/review-preflight.sh pr <n> lingolinq/LingoLinq-AAC`;
+for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> <head>`;
+for the working tree, `bash ~/ai-company-brain/scripts/review-preflight.sh working <base>`.
+Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
+the flagged paths rather than sending anything. On exit 0, review only the `DIFF_FILE` the
+preflight prints (never fetch the diff again by another route) and record the full `REVIEWED=`
+line verbatim with the verdict. The `range` or `working` form run against a PR number guards the
+wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
 Codex-specific invocation detail lives in `AGENTS.md`. Copilot code review runs automatically on every PR to `develop`.
