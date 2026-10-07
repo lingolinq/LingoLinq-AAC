@@ -526,8 +526,18 @@ function shouldUseEmberSet(object, method, replacement) {
   return true;
 }
 
+function hasOwn(object, method) {
+  try { return Object.prototype.hasOwnProperty.call(object, method); } catch (e) { return false; }
+}
+// Restore must put the object back exactly as it was. When the method was INHERITED (or absent),
+// assigning the stash back left an own copy behind; through a forwarding proxy such as
+// utils/persistence that copy is a function bound to that test's service, which outlived it
+// (tests/helpers/leak-check.js flagged it after every test). So remember whether the stub CREATED
+// the own property, and delete it on restore. Accessors (editManager.controller) create none, so
+// they keep the assign-back path through their setter.
 function applyStub(object, method, replacement, stashList) {
   var stash;
+  var hadOwn = hasOwn(object, method);
   if (shouldUseEmberSet(object, method, replacement)) {
     stash = emberGet(object, method);
     emberSet(object, method, replacement);
@@ -539,7 +549,7 @@ function applyStub(object, method, replacement, stashList) {
       emberSet(object, method, replacement);
     }
   }
-  stashList.push([object, method, stash]);
+  stashList.push([object, method, stash, !hadOwn && hasOwn(object, method)]);
 }
 
 var stub = function(object, method, replacement) {
@@ -567,8 +577,14 @@ function restoreStubs() {
     var obj = list[0];
     var method = list[1];
     var stash = list[2];
+    var createdOwn = list[3];
     if (!obj || obj.isDestroyed) { return; }
     try {
+      if (createdOwn && delete obj[method] && !hasOwn(obj, method)) {
+        // The old emberSet path notified observers and computeds; a delete does not, so do it here.
+        if (typeof obj.notifyPropertyChange === 'function') { obj.notifyPropertyChange(method); }
+        return;
+      }
       if (shouldUseEmberSet(obj, method, stash)) {
         emberSet(obj, method, stash);
       } else {
@@ -638,13 +654,28 @@ QUnit.hooks.beforeEach(function(current) { reportLateAssertions(current); });
 // (its first tick is 30 s later).
 function stopOnlinePollers() {
   stopUtilOnlineCheck();
-  var service = (typeof window !== 'undefined') ? window.persistence : null;
+  var service = (typeof window !== 'undefined') ? unwrapLeakProxy(window.persistence) : null; // may be a torn-down one: stopping its poller is not a leak
   if (service && service._online_check_interval) {
     clearInterval(service._online_check_interval);
     service._online_check_interval = null;
   }
 }
-QUnit.hooks.beforeEach(function() { stopOnlinePollers(); });
+QUnit.hooks.beforeEach(stopOnlinePollers); // the function itself, so a test can confirm it is registered
+
+// A third wall-clock poller: capabilities re-reads the access token from stashes every 2 s
+// (app/utils/capabilities.js `_auth_sync_interval`). It kept ticking after the app that started it
+// was torn down, reading whichever stashes the globals then pointed at (a destroyed one): the
+// "async localStorage.getItem in capabilities.sync_access_token" global failure named in
+// app/frontend/CLAUDE.md. Stopped before every test like the others. One started during a test can
+// tick within that test, but only against that test's own live services; app start-up still syncs
+// the token once right away, so no test loses that.
+function stopAuthSyncPoller() {
+  if (capabilities && capabilities._auth_sync_interval) {
+    clearInterval(capabilities._auth_sync_interval);
+    capabilities._auth_sync_interval = null;
+  }
+}
+QUnit.hooks.beforeEach(stopAuthSyncPoller);
 // Test-only access, for tests/utils/jasmine_waitsfor-test.js.
 var lateAssertionTesting = {
   pending: function() { return late_assertions.slice(); },
@@ -654,5 +685,7 @@ var lateAssertionTesting = {
 
 // Placed after every line-anchored ESLint baseline row in this file on purpose; ES imports are hoisted.
 import { stopUtilOnlineCheck } from '../../utils/persistence';
+import { unwrapLeakProxy } from './leak-check';
+import capabilities from '../../utils/capabilities';
 
-export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting};
+export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting, stopOnlinePollers, stopAuthSyncPoller};
