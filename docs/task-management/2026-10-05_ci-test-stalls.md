@@ -457,3 +457,32 @@ batch (Acceptance | board lock) produced no test output for 72 s (suspected hang
 check; undiagnosed). Next: run ONE small unit module with the check, then acceptance board lock
 alone, diagnose the hang before any survey. Process-kill lesson: never `pkill -f`/`pgrep -f` a
 pattern that appears in the killing command itself; it killed the shell twice.
+
+### Session 4b (2026-10-06): general leak check built; every finding fixed (uncommitted at time of writing)
+- Leak check `tests/helpers/leak-check.js` (imported first-party from test-helper.js; `--query leakcheck=report|off`):
+  destroyed services reached through globals or singleton fields (re-checked at access time), stubs left on
+  ~27 util singletons, nodes left under <body>. First version never ran: importing utils/eval before
+  utils/obf reversed an app import cycle (eval -> app_state -> ... -> demo_board_loader -> obf -> eval) and
+  obf threw at load, so testem waited silently. Fix: import obf first. Diagnosed with a Puppeteer page
+  probe (scratchpad console-probe), not testem, which shows no browser errors for load failures.
+- False positive found and fixed in the check: a slot holding a FORWARDING util (utils/app_state) reports
+  the destroyed-ness of whatever the globals point at, so it can be destroyed when wrapped and live later.
+- Real leaks fixed: utterance service fields (ember_helper.js:1062 sets them to the owner's real services);
+  stub restore leaving own copies (persistence.ajax/find_url through the util proxy); stashes-test
+  push_log assignment (not stub(): the stashes mirror rule would recurse); scanner-test hidden inputs;
+  edit_manager-test pending editor callbacks; capabilities 2 s auth-sync wall-clock poller (the CLAUDE.md
+  "sync_access_token" global failure) now stopped before every test; prefetch pipeline outliving its app
+  (flag/online readers treat a destroyed service as off); five modules reading destroyed globals now get
+  stand-ins (tests/helpers/stand-in-globals.js). eval-session: flag pinned off for existing assertions,
+  new flag-on test (production default is on).
+- Evidence: fail mode, pause removed, every batch: 3,227 unit + 108 integration/acceptance, 0 failures.
+  Two mutant builds: every new test red with its fix reverted; controls stay green.
+- Adversarial review (independent agent): no Critical/High. Fixed its Mediums: findings charged to a QUnit
+  `todo` test are moved to the next real test (a todo test absorbs failures); self-tests no longer drain
+  the check's findings (take(pattern), isolated(), poller hooks registered as named functions and called
+  alone); stub restore by delete now notifies Ember dependents (new test, red without it); flag-on
+  targeting order asserted. Lows fixed: unknown `leakcheck` value means fail; findings after the last test
+  are logged. Accepted, stated: editManager.Button allowlist (setup resets it); app-side live_service guards
+  in _is_online/_flagFromAppState change only torn-down-app behaviour. Coverage limits recorded in review:
+  only 27 singletons, function fields only, destroyed (not live) services only, direct <body> children only.
+- Re-run after the review fixes: fail mode, pause removed: 3,229 unit + 108 integration/acceptance, 0 failures.
