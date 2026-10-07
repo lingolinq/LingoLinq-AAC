@@ -2967,10 +2967,10 @@ editManager._services = {};
    No production path is affected: nothing under `app/` calls `editManager.register_services`
    (the only caller is the test helper), so `_services` is empty there and these branches
    cannot fire. */
-export function live_service(svc) {
-  if(svc && (svc.isDestroyed || svc.isDestroying)) { return null; }
-  return svc;
-}
+// The guard itself lives in ./live_service (a leaf module, shared by raw_events and utterance);
+// re-exported here for existing importers.
+import { live_service } from './live_service';
+export { live_service };
 
 // Getter methods for services with fallback to globals
 editManager.get_app_state = function() {

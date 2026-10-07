@@ -5,6 +5,7 @@ import RSVP from 'rsvp';
 import { get as emberGet } from '@ember/object';
 import filterRootBoards, { filterBrandSetRootBoards } from './board-roots';
 import LingoLinq from '../app';
+import { live_service } from './live_service';
 
 export var OWNED_ROOT_CAP = 200;
 export var CATALOG_ROOT_CAP = 100;
@@ -143,8 +144,11 @@ export function buildPhasedLookups(user, opts) {
 
 function _flagFromAppState(flagName) {
   try {
-    if (typeof window !== 'undefined' && LingoLinq && LingoLinq.appState) {
-      return !!LingoLinq.appState.get('feature_flags.' + flagName);
+    // A torn-down app's app-state counts as absent (flag off), so a prefetch chain that outlives
+    // its app stops instead of reading the dead one (only happens where apps come and go: tests).
+    var appState = (typeof window !== 'undefined' && LingoLinq) ? live_service(LingoLinq.appState) : null;
+    if (appState) {
+      return !!appState.get('feature_flags.' + flagName);
     }
   } catch (e) { /* app may not be booted */ }
   return false;

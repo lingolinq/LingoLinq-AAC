@@ -193,7 +193,7 @@ function _push_board_to_store(raw) {
 
 function _is_online() {
   try {
-    if (!persistence) { return false; }
+    if (!persistence || (window.persistence && !live_service(window.persistence))) { return false; } // a torn-down app's persistence is not online
     if (typeof persistence.get === 'function') {
       return !!persistence.get('online');
     }
@@ -1167,3 +1167,5 @@ export default {
     return process_layer(collect_layer_keys(raw));
   }
 };
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from './live_service';

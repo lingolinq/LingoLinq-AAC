@@ -1302,15 +1302,32 @@ utterance.register_services = function(appStateService, persistenceService, stas
   if(stashesService) { utterance._services.stashes = stashesService; }
 };
 utterance.get_app_state = function() {
-  return utterance._services.appState || app_state;
+  return live_service(utterance._services.appState) || app_state;
 };
 utterance.get_persistence = function() {
-  return utterance._services.persistence || persistence;
+  return live_service(utterance._services.persistence) || persistence;
 };
 utterance.get_stashes = function() {
-  return utterance._services.stashes || stashes;
+  return live_service(utterance._services.stashes) || stashes;
 };
+
+/* `setup` stores the app's services on this singleton (`this.appState = ...`), and they outlive
+   the app instance that owns them: after it is torn down, every later caller (`clear`,
+   `set_button_list`, via app_state.toggle_mode) worked on DESTROYED services. The three fields are
+   accessors instead: a destroyed service counts as absent and the live util (which resolves the
+   current app's service) is used. `setup`'s assignments go through the setters unchanged. */
+[['appState', app_state], ['persistence', persistence], ['stashes', stashes]].forEach(function(pair) {
+  var key = pair[0], fallback = pair[1], slot = '_' + pair[0] + '_service';
+  Object.defineProperty(utterance, key, {
+    configurable: true,
+    enumerable: true,
+    get: function() { return live_service(this[slot]) || fallback; },
+    set: function(val) { this[slot] = val; }
+  });
+});
 
 window.utterance = utterance;
 
 export default utterance;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from './live_service';
