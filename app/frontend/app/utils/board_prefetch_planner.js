@@ -239,7 +239,12 @@ export function fetchBoardListsForPrefetch(ajax, user, opts) {
     }));
   }
 
-  return RSVP.all(promises).then(function() {
+  // Wait for every list, then fail with the first error. RSVP.all settled on the FIRST failure and
+  // left a second one unhandled: a global unhandled rejection whenever both public lists failed
+  // (offline, server error), even though callers handle the combined promise.
+  return RSVP.allSettled(promises).then(function(states) {
+    var failed = states.filter(function(s) { return s.state === 'rejected'; })[0];
+    if (failed) { throw failed.reason; }
     return result;
   });
 }

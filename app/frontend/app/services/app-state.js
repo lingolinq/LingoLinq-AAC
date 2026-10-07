@@ -168,7 +168,7 @@ export default Service.extend({
   },
 
   willDestroy() {
-    this._super(...arguments);
+    this._super(...arguments); if(buttonTracker) { buttonTracker.transitioning = false; } if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); } // a transition, and its pending board overlay, end with the service
     if (this.refreshing_user) {
       // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
       // setTimeout (see the comment at its call site), and Ember's cancel() looks
@@ -1159,7 +1159,7 @@ export default Service.extend({
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
       }
-      var check = function() {
+      var check = function() { if(_this.isDestroyed || _this.isDestroying) { return; } // a torn-down app-state stops polling
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
         var currentKey = _this.get('currentBoardState.key');

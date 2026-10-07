@@ -117,4 +117,20 @@ module('Unit | Utility | board-prefetch-planner', function() {
     assert.deepEqual(seeds[0], { key: 'user/a', depth: 0, visit_source: 'owned root' });
     assert.deepEqual(seeds[1], { id: '1_99', depth: 0, visit_source: 'owned root' });
   });
+
+  // When BOTH public lists fail (offline, server error), the combined promise must reject once and
+  // leave nothing unhandled: RSVP.all settled on the first failure and the second one surfaced as a
+  // global unhandled rejection, even though the caller handled the combined promise.
+  test('fetchBoardListsForPrefetch rejects once and leaks no unhandled rejection when both lists fail', async function(assert) {
+    assert.expect(2);
+    const ajax = (url) => RSVP.reject(new Error(`list failed: ${url}`));
+    let reason = null;
+    await boardPrefetchPlanner.fetchBoardListsForPrefetch(ajax, mockUser({ id: '1_51' }), { includeOwned: false, includePublic: true })
+      .then(null, (e) => { reason = e; });
+    await new Promise((resolve) => setTimeout(resolve, 50)); // let any unhandled rejection surface inside this test
+    assert.ok(reason instanceof Error, 'the combined promise rejected');
+    assert.true(/list failed/.test(reason && reason.message), 'with one of the list errors');
+  });
 });
+// Kept below the baselined lint rows so they do not shift (see .eslint-todo).
+import RSVP from 'rsvp';
