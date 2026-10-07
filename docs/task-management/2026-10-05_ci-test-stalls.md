@@ -486,3 +486,19 @@ pattern that appears in the killing command itself; it killed the shell twice.
   in _is_online/_flagFromAppState change only torn-down-app behaviour. Coverage limits recorded in review:
   only 27 singletons, function fields only, destroyed (not live) services only, direct <body> children only.
 - Re-run after the review fixes: fail mode, pause removed: 3,229 unit + 108 integration/acceptance, 0 failures.
+
+## Session 5 (2026-10-07): 500 ms post-test pause kept only where needed
+- Traci: remove the pause only where it can be safely removed; do not remove it globally.
+- Where it applies: only after tests with LingoLinq.sync_testing on (jasmine.js test_wrap). Logged per
+  module (pause unchanged): 791 pauses (~6.6 min), all unit/Jasmine-style; none in integration/acceptance.
+  persistence-sync has its own retry-path 500 ms (issue #589), left untouched.
+- Criterion (crossing probe, pause removed): log every timer/run.later scheduled in a test that fires
+  within 500 ms of it ending, during a later test (what the pause absorbs). 40 of 58 sources also cross
+  from modules that never had the pause (generic app timers: capabilities.fullscreen, stashes
+  persist_object/flush_db_id/setup), so the pause is not what keeps those harmless. Modules with crossings
+  of their OWN keep the pause: app_state (jump_to_board, setup, global_transition, hide_loading_overlay),
+  capabilities (200 ms sensor_listen interval), contentGrabbers (file_dropped), speecher (audio
+  stop/play), session (confirm_authentication persist), videoGrabber (measure_duration), utterance (play).
+  The other 38 modules: pause removed (414 of 791 pauses).
+- Validation: selective build, leak check in fail mode: 3,229 unit tests, 0 failures; unit run 627 s
+  (pause everywhere) -> 413 s (selective) vs 214 s (none). Integration/acceptance unaffected (no pause there).

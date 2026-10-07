@@ -105,7 +105,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0; // kept for now: removing it exposed a leaking Ember Data fetch (#1111 CI); removal is a follow-up
+            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing && keepsPostTestSettle(QUnit.config.current)) ? 500 : 0; // only where a module's own async work would land in the next test; see keepsPostTestSettle
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -689,3 +689,24 @@ import { unwrapLeakProxy } from './leak-check';
 import capabilities from '../../utils/capabilities';
 
 export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting, stopOnlinePollers, stopAuthSyncPoller};
+
+// The 500 ms pause after a sync-mode test (above, in test_wrap) holds cleanup back so async work the
+// test scheduled runs inside it instead of inside the next test. It is kept ONLY for the modules
+// whose tests schedule such work of their OWN: a crossing probe (task log
+// 2026-10-05_ci-test-stalls.md, session 5) logged every timer / run.later scheduled in one test that
+// fired within 500 ms of it ending, during a later test. Only these modules produced crossings that
+// no module without the pause produces (app_state: jump_to_board, setup, global_transition,
+// hide_loading_overlay; capabilities: a 200 ms sensor_listen interval; contentGrabbers:
+// file_dropped; speecher: audio stop/play; session: confirm_authentication persist;
+// videoGrabber: measure_duration; utterance: audio play). Every other sync-mode module only
+// produced the app's generic background timers (capabilities.fullscreen, stashes persist/flush),
+// which already land in the next test after every module that never had the pause. Removing the
+// pause everywhere was also verified locally with the leak check, late-assertion reporting and a
+// slowed Ember Data flush (0 failures); this keeps it where a module's own work needs it.
+// A module renamed or added later gets no pause; the leak check and late-assertion reporting are
+// what catch a module that needs one.
+function keepsPostTestSettle(test) {
+  var name = test && test.module && test.module.name;
+  return name === 'app_state' || name === 'capabilities' || name === 'contentGrabbers' || name === 'speecher' ||
+    name === 'session' || name === 'videoGrabber' || name === 'utterance';
+}
