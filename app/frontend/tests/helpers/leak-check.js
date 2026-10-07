@@ -50,6 +50,8 @@ import templateHelpers from 'frontend/utils/template_helpers';
 import voices from 'frontend/utils/tts_voices';
 import utterance from 'frontend/utils/utterance';
 import word_suggestions from 'frontend/utils/word_suggestions';
+import i18n from 'frontend/utils/i18n';
+import LingoLinq from 'frontend/app';
 
 export const SINGLETONS = { actionLock, ai_word_predictor, capabilities, dbman, editManager, evaluation,
   eval_recommend, frame_listener, geo, Utils, modal, modal_paging, emergency, obf, persistence, profiles,
@@ -80,6 +82,10 @@ function mode() {
   return (value === 'report' || value === 'off') ? value : 'fail';
 }
 const MODE = mode();
+// Survey only: `--query leakfields=1` logs singleton DATA fields a test changed and left changed.
+// Never fails a test: much of that is legitimate app state, so it is not enforced until a survey
+// separates test leaks from app state.
+const FIELD_SURVEY = (() => { try { return new URLSearchParams(window.location.search).get('leakfields') === '1'; } catch (e) { return false; } })();
 
 let findings = [];
 let pendingForNextTest = [];
@@ -167,19 +173,65 @@ function functionsOf(obj) {
   ownDataFields(obj).forEach(([k, d]) => { if (typeof d.value === 'function') { out.set(k, d.value); } });
   return out;
 }
+// The value `k` would have if obj had no own property: looked up the WHOLE prototype chain
+// (window.addEventListener lives on EventTarget.prototype, two levels up).
 function inherited(obj, k) {
-  const proto = Object.getPrototypeOf(obj);
-  if (!proto) { return undefined; }
-  const d = Object.getOwnPropertyDescriptor(proto, k);
-  return d && 'value' in d ? d.value : undefined;
+  for (let proto = Object.getPrototypeOf(obj); proto; proto = Object.getPrototypeOf(proto)) {
+    const d = Object.getOwnPropertyDescriptor(proto, k);
+    if (d) { return 'value' in d ? d.value : undefined; }
+  }
+  return undefined;
 }
 
 let before = null;
 let bodyBefore = null;
-function snapshotFunctions() {
+let fieldsBefore = null;
+function fieldKind(v) {
+  if (v === null || v === undefined || typeof v !== 'object') { return JSON.stringify(v === undefined ? '(undefined)' : v).slice(0, 40); }
+  if (isDestroyed(v)) { return 'destroyed object'; }
+  return Array.isArray(v) ? `array(${v.length})` : 'object';
+}
+function snapshotFields() {
   const snap = {};
   internal++;
-  try { Object.keys(SINGLETONS).forEach((name) => { if (SINGLETONS[name]) { snap[name] = functionsOf(SINGLETONS[name]); } }); } finally { internal--; }
+  try {
+    Object.keys(SINGLETONS).forEach((name) => {
+      const obj = SINGLETONS[name];
+      if (!obj) { return; }
+      const fields = new Map();
+      ownDataFields(obj).forEach(([k, d]) => { if (typeof d.value !== 'function') { fields.set(k, d.value); } });
+      snap[name] = fields;
+    });
+  } finally { internal--; }
+  return snap;
+}
+function surveyFields() {
+  if (!FIELD_SURVEY || !fieldsBefore) { return; }
+  const now = snapshotFields();
+  const t = QUnit.config.current;
+  Object.keys(now).forEach((name) => {
+    now[name].forEach((v, k) => {
+      const was = fieldsBefore[name] && fieldsBefore[name].get(k);
+      const had = fieldsBefore[name] && fieldsBefore[name].has(k);
+      if (had && was === v) { return; }
+      console.log(`[LEAK-FIELD] ${name}.${k}: ${had ? fieldKind(was) : '(absent)'} -> ${fieldKind(v)} | test: ${t ? `${t.module.name}: ${t.testName}` : '?'}`);
+    });
+  });
+}
+// Objects whose functions tests stub besides the util singletons: the global object, the app
+// namespace and its model statics (resolved per test: they are defined after this module loads).
+function functionHolders() {
+  const holders = Object.assign({}, SINGLETONS, { i18n, window, LingoLinq });
+  ['Buttonset', 'Board', 'User', 'Image', 'Sound', 'Video', 'Utterance'].forEach((k) => {
+    if (LingoLinq && LingoLinq[k]) { holders[`LingoLinq.${k}`] = LingoLinq[k]; }
+  });
+  return holders;
+}
+function snapshotFunctions() {
+  const snap = {};
+  const holders = functionHolders();
+  internal++;
+  try { Object.keys(holders).forEach((name) => { if (holders[name]) { snap[name] = { obj: holders[name], fns: functionsOf(holders[name]) }; } }); } finally { internal--; }
   return snap;
 }
 function checkFunctions() {
@@ -187,9 +239,14 @@ function checkFunctions() {
   internal++;
   try {
     Object.keys(before).forEach((name) => {
-      const obj = SINGLETONS[name];
+      const obj = before[name].obj;
+      // On the extra holders (window, LingoLinq and its model classes, i18n) the app ADDS functions
+      // as modules load (each model class registers itself once); only a function that existed
+      // before the test and was replaced counts there. On the util singletons both count.
+      const onlyReplaced = !Object.prototype.hasOwnProperty.call(SINGLETONS, name);
       functionsOf(obj).forEach((fn, k) => {
-        if (fn === before[name].get(k) || fn === inherited(obj, k) || APP_OWNED_FUNCTIONS[`${name}.${k}`]) { return; }
+        if (onlyReplaced && !before[name].fns.has(k)) { return; }
+        if (fn === before[name].fns.get(k) || fn === inherited(obj, k) || APP_OWNED_FUNCTIONS[`${name}.${k}`]) { return; }
         record(`${name}.${k} was replaced and not restored (a stub left on a shared singleton)`);
       });
     });
@@ -252,12 +309,14 @@ if (MODE !== 'off') {
     flush(assert);
     before = snapshotFunctions();
     bodyBefore = new Set(Array.prototype.slice.call(document.body.children));
+    if (FIELD_SURVEY) { fieldsBefore = snapshotFields(); }
   });
   // Global afterEach hooks run after every module hook, including ember-qunit's owner teardown
   // (qunit.js runTest: hooks('afterEach').reverse(), globals registered first).
   QUnit.hooks.afterEach(function(assert) {
     checkFunctions();
     checkBody();
+    surveyFields();
     flush(assert);
     watchDestroyed();
   });
