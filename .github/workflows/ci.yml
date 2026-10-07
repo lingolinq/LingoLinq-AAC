@@ -418,8 +418,11 @@ jobs:
       contents: read
       actions: read
     steps:
+      # The job holds a token that can read this run's logs; keep it out of the checkout.
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Check the shards cover every registered test exactly once
         env:
@@ -447,8 +450,11 @@ jobs:
       contents: read
       actions: read
     steps:
+      # The job holds a token that can read this run's logs; keep it out of the checkout.
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Test the comparison script
         run: python3 scripts/ci-shard-compare.test.py

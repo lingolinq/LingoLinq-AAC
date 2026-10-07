@@ -117,4 +117,19 @@ describe('late assertion reporting', function() {
     expect(/after its test had ended/.test(reported[0][1])).toEqual(true);
     expect(lateAssertionTesting.pending()).toEqual([]);
   });
+  // Plain QUnit tests never go through the Jasmine-style wrappers, so the report also runs from a
+  // global QUnit beforeEach hook; otherwise a late call followed only by plain tests (or by none
+  // in a shard) would just be logged.
+  it('reports a recorded late expect() from the global beforeEach hook, so plain QUnit tests catch it too', function() {
+    lateAssertionTesting.withoutAssert(function() {
+      try { expect('another late value').toEqual('x'); } catch (e) { /* swallowed */ }
+    });
+    var reported = [];
+    var fake = { ok: function(result, message) { reported.push([result, message]); } };
+    (QUnit.config.globalHooks.beforeEach || []).forEach(function(hook) { hook.call({}, fake); });
+    expect(reported.length).toEqual(1);
+    expect(reported[0][0]).toEqual(false);
+    expect(/another late value/.test(reported[0][1])).toEqual(true);
+    expect(lateAssertionTesting.pending()).toEqual([]);
+  });
 });

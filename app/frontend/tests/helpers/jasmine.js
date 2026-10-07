@@ -611,10 +611,11 @@ function trackReturnedPromise(result) {
 // last test can only be logged.
 var late_assertions = [];
 function recordLateAssertion(data) {
-  var frame = (new Error().stack || '').split('\n').filter(function(line) { return /\/tests\//.test(line) && !/helpers\/jasmine/.test(line); })[0] || '';
+  // Skip this function and expect() itself; in the built bundle every test frame is in tests.js.
+  var frame = (new Error().stack || '').split('\n').slice(3).filter(function(line) { return /tests\.js|\/tests\//.test(line); })[0] || '';
   var value;
   try { value = JSON.stringify(data); } catch (e) { value = String(data); }
-  var entry = 'expect(' + String(value).slice(0, 80) + ') at ' + (frame.trim() || 'an unknown test file');
+  var entry = 'expect(' + String(value).slice(0, 80) + ') at ' + (frame.trim().replace(/^at /, '') || 'an unknown test file');
   late_assertions.push(entry);
   console.error('[TEST] late assertion, will fail the next test: ' + entry);
 }
@@ -623,6 +624,9 @@ function reportLateAssertions(current) {
   var entries = late_assertions.splice(0, late_assertions.length);
   current.ok(false, 'expect() ran after its test had ended (a late assertion from an earlier test, so its result never counted): ' + entries.join(' | '));
 }
+// Report into EVERY test, not only the Jasmine-style ones: a late call followed by a plain QUnit
+// test (or by no further Jasmine-style test in a shard) would otherwise only be logged.
+QUnit.hooks.beforeEach(function(current) { reportLateAssertions(current); });
 // Test-only access, for tests/utils/jasmine_waitsfor-test.js.
 var lateAssertionTesting = {
   pending: function() { return late_assertions.slice(); },
