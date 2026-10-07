@@ -627,11 +627,32 @@ function reportLateAssertions(current) {
 // Report into EVERY test, not only the Jasmine-style ones: a late call followed by a plain QUnit
 // test (or by no further Jasmine-style test in a shard) would otherwise only be logged.
 QUnit.hooks.beforeEach(function(current) { reportLateAssertions(current); });
+
+// Two app pollers check connectivity every 30 s of WALL-CLOCK time and rewrite persistence's
+// `online` flag to match the browser (app/services/persistence.js _setupOnlineListeners, and the
+// module-level one in app/utils/persistence.js). In tests the browser is online while a test may
+// have put persistence offline on purpose, so a tick landing mid-test flipped it back online and a
+// local-only save went to the server: the wandering "condition failed for more than 5500ms" flake
+// (reproduced by firing the tick inside the test). No test may depend on when the clock ticks, so
+// both pollers are stopped before every test. One started during a test cannot tick within it
+// (its first tick is 30 s later).
+function stopOnlinePollers() {
+  stopUtilOnlineCheck();
+  var service = (typeof window !== 'undefined') ? window.persistence : null;
+  if (service && service._online_check_interval) {
+    clearInterval(service._online_check_interval);
+    service._online_check_interval = null;
+  }
+}
+QUnit.hooks.beforeEach(function() { stopOnlinePollers(); });
 // Test-only access, for tests/utils/jasmine_waitsfor-test.js.
 var lateAssertionTesting = {
   pending: function() { return late_assertions.slice(); },
   withoutAssert: function(callback) { var saved = assert; assert = null; try { callback(); } finally { assert = saved; } },
   report: reportLateAssertions
 };
+
+// Placed after every line-anchored ESLint baseline row in this file on purpose; ES imports are hoisted.
+import { stopUtilOnlineCheck } from '../../utils/persistence';
 
 export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting};
