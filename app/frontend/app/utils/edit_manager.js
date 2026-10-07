@@ -2967,7 +2967,7 @@ editManager._services = {};
    No production path is affected: nothing under `app/` calls `editManager.register_services`
    (the only caller is the test helper), so `_services` is empty there and these branches
    cannot fire. */
-function live_service(svc) {
+export function live_service(svc) {
   if(svc && (svc.isDestroyed || svc.isDestroying)) { return null; }
   return svc;
 }
