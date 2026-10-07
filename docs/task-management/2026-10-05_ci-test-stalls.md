@@ -428,3 +428,32 @@ edit-mode note. QA: `app/frontend/scripts/category-layout-vf112-qa.mjs` 8/8 PASS
   (e.g. reset/restore LingoLinq.store in teardown), red test first, then remove the settle and
   re-run the full suite in CI. Ports: use a free --test-port (7381 was left held by an `ember`
   process that could not be confirmed as this session's; left alone).
+
+## Session 4 (2026-10-06): leak fixes, uncommitted; Rule 13 checkpoint
+
+### Verified (local, NOT committed; working tree on traci/chore/ci-shard-ember-suite)
+- Ember Data fetch still queued at teardown (9 tests in 5 modules): `waitForQueuedStoreFetches` in
+  `tests/helpers/index.js` setupTest afterEach. Test `tests/unit/helpers/wait-for-queued-store-fetches-test.js`
+  green; red with the wait disabled. Race probe (flush +100 ms, pause removed): 9 hits -> 0.
+- `raw-events-test.js` `delete` on accessor properties was a no-op: its `{send}` stub sat in
+  `editManager._controller` ~1,150 tests and caused 16 order-dependent failures (terms-agree gate,
+  app-state effective view, app-state modelling). Fixed with save/restore hooks at the module end.
+- `buttonTracker` getters now skip destroyed services via `live_service` (exported from
+  edit_manager.js). Test `tests/unit/utils/button-tracker-services-test.js` green; red without.
+  Adversarial review: helps persistence/stashes; for appState the global fallback is the same dead object.
+- With all three: pause removed + slowed flush, every batch passes: acceptance 8, integration 100,
+  unit+Jasmine 3,215 = 3,323 tests, 0 failures, 0 race hits.
+
+### Found, not yet fixed: tests reading DESTROYED global services (real, order-dependent)
+user/board-detail prediction hold (stashes via capabilities.sync_access_token, appState, store),
+home board assignment (stubs LingoLinq.store.findRecord on a dead store), prediction symbol scope
+(persistence.url_cache), eval_session (appState in subtestOrder), copying-board (store._fetchManager).
+Survey probe printed first 3 of each finding only: list is a lower bound.
+
+### In progress: general leak check `tests/helpers/leak-check.js` (+ `tests/unit/helpers/leak-check-test.js`)
+Imported from test-helper.js; stopOnlinePollers uses `unwrapLeakProxy`. Default mode `fail`;
+`--query leakcheck=report` logs only. Lint gate OK. NOT yet run successfully: the first report-mode
+batch (Acceptance | board lock) produced no test output for 72 s (suspected hang caused by the
+check; undiagnosed). Next: run ONE small unit module with the check, then acceptance board lock
+alone, diagnose the hang before any survey. Process-kill lesson: never `pkill -f`/`pgrep -f` a
+pattern that appears in the killing command itself; it killed the shell twice.
