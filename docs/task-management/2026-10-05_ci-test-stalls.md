@@ -502,3 +502,45 @@ pattern that appears in the killing command itself; it killed the shell twice.
   The other 38 modules: pause removed (414 of 791 pauses).
 - Validation: selective build, leak check in fail mode: 3,229 unit tests, 0 failures; unit run 627 s
   (pause everywhere) -> 413 s (selective) vs 214 s (none). Integration/acceptance unaffected (no pause there).
+
+## Session 6 (2026-10-07): the seven modules' leftover work fixed; post-test pause removed
+- Research: three read-only agents traced every module-specific crossing; each claim was re-checked in
+  code. A stray-call probe (tags every timer with the test that scheduled it; logs calls to
+  speecher.speak_end_handler from an EARLIER test's timer) CONFIRMED the main hidden leak: every
+  speak_text / set_voice test left a ~4 s fallback (speecher speak_utterance) that called
+  speak_end_handler during later tests (videoGrabber, utterance...). The 500 ms pause never covered it.
+- Fixes (app): capabilities.sensor_listen returns a stop for its intervals and listeners; app-state's
+  jump_to_board poller stops on a destroyed service and willDestroy resets buttonTracker.transitioning;
+  the board prefetch chain carries the app that started it and stops when it is destroyed.
+- Fixes (tests): sensor tests stop what they start; file_dropped and two app_state tests wait for their
+  own timers; speecher marks each test's utterances handled at teardown (fake utterances never fire
+  end/error), ends its cloned playback, removes the cached cloud <audio>; the shared fake audio's
+  pause() cancels its pending `ended`.
+- Remaining crossings are inert (guarded no-ops or test-local state) and listed in the session notes.
+- Post-test pause REMOVED (persistence-sync's retry-path pause kept). Final configuration, leak check
+  failing on leaks, stray-call probe: acceptance 8 + integration 100 + unit 3,231 = 3,339 tests,
+  0 failures, 0 stray calls. Local unit run 627 s (pause everywhere) -> 413 s (selective) -> 228 s.
+- New tests for the app fixes, each red on a mutant build: capabilities sensor stop, app_state teardown
+  (poller + flag), prefetch chain live vs destroyed app.
+- Leak check extended (in progress): functions on window, i18n, LingoLinq and its model statics
+  (inherited lookup now walks the whole prototype chain); `--query leakfields=1` logs singleton data
+  fields left changed (survey only, never fails). Survey running.
+- Own errors this session: a test restored window methods by assigning them back (left own copies);
+  the first correction would have DELETED window.setInterval (an own property of window in Chrome).
+  Fixed to restore each property by its exact descriptor. Lesson for the standards: restore by
+  descriptor, never assume own vs inherited.
+- Leak check extension finished: functions on window, i18n, LingoLinq and its model classes are
+  enforced, counting only REPLACED existing functions there (the app adds model classes once as they
+  load); the inherited lookup walks the whole prototype chain. Field survey (`leakfields=1`): 189
+  fields change, mostly per-test resets and app state, so it stays survey-only; destroyed services in
+  fields are already enforced on access. First genuine finding: Visualizations tests left
+  window.ready_to_load_graphs / ready_to_do_maps replaced (fixed: exact-descriptor restore).
+- Two more app fixes found on the way, each with a red test: board_prefetch_planner leaked an
+  unhandled rejection when both public lists failed (RSVP.all -> allSettled; reproduced in isolation,
+  so a real offline/server-error bug); app-state willDestroy now runs the pending board-overlay
+  cleanup (a destroyed service painted an overlay 200 ms later; the leak check cannot see services
+  captured in closures).
+- Green build, final configuration (no pause, extended check failing on leaks): acceptance 8 +
+  integration 100 + unit 3,236, 0 failures after the Visualizations fix (module verified red -> green).
+- Standards updated: exact-descriptor restore, willDestroy cancels owned work, fakes behave like the
+  real object, allSettled for multi-request failures, no post-test pause, long-timer probing, `/i`.

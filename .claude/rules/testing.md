@@ -95,12 +95,15 @@ teardown) and FAILS the test that:
 - reads or writes a **destroyed** service (an earlier test's torn-down app) through the globals
   (`window.appState`, `LingoLinq.appState`, `window.persistence`, `window.stashes`,
   `LingoLinq.store`) or through a util singleton's field;
-- leaves a **replaced function** on one of the shared util singletons;
+- leaves a **replaced function** on one of the shared util singletons, or replaces an existing
+  function on `window`, `i18n`, `LingoLinq` or its model classes;
 - leaves a **node under `<body>`**.
 
 The harness also fails late assertions, waits for queued Ember Data fetches before teardown, and
-stops the app's wall-clock pollers before every test. `--query leakcheck=report` (log only) is for
-surveying locally and must never be set in CI.
+stops the app's wall-clock pollers before every test. There is NO post-test pause: a test that
+needs one has a leak. `--query leakcheck=report` (log only) is for surveying locally and must never
+be set in CI; `--query leakfields=1` additionally logs singleton data fields a test left changed
+(a survey aid only: much of that is legitimate app state, so it never fails a test).
 
 ### Patterns that leak, and the fix for each
 
@@ -127,6 +130,11 @@ cache what they return across tests, and do not treat "destroyed once" as "destr
   test's soon-destroyed service.
 - Never "restore" with `delete` on an accessor (`editManager.controller`, `buttonTracker.appState`,
   any `get x()`/`set x()` slot): `delete` on the instance is a silent no-op and the stub stays.
+- When you replace something by hand, record its exact property descriptor first
+  (`Object.getOwnPropertyDescriptor`) and put that back, or delete it if there was none. Never
+  assume own versus inherited: on `window`, `setInterval` is an OWN property while
+  `addEventListener` is inherited from `EventTarget.prototype`; deleting the wrong one removes the
+  real method for every later test.
 - To stub an accessor, save and restore its BACKING slot (`buttonTracker._services.appState`), not
   the value read through the getter: the getter returns its fallback, and writing that back puts
   the fallback INTO the slot.
@@ -135,6 +143,17 @@ cache what they return across tests, and do not treat "destroyed once" as "destr
   wrapper that calls the service's own method would then call itself), capture the property
   descriptor when the file loads and put it back in an `afterEach` registered first in the
   top-level `describe`, so nested `describe` blocks inherit it.
+
+**Work owned by a service.** A service that schedules work (a poller, a delayed overlay, a
+retry) cancels it in `willDestroy`, and a callback that can outlive the service returns early once
+`isDestroyed || isDestroying`. The leak check cannot see a destroyed service captured in a closure
+(`var _this = this`), so this is the only line of defence for that case.
+
+**Fakes behave like the real thing.** A fake browser object must end the way the real one does: a
+fake `SpeechSynthesisUtterance` that never fires `end`/`error` leaves the app's fallback timer
+pending (it then fired seconds later, in another test); a fake audio element whose `pause()` does
+not cancel its pending `ended` ends after the test that paused it. When a fake cannot end itself,
+the module's `afterEach` ends what the test started.
 
 **Pending callbacks and requests on singletons.** A test that starts a request whose answer arrives
 through a callback stored on a singleton (editor messages, pending-promise handlers) clears that
@@ -162,10 +181,14 @@ left; a test that passes only with an inherited value is order-dependent.
 
 **`todo` tests** absorb failures by design; never use one as a container for leak-prone setup.
 
-**The 500 ms post-test pause** (`tests/helpers/jasmine.js`, `keepsPostTestSettle`) is kept only
-for the modules whose own async work was shown to cross into the next test. Do not add a module to
-it, or lengthen it, to make a test pass; fix the leak instead. Adding one needs crossing-probe
-evidence (section 7).
+**Several requests that may all fail.** Combine them with `RSVP.allSettled` (then reject with the
+first failure if any), not `RSVP.all`: `all` settles on the first failure and leaves a second one
+as a global unhandled rejection, even when the caller handles the combined promise.
+
+**There is no post-test pause.** The fixed 500 ms pause after sync-mode tests was removed once every
+module's leftover work was fixed at its source; do not reintroduce one, per module or globally, to
+make a test pass. Find the leak (section 7) and fix it where it is scheduled. (persistence-sync keeps
+its own retry-path pause for a known race, issue #589.)
 
 ### Test helpers that import app code
 
@@ -206,7 +229,12 @@ loading the test page in a browser, where the load error is visible.
   record which test scheduled the work and which test it landed in. A fix is proven when the
   probe's hits go to zero.
 - To find what a test leaves behind, log after each test what changed in the shared slots (or run
-  with `leakcheck=report`) and read the first test after which the value appears.
+  with `leakcheck=report` / `leakfields=1`) and read the first test after which the value appears.
+- A crossing probe that only looks a short window past each test misses long timers (a 4 s fallback,
+  a 30 s poller). When a stray call is suspected, instrument the CALL itself: tag every timer with
+  the test that scheduled it and log the target being invoked from an earlier test's timer.
+- Remember `--filter` is lowercased by ember-cli: a regex filter needs `/i`, and a filter that
+  matches nothing reports one "global failure", not a test failure.
 - When a run produces no output at all, load `tests/index.html` in a browser (or Puppeteer) and
   read the console: a module that throws while loading stops the whole run silently.
 - Probes are local and temporary: never commit them, restore every source file you edited for a
