@@ -85,3 +85,20 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   with the old template-first order, so the template still wins in specs. Fixing it touches shared
   boot config (and boot-time reads: secret_token.rb, environment.rb DEFAULT_EMAIL_FROM /
   SYSTEM_ERROR_EMAIL checks), so it goes to Traci as a proposal first.
+
+## Group 1: unresolved op:// placeholders (committed)
+
+- Change (Traci approved Option 1; edit approved once in manual mode): `config/application.rb`, test
+  env only, deletes every ENV value starting with `op://` and gives DEFAULT_EMAIL_FROM,
+  SYSTEM_ERROR_EMAIL, SECURE_NONCE_KEY test stand-ins only when nothing real is set (CI's real values
+  win). spec_helper's own loader is left as is, so a developer's real `.env` keys still cannot reach
+  specs (they lose to the template, which is then scrubbed). Production never enters the block.
+- Red first: `spec/config/test_environment_spec.rb` failed before the change (18 op:// keys
+  including ANTHROPIC_API_KEY from .env.op.local), passes after; external_nonce_spec green.
+- Full run with the guard ON (temporary, not committed): blocked examples 110 -> 61, 0 failures of
+  any other kind. Gone: Bedrock, iplocate, 51 of 54 OpenSymbols token requests.
+- Left: OpenSymbols searches (22 GET, 3 POST), S3 (POST lingolinq-test-uploads x7, dev-uploads
+  GET/HEAD x6, s3.amazonaws.com/coughdrop-usercontent x3), fake image URLs and hosts (~20).
+- Follow-up (separate, team decision for Scot): adopt dotenv's conventions for tests (one loader,
+  committed `.env.test`, personal `.env.test.local`, no `.env.local` or template in tests; dotenv
+  3.1.8 `lib/dotenv/rails.rb` skips `.env.local` when `env.test?`).
