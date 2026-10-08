@@ -3147,6 +3147,24 @@ describe('app_state', function() {
       });
     });
 
+    it("detaches the scanner it drives when destroyed", function() {
+      var svc = LingoLinq.appState;
+      var savedAppState = scanner.get('appState');
+      var savedScanning = scanner.scanning;
+      scanner.set('appState', svc);
+      scanner.scanning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        var detached = scanner.get('appState');
+        var scanning = scanner.scanning;
+        scanner.set('appState', savedAppState);
+        scanner.scanning = savedScanning;
+        expect(detached).toEqual(null);
+        expect(scanning).toEqual(false);
+      });
+    });
+
     it("ends the board transition it started when destroyed", function() {
       var svc = LingoLinq.appState;
       teardownButtonTracker.transitioning = true;

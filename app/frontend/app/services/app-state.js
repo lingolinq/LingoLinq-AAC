@@ -168,7 +168,7 @@ export default Service.extend({
   },
 
   willDestroy() {
-    this._super(...arguments); if(buttonTracker) { buttonTracker.transitioning = false; } if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); } // a transition, and its pending board overlay, end with the service
+    this._super(...arguments); if(buttonTracker) { buttonTracker.transitioning = false; } if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); } if(scanner && scanner.get('appState') === this) { scanner.scanning = false; scanner.set('appState', null); } // a transition, its pending board overlay, and the scanner it drives end with the service
     if (this.refreshing_user) {
       // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
       // setTimeout (see the comment at its call site), and Ember's cancel() looks
@@ -2056,7 +2056,7 @@ export default Service.extend({
           modal.close();
         }
         // Ensure scanner has a reference to appState for preference checks
-        if(!scanner.get('appState')) {
+        if(!live_service(scanner.get('appState'))) {
           scanner.set('appState', _this);
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
@@ -2081,7 +2081,7 @@ export default Service.extend({
         }
       }
       runLater(function() {
-        _this.retry_images();
+        if(_this.isDestroyed || _this.isDestroying) { return; } _this.retry_images();
       }, 1000);
       buttonTracker.multi_touch_modeling = _this.get('currentUser.preferences.multi_touch_modeling');
       buttonTracker.keyboard_listen = _this.get('currentUser.preferences.device.external_keyboard');
@@ -2882,7 +2882,7 @@ export default Service.extend({
       if(this.get('speak_mode')) {
         var _this = this;
         runLater(function() {
-          var $button_list = $("#button_list");
+          if(_this.isDestroyed || _this.isDestroying) { return; } var $button_list = $("#button_list");
           var $item = null;
           if(_this.get('insertion.index')) {
             $item = $button_list.find(".utterance_cursor");
@@ -3186,8 +3186,8 @@ export default Service.extend({
             modal.warning(i18n.t('no_local_voices', "This device doesn't have any local voices, so an Internet connection will be required for any speech output until you download a premium voice"), true);
           }
           if(!capabilities.mobile && this.get('currentUser.preferences.device.fullscreen')) {
-            capabilities.fullscreen(true).then(null, function() {
-              if(!noticed) {
+            capabilities.fullscreen(true).then(null, () => {
+              if(!noticed && !this.isDestroyed && !this.isDestroying) { // not into another app's modal once this one is gone
                 modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
               }
             });
@@ -5488,3 +5488,5 @@ export const ScrollTopRoute = Route.extend({
 // Placed last for the same reason as sync_density_scope: an import at the top would shift
 // every line of the ESLint baseline. Imports are hoisted, so position does not matter at runtime.
 import { compressedViewActive } from '../utils/compressed_view_state';
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from '../utils/live_service';

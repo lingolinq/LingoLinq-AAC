@@ -140,4 +140,26 @@ describe('recommended_home_board setup_user lifetime', function() {
       expect(app_state.get('setup_user')).toEqual(other);
     });
   });
+
+  it('stops watching the preview once the app that opened it is gone', function() {
+    // The watch loop polls the CURRENT app's modal every 400 ms for up to 10 minutes; once the app
+    // that opened the preview is torn down it must stop, not act on whichever app is current.
+    var realAppState = LingoLinq.appState;
+    var owner = EmberObject.create({ setup_user: null });
+    var polls = 0;
+    var done = false;
+    LingoLinq.appState = owner;
+    openRecommendedHomeBoard(60, communicator);
+    waitsFor(function() { return previewOpen; });
+    runs(function() {
+      stub(modal, 'board_preview_open', function() { polls++; return true; });
+      owner.destroy();
+      LingoLinq.appState = realAppState;
+      setTimeout(function() { done = true; }, 900);
+    });
+    waitsFor(function() { return done; });
+    runs(function() {
+      expect(polls).toEqual(0);
+    });
+  });
 });

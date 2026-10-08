@@ -1077,7 +1077,7 @@ var speecher = EmberObject.extend({
     audio.pause();
     if(audio.media) { audio.media.pause(); }
     audio.currentTime = 0;
-    var _this = this;
+    var _this = this; var play_for = live_service(speecher.get_app_state()); // the live app this playback belongs to, if any
     var speak_id = ref.speak_id;
     cleanup_audio(audio);
     var audio_status = {init: (new Date()).getTime()};
@@ -1094,7 +1094,7 @@ var speecher = EmberObject.extend({
         if(audio.className == 'throwaway') {
           audio.src = null;
         }
-        _this.speak_end_handler(speak_id);    
+        if(play_for && !live_service(play_for)) { return; } _this.speak_end_handler(speak_id); // that app is gone: do not advance another's speech queue
       }
     };
     audio.lastListener = handler;

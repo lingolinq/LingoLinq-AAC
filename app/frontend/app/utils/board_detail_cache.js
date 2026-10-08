@@ -923,7 +923,7 @@ export default {
     if (!_is_online()) { return; }
     if (_document_hidden()) { return; }
 
-    var _this = this, pipeline_app = LingoLinq.appState; // the app whose user change started this chain
+    var _this = this, pipeline_app = live_service(LingoLinq.appState); // the live app whose user change started this chain, if any
     _this._prefetch_pipeline_running = _this._prefetch_pipeline_running || {};
     if (_this._prefetch_pipeline_running[user_id]) { return; }
     _this._prefetch_pipeline_running[user_id] = true;

@@ -129,7 +129,7 @@ export default function paint_view_switch_overlay(opts) {
 
   var removeOverlay = function() {
     try {
-      var ov = document.getElementById('ll-pre-reload-overlay');
+      var ov = overlay; // this call's own overlay, not whichever one is on the page by then
       if(ov && ov.parentNode) { ov.parentNode.removeChild(ov); }
     } catch(e) { /* DOM may be unavailable; ignore */ }
   };

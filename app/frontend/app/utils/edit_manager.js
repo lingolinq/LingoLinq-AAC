@@ -2823,9 +2823,9 @@ var editManager = EmberObject.extend({
           }).then(function(data) {
             progress_tracker.track(data.progress, function(event) {
               report_progress(event);
-              if(event.status == 'finished' || event.finished_at) {
+              if(event.status == 'finished' || event.finished_at) { var refresh_for = live_service(editManager.get_app_state());
                 runLater(function() {
-                  user.reload();
+                  if(!live_service(refresh_for)) { return; } user.reload(); // its app is gone: do not refresh another's session user
                   editManager.get_app_state().refresh_session_user();
                 }, 100);
                 var res = event.result;
