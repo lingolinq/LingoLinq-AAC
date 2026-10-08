@@ -144,6 +144,26 @@ cache what they return across tests, and do not treat "destroyed once" as "destr
   descriptor when the file loads and put it back in an `afterEach` registered first in the
   top-level `describe`, so nested `describe` blocks inherit it.
 
+**Deferred work that reaches "the current app".** A callback that runs later and goes through a
+forwarding util (`utils/app_state`, `utils/persistence`, `utils/_stashes`, `modal`) acts on whichever
+app is current WHEN IT FIRES, not the one that scheduled it. Capture the owner when scheduling
+(`var owner = live_service(LingoLinq.appState)`) and return early at fire time if
+`!live_service(owner)`. That includes work scheduled while no app was live: it has no owner, so it
+does not run (letting it through means it runs against whichever app, dead or alive, is current
+later). Every later step the callback schedules carries the same owner (a follow-up beep, a retry).
+Only work that does not belong to an app (audio playback already started) skips the guard when it
+has no owner. Do not "fix" this by cancelling timers at teardown: a cancelled app timer silently
+drops any assertion downstream of it (a test that forgot to wait then passes) and can leave a flag
+that only its own callback clears stuck for the rest of the run.
+
+**Hooks start work too.** Restoring observed state in an `afterEach` (setting a property an observer
+watches) re-runs the observer, which can schedule deferred work owned by this test's stand-in. A
+stand-in is never destroyed, so the owner guard lets that work through, and it fires in the next
+test. Wait for it in the same hook, while the stand-ins are still installed (`afterEach` hooks run
+in reverse registration order, so a module's own hook runs before `standInGlobals` puts the
+originals back). Do not make stand-ins die at teardown to drop such work: that hides every test
+that forgets to wait.
+
 **Work owned by a service.** A service that schedules work (a poller, a delayed overlay, a
 retry) cancels it in `willDestroy`, and a callback that can outlive the service returns early once
 `isDestroyed || isDestroying`. The leak check cannot see a destroyed service captured in a closure

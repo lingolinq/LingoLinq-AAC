@@ -544,3 +544,66 @@ pattern that appears in the killing command itself; it killed the shell twice.
   integration 100 + unit 3,236, 0 failures after the Visualizations fix (module verified red -> green).
 - Standards updated: exact-descriptor restore, willDestroy cancels owned work, fakes behave like the
   real object, allSettled for multi-request failures, no post-test pause, long-timer probing, `/i`.
+
+## Session 7 (2026-10-07): CI shard exposed a cross-app refresh; deferred-work audit; timer backstop
+- CI on c54cffc0c: build-and-test GREEN (full suite); main shard failed one test whose minimal
+  app-state stand-in exposed a leak: utterance.set_button_list's 100 ms suggestions refresh calls
+  app_state.refresh_suggestions through the FORWARDING util, so an earlier test's refresh ran against
+  the next test's app. Lesson: "generic" (also produced by unpaused modules) does not mean harmless.
+- Fixed with owner guards + red tests: utterance refresh, recommended_home_board claim_setup_user
+  (400 ms loop polling the current app's modal for up to 10 min), button.js :timer tick.
+- Audit (three read-only agents, every deferred callback in the survey): ~9 more CROSS-APP sources
+  (scanner singleton timers + stale scanner.appState, speecher audio-status poll, modal inactivity
+  auto-close, button-set translate, word_suggestions sync flush, edit_manager relink refresh,
+  utterance image-attach and vocalization-history callbacks, fullscreen warning, view-switch overlay)
+  plus ~10 own-service / DOM-only ones. Traci chose option B: one harness backstop instead of ~20 app edits.
+- Pending-timer survey (every timer still pending at each test's end, full order): app and framework
+  timers only, plus benign test-code ones (persistence-sync polling helpers, the shared fake audio, a
+  2 s helper fallback). So: cancel APP timers at teardown; leave TEST timers exactly as today (a late
+  assertion in them is still reported); never touch FRAMEWORK timers (Ember's own platform timer).
+- tests/helpers/timer-backstop.js; own bug on the way: the classifier's own frame was classified as
+  test code (fixed by naming it so the own-frame filter skips it). Red/green: app timer cancelled with
+  the backstop, runs on the mutant; test timer runs in both.
+- Full order with the backstop: acceptance 8 + integration 100 + unit 3,242 = 3,350 tests, 0 failures
+  (including the deferred-refresh test that failed in full order without it).
+- Backstop DROPPED after adversarial review (Traci approved switching to A). High: cancelling an app
+  timer silently drops any assertion downstream of it (a `.then(expect)` on a promise an app runLater
+  moves forward; a test that forgot to wait used to fail late, would now pass). Medium: flags cleared
+  only inside their own timer callback (utterance.suggestion_refresh_scheduled, two _stashes timers)
+  would stay stuck after cancellation, a new cross-test leak. Instead: owner guards at each source (A).
+- Option A implemented. Owner guards capture `live_service(LingoLinq.appState)` when the work is
+  scheduled and return at fire time if `!live_service(owner)` (strict: work scheduled with no live app
+  has no owner and does not run). A first "cautious" version (skip only when a live owner had died)
+  let ownerless work run against whichever app was current later, which the leak check caught in full
+  order; app-owned guards were switched to strict. The speecher end handler stays cautious (audio
+  already playing is not app-owned). Guarded: utterance refresh,
+  image-attach and vocalization-history callbacks; recommended_home_board loop; button :timer tick;
+  scanner (app-state willDestroy detaches it: scanning=false, slot cleared; the next app re-attaches
+  when the slot is empty or dead; deferred reset/restart carry their owner); speecher end handler;
+  modal inactivity auto-close; word_suggestions sync flush (captures the real service: get_app_state
+  returns the forwarding util); edit_manager relink refresh; button-set translate; fullscreen warnings
+  (app-state, application controller); view-switch overlay removes its own node. Plus destroyed-checks
+  on own-service/DOM-only callbacks (retry_images, align_button_list, sentence scroll, webhook
+  update_state, button-settings, big-button snap x2, stashes 5 s kvstash write).
+- Dedicated red tests (each with a positive control; mutant build red, green build green): scanner
+  helpers + detach, speecher end handler, overlay, application fullscreen, word_suggestions flush
+  (delay overridable via sync_flush_delay; read-only sync_flush_scheduled getter), utterance refresh,
+  recommended_home_board loop, button timer, plus earlier capabilities/app-state/prefetch tests.
+  Without a dedicated test (same one-line pattern, flows hard to drive in a unit test): utterance
+  image-attach / vocalization-history, edit_manager relink, modal auto-close, button-set translate,
+  app-state fullscreen warning, and the own-service/DOM-only guards.
+- Full order after the strict switch still failed the utterance deferred-refresh test (g17, g18), with a
+  different read each time. Two hypotheses were wrong (ownerless refresh; afterEach restore, which a
+  probe could not reproduce because rawButtonList starts empty in isolation). Evidence, not guesses:
+  - wide leak-check stacks on the Unit | Utility subset (reproduces in 552 tests): `stashes.log` read by
+    `speecher.beep` from the `:timer` action's 1.5 s reminder beep. Real app leak: the reminder was not
+    guarded. Fixed with the same owner; positive control now waits for both beeps (asserts 2), new test
+    destroys the app between beeps (asserts 1). Mutant (guard removed): new test red.
+  - instrumented build in full order: the stray refresh was SCHEDULED in the module's positive-control
+    test by a sync observer flush (its afterEach restores rawButtonList -> set_button_list), owned by
+    that test's stand-in (never destroyed), and FIRED in the next test's pre-wait against an earlier
+    test's destroyed app. Test hygiene: the afterEach now waits for the refresh it schedules while the
+    stand-ins are still installed. Rejected: destroying stand-ins at teardown (hides unwaited work).
+- g19 full order: acceptance 8 + integration 100 + unit 3,252 = 3,360 tests, 0 failures.
+- Own mistake: a wait loop used `pgrep -f "<string>"` whose own command line contained the string, so
+  it waited on itself for 30 min. Wait on a PID or a file, never on `pgrep -f` of your own command.
