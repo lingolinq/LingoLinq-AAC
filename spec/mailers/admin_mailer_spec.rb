@@ -112,13 +112,17 @@ describe AdminMailer, :type => :mailer do
       expect(html).to match(/Virtual meeting requested: Yes/)
       expect(html).to match(/Trying to open Speak Mode/)
       expect(html).to match(/Screen recording: saved locally by submitter/)
-      expect(html).to match(%r{/beta-feedback/admin/entry/#{m.global_id}})
+      # The admin inbox's entry page is /beta-feedback/admin/:feedback_id (frontend router.js,
+      # config/routes.rb); an extra /entry/ segment 404s.
+      expect(html).to match(%r{/beta-feedback/admin/#{m.global_id}"})
+      expect(html).not_to match(%r{/beta-feedback/admin/entry/})
 
       expect(text).to match(/Reaction: frustrating/)
       expect(text).to match(/Virtual meeting requested: Yes/)
       expect(text).to match(/Trying to open Speak Mode/)
       expect(text).to match(/Screen recording: saved locally by submitter/)
-      expect(text).to match(%r{beta-feedback/admin/entry/#{m.global_id}})
+      expect(text).to match(%r{beta-feedback/admin/#{m.global_id}$})
+      expect(text).not_to match(%r{/beta-feedback/admin/entry/})
     end
   end
 

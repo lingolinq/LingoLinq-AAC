@@ -4,8 +4,10 @@ import {
   expect,
   beforeEach,
   waitsFor,
-  runs
+  runs,
+  stub
 } from 'frontend/tests/helpers/jasmine';
+import $ from 'jquery';
 import ai_word_predictor from '../../utils/ai_word_predictor';
 
 function appStateStub(opts) {
@@ -16,6 +18,7 @@ function appStateStub(opts) {
   var user = {
     get: function(key) {
       if(key === 'preferences') { return prefs; }
+      if(key === 'feature_flags') { return { ai_word_prediction: flagOn }; }
       return null;
     },
     preferences: prefs
@@ -23,7 +26,7 @@ function appStateStub(opts) {
   return {
     get: function(key) {
       if(key === 'feature_flags.ai_word_prediction') { return flagOn; }
-      if(key === 'currentUser') { return user; }
+      if(key === 'currentUser' || key === 'sessionUser') { return user; }
       return null;
     }
   };
@@ -68,11 +71,11 @@ describe('ai_word_predictor', function() {
     }))).toEqual(false);
   });
 
-  it('should be enabled when flag is on and prefs allow (grandfather)', function() {
+  it('should be disabled when flag is on but the account never recorded an AI choice', function() {
     expect(ai_word_predictor.is_enabled(appStateStub({
       flagOn: true,
       prefs: {}
-    }))).toEqual(true);
+    }))).toEqual(false);
   });
 
   it('should be enabled when flag is on, master true, and per-feature true', function() {
@@ -83,7 +86,7 @@ describe('ai_word_predictor', function() {
   });
 
   it('should resolve cached predictions without duplicate fetches', function() {
-    var appState = appStateStub({ flagOn: true, prefs: {} });
+    var appState = appStateStub({ flagOn: true, prefs: { ai_features_enabled: true, ai_word_prediction: true } });
     ai_word_predictor._cache_put('i want to', ['play', 'go']);
     var res = null;
     ai_word_predictor.predict('I want to', { appState: appState, immediate: true }).then(function(words) {
@@ -96,7 +99,7 @@ describe('ai_word_predictor', function() {
   });
 
   it('should cache predictions separately by locale', function() {
-    var appState = appStateStub({ flagOn: true, prefs: {} });
+    var appState = appStateStub({ flagOn: true, prefs: { ai_features_enabled: true, ai_word_prediction: true } });
     ai_word_predictor._cache_put('i want to', ['play'], 'en');
     ai_word_predictor._cache_put('i want to', ['jugar'], 'es');
     var res = null;
@@ -106,6 +109,51 @@ describe('ai_word_predictor', function() {
     waitsFor(function() { return res; });
     runs(function() {
       expect(res).toEqual(['jugar']);
+    });
+  });
+
+  describe('backing off when the server declines', function() {
+    // The shape the app's $.ajax wrapper (utils/extras.js) rejects with.
+    function failingAjax(status) {
+      return function() {
+        return { then: function(ok, fail) { fail({ fakeXHR: { status: status }, message: 'error', result: 'error' }); } };
+      };
+    }
+
+    it('pauses requests after a refusal (403), as after a rate limit', function() {
+      ai_word_predictor._backoff_until = 0;
+      stub($, 'ajax', failingAjax(403));
+      var res = null;
+      ai_word_predictor._fetch('i want to', 'en', 5).then(function(words) { res = words; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res).toEqual([]);
+        expect(ai_word_predictor._backoff_until > Date.now()).toEqual(true);
+        ai_word_predictor._backoff_until = 0;
+      });
+    });
+
+    it('still pauses after a rate limit (429)', function() {
+      ai_word_predictor._backoff_until = 0;
+      stub($, 'ajax', failingAjax(429));
+      var res = null;
+      ai_word_predictor._fetch('i want to', 'en', 5).then(function(words) { res = words; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(ai_word_predictor._backoff_until > Date.now()).toEqual(true);
+        ai_word_predictor._backoff_until = 0;
+      });
+    });
+
+    it('does not pause after a server error (500)', function() {
+      ai_word_predictor._backoff_until = 0;
+      stub($, 'ajax', failingAjax(500));
+      var res = null;
+      ai_word_predictor._fetch('i want to', 'en', 5).then(function(words) { res = words; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(ai_word_predictor._backoff_until).toEqual(0);
+      });
     });
   });
 });

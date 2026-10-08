@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!--
+    BADGE IN PROGRESS placeholder.
+
+    Stands in for a badge being worked toward whose artwork is unavailable — either the badge
+    has no image yet, or its real art (usually a remote OpenSymbols asset) could not be
+    fetched or found in the local cache. Used by components/badge-awarded.hbs for the
+    not-yet-earned branch, both as the direct src and as the `data-fallback` that
+    Button.broken_image swaps in.
+
+    DISTINCT FROM badge-fallback.png ON PURPOSE. That one is the generic medal an EARNED badge
+    falls back to; a badge still in progress should not look finished. The ring here is
+    deliberately incomplete — a verdigris arc about two thirds round, the rest a pale empty
+    track — so the state reads at a glance with no text.
+
+    NO RIBBON, AND NO DOT AT THE ARC'S END. Both were tried and both read as clumsy. The
+    ribbon legs had to cross the ring band to reach the medal, which left a notch above and
+    below the band wherever they passed under it. The dot was drawn wider than the stroke, so
+    it bulged out of the ring instead of terminating it. The arc's own round cap says
+    "unfinished" on its own, and three concentric circles about one centre is a calmer shape
+    than a medal with tails hanging off it — which also matches the flat, two-tone line icons
+    used elsewhere in this UI.
+
+    EVERY COLOUR IS SOLID. No stroke-opacity or fill-opacity anywhere, on purpose: those are
+    honoured inconsistently outside browsers (ImageMagick renders an earlier version of this
+    file with the track at full strength, inverting the read — the unfinished part looked
+    heavier than the finished part). Each value is the intended colour already composited
+    against white, so it looks the same in a browser, a thumbnailer, or a PDF.
+
+    THE ARC IS $brand-verdigris-aa #1A7B7A, NOT the brighter $brand-verdigris #2A9D8F it
+    started as. The bright one measures 1.09:1 against the FOCUSED communicator card, where
+    this now also renders — effectively invisible — and only 2.36:1 against the silver disc
+    placed behind it there. The -aa variant reads 3.58 on that silver, 5.05 on white and 4.75
+    on the gentle card, so one value works on every ground instead of each needing its own.
+
+    Values derive from the app palette:
+    $ch-focused-chip-lite #CAD9E7 for the disc, $brand-charcoal-blue #46505F lightened for the
+    star. Muted, because a placeholder must not out-weigh a real badge beside it.
+
+    Everything is concentric on (60, 60): ring r=44, disc r=32, star inscribed in the disc.
+    Built on a 120 unit grid, displayed at 200px in the modal, crisp at any size.
+  -->
+
+  <!--
+    BACKING DISC. The badge carries its own light ground so ONE image works on every card.
+
+    Without it the art sits straight on whatever backs it, and the two classic cards are very
+    different grounds: gentle is near-white, focused is a mid-tone. On the focused card the
+    arc measured 1.39:1 and the track 2.22:1 — the progress ring effectively vanished. This
+    used to be solved with a silver disc applied in CSS for Focused only, which meant the same
+    badge looked like two different components depending on the view.
+
+    r=50 covers the ring's outer edge (r=44 + half of its 8px stroke = 48) with 2 to spare.
+    #EEF2F7 is chosen to do BOTH jobs: 3.28:1 against the focused card so it reads as a disc
+    there, and 1.05:1 against the gentle card, where it disappears into the surface and the
+    badge looks exactly as it did before this was added.
+  -->
+  <circle cx="60" cy="60" r="50" fill="#EEF2F7"/>
+
+  <!--
+    progress TRACK: the portion still to go.
+
+    GREY #C2CBD9, not the near-white #DDE3EA it started as. The track sits OUTSIDE the inner
+    disc, so it lies directly on whatever backs the badge — the silver disc in Focused, the
+    near-white card in Gentle — and at #DDE3EA it measured 1.09:1 against that silver and
+    1.22:1 on the gentle card. It read as white, i.e. as nothing, and the ring looked like a
+    bare arc floating with no track behind it.
+
+    THIS VALUE IS A CEILING, NOT A PREFERENCE. Darkening the track improves it against the
+    backing but moves it TOWARD the filled arc, and that second pair is the one carrying the
+    actual progress reading. #C2CBD9 is the greyest value that still clears 3:1 against the
+    arc (3.09); #BFC8D5, one step darker, drops to 2.99. Re-measure against BOTH the arc and
+    the backing before changing it.
+  -->
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#C2CBD9" stroke-width="8"/>
+
+  <!--
+    progress ARC: 2*pi*44 = 276.46 total. 179.7 drawn / 96.76 gap = 65% complete.
+    Rotated -90deg about the centre so it starts at twelve o'clock, not at three.
+    `round` cap is the whole "in progress" cue now that the end dot is gone.
+  -->
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#1A7B7A" stroke-width="8"
+          stroke-linecap="round" stroke-dasharray="179.7 96.76"
+          transform="rotate(-90 60 60)"/>
+
+  <!-- medal disc, sitting clear of the ring's inner edge (44 - 8/2 = 40) -->
+  <circle cx="60" cy="60" r="32" fill="#E7EDF5" stroke="#C3CDDA" stroke-width="2"/>
+
+  <!--
+    Star, FILLED and in $brand-slate-blue #5A6A85. It was an outline in #8E9AAA, which
+    measures 2.42:1 against this disc and failed as a non-text mark — a thin stroke in a pale
+    grey is the least visible form a shape can take. Filling it alone would not have fixed the
+    ratio, so the colour moved too: 4.65:1 now. Deliberately NOT one of the charcoals
+    (#46505F reads 6.93, #374151 8.75) — this is a placeholder and must not out-weigh a real
+    badge sitting beside it in a list.
+    The stroke is kept at the same width and the same colour as the fill, so the round joins
+    still soften the points and the star's outer dimensions are unchanged.
+    Generated, not hand-drawn:
+    10 vertices at 36deg steps from -90deg, alternating outer R=22 and inner 9.9 (R*0.45).
+    An earlier hand-written path was 18.5 units tall above centre and 26 below, which is
+    what made it sit wrong in the disc.
+
+    CENTRED ON 62.10, NOT 60, ON PURPOSE. A five-point star is never symmetric about its own
+    geometric centre — the single top point reaches R while the two lower points reach only
+    R*sin(54deg) — so a star drawn on the disc's centre reads as sitting high. Nudging down
+    2.10 puts its BOUNDING BOX on 60: 19.90 above, 19.90 below. Its outer reach is 22, well
+    inside the disc's 32.
+  -->
+  <path d="M60.00 40.10 L65.82 54.09 L80.92 55.30 L69.42 65.16 L72.93 79.90 L60.00 72.00 L47.07 79.90 L50.58 65.16 L39.08 55.30 L54.18 54.09 Z"
+        fill="#5A6A85" stroke="#5A6A85" stroke-width="2.6" stroke-linejoin="round"/>
+</svg>

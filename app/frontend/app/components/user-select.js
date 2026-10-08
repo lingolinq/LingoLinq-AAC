@@ -5,6 +5,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
+import { filter_users } from '../utils/user_filter';
 import LingoLinq from '../app';
 import RSVP from 'rsvp';
 import Utils from '../utils/misc';
@@ -129,6 +130,24 @@ export default Component.extend({
   _sync_external_selection: observer('selection', function() {
     this._apply_external_selection();
   }),
+  /* THE TYPED QUERY, AND THE LIST THE GRID ACTUALLY RENDERS (added 2026-09-24, requested: a
+     search filter on the Select User for Reports modal).
+     RENDERED ON EVERY PATH, not only when the box is shown: `filter_users` returns the SAME
+     array when the query is blank, so a caller without a search box (copy-board,
+     button-suggestions, assessment-settings) gets the identical list and the identical
+     reference -- no filtering, and nothing for Ember to re-render.
+     `user_filter` is the query, `@filterable` is whether the box appears. Only
+     `switch-communicators` passes it today. */
+  user_filter: '',
+  filtered_users: computed('users', 'users.[]', 'user_filter', function() {
+    return filter_users(this.get('users'), this.get('user_filter'));
+  }),
+  /* Nothing matched -- worth saying so, because an empty grid with a full search box otherwise
+     reads as a loading failure. */
+  no_filter_matches: computed('filtered_users.[]', 'user_filter', function() {
+    return !!(this.get('user_filter') || '').trim() && (this.get('filtered_users') || []).length === 0;
+  }),
+
   users_with_extras: computed('users', 'extra_users', 'extra_users.loading', 'extra_users.length', function() {
     var _this = this;
     var res = [].concat(this.get('users') || []);

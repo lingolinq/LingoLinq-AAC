@@ -5,8 +5,8 @@ import i18n from './i18n';
    transition between the modern (board-detail) and classic (board-alt)
    board views. Originally lived inline in `controllers/board/index.js`
    `go_to_modern` (Classic → Modern). Extracted here so the inverse
-   direction (`go_to_classic` in `controllers/user/board-detail.js`,
-   Modern → Classic) can reuse the exact same overlay with one
+   direction (Modern → Classic, now from the View menu,
+   components/view-switcher.js) can reuse the exact same overlay with one
    per-direction tweak: when `accentLight` is true, the parenthesized
    clarifier in the title is painted at a lighter font-weight via the
    `--accent-light` modifier on the progress card.

@@ -5,6 +5,7 @@ import i18n from '../utils/i18n';
 import prompt_hierarchy from '../utils/eval_prompt_hierarchy';
 import persistence from '../utils/persistence';
 import article50Gate from '../utils/article50_gate';
+import aiFeatureGate from '../utils/ai_feature_gate';
 
 /*
  * eval-comprehensive-runner — Phase 3 scaffold. Comprehensive Eval
@@ -65,8 +66,19 @@ export default Component.extend({
   // ai_narration state.
   aiBusy: false,
   aiError: null,
-  aiFlagEnabled: computed('appState.feature_flags.comprehensive_eval_ai', function() {
-    return !!this.get('appState').get('feature_flags.comprehensive_eval_ai');
+  // The feature flag AND the signed-in SLP's own AI setting (the person using the
+  // tool), matching the server gate (eval_sessions_controller ai_feature_enabled?).
+  aiFlagEnabled: computed(
+    'appState.sessionUser.feature_flags.comprehensive_eval_ai',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    function() {
+      return aiFeatureGate.authoringFeatureEnabled(this.get('appState'), 'comprehensive_eval_ai');
+    }
+  ),
+  // Available, but the signed-in SLP has not turned AI features on: say so,
+  // rather than the feature-unavailable message.
+  aiSettingOff: computed('appState.sessionUser.feature_flags.comprehensive_eval_ai', 'aiFlagEnabled', function() {
+    return aiFeatureGate.authoringFlagEnabled(this.get('appState'), 'comprehensive_eval_ai') && !this.get('aiFlagEnabled');
   }),
   aiNarrative: computed('session.aiNarrative', function() {
     return this.get('session.aiNarrative');
@@ -409,7 +421,16 @@ export default Component.extend({
         }, function(err) {
           if (_this.isDestroyed || _this.isDestroying) { return; }
           _this.set('aiBusy', false);
-          _this.set('aiError', (err && err.error) || i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
+          // Show a translated message, never the raw server string. The server
+          // sends this one for every refusal (setting, organization, consent).
+          // The $.ajax wrapper (utils/extras.js) puts it in err.result, or in
+          // err.result.error for the 200-with-body reply to ApplicationCache clients.
+          const reason = err && ((err.result && typeof err.result === 'object') ? err.result.error : err.result);
+          if (reason === 'comprehensive_eval_ai feature not enabled') {
+            _this.set('aiError', i18n.t('comp_ai_unavailable', "AI narration is not available for this account right now."));
+          } else {
+            _this.set('aiError', i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
+          }
         });
       }, function() {
         // Art.50 gate not acknowledged. Fail-closed: no narration request fires.

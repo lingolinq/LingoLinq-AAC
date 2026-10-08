@@ -1549,7 +1549,7 @@ class Board < ApplicationRecord
         audio = Tts.generate_audio(text, locale: locale, mp3: true)
         next unless audio && audio[:body].present?
 
-        bs = ButtonSound.new(user: author, settings: {})
+        bs = ButtonSound.new(user: author, settings: {'locale' => locale})
         bs.settings['name'] = text
         bs.settings['content_type'] = audio[:content_type] || 'audio/mp3'
         bs.settings['license'] = { 'type' => 'private' }

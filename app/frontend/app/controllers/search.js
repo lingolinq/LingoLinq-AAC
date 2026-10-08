@@ -22,7 +22,7 @@ export default Controller.extend({
   }),
   locales: computed(function() {
     var list = i18n.get('translatable_locales');
-    var res = [{name: i18n.t('choose_locale', '[Choose a Language]'), id: ''}];
+    var res = [{name: i18n.t('choose_locale', "[Choose a Language]"), id: ''}];
     for(var key in list) {
       res.push({name: list[key], id: key});
     }
@@ -366,7 +366,7 @@ export default Controller.extend({
       if(!key) { return; }
       var parts = key.split('/');
       if(parts.length !== 2) { this.router.transitionTo('board', key); return; }
-      var pref = app_state.get('currentUser.preferences.board_view_style');
+      var pref = app_state.get('effective_view_user.preferences.board_view_style');
       var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
       this.router.transitionTo(route, parts[0], parts[1]);
     },

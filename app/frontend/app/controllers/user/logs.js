@@ -20,7 +20,16 @@ export default Controller.extend({
   app_state: alias('appState'),
   router: service('router'),
   store: service(),
-  queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
+  /* `nav` is NOT a filter — it records which menu the user arrived through, so
+     templates/user.hbs can keep the home pill-nav on screen instead of swapping to the
+     account nav (see `homeNavContext` on controllers/user.js). It lives in the URL rather
+     than in transient state so a reload, a bookmark or the back button all keep the nav the
+     user was actually using. Declared here because a query param Ember does not know about
+     is dropped from the URL on the next transition.
+     NOTE it is deliberately absent from `filtered_results` below: it does not narrow the
+     result set, and counting it as a filter would show a spurious "(filtered) clear filter"
+     on a page the user simply navigated to. */
+  queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id', 'nav'],
   user: reads('model'),
   reset_params: function() {
     var _this = this;
@@ -28,12 +37,29 @@ export default Controller.extend({
     this.get('queryParams').forEach(function(param) {
       _this.set(param, null);
     });
-    this.set('type', 'note');
+    /* NOTHING IS PUT BACK HERE. This used to end `this.set('type', 'note')`, which was a
+       retarget of a value the loop above had ALREADY nulled -- `type` is in `queryParams`
+       -- so it parked a NON-DEFAULT value on the controller every time the page was left.
+       Ember query params are sticky: the controller's value hydrates the next NAMED
+       transition that does not state one, so "messages only" leaked into every un-queried
+       arrival. Four of them exist: the account rail's Logs row (components/account-rail.hbs,
+       no @query), components/dashboard/classic-view.js#load_sessions,
+       controllers/user/board-detail.js (the menu's `sessions` item), and
+       components/eval-quick-screen.js after saving an eval. All four want the FULL log.
+       Measured before the fix, in-app clicks only: rail Logs landed on
+       `/{u}/logs?type=note`, a query string no link contains, and the mark-as-read block
+       below (gated on `type == 'note'` alone) fired a `user.save()` nobody asked for.
+       The declared default is `type: null` just below, and a fresh session was always
+       correct -- this makes every later visit behave like the first.
+       URL transitions (bookmark, reload, typed address, Back) never hydrated and were never
+       affected; only named in-app transitions and <LinkTo> hrefs were.
+       The line dated to the first public commit -- inherited, never revisited here. */
   },
   filtered_results: computed('start', 'end', 'device_id', 'location_id', function() {
     return !!(this.get('start') || this.get('end') || this.get('device_id') || this.get('location_id'));
   }),
   type: null,
+  nav: null,
   start: null,
   end: null,
   device_id: null,

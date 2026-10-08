@@ -1,0 +1,565 @@
+import { inject as service } from '@ember/service';
+import { computed, observer, set as emberSet } from '@ember/object';
+import AuthenticatedView from './authenticated-view';
+import modal from '../../utils/modal';
+import i18n from '../../utils/i18n';
+import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
+import scrollBelowHeader from '../../utils/scroll_below_header';
+import { pillForRoute } from '../../utils/primary_nav';
+import { showsAdminSlot } from '../../utils/admin_nav';
+import { has_caseload_access } from '../../utils/caseload_access';
+import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
+
+/**
+ * Classic home page.
+ *
+ * Rendered INSTEAD of <Dashboard::AuthenticatedView> when the signed-in user's
+ * `preferences.board_view_style` is 'classic' — the same preference the board
+ * Classic/Modern toggle already drives (components/board-actions.hbs, and
+ * utils/board_view.js for the board route). One setting, board and home page.
+ *
+ * WHY IT EXTENDS THE MODERN COMPONENT
+ * The classic page needs the same DATA the modern dashboard already loads and
+ * the same ACTIONS it already exposes — sync state, blank-slate progress, the
+ * install-reminder `device` hash, recent logs, the four board-browse lists, and
+ * ~14 actions (sync / newBoard / intro / load_reports / set_selected / …). All
+ * of that was ported and modernized once, in authenticated-view.js. Extending it
+ * reuses that single implementation rather than keeping a second, drifting copy,
+ * and — critically — requires NO edit to authenticated-view.js, so the modern
+ * dashboard is untouched.
+ *
+ * This is safe because the parent's lifecycle is DOM-free: its `init` only wires
+ * closures and calls `_loadPreviewBoards`, and its `didInsertElement` only calls
+ * `_loadPreviewBoards` (authenticated-view.js:283-331). Nothing there queries the
+ * `md-*` DOM this template does not render. If a DOM-dependent `didRender` is ever
+ * added to the parent, it must be guarded — that is the one coupling to watch.
+ *
+ * Ember merges the `actions` hash down the prototype chain, so every parent action
+ * stays reachable from this template and the three overridden below win.
+ *
+ * `templates/index.hbs` hosts both views, which covers BOTH home surfaces at once:
+ * `/` (index) and `/:user_name/home` (user.home reuses index's template and
+ * controller — see routes/user/home.js).
+ */
+export default AuthenticatedView.extend({
+  router: service('router'),
+  // The parent does not inject the session service (it has no re-login card), but
+  // the classic status card leads with `session.invalid_token` — without this the
+  // {{#if}} would silently read undefined and that state could never render.
+  session: service('session'),
+
+  // The parent wires per-action closures (this.onGoTab, …) rather than a generic
+  // dispatcher, so this template gets the repo's standard `ctrlAction` helper —
+  // the same one board-actions.js / supervision-settings.js define. Added on top
+  // of the parent's init, never in place of it.
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    // The <=550px tab dropdown needs the CHANGE EVENT's value, and `ctrlAction` above
+    // strips the event before dispatching -- so this one is wired directly rather than
+    // through it.
+    this.handleTabSelect = function(event) {
+      var v = event && event.target && event.target.value;
+      if(v) { self.send('set_index_nav', v); }
+    };
+    /* ARRIVING FROM A VIEW SWITCH (2026-09-28): the tab the Modern page maps to
+       (utils/basic_landing.js). Taken here, before the first render, and shown at once through
+       `index_nav_state` so the Actions tab never flashes; its click behaviour runs on insert
+       (below), because it saves the user record and must not do that mid-render.
+       ONLY A TAB THIS PAGE RENDERS: Updates and Communicators are hidden for a modeling-only
+       account, and Communicators for a non-supporter (classic-view.hbs `ch-tabs`), so a handoff
+       naming one of those is dropped rather than opening a panel with no tab lit. */
+    var pending = take_pending_index_nav(this.appState);
+    if(pending && this._tabShown(pending)) {
+      this.set('index_nav_state', pending);
+      this._pending_index_nav = pending;
+    }
+    // ARRIVING FROM THE EXTRAS PAGE (2026-09-30): open the Extras drawer on insert, below.
+    this._pending_open_extras = take_pending_open_extras(this.appState);
+    // ARRIVING FROM ONE COMMUNICATOR'S CASELOAD (2026-09-30): expand their card on insert, below.
+    // Taken either way, so the handoff is cleared; KEPT only when the Communicators tab renders
+    // (2026-10-01): with the tab dropped above, there is no card to expand.
+    this._pending_open_supervisee = take_pending_open_supervisee(this.appState);
+    if(!this._tabShown('supervisees')) { this._pending_open_supervisee = null; }
+  },
+
+  _tabShown(nav) {
+    var me = this.appState.get('currentUser');
+    var modelingOnly = !!(me && me.get('modeling_only'));
+    if(nav === 'updates') { return !modelingOnly; }
+    // The same rule that draws the tab (showCommunicatorsTab, 2026-10-02): a handoff to a tab that
+    // is drawn must never be dropped.
+    if(nav === 'supervisees') { return !!this.get('showCommunicatorsTab'); }
+    return true;
+  },
+
+  // The parent defines `update_selected` and `checkForBlankSlate` as OBSERVERS
+  // ('selected' / 'persistence.online'), and observers do not run on init. The
+  // modern template never reads what they produce (`current_boards`,
+  // `*_selected`, `showOffline`) — verified: 0 references in
+  // authenticated-view.hbs — so they are dormant there and the gap went unnoticed.
+  // The classic boards column DOES read them, so kick both once on insert or the
+  // column renders permanently empty with no tab appearing selected.
+  // `checkForBlankSlate` runs too: `update_selected` returns early when offline,
+  // and that is exactly the case that needs `showOffline` + recent boards set.
+  // `reload_logs` needs the same kick for the same reason, and was missed in the
+  // first pass. It is the ONLY writer of `logs` (authenticated-view.js:633-641),
+  // which the classic Updates tab renders — without this the tab shows "No sessions
+  // currently available" permanently, implying logging is off when it is not.
+  //
+  // It covers the badges too, so there is no third call here: reload_logs also
+  // populates `current_user_badges` from its second query (:642-650), and
+  // `current_user_badges` is a dependent key of `update_current_badges`
+  // (:659-666) — so setting it fires that observer through the normal chain.
+  //
+  // reload_logs carries its own online / cache-sentinel guards, so calling it
+  // directly cannot fetch in a state the observer would have skipped.
+  didInsertElement() {
+    this._super(...arguments);
+    try { this.update_selected(); } catch (e) { /* board list stays empty */ }
+    try { this.checkForBlankSlate(); } catch (e) { /* offline list stays empty */ }
+    try { this.reload_logs(); } catch (e) { /* sessions + badges stay empty */ }
+    if(this._pending_index_nav) {
+      var nav = this._pending_index_nav;
+      this._pending_index_nav = null;
+      this.send('set_index_nav', nav);
+    }
+    /* The Extras drawer handed off by a switch from the Extras page (utils/basic_landing.js).
+       Opened through `toggle_extras`, the Extras card's own action, so the arrival gets exactly
+       the click's behaviour: the drawer opens and the card scrolls to the top once it renders.
+       After the tab above, because the drawer lives on the Actions tab. */
+    if(this._pending_open_extras) {
+      this._pending_open_extras = false;
+      if(!this.get('show_main_extras')) { this.send('toggle_extras'); }
+    }
+    if(this._pending_open_supervisee) {
+      var name = this._pending_open_supervisee;
+      this._pending_open_supervisee = null;
+      this._expand_supervisee_card(name);
+    }
+    // The first place for the View menu; the observer below keeps it current (Basic -> Modern).
+    this._publish_basic_home_place();
+  },
+
+  /* Expand one communicator's card: its Extras panel, the state the card's own Extras button
+     toggles (`openSuperviseeId`, classic-view.hbs `ch-comm__extras-panel`), then scroll the card
+     to the top once the tab has rendered it. A name not on this caseload does nothing.
+     MODELING-ONLY COMMUNICATORS ARE HIGHLIGHTED, NOT EXPANDED (2026-10-02, adversarial review), as
+     the Modern caseload's deep link does (controllers/caseload.js): the card's actions are for full
+     supervisors. AN EMPTY LIST IS WAITED FOR: the communicators may not have loaded when the page
+     opened, so the name is kept and retried when they arrive (`expand_when_supervisees_arrive`). */
+  _expand_supervisee_card(name) {
+    var list = this.get('decoratedSupervisees') || [];
+    var match = list.find(function(s) { return s && s.user_name === name; });
+    if(!match || match.id == null) {
+      this._awaiting_supervisee = list.length ? null : name;
+      return;
+    }
+    this._awaiting_supervisee = null;
+    if(match.modeling_only) {
+      this.set('highlightedSuperviseeId', match.id);
+    } else {
+      this.set('openSuperviseeId', match.id);
+    }
+    var _this = this;
+    window.requestAnimationFrame(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var panel = document.getElementById('ch-extras-' + match.id);
+      scrollBelowHeader(panel && panel.closest('.ch-comm'));
+    });
+  },
+
+  // The Extras drawer's "Learn and Setup" tile (classic-view.hbs), hidden for now (requested
+  // 2026-09-30) until the home page tours are confirmed to work. Set true to bring it back.
+  showLearnAndSetupTile: false,
+
+  // NOTE: deliberately NOT named `user`. index.hbs passes `@user={{this.user}}`,
+  // which on the index controller is the blank `createRecord('user')` used by the
+  // registration form (routes/index.js#setupController) — a passed argument
+  // overrides a class-defined property, so a computed named `user` here would be
+  // silently replaced by that empty record and the rail would render a blank name.
+
+  /* IS THIS ALREADY THE HOME PAGE? -- the gate on the rail's Home Page row (requested
+   * 2026-09-24: "make sure the Home Page button does not show when the user is on their home
+   * page"). A row that navigates to where you already are is dead weight in a short list.
+   *
+   * IT IS A REAL QUESTION, not a constant. `Dashboard::ClassicView` renders on THREE routes --
+   * `index`, `bento` and `user/extras` (grep `Dashboard::ClassicView` in app/templates) -- and
+   * `Dashboard::ClassicRail` renders on the organisation pages, so neither copy of the rail can
+   * assume it is or is not on the dashboard.
+   *
+   * ASKED OF `utils/primary_nav`, which already owns "which routes are the home page" (`index`
+   * and `user.home` both answer 'home'). A third list here is exactly the drift this session
+   * has been removing; the gates are passed empty because only the ungated 'home' answer
+   * matters. */
+  onHomePage: computed('appState.current_route', function() {
+    return pillForRoute(this.appState.get('current_route') || '', null, {}) === 'home';
+  }),
+
+  classicUser: computed('appState.currentUser', function() {
+    return this.appState.get('currentUser');
+  }),
+
+  // The active tab as a plain string, for the <=550px <select>. `index_nav` is a hash
+  // ({main: true}, {boards: true}, ...) and can also hold values the tab strip has no
+  // button for -- 'supervisors' (authenticated-view.js:883, :1711) and 'logging' (:1718).
+  // Falling through to 'main' for those mirrors the strip exactly, whose Actions button
+  // is styled active via `{{unless (or supervisees boards updates)}}`.
+  currentTab: computed('index_nav', function() {
+    var nav = this.get('index_nav') || {};
+    if(nav.supervisees) { return 'supervisees'; }
+    if(nav.boards) { return 'boards'; }
+    if(nav.updates) { return 'updates'; }
+    return 'main';
+  }),
+
+  // Which supervisee's action menu is open, by id. One at a time — opening a
+  // second closes the first, which is what a menu strip should do.
+  openSuperviseeId: null,
+
+  // `known_supervisees` entries are raw payload objects, so decorate each with the
+  // facts the menu gates on. `resolved_home_board_key` uses the SAME resolver the
+  // caseload page uses (utils/supervisee_home_board.js): reading `home_board_key`
+  // alone — as the 2020 template did — misses three other shapes the payload can
+  // use, which would wrongly grey out Model/Speak for a supervisee who has a board.
+  //
+  // DECORATE IN PLACE — DO NOT REBUILD THE ENTRIES AS COPIES. This returned the raw
+  // entries through `Object.assign({}, s)` copies, and the cards then froze: the
+  // parent writes `current_badge` / `earned_badge` (authenticated-view.js#reload_logs)
+  // and `goal` (#set_goal) onto the RAW entries with `emberSet`, and a write to an
+  // array ELEMENT does not invalidate a dependent key on the array itself. The
+  // computed stayed cached, the copies never saw the write, and a supervisor who set
+  // a goal kept reading "no goal set" until a full browser reload — the same symptom
+  // controllers/caseload.js works around with `current.reload()` at :573.
+  //
+  // `.@each.goal` would not fix it either: `known_supervisees` (models/user.js:871)
+  // returns a NATIVE array, and `@each` needs an EmberArray to observe. Handing back
+  // the same objects the writers mutate sidesteps dependent-key tracking entirely,
+  // and it is the idiom this data already uses — models/user.js:876 marks `online` on
+  // these very entries the same way.
+  decoratedSupervisees: computed('appState.currentUser.known_supervisees', function() {
+    var list = this.appState.get('currentUser.known_supervisees') || [];
+    list.forEach(function(s) {
+      emberSet(s, 'resolved_home_board_key', resolveSuperviseeHomeBoardKey(s));
+    });
+    return list;
+  }),
+
+  // Communicators-tab filter. Mirrors the caseload page's `superviseeFilter` /
+  // `filteredSupervisees` / `clearSuperviseeFilter` trio (controllers/caseload.js:113,
+  // :201, :482) rather than inventing a second filtering idiom for the same data — the
+  // two pages render the same `known_supervisees` list and should behave the same.
+  superviseeFilter: '',
+
+  boardFilter: '',
+
+  /**
+   * Boards narrowed by `boardFilter`. Mirrors `filteredSupervisees` above so the two
+   * filters on this page behave the same way.
+   *
+   * GUARDED ON `list.filter`, deliberately. `current_boards`
+   * (authenticated-view.js:492) is not one type — it returns `popularBoards`,
+   * `personalBoards`, `homeBoards` or `recentOfflineBoards` depending on the subtab, some
+   * of which are plain objects carrying `loading` / `error` flags rather than collections.
+   * The parent guards the same way at :510 for the same reason. When there is nothing to
+   * filter this hands `current_boards` straight back, so the loading and error branches in
+   * the template keep working untouched.
+   *
+   * `b.get ? ... : ...` because these entries are Ember objects on some subtabs and plain
+   * payload objects on others.
+   */
+  filteredBoards: computed('current_boards', 'boardFilter', function() {
+    var list = this.get('current_boards');
+    var q = (this.get('boardFilter') || '').trim().toLowerCase();
+    if(!q || !list || !list.filter) { return list; }
+    return list.filter(function(b) {
+      if(!b) { return false; }
+      var name = (b.get ? b.get('name') : b.name) || '';
+      var key = (b.get ? b.get('key') : b.key) || '';
+      return String(name).toLowerCase().indexOf(q) !== -1 ||
+             String(key).toLowerCase().indexOf(q) !== -1;
+    });
+  }),
+
+  // Case-insensitive substring match against the two things this card actually shows:
+  // the user_name (classic-view.hbs:354) and the goal summary (:356). Caseload also
+  // matches `displayed_goal_summary` and `active_goals`; neither is present on the raw
+  // `known_supervisees` payload this page renders, so matching them here would be dead
+  // code. Entries are PLAIN objects (Object.assign copies above), so this reads
+  // properties directly and must not use `.get()`.
+  filteredSupervisees: computed('decoratedSupervisees', 'superviseeFilter', function() {
+    var list = this.get('decoratedSupervisees') || [];
+    var q = (this.get('superviseeFilter') || '').trim().toLowerCase();
+    if(!q) { return list; }
+    return list.filter(function(s) {
+      if(!s) { return false; }
+      var name = (s.user_name ? String(s.user_name) : '').toLowerCase();
+      if(name.indexOf(q) !== -1) { return true; }
+      var goal = (s.goal && s.goal.summary ? String(s.goal.summary) : '').toLowerCase();
+      return goal.indexOf(q) !== -1;
+    });
+  }),
+
+  // Hidden for a single supervisee — one card needs no filter — but kept visible once
+  // there is text in it, so narrowing to one match cannot pull the input out from under
+  // the person still typing. Same rule and the same reason as caseload.js:233.
+  showSuperviseeFilter: computed('decoratedSupervisees', 'superviseeFilter', function() {
+    var count = (this.get('decoratedSupervisees') || []).length;
+    return count > 1 || (this.get('superviseeFilter') || '').length > 0;
+  }),
+
+  // Home board lives on preferences.  // Home board lives on preferences. `home_board_pending` covers the window where
+  // a board was picked and is still being copied server-side, which must NOT read
+  // as "no home board yet" — that would send the user back to the picker mid-copy.
+  homeBoardKey: computed('appState.currentUser.preferences.home_board.key', function() {
+    return this.appState.get('currentUser.preferences.home_board.key');
+  }),
+
+  homeBoardPending: computed('homeBoardKey', 'appState.currentUser.home_board_pending', function() {
+    return !this.get('homeBoardKey') && !!this.appState.get('currentUser.home_board_pending');
+  }),
+
+  supervisorCount: computed('appState.currentUser.supervisors', function() {
+    return (this.appState.get('currentUser.supervisors') || []).length;
+  }),
+
+  hasSupervisors: computed('supervisorCount', function() {
+    return this.get('supervisorCount') > 0;
+  }),
+
+  loggingEnabled: computed('appState.currentUser.preferences.logging', function() {
+    return !!this.appState.get('currentUser.preferences.logging');
+  }),
+
+  // Logging can be on WITHOUT geo-tracking, which the classic status line has
+  // always distinguished ("enabled (no geo)").
+  loggingWithGeo: computed('loggingEnabled', 'appState.currentUser.preferences.geo_logging', function() {
+    return !!(this.get('loggingEnabled') && this.appState.get('currentUser.preferences.geo_logging'));
+  }),
+
+  // Sessions only mean something once logging is on; the classic Recent Sessions
+  // block otherwise explains itself instead of showing an empty list.
+  showSessionList: computed('loggingEnabled', 'logs', function() {
+    return this.get('loggingEnabled') || !!(this.get('logs') || {}).length;
+  }),
+
+  /**
+   * Rail collapse. Stored in `stashes`, not in a user preference: this is a
+   * per-DEVICE viewing convenience — a supporter on a laptop and the same account on a
+   * classroom tablet want different answers — and a preference would sync one choice to
+   * both and cost a server round-trip per toggle. `stashes.persist` writes through to
+   * local storage, so the choice survives a reload on the device that made it.
+   *
+   * Reads through `stashes.classic_rail_collapsed` so the computed invalidates when
+   * `persist` sets the key (persist -> stashes.set, _stashes.js:231).
+   */
+  railCollapsed: computed('stashes.classic_rail_collapsed', function() {
+    return !!this.stashes.get('classic_rail_collapsed');
+  }),
+
+  actions: {
+    // Collapse the rail to its icons, or restore it. See `railCollapsed` for why the
+    // state lives in stashes rather than in a preference.
+    toggle_rail: function() {
+      this.stashes.persist('classic_rail_collapsed', !this.get('railCollapsed'));
+    },
+
+    // OVERRIDE. The parent (authenticated-view.js:1651) records the chosen tab and, for
+    // `updates`, marks notifications read; all of that still has to happen, so this calls
+    // through first and only then adds its own behaviour.
+    //
+    // The BOARDS tab collapses the rail. That tab renders a grid whose tiles size themselves
+    // to the available width, so it is the one tab that can actually use the ~270px the rail
+    // gives back; the other three are a fixed-width column of cards and gain nothing.
+    //
+    // ONE-WAY, on purpose. It does not re-expand on the way out, and it does not lock the
+    // rail: the toggle still works while Boards is open, and a manual choice made there
+    // survives, because this writes the same stashed key the toggle does rather than a
+    // separate override. Restoring the previous state on leaving would mean remembering a
+    // second value and would silently undo an expand the user had just asked for.
+    //
+    // Catches the <=550px `<select>` too — `handleTabSelect` (:71) sends this same action
+    // rather than duplicating the logic.
+    set_index_nav: function(nav) {
+      this._super.apply(this, arguments);
+      if(nav == 'boards') {
+        this.stashes.persist('classic_rail_collapsed', true);
+      }
+    },
+
+    // `start_home_tour`, NOT `auto_open_home_tour` (fixed 2026-09-14). The comment here used
+    // to claim this was "the same signal the navbar trigger uses" — it was not. The navbar
+    // trigger calls `onStartTour` → `send('startTour')`, a plain start;
+    // `auto_open_home_tour` is the newly-registered-user signal, and consuming it binds
+    // `afterComplete` → `transitionTo('board-picker')` (guided-tour.js#_startHomeAutoOpen),
+    // so finishing OR cancelling the tour would have thrown the user off the home page —
+    // and would have sent a supporter to the caseload tour instead of touring this page.
+    // `start_home_tour` is the manual equivalent: same "one entry point, no direct call into
+    // the component" shape, without the registration handoff.
+    start_tour: function() {
+      this.appState.set('start_home_tour', true);
+    },
+
+    // OVERRIDE. The parent switches an inline dashboard tab (`activeTab`), which
+    // this template has no tab strip for; the classic page has always opened the
+    // Supervision settings modal instead (ef72e6147^:controllers/index.js:504).
+    manage_supervisors: function() {
+      modal.open('supervision-settings', {user: this.appState.get('currentUser')});
+    },
+
+    // OVERRIDE. The parent flips `new_index`, the long-dead 2020 dashboard toggle
+    // (inert since ef72e6147 — application.js#content_class emits "new_index"
+    // unconditionally). Here it must flip the preference that actually drives THIS
+    // page, otherwise the classic user has no way back to modern from the home
+    // page at all — they would have to open a board and use its actions menu.
+    new_dashboard: function() {
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.appState.get('effective_view_user');
+      if(!user) { return; }
+      user.set('preferences.board_view_style', 'modern');
+      user.save().then(null, function() { });
+      modal.success(i18n.t('switched_to_card_view', "Switched to Modern View. You can go back to Basic any time from the View menu."));
+    },
+
+    // OVERRIDE. The parent's `toggle_extras` (authenticated-view.js:1669) only flips
+    // `show_main_extras`. That flag is read nowhere but this template, and this template
+    // is its only caller — but the action lives on the shared class, so it is overridden
+    // here rather than edited there, keeping the "no edits to authenticated-view.js"
+    // contract this file opens with.
+    //
+    // The drawer renders BELOW the Actions row (classic-view.hbs:705), so when that row
+    // sits mid-page the ten revealed tiles open past the bottom of the screen and the
+    // click reads as having done nothing. Scrolling the Extras card itself to the top
+    // puts the drawer in the space below it.
+    //
+    // ON OPEN ONLY. Scrolling on close would yank the page upward as the user is putting
+    // the drawer away, which is worse than not scrolling — this app's users include
+    // scanning and eye-gaze users for whom an unrequested viewport jump costs a
+    // re-acquire. `super` flips the flag first, so the value read here is the NEW one.
+    //
+    // DEFERRED, because the scroll depends on the drawer existing: until those ten tiles
+    // are in the DOM the page may not be tall enough to bring this row to the top, and
+    // the scroll would silently fall short.
+    //
+    // `requestAnimationFrame` and not `scheduleOnce('afterRender')`: Ember's render queue
+    // flushes synchronously before the browser hands out the next animation frame, so the
+    // drawer is in the DOM by the time this runs — and it keeps the component free of
+    // `@ember/runloop`, which `ember/no-runloop` forbids in new code.
+    toggle_extras: function() {
+      this._super.apply(this, arguments);
+      if(!this.get('show_main_extras')) { return; }
+      var _this = this;
+      window.requestAnimationFrame(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        scrollBelowHeader(document.querySelector('.ch-tile--extras-toggle'));
+      });
+    },
+
+    // Menu open/close. Toggling the already-open one closes it.
+    toggle_supervisee_menu: function(id) {
+      this.set('openSuperviseeId', this.get('openSuperviseeId') === id ? null : id);
+    },
+
+    // Mirrors controllers/caseload.js#caseload_set_home_board: a supervisee with no
+    // board is sent to the standalone picker FOR THAT USER, after confirming the
+    // supervisor actually holds edit/supervise permission on them. Modeling-only
+    // links cannot set a board at all, so they never reach here (the template gates
+    // the entry the same way the caseload row does).
+    set_supervisee_home_board: function(supervisee) {
+      var _this = this;
+      if(!supervisee || supervisee.modeling_only) { return; }
+      var rawId = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      if(rawId == null) { return; }
+      this.get('store').findRecord('user', rawId).then(function(user_model) {
+        if(!user_model.get('permissions.edit') && !user_model.get('permissions.supervise')) {
+          modal.error(i18n.t('not_allowed_user_long', "It appears you don't have permission to access this user's information"));
+          return;
+        }
+        _this.get('router').transitionTo('board-picker', {queryParams: {user_id: user_model.get('id')}});
+      }, function() {
+        modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
+      });
+    },
+
+    clearSuperviseeFilter: function() {
+      this.set('superviseeFilter', '');
+    },
+
+    clearBoardFilter: function() {
+      this.set('boardFilter', '');
+    },
+
+    // Notifications + recent sessions, reachable once logging is producing them.
+    load_sessions: function() {
+      var user_name = this.appState.get('currentUser.user_name');
+      if(!user_name) { return; }
+      this.get('router').transitionTo('user.logs', user_name);
+    }
+  },
+
+  /* System Settings in the Rooms row's place for a site admin with no org and no rooms: the
+     third alternative of the one slot (utils/admin_nav), so it never shows beside either. */
+  showAdminRow: computed('appState.currentUser.{admin,is_admin,permissions,has_management_responsibility}',
+                         'appState.currentUser.supervised_units.[]', function() {
+    return showsAdminSlot(this.appState.get('currentUser'));
+  }),
+
+  /* THE COMMUNICATORS TAB, drawn for everyone the Caseload admits (2026-10-02, requested: "make it
+     open communicators section with a drawn tab"): Basic's landing for the Caseload is this tab,
+     so anyone who can be sent here must be able to see it. Modeling-only accounts keep their
+     earlier exclusion from the strip (the {{#unless}} around it in the template). */
+  showCommunicatorsTab: computed('app_state.currentUser.{supporter_role,supporter_view,modeling_only}',
+                                 'app_state.currentUser.known_supervisees.[]',
+                                 'app_state.currentUser.supervisees.[]', function() {
+    var user = this.get('app_state.currentUser');
+    return !this.get('app_state.currentUser.modeling_only') && has_caseload_access(user);
+  }),
+
+  /* WHERE YOU ARE ON THE BASIC HOME, for the View menu (2026-10-02, requested: Basic -> Modern
+     keeps your place). The tab, whether the Extras drawer is open and which communicator card is
+     expanded are this component's own state, so it publishes them as `app_state.basic_home_place`
+     ({tab, extras, supervisee}); components/view-switcher.js reads it through
+     utils/basic_landing.js modern_landing_for. Cleared when this page goes away, so a stale place
+     can never send a switch made elsewhere. */
+  publish_basic_home_place: observer('currentTab', 'show_main_extras', 'openSuperviseeId', function() {
+    this._publish_basic_home_place();
+  }),
+  _publish_basic_home_place() {
+    if(this.isDestroying || this.isDestroyed) { return; }
+    var open_id = this.get('openSuperviseeId');
+    var open = open_id != null && (this.get('decoratedSupervisees') || []).find(function(s) { return s && s.id === open_id; });
+    this.get('app_state').set('basic_home_place', {
+      tab: this.get('currentTab'),
+      extras: !!this.get('show_main_extras'),
+      supervisee: (open && open.user_name) || null
+    });
+  },
+  willDestroyElement() {
+    this._super(...arguments);
+    this.get('app_state').set('basic_home_place', null);
+  },
+
+  /* The communicator list arriving after a caseload landing (see _expand_supervisee_card). */
+  highlightedSuperviseeId: null,
+  expand_when_supervisees_arrive: observer('decoratedSupervisees', function() {
+    if(this._awaiting_supervisee && !this.isDestroying && !this.isDestroyed) {
+      this._expand_supervisee_card(this._awaiting_supervisee);
+    }
+  }),
+});

@@ -512,15 +512,15 @@ var evaluation = {
   },
   sections: function() {
     var res = [];
-    res.push({id: 'intro', name: evaluation.i18n.t('introduction', 'Introduction'), description: evaluation.i18n.t('brief_introduction', "A short introduction, including instructions, for the evaluation tool")});
-    res.push({id: 'find_target', name: evaluation.i18n.t('find_targets', 'Find Targets'), description: evaluation.i18n.t('find_target_level', "Find a target in a grid of empty buttons")});
-    res.push({id: 'diff_target', name: evaluation.i18n.t('differentiate_targets', 'Differentiate Targets'), description: evaluation.i18n.t('diff_target_level', "Find a target in a grid of populated buttons")});
-    res.push({id: 'symbols', name: evaluation.i18n.t('alternate_symbols', 'Alternate Symbol Libraries'), description: evaluation.i18n.t('symbols_level', "Find targets using different symbol libraries")});
-    res.push({id: 'find_shown', name: evaluation.i18n.t('named_targets', 'Find Targets by Name'), description: evaluation.i18n.t('find_shown_level', "Find named targets from different parts of speech")});
-    res.push({id: 'open_ended', name: evaluation.i18n.t('open_ended', 'Open-Ended Comments'), description: evaluation.i18n.t('open_ended_level', "Comment on open-ended image prompts")});
-    res.push({id: 'categories', name: evaluation.i18n.t('categorization', 'Categorization'), description: evaluation.i18n.t('categories_level', "Find targets by category or grouping")});
-    res.push({id: 'inclusion_exclusion_association', name: evaluation.i18n.t('inclusion_exclusion_association', 'Inclusion/Exclusion/Association'), description: evaluation.i18n.t('inclusion_exclusion_association_level', "Find targets by inclusion, exclusion or association")});
-    res.push({id: 'literacy', name: evaluation.i18n.t('literacy', 'Literacy'), description: evaluation.i18n.t('literacy_level', "Find the words (no pictures) that identify or describe images")});
+    res.push({id: 'intro', name: evaluation.i18n.t('introduction', "Introduction"), description: evaluation.i18n.t('brief_introduction', "A short introduction, including instructions, for the evaluation tool")});
+    res.push({id: 'find_target', name: evaluation.i18n.t('find_targets', "Find Targets"), description: evaluation.i18n.t('find_target_level', "Find a target in a grid of empty buttons")});
+    res.push({id: 'diff_target', name: evaluation.i18n.t('differentiate_targets', "Differentiate Targets"), description: evaluation.i18n.t('diff_target_level', "Find a target in a grid of populated buttons")});
+    res.push({id: 'symbols', name: evaluation.i18n.t('alternate_symbols', "Alternate Symbol Libraries"), description: evaluation.i18n.t('symbols_level', "Find targets using different symbol libraries")});
+    res.push({id: 'find_shown', name: evaluation.i18n.t('named_targets', "Find Targets by Name"), description: evaluation.i18n.t('find_shown_level', "Find named targets from different parts of speech")});
+    res.push({id: 'open_ended', name: evaluation.i18n.t('open_ended', "Open-Ended Comments"), description: evaluation.i18n.t('open_ended_level', "Comment on open-ended image prompts")});
+    res.push({id: 'categories', name: evaluation.i18n.t('categorization', "Categorization"), description: evaluation.i18n.t('categories_level', "Find targets by category or grouping")});
+    res.push({id: 'inclusion_exclusion_association', name: evaluation.i18n.t('inclusion_exclusion_association', "Inclusion/Exclusion/Association"), description: evaluation.i18n.t('inclusion_exclusion_association_level', "Find targets by inclusion, exclusion or association")});
+    res.push({id: 'literacy', name: evaluation.i18n.t('literacy', "Literacy"), description: evaluation.i18n.t('literacy_level', "Find the words (no pictures) that identify or describe images")});
     return res;
   },
   jump_to: function(section_id) {

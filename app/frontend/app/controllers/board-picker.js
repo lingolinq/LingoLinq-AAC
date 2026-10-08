@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import openRecommendedHomeBoard from '../utils/recommended_home_board';
 import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
+import { after_pick_for_other } from '../utils/board_picker_landing';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
@@ -179,7 +180,7 @@ export default Controller.extend({
     };
   },
 
-  _afterHomeBoardAssigned: function(user) {
+  _afterHomeBoardAssigned: function(user, home) {
     var _this = this;
     if (_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
       _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
@@ -190,7 +191,13 @@ export default Controller.extend({
     }
     modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
     var userName = user && user.get && user.get('user_name');
-    if (userName) {
+    // The new home board, as utils/assign-vocal-flair-home.js hands it to `onSuccess`.
+    var homeKey = home && home.get && home.get('key');
+    if (userName && homeKey) {
+      /* By view (2026-09-30), as the overlay's "Pick this Board" does: Modern opens their boards
+         list, Basic their new home board (utils/board_picker_landing.js). */
+      after_pick_for_other(_this.get('router'), homeKey, userName, _this.appState.get('effective_view_user'));
+    } else if (userName) {
       _this.get('router').transitionTo('user.boards', userName);
     } else {
       _this.appState.return_to_index();
@@ -224,9 +231,9 @@ export default Controller.extend({
       _this.set('assigning_home_board', true);
       assignVocalFlair84AsHome(user, {
         locale: _this.appState.get('label_locale'),
-        onSuccess: function() {
+        onSuccess: function(home) {
           _this.set('assigning_home_board', false);
-          _this._afterHomeBoardAssigned(user);
+          _this._afterHomeBoardAssigned(user, home);
         }
       }).catch(function() {
         _this.set('assigning_home_board', false);

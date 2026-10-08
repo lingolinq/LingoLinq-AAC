@@ -69,7 +69,7 @@ export default modal.ModalController.extend({
     },
     find_url: function() {
       this.set('sound_preview', {
-        name: i18n.t('web_sound', 'web sound'),
+        name: i18n.t('web_sound', "web sound"),
         url: this.get('url')
       });
     },

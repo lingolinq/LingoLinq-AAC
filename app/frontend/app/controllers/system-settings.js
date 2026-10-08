@@ -89,18 +89,18 @@ export default Controller.extend({
     var groups = [];
     if (this.get('showFeatureGroups') && this.get('canEditSiteWide')) {
       groups.push({
-        label: i18n.t('system_settings_scope_site_groups', 'Site & feature groups'),
+        label: i18n.t('system_settings_scope_site_groups', "Site & feature groups"),
         options: [
-          {id: 'default', name: i18n.t('system_settings_default_org', 'Default (LingoLinq)')},
-          {id: 'group:canary', name: i18n.t('system_settings_group_canary', 'Canary')},
-          {id: 'group:beta', name: i18n.t('system_settings_group_beta', 'Beta opt-in')}
+          {id: 'default', name: i18n.t('system_settings_default_org', "Default (LingoLinq)")},
+          {id: 'group:canary', name: i18n.t('system_settings_group_canary', "Canary")},
+          {id: 'group:beta', name: i18n.t('system_settings_group_beta', "Beta opt-in")}
         ]
       });
     } else if (this.get('canEditSiteWide')) {
       groups.push({
-        label: i18n.t('system_settings_org_label', 'Organization'),
+        label: i18n.t('system_settings_org_label', "Organization"),
         options: [
-          {id: 'default', name: i18n.t('system_settings_default_org', 'Default (LingoLinq)')}
+          {id: 'default', name: i18n.t('system_settings_default_org', "Default (LingoLinq)")}
         ]
       });
     }
@@ -115,7 +115,7 @@ export default Controller.extend({
     });
     if (orgOptions.length) {
       groups.push({
-        label: i18n.t('system_settings_scope_organizations', 'Organizations'),
+        label: i18n.t('system_settings_scope_organizations', "Organizations"),
         options: orgOptions
       });
     }

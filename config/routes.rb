@@ -121,6 +121,10 @@ LingoLinq::Application.routes.draw do
   get 'organizations/:org_id/rooms/:room_id' => ember_handler
   get ':id/confirm_registration/:key' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/password_reset/:key' => ember_handler, :constraints => {:id => user_id_regex}
+  # Classic view board (Ember user.board-alt, app/frontend/app/router.js:150). Kept below
+  # ':id/icon' and ':id/history' so a board whose key is <user>/board keeps those URLs (#1037).
+  # The cost: a Classic board whose slug is literally 'icon' still does not hard-load.
+  get ':id/board/:boardname' => ember_handler, :constraints => {:id => user_id_regex}
   post 'api/v1/status' => 'session#status'
   get 'api/v1/status' => 'session#status'
   get 'api/v1/token_check' => 'session#token_check'

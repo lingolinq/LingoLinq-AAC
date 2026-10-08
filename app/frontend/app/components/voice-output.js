@@ -103,11 +103,11 @@ export default Component.extend({
     if (result.length > 1) {
       result.unshift({
         id: 'default',
-        name: i18n.t('select_a_voice', '[ Select A Voice ]')
+        name: i18n.t('select_a_voice', "[ Select A Voice ]")
       });
       result.push({
         id: 'force_default',
-        name: i18n.t('system_default_voice', 'System Default Voice')
+        name: i18n.t('system_default_voice', "System Default Voice")
       });
     }
     return result;
@@ -115,11 +115,11 @@ export default Component.extend({
 
   audio_output_list: computed(function() {
     return [
-      { id: 'default', name: i18n.t('default_audio', 'Play on Default Audio') },
-      { id: 'headset', name: i18n.t('headset', 'Play on Headset if Connected') },
-      { id: 'speaker', name: i18n.t('speaker', 'Play on Speaker even with Headset Connected') },
-      { id: 'headset_or_earpiece', name: i18n.t('headset_or_earpiece', 'Play on Headset or Earpiece') },
-      { id: 'earpiece', name: i18n.t('earpiece', 'Play on Earpiece') }
+      { id: 'default', name: i18n.t('default_audio', "Play on Default Audio") },
+      { id: 'headset', name: i18n.t('headset', "Play on Headset if Connected") },
+      { id: 'speaker', name: i18n.t('speaker', "Play on Speaker even with Headset Connected") },
+      { id: 'headset_or_earpiece', name: i18n.t('headset_or_earpiece', "Play on Headset or Earpiece") },
+      { id: 'earpiece', name: i18n.t('earpiece', "Play on Earpiece") }
     ];
   }),
 

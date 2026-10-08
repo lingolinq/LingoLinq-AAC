@@ -341,6 +341,70 @@ describe('soundGrabber', function() {
     });
   });
 
+  describe('recording language', function() {
+    beforeEach(function() {
+      app_state.set('vocalization_locale', null);
+    });
+    afterEach(function() {
+      app_state.set('vocalization_locale', null);
+    });
+
+    var saved_sound = function() {
+      var res = {sound: null};
+      stub(editManager, 'change_button', function() { });
+      stub(contentGrabbers, 'save_record', function(s) {
+        res.sound = s;
+        return RSVP.resolve(EmberObject.create({check_transcription: function() { }}));
+      });
+      return res;
+    };
+
+    it('should send the board\'s speaking language with a new recording', function() {
+      var res = saved_sound();
+      controller.set('board', EmberObject.create({locale: 'en', translations: {current_vocalization: 'es_US'}}));
+      soundGrabber.setup(button, controller);
+      soundGrabber.select_sound_preview({url: wav_data_uri, name: "sound.wav"});
+      waitsFor(function() { return res.sound; });
+      runs(function() {
+        expect(res.sound.get('locale')).toEqual('es_US');
+      });
+    });
+
+    it('should prefer the speaking language chosen for the session', function() {
+      var res = saved_sound();
+      app_state.set('vocalization_locale', 'fr_CA');
+      controller.set('board', EmberObject.create({locale: 'en', translations: {current_vocalization: 'es_US'}}));
+      soundGrabber.setup(button, controller);
+      soundGrabber.select_sound_preview({url: wav_data_uri, name: "sound.wav"});
+      waitsFor(function() { return res.sound; });
+      runs(function() {
+        expect(res.sound.get('locale')).toEqual('fr_CA');
+      });
+    });
+
+    it('should fall back to the board locale', function() {
+      var res = saved_sound();
+      controller.set('board', EmberObject.create({locale: 'fr'}));
+      soundGrabber.setup(button, controller);
+      soundGrabber.select_sound_preview({url: wav_data_uri, name: "sound.wav"});
+      waitsFor(function() { return res.sound; });
+      runs(function() {
+        expect(res.sound.get('locale')).toEqual('fr');
+      });
+    });
+
+    it('should leave the language out when there is no board', function() {
+      var res = saved_sound();
+      controller.set('board', null);
+      soundGrabber.setup(button, controller);
+      soundGrabber.select_sound_preview({url: wav_data_uri, name: "sound.wav"});
+      waitsFor(function() { return res.sound; });
+      runs(function() {
+        expect(res.sound.get('locale')).toEqual(undefined);
+      });
+    });
+  });
+
   describe("play_audio", function() {
     it('should toggle playing correctly', function() {
       var callbacks = {};

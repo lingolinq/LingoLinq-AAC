@@ -24,6 +24,15 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     var self = this;
+    /* The <ModalDialog> handlers, assigned HERE and not in didInsertElement (2026-10-02):
+       <ModalDialog> reads @action/@opening/@closing on its FIRST render, before didInsertElement,
+       and a later plain assignment never re-binds -- the class components/copying-board.js
+       documents. With @action undefined, a backdrop click fell back to utils/modal.close(), a
+       SUCCESS with no decision, and the board preview's "Copy For..." went on to open the
+       copying window. Now a backdrop click runs `close` below: utils modal.close(false), a cancel. */
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
@@ -167,11 +176,11 @@ export default Component.extend({
 
   locales: computed(function() {
     const list = i18n.get('translatable_locales');
-    const res = [{ name: i18n.t('choose_locale', '[Choose a Language]'), id: '' }];
+    const res = [{ name: i18n.t('choose_locale', "[Choose a Language]"), id: '' }];
     for (const key in list) {
       res.push({ name: list[key], id: key });
     }
-    res.push({ name: i18n.t('unspecified', 'Unspecified'), id: '' });
+    res.push({ name: i18n.t('unspecified', "Unspecified"), id: '' });
     return res;
   }),
 
@@ -184,16 +193,16 @@ export default Component.extend({
     const u = this.get('current_user');
     const list = [];
     list.push({ name: i18n.t('original_symbols', "Default symbols"), id: 'original' });
-    list.push({ name: i18n.t('use_opensymbols', 'Opensymbols.org'), id: 'opensymbols' });
+    list.push({ name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols' });
     if (u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
-      list.push({ name: i18n.t('use_lessonpix', 'LessonPix symbol library'), id: 'lessonpix' });
-      list.push({ name: i18n.t('use_symbolstix', 'SymbolStix Symbols'), id: 'symbolstix' });
-      list.push({ name: i18n.t('use_pcs', 'PCS Symbols by Tobii Dynavox'), id: 'pcs' });
+      list.push({ name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix' });
+      list.push({ name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix' });
+      list.push({ name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs' });
     }
-    list.push({ name: i18n.t('use_twemoji', 'Emoji icons (authored by Twitter)'), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', 'Noun Project black outlines'), id: 'noun-project' });
-    list.push({ name: i18n.t('use_arasaac', 'ARASAAC free symbols'), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', 'Tawasol'), id: 'tawasol' });
+    list.push({ name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji' });
+    list.push({ name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project' });
+    list.push({ name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac' });
+    list.push({ name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol' });
     return list;
   }),
 
@@ -273,7 +282,11 @@ export default Component.extend({
 
   actions: {
     close() {
-      this.get('modal').close(false);
+      // utils/modal, not the service (2026-10-02): its close(false) rejects the open() promise AND
+      // clears utils' own `_component_based_template`. The service's close left that set, so is_open()
+      // stayed true after the X or Cancel -- and, once Escape and backdrop clicks reach this action
+      // (onClose bound in init, above), after those too.
+      modal.close(false);
     },
     opening() {
       this.runOpening();
@@ -349,14 +362,5 @@ export default Component.extend({
       }
       this.get('modal').close(payload);
     }
-  },
-
-  didInsertElement() {
-  this._super(...arguments);
-  var self = this;
-    this.onClose = function() { self.send('close'); };
-    this.onOpening = function() { self.send('opening'); };
-    this.onClosing = function() { self.send('closing'); };
-},
-
+  }
 });

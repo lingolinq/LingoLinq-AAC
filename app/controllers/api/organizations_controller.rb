@@ -331,6 +331,11 @@ class Api::OrganizationsController < ApplicationController
     end
     res['user_counts']['recent_session_count'] = recent_sessions.count
     res['user_counts']['recent_session_user_count'] = recent_sessions.distinct.count('user_id')
+    # The total those recent users are out of (2026-10-02). The org page's pie subtracts one from
+    # the other (components/stats/recent-sessions.js), so both must count the same people: every
+    # user on the site-admin org, whose recent sessions are system-wide (the `org.admin?` bypass
+    # above), and the approved users everywhere else.
+    res['user_counts']['recent_session_total_users'] = org.admin? ? User.count : res['user_counts']['total_users']
 
     render json: res.to_json
   end
