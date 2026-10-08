@@ -433,6 +433,10 @@ class Organization < ApplicationRecord
     raise ArgumentError, "#{value.inspect} is not a whole number of 0 or more"
   end
 
+  # The cutoff read for a max_logging_cutoff_hours that is not a whole number (see
+  # normalize_data_policy_limits).
+  MALFORMED_CUTOFF_HOURS = 1
+
   # The numeric limits of org's stored policy, read for the strictest-wins merges here and in
   # User#effective_data_policy, which compare them with `<`. update_data_policy casts on write,
   # but a policy stored before it did can hold a String or a value that is not a whole number.
@@ -444,8 +448,6 @@ class Organization < ApplicationRecord
   # which Api::LogsController#index waives for a user viewing their own logs. A malformed value is
   # logged with the organization, the key and the value. Returns a copy; the stored policy is not
   # changed.
-  MALFORMED_CUTOFF_HOURS = 1
-
   def self.normalize_data_policy_limits(policy, org)
     normalized = policy.dup
     DATA_POLICY_NUMERIC_KEYS.each do |key|
@@ -460,13 +462,14 @@ class Organization < ApplicationRecord
         )
         nil
       end
-      if key == 'retention_months'
+      case key
+      when 'retention_months'
         if number && number > 0
           normalized[key] = number
         else
           normalized.delete(key)
         end
-      else
+      when 'max_logging_cutoff_hours'
         normalized[key] = number || MALFORMED_CUTOFF_HOURS
       end
     end

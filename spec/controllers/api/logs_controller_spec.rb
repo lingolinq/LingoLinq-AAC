@@ -522,7 +522,8 @@ describe Api::LogsController, :type => :controller do
         o.save!
         o.add_user(@user.reload.user_name, false, false, false)
       end
-      [48.hours.ago, 30.minutes.ago].each do |at|
+      # 2 hours old is inside the other organization's 24 hours but outside one hour.
+      sessions = [48.hours.ago, 2.hours.ago, 30.minutes.ago].map do |at|
         LogSession.process_new({
           :events => [
             {'timestamp' => at.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
@@ -533,7 +534,7 @@ describe Api::LogsController, :type => :controller do
 
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
-      expect(json['log'].length).to eq(1)
+      expect(json['log'].map{|l| l['id'] }).to eq([sessions[2].global_id])
       expect(json['meta']['logging_cutoff_min']).to eq(1)
     end
 
