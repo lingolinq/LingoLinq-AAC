@@ -62,12 +62,62 @@ about a flag pins it rather than inheriting whatever is set (see `tests/unit/uti
   changed first: `bundle exec rspec spec/models/user_spec.rb:42`.
 - `AuditEvent` rows commit outside the RSpec transaction: scope any `delete_all` to the example's
   own rows.
-- No real network or third-party calls: stub them (Stripe, S3, AI endpoints, mail). Every AI or
-  external call in app code goes through `lib/pii_scrubber.rb`; test that path, never bypass it.
+- No real network or third-party calls (see "External services" below). Every AI or external call
+  in app code goes through `lib/pii_scrubber.rb`; test that path, never bypass it.
 - **No real user data.** Fixtures, factories and cassettes are synthetic; see
   `.claude/rules/data-bearing-paths.md` (Tier 1 boundary) before touching them.
 - Permission and data-isolation code (district / org scoping, supervisor access) gets a negative
   test too: the user who must NOT see the record does not.
+
+### External services: specs never reach the internet
+
+**The rule.** A spec talks only to this machine (Postgres, Redis, a local test server). Every call to
+anything else (S3, OpenSymbols, AI endpoints, Stripe, mail, geolocation, any URL) is replaced by a
+test double. This is the industry standard, not a local preference:
+
+- Google, *Software Engineering at Google*, ch. 11: "small tests aren't allowed to access the network
+  or disk"; medium tests "aren't allowed to make network calls to any system other than `localhost`",
+  because remote machines are "far and away the biggest source of slowness and nondeterminism in most
+  systems". Only large end-to-end tests cross machines.
+  <https://abseil.io/resources/swe-book/html/ch11.html>
+- Martin Fowler, "Eradicating Non-Determinism in Tests": "Testing with such remote systems brings a
+  number of problems, and non-determinism is high on the list"; use a test double, and check the real
+  service separately with contract tests. <https://martinfowler.com/articles/nonDeterminism.html>
+- thoughtbot, "How to Stub External Services in Tests": real requests mean "tests failing
+  intermittently due to connectivity issues", "dramatically slower test suites" and "hitting API rate
+  limits"; the suite blocks them with `WebMock.disable_net_connect!(allow_localhost: true)`.
+  <https://thoughtbot.com/blog/how-to-stub-external-services-in-tests>
+- WebMock, the standard Ruby tool for this: <https://github.com/bblimke/webmock>
+
+**What it cost here** (measured, `docs/task-management/2026-10-07_rspec-speed.md`): four seeding
+examples downloaded and imported a 12 MB board set from public S3 on every run, 575 s of a 934 s
+local suite, while asserting nothing about it. Blocking real requests found 110 more examples
+reaching OpenSymbols, the shared dev uploads bucket, an AI model endpoint and fake hosts, mostly as
+side effects of code added after the specs were written.
+
+**How to write a spec so this does not happen:**
+
+1. **Know what the code under test calls, including side effects.** A spec for "create a board" also
+   runs every callback the board runs (symbol lookups, uploads). Stub every outside call on the path,
+   not only the ones the example asserts on.
+2. **Stub at the outermost seam and let our own code run.** Fake the HTTP request (`stub_request`
+   with WebMock) or the client method that performs it (`fetch_senner_baud_obz`, an uploader's
+   remote call), not the whole feature, so the example still exercises our handling of the response.
+3. **Test failure on purpose.** To cover "the service is down", stub a timeout or an error response.
+   Never point at a fake host (`http://qwer/`, `example.com`) and rely on DNS failing.
+4. **Do not depend on local credentials.** `spec_helper.rb` loads `.env` files, so a developer's
+   machine has real keys and CI has none. A spec must behave the same either way: stub the call,
+   never "skip when no key is set" in a way that runs for real when one is.
+5. **When you add an outside call to app code, add its stub to every spec that reaches it** in the
+   same PR. The network guard below fails any example that forgets.
+6. **To check the real service** (does the S3 file still import, does the API still answer), write a
+   separate contract check that is run on purpose (scheduled, or before seeding), never part of the
+   PR suite.
+
+**The guard.** `spec/spec_helper.rb` loads WebMock with `disable_net_connect!(allow_localhost: true)`,
+so a spec that reaches the internet fails with the URL it tried. Fix such a failure by stubbing the
+call; never by allowing the host or turning the guard off for that spec (Rule 0.14). (Being
+introduced in `traci/perf/rspec-speed`, after the existing outside calls are stubbed.)
 
 ## 4. Frontend unit and integration (QUnit)
 
