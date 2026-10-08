@@ -105,9 +105,11 @@ side effects of code added after the specs were written.
    remote call), not the whole feature, so the example still exercises our handling of the response.
 3. **Test failure on purpose.** To cover "the service is down", stub a timeout or an error response.
    Never point at a fake host (`http://qwer/`, `example.com`) and rely on DNS failing.
-4. **Do not depend on local credentials.** `spec_helper.rb` loads `.env` files, so a developer's
-   machine has real keys and CI has none. A spec must behave the same either way: stub the call,
-   never "skip when no key is set" in a way that runs for real when one is.
+4. **Do not depend on what credentials happen to be set.** `spec_helper.rb` loads `.env` files,
+   including the committed `.env.op.template`, whose values are unresolved 1Password references
+   (`op://...`), in CI as well as locally. A "configured?" check therefore passes with a value that
+   is not a credential, and the code calls the real service. A spec must behave the same whatever
+   is set: stub the call, never rely on "skipped when no key is set".
 5. **When you add an outside call to app code, add its stub to every spec that reaches it** in the
    same PR. The network guard below fails any example that forgets.
 6. **To check the real service** (does the S3 file still import, does the API still answer), write a
