@@ -9,6 +9,12 @@ end.compact
 Dotenv.load(*dotenv_paths) unless dotenv_paths.empty?
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
+# WebMock lets specs stub outside HTTP calls (`stub_request`). Real connections are still allowed
+# while the existing outside calls get their stubs; then this switches to
+# `WebMock.disable_net_connect!(allow_localhost: true)` so a spec that reaches the internet fails
+# (.claude/rules/testing.md, "External services").
+require 'webmock/rspec'
+WebMock.allow_net_connect!
 require 'simplecov'
 
 # Requires supporting ruby files with custom matchers and macros, etc,

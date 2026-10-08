@@ -53,3 +53,35 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   system_board_sources_spec 28 examples, 0 failures, 18.9 s.
 - Lost: the incidental check that the real S3 file imports (it never caught a missing file, since a
   failed fetch is skipped). A dedicated, opt-in real-file check can replace it if wanted.
+
+## Step 2 (uncommitted, stopped to report): network guard
+
+- WebMock 3.26.4 (`require: false`, dev/test group) + `WebMock.disable_net_connect!(allow_localhost: true)`
+  in spec_helper; bundle-audit clean. Full local run: 5 min 12 s, 7,792 examples, **110 failures**,
+  every one a blocked real request (each was reaching the internet before):
+  - OpenSymbols, 72 requests: `POST /api/v2/token` x54, `/api/v1/symbols/search` and v2 search
+    (`lib/open_symbols.rb:335`, `app/models/board.rb:1662`); boards, relinking, converters, BDBS,
+    library and seed specs.
+  - Requests to the shared DEV bucket (`lingolinq-dev-uploads`, POST/GET/HEAD) and one AWS Bedrock
+    model call (`Api::WordSuggestionsController POST create returns empty words when no API key is
+    configured`).
+- CORRECTION (an earlier note here said "real writes" and "local-only"): ROOT CAUSE CONFIRMED.
+  `spec/spec_helper.rb` loads `.env.op.template` FIRST (#625, 9aa0007c0, 2026-07-17; before it,
+  `Dotenv.load` read only `.env`). The template is committed and its secrets are unresolved 1Password
+  references (`AWS_SECRET=op://...`, `BEDROCK_AWS_SECRET`, `OPENSYMBOLS_SECRET`, `IPLOCATE_API_KEY`),
+  and Dotenv does not override a var already set, so those placeholders win over a developer's real
+  `.env` values, locally AND in CI. Every "configured?" check passes with a non-credential: the
+  requests go out (OpenSymbols token with body `secret=op://...`) and are presumably rejected
+  (responses not checked). It also defeats the spec_helper fallback that stubs
+  `Uploader.remote_upload_params` only when `AWS_SECRET` is blank. So no real bucket writes, but the
+  outside calls happen on every run, CI included.
+  - Fake hosts expected to fail (`www.example.com/*.png`, `http://qwer/`), `s3.amazonaws.com/
+    coughdrop-usercontent`, `iplocate.io`, `example.com/api`.
+- Staged commit: WebMock loaded with `WebMock.allow_net_connect!` (no behaviour change; lets fixes use
+  `stub_request`). Full local run: 7,792 examples, 0 failures, 7 min 37 s (15 min 35 s before step 1).
+  The switch to `disable_net_connect!` comes last, after each group is fixed.
+- Group 1 (env placeholders) review: `config/application.rb:27-37` ALSO loads the same four files
+  in test, already fixed to most-specific-first with a comment on the bug; spec_helper runs first
+  with the old template-first order, so the template still wins in specs. Fixing it touches shared
+  boot config (and boot-time reads: secret_token.rb, environment.rb DEFAULT_EMAIL_FROM /
+  SYSTEM_ERROR_EMAIL checks), so it goes to Traci as a proposal first.
