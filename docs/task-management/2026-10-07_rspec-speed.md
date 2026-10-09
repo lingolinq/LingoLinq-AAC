@@ -264,7 +264,7 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   matching Postgres/Rails truncation; old float stamps compare lower and are rebuilt once.
   Red test (deterministic, list built with Time.now pinned at .120 s, change at .124 s): 4/4 red
   before, green after; positive control (cache hit when nothing changed) green both ways.
-  Review also found a separate race (PLAUSIBLE, not fixed): sharing.rb:286 stamps the list with this
+  Review also found a separate race (PLAUSIBLE, not fixed): sharing.rb (`user.boards_updated_at = Time.now` in all_shared_board_ids_for) stamps the list with this
   process's Time.now after reading links, so a share committing in between gets a too-new stamp.
 - Per-example clearing (spec_helper before(:each) -> clear_test_redis_keys), keeping before(:suite).
 - Verification: 4 full runs with all three changes: 0, 0, 1, 0 failures. The one failure is a
@@ -286,3 +286,36 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
 - Fix: those two examples run inside `travel_to(mid_window)` (ActiveSupport TimeHelpers, a fixed
   instant mid-window); no assertion changed. valid_2fa? block 3/3 green, user_spec 426/0, full suite
   7,798 examples, 0 failures.
+
+## Guard switched on (committed b990d73d3); stand-in adversarial review of the whole branch
+
+- Guard on (`WebMock.disable_net_connect!(allow_localhost: true)`): full suite 7,798 examples,
+  0 failures, 0 blocked requests.
+- Review: four independent subagent reviewers in parallel (test env/config, application code, spec
+  changes, production/security/claims). NOT the official /review-pr or /adversary-review, which are
+  not available to this session.
+- HIGH (two reviewers independently): the sharing cache's integer-microsecond stamp was written into
+  the existing 'timestamp' key. Old code compares 'timestamp' with boards_updated_at.to_f.round(2),
+  so every new entry looked fresh forever to old code: on staging (shares a database with dev) or
+  after a production rollback, unshares would not be honoured. FIXED: the stamp lives under
+  'stamp_us'; 'timestamp' is still written in the old float format; an entry without 'stamp_us' is
+  rebuilt. Red tests (both directions) failed on the previous code, pass now.
+- MEDIUM: with credentials missing, remote_remove / remote_remove_upload_path skipped deletes of user
+  data silently. FIXED: error-level log (no path in the message), checked before remote_remove's
+  checksum lookup (which otherwise answers "not found" and returns early). Tests added, plus one
+  pinning signed_internal_url's pass-through without credentials.
+- Found while verifying: uploadable_spec upload_to_remote examples failed alone (also on the
+  committed code): spec_helper's remote_upload_params fallback replaces the method they test
+  whenever AWS_SECRET is blank. Same fix as uploader_spec: `and_call_original` for that block.
+- MEDIUM: stale spec_helper comment (said once per run, named two specs as still dependent). FIXED.
+- MEDIUM (plausible): per-example Redis clearing walked the db three times. FIXED: one SCAN pass
+  (`lingolinq*`) with an exact test-prefix check in Ruby; a decoy development key containing
+  '-test:' survived; 40/40 development keys untouched.
+- LOW fixed: KNOWN_QUEUES placed between flush_queues and its doc comment; dead
+  Typhoeus::Expectation.clear hook; a wrong line reference in this log.
+- Not changed, recorded: real keys can still reach local specs under `op run` (WebMock blocks the
+  calls; local and CI diverge); fork PRs get empty CI secrets; a developer whose
+  SECURE_ENCRYPTION_KEY is an op:// reference now fails loudly at boot; the sharing race at the
+  `boards_updated_at = Time.now` stamp (pre-existing); `remote_upload_params` has no credentials
+  check. Reviewers disagreed on whether test_environment_spec guards CI: it does (the template is
+  committed, so CI loads op:// values).

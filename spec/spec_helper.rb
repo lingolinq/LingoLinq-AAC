@@ -30,25 +30,26 @@ end
 
 SimpleCov.start 'rails'
 
-# Every run starts from empty test Redis namespaces. Test runs leave keys there (job-scheduling
+# Every example starts from empty test Redis namespaces, as it starts from a rolled-back database
+# (cleared before the run and before each example). Test runs leave keys there (job-scheduling
 # markers with a ~4 h expiry, masquerade dedupe keys), and locally the Redis db is shared with
-# development: leftovers from earlier runs reached later ones and made each run slower than the last
-# (the per-example KEYS scans below read every key in the db). Once per run, not per example: some
-# examples still depend on Redis state earlier examples leave (worker_spec:10 and
-# board_caching_spec:118 fail with empty namespaces; docs/task-management/2026-10-07_rspec-speed.md).
-# Only keys under the test namespaces are deleted; refuse to run if they are not test ones.
+# development: leftovers let one example's state reach the next and made each run slower than the
+# last (the per-example KEYS scans below read every key in the db). Only keys under the test
+# namespaces are deleted; refuse to run if they are not test ones.
 TEST_REDIS_NAMESPACES = [Resque.redis.namespace, RedisInit.default.namespace, RedisInit.permissions.namespace].map(&:to_s)
 unless TEST_REDIS_NAMESPACES.all? { |ns| ns.match?(/\Alingolinq[a-z-]*-test\z/) }
   raise "spec_helper: Redis namespaces #{TEST_REDIS_NAMESPACES.inspect} are not test namespaces; refusing to clear them"
 end
 
+TEST_REDIS_KEY_PREFIXES = TEST_REDIS_NAMESPACES.map { |ns| "#{ns}:" }
+
 def clear_test_redis_keys
   raw = Resque.redis.redis
-  # one exact prefix per namespace: a glob `*` also matches ':', so a wider pattern could reach
-  # development keys that merely contain '-test:' further along
-  TEST_REDIS_NAMESPACES.each do |ns|
-    raw.scan_each(match: "#{ns}:*", count: 1000).to_a.each_slice(500) { |keys| raw.unlink(*keys) }
-  end
+  # One SCAN pass over the db (a MATCH still walks every key, so one pass per namespace would cost
+  # three walks of a shared development db), then an exact prefix check in Ruby: a glob `*` also
+  # matches ':', so the pattern alone could reach development keys that merely contain '-test:'.
+  keys = raw.scan_each(match: 'lingolinq*', count: 1000).select { |key| key.start_with?(*TEST_REDIS_KEY_PREFIXES) }
+  keys.each_slice(500) { |batch| raw.unlink(*batch) }
 end
 
 RSpec.configure do |config|

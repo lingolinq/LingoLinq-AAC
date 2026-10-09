@@ -361,10 +361,6 @@ describe OpenSymbols do
   end
 
   describe "search_many" do
-    after(:each) do
-      Typhoeus::Expectation.clear
-    end
-
     # Declared through WebMock, which sees a request before Typhoeus.stub does (with real requests
     # blocked, a Typhoeus.stub answer is never reached): the given responses in order, then an empty
     # result for any further request.

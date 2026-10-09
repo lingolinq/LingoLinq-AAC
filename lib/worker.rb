@@ -162,16 +162,16 @@ module Worker
     end
   end
 
+  # The queues the app schedules to (Worker's own :default, SlowWorker's :slow, and the :priority /
+  # :whenever targets of schedule_for).
+  KNOWN_QUEUES = %w[priority default slow whenever].freeze
+
   # boy_band's flush_queues empties Resque lists but leaves sizeof/{queue} cache
   # entries behind. scheduled_for? trusts that cache and returns false when it
   # still reads >500 even though the queue was just flushed — flaky scheduled? in
-  # specs and any code that flushes then immediately checks scheduling.
-  # The queues the app schedules to (Worker's own :default, SlowWorker's :slow, and the :priority /
-  # :whenever targets of schedule_for). Their size caches are cleared even when Resque's queue
-  # registry does not list them yet (nothing enqueued since Redis was emptied), or a stale size
-  # would survive the flush.
-  KNOWN_QUEUES = %w[priority default slow whenever].freeze
-
+  # specs and any code that flushes then immediately checks scheduling. The known queues' caches
+  # are cleared too, even when Resque's queue registry does not list them yet (nothing enqueued
+  # since Redis was emptied), or a stale size would survive the flush.
   def self.flush_queues
     super
     return unless Resque.redis
