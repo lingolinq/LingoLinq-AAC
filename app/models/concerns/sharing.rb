@@ -206,13 +206,23 @@ module Sharing
       end
     end
       
+    # The user's boards_updated_at as integer microseconds, the precision Postgres stores (Rails
+    # truncates to microseconds on write). The cached shared-board list is stamped with it and stays
+    # valid while the stamp is >= the current value; comparing at hundredths of a second let a
+    # sharing change within ~10 ms of the list being built look no newer, so the stale list was
+    # served. Lists cached with the old float stamps compare lower and are rebuilt once.
+    def boards_updated_stamp(user)
+      updated = user.boards_updated_at
+      updated ? updated.to_i * 1_000_000 + updated.usec : 0
+    end
+
     def all_shared_board_ids_for(user, plus_editing=false)
       return [] unless user
       ts = Time.now.to_i
       user.settings ||= {}
       user.settings['all_shared_board_ids'] ||= {}
       sub_key = plus_editing ? 'editing' : 'viewing'
-      if user.settings['all_shared_board_ids'][sub_key] && user.settings['all_shared_board_ids'][sub_key]['timestamp'] >= user.boards_updated_at.to_f.round(2)
+      if user.settings['all_shared_board_ids'][sub_key] && user.settings['all_shared_board_ids'][sub_key]['timestamp'] >= boards_updated_stamp(user)
         return user.settings['all_shared_board_ids'][sub_key]['list']
       end
       all_links = UserLink.links_for(user)
@@ -286,7 +296,7 @@ module Sharing
         user.boards_updated_at = Time.now 
       end
       user.settings['all_shared_board_ids'][sub_key] = {
-        'timestamp' => user.boards_updated_at.to_f.round(2),
+        'timestamp' => boards_updated_stamp(user),
         'list' => all_board_ids
       }
       user.save(touch: false)

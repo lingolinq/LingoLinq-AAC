@@ -856,6 +856,35 @@ describe Sharing, :type => :model do
       u2.reload
       expect(Board.all_shared_board_ids_for(u2.reload, true).sort).to eq([b.global_id, b2.global_id, b3.global_id])
     end
+    # The cached list counts as fresh while its stamp is >= the user's boards_updated_at. Both used to
+    # be rounded to hundredths of a second, so a sharing change within the same ~10 ms as the list
+    # being built looked no newer than the list, and the stale list was served.
+    it "serves the cached list while nothing has changed (positive control)" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+      expect(UserLink).to_not receive(:links_for)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
+
+    it "does not serve a list cached moments before a sharing change" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b2 = Board.create(:user => u)
+      b.share_with(u2)
+      built_at = Time.at(1_800_000_000, 120_000, :usec)
+      allow(Time).to receive(:now).and_return(built_at)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+      allow(Time).to receive(:now).and_call_original
+
+      b2.share_with(u2)
+      # the change lands 4 ms after the list was built: same hundredth of a second
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 124_000, :usec))
+      expect(Board.all_shared_board_ids_for(u2.reload).sort).to eq([b.global_id, b2.global_id].sort)
+    end
   end
   
   describe "shared_by?" do
