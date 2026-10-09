@@ -207,10 +207,10 @@ module Sharing
     end
       
     # The user's boards_updated_at as integer microseconds, the precision Postgres stores (Rails
-    # truncates to microseconds on write). The cached shared-board list is stamped with it and stays
-    # valid while the stamp is >= the current value; comparing at hundredths of a second let a
-    # sharing change within ~10 ms of the list being built look no newer, so the stale list was
-    # served. Lists cached with the old float stamps compare lower and are rebuilt once.
+    # truncates to microseconds on write). The cached shared-board list is stamped with it under
+    # 'stamp_us' and stays valid while that stamp is >= the current value; comparing at hundredths
+    # of a second let a sharing change within ~10 ms of the list being built look no newer, so the
+    # stale list was served. An entry without 'stamp_us' (cached by older code) is rebuilt.
     def boards_updated_stamp(user)
       updated = user.boards_updated_at
       updated ? updated.to_i * 1_000_000 + updated.usec : 0
@@ -222,8 +222,9 @@ module Sharing
       user.settings ||= {}
       user.settings['all_shared_board_ids'] ||= {}
       sub_key = plus_editing ? 'editing' : 'viewing'
-      if user.settings['all_shared_board_ids'][sub_key] && user.settings['all_shared_board_ids'][sub_key]['timestamp'] >= boards_updated_stamp(user)
-        return user.settings['all_shared_board_ids'][sub_key]['list']
+      cached = user.settings['all_shared_board_ids'][sub_key]
+      if cached && cached['stamp_us'] && cached['stamp_us'] >= boards_updated_stamp(user)
+        return cached['list']
       end
       all_links = UserLink.links_for(user)
       links = all_links.select{|l| l['type'] == 'board_share' }
@@ -296,7 +297,10 @@ module Sharing
         user.boards_updated_at = Time.now 
       end
       user.settings['all_shared_board_ids'][sub_key] = {
-        'timestamp' => boards_updated_stamp(user),
+        'stamp_us' => boards_updated_stamp(user),
+        # older code (a rollback; staging shares a database with dev) still reads this one, at
+        # hundredths of a second: keep writing it in that format so it never looks newer to them
+        'timestamp' => user.boards_updated_at.to_f.round(2),
         'list' => all_board_ids
       }
       user.save(touch: false)

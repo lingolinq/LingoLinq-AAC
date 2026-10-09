@@ -885,6 +885,32 @@ describe Sharing, :type => :model do
       User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 124_000, :usec))
       expect(Board.all_shared_board_ids_for(u2.reload).sort).to eq([b.global_id, b2.global_id].sort)
     end
+
+    # Old code (a rollback, or staging sharing a database with dev) reads 'timestamp' as a float
+    # rounded to hundredths and compares it with boards_updated_at.to_f.round(2). The microsecond
+    # stamp lives under its own key so 'timestamp' keeps that meaning for old readers.
+    it "keeps the old-format 'timestamp' for code that still reads it" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      Board.all_shared_board_ids_for(u2.reload)
+      entry = u2.reload.settings['all_shared_board_ids']['viewing']
+      expect(entry['timestamp']).to be_a(Float)
+      expect(entry['timestamp']).to eq(u2.boards_updated_at.to_f.round(2))
+      expect(entry['stamp_us']).to eq(Board.boards_updated_stamp(u2))
+    end
+
+    it "rebuilds a cached list that has no microsecond stamp, however large its 'timestamp'" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      u2.reload
+      u2.settings['all_shared_board_ids'] = {'viewing' => {'timestamp' => 9_999_999_999_999_999, 'list' => ['1_stale']}}
+      u2.save
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
   end
   
   describe "shared_by?" do
