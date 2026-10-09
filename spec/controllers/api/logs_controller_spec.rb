@@ -160,6 +160,37 @@ describe Api::LogsController, :type => :controller do
       expect(json['log']).to eq([])
     end
 
+    it "keeps each supervisee's own cutoff when another supervisee's cutoff is zero" do
+      token_user
+      hidden = User.create
+      hidden.settings['preferences']['logging_cutoff'] = 0
+      hidden.save
+      limited = User.create
+      limited.settings['preferences']['logging_cutoff'] = 24
+      limited.save
+      [hidden, limited].each do |u|
+        User.link_supervisor_to_user(@user, u)
+        d = Device.create(:user => u)
+        [48, 2].each do |hours|
+          ts = hours.hours.ago.to_i
+          LogSession.process_new({
+            :events => [
+              {'timestamp' => ts, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+              {'timestamp' => ts + 100, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+            ]
+          }, {:user => u, :device => d, :author => u})
+        end
+      end
+      Worker.process_queues
+      expect(@user.reload.supervisees.length).to eq(2)
+
+      get :index, params: {:user_id => @user.global_id, :supervisees => true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log'].map{|l| l['author']['id'] }).to eq([limited.global_id])
+      expect(Time.parse(json['log'][0]['started_at'])).to be > 24.hours.ago
+    end
+
     it "should not return supervisee sessions that are before the user's login_cutoff" do
       users = [User.create, User.create, User.create]
       token_user
@@ -480,6 +511,31 @@ describe Api::LogsController, :type => :controller do
       # No cutoff applied when user views own logs with cutoff=0, so meta reflects that
       expect(json['meta']['logging_cutoffs']).to eq(nil)
       expect(json['meta']['logging_cutoff_min']).to eq(nil)
+    end
+
+    it "applies a malformed organization cutoff as one hour alongside another organization's cutoff" do
+      # Stored straight into settings because update_data_policy casts on write.
+      token_user
+      [24, 'abc'].each do |hours|
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.settings['data_policy'] = {'max_logging_cutoff_hours' => hours}
+        o.save!
+        o.add_user(@user.reload.user_name, false, false, false)
+      end
+      # 2 hours old is inside the other organization's 24 hours but outside one hour.
+      sessions = [48.hours.ago, 2.hours.ago, 30.minutes.ago].map do |at|
+        LogSession.process_new({
+          :events => [
+            {'timestamp' => at.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+            {'timestamp' => at.to_i + 1, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          ]
+        }, {:user => @user, :device => @device, :author => @user})
+      end
+
+      get :index, params: {:user_id => @user.global_id}
+      json = assert_success_json
+      expect(json['log'].map{|l| l['id'] }).to eq([sessions[2].global_id])
+      expect(json['meta']['logging_cutoff_min']).to eq(1)
     end
 
     it "should allow overriding logging_cutoff with a valid logging code" do

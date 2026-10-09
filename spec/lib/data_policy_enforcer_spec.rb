@@ -117,6 +117,21 @@ describe DataPolicyEnforcer do
       expect(LogSession.where(id: stale.id).count).to eq(1)
     end
 
+    # Organization logs a malformed limit once per process, so a log save in the same process
+    # would otherwise leave the nightly run silent about it.
+    it "logs an organization's stored retention_months that is not a whole number on every run" do
+      allow(Rails.logger).to receive(:warn)
+      o, u = sponsored_org(3)
+      o.settings['data_policy']['retention_months'] = 'abc'
+      o.save!
+      log(u, 'session', 4.months.ago)
+
+      DataPolicyEnforcer.enforce_retention!
+      DataPolicyEnforcer.enforce_retention!
+      expect(Rails.logger).to have_received(:warn)
+        .with(/DataPolicyEnforcer: .*org #{Regexp.escape(o.global_id)} retention_months "abc"/).twice
+    end
+
     it "reads a stored whole-number string as that number" do
       o, u = sponsored_org(3)
       o.settings['data_policy']['retention_months'] = '3'
@@ -127,6 +142,93 @@ describe DataPolicyEnforcer do
       expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
       expect(LogSession.where(id: stale.id).count).to eq(0)
       expect(LogSession.where(id: fresh.id).count).to eq(1)
+    end
+
+    describe "with a parent organization's stored limit" do
+      # Stored values are written straight into settings because update_data_policy casts on
+      # write; a policy saved through an earlier write path can still hold a String.
+      def parent_with_months(value)
+        parent = Organization.create
+        parent.settings['data_policy'] = {'retention_months' => value}
+        parent.save!
+        parent
+      end
+
+      def attach_parent(org, parent)
+        org.parent_organization_id = parent.id
+        org.save!
+        org.reload
+      end
+
+      it "compares a whole-number string with an integer as numbers and processes the next organization" do
+        child, child_user = sponsored_org(12)
+        attach_parent(child, parent_with_months('3'))
+        child_stale = log(child_user, 'session', 4.months.ago)
+        # Created after the child, so the sweep reaches it only if the child did not stop it.
+        _later, later_user = sponsored_org(3)
+        later_stale = log(later_user, 'session', 4.months.ago)
+
+        expect { DataPolicyEnforcer.enforce_retention! }.not_to raise_error
+        expect(LogSession.where(id: child_stale.id).count).to eq(0)
+        expect(LogSession.where(id: later_stale.id).count).to eq(0)
+      end
+
+      it "compares two whole-number strings as numbers" do
+        child, child_user = sponsored_org(3)
+        child.settings['data_policy']['retention_months'] = '3'
+        child.save!
+        attach_parent(child, parent_with_months('10'))
+        stale = log(child_user, 'session', 4.months.ago)
+        fresh = log(child_user, 'session', 1.month.ago)
+
+        expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+        expect(LogSession.where(id: stale.id).count).to eq(0)
+        expect(LogSession.where(id: fresh.id).count).to eq(1)
+      end
+
+      it "applies the organization's own limit when the parent's stored limit is malformed" do
+        child, child_user = sponsored_org(3)
+        attach_parent(child, parent_with_months('abc'))
+        stale = log(child_user, 'session', 4.months.ago)
+
+        expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+        expect(LogSession.where(id: stale.id).count).to eq(0)
+      end
+
+      it "does not let a parent's retention_months of 0 switch off the organization's purge" do
+        [0, '0'].each do |zero|
+          child, child_user = sponsored_org(3)
+          attach_parent(child, parent_with_months(zero))
+          stale = log(child_user, 'session', 4.months.ago)
+
+          expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+          expect(LogSession.where(id: stale.id).count).to eq(0)
+        end
+      end
+
+      it "applies the parent's limit to an organization that stores retention_months 0" do
+        child, child_user = sponsored_org(0)
+        attach_parent(child, parent_with_months(3))
+        stale = log(child_user, 'session', 4.months.ago)
+        fresh = log(child_user, 'session', 1.month.ago)
+
+        expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+        expect(LogSession.where(id: stale.id).count).to eq(0)
+        expect(LogSession.where(id: fresh.id).count).to eq(1)
+      end
+
+      it "applies the parent's limit when the organization's own stored limit is malformed" do
+        child, child_user = sponsored_org(12)
+        child.settings['data_policy']['retention_months'] = 'abc'
+        child.save!
+        attach_parent(child, parent_with_months(3))
+        stale = log(child_user, 'session', 4.months.ago)
+        fresh = log(child_user, 'session', 1.month.ago)
+
+        expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+        expect(LogSession.where(id: stale.id).count).to eq(0)
+        expect(LogSession.where(id: fresh.id).count).to eq(1)
+      end
     end
 
     it "skips the purge when no sponsorship start date can be established" do

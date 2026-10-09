@@ -3780,6 +3780,150 @@ describe Organization, :type => :model do
     end
   end
 
+  describe "effective_data_policy numeric limits" do
+    # Stored values are written straight into settings here because update_data_policy casts on
+    # write; a policy saved through an earlier write path can still hold these shapes.
+    def org_with_policy(policy, parent: nil)
+      o = Organization.create(parent_organization_id: parent && parent.id)
+      o.settings['data_policy'] = policy
+      o.save!
+      o
+    end
+
+    malformed_limits = ['', 'abc', '2.5', '-1', -1, 2.5, true].freeze
+
+    %w[retention_months max_logging_cutoff_hours].each do |key|
+      it "compares a stored whole-number string with an integer as numbers for #{key}" do
+        parent = org_with_policy({key => '3'})
+        child = org_with_policy({key => 12}, parent: parent)
+        expect(child.effective_data_policy[key]).to eq(3)
+
+        parent = org_with_policy({key => 3})
+        child = org_with_policy({key => '12'}, parent: parent)
+        expect(child.effective_data_policy[key]).to eq(3)
+
+        parent = org_with_policy({key => 12})
+        child = org_with_policy({key => ' 3 '}, parent: parent)
+        expect(child.effective_data_policy[key]).to eq(3)
+      end
+
+      it "compares two stored whole-number strings as numbers for #{key}" do
+        parent = org_with_policy({key => '10'})
+        child = org_with_policy({key => '3'}, parent: parent)
+        expect(child.effective_data_policy[key]).to eq(3)
+
+        parent = org_with_policy({key => '3'})
+        child = org_with_policy({key => '10'}, parent: parent)
+        expect(child.effective_data_policy[key]).to eq(3)
+      end
+
+      it "reads a stored whole-number string as an integer without a parent for #{key}" do
+        expect(org_with_policy({key => '24'}).effective_data_policy[key]).to eq(24)
+        expect(org_with_policy({key => nil}).effective_data_policy[key]).to eq(nil)
+      end
+
+      it "leaves the stored #{key} unchanged when reading the effective policy" do
+        o = org_with_policy({key => 'abc'})
+        o.effective_data_policy
+        expect(o.data_policy[key]).to eq('abc')
+        o = org_with_policy({key => '24'})
+        o.effective_data_policy
+        expect(o.data_policy[key]).to eq('24')
+      end
+
+      it "logs a stored #{key} that is not a whole number, naming the organization and the value" do
+        o = org_with_policy({key => 'abc'})
+        expect(Rails.logger).to receive(:warn).with(/#{Regexp.escape(o.global_id)}.*#{key}.*"abc"/)
+        o.effective_data_policy
+      end
+    end
+
+    # A log save reloads the user's organizations, so each read starts from a fresh instance.
+    it "logs a malformed stored limit once per process for each organization, key and value" do
+      allow(Rails.logger).to receive(:warn)
+      o = org_with_policy({'retention_months' => 'abc', 'max_logging_cutoff_hours' => 'abc'})
+      other = org_with_policy({'retention_months' => 'abc'})
+      logged = ->(org, key, value) { /org #{Regexp.escape(org.global_id)} #{key} #{Regexp.escape(value.inspect)} / }
+
+      Organization.find(o.id).effective_data_policy
+      Organization.find(o.id).effective_data_policy
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'retention_months', 'abc')).once
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'max_logging_cutoff_hours', 'abc')).once
+
+      Organization.find(other.id).effective_data_policy
+      expect(Rails.logger).to have_received(:warn).with(logged.(other, 'retention_months', 'abc')).once
+
+      o.settings['data_policy']['retention_months'] = '2.5'
+      o.save!
+      Organization.find(o.id).effective_data_policy
+      Organization.find(o.id).effective_data_policy
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'retention_months', '2.5')).once
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'retention_months', 'abc')).once
+    end
+
+    # retention_months: a purge is irreversible, so a value that is not a whole number above
+    # zero is treated as not set (no purge from this organization), matching DataPolicyEnforcer,
+    # which purges only for a positive number of months.
+    malformed_limits.each do |malformed|
+      it "treats a stored retention_months of #{malformed.inspect} as not set, so the well-formed limit governs" do
+        parent = org_with_policy({'retention_months' => malformed})
+        child = org_with_policy({'retention_months' => 6}, parent: parent)
+        expect(child.effective_data_policy['retention_months']).to eq(6)
+
+        parent = org_with_policy({'retention_months' => 6})
+        child = org_with_policy({'retention_months' => malformed}, parent: parent)
+        expect(child.effective_data_policy['retention_months']).to eq(6)
+
+        alone = org_with_policy({'retention_months' => malformed, 'logging_allowed' => false})
+        expect(alone.effective_data_policy.key?('retention_months')).to eq(false)
+        expect(alone.effective_data_policy['logging_allowed']).to eq(false)
+      end
+    end
+
+    [0, '0'].each do |zero|
+      it "treats a stored retention_months of #{zero.inspect} as not set rather than the strictest limit" do
+        parent = org_with_policy({'retention_months' => zero})
+        child = org_with_policy({'retention_months' => 12}, parent: parent)
+        expect(child.effective_data_policy['retention_months']).to eq(12)
+
+        expect(org_with_policy({'retention_months' => zero}).effective_data_policy.key?('retention_months')).to eq(false)
+      end
+
+      it "applies the parent's retention_months to a child that stores #{zero.inspect}" do
+        parent = org_with_policy({'retention_months' => 3})
+        child = org_with_policy({'retention_months' => zero}, parent: parent)
+        expect(child.effective_data_policy['retention_months']).to eq(3)
+      end
+    end
+
+    # max_logging_cutoff_hours: hiding history is reversible, so a malformed value is read as a
+    # one-hour cutoff, stricter than any well-formed value it is merged with except 0.
+    malformed_limits.each do |malformed|
+      it "reads a stored max_logging_cutoff_hours of #{malformed.inspect} as a one-hour cutoff" do
+        parent = org_with_policy({'max_logging_cutoff_hours' => malformed})
+        child = org_with_policy({'max_logging_cutoff_hours' => 6}, parent: parent)
+        expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(1)
+
+        parent = org_with_policy({'max_logging_cutoff_hours' => 6})
+        child = org_with_policy({'max_logging_cutoff_hours' => malformed}, parent: parent)
+        expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(1)
+
+        parent = org_with_policy({'max_logging_cutoff_hours' => 0})
+        child = org_with_policy({'max_logging_cutoff_hours' => malformed}, parent: parent)
+        expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(0)
+
+        alone = org_with_policy({'max_logging_cutoff_hours' => malformed})
+        expect(alone.effective_data_policy['max_logging_cutoff_hours']).to eq(1)
+      end
+    end
+
+    it "keeps a stored max_logging_cutoff_hours of 0 as the strictest cutoff" do
+      parent = org_with_policy({'max_logging_cutoff_hours' => '0'})
+      child = org_with_policy({'max_logging_cutoff_hours' => 12}, parent: parent)
+      expect(child.effective_data_policy['max_logging_cutoff_hours']).to eq(0)
+    end
+  end
+
   describe "external_ai_processing_allowed?" do
     it "should default to allowed when unset" do
       o = Organization.create
