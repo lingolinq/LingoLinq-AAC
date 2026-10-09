@@ -93,6 +93,7 @@ RSpec.configure do |config|
     # Controller specs are unaffected: they get the host from the request via
     # application_controller#set_host, which supplies the protocol.
     ENV['DEFAULT_HOST'] ||= 'test.host'  # ensure URL generation is consistent in specs
+    clear_test_redis_keys
     Time.zone = nil
     Worker.flush_queues
     # flush_queues empties the queue lists but leaves two separate Redis size

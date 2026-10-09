@@ -246,3 +246,31 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   2/3, with it 1/2; usually passes in full order. Root cause not found (not the >500-board deferral;
   `all_shared_board_ids_for` compares `Time.now.to_i` with `boards_updated_at.round(2)`, a real
   precision mismatch but unlikely to explain ~50%). Needs its own investigation.
+
+## Redis-state dependencies fixed; per-example Redis clearing (committed)
+
+- worker_spec:10 (deterministic from an empty Redis): `Worker.flush_queues` only cleared
+  `sizeof/<queue>` for queues in Resque's registry. It now also clears the app's known queues
+  (`Worker::KNOWN_QUEUES = priority default slow whenever`). flush_queues has no non-spec callers.
+- board_caching_spec:118 turned out NOT to be a Redis-state dependency: intermittent with and without
+  per-example clearing (1/4 without). Same family as boards_controller_spec:502/:532 (develop 2/3).
+  ROOT CAUSE (app/models/concerns/sharing.rb): the cached shared-board list is stamped with
+  `boards_updated_at.to_f.round(2)` and served while stamp >= `boards_updated_at.to_f.round(2)`. A
+  sharing change within the same ~10 ms as the list was built compared equal, so the stale list was
+  served (in tests, Worker.process_queues runs jobs ms apart; in production rare, but it can keep a
+  just-unshared board visible or hide a just-shared one until the next change). Experiment with
+  round(6): 8/8 clean runs of the two files. Fix (Traci approved; independent review recommended the
+  integer form): `Board.boards_updated_stamp(user)` = integer microseconds (to_i * 1e6 + usec),
+  matching Postgres/Rails truncation; old float stamps compare lower and are rebuilt once.
+  Red test (deterministic, list built with Time.now pinned at .120 s, change at .124 s): 4/4 red
+  before, green after; positive control (cache hit when nothing changed) green both ways.
+  Review also found a separate race (PLAUSIBLE, not fixed): sharing.rb:286 stamps the list with this
+  process's Time.now after reading links, so a share committing in between gets a too-new stamp.
+- Per-example clearing (spec_helper before(:each) -> clear_test_redis_keys), keeping before(:suite).
+- Verification: 4 full runs with all three changes: 0, 0, 1, 0 failures. The one failure is a
+  pre-existing time-boundary flake, user_spec:4596 (2FA replay: `ts > 30.seconds.ago.to_i` fails
+  when a 30 s TOTP window boundary passes mid-example). The four formerly intermittent specs did not
+  fail once. Test DB 0 audit rows after each run; development Redis keys 40/40 untouched.
+- Run times this morning (~16 min) are NOT comparable with last night's 4:43-5:09: the WSL disk is
+  slow (iostat w_await 50-109 ms, a committed statement 162 ms); board_spec takes ~80 s with or
+  without these changes vs 25 s last night.
