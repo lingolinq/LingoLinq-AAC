@@ -625,6 +625,8 @@ describe Board, :type => :model do
     
     it "should return the download URL on success" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -641,6 +643,8 @@ describe Board, :type => :model do
     
     it "should periodically update progress" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -658,6 +662,8 @@ describe Board, :type => :model do
     
     it "should allow an unauthenticated user" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -5699,6 +5705,8 @@ describe Board, :type => :model do
     end
 
     it "should recurse to downstream boards" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       bi = ButtonImage.create(user: u)
       expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
@@ -5722,6 +5730,8 @@ describe Board, :type => :model do
     end
 
     it "should stop at boards with a different author" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       u2 = User.create
       bi = ButtonImage.create(user: u)
@@ -5747,6 +5757,8 @@ describe Board, :type => :model do
     end
 
     it "should not get stuck in an infinite loop with circular references" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       bi = ButtonImage.create(user: u)
       expect(Uploader).to receive(:find_images).at_least(:once).and_return([])

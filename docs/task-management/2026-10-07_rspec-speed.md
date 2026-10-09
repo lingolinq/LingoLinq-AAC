@@ -102,3 +102,43 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
 - Follow-up (separate, team decision for Scot): adopt dotenv's conventions for tests (one loader,
   committed `.env.test`, personal `.env.test.local`, no `.env.local` or template in tests; dotenv
   3.1.8 `lib/dotenv/rails.rb` skips `.env.local` when `env.test?`).
+
+## Group 2 (OpenSymbols) + repair of a Group 1 regression (committed); STOPPED here (Rule 13)
+
+- Group 1 (428c358ea, pushed) broke 3 examples in normal order: board_spec `swap_images`
+  (5701/5724/5749). With OPENSYMBOLS_SECRET gone, `Uploader.default_images` takes its v1 fallback
+  and made a REAL request; the real OpenSymbols answer found the images, so the expected
+  `find_images` call never happened. Those examples depended on the internet. It also made
+  board_spec 626/642/659 (generate_download) fail when the file runs alone: `aws_access_key`
+  returns `''`, which is truthy, so `presigned_url_for_uploads`' "configured?" check passes and the
+  SDK raises MissingCredentialsError; in full order a cached `@remote_upload_config` from an earlier
+  spec hid it. My Group 1 verification was one full run with the guard on; it did not run the suite
+  guard-off or touched files alone. Lesson: verify the state being committed (guard off), and run
+  changed-behaviour files on their own too.
+- Fixes (no assertion changed):
+  - `spec/support/outside_services.rb`: default WebMock answer for `Board#check_image_url`'s v1
+    symbol search ("no results"); a spec testing that call declares its own.
+  - `spec/lib/open_symbols_spec.rb`: its fake responses move from `Typhoeus.stub` to WebMock
+    `stub_request` (WebMock sees the request first, so with the guard on a Typhoeus.stub answer is
+    never reached: these two were false positives, not real calls).
+  - board_spec swap_images x3: fake OpenSymbols defaults response ("none found").
+  - board_spec generate_download x3: `presigned_url_for_uploads` -> nil (not in the uploads bucket).
+- Verified: full suite guard OFF, normal order: 7,794 examples, 0 failures (9 min 12 s); board_spec
+  alone 297/0; open_symbols_spec alone 28/0; targeted guard-ON run: no OpenSymbols requests left in
+  the affected files.
+- Own errors this session (Rule 13 stop): progress "failure" counts read from capital F's in log
+  text twice (reported 0 blocked / 8 failures, both wrong); Group 1 pushed with the regression above.
+  Report failures only from RSpec's final summary.
+
+### Remaining (not started)
+1. S3 requests: uploads (`lingolinq-test-uploads` POST x7), dev-uploads GET/HEAD, old
+   `s3.amazonaws.com/coughdrop-usercontent` GET x3.
+2. Fake image URLs and hosts relying on failure (`www.example.com/*.png`, `http://qwer/`,
+   `example.com/api`).
+3. Latent app defect (report, not fixed): `Uploader.aws_access_key`/`aws_secret_key` return `''`
+   when unset, so `config[:access_key] && config[:secret]` (uploader.rb:438, :549) never detects
+   missing credentials and `MissingCredentialsError` is not rescued.
+4. Test isolation: `Uploader.@remote_upload_config` is memoized for the whole run; the first spec
+   to call it fixes the S3 settings for every later spec.
+5. Switch the guard on (`disable_net_connect!`), last.
+6. Follow-up for Scot: dotenv conventions for tests.

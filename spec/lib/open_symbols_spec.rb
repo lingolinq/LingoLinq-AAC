@@ -365,11 +365,12 @@ describe OpenSymbols do
       Typhoeus::Expectation.clear
     end
 
-    def stub_symbols_responses(*bodies)
-      queue = bodies
-      Typhoeus.stub(/opensymbols\.org\/api\/v2\/symbols/) do
-        queue.shift || Typhoeus::Response.new(code: 200, body: '[]')
-      end
+    # Declared through WebMock, which sees a request before Typhoeus.stub does (with real requests
+    # blocked, a Typhoeus.stub answer is never reached): the given responses in order, then an empty
+    # result for any further request.
+    def stub_symbols_responses(*responses)
+      answers = responses.map { |res| {status: res.code, body: res.body} } + [{status: 200, body: '[]'}]
+      stub_request(:get, %r{opensymbols\.org/api/v2/symbols}).to_return(*answers)
     end
 
     it "should not raise when Hydra gets a non-JSON 200, and should omit that word from results" do
