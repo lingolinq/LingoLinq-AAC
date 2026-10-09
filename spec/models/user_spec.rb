@@ -837,6 +837,15 @@ describe User, :type => :model do
       expect(Worker.scheduled_for?(:slow, User, :perform_action, {'id' => u.id, 'method' => 'track_boards', 'arguments' => [true, 123]})).to eq(true)
     end
     
+    it "should skip a queued track that is older than the last completed one" do
+      u = User.create
+      u.settings['tracked_boards_at'] = 1_800_000_100
+      u.save
+      expect(UserBoardConnection).not_to receive(:where)
+      expect(u.track_boards(true, 1_800_000_050)).to eq(false)
+      expect(u.reload.settings['tracked_boards_at']).to eq(1_800_000_100)
+    end
+
     it "should delete orphan connections" do
       u = User.create
       b = Board.create(:user => u)

@@ -122,6 +122,9 @@ fixtures, factories, cassettes, seeds, migrations, `db/language/` or `lib/tasks/
 `.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
 deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 `config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`;
+before touching `spec/**` or `.rspec` read `.claude/rules/testing.md` (specs never reach
+the network; outside services start unconfigured, and a spec that tests one sets fake
+values itself);
 before opening or updating a pull request read `.claude/rules/github-pr.md` (the `gh`
 CLI is not installed and the MCP GitHub server's credentials are rejected, so the route
 is the git credential helper's OAuth token, which must never be echoed or written to a

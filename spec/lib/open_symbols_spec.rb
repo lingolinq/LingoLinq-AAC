@@ -28,9 +28,18 @@ describe OpenSymbols do
       
       response = double(success?: false, body: 'Error', code: 403)
       expect(Typhoeus).to receive(:post).and_return(response)
-      
+
       token = OpenSymbols.access_token
       expect(token).to be_nil
+    end
+
+    it "should return nil and log if the token request raises" do
+      expect(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('test_secret').at_least(1).times
+      expect(Typhoeus).to receive(:post).and_raise(StandardError.new('connection reset'))
+      allow(Rails.logger).to receive(:error)
+
+      expect(OpenSymbols.access_token).to be_nil
+      expect(Rails.logger).to have_received(:error).with('OpenSymbols token generation exception: connection reset')
     end
   end
   

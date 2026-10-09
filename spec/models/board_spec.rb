@@ -1279,6 +1279,30 @@ describe Board, :type => :model do
     end
   end
 
+  # Google TTS makes one request per button, so with GOOGLE_TTS_TOKEN set the deferred sound work
+  # goes to a worker; without it (other providers) it runs inline after commit.
+  describe "enqueue_suggested_sounds_if_deferred" do
+    env_wrap('GOOGLE_TTS_TOKEN' => 'spec-tts-token') do
+      it "queues suggested sounds on a worker when Google TTS is configured" do
+        b = Board.create(user: User.create)
+        b.instance_variable_set('@defer_suggested_sounds', true)
+        expect(Progress).to receive(:schedule).with(having_attributes(id: b.id), :process_suggested_sounds_async)
+        expect_any_instance_of(Board).not_to receive(:process_suggested_sounds_async)
+        b.enqueue_suggested_sounds_if_deferred
+      end
+    end
+
+    env_wrap('GOOGLE_TTS_TOKEN' => nil) do
+      it "runs suggested sounds inline when Google TTS is not configured" do
+        b = Board.create(user: User.create)
+        b.instance_variable_set('@defer_suggested_sounds', true)
+        expect(Progress).not_to receive(:schedule)
+        expect_any_instance_of(Board).to receive(:process_suggested_sounds_async)
+        b.enqueue_suggested_sounds_if_deferred
+      end
+    end
+  end
+
   describe "process_suggested_symbols fallback for new baked boards" do
     it "assigns symbols when new board has labels but no client image_url" do
       u = User.create
