@@ -117,6 +117,21 @@ describe DataPolicyEnforcer do
       expect(LogSession.where(id: stale.id).count).to eq(1)
     end
 
+    # Organization logs a malformed limit once per process, so a log save in the same process
+    # would otherwise leave the nightly run silent about it.
+    it "logs an organization's stored retention_months that is not a whole number on every run" do
+      allow(Rails.logger).to receive(:warn)
+      o, u = sponsored_org(3)
+      o.settings['data_policy']['retention_months'] = 'abc'
+      o.save!
+      log(u, 'session', 4.months.ago)
+
+      DataPolicyEnforcer.enforce_retention!
+      DataPolicyEnforcer.enforce_retention!
+      expect(Rails.logger).to have_received(:warn)
+        .with(/DataPolicyEnforcer: .*org #{Regexp.escape(o.global_id)} retention_months "abc"/).twice
+    end
+
     it "reads a stored whole-number string as that number" do
       o, u = sponsored_org(3)
       o.settings['data_policy']['retention_months'] = '3'

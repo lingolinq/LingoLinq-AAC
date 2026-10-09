@@ -437,6 +437,12 @@ class Organization < ApplicationRecord
   # normalize_data_policy_limits).
   MALFORMED_CUTOFF_HOURS = 1
 
+  # [org global_id, key, value.inspect] for each malformed limit already logged by this process.
+  # A log save reads the policy from freshly loaded organizations
+  # (User#policy_governing_organizations), so the per-instance memo in effective_data_policy does
+  # not stop a stored malformed value from being logged on every save.
+  MALFORMED_LIMITS_LOGGED = Concurrent::Set.new
+
   # The numeric limits of org's stored policy, read for the strictest-wins merges here and in
   # User#effective_data_policy, which compare them with `<`. update_data_policy casts on write,
   # but a policy stored before it did can hold a String or a value that is not a whole number.
@@ -446,8 +452,8 @@ class Organization < ApplicationRecord
   # start an irreversible purge. A malformed max_logging_cutoff_hours is read as
   # MALFORMED_CUTOFF_HOURS, a short cutoff, because hiding log history is reversible; it is not 0,
   # which Api::LogsController#index waives for a user viewing their own logs. A malformed value is
-  # logged with the organization, the key and the value. Returns a copy; the stored policy is not
-  # changed.
+  # logged with the organization, the key and the value, once per process for each of those
+  # (MALFORMED_LIMITS_LOGGED). Returns a copy; the stored policy is not changed.
   def self.normalize_data_policy_limits(policy, org)
     normalized = policy.dup
     DATA_POLICY_NUMERIC_KEYS.each do |key|
@@ -456,10 +462,12 @@ class Organization < ApplicationRecord
       number = begin
         data_policy_number(normalized[key])
       rescue ArgumentError
-        Rails.logger.warn(
-          "Organization data policy: org #{org.global_id} #{key} #{normalized[key].inspect} " \
-          "is not a whole number"
-        )
+        if MALFORMED_LIMITS_LOGGED.add?([org.global_id, key, normalized[key].inspect])
+          Rails.logger.warn(
+            "Organization data policy: org #{org.global_id} #{key} #{normalized[key].inspect} " \
+            "is not a whole number"
+          )
+        end
         nil
       end
       case key

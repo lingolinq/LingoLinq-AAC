@@ -3838,6 +3838,29 @@ describe Organization, :type => :model do
       end
     end
 
+    # A log save reloads the user's organizations, so each read starts from a fresh instance.
+    it "logs a malformed stored limit once per process for each organization, key and value" do
+      allow(Rails.logger).to receive(:warn)
+      o = org_with_policy({'retention_months' => 'abc', 'max_logging_cutoff_hours' => 'abc'})
+      other = org_with_policy({'retention_months' => 'abc'})
+      logged = ->(org, key, value) { /org #{Regexp.escape(org.global_id)} #{key} #{Regexp.escape(value.inspect)} / }
+
+      Organization.find(o.id).effective_data_policy
+      Organization.find(o.id).effective_data_policy
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'retention_months', 'abc')).once
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'max_logging_cutoff_hours', 'abc')).once
+
+      Organization.find(other.id).effective_data_policy
+      expect(Rails.logger).to have_received(:warn).with(logged.(other, 'retention_months', 'abc')).once
+
+      o.settings['data_policy']['retention_months'] = '2.5'
+      o.save!
+      Organization.find(o.id).effective_data_policy
+      Organization.find(o.id).effective_data_policy
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'retention_months', '2.5')).once
+      expect(Rails.logger).to have_received(:warn).with(logged.(o, 'retention_months', 'abc')).once
+    end
+
     # retention_months: a purge is irreversible, so a value that is not a whole number above
     # zero is treated as not set (no purge from this organization), matching DataPolicyEnforcer,
     # which purges only for a positive number of months.

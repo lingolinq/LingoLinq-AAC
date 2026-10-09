@@ -100,6 +100,19 @@ module DataPolicyEnforcer
     count = 0
     Organization.where("data_policy_version > 0").find_each do |org|
       policy = org.effective_data_policy
+      # Organization logs a malformed stored limit once per process (MALFORMED_LIMITS_LOGGED), so
+      # each run names this organization's own malformed value itself.
+      own_months = org.data_policy['retention_months']
+      unless own_months.nil?
+        begin
+          Organization.data_policy_number(own_months)
+        rescue ArgumentError
+          Rails.logger.warn(
+            "DataPolicyEnforcer: org #{org.global_id} retention_months #{own_months.inspect} " \
+            "is not a whole number, so it is not applied"
+          )
+        end
+      end
       # An Integer above 0, or absent (Organization.normalize_data_policy_limits): a whole-number
       # string is read as its number, and a stored value that is not a whole number above 0 is
       # left out, so a parent organization's limit can still apply. With no limit, the
