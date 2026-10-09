@@ -886,6 +886,22 @@ describe Sharing, :type => :model do
       expect(Board.all_shared_board_ids_for(u2.reload).sort).to eq([b.global_id, b2.global_id].sort)
     end
 
+    # The stamp comes from the user's stored boards_updated_at, so this pins that column (not the
+    # clock): a change 4 ms after the list's stamp, in the same hundredth of a second, must rebuild.
+    it "rebuilds after a sharing change in the same hundredth of a second as the list's stamp" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b2 = Board.create(:user => u)
+      b.share_with(u2)
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 120_000, :usec))
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([b.global_id])
+
+      b2.share_with(u2)
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 124_000, :usec))
+      expect(Board.all_shared_board_ids_for(User.find(u2.id)).sort).to eq([b.global_id, b2.global_id].sort)
+    end
+
     # Old code (a rollback, or staging sharing a database with dev) reads 'timestamp' as a float
     # rounded to hundredths and compares it with boards_updated_at.to_f.round(2). The microsecond
     # stamp lives under its own key so 'timestamp' keeps that meaning for old readers.
@@ -910,6 +926,70 @@ describe Sharing, :type => :model do
       u2.settings['all_shared_board_ids'] = {'viewing' => {'timestamp' => 9_999_999_999_999_999, 'list' => ['1_stale']}}
       u2.save
       expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
+
+    # A rebuild reads the user's links, walks the shared boards (seconds for a large set), then
+    # stamps and saves the list. An unshare that commits during the walk must not be hidden by
+    # that stamp: the next read, and the background jobs the unshare queues, must drop the board.
+    describe "an unshare that commits while the list is being rebuilt" do
+      # Unshares `board` from `user` the first time the rebuild reaches Organization.attached_orgs,
+      # which runs after links_for and before the save (sharing.rb, !plus_editing branch). With
+      # run_jobs, the jobs the unshare queues also finish there, before the rebuild saves.
+      def unshare_mid_rebuild(board, user, run_jobs: false)
+        @unshared_mid_rebuild = false
+        allow(Organization).to receive(:attached_orgs).and_wrap_original do |original, *args|
+          unless @unshared_mid_rebuild
+            @unshared_mid_rebuild = true
+            board.reload.unshare_with(User.find(user.id))
+            Worker.process_queues if run_jobs
+          end
+          original.call(*args)
+        end
+      end
+
+      def shared_board_setup
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        Worker.process_queues
+        [b, u2]
+      end
+
+      it "is not served afterwards as a fresh list" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+      end
+
+      # UserLink.links_for caches links under the caller's loaded updated_at (user_link.rb:97), so a
+      # caller loaded before the unshare rebuilds from the old links; the stamp must not be newer.
+      it "is not stamped newer than the links a stale caller rebuilt it from" do
+        b, u2 = shared_board_setup
+        stale = User.find(u2.id)
+        UserLink.links_for(stale)
+        b.reload.unshare_with(User.find(u2.id))
+
+        Board.all_shared_board_ids_for(stale, false)
+
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+      end
+
+      it "is dropped when the unshare's jobs run after the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+        Worker.process_queues
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
     end
   end
   

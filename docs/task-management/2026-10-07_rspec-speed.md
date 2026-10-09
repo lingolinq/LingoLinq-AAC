@@ -319,3 +319,65 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   `boards_updated_at = Time.now` stamp (pre-existing); `remote_upload_params` has no credentials
   check. Reviewers disagreed on whether test_environment_spec guards CI: it does (the template is
   committed, so CI loads op:// values).
+
+## Official dual review (2026-10-09) and its follow-ups
+
+- `/review-pr` (REVIEWED=range origin/develop 2096a9ca7 ... traci/perf/rspec-speed 78c0f1646, PII
+  preflight exit 0) and `/adversary-review` (same SHAs). The senior pass's High (the new S3
+  credentials check could switch S3 off where the SDK's default chain was in use) was REFUTED:
+  `Uploader.s3_client` always passes explicit credentials (lib/uploader.rb:41-48) and every
+  deployed service mounts AWS_KEY/AWS_SECRET (.github/workflows/deploy-cloudrun.yml:385).
+- N1 (adversary, Medium): removing the `op://` placeholders changed which code CI runs. MEASURED
+  instead of assumed: two full runs at 78c0f1646 with SimpleCov, A as committed (7,803 examples,
+  0 failures, 17:54) and B with every scrubbed secret set to a fake value, mimicking develop's
+  CI env with the guard on (70 failures, all NetConnectNotAllowedError). Lines covered only by B:
+  16, none in lib/uploader.rb (the real remote_upload_params and S3 guards still run through
+  uploader_spec/uploadable_spec). The 16 lines: AiWordPredictor#call_anthropic/#system_prompt,
+  SessionController#google_link_complete's session_expired branch with GoogleOAuth
+  .client_secret/.fetch_link, OpenSymbols token-request exception, Board's GOOGLE_TTS_TOKEN worker
+  branch in enqueue_suggested_sounds_if_deferred, User#track_boards stale-ts skip.
+- Fix (best practice, no placeholder values restored): 11 explicit examples with fake values and
+  doubles; 9 went red against a temporary mutation of the line each guards (the 2 others are
+  positive controls); mutations reverted.
+- `.claude/rules/testing.md` added (was cited by spec comments but missing), mirrored in
+  CLAUDE.md, AGENTS.md, .github/copilot-instructions.md.
+- Not fixed here, recorded: N2 shared-board cache race (see PR body), N3 skipped remote delete
+  no longer lands in Resque's failed list, N4 dotenv's Rails hook can re-add `op://` values from
+  `.env` after the scrub, N5 SafeHttp DNS lookups are not covered by WebMock.
+
+## N2: shared-board cache race (unit 1 committed; unit 2 open)
+
+- REAL, proven by deterministic tests in sharing_spec "an unshare that commits while the list is
+  being rebuilt" (the unshare is run inside the rebuild, after links_for, via
+  Organization.attached_orgs). Before the fix: stale list served as fresh after the unshare (red);
+  a stale caller's rebuild stamped old links with a new time (red); when the unshare's jobs finish
+  before the rebuild saves, the stale list survives the jobs (red); jobs running after the save
+  heal it (green).
+- Fact sheet: freshness read at sharing.rb:225-227; boards_updated_at writers user_link.rb:21,
+  user.rb:2338 (update_all), sharing.rb:297 (Time.now, saved at :306), board_caching.rb:107;
+  cache-entry writer sharing.rb:299 only. Root cause: the list was stamped with the save time
+  (taken after the links were read) and that time was written to boards_updated_at, hiding any
+  change that committed during the walk.
+- Proposal reviewed by the adversary agent before editing. Its corrections, each verified in code:
+  stamp with the caller's own boards_updated_at, not a fresh DB read (links_for keys its 24 h
+  Redis cache on the caller's loaded updated_at, user_link.rb:97, so a fresh read could stamp old
+  links with a new time); the existing microsecond test stopped guarding (verified: it passed with
+  the stamp rounded to hundredths), so a new example pins the column instead.
+- Unit 1 (committed): the `user.boards_updated_at = Time.now` assignment is removed; the stamp is
+  the loaded value. Falsified: reverting it turns the 3 race examples red; rounding the stamp turns
+  the new precision example red. sharing, board_caching, user_link, boards_controller specs: 334
+  examples, 1 failure (the unit 2 example below, held out of the commit).
+- Unit 2 (OPEN, High, already in production): the rebuild ends with `user.save(touch: false)` on
+  the caller's in-memory user, and go_secure writes the whole `settings` column from that copy
+  (persist_secure_object). A rebuild on a stale user therefore reverts any settings change made
+  since it was loaded: the unshare job's new `available_private_board_ids` (restoring access to the
+  unshared board; the job's RemoteAction rows are already gone), and potentially consent fields
+  written concurrently. Red test kept uncommitted: "is dropped when the unshare's jobs finish
+  before the rebuild saves" fails at `private_viewable_board_ids`. Candidate fix: persist only the
+  cache entry onto a freshly locked row (`User.lock.find` in a transaction), or move the cache to
+  Redis. Needs its own proposal review.
+- Own errors this stretch (Rule 13 stop before unit 2): AGENTS.md edit aimed at text that lives in
+  the Copilot file; testing.md suffix example used a digit the guard refuses; testing.md claimed
+  the Redis suffix isolates parallel runs (the test DB is still shared: 4 spurious User.create
+  failures beside a full run); a verification grep matched "examples," and missed "1 example".
+  All caught before commit.

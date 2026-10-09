@@ -292,10 +292,10 @@ module Sharing
       
       all_board_ids = (shallow_board_ids + valid_deep_board_ids).uniq
 
-      if !plus_editing
-        # If you update it in both cases, then it will require an update every time you toggle the plus_editing arg
-        user.boards_updated_at = Time.now 
-      end
+      # Stamped with the boards_updated_at loaded with `user`, the same row snapshot whose updated_at
+      # keyed the links read above (user_link.rb:97). A sharing change that commits during the walk
+      # has a newer boards_updated_at (user_link.rb:21), so the next read rebuilds. (Stamping with
+      # the time of this save instead hid such a change and served the stale list as fresh.)
       user.settings['all_shared_board_ids'][sub_key] = {
         'stamp_us' => boards_updated_stamp(user),
         # older code (a rollback; staging shares a database with dev) still reads this one, at
