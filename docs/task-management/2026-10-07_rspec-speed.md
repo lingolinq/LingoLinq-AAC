@@ -178,3 +178,33 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
    dedupe keys); AuditEvent orphans.
 5. Switch the guard on; then PR (needs /review-pr and /adversary-review, which only Traci can run).
 6. Dotenv-conventions proposal for Scot.
+
+## Session notes after the stop (Traci said continue)
+
+- Test DB cleanup (Traci approved removing only my rows): the 5 `rails/runner` AuditEvents (ids 766,
+  767, 1462-1464, identified by id and timestamp; `data` is encrypted so not readable in SQL) were
+  deleted with `psql -d lingolinq-test` over the local socket, which writes no audit row. Table: 0.
+- Masquerade dedupe keys had expired by the next check (`redis-cli --scan --pattern
+  'lingolinq-stash-test:masq_audit/*'` -> 0).
+- Local speed finding (not acted on): test and dev share Redis db0, 191,786 keys. spec_helper's
+  per-example `Resque.redis.keys('sizeof/*')` / `keys('*_queue_size')` (spec_helper ~:84-85) are
+  O(all keys), which plausibly explains local full runs slowing from ~7.5 to ~15 min. CI starts with
+  an empty Redis. Candidate fix: SCAN with a match, or a separate Redis db for tests.
+
+## #3 Uploader credential checks (committed)
+
+- Fix B (reviewed by a subagent before editing: 9 guards, alternative A rejected because
+  `Aws::S3::PresignedPost` does `'AWS4' + k_secret`, which raises on nil but not on ''):
+  `Uploader.remote_credentials?(config)` (`.present?` on key and secret) replaces the 9
+  `config[:access_key] && config[:secret]` guards in lib/uploader.rb. Helpers still return ''.
+- Red first: uploader_spec "with no AWS credentials" (presigned_url_for_uploads -> nil,
+  check_existing_upload -> {found: false}, no S3 client built) failed before (client built with
+  access_key_id "") and passes after.
+- Found on the way, from Group 1: uploader_spec `remote_upload_params` examples (:260, :280) failed
+  when the file runs alone, also on the committed uploader.rb. spec_helper stubs
+  `Uploader.remote_upload_params` whenever AWS_SECRET is blank (now always, CI and local), so these
+  examples were not testing the real method; they passed in full order only because an earlier spec
+  leaves AWS_SECRET set. Their `before` now uses `and_call_original`.
+- Verified: uploader_spec alone 137/0; full suite guard off 7,796 examples, 0 failures; test DB 0
+  audit rows after.
+- Not changed (follow-up): `remote_upload_params` itself has no credentials check.

@@ -255,6 +255,9 @@ describe Uploader do
     before do
       Uploader.instance_variable_set('@remote_upload_config', nil)
       allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
+      # spec_helper stubs remote_upload_params whenever AWS_SECRET is blank (as in CI); these
+      # examples test the real method
+      allow(Uploader).to receive(:remote_upload_params).and_call_original
     end
 
     it "should generate a SigV4-signed upload policy (Aws::S3::PresignedPost)" do
@@ -2548,5 +2551,24 @@ describe Uploader do
       end
     end
   end
-end
 
+  # With no AWS credentials set, the "configured?" checks must see them as missing. The key helpers
+  # return '' when unset, and '' is truthy, so the checks used to pass and the S3 SDK raised
+  # MissingCredentialsError instead of the method's "not configured" answer.
+  describe "with no AWS credentials" do
+    env_wrap('AWS_KEY' => nil, 'AWS_SECRET' => nil, 'AWS_ACCESS_KEY_ID' => nil, 'AWS_SECRET_ACCESS_KEY' => nil, 'UPLOADS_S3_BUCKET' => 'spec-uploads') do
+      before(:each) { Uploader.instance_variable_set('@remote_upload_config', nil) }
+      after(:each) { Uploader.instance_variable_set('@remote_upload_config', nil) }
+
+      it "presigned_url_for_uploads answers nil without building an S3 client" do
+        expect(Aws::S3::Client).to_not receive(:new)
+        expect(Uploader.presigned_url_for_uploads('extras/x.json')).to eq(nil)
+      end
+
+      it "check_existing_upload answers not found without building an S3 client" do
+        expect(Aws::S3::Client).to_not receive(:new)
+        expect(Uploader.check_existing_upload('extras/x.json')).to eq({found: false})
+      end
+    end
+  end
+end
