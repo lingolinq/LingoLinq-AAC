@@ -4556,6 +4556,13 @@ describe User, :type => :model do
     end
   
     describe "valid_2fa?" do
+      include ActiveSupport::Testing::TimeHelpers
+      # valid_2fa? accepts a code from the previous 30 s window for up to 15 s (drift_behind) and
+      # returns that window's start, so a window ending between making the code and checking it made
+      # `ts > 30.seconds.ago` fail. Examples that compare against the clock run at a fixed instant in
+      # the middle of a window.
+      let(:mid_window) { Time.at(1_800_000_015) }
+
       it "should return false without 2fa settings" do
         u = User.new
         expect(u.valid_2fa?('asdf')).to eq(false)
@@ -4566,15 +4573,17 @@ describe User, :type => :model do
       end
 
       it "should return true for a valid code" do
-        u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
-        code = totp.at(Time.now)
-        expect(u.settings['2fa']['last_otp']).to eq(nil)
-        ts = u.valid_2fa?(code)
-        expect(ts).to_not eq(false)
-        expect(ts).to be > 30.seconds.ago.to_i
-        expect(ts).to be < 30.seconds.from_now.to_i
-        expect(u.settings['2fa']['last_otp']).to_not eq(nil)
+        travel_to(mid_window) do
+          u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
+          code = totp.at(Time.now)
+          expect(u.settings['2fa']['last_otp']).to eq(nil)
+          ts = u.valid_2fa?(code)
+          expect(ts).to_not eq(false)
+          expect(ts).to be > 30.seconds.ago.to_i
+          expect(ts).to be < 30.seconds.from_now.to_i
+          expect(u.settings['2fa']['last_otp']).to_not eq(nil)
+        end
       end
 
       it "should return false for an old code" do
@@ -4594,15 +4603,17 @@ describe User, :type => :model do
       end
 
       it "should return false for a replayed code" do
-        u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
-        code = totp.at(Time.now)
-        ts = u.valid_2fa?(code)
-        expect(ts).to_not eq(false)
-        expect(ts).to be > 30.seconds.ago.to_i
-        expect(ts).to be < 30.seconds.from_now.to_i
-        ts = u.valid_2fa?(code)
-        expect(ts).to eq(false)
+        travel_to(mid_window) do
+          u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
+          code = totp.at(Time.now)
+          ts = u.valid_2fa?(code)
+          expect(ts).to_not eq(false)
+          expect(ts).to be > 30.seconds.ago.to_i
+          expect(ts).to be < 30.seconds.from_now.to_i
+          ts = u.valid_2fa?(code)
+          expect(ts).to eq(false)
+        end
       end
     end
   end

@@ -274,3 +274,15 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
 - Run times this morning (~16 min) are NOT comparable with last night's 4:43-5:09: the WSL disk is
   slow (iostat w_await 50-109 ms, a committed statement 162 ms); board_spec takes ~80 s with or
   without these changes vs 25 s last night.
+
+## 2FA time-boundary flake (committed)
+
+- user_spec valid_2fa? "should return false for a replayed code" (and, same weakness, "should return
+  true for a valid code"): valid_2fa? accepts a code from the previous 30 s window for up to 15 s
+  (`drift_behind: 15`, app/models/concerns/passwords.rb:125) and returns that window's start, so a
+  window ending between making the code and checking it failed `ts > 30.seconds.ago.to_i`.
+  Reproduced deterministically in a scratch spec (code at ...029.5 s, check 1 s later:
+  "expected > 1800000000, got 1800000000"), then deleted.
+- Fix: those two examples run inside `travel_to(mid_window)` (ActiveSupport TimeHelpers, a fixed
+  instant mid-window); no assertion changed. valid_2fa? block 3/3 green, user_spec 426/0, full suite
+  7,798 examples, 0 failures.
