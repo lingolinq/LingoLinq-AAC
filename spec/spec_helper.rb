@@ -109,6 +109,10 @@ RSpec.configure do |config|
     RedisInit.default.del('domain_org_ids')
     Board.last_scheduled_stamp = nil
     BoardDownstreamButtonSet.last_scheduled_stamp = nil
+    # Uploader caches its S3 settings (bucket, keys) for the whole process; without this the first
+    # example to call it fixes them for every later example (e.g. a spec's temporary
+    # UPLOADS_S3_BUCKET leaking into later uploads)
+    Uploader.instance_variable_set('@remote_upload_config', nil)
     WordData.clear_lists
   end
 end

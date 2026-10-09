@@ -208,3 +208,21 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
 - Verified: uploader_spec alone 137/0; full suite guard off 7,796 examples, 0 failures; test DB 0
   audit rows after.
 - Not changed (follow-up): `remote_upload_params` itself has no credentials check.
+
+## #4 Uploader settings cache reset per example (committed)
+
+- spec_helper's before(:each) resets `Uploader.@remote_upload_config`, so every example builds the
+  S3 settings from its own ENV (transcoder_spec's temporary UPLOADS_S3_BUCKET used to leak into
+  later uploads through the cache). Full suite guard off: 7,796 examples, 0 failures; no spec relied
+  on a leaked cache.
+- Local run times keep rising (19:45, 22:58): the Redis backlog below.
+
+## Redis backlog (diagnosed; fix next)
+
+- Measured: one `KEYS lingolinq-test:sizeof/*` takes ~52 ms server-side with 267,692 keys in db0;
+  spec_helper runs two KEYS per example x ~7,800 examples ~= 13.5 min of a ~20 min local run.
+- Sample of 100k keys: 97.5% `lingolinq-test:scheduled*` (job markers, ~4 h TTL) left by test runs;
+  db0 is shared with development (namespaces from config/initializers/resque.rb:110-116:
+  `lingolinq<sfx>`, `lingolinq-stash<sfx>`, `lingolinq-permissions<sfx>`, sfx `-test` in test).
+- CI starts with an empty Redis, so the cross-run backlog is local only; within one run keys still
+  build up (estimate ~1 min of a CI run, not measured).
