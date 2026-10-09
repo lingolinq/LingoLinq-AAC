@@ -169,6 +169,10 @@ describe Uploadable, :type => :model do
   end
 
   describe "upload_to_remote" do
+    # spec_helper stubs Uploader.remote_upload_params whenever AWS_SECRET is blank (as in CI); these
+    # examples check the real presigned upload target
+    before(:each) { allow(Uploader).to receive(:remote_upload_params).and_call_original }
+
     it "should fail unless the record is saved" do
       s = ButtonSound.new
       expect { s.upload_to_remote("") }.to raise_error("must have id first")
