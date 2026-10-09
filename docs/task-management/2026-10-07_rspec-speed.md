@@ -142,3 +142,39 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
    to call it fixes the S3 settings for every later spec.
 5. Switch the guard on (`disable_net_connect!`), last.
 6. Follow-up for Scot: dotenv conventions for tests.
+
+## Groups 3 and 4: S3 and placeholder hosts (committed); STOPPED again (Rule 13)
+
+- Fake answers mirror the real hosts, measured once from the shell 2026-10-08: `example.com` /
+  `www.example.com` 404 (405 for POST, which is what spec_helper's upload fallback has always got);
+  S3 hosts 403 AccessDenied (unsigned GETs measured; the upload POST's real answer was not measurable
+  with the fake in place: 403 is PLAUSIBLE). `http://qwer/` (board_downstream_button_set_spec
+  placeholder extra-data URL) does not resolve: answered with a timeout.
+- Verified: full suite with the guard ON: 7,794 examples, 0 failures (no spec reaches the internet).
+  Changed files alone, guard off: board_downstream_button_set 78/0, board 297/0, beta_seed 12/0,
+  system_sidebar_boards 8/0, converters/lingo_linq 64/0, api_json_bundle 19/0, extra_data 50/0,
+  json_api/image 20/0, library_cache 34/0.
+- Full suite guard OFF did not come back clean, for two environmental reasons (neither involves an
+  HTTP path):
+  1. 8 masquerade/admin audit failures 11 min after the guard-on run: `record_masquerade_audit!`
+     dedupes via Redis `masq_audit/<op>/<target>` for 30 min (application_controller.rb:529-540), the
+     test Redis namespace `lingolinq-stash-test` is never flushed, and IDs can repeat between runs
+     (spec/lib/tasks/phase4_sequences_spec.rb runs db:setval_all_sequences; sequences survive
+     rollback). PLAUSIBLE mechanism; keys confirmed present (23) with live TTLs.
+  2. 13 audit-count failures in the rerun: CONFIRMED self-inflicted. My diagnostic `rails runner`
+     calls in RAILS_ENV=test each wrote an AuditEvent (`type: rails/runner`, attributed to the
+     local user) that is not rolled back, so exact-count specs fail. Lesson: never use
+     `rails runner` against the test DB for diagnostics; it writes audit rows.
+- Own errors so far (Rule 13 stop): pushed Group 1 regression; progress counts from log text (x2);
+  test DB polluted by my runner audit rows.
+
+### Remaining (next session / after Traci's go-ahead)
+1. Clean the test environment, then one full guard-off run: `bin/rails db:test:prepare` (as in the
+   2026-09 learnings entry) and clear the `lingolinq-stash-test` Redis namespace's `masq_audit/*`
+   keys (or wait 30 min).
+2. #3 Uploader credential checks (fix B, reviewed: 9 guards -> `remote_credentials?`), red test first.
+3. #4 reset `Uploader.@remote_upload_config` before each example.
+4. Test-isolation follow-ups found here: flush the test Redis namespace per run (or per example for
+   dedupe keys); AuditEvent orphans.
+5. Switch the guard on; then PR (needs /review-pr and /adversary-review, which only Traci can run).
+6. Dotenv-conventions proposal for Scot.
