@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions
 
 > **Project Rules and Standards for LingoLinq-AAC**
-> This file provides project-specific context for GitHub Copilot Chat, the Copilot coding agent, and Copilot code review (which reviews every PR to `develop`). It is kept in step with `CLAUDE.md` by hand: when a rule changes there, change it here in the same PR.
+> This file provides project-specific context for GitHub Copilot Chat, the Copilot coding agent, and Copilot code review when it runs (no repository rule requests it on every PR; an author whose own Copilot plan has automatic review turned on may still get one). It is kept in step with `CLAUDE.md` by hand: when a rule changes there, change it here in the same PR.
 
 ## Project Overview
 

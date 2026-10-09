@@ -211,7 +211,7 @@ line verbatim with the verdict. The `range` or `working` form run against a PR n
 wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
-Codex-specific invocation detail lives in `AGENTS.md`. Copilot code review runs automatically on every PR to `develop`.
+Codex-specific invocation detail lives in `AGENTS.md`. No bot reviews every PR: no repository rule requests Copilot code review (an author's own Copilot settings may still request one), and the Codex GitHub connector has auto-reviewed only some authors' PRs (a `@codex review` comment requests one; it posts under your GitHub account, so ask before posting).
 
 ## Audit and compliance system
 
