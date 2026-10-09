@@ -149,13 +149,15 @@ For urgent production issues:
 
 ## Branch Protection Rules
 
-The following protections are enforced at the repository level:
+The following protections are enforced at the repository level and apply to
+everyone, including admins:
 
 - **`main`**: Requires PR, requires 1 approval, no direct pushes, no force push
-- **`staging`**: Requires PR, requires approval from Scot
+- **`staging`**: Requires PR, no direct pushes, no force push
 - **`develop`**: Requires PR, no direct pushes
 
-These rules apply to all contributors, including admins.
+The approval summary above is team policy, and everyone is expected to follow it
+even where GitHub would allow the merge without it.
 
 ## Dual-Reviewer Policy (Phase 1)
 

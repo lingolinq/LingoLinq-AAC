@@ -29,4 +29,8 @@ code review runs automatically on every PR to `develop`. Recent PRs had no Copil
   and pull request rules still apply.
 - The four docs above now say no bot reviews every PR, that an author's own Copilot or Codex
   settings may still produce an automatic review, and that a core team member can request one.
+- `CONTRIBUTING.md` "Branch Protection Rules" said `staging` requires approval from Scot.
+  Its ruleset and branch protection require no approvals (checked 2026-10-09), so that line
+  now lists only what is enforced, and the approval summary is stated as team policy that
+  everyone is expected to follow (Scot's choice: reword rather than change the settings).
 - Dated task logs and archive docs that mention Copilot review were left as history.
