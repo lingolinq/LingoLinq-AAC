@@ -86,8 +86,8 @@ run the app locally before opening the PR.
 
 No AI reviewer runs on every PR. No repository rule requests a Copilot code review,
 though an author whose own Copilot plan has automatic review turned on may still get
-one. The Codex GitHub connector reviews some PRs automatically but not all of them,
-and a core team member may request an AI review on yours.
+one. The Codex GitHub connector is set to review the team's PRs automatically; PRs
+from forks may not get one, and a core team member may request an AI review on yours.
 
 If your PR receives AI review comments, read and address them before requesting
 human review. You do not need to accept every suggestion, but each one should be

@@ -16,11 +16,13 @@ code review runs automatically on every PR to `develop`. Recent PRs had no Copil
   review object, on 2026-09-18, was a quota failure, not a review. An individual can also turn
   on automatic Copilot review for their own PRs, separately from any ruleset.
 - The Codex GitHub connector reviewed every recent non-draft PR from one author and none from
-  another. Codex automatic review is set per repository to either "All PRs" or "Follow
-  personal preferences", and the personal preference is each user's own setting
-  (https://learn.chatgpt.com/docs/third-party/github). The observed pattern matches "Follow
-  personal preferences", but the setting itself was not read; this is an inference from
-  review history. A `@codex review` comment requests one.
+  another. Codex automatic review is set per repository, and the documented options are "All
+  PRs" and "Follow personal preferences", where the personal preference is each user's own
+  setting (https://learn.chatgpt.com/docs/third-party/github). The observed pattern matched
+  "Follow personal preferences". A `@codex review` comment requests one.
+- The settings page also offers "Team PRs", which OpenAI's docs do not describe; the only public
+  mention found is a user report (https://github.com/openai/codex/issues/38110). Whether "team"
+  means the ChatGPT workspace or the GitHub organization is not stated.
 
 ## Decision and change
 
@@ -29,6 +31,9 @@ code review runs automatically on every PR to `develop`. Recent PRs had no Copil
   and pull request rules still apply.
 - The four docs above now say no bot reviews every PR, that an author's own Copilot or Codex
   settings may still produce an automatic review, and that a core team member can request one.
+- Scot switched the repository's Codex automatic review setting to "Team PRs" on 2026-10-09.
+  Whether it covers every core team author is not yet confirmed; check the next ready PR from
+  an author other than Scot for a `chatgpt-codex-connector` review or comment.
 - `CONTRIBUTING.md` "Branch Protection Rules" said `staging` requires approval from Scot.
   Its ruleset and branch protection require no approvals (checked 2026-10-09), so that line
   now lists only what is enforced, and the approval summary is stated as team policy that
