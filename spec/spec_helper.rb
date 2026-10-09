@@ -30,7 +30,30 @@ end
 
 SimpleCov.start 'rails'
 
+# Every run starts from empty test Redis namespaces. Test runs leave keys there (job-scheduling
+# markers with a ~4 h expiry, masquerade dedupe keys), and locally the Redis db is shared with
+# development: leftovers from earlier runs reached later ones and made each run slower than the last
+# (the per-example KEYS scans below read every key in the db). Once per run, not per example: some
+# examples still depend on Redis state earlier examples leave (worker_spec:10 and
+# board_caching_spec:118 fail with empty namespaces; docs/task-management/2026-10-07_rspec-speed.md).
+# Only keys under the test namespaces are deleted; refuse to run if they are not test ones.
+TEST_REDIS_NAMESPACES = [Resque.redis.namespace, RedisInit.default.namespace, RedisInit.permissions.namespace].map(&:to_s)
+unless TEST_REDIS_NAMESPACES.all? { |ns| ns.match?(/\Alingolinq[a-z-]*-test\z/) }
+  raise "spec_helper: Redis namespaces #{TEST_REDIS_NAMESPACES.inspect} are not test namespaces; refusing to clear them"
+end
+
+def clear_test_redis_keys
+  raw = Resque.redis.redis
+  # one exact prefix per namespace: a glob `*` also matches ':', so a wider pattern could reach
+  # development keys that merely contain '-test:' further along
+  TEST_REDIS_NAMESPACES.each do |ns|
+    raw.scan_each(match: "#{ns}:*", count: 1000).to_a.each_slice(500) { |keys| raw.unlink(*keys) }
+  end
+end
+
 RSpec.configure do |config|
+  config.before(:suite) { clear_test_redis_keys }
+
   # ## Mock Framework
   #
   # If you prefer to use mocha, flexmock or RR, uncomment the appropriate line:

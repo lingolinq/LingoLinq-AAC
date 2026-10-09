@@ -226,3 +226,23 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   `lingolinq<sfx>`, `lingolinq-stash<sfx>`, `lingolinq-permissions<sfx>`, sfx `-test` in test).
 - CI starts with an empty Redis, so the cross-run backlog is local only; within one run keys still
   build up (estimate ~1 min of a CI run, not measured).
+
+## Redis backlog fix: clear the test namespaces once per run (committed)
+
+- spec_helper `before(:suite)` deletes keys under the three test namespaces only (exact prefixes
+  `lingolinq-test:`, `lingolinq-stash-test:`, `lingolinq-permissions-test:`; SCAN + UNLINK in
+  batches). Refuses to run unless every namespace matches `lingolinq…-test`. (A first version used
+  the glob `lingolinq*-test:*`; replaced because a glob `*` also matches ':' and could reach a
+  development key containing '-test:'.)
+- Full local run: 5 min 9 s (previous runs 19:45, 22:58). Non-test keys (40, development) identical
+  before and after. ~32k test keys build up within one run (the CI-equivalent state).
+- Tried first, NOT kept: clearing before EVERY example (4 min 43 s) exposed two hidden dependencies
+  on Redis state earlier examples leave: worker_spec:10 (Worker.flush_queues clears `sizeof/<q>`
+  only for queues already in Resque's registry, so with an empty registry the stale size survives)
+  and board_caching_spec:118 (not diagnosed). Both pass with the committed spec_helper and fail with
+  empty namespaces. Follow-up: fix those, then per-example clearing.
+- Pre-existing flake (NOT caused by this branch): boards_controller_spec:502 (and :532) fail
+  intermittently when the file runs: develop fabcd91cb 2/3 runs, this branch without the cleanup
+  2/3, with it 1/2; usually passes in full order. Root cause not found (not the >500-board deferral;
+  `all_shared_board_ids_for` compares `Time.now.to_i` with `boards_updated_at.round(2)`, a real
+  precision mismatch but unlikely to explain ~50%). Needs its own investigation.
