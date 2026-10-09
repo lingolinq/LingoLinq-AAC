@@ -166,11 +166,17 @@ module Worker
   # entries behind. scheduled_for? trusts that cache and returns false when it
   # still reads >500 even though the queue was just flushed — flaky scheduled? in
   # specs and any code that flushes then immediately checks scheduling.
+  # The queues the app schedules to (Worker's own :default, SlowWorker's :slow, and the :priority /
+  # :whenever targets of schedule_for). Their size caches are cleared even when Resque's queue
+  # registry does not list them yet (nothing enqueued since Redis was emptied), or a stale size
+  # would survive the flush.
+  KNOWN_QUEUES = %w[priority default slow whenever].freeze
+
   def self.flush_queues
     super
     return unless Resque.redis
 
-    Resque.queues.each do |key|
+    (Resque.queues | KNOWN_QUEUES).each do |key|
       Resque.redis.del("sizeof/#{key}")
     end
   end
