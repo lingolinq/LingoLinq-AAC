@@ -27,6 +27,13 @@ module Uploader
     config[:access_key].present? && config[:secret].present?
   end
 
+  # Deleting user data is required (retention, erasure requests). When it cannot happen because S3
+  # is not configured, say so at error level rather than skipping in silence. No path in the
+  # message: it can identify a user's file.
+  def self.log_skipped_remote_delete(method_name)
+    Rails.logger.error("Uploader.#{method_name}: S3 credentials or bucket not configured; remote delete skipped")
+  end
+
   def self.s3_region
     ENV['AWS_REGION'].presence || 'us-west-2'
   end
@@ -382,6 +389,12 @@ module Uploader
       raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
     end
 
+    config = remote_upload_config
+    unless remote_credentials?(config) && config[:bucket_name].present?
+      log_skipped_remote_delete('remote_remove')
+      return nil
+    end
+
     do_remove = true
     if checksum
       check = check_existing_upload(remote_path, checksum)
@@ -390,8 +403,6 @@ module Uploader
       end
     end
     if do_remove
-      config = remote_upload_config
-      return nil unless remote_credentials?(config) && config[:bucket_name].present?
       client = s3_client(config)
       begin
         client.head_object(bucket: config[:bucket_name], key: remote_path)
@@ -566,7 +577,10 @@ module Uploader
     raise "scary delete, not a beta feedback recording path: #{remote_path}" unless remote_path.match(/\Abeta_feedback_recordings\/\d{4}\/\d{2}\/\d{2}\/[\w\-]+\.(webm|mp4)\z/)
 
     config = remote_upload_config
-    return nil unless remote_credentials?(config) && config[:bucket_name].present?
+    unless remote_credentials?(config) && config[:bucket_name].present?
+      log_skipped_remote_delete('remote_remove_upload_path')
+      return nil
+    end
 
     client = s3_client(config)
     client.delete_object(bucket: config[:bucket_name], key: remote_path)

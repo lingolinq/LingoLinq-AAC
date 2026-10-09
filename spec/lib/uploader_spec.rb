@@ -2569,6 +2569,28 @@ describe Uploader do
         expect(Aws::S3::Client).to_not receive(:new)
         expect(Uploader.check_existing_upload('extras/x.json')).to eq({found: false})
       end
+
+      it "signed_internal_url hands back the URL unsigned without building an S3 client" do
+        expect(Aws::S3::Client).to_not receive(:new)
+        url = 'https://spec-uploads.s3.amazonaws.com/extras/x.json'
+        expect(Uploader.signed_internal_url(url)).to eq(url)
+      end
+
+      # deleting user data is required (retention, erasure requests): when it cannot happen, it must
+      # not be skipped in silence
+      it "remote_remove logs that the delete was skipped, without building an S3 client" do
+        allow(Rails.logger).to receive(:error)
+        expect(Aws::S3::Client).to_not receive(:new)
+        expect(Uploader.remote_remove('extras/x.json', 'checksum')).to eq(nil)
+        expect(Rails.logger).to have_received(:error).with(/remote_remove: S3 credentials or bucket not configured/)
+      end
+
+      it "remote_remove_upload_path logs that the delete was skipped, without building an S3 client" do
+        allow(Rails.logger).to receive(:error)
+        expect(Aws::S3::Client).to_not receive(:new)
+        expect(Uploader.remote_remove_upload_path('beta_feedback_recordings/2026/10/09/abc.webm')).to eq(nil)
+        expect(Rails.logger).to have_received(:error).with(/remote_remove_upload_path: S3 credentials or bucket not configured/)
+      end
     end
   end
 end
