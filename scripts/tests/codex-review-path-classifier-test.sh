@@ -264,6 +264,19 @@ real_case codex 'lib/language/schema2_generator.rb'
 real_case codex 'app/models/user.rb'
 real_case blocked 'spec/fixtures/users.json'
 
+echo "== letter case: data-bearing and compliance patterns match in any case =="
+real_case blocked 'SPEC/FIXTURES/users.json'
+real_case blocked 'spec/Fixtures/users.json'
+head="$(commit_paths 'Docs/Legal/policy.md')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report claude-deep 'Docs/Legal/policy.md with CODEX_COMPLIANCE_PATHS=block'
+head="$(commit_paths 'AUDIT-REPORTS/findings.json')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report claude-deep 'AUDIT-REPORTS/findings.json with CODEX_COMPLIANCE_PATHS=block'
+head="$(commit_paths 'docs/legal/control.md')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report claude-deep 'docs/legal/control.md with CODEX_COMPLIANCE_PATHS=block (lowercase control)'
+
 echo "== fail closed: nothing classified means exit 3 and no route =="
 classify "$BASE" "$BASE"
 report ERR3 'empty diff (base == head)'
