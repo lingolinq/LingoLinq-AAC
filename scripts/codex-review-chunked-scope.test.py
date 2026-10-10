@@ -846,6 +846,22 @@ class WorkflowLogExposureTest(unittest.TestCase):
                     self.assertIn(canary, prompt, "PR evidence is missing from the prompt")
             self.assert_no_canary(result.stdout + result.stderr)
 
+    # The blocked route still runs the gather and assemble steps, and a data-bearing name need not
+    # be UTF-8 (the classifier keeps such a diff `blocked`), so its raw bytes must not crash the
+    # assembler before the GUARD-1 envelope is built; develop quoted names and built it (round 3b).
+    def test_assembler_keeps_bytes_that_are_not_utf8(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live = pathlib.Path(tmp) / "live_state_prompt.txt"
+            live.write_bytes(b"100644 blob abc\tdb/data/caf\xe9.csv\n")
+            diff = pathlib.Path(tmp) / "pr_diff.txt"
+            diff.write_bytes(b"diff --git a/db/data/caf\xe9.csv b/db/data/caf\xe9.csv\n+row\n")
+            out = pathlib.Path(tmp) / "prompt.md"
+            env = dict(os.environ, LOOP_N="0", LIVE_STATE_FILE=str(live), PR_DIFF_FILE=str(diff))
+            result = subprocess.run([sys.executable, "-I", "scripts/codex-review-assemble-prompt.py", str(out)],
+                                    cwd=REPO_ROOT, env=env, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr[-300:])
+            self.assertIn(b"db/data/caf\xe9.csv", out.read_bytes(), "the name did not reach the prompt as it is")
+
     def test_assembler_fails_closed_without_its_evidence(self):
         cases = {
             "diff file unset": ("live", None),

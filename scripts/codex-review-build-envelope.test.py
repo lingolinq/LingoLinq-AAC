@@ -514,6 +514,21 @@ class BinaryContentTest(unittest.TestCase):
                 self.assertEqual(envelope["status"]["state"], "failure", envelope["review_outcome"])
                 self.assertEqual(envelope["review_outcome"], build_envelope.UNREVIEWED_BINARY_OUTCOME)
 
+    # The blocked route's review (GUARD-1, written by the workflow) must still become an envelope when
+    # a name in the diff is not UTF-8 (round 3b, 2026-10-10).
+    # A diff read with surrogateescape hashes as its original bytes, so the chunked manifest's
+    # full_raw_diff_sha256 still matches a diff holding bytes that are not UTF-8.
+    def test_a_diff_that_is_not_utf8_hashes_as_its_bytes(self):
+        raw = b"+caf\xe9\n"
+        self.assertEqual(build_envelope._sha256_text(raw.decode("utf-8", "surrogateescape")),
+                         build_envelope.hashlib.sha256(raw).hexdigest())
+
+    def test_the_cli_builds_the_blocked_envelope_for_a_name_that_is_not_utf8(self):
+        guard = {"verdict": "NEEDS_HUMAN", "findings": [dict(LOW_FINDING, id="GUARD-1", severity="HIGH")]}
+        name = os.fsdecode(b"db/data/caf\xe9.csv")
+        self.assertEqual(self.run_cli({"README": b"r\n"}, {name: b"a,b\n"}, review_body=guard), "failure")
+        self.assertEqual([f["id"] for f in self.last_envelope["review"]["findings"]], ["GUARD-1"])
+
     def test_the_cli_reads_the_head_commit(self):
         self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/real.png": PNG_BYTES}), "success")
         self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/fake.png": b"system('id')\n\x00"}), "failure")

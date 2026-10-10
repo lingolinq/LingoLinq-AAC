@@ -504,7 +504,9 @@ def _read_diff(diff_path):
     if not diff_path:
         return ""
     try:
-        return pathlib.Path(diff_path).read_text()
+        # A name or line need not be UTF-8 (a blocked data-bearing diff may hold one): keep the
+        # bytes (surrogateescape) rather than crash before the envelope is built.
+        return pathlib.Path(diff_path).read_bytes().decode("utf-8", "surrogateescape")
     except OSError:
         return ""
 
@@ -514,7 +516,8 @@ def _sha256_file(path):
 
 
 def _sha256_text(text):
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    # surrogateescape gives back the original bytes of a diff read by _read_diff.
+    return hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()
 
 
 def _synthetic_review(verdict, head_sha, finding):
