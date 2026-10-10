@@ -421,6 +421,8 @@ jobs:
           LIVE_STATE_FILE: /tmp/live_state_prompt.txt
           PR_DIFF_FILE: /tmp/pr_diff.txt
           LOOP_N: ${{ inputs.loop_n }}
+          # The assembler keeps bytes that are not UTF-8 only on the blocked route.
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
 
       - name: Install Codex CLI
         if: steps.classify.outputs.reviewer_route == 'codex'

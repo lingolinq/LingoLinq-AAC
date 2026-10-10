@@ -47,14 +47,20 @@ def replace_block(text, marker, replacement_body):
     return text[:start_idx] + start + "\n" + replacement_body + "\n" + end + text[end_idx:]
 
 
+def _decode_errors():
+    """surrogateescape on the blocked route only: it runs this step too, and a data-bearing name
+    need not be UTF-8, so its bytes are kept rather than crashing before the GUARD-1 envelope is
+    built. On a route to a reviewer (or with no route set) the input is decoded strictly, and bytes
+    that are not UTF-8 fail the step before they reach a model."""
+    return "surrogateescape" if os.environ.get("REVIEWER_ROUTE") == "blocked" else "strict"
+
+
 def read_required(env_var):
     """Read the file named by env_var. Missing or empty input is a hard error:
     a prompt without its evidence must fail the job, not reach the reviewer."""
     path = os.environ.get(env_var, "")
     try:
-        # The blocked route runs this step too, and a data-bearing name need not be UTF-8: keep
-        # its bytes (surrogateescape) instead of crashing before the GUARD-1 envelope is built.
-        text = pathlib.Path(path).read_bytes().decode("utf-8", "surrogateescape") if path else ""
+        text = pathlib.Path(path).read_bytes().decode("utf-8", _decode_errors()) if path else ""
     except OSError:
         text = ""
     if not text.strip():
@@ -88,7 +94,7 @@ def main():
     prompt = replace_block(prompt, "REVIEW_MEMORY", defang_ci_markers(memory))
     prompt = replace_block(prompt, "PRIOR_LOOP", defang_ci_markers(prior_loop))
 
-    pathlib.Path(output_path).write_text(prompt, encoding="utf-8", errors="surrogateescape")
+    pathlib.Path(output_path).write_text(prompt, encoding="utf-8", errors=_decode_errors())
 
 
 if __name__ == "__main__":

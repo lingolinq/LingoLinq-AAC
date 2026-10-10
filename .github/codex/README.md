@@ -275,7 +275,9 @@ The review job runs PR content only as data:
   quoting cannot hide a data-bearing path. On a route to a reviewer it also
   fails closed on a name that is not valid UTF-8 (checked with Python's strict
   decoder, which the reviewer steps use, and iconv), or when either checker
-  fails; a data-bearing diff keeps its `blocked` route. It matches in any letter case and
+  fails; a data-bearing diff keeps its `blocked` route, and on that route alone
+  the prompt assembler and the envelope keep such bytes (surrogateescape) so the
+  GUARD-1 envelope is still built. It matches in any letter case and
   byte by byte (`LC_ALL=C`), treats every path under `db/language/` as
   data-bearing, and lists a rename by both names (`--no-renames`), so moving a
   file out of a data-bearing path does not hide the old one. A file

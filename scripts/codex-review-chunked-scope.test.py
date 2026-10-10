@@ -875,11 +875,35 @@ class WorkflowLogExposureTest(unittest.TestCase):
             diff = pathlib.Path(tmp) / "pr_diff.txt"
             diff.write_bytes(b"diff --git a/db/data/caf\xe9.csv b/db/data/caf\xe9.csv\n+row\n")
             out = pathlib.Path(tmp) / "prompt.md"
-            env = dict(os.environ, LOOP_N="0", LIVE_STATE_FILE=str(live), PR_DIFF_FILE=str(diff))
+            env = dict(os.environ, LOOP_N="0", LIVE_STATE_FILE=str(live), PR_DIFF_FILE=str(diff), REVIEWER_ROUTE="blocked")
             result = subprocess.run([sys.executable, "-I", "scripts/codex-review-assemble-prompt.py", str(out)],
                                     cwd=REPO_ROOT, env=env, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr[-300:])
             self.assertIn(b"db/data/caf\xe9.csv", out.read_bytes(), "the name did not reach the prompt as it is")
+
+    # Only the blocked route keeps such bytes; on a route to a reviewer (or with no route) the
+    # assembler decodes strictly, as before round 3b, so the step fails (round 3c).
+    def test_the_assemble_step_tells_the_assembler_its_route(self):
+        text = WORKFLOW.read_text()
+        step = text.split("      - name: Assemble prompt\n", 1)[1].split("\n      - name: ", 1)[0]
+        self.assertIn("\n          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}\n", step + "\n")
+
+    def test_assembler_reads_strictly_on_a_reviewer_route(self):
+        for route in ("codex", "claude-deep", None):
+            with self.subTest(route=route), tempfile.TemporaryDirectory() as tmp:
+                live = pathlib.Path(tmp) / "live_state_prompt.txt"
+                live.write_bytes(b"100644 blob abc\tapp/caf\xe9.rb\n")
+                diff = pathlib.Path(tmp) / "pr_diff.txt"
+                diff.write_bytes(b"diff --git a/app/caf\xe9.rb b/app/caf\xe9.rb\n+x\n")
+                out = pathlib.Path(tmp) / "prompt.md"
+                env = dict(os.environ, LOOP_N="0", LIVE_STATE_FILE=str(live), PR_DIFF_FILE=str(diff))
+                env.pop("REVIEWER_ROUTE", None)
+                if route:
+                    env["REVIEWER_ROUTE"] = route
+                result = subprocess.run([sys.executable, "-I", "scripts/codex-review-assemble-prompt.py", str(out)],
+                                        cwd=REPO_ROOT, env=env, capture_output=True)
+                self.assertNotEqual(result.returncode, 0, "bytes that are not UTF-8 reached a reviewer's prompt")
+                self.assertFalse(out.exists(), "a prompt was written")
 
     def test_assembler_fails_closed_without_its_evidence(self):
         cases = {

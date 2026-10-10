@@ -512,13 +512,14 @@ def _load(path):
     return json.loads(pathlib.Path(path).read_text())
 
 
-def _read_diff(diff_path):
+def _read_diff(diff_path, errors="strict"):
     if not diff_path:
         return ""
     try:
-        # A name or line need not be UTF-8 (a blocked data-bearing diff may hold one): keep the
-        # bytes (surrogateescape) rather than crash before the envelope is built.
-        return pathlib.Path(diff_path).read_bytes().decode("utf-8", "surrogateescape")
+        # errors="surrogateescape" only on the blocked route (main): a data-bearing name need not
+        # be UTF-8, and the GUARD-1 envelope must still be built. Elsewhere a byte that is not UTF-8
+        # fails the step, as before.
+        return pathlib.Path(diff_path).read_bytes().decode("utf-8", errors)
     except OSError:
         return ""
 
@@ -528,7 +529,8 @@ def _sha256_file(path):
 
 
 def _sha256_text(text):
-    # surrogateescape gives back the original bytes of a diff read by _read_diff.
+    # surrogateescape gives back the original bytes of a diff _read_diff read on the blocked route;
+    # strictly read text encodes the same either way.
     return hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()
 
 
@@ -838,7 +840,8 @@ def main():
     if not args.manifest and not args.reviews:
         parser.error("review JSON files are required unless --manifest is provided")
 
-    diff = _read_diff(args.full_diff) if args.full_diff else _read_diff(args.diff)
+    errors = "surrogateescape" if os.environ.get("REVIEWER_ROUTE") == "blocked" else "strict"
+    diff = _read_diff(args.full_diff, errors) if args.full_diff else _read_diff(args.diff, errors)
     binary_diff = None
     if args.binary_scan_diff:
         # Fail closed: an unreadable file must not read as "no binary files".

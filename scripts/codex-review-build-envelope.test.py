@@ -351,7 +351,7 @@ class BinaryContentTest(unittest.TestCase):
         clean = self.reader({"public/images/x.png": PNG_BYTES})
         self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff, None, clean)["kind"], "approved")
 
-    def run_cli(self, base_files, head_changes, bounded=None, executable=(), review_body=APPROVE):
+    def run_cli(self, base_files, head_changes, bounded=None, executable=(), review_body=APPROVE, route="codex"):
         """Commit base_files, apply head_changes ({path: bytes, or None to delete}), then run the
         envelope CLI on the real BASE...HEAD diff as the workflow does. `bounded` (bytes) stands in
         for the reviewer's cut diff; by default it is the full diff. Returns the status state."""
@@ -386,7 +386,7 @@ class BinaryContentTest(unittest.TestCase):
             review = pathlib.Path(tmp) / "review.json"
             review.write_text(json.dumps(review_body))
             out = pathlib.Path(tmp) / "envelope.json"
-            env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=base, LOOP_N="1", REVIEWER_ROUTE="codex", RUN_ID="1",
+            env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=base, LOOP_N="1", REVIEWER_ROUTE=route, RUN_ID="1",
                        PATH="/usr/bin:/bin")
             result = subprocess.run(
                 [sys.executable, str(MODULE_PATH), "--diff", str(cut), "--binary-scan-diff", str(diff),
@@ -567,17 +567,35 @@ class BinaryContentTest(unittest.TestCase):
 
     # The blocked route's review (GUARD-1, written by the workflow) must still become an envelope when
     # a name in the diff is not UTF-8 (round 3b, 2026-10-10).
-    # A diff read with surrogateescape hashes as its original bytes, so the chunked manifest's
-    # full_raw_diff_sha256 still matches a diff holding bytes that are not UTF-8.
+    # _sha256_text hashes text read with surrogateescape (the blocked route only) as its original
+    # bytes. This pins the helper alone: the chunked path reads its diff strictly and
+    # build-evidence.py decodes strictly, so such text never reaches a manifest hash there.
     def test_a_diff_that_is_not_utf8_hashes_as_its_bytes(self):
         raw = b"+caf\xe9\n"
         self.assertEqual(build_envelope._sha256_text(raw.decode("utf-8", "surrogateescape")),
                          build_envelope.hashlib.sha256(raw).hexdigest())
 
+    # On a route to a reviewer the diff is read strictly, as before round 3b (round 3c).
+    def test_the_cli_reads_the_diff_strictly_on_a_reviewer_route(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            diff = pathlib.Path(tmp) / "diff.txt"
+            diff.write_bytes(b"diff --git a/app/caf\xe9.rb b/app/caf\xe9.rb\n+x\n")
+            review = pathlib.Path(tmp) / "review.json"
+            review.write_text(json.dumps(APPROVE))
+            for route in ("codex", "claude-deep"):
+                with self.subTest(route=route):
+                    env = dict(PR_NUMBER="7", HEAD_SHA="a" * 40, BASE_SHA="b" * 40, LOOP_N="1", REVIEWER_ROUTE=route,
+                               RUN_ID="1", PATH="/usr/bin:/bin")
+                    result = subprocess.run([sys.executable, str(MODULE_PATH), "--diff", str(diff),
+                                             "--out", str(pathlib.Path(tmp) / "envelope.json"), str(review)],
+                                            env=env, capture_output=True, text=True)
+                    self.assertNotEqual(result.returncode, 0, "a diff that is not UTF-8 was read on a reviewer route")
+                    self.assertIn("UnicodeDecodeError", result.stderr)
+
     def test_the_cli_builds_the_blocked_envelope_for_a_name_that_is_not_utf8(self):
         guard = {"verdict": "NEEDS_HUMAN", "findings": [dict(LOW_FINDING, id="GUARD-1", severity="HIGH")]}
         name = os.fsdecode(b"db/data/caf\xe9.csv")
-        self.assertEqual(self.run_cli({"README": b"r\n"}, {name: b"a,b\n"}, review_body=guard), "failure")
+        self.assertEqual(self.run_cli({"README": b"r\n"}, {name: b"a,b\n"}, review_body=guard, route="blocked"), "failure")
         self.assertEqual([f["id"] for f in self.last_envelope["review"]["findings"]], ["GUARD-1"])
 
     def test_the_cli_reads_the_head_commit(self):
