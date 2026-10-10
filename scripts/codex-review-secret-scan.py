@@ -31,6 +31,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 
 PATTERNS = {
     # Not after a letter or digit: "task-clean_old_..." holds "sk-" inside a word. "_", "=", quotes
@@ -77,6 +78,8 @@ def scan(text, environ):
         texts.extend(strings_in(json.loads(text)))
     except ValueError:
         pass
+    # A URL-encoded copy too: %22sk-... or key%3Dsk-... puts a letter or digit right before the key.
+    texts.extend(urllib.parse.unquote(t) for t in list(texts) if "%" in t)
     texts = [ZERO_WIDTH_RE.sub("", t) for t in texts]
     hits = set()
     for name, pattern in PATTERNS.items():

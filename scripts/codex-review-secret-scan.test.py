@@ -110,6 +110,14 @@ class SecretScanTest(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertNotEqual(secret_scan.scan(text, {"PATH": "/usr/bin"}), [])
 
+    # A key quoted from a URL-encoded query string or log line follows %22 or %3D, which ends in a
+    # digit or letter; the lookbehind must not let that hide it (2026-10-10).
+    def test_a_url_encoded_key_is_found(self):
+        key = "sk-" + "A1b2C3d4E5f6G7h8I9j0K1l2"
+        for text in (f"q=%22{key}%22", f"api_key%3D{key}", f"Authorization%3A%20Bearer%20{key}"):
+            with self.subTest(text=text):
+                self.assertNotEqual(secret_scan.scan(text, {"PATH": "/usr/bin"}), [])
+
     def test_a_hit_exits_one_and_never_prints_the_value(self):
         value = POSITIVES["stripe_key"]
         with tempfile.TemporaryDirectory() as tmp:
