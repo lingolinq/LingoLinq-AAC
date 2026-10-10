@@ -289,6 +289,12 @@ class BinaryContentTest(unittest.TestCase):
                     disguises[f"{extension} {start[:8]!r} as {name}"] = text + self.CODE
                 disguises[f"{extension} magic {magic!r}"] = magic + self.CODE
                 disguises[f"{extension} magic {magic!r} + utf-8"] = magic + "\u00e9".encode() + self.CODE
+                # Form feed and vertical tab are whitespace to Ruby; a control byte inside a string
+                # literal is legal in Ruby (double quotes) and sh (single quotes) (round 3c).
+                disguises[f"{extension} magic {magic!r} + form feed"] = magic + b"=\x0c" + self.CODE
+                disguises[f"{extension} magic {magic!r} + vertical tab"] = magic + b"=\x0b" + self.CODE
+                disguises[f"{extension} magic {magic!r} + ruby string"] = magic + b'="\x01";' + self.CODE
+                disguises[f"{extension} magic {magic!r} + sh string"] = magic + b"='\x01';" + self.CODE
         # The round-3 review's probes (scratchpad sigprobe.py), kept as written.
         disguises.update({
             "probe gif": b"GIF89a=1;system('echo PWNED-gif')\n\x00",
@@ -300,12 +306,23 @@ class BinaryContentTest(unittest.TestCase):
             "probe webp": "RIFF\u00e9\u00e9WEBP=1;system('echo PWNED-webp')\n".encode() + b"\x00",
             "probe wav": "RIFF\u00e9\u00e9WAVE=1;system('echo PWNED-wav')\n".encode() + b"\x00",
             "probe pdf": b"%PDF-1.7\n;system('echo PWNED-pdf');\n__END__\n\x00",
-            # A control byte inside a comment passes the 20-byte check (it runs as Ruby); the RIFF
-            # size field, read as UTF-8 text, still gives these away.
+            # A control byte inside a comment is no NUL, so these fail the NUL check; the RIFF size
+            # field, read as UTF-8 text, rejects them as well.
             "riff webp comment": "RIFF\u00e9\u00e9WEBP=1#".encode() + b"\x01\nsystem('id')\n\x00",
             "riff wav comment": "RIFF\u00e9\u00e9WAVE=1#".encode() + b"\x01\nsystem('id')\n\x00",
+            # A RIFF size of whitespace Ruby skips (round 3c review, revE/sig3b.py).
+            "riff webp vertical tabs": b"RIFF=\x0b\x0b\x0bWEBP=1;system('id')\n\x00",
+            "riff wav vertical tabs": b"RIFF=\x0b\x0b\x0bWAVE=1;system('id')\n\x00",
         })
         return disguises
+
+    # Ruby skips vertical tab and form feed as whitespace, so a header field made of them is text
+    # (a RIFF size of "\v\v\v\v" is no real size); a lone control byte or a cut UTF-8 character is not.
+    def test_text_includes_every_byte_ruby_reads_as_whitespace(self):
+        self.assertTrue(build_envelope._is_text(b"\x0b\x0c\t\n\r "))
+        self.assertTrue(build_envelope._is_text("\u00e9\u00e9".encode()))
+        self.assertFalse(build_envelope._is_text(b"\x0b\x01"))
+        self.assertFalse(build_envelope._is_text(b"\xc3"))
 
     def test_no_type_accepts_its_own_start_turned_into_text_and_code(self):
         disguises = self.generated_disguises()

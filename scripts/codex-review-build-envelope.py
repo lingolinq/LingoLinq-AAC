@@ -229,10 +229,10 @@ def _starts(*prefixes):
     return lambda head: head.startswith(prefixes)
 
 
-# Bytes a script can be made of: tab, newline, carriage return, printable ASCII, and any character
-# in valid UTF-8 (Ruby reads source as UTF-8). A header field that is all text is a script posing as
-# that header, not a real value.
-_TEXT_BYTES = frozenset(b"\t\n\r" + bytes(range(0x20, 0x7F)))
+# Bytes a script can be made of: tab, newline, vertical tab, form feed, carriage return (Ruby skips
+# each as whitespace), printable ASCII, and any character in valid UTF-8 (Ruby reads source as
+# UTF-8). A header field that is all text is a script posing as that header, not a real value.
+_TEXT_BYTES = frozenset(b"\t\n\x0b\x0c\r" + bytes(range(0x20, 0x7F)))
 
 
 def _binary_byte_within(data, limit):
@@ -324,19 +324,31 @@ def _pdf_header(head):
             and head[8:9] in (b"\r", b"\n"))
 
 
+def _pdf_binary_line(head):
+    """After the header line, a NUL within the first 20 bytes, or the binary comment line the PDF
+    spec recommends (`%` and four bytes of 128 or more; both real PDFs in this repo have one). A
+    control byte in a string literal (`%PDF-1.7\\n="\\x01";...`) is neither."""
+    start = 10 if head[8:10] == b"\r\n" else 9
+    return b"\x00" in head[:_HEADER_BYTES] or (
+        head[start:start + 1] == b"%" and all(byte >= 0x80 for byte in head[start + 1:start + 5])
+        and len(head) >= start + 5)
+
+
 # How each expected binary type starts. A file named for one of these types that does not start that
 # way is not that type: a .png can hold code (Ruby stops parsing at a NUL) or a scanned roster. A real
 # file that starts unusually only costs a human look (the APPROVE is withheld), never a missed one.
-# Every real file of these types holds a byte script text cannot within its first 20 bytes (all
-# 483 such files in this repo do; a PDF's binary comment line is the second line): a start that is
-# all text is a script, whatever magic it opens with (`GIF89a=1;system(...)` runs as Ruby). A
-# script that places such a byte early (a NUL after very short code, or a control byte inside a
-# comment) still passes: the check is a heuristic, see .github/codex/README.md.
+# Every real file of these types other than PDF holds a NUL within its first 20 bytes (all 481
+# such files in this repo do). Ruby stops reading a script at a NUL, so Ruby code in a disguised
+# file must fit in the 19 bytes before it, magic included. Any other byte script text cannot hold is
+# not enough: a control byte inside a string literal (`GIF89a="\x01";...`) or a comment is legal
+# Ruby. A PDF has its own check (_pdf_binary_line). This does not stop a shell: bash skips a NUL
+# that is not on the first line, so `bash x.gif` can run code of any length. What still passes is
+# listed in .github/codex/README.md; it is a residual risk, not a closed class.
 _HEADER_BYTES = 20
 
 
 def _binary_header(check):
-    return lambda head: _binary_byte_within(head, _HEADER_BYTES) and check(head)
+    return lambda head: b"\x00" in head[:_HEADER_BYTES] and check(head)
 
 
 BINARY_SIGNATURES = {
@@ -351,7 +363,7 @@ BINARY_SIGNATURES = {
     "tiff": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),
     "avif": _iso_media,
     "heic": _iso_media,
-    "pdf": _after("bom_space", lambda rest: _binary_byte_within(rest, _HEADER_BYTES) and _pdf_header(rest)),
+    "pdf": _after("bom_space", lambda rest: _pdf_header(rest) and _pdf_binary_line(rest)),
     "woff": _starts(b"wOFF"),
     "woff2": _starts(b"wOF2"),
     "ttf": _sfnt(b"\x00\x01\x00\x00", b"true", b"OTTO"),
@@ -373,7 +385,7 @@ BINARY_SIGNATURES = {
     # The first atom's size: a first atom of 16 MiB or more is withheld (`x=0;free=1;` runs as Ruby).
     "mov": lambda head: head[:1] == b"\x00" and head[4:8] in (b"ftyp", b"moov", b"mdat", b"wide", b"free", b"skip", b"pnot"),
 }
-# The PDF entry applies the same check after its BOM and whitespace.
+# The PDF entry applies its own check (_pdf_binary_line) after its BOM and whitespace.
 BINARY_SIGNATURES = {extension: check if extension == "pdf" else _binary_header(check)
                      for extension, check in BINARY_SIGNATURES.items()}
 

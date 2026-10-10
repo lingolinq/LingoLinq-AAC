@@ -180,18 +180,30 @@ that type: the envelope takes the list of binary files from git itself
 at another file), reads the first bytes of each such file at the PR head
 (`--binary-content-at`), and withholds an APPROVE, naming the files, when they
 do not start like the type or cannot be read. "Start like the type" means the
-type's magic and header fields, plus a byte that script text cannot hold (NUL,
-another control byte, or a byte outside valid UTF-8) within the first 20 bytes,
-which every real media file in this repo has. So a `.png` that is plain code, a
-"PDF" that is a CSV, and a script that opens with a format's magic
-(`GIF89a=1;system(...)`) are withheld. This is a heuristic, not a parser:
+type's magic and header fields, plus:
 
-- a script that puts such a byte early still passes, for example a NUL right
-  after very short code, or a control byte inside a comment followed by more
-  code on the next line (`GIF89a=1#<0x01>` then code);
-- a PDF whose first 20 bytes after any BOM or whitespace are all text (no
-  binary comment line, or one written in valid UTF-8) is withheld, which costs
-  a human look.
+- for every type but PDF, a NUL within the first 20 bytes (all 481 such files
+  in this repo have one);
+- for PDF, a `%PDF-d.d` header line followed by a NUL within the first 20
+  bytes or by the binary comment line the PDF spec recommends (`%` and four
+  bytes of 128 or more; both PDFs in this repo have one).
+
+So a `.png` that is plain code, a "PDF" that is a CSV, and a script that opens
+with a format's magic (`GIF89a=1;system(...)`, or the same with a control byte
+in a string literal or comment) are withheld. This is a heuristic, not a
+parser, and these still pass:
+
+- Ruby (or another language that stops at a NUL) whose code, magic included,
+  fits in the 19 bytes before the NUL, for example `GIF89a=`id`` then a NUL;
+- any expected-type file run by a shell (`bash x.gif`, `sh x.pdf`): bash skips
+  a NUL that is not on the first line and treats `%PDF-1.7` as a failed job
+  reference, so code of any length after the first line runs;
+- a file run by an interpreter that ignores the binary bytes the check needs.
+
+This residual is not closed: it needs Scot's written risk acceptance before the
+workflow is re-enabled. A real PDF without the binary
+comment line, or one whose header comes after more than a BOM and whitespace, is
+withheld (a human look).
 
 That list is made with rename detection off, so for a binary file that is not
 an expected type a pure rename, a move, a mode-only change or a deletion also
