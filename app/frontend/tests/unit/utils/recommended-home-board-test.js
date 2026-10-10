@@ -15,6 +15,7 @@ import openRecommendedHomeBoard, { vocalFlairButtonsForGrid } from 'frontend/uti
 import LingoLinq from 'frontend/app';
 import modal from 'frontend/utils/modal';
 import app_state from 'frontend/utils/app_state';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * board-preview-overlay#pick_for_home resolves its target as
@@ -31,6 +32,7 @@ import app_state from 'frontend/utils/app_state';
 describe('recommended_home_board setup_user lifetime', function() {
   var previewOpen = false;
   var previewed = null;
+  var ownerGoneSkips = null; // restored in afterEach too, so a failed wait cannot leave it installed
 
   var communicator = EmberObject.create({ id: '1_33', user_name: 'hannah_lee' });
 
@@ -47,6 +49,7 @@ describe('recommended_home_board setup_user lifetime', function() {
 
   afterEach(function() {
     app_state.set('setup_user', null);
+    if (ownerGoneSkips) { ownerGoneSkips.restore(); ownerGoneSkips = null; }
   });
 
   it('maps a recommended grid to a published Vocal Flair set', function() {
@@ -153,6 +156,7 @@ describe('recommended_home_board setup_user lifetime', function() {
     waitsFor(function() { return previewOpen; });
     runs(function() {
       stub(modal, 'board_preview_open', function() { polls++; return true; });
+      ownerGoneSkips = recordOwnerGoneSkips();
       owner.destroy();
       LingoLinq.appState = realAppState;
       setTimeout(function() { done = true; }, 900);
@@ -160,6 +164,9 @@ describe('recommended_home_board setup_user lifetime', function() {
     waitsFor(function() { return done; });
     runs(function() {
       expect(polls).toEqual(0);
+      // At least this loop's own skip. Earlier tests in this module that close the preview before the
+      // loop's first 400 ms check leave their loops polling into later tests, and one may end here too.
+      expect(ownerGoneSkips.count >= 1).toEqual(true);
     });
   });
 });

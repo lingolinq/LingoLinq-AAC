@@ -1094,7 +1094,7 @@ var speecher = EmberObject.extend({
         if(audio.className == 'throwaway') {
           audio.src = null;
         }
-        if(play_for && !live_service(play_for)) { return; } _this.speak_end_handler(speak_id); // that app is gone: do not advance another's speech queue
+        if(owner_gone(play_for)) { return; } _this.speak_end_handler(speak_id); // that app is gone: do not advance another's speech queue
       }
     };
     audio.lastListener = handler;
@@ -1494,4 +1494,4 @@ window.speecher = speecher;
 
 export default speecher;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';

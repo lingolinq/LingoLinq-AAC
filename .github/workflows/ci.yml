@@ -393,9 +393,10 @@ jobs:
           registered=$(printf '%s' "$shard_line" | sed -nE 's/.*registered=([0-9]+).*/\1/p')
           echo "### Ember shard ${SHARD}: ran ${tests:-0} of ${selected:-?} selected (${registered:-?} registered) in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
           # The harness logs [queued-fetch] and [owner-gone] inside the test that hit them (tests/helpers/index.js,
-          # tests/test-helper.js); testem drops console output from outside a test, so the end-of-run lists
-          # never reach this log. List the per-test lines here instead. Report only: never fails the step.
-          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] [^"]*' ember-test.log | sort | uniq -c || true)
+          # tests/test-helper.js); testem prints console output with the next test result, so the end-of-run
+          # lists (after the last result) never reach this log. List the per-test lines here instead.
+          # Report only: never fails the step.
+          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | sort | uniq -c || true) # a test name may hold an escaped quote
           if [ -n "$late_work" ]; then
             { echo "Late work reported by the harness (a test did not wait for work it started):"; echo '```'; printf '%s\n' "$late_work"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           fi

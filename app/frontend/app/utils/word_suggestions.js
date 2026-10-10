@@ -1768,7 +1768,8 @@ word_suggestions.sync_flush_scheduled = function() { return !!_sync_timer; };
 // Tests: drop a scheduled flush (the queue stays in localStorage) so a test does not leave it for the
 // next one. Returns whether one was pending. No app code calls it. The runloop timer itself stays
 // queued until its delay passes and then does nothing (generation mismatch): cancelling it with
-// runCancel would be a new ember/no-runloop finding, and none of the callers awaits settled().
+// runCancel would be a new ember/no-runloop finding. A later test whose settled() runs within the
+// delay waits for it (up to sync_flush_delay, 5 s by default); none of the callers awaits settled().
 word_suggestions.cancel_sync_flush = function() { var had = !!_sync_timer; _sync_gen++; _sync_timer = null; return had; };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { live_service, owner_gone } from './live_service';

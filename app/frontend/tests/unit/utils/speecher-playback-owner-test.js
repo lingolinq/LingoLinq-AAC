@@ -3,6 +3,7 @@ import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import speecher from 'frontend/utils/speecher';
 import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * When a sound ends, speecher's handler advances the speech queue (speak_end_handler -> next_speak),
@@ -50,12 +51,18 @@ module('Unit | Utility | speecher playback after its app is gone', function(hook
   });
 
   test('an end event after its app is gone does not advance another app\'s queue', async function(assert) {
-    assert.expect(1);
+    assert.expect(2);
     const audio = fakeAudio();
     speecher.play_audio({ audio, speak_id: 1 });
     await waitFor(() => audio.played);
-    this.standIns.appState.destroy(); // sets isDestroying at once
-    audio.dispatchEvent(new window.Event('ended'));
+    const skips = recordOwnerGoneSkips();
+    try {
+      this.standIns.appState.destroy(); // sets isDestroying at once
+      audio.dispatchEvent(new window.Event('ended'));
+      assert.strictEqual(skips.count, 1, 'the guard skipped (and the harness does not report a deliberate skip)');
+    } finally {
+      skips.restore();
+    }
     assert.deepEqual(this.ended, [], 'speak_end_handler did not run');
   });
 });

@@ -42,11 +42,13 @@ function setupRenderingTest(hooks, options) {
 // owner is torn down, wait (bounded) until no fetch is still queued. Reads Ember Data's private
 // _fetchManager._pendingFetch: test-only. Returns true when a fetch was still queued at entry.
 //
-// What this does and does not see: a fetch queued during the test body is normally flushed before
-// this hook runs (its setTimeout(0) was set before the ones QUnit uses to end the test and reach
-// afterEach), so it catches only a fetch queued late (after the test signalled it was done). It is
-// not a detector for tests that do not wait for their fetches. The detector is the slowed-flush probe
-// described in commit 7b0848298, which found and fixed the 9 tests that did not wait.
+// What this sees: whatever is still queued when this hook starts. After a SYNCHRONOUS plain QUnit test
+// that is any fetch it did not wait for (QUnit goes from the test body to its hooks in a microtask,
+// before the setTimeout(0) flush). After an async test or a jasmine-style it() (which ends through
+// assert.async, then a setTimeout), a fetch queued during the body is normally flushed already, so
+// only a fetch queued after the test signalled it was done is seen. It therefore does not find every
+// test that skips waiting; the slowed-flush probe described in commit 7b0848298 does (it found and
+// fixed 9).
 export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   if (!owner || owner.isDestroyed || owner.isDestroying) { return false; }
   let store;
@@ -61,10 +63,11 @@ export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   return wasPending;
 }
 
-// Tests that ended with an Ember Data fetch still queued. Each is logged inside its own test, which is
-// where testem shows console output; the Ember shard jobs copy those lines into the job summary
+// Tests that ended with an Ember Data fetch still queued. Each is logged during its own test, so testem
+// prints it with that test's result; the Ember shard jobs copy those lines into the job summary
 // (.github/workflows/ci.yml). The QUnit.done list is only visible in a browser console run: testem
-// does not print console output from outside a test. A queued fetch at teardown is timing-dependent,
+// prints console output with the next test result, and after the last one there is none. A queued
+// fetch at teardown is timing-dependent,
 // so this reports rather than fails: failing would make a required check flaky.
 export const queuedFetchReport = [];
 let queuedFetchSummaryRegistered = false;

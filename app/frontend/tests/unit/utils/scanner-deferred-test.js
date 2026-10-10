@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import scanner, { scanner_reset_for, scanner_restart_for } from 'frontend/utils/scanner';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * The scanner is a module singleton. Its deferred reset (closes the modal highlight, restarts
@@ -39,13 +40,19 @@ module('Unit | Utility | scanner deferred reset and restart', function(hooks) {
   });
 
   test('they do nothing once the app that scheduled them is gone', function(assert) {
-    assert.expect(2);
+    assert.expect(3);
     const owner = EmberObject.create();
     const reset = scanner_reset_for(owner);
     const restart = scanner_restart_for(owner);
-    owner.destroy(); // sets isDestroying at once
-    reset();
-    restart();
+    const skips = recordOwnerGoneSkips();
+    try {
+      owner.destroy(); // sets isDestroying at once
+      reset();
+      restart();
+      assert.strictEqual(skips.count, 2, 'both guards skipped (and the harness does not report a deliberate skip)');
+    } finally {
+      skips.restore();
+    }
     assert.strictEqual(this.calls.reset, 0, 'no reset in another app');
     assert.strictEqual(this.calls.start, 0, 'no restart in another app');
   });

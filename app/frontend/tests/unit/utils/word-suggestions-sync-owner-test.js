@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import word_suggestions from 'frontend/utils/word_suggestions';
 import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * schedule_sync_flush posts the queued word-usage sync after a delay, through whichever app is
@@ -43,11 +44,17 @@ module('Unit | Utility | word_suggestions sync flush after its app is gone', fun
   });
 
   test('the flush does not run once its app is gone', async function(assert) {
-    assert.expect(2);
+    assert.expect(3);
     assert.false(word_suggestions.sync_flush_scheduled(), 'no earlier flush is pending');
     word_suggestions.schedule_sync_flush();
-    this.standIns.appState.destroy(); // sets isDestroying at once
-    await wait(60);
+    const skips = recordOwnerGoneSkips();
+    try {
+      this.standIns.appState.destroy(); // sets isDestroying at once
+      await wait(60);
+      assert.strictEqual(skips.count, 1, 'the guard skipped (and the harness does not report a deliberate skip)');
+    } finally {
+      skips.restore();
+    }
     assert.strictEqual(this.flushes, 0, 'no post through another app');
   });
 });

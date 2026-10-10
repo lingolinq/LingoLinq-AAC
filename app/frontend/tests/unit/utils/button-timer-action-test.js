@@ -5,6 +5,7 @@ import Button from 'frontend/utils/button';
 import modal from 'frontend/utils/modal';
 import speecher from 'frontend/utils/speecher';
 import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * The :timer(Ns) button action ticks every 500 ms and, when the time is up and speak mode is on,
@@ -22,13 +23,14 @@ module('Unit | Utility | button timer action', function(hooks) {
   standInGlobals(hooks, { appState: appStateFake });
 
   test('a timer started for an app that is gone does not act on the next one', async function(assert) {
-    assert.expect(1);
+    assert.expect(2);
     // Replace by exact descriptor and put back exactly (these may be inherited).
     const replaced = [[modal, 'success'], [modal, 'open'], [speecher, 'beep']].map(([obj, k]) => [obj, k, Object.getOwnPropertyDescriptor(obj, k)]);
     let opened = 0;
     modal.success = function() {};
     modal.open = function() { opened++; };
     speecher.beep = function() {};
+    const skips = recordOwnerGoneSkips();
     try {
       Button.load_actions();
       const timer = LingoLinq.special_actions.find((a) => a.action === ':timer');
@@ -41,7 +43,9 @@ module('Unit | Utility | button timer action', function(hooks) {
 
       await new Promise((resolve) => setTimeout(resolve, 1700));
       assert.strictEqual(opened, 0, 'no timer modal opened in the next app');
+      assert.strictEqual(skips.count, 1, 'the guard skipped (and the harness does not report a deliberate skip)');
     } finally {
+      skips.restore();
       replaced.forEach(([obj, k, d]) => { if (d) { Object.defineProperty(obj, k, d); } else { delete obj[k]; } });
     }
   });
@@ -67,13 +71,14 @@ module('Unit | Utility | button timer action', function(hooks) {
   });
 
   test('the reminder beep does not sound once its app is gone', async function(assert) {
-    assert.expect(2);
+    assert.expect(3);
     const replaced = [[modal, 'success'], [modal, 'open'], [speecher, 'beep']].map(([obj, k]) => [obj, k, Object.getOwnPropertyDescriptor(obj, k)]);
     let opened = 0;
     let beeps = 0;
     modal.success = function() {};
     modal.open = function() { opened++; };
     speecher.beep = function() { beeps++; };
+    const skips = recordOwnerGoneSkips();
     try {
       Button.load_actions();
       LingoLinq.special_actions.find((a) => a.action === ':timer').trigger([':timer(1s)', '1']);
@@ -82,7 +87,9 @@ module('Unit | Utility | button timer action', function(hooks) {
       this.standIns.appState.destroy();
       await new Promise((resolve) => setTimeout(resolve, 1700));
       assert.strictEqual(beeps, 1, 'no reminder beep after the app is gone');
+      assert.strictEqual(skips.count, 1, 'the guard skipped (and the harness does not report a deliberate skip)');
     } finally {
+      skips.restore();
       replaced.forEach(([obj, k, d]) => { if (d) { Object.defineProperty(obj, k, d); } else { delete obj[k]; } });
     }
   });
