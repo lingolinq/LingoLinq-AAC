@@ -1,19 +1,18 @@
 ---
 paths:
-  - "spec/**"
   - "app/frontend/tests/**"
   - "app/frontend/e2e/**"
   - "app/frontend/node-tests/**"
   - "app/frontend/testem.js"
   - "app/frontend/playwright.config.js"
-  - ".rspec"
   - ".github/workflows/ci.yml"
 ---
 
-# Testing standards
+# Testing standards: frontend, end-to-end and CI
 
-How LingoLinq tests are written, run, read and changed, for the backend (RSpec), the frontend
-(QUnit: unit, integration, acceptance) and end-to-end UI (Playwright). Root `CLAUDE.md` Rules 0.11,
+How LingoLinq tests are written, run, read and changed for the frontend (QUnit: unit, integration,
+acceptance) and end-to-end UI (Playwright), and how the CI gates treat them. RSpec has its own rule
+file, `.claude/rules/testing.md` (added by PR #1117: no network in specs, test credentials, Redis state, the clock). Root `CLAUDE.md` Rules 0.11,
 0.12 and 0.14 still apply and win on conflict; `app/frontend/CLAUDE.md` has the Ember run mechanics.
 The history behind each rule is in `docs/task-management/2026-10-05_ci-test-stalls.md`.
 
@@ -55,71 +54,7 @@ about a flag pins it rather than inheriting whatever is set (see `tests/unit/uti
 
 ## 3. Backend (RSpec)
 
-- Specs mirror the source tree (`app/models/user.rb` -> `spec/models/user_spec.rb`).
-- `.rspec` runs in **defined** order. A spec must still pass on its own and in any order; do not
-  rely on state from an earlier example.
-- Local runs need the DB credentials prefix (`docs/PRE_COMMIT_CHECKLIST.md`); target what you
-  changed first: `bundle exec rspec spec/models/user_spec.rb:42`.
-- `AuditEvent` rows commit outside the RSpec transaction: scope any `delete_all` to the example's
-  own rows.
-- No real network or third-party calls (see "External services" below). Every AI or external call
-  in app code goes through `lib/pii_scrubber.rb`; test that path, never bypass it.
-- **No real user data.** Fixtures, factories and cassettes are synthetic; see
-  `.claude/rules/data-bearing-paths.md` (Tier 1 boundary) before touching them.
-- Permission and data-isolation code (district / org scoping, supervisor access) gets a negative
-  test too: the user who must NOT see the record does not.
-
-### External services: specs never reach the internet
-
-**The rule.** A spec talks only to this machine (Postgres, Redis, a local test server). Every call to
-anything else (S3, OpenSymbols, AI endpoints, Stripe, mail, geolocation, any URL) is replaced by a
-test double. This is the industry standard, not a local preference:
-
-- Google, *Software Engineering at Google*, ch. 11: "small tests aren't allowed to access the network
-  or disk"; medium tests "aren't allowed to make network calls to any system other than `localhost`",
-  because remote machines are "far and away the biggest source of slowness and nondeterminism in most
-  systems". Only large end-to-end tests cross machines.
-  <https://abseil.io/resources/swe-book/html/ch11.html>
-- Martin Fowler, "Eradicating Non-Determinism in Tests": "Testing with such remote systems brings a
-  number of problems, and non-determinism is high on the list"; use a test double, and check the real
-  service separately with contract tests. <https://martinfowler.com/articles/nonDeterminism.html>
-- thoughtbot, "How to Stub External Services in Tests": real requests mean "tests failing
-  intermittently due to connectivity issues", "dramatically slower test suites" and "hitting API rate
-  limits"; the suite blocks them with `WebMock.disable_net_connect!(allow_localhost: true)`.
-  <https://thoughtbot.com/blog/how-to-stub-external-services-in-tests>
-- WebMock, the standard Ruby tool for this: <https://github.com/bblimke/webmock>
-
-**What it cost here** (measured, `docs/task-management/2026-10-07_rspec-speed.md`): four seeding
-examples downloaded and imported a 12 MB board set from public S3 on every run, 575 s of a 934 s
-local suite, while asserting nothing about it. Blocking real requests found 110 more examples
-reaching OpenSymbols, the shared dev uploads bucket, an AI model endpoint and fake hosts, mostly as
-side effects of code added after the specs were written.
-
-**How to write a spec so this does not happen:**
-
-1. **Know what the code under test calls, including side effects.** A spec for "create a board" also
-   runs every callback the board runs (symbol lookups, uploads). Stub every outside call on the path,
-   not only the ones the example asserts on.
-2. **Stub at the outermost seam and let our own code run.** Fake the HTTP request (`stub_request`
-   with WebMock) or the client method that performs it (`fetch_senner_baud_obz`, an uploader's
-   remote call), not the whole feature, so the example still exercises our handling of the response.
-3. **Test failure on purpose.** To cover "the service is down", stub a timeout or an error response.
-   Never point at a fake host (`http://qwer/`, `example.com`) and rely on DNS failing.
-4. **Do not depend on what credentials happen to be set.** `spec_helper.rb` loads `.env` files,
-   including the committed `.env.op.template`, whose values are unresolved 1Password references
-   (`op://...`), in CI as well as locally. A "configured?" check therefore passes with a value that
-   is not a credential, and the code calls the real service. A spec must behave the same whatever
-   is set: stub the call, never rely on "skipped when no key is set".
-5. **When you add an outside call to app code, add its stub to every spec that reaches it** in the
-   same PR. The network guard below fails any example that forgets.
-6. **To check the real service** (does the S3 file still import, does the API still answer), write a
-   separate contract check that is run on purpose (scheduled, or before seeding), never part of the
-   PR suite.
-
-**The guard.** `spec/spec_helper.rb` loads WebMock with `disable_net_connect!(allow_localhost: true)`,
-so a spec that reaches the internet fails with the URL it tried. Fix such a failure by stubbing the
-call; never by allowing the host or turning the guard off for that spec (Rule 0.14). (Being
-introduced in `traci/perf/rspec-speed`, after the existing outside calls are stubbed.)
+See `.claude/rules/testing.md` (added by PR #1117).
 
 ## 4. Frontend unit and integration (QUnit)
 
@@ -152,8 +87,9 @@ teardown) and FAILS the test that:
 - leaves a **node under `<body>`**.
 
 The harness also fails late assertions, waits for queued Ember Data fetches before teardown, and
-stops the app's wall-clock pollers before every test. There is NO post-test pause: a test that
-needs one has a leak. `--query leakcheck=report` (log only) is for surveying locally and must never
+stops the app's wall-clock pollers before every test. It keeps develop's general 500 ms settle after
+sync-mode tests (per Traci; removing it is a separate, approved change), but a test must not rely on
+it: a test that needs more time than its own work takes has a leak. `--query leakcheck=report` (log only) is for surveying locally and must never
 be set in CI; `--query leakfields=1` additionally logs singleton data fields a test left changed
 (a survey aid only: much of that is legitimate app state, so it never fails a test).
 
@@ -257,9 +193,10 @@ left; a test that passes only with an inherited value is order-dependent.
 first failure if any), not `RSVP.all`: `all` settles on the first failure and leaves a second one
 as a global unhandled rejection, even when the caller handles the combined promise.
 
-**There is no post-test pause.** The fixed 500 ms pause after sync-mode tests was removed once every
-module's leftover work was fixed at its source; do not reintroduce one, per module or globally, to
-make a test pass. Find the leak (section 7) and fix it where it is scheduled. (persistence-sync keeps
+**No new pauses.** Apart from develop's general 500 ms settle after sync-mode tests (kept as is), do
+not add a pause or a wait, per module or globally, to make a test pass or to let an earlier test's
+leftover work finish. Find the leak (section 7) and fix it where it is scheduled: the test that
+scheduled the work waits for it or cancels it. (persistence-sync keeps
 its own retry-path pause for a known race, issue #589.)
 
 ### Test helpers that import app code
