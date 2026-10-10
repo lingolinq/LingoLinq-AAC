@@ -1272,7 +1272,7 @@ word_suggestions.schedule_sync_flush = function() {
   if(_sync_timer) { return; } var flush_for = live_service(LingoLinq.appState); // the service itself, not the forwarding util
   _sync_timer = runLater(function() {
     _sync_timer = null;
-    if(!live_service(flush_for)) { return; } word_suggestions.flush_sync_queue(); // its app is gone; the queue stays in localStorage
+    if(owner_gone(flush_for)) { return; } word_suggestions.flush_sync_queue(); // its app is gone; the queue stays in localStorage
   }, word_suggestions.sync_flush_delay || 5000); // overridable so tests need not wait 5 s
 };
 
@@ -1766,4 +1766,4 @@ export default word_suggestions;
 // Read-only: whether a sync flush is pending (tests wait for none before scheduling their own).
 word_suggestions.sync_flush_scheduled = function() { return !!_sync_timer; };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';

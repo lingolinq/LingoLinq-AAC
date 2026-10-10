@@ -27,6 +27,17 @@ module('Unit | Utility | scanner deferred reset and restart', function(hooks) {
     assert.strictEqual(this.calls.start, 1, 'the restart ran');
   });
 
+  // In production scanner.appState is often unset when a selection is made: the highlight
+  // controller passed to scanner.setup has no appState. Nothing captured means no app was torn
+  // down, so the restart and reset run, as they always did (2026-10-10 review, switch scanning).
+  test('they still run when no app was captured', function(assert) {
+    assert.expect(2);
+    scanner_reset_for(undefined)();
+    scanner_restart_for(null)();
+    assert.strictEqual(this.calls.reset, 1, 'the reset ran');
+    assert.strictEqual(this.calls.start, 1, 'the restart ran');
+  });
+
   test('they do nothing once the app that scheduled them is gone', function(assert) {
     assert.expect(2);
     const owner = EmberObject.create();

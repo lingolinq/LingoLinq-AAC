@@ -1523,15 +1523,15 @@ export default scanner;
 // once that app is gone (in tests a new app boots for every test; production never destroys its app-state).
 export function scanner_reset_for(owner) {
   return function() {
-    if(!live_service(owner)) { return; }
+    if(owner_gone(owner)) { return; }
     scanner.reset();
   };
 }
 export function scanner_restart_for(owner) {
   return function() {
-    if(!live_service(owner)) { return; }
+    if(owner_gone(owner)) { return; }
     scanner.start();
   };
 }
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';

@@ -2,7 +2,7 @@ import LingoLinq from '../app';
 import modal from './modal';
 import i18n from './i18n';
 import app_state from './app_state';
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';
 
 // Open the RECOMMENDED starter home board ("Vocal Flair 84") in its board-preview
 // modal (recommend:true) — the "pick a board (page-set) for me" flow. Confirming
@@ -65,7 +65,7 @@ function claim_setup_user(for_user) {
   // acting on whichever app is current (in tests a new app boots for every test).
   var owner = live_service(LingoLinq.appState);
   var tick = function() {
-    if (!live_service(owner)) { return; }
+    if (owner_gone(owner)) { return; }
     if (modal.board_preview_open()) { opened = true; }
     else if (opened) { return release(); }
     waited = waited + 400;

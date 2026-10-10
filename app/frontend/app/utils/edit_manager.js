@@ -2825,7 +2825,7 @@ var editManager = EmberObject.extend({
               report_progress(event);
               if(event.status == 'finished' || event.finished_at) { var refresh_for = live_service(editManager.get_app_state());
                 runLater(function() {
-                  if(!live_service(refresh_for)) { return; } user.reload(); // its app is gone: do not refresh another's session user
+                  if(owner_gone(refresh_for)) { return; } user.reload(); // its app is gone: do not refresh another's session user
                   editManager.get_app_state().refresh_session_user();
                 }, 100);
                 var res = event.result;
@@ -2969,7 +2969,7 @@ editManager._services = {};
    cannot fire. */
 // The guard itself lives in ./live_service (a leaf module, shared by raw_events and utterance);
 // re-exported here for existing importers.
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';
 export { live_service };
 
 // Getter methods for services with fallback to globals

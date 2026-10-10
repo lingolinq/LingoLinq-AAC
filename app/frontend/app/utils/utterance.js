@@ -316,7 +316,7 @@ var utterance = EmberObject.extend({
         utterance.suggestion_refresh_scheduled = true; var refresh_for = live_service(LingoLinq.appState); // the live app this refresh belongs to (none: it does not run)
         runLater(function() {
           utterance.suggestion_refresh_scheduled = false;
-          if(!live_service(refresh_for)) { return; } app_state.refresh_suggestions(); // its app is gone: do not refresh another
+          if(owner_gone(refresh_for)) { return; } app_state.refresh_suggestions(); // its app is gone: do not refresh another
           if(window.editManager) {
             window.editManager.process_for_displaying();
           }
@@ -588,7 +588,7 @@ var utterance = EmberObject.extend({
           word_suggestions.attach_image_for_label(last_word.label, lookup_ids, function(url) {
             emberSet(b, 'suggestion_image', url);
             runLater(function() {
-              if(!live_service(add_for)) { return; } utterance.set_button_list(); // its app is gone: do not rebuild another's sentence
+              if(owner_gone(add_for)) { return; } utterance.set_button_list(); // its app is gone: do not rebuild another's sentence
             });
           }, { appState: app_state, stashes: stashes });
         }
@@ -1218,7 +1218,7 @@ var utterance = EmberObject.extend({
         this.remember_utterance(prior_list);
       }
       runLater(function() {
-        if(!live_service(clear_for)) { return; } utterance.set('rawButtonList', new_list); // its app is gone
+        if(owner_gone(clear_for)) { return; } utterance.set('rawButtonList', new_list); // its app is gone
       });
     }
   },
@@ -1330,4 +1330,4 @@ window.utterance = utterance;
 
 export default utterance;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';
