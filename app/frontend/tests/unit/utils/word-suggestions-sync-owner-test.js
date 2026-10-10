@@ -47,7 +47,7 @@ module('Unit | Utility | word_suggestions sync flush after its app is gone', fun
     assert.expect(3);
     assert.false(word_suggestions.sync_flush_scheduled(), 'no earlier flush is pending');
     word_suggestions.schedule_sync_flush();
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(this.standIns.appState);
     try {
       this.standIns.appState.destroy(); // sets isDestroying at once
       await wait(60);

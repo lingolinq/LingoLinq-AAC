@@ -44,7 +44,7 @@ module('Unit | Utility | scanner deferred reset and restart', function(hooks) {
     const owner = EmberObject.create();
     const reset = scanner_reset_for(owner);
     const restart = scanner_restart_for(owner);
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(owner);
     try {
       owner.destroy(); // sets isDestroying at once
       reset();

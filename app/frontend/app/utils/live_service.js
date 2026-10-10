@@ -16,7 +16,7 @@ export function live_service(svc) {
    highlight controller set the scanner up). */
 export function owner_gone(owner) {
   var gone = !!owner && !live_service(owner);
-  if(gone && owner_gone_listener) { owner_gone_listener(); }
+  if(gone && owner_gone_listener) { owner_gone_listener(owner); }
   return gone;
 }
 

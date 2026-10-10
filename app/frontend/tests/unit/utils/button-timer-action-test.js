@@ -30,7 +30,7 @@ module('Unit | Utility | button timer action', function(hooks) {
     modal.success = function() {};
     modal.open = function() { opened++; };
     speecher.beep = function() {};
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(this.standIns.appState);
     try {
       Button.load_actions();
       const timer = LingoLinq.special_actions.find((a) => a.action === ':timer');
@@ -78,7 +78,7 @@ module('Unit | Utility | button timer action', function(hooks) {
     modal.success = function() {};
     modal.open = function() { opened++; };
     speecher.beep = function() { beeps++; };
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(this.standIns.appState);
     try {
       Button.load_actions();
       LingoLinq.special_actions.find((a) => a.action === ':timer').trigger([':timer(1s)', '1']);

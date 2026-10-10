@@ -51,7 +51,7 @@ module('Unit | Utility | utterance deferred suggestions refresh', function(hooks
     utterance.set('rawButtonList', []);
     utterance.set_button_list();
     const next = fakeAppState();
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(this.standIns.appState);
     try {
       this.standIns.appState.destroy();
       LingoLinq.appState = next; // the stand-in hooks put the original back afterwards

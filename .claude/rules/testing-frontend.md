@@ -144,9 +144,11 @@ sets up the scanner without an `appState`; that guard stopped switch scanning re
 selection). Work scheduled with no owner therefore runs, and the harness does not report it. Every
 skip `owner_gone` makes is logged as `[owner-gone]` with the test that was running, because it means
 an earlier test scheduled work and did not wait for it; a self-test that destroys an owner on purpose
-counts its own skips with `recordOwnerGoneSkips()` (`tests/helpers/owner-gone.js`) so they are not
-reported. One chain stops without reporting: the board prefetch pipeline's `_pipeline_app_alive`
-(`app/utils/board_detail_cache.js`). Every later step the callback schedules
+counts the skips for the owner it destroyed with `recordOwnerGoneSkips(owner)`
+(`tests/helpers/owner-gone.js`); skips for other owners still reach the report. Only guards that call
+`owner_gone` report: older destroyed-owner returns that check `isDestroyed` directly (for example in
+`edit_manager.js`, `persistence.js`, `raw_events.js`, and the board prefetch pipeline's
+`_pipeline_app_alive` in `board_detail_cache.js`) stop silently, so the report is not complete. Every later step the callback schedules
 carries the same owner (a follow-up beep, a retry). Do not "fix" this by cancelling timers at
 teardown: a cancelled app timer silently drops any assertion downstream of it (a test that forgot to
 wait then passes) and can leave a flag that only its own callback clears stuck for the rest of the

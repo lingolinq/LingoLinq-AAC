@@ -18,18 +18,40 @@ module('Unit | Utility | live_service', function() {
   });
 
   test('owner_gone is true only for a captured owner that was torn down', function(assert) {
-    assert.expect(4);
+    assert.expect(5);
     const owner = EmberObject.create();
     assert.false(owner_gone(owner), 'a live owner is not gone');
     assert.false(owner_gone(undefined), 'nothing captured is not gone');
     assert.false(owner_gone(null), 'nothing captured is not gone');
     owner.destroy();
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(owner);
     try {
       assert.true(owner_gone(owner), 'a destroyed owner is gone');
+      assert.strictEqual(skips.count, 1, 'the skip is counted here, not reported by the harness');
     } finally {
       skips.restore();
     }
+  });
+
+  test('a recorder counts only its own owner and passes other skips on to the harness listener', function(assert) {
+    assert.expect(3);
+    const heard = [];
+    const harness = set_owner_gone_listener((owner) => heard.push(owner));
+    const mine = EmberObject.create();
+    const earlier = EmberObject.create();
+    const skips = recordOwnerGoneSkips(mine);
+    try {
+      mine.destroy();
+      earlier.destroy();
+      owner_gone(mine);
+      owner_gone(earlier);
+      assert.strictEqual(skips.count, 1, 'only the skip for its own owner is counted');
+      assert.deepEqual(heard, [earlier], 'the other skip reaches the listener that was installed before');
+    } finally {
+      skips.restore();
+      set_owner_gone_listener(harness);
+    }
+    assert.strictEqual(heard.length, 1, 'nothing else was reported');
   });
 
   test('the harness listener hears only a torn-down owner', function(assert) {

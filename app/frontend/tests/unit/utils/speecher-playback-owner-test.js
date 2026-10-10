@@ -55,7 +55,7 @@ module('Unit | Utility | speecher playback after its app is gone', function(hook
     const audio = fakeAudio();
     speecher.play_audio({ audio, speak_id: 1 });
     await waitFor(() => audio.played);
-    const skips = recordOwnerGoneSkips();
+    const skips = recordOwnerGoneSkips(this.standIns.appState);
     try {
       this.standIns.appState.destroy(); // sets isDestroying at once
       audio.dispatchEvent(new window.Event('ended'));

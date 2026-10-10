@@ -156,7 +156,7 @@ describe('recommended_home_board setup_user lifetime', function() {
     waitsFor(function() { return previewOpen; });
     runs(function() {
       stub(modal, 'board_preview_open', function() { polls++; return true; });
-      ownerGoneSkips = recordOwnerGoneSkips();
+      ownerGoneSkips = recordOwnerGoneSkips(owner);
       owner.destroy();
       LingoLinq.appState = realAppState;
       setTimeout(function() { done = true; }, 900);
@@ -164,9 +164,10 @@ describe('recommended_home_board setup_user lifetime', function() {
     waitsFor(function() { return done; });
     runs(function() {
       expect(polls).toEqual(0);
-      // At least this loop's own skip. Earlier tests in this module that close the preview before the
-      // loop's first 400 ms check leave their loops polling into later tests, and one may end here too.
-      expect(ownerGoneSkips.count >= 1).toEqual(true);
+      // Exactly this loop's own skip. Earlier tests in this module that close the preview before the
+      // loop's first 400 ms check leave their loops polling into later tests; a skip of theirs that
+      // lands here belongs to another owner, so the recorder passes it on to the harness report.
+      expect(ownerGoneSkips.count).toEqual(1);
     });
   });
 });
