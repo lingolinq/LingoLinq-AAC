@@ -315,6 +315,11 @@ report ERR3 'app/models/a<f8 88 80 80 80>.rb (5-byte form)'
 head="$(commit_paths 'app/models/a.rb' $'app/models/z\351.rb')"
 classify "$BASE" "$head"
 report ERR3 'a valid name, then app/models/z<0xe9>.rb'
+# The same with a name only the Python check rejects (iconv accepts it), so a Python check that
+# reads only the first name fails here.
+head="$(commit_paths 'app/models/a.rb' $'app/models/z\364\220\200\200.rb')"
+classify "$BASE" "$head"
+report ERR3 'a valid name, then app/models/z<f4 90 80 80>.rb'
 PY_STUB="$WORK/python-stub"
 mkdir -p "$PY_STUB"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$PY_STUB/python3"
