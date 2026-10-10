@@ -625,6 +625,8 @@ describe Board, :type => :model do
     
     it "should return the download URL on success" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -641,6 +643,8 @@ describe Board, :type => :model do
     
     it "should periodically update progress" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -658,6 +662,8 @@ describe Board, :type => :model do
     
     it "should allow an unauthenticated user" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -1270,6 +1276,30 @@ describe Board, :type => :model do
       expect(board).to be_persisted
       hello = board.settings['buttons'].find { |b| b['label'] == 'hello' }
       expect(hello['image_id']).to be_present
+    end
+  end
+
+  # Google TTS makes one request per button, so with GOOGLE_TTS_TOKEN set the deferred sound work
+  # goes to a worker; without it (other providers) it runs inline after commit.
+  describe "enqueue_suggested_sounds_if_deferred" do
+    env_wrap('GOOGLE_TTS_TOKEN' => 'spec-tts-token') do
+      it "queues suggested sounds on a worker when Google TTS is configured" do
+        b = Board.create(user: User.create)
+        b.instance_variable_set('@defer_suggested_sounds', true)
+        expect(Progress).to receive(:schedule).with(having_attributes(id: b.id), :process_suggested_sounds_async)
+        expect_any_instance_of(Board).not_to receive(:process_suggested_sounds_async)
+        b.enqueue_suggested_sounds_if_deferred
+      end
+    end
+
+    env_wrap('GOOGLE_TTS_TOKEN' => nil) do
+      it "runs suggested sounds inline when Google TTS is not configured" do
+        b = Board.create(user: User.create)
+        b.instance_variable_set('@defer_suggested_sounds', true)
+        expect(Progress).not_to receive(:schedule)
+        expect_any_instance_of(Board).to receive(:process_suggested_sounds_async)
+        b.enqueue_suggested_sounds_if_deferred
+      end
     end
   end
 
@@ -3010,6 +3040,22 @@ describe Board, :type => :model do
       expect(b.settings['edit_description']).to eq(nil)
     end
     
+    # Board version history labels each version from its edit_description. An edit's own notes
+    # describe that save, however long after the previous edit it comes.
+    describe "with edits seconds apart" do
+      include ActiveSupport::Testing::TimeHelpers
+
+      it "keeps the description of an edit made seconds after the previous described edit" do
+        u = User.create
+        b = Board.create(:user => u)
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        expect(b.settings['edit_description']['notes']).to eq(['renamed the board'])
+
+        travel_to(Time.at(1_800_000_005)) { b.process({'buttons' => [{'id' => 1, 'label' => 'hat'}]}, {'user' => u}) }
+        expect(b.settings['edit_description']['notes']).to eq(['modified buttons'])
+      end
+    end
+
     it "should set edit description when buttons are changed" do
       u = User.create
       b = Board.create(:user => u)
@@ -5699,6 +5745,8 @@ describe Board, :type => :model do
     end
 
     it "should recurse to downstream boards" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       bi = ButtonImage.create(user: u)
       expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
@@ -5722,6 +5770,8 @@ describe Board, :type => :model do
     end
 
     it "should stop at boards with a different author" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       u2 = User.create
       bi = ButtonImage.create(user: u)
@@ -5747,6 +5797,8 @@ describe Board, :type => :model do
     end
 
     it "should not get stuck in an infinite loop with circular references" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       bi = ButtonImage.create(user: u)
       expect(Uploader).to receive(:find_images).at_least(:once).and_return([])

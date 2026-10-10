@@ -21,6 +21,19 @@ module Uploader
     Aws::Credentials.new(aws_access_key, aws_secret_key)
   end
 
+  # "Are upload credentials configured?" aws_access_key / aws_secret_key return '' when nothing is
+  # set, and '' is truthy in Ruby, so a plain truthiness check never saw missing credentials.
+  def self.remote_credentials?(config)
+    config[:access_key].present? && config[:secret].present?
+  end
+
+  # Deleting user data is required (retention, erasure requests). When it cannot happen because S3
+  # is not configured, say so at error level rather than skipping in silence. No path in the
+  # message: it can identify a user's file.
+  def self.log_skipped_remote_delete(method_name)
+    Rails.logger.error("Uploader.#{method_name}: S3 credentials or bucket not configured; remote delete skipped")
+  end
+
   def self.s3_region
     ENV['AWS_REGION'].presence || 'us-west-2'
   end
@@ -144,7 +157,7 @@ module Uploader
   def self.check_existing_upload(remote_path, checksum=nil)
     return {found: false} unless remote_path
     config = remote_upload_config
-    return {found: false} unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    return {found: false} unless remote_credentials?(config) && config[:bucket_name].present?
     key = remote_path.to_s.sub(/\A\//, '')
     begin
       client = s3_client(config)
@@ -176,7 +189,7 @@ module Uploader
 
   def self.remote_touch(path)
     config = remote_upload_config
-    return false unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    return false unless remote_credentials?(config) && config[:bucket_name].present?
     key = path.to_s.sub(/\A\//, '')
     bucket_name = config[:bucket_name]
     client = s3_client(config)
@@ -252,7 +265,7 @@ module Uploader
   # to be a handful of objects at most.
   def self.list_remote_keys_with_prefix(prefix, overall_cap: 1000, max_pages: 25)
     config = remote_upload_config
-    unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    unless remote_credentials?(config) && config[:bucket_name].present?
       Rails.logger.warn("Uploader.list_remote_keys_with_prefix skipped for prefix=#{prefix}: S3 not configured")
       return nil
     end
@@ -376,6 +389,12 @@ module Uploader
       raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
     end
 
+    config = remote_upload_config
+    unless remote_credentials?(config) && config[:bucket_name].present?
+      log_skipped_remote_delete('remote_remove')
+      return nil
+    end
+
     do_remove = true
     if checksum
       check = check_existing_upload(remote_path, checksum)
@@ -384,8 +403,6 @@ module Uploader
       end
     end
     if do_remove
-      config = remote_upload_config
-      return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
       client = s3_client(config)
       begin
         client.head_object(bucket: config[:bucket_name], key: remote_path)
@@ -417,7 +434,7 @@ module Uploader
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['STATIC_S3_BUCKET']}\//, '')
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret] && config[:static_bucket_name].present?
+    return nil unless remote_credentials?(config) && config[:static_bucket_name].present?
     bucket_name = config[:static_bucket_name]
     client = s3_client(config)
     client.head_object(bucket: bucket_name, key: remote_path)
@@ -435,7 +452,7 @@ module Uploader
     remote_path = remote_path[1..-1] if remote_path.start_with?('/')
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    return nil unless remote_credentials?(config) && config[:bucket_name].present?
     bucket_name = config[:bucket_name]
     client = s3_client(config)
     client.head_object(bucket: bucket_name, key: remote_path)
@@ -468,7 +485,7 @@ module Uploader
     return url unless remote_path.present?
 
     config = remote_upload_config
-    return url unless config[:access_key] && config[:secret]
+    return url unless remote_credentials?(config)
     presigned_get_url(s3_client(config), bucket, remote_path)
   rescue StandardError
     # Graceful pass-through by design: callers (assert_extra_data, OBF
@@ -546,7 +563,7 @@ module Uploader
     remote_path = remote_path[1..-1] if remote_path.start_with?('/')
 
     config = remote_upload_config
-    return false unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    return false unless remote_credentials?(config) && config[:bucket_name].present?
 
     client = s3_client(config)
     client.head_object(bucket: config[:bucket_name], key: remote_path)
@@ -560,7 +577,10 @@ module Uploader
     raise "scary delete, not a beta feedback recording path: #{remote_path}" unless remote_path.match(/\Abeta_feedback_recordings\/\d{4}\/\d{2}\/\d{2}\/[\w\-]+\.(webm|mp4)\z/)
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    unless remote_credentials?(config) && config[:bucket_name].present?
+      log_skipped_remote_delete('remote_remove_upload_path')
+      return nil
+    end
 
     client = s3_client(config)
     client.delete_object(bucket: config[:bucket_name], key: remote_path)

@@ -35,6 +35,18 @@ unless Rails.env.production?
     end.compact
     Dotenv.load(*paths) unless paths.empty?
   end
+
+  # Tests: an unresolved 1Password reference (`op://...`, from the committed .env.op.template or
+  # .env.op.local) is not a value. Left in place, a "configured?" check passes on it and specs send
+  # requests to S3, OpenSymbols, Bedrock, ... with a placeholder credential, in CI too. Drop them;
+  # the values boot requires (config/environment.rb, ExternalNonce) get test stand-ins when nothing
+  # real supplied them. CI passes real ones in the environment, which win.
+  if Rails.env.test?
+    ENV.keys.each { |key| ENV.delete(key) if ENV[key].to_s.start_with?('op://') }
+    ENV['DEFAULT_EMAIL_FROM'] ||= 'noreply@example.com'
+    ENV['SYSTEM_ERROR_EMAIL'] ||= 'errors@example.com'
+    ENV['SECURE_NONCE_KEY'] ||= SecureRandom.hex(32)
+  end
 end
 
 module LingoLinq

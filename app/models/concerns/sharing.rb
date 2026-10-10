@@ -206,14 +206,24 @@ module Sharing
       end
     end
       
+    # The user's boards_updated_at as integer microseconds, the precision Postgres stores (Rails
+    # truncates to microseconds on write). The cached shared-board list is stamped with it under
+    # 'stamp_us' and stays valid while that stamp is >= the current value; comparing at hundredths
+    # of a second let a sharing change within ~10 ms of the list being built look no newer, so the
+    # stale list was served. An entry without 'stamp_us' (cached by older code) is rebuilt.
+    def boards_updated_stamp(user)
+      updated = user.boards_updated_at
+      updated ? updated.to_i * 1_000_000 + updated.usec : 0
+    end
+
     def all_shared_board_ids_for(user, plus_editing=false)
       return [] unless user
       ts = Time.now.to_i
-      user.settings ||= {}
-      user.settings['all_shared_board_ids'] ||= {}
       sub_key = plus_editing ? 'editing' : 'viewing'
-      if user.settings['all_shared_board_ids'][sub_key] && user.settings['all_shared_board_ids'][sub_key]['timestamp'] >= user.boards_updated_at.to_f.round(2)
-        return user.settings['all_shared_board_ids'][sub_key]['list']
+      # read only: the caller's copy of the user is never changed (see store_shared_board_ids_entry)
+      cached = (user.settings || {}).dig('all_shared_board_ids', sub_key)
+      if cached && cached['stamp_us'] && cached['stamp_us'] >= boards_updated_stamp(user)
+        return cached['list']
       end
       all_links = UserLink.links_for(user)
       links = all_links.select{|l| l['type'] == 'board_share' }
@@ -281,17 +291,37 @@ module Sharing
       
       all_board_ids = (shallow_board_ids + valid_deep_board_ids).uniq
 
-      if !plus_editing
-        # If you update it in both cases, then it will require an update every time you toggle the plus_editing arg
-        user.boards_updated_at = Time.now 
-      end
-      user.settings['all_shared_board_ids'][sub_key] = {
+      # Stamped with the boards_updated_at loaded with `user`, the same row snapshot whose updated_at
+      # keyed the links read above (user_link.rb:97). A sharing change that commits during the walk
+      # has a newer boards_updated_at (user_link.rb:21), so the next read rebuilds. (Stamping with
+      # the time of this save instead hid such a change and served the stale list as fresh.)
+      store_shared_board_ids_entry(user.id, sub_key, {
+        'stamp_us' => boards_updated_stamp(user),
+        # older code (a rollback; staging shares a database with dev) still reads this one, at
+        # hundredths of a second: keep writing it in that format so it never looks newer to them
         'timestamp' => user.boards_updated_at.to_f.round(2),
         'list' => all_board_ids
-      }
-      user.save(touch: false)
+      })
 
       all_board_ids
+    end
+
+    # Saves only the cache entry, onto a freshly read and locked copy of the user. settings is one
+    # serialized column written whole on save (go_secure persist_secure_object), so saving the
+    # caller's copy, loaded before the walk, reverted every settings change made since: an unshare's
+    # update_available_boards (restoring access to the unshared board), preferences, consent.
+    # touch: false keeps updated_at, which assert_current_record! (processable.rb:95) and the
+    # links_for cache key (user_link.rb:97) compare.
+    def store_shared_board_ids_entry(user_id, sub_key, entry)
+      User.transaction do
+        fresh = User.lock.find_by(id: user_id)
+        if fresh
+          fresh.settings ||= {}
+          fresh.settings['all_shared_board_ids'] ||= {}
+          fresh.settings['all_shared_board_ids'][sub_key] = entry
+          fresh.save(touch: false)
+        end
+      end
     end
   end
 end

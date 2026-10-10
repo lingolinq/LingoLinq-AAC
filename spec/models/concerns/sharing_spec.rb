@@ -704,6 +704,19 @@ describe Sharing, :type => :model do
   end
   
   describe "all_shared_board_ids" do
+    # Runs the block once, inside the next rebuild, after links_for and before the save
+    # (Organization.attached_orgs runs there on the !plus_editing branch of all_shared_board_ids_for).
+    def during_rebuild(&block)
+      ran = false
+      allow(Organization).to receive(:attached_orgs).and_wrap_original do |original, *args|
+        unless ran
+          ran = true
+          block.call
+        end
+        original.call(*args)
+      end
+    end
+
     it "should return all shallow shares" do
       u = User.create
       u2 = User.create
@@ -797,8 +810,9 @@ describe Sharing, :type => :model do
       Worker.process_queues
       b.reload.reload.share_with(u3, true)
       b4.reload.reload.share_with(u3)
-      
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b3.global_id, b4.global_id])
+
+      # any order: ids are strings, so a sorted list puts "1_1000" before "1_997"
+      expect(Board.all_shared_board_ids_for(u3.reload)).to contain_exactly(b.global_id, b3.global_id, b4.global_id)
     end
     
     it "should return downstream deep shares by any of the co-authors, even if the share is pending" do
@@ -855,6 +869,199 @@ describe Sharing, :type => :model do
       b.reload.update_shares_for(u2, true)
       u2.reload
       expect(Board.all_shared_board_ids_for(u2.reload, true).sort).to eq([b.global_id, b2.global_id, b3.global_id])
+    end
+    # The cached list counts as fresh while its stamp is >= the user's boards_updated_at. Both used to
+    # be rounded to hundredths of a second, so a sharing change within the same ~10 ms as the list
+    # being built looked no newer than the list, and the stale list was served.
+    it "serves the cached list while nothing has changed (positive control)" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+      expect(UserLink).to_not receive(:links_for)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
+
+    # The stamp comes from the user's stored boards_updated_at, so this pins that column (not the
+    # clock): a change 4 ms after the list's stamp, in the same hundredth of a second, must rebuild.
+    it "rebuilds after a sharing change in the same hundredth of a second as the list's stamp" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b2 = Board.create(:user => u)
+      b.share_with(u2)
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 120_000, :usec))
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([b.global_id])
+
+      b2.share_with(u2)
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 124_000, :usec))
+      expect(Board.all_shared_board_ids_for(User.find(u2.id)).sort).to eq([b.global_id, b2.global_id].sort)
+    end
+
+    # Old code (a rollback, or staging sharing a database with dev) reads 'timestamp' as a float
+    # rounded to hundredths and compares it with boards_updated_at.to_f.round(2). The microsecond
+    # stamp lives under its own key so 'timestamp' keeps that meaning for old readers.
+    it "keeps the old-format 'timestamp' for code that still reads it" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      Board.all_shared_board_ids_for(u2.reload)
+      entry = u2.reload.settings['all_shared_board_ids']['viewing']
+      expect(entry['timestamp']).to be_a(Float)
+      expect(entry['timestamp']).to eq(u2.boards_updated_at.to_f.round(2))
+      expect(entry['stamp_us']).to eq(Board.boards_updated_stamp(u2))
+    end
+
+    it "rebuilds a cached list that has no microsecond stamp, however large its 'timestamp'" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      u2.reload
+      u2.settings['all_shared_board_ids'] = {'viewing' => {'timestamp' => 9_999_999_999_999_999, 'list' => ['1_stale']}}
+      u2.save
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
+
+    # A rebuild reads the user's links, walks the shared boards (seconds for a large set), then
+    # stamps and saves the list. An unshare that commits during the walk must not be hidden by
+    # that stamp: the next read, and the background jobs the unshare queues, must drop the board.
+    describe "an unshare that commits while the list is being rebuilt" do
+      # Unshares `board` from `user` the first time the rebuild reaches Organization.attached_orgs,
+      # which runs after links_for and before the save (sharing.rb, !plus_editing branch). With
+      # run_jobs, the jobs the unshare queues also finish there, before the rebuild saves.
+      def unshare_mid_rebuild(board, user, run_jobs: false)
+        @unshared_mid_rebuild = false
+        during_rebuild do
+          @unshared_mid_rebuild = true
+          board.reload.unshare_with(User.find(user.id))
+          Worker.process_queues if run_jobs
+        end
+      end
+
+      def shared_board_setup
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        Worker.process_queues
+        [b, u2]
+      end
+
+      it "is not served afterwards as a fresh list" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+      end
+
+      # UserLink.links_for caches links under the caller's loaded updated_at (user_link.rb:97), so a
+      # caller loaded before the unshare rebuilds from the old links; the stamp must not be newer.
+      it "is not stamped newer than the links a stale caller rebuilt it from" do
+        b, u2 = shared_board_setup
+        stale = User.find(u2.id)
+        UserLink.links_for(stale)
+        b.reload.unshare_with(User.find(u2.id))
+
+        loaded_stamp = Board.boards_updated_stamp(stale)
+        # the stale caller really rebuilds (no cache hit), from its own cached links; matched by
+        # identity, since other copies of the same user compare equal
+        allow(UserLink).to receive(:links_for).and_call_original
+        expect(UserLink).to receive(:links_for).with(satisfy { |rec| rec.equal?(stale) }).and_call_original
+
+        Board.all_shared_board_ids_for(stale, false)
+
+        expect(User.find(u2.id).settings['all_shared_board_ids']['viewing']['stamp_us']).to eq(loaded_stamp)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+      end
+
+      it "is dropped when the unshare's jobs run after the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+        Worker.process_queues
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+
+      it "is dropped when the unshare's jobs finish before the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2, run_jobs: true)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+    end
+
+    # settings is one serialized column, written whole on save (go_secure persist_secure_object). The
+    # rebuild must store only its own cache entry, never the caller's copy of everything else.
+    describe "storing the rebuilt list" do
+      it "keeps settings that another process changed while the list was being rebuilt" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        caller_copy = User.find(u2.id)
+        ran = false
+        during_rebuild do
+          ran = true
+          other = User.find(u2.id)
+          other.settings['preferences'] ||= {}
+          other.settings['preferences']['spec_marker'] = 'changed elsewhere'
+          other.save
+        end
+
+        expect(Board.all_shared_board_ids_for(caller_copy, false)).to eq([b.global_id])
+
+        expect(ran).to eq(true)
+        stored = User.find(u2.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('changed elsewhere')
+        expect(stored.settings['all_shared_board_ids']['viewing']['list']).to eq([b.global_id])
+      end
+
+      it "leaves the caller's copy of the user unchanged" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        caller_copy = User.find(u2.id)
+        before = caller_copy.settings.to_json
+
+        expect(Board.all_shared_board_ids_for(caller_copy, false)).to eq([b.global_id])
+
+        expect(caller_copy.settings.to_json).to eq(before)
+      end
+
+      # The read-modify-write of the fresh copy holds the row lock, so a settings write from another
+      # process cannot land between that read and the save (and then be overwritten).
+      it "reads the copy it saves under a row lock" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        user_sql = []
+        record = ->(*, payload) { user_sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          Board.all_shared_board_ids_for(User.find(u2.id), false)
+        end
+
+        locked = user_sql.index { |sql| sql =~ /FOR UPDATE/ }
+        updated = user_sql.index { |sql| sql.start_with?('UPDATE "users"') }
+        expect(locked).not_to be_nil
+        expect(updated).not_to be_nil
+        expect(locked).to be < updated
+      end
     end
   end
   
