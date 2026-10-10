@@ -75,6 +75,22 @@ class ShardCompareTest(unittest.TestCase):
         self.assertIn("in a shard only: not ok %s" % A[2], problems)
         self.assertIn("in the full run only: ok %s" % A[2], problems)
 
+    # Name checks are only as good as the parsed lines: a log whose result lines do not add up to its
+    # own "# tests" total proves nothing about which tests ran (2026-10-10 review).
+    def test_a_shard_log_missing_result_lines_is_reported(self):
+        short = "\n".join(l for l in tap(A, shard=(6, 10)).splitlines() if not l.endswith(A[2])) + "\n"
+        problems = self.check(tap(ALL), short, tap(B, shard=(4, 10)))
+        self.assertIn("shard 1 has 5 result lines for 6 tests", problems)
+
+    def test_a_full_log_missing_result_lines_is_reported(self):
+        short = "\n".join(l for l in tap(ALL).splitlines() if not l.endswith(ALL[0])) + "\n"
+        problems = self.check(short, tap(A, shard=(6, 10)), tap(B, shard=(4, 10)))
+        self.assertIn("the full run has 9 result lines for 10 tests", problems)
+
+    def test_shard_totals_that_differ_from_the_full_run_are_reported(self):
+        problems = self.check(tap(ALL + ["m10: test 10"]), tap(A, shard=(6, 10)), tap(B, shard=(4, 10)))
+        self.assertIn("shards ran 10 tests, the full run 11", problems)
+
     def test_a_browser_level_error_with_undefined_ms_counts(self):
         error_line = STAMP + "not ok 7 PuppeteerChrome - [undefined ms] - error"
         problems = self.check(tap(ALL), tap(A, shard=(6, 10)), tap(B, shard=(4, 10), extra_lines=[error_line]))
@@ -116,6 +132,11 @@ class CoverageTest(unittest.TestCase):
 
     def test_an_incomplete_shard_fails(self):
         self.assertIn("shard 2 ran 3 tests but selected 4", self.cover(tap(A, shard=(6, 10)), tap(B[:3], shard=(4, 10))))
+
+    def test_a_shard_log_missing_result_lines_fails(self):
+        short = "\n".join(l for l in tap(A, shard=(6, 10)).splitlines() if not l.endswith(A[2])) + "\n"
+        problems = compare_mod.coverage([compare_mod.parse(short), compare_mod.parse(tap(B, shard=(4, 10)))])
+        self.assertIn("shard 1 has 5 result lines for 6 tests", problems)
 
     def test_a_shard_without_its_selection_line_fails(self):
         self.assertIn("shard 2 logged no [SHARD] selection line", self.cover(tap(A, shard=(6, 10)), tap(B)))

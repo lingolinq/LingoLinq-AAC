@@ -55,6 +55,7 @@ def compare(full, shards):
     """`full` and each of `shards` are parse() results. Returns a list of problems."""
     problems = []
     full_counts, full_results, _ = full
+    problems += _line_count_check("the full run", full_counts, full_results)
     problems += shard_checks(shards)
     combined = collections.Counter()
     for _counts, results, _shard in shards:
@@ -74,6 +75,15 @@ def compare(full, shards):
     return problems
 
 
+def _line_count_check(label, counts, results):
+    """A log's result lines must add up to its own "# tests" total; if lines are missing, the name
+    checks below prove nothing about which tests ran."""
+    parsed, total = sum(results.values()), counts.get("tests", 0)
+    if parsed != total:
+        return ["%s has %d result lines for %d tests" % (label, parsed, total)]
+    return []
+
+
 def shard_checks(shards):
     """Problems a set of shards can prove on its own, without a full run."""
     problems = []
@@ -84,6 +94,7 @@ def shard_checks(shards):
         ran = counts.get("tests", 0)
         if ran == 0:
             problems.append("%s ran 0 tests" % label)
+        problems += _line_count_check(label, counts, _results)
         if shard is None:
             problems.append("%s logged no [SHARD] selection line" % label)
             continue
