@@ -338,6 +338,49 @@ class RunChunksTest(unittest.TestCase):
                     "--output-last-message", str(output.resolve())]
         self.assertEqual(command, expected)
 
+    # The retry after invalid JSON, and a synthesis call with its own model and schema, send the
+    # same whole command (round 3c, 2026-10-10): a flag added only to the retry, or only to a
+    # synthesis output, fails.
+    def test_run_model_retry_and_synthesis_calls_send_exactly_the_reviewed_arguments(self):
+        catalog = run_chunks.model_catalog
+        hardening = [line for line in run_chunks.CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+                     if line and not line.startswith("#")]
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        cases = {
+            "chunk call and its retry": ("chunk-0001-review-1.json", ".github/codex/chunk-review-schema.json",
+                                         run_chunks.CHUNK_MODEL, 2),
+            "synthesis call": ("synthesis-1.json", ".github/codex/synthesis-schema.json", run_chunks.SYNTHESIS_MODEL, 1),
+        }
+        for why, (name, schema, model, count) in cases.items():
+            with self.subTest(why=why), tempfile.TemporaryDirectory() as tmp:
+                prompt = pathlib.Path(tmp) / "prompt.md"
+                prompt.write_text("prompt")
+                output = pathlib.Path(tmp) / name
+                seen = []
+
+                def fake_run(command, **_kwargs):
+                    seen.append(list(command))
+                    # The first answer is not JSON when a retry is wanted.
+                    output.write_text("not json" if len(seen) < count else json.dumps({"verdict": "APPROVE"}))
+                    return Ok()
+
+                try:
+                    run_chunks.subprocess.run = fake_run
+                    self.assertTrue(run_chunks.run_model(object(), prompt, schema, output, model=model))
+                finally:
+                    run_chunks.subprocess.run = original
+                expected = ["codex", "exec", *hardening,
+                            "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                            "-c", f'model_catalog_json="{pathlib.Path(os.environ["RUNNER_TEMP"]) / catalog.CATALOG_NAME}"',
+                            "-C", run_chunks.codex_workdir(), "-m", model,
+                            "--output-schema", str(pathlib.Path(schema).resolve()),
+                            "--output-last-message", str(output.resolve())]
+                self.assertEqual(seen, [expected] * count)
+
     def test_refuses_to_build_a_codex_call_without_hardening_arguments(self):
         original = run_chunks.CODEX_EXEC_ARGS_FILE
         with tempfile.TemporaryDirectory() as tmp:

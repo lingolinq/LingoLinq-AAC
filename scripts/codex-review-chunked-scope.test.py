@@ -170,6 +170,25 @@ pathlib.Path(out).write_text("not json" if calls == 1 else body)
 sys.stdout.write("codex\n" + body + "\n")
 '''
 
+# Two runs that disagree (REQUEST_CHANGES, then APPROVE), so the bounded step runs its tiebreak
+# (run 3); every call's arguments are recorded.
+FAKE_CODEX_DISAGREE = r'''#!/usr/bin/env python3
+import json, os, pathlib, sys
+args = sys.argv[1:]
+out = args[args.index("--output-last-message") + 1]
+sys.stdin.read()
+counter = pathlib.Path(os.environ["FAKE_COUNTER"])
+calls = int(counter.read_text() or "0") + 1
+counter.write_text(str(calls))
+pathlib.Path(os.environ["FAKE_RECEIVED_DIR"], f"args-{calls}").write_text(json.dumps(args))
+finding = {"id": "CR-1", "severity": "HIGH", "category": "code", "file": "app/a.rb", "line": 1,
+           "description": "d", "evidence": "e", "suggested_fix": "f", "verifiable_check": "v"}
+verdict = "REQUEST_CHANGES" if calls == 1 else "APPROVE"
+body = {"verdict": verdict, "head_sha": "a" * 40, "findings": [finding] if calls == 1 else [],
+        "checks_run": {}, "resolved_from_prior_loop": []}
+pathlib.Path(out).write_text(json.dumps(body))
+'''
+
 # Stands in for curl in the W2 POST step: answers HTTP 500 with a body that
 # echoes the posted review, the worst case for what W2 could return.
 FAKE_CURL = r'''#!/usr/bin/env python3
@@ -368,11 +387,11 @@ class WorkflowLogExposureTest(unittest.TestCase):
     def assert_no_canary(self, log):
         self.assertFalse(CANARY_STEM in log, "PR content or model output reached the job log")
 
-    def bounded_step(self, tmp, mode, with_catalog=True, head_sha=None):
+    def bounded_step(self, tmp, mode, with_catalog=True, head_sha=None, fake=FAKE_CODEX):
         script = extract_step_run("Run reviewer (codex exec, converge across runs)")
         bin_dir = pathlib.Path(tmp) / "bin"
         bin_dir.mkdir()
-        install_fake(bin_dir, "codex", FAKE_CODEX)
+        install_fake(bin_dir, "codex", fake)
         (pathlib.Path(tmp) / "calls").write_text("0")
         (pathlib.Path(tmp) / "prompt.md").write_text(
             f"### gh pr view\n{{\"body\": \"{BODY_CANARY}\"}}\n+{DIFF_CANARY}\n"
@@ -998,6 +1017,29 @@ class WorkflowLogExposureTest(unittest.TestCase):
                     workdir = args[expected.index("-C") + 1]
                     self.assertTrue(os.path.isabs(workdir) and workdir != str(REPO_ROOT), workdir)
                     expected[expected.index("-C") + 1] = workdir
+                    self.assertEqual(args, expected)
+
+    # The tiebreak call (run 3, only when runs 1 and 2 disagree) is the same call again: a flag
+    # added only there fails (round 3c, 2026-10-10).
+    def test_the_bounded_tiebreak_call_has_exactly_the_reviewed_arguments(self):
+        catalog = load_module("codex_review_model_catalog", REPO_ROOT / "scripts/codex-review-model-catalog.py")
+        hardening = [line for line in (REPO_ROOT / ".github/codex/codex-exec-args.txt").read_text().splitlines()
+                     if line and not line.startswith("#")]
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.bounded_step(tmp, "ok", fake=FAKE_CODEX_DISAGREE)
+            self.assertEqual(result.returncode, 0, "bounded reviewer step did not complete")
+            self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "3", "the tiebreak did not run")
+            for n in (1, 2, 3):
+                args = json.loads((pathlib.Path(tmp) / f"args-{n}").read_text())
+                with self.subTest(call=n):
+                    expected = ["exec", *hardening,
+                                "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                                "-c", f'model_catalog_json="{pathlib.Path(tmp) / catalog.CATALOG_NAME}"',
+                                "-C", None, "-m", "gpt-5.6-terra",
+                                "--output-schema", str(REPO_ROOT / ".github/codex/review-schema.json"),
+                                "--output-last-message", str(pathlib.Path(tmp) / f"review-{n}.json")]
+                    self.assertEqual(len(args), len(expected), args)
+                    expected[expected.index("-C") + 1] = args[expected.index("-C") + 1]
                     self.assertEqual(args, expected)
 
     def test_w2_post_failure_does_not_echo_the_response_body(self):

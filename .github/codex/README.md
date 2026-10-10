@@ -301,8 +301,9 @@ The review job runs PR content only as data:
   `-m` (the review's arguments without the two output flags, plus one override
   that points it at a local stand-in for the API) and checks the tools named
   in the request it sends. Separately, the unit tests pin the whole argument
-  list of every bounded call (both runs and the retry) and of the chunked
-  path's `run_model`, so a flag added anywhere fails them. The reviewer step
+  list of every bounded call (both runs, the retry and the tiebreak run) and
+  of the chunked path's `run_model` (a chunk call, its retry, and a synthesis
+  call), so a flag added to any of them fails. The reviewer step
   refuses to run if the argument list is empty.
 - Model calls get no other credential and no `GITHUB_*` runtime variable in
   their environment (`scripts/codex-review-quiet-exec.py`). `GH_TOKEN` is set
