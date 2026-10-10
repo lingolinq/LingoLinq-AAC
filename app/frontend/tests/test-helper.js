@@ -15,8 +15,10 @@ QUnit.config.testTimeout = 15000;
 
 // A deferred-work guard (owner_gone in app/utils/live_service.js) skips work whose app was torn down:
 // an earlier test scheduled it and did not wait. Skipping keeps it out of the current test, but it
-// must not be silent: each skip is logged with the test running when it fired, and the run ends with
-// a count. Reported, not failed: when the late work lands depends on timing.
+// must not be silent: each skip is logged with the test running when it fired (the Ember shard jobs
+// copy these lines into the job summary), and a browser console run ends with a count (testem does
+// not print console output from outside a test). Reported, not failed: when the late work lands
+// depends on timing.
 const ownerGoneSkips = [];
 set_owner_gone_listener(function() {
   const current = QUnit.config.current;

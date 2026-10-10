@@ -181,7 +181,10 @@ callback in `afterEach`, or a later test's message resolves this test's promise.
   (read flags and online state through `live_service`), so it stops instead of working against a
   dead app.
 - A test cancels or awaits every timer, interval or listener it starts. Ember Data fetches must be
-  awaited; the harness waits for queued ones, but not for a request already sent.
+  awaited, including ones the code under test starts on its own (an observer that loads a record when
+  the test sets a model). The harness's teardown wait does not find tests that skip this: a fetch
+  queued during the test is normally flushed before that wait runs. To find them, delay every
+  FetchManager flush past the post-test settle (the probe in commit 7b0848298).
 
 **DOM.** Remove every element the test (or app code it drives) appends to `<body>`. Elements the
 app creates once and caches for the page lifetime still leak between tests: the test that triggers
@@ -197,11 +200,18 @@ left; a test that passes only with an inherited value is order-dependent.
 first failure if any), not `RSVP.all`: `all` settles on the first failure and leaves a second one
 as a global unhandled rejection, even when the caller handles the combined promise.
 
-**No new pauses.** Apart from develop's general 500 ms settle after sync-mode tests (kept as is), do
-not add a pause or a wait, per module or globally, to make a test pass or to let an earlier test's
-leftover work finish. Find the leak (section 7) and fix it where it is scheduled: the test that
-scheduled the work waits for it or cancels it. (persistence-sync keeps
-its own retry-path pause for a known race, issue #589.)
+**No new pauses.** Apart from the named exemptions below, do not add a pause or a wait, per module
+or globally, to make a test pass or to let an earlier test's leftover work finish. Find the leak
+(section 7) and fix it where it is scheduled: the test that scheduled the work waits for it or
+cancels it. Exemptions:
+
+- develop's general 500 ms settle after sync-mode tests (kept as is).
+- persistence-sync's retry-path pause for a known race (issue #589).
+- `setupTest`'s bounded wait for queued Ember Data fetches (`waitForQueuedStoreFetches`,
+  `tests/helpers/index.js`). It only covers a fetch queued after the test signalled it was done,
+  so the late flush does not hit a destroyed store. Each hit is logged as `[queued-fetch]` and
+  listed in the Ember shard job summary. It does not excuse a test from awaiting its own fetches.
+  Whether to keep it or remove it is an open decision for the owner (PR #1110).
 
 ### Test helpers that import app code
 

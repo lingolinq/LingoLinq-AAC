@@ -36,16 +36,17 @@ function setupRenderingTest(hooks, options) {
 }
 
 // Ember Data queues a fetch and sends it a tick later (FetchManager.scheduleFetch flushes from a
-// setTimeout(0)). A test that triggers a fetch and ends at once can have its store destroyed in
-// teardown before that flush runs; the flush then hits the destroyed store ("Attempted to call
-// store.adapterFor(), but the store instance has already been destroyed") and QUnit charges that
-// global failure to whichever test is running: a wandering, timing-dependent failure. Found by
-// slowing only that flush by 100 ms: 9 tests in 5 modules queued a fetch they did not wait for
-// (task log 2026-10-05_ci-test-stalls.md). So before the owner is torn down, wait (bounded) until
-// no fetch is still queued. Reads Ember Data's private _fetchManager._pendingFetch: test-only.
-// Returns true when a fetch was still queued at entry: the test ended without waiting for it. The
-// wait protects the NEXT test from the late flush; it does not make the offending test correct, so
-// setupTest reports it (queuedFetchReport) instead of hiding it.
+// setTimeout(0)). If the store is destroyed in teardown before that flush runs, the flush hits the
+// destroyed store ("Attempted to call store.adapterFor(), but the store instance has already been
+// destroyed") and QUnit charges that global failure to whichever test is running. So before the
+// owner is torn down, wait (bounded) until no fetch is still queued. Reads Ember Data's private
+// _fetchManager._pendingFetch: test-only. Returns true when a fetch was still queued at entry.
+//
+// What this does and does not see: a fetch queued during the test body is normally flushed before
+// this hook runs (its setTimeout(0) was set before the ones QUnit uses to end the test and reach
+// afterEach), so it catches only a fetch queued late (after the test signalled it was done). It is
+// not a detector for tests that do not wait for their fetches. The detector is the slowed-flush probe
+// described in commit 7b0848298, which found and fixed the 9 tests that did not wait.
 export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   if (!owner || owner.isDestroyed || owner.isDestroying) { return false; }
   let store;
@@ -60,10 +61,11 @@ export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   return wasPending;
 }
 
-// Tests that ended with an Ember Data fetch still queued (they did not await it). Each is logged when
-// found and listed again when the run ends, so a new offender shows up in the CI log rather than being
-// absorbed by the wait above. A queued fetch at teardown is timing-dependent (the flush is a
-// setTimeout(0)), so this reports rather than fails: failing would make a required check flaky.
+// Tests that ended with an Ember Data fetch still queued. Each is logged inside its own test, which is
+// where testem shows console output; the Ember shard jobs copy those lines into the job summary
+// (.github/workflows/ci.yml). The QUnit.done list is only visible in a browser console run: testem
+// does not print console output from outside a test. A queued fetch at teardown is timing-dependent,
+// so this reports rather than fails: failing would make a required check flaky.
 export const queuedFetchReport = [];
 let queuedFetchSummaryRegistered = false;
 function recordQueuedFetch() {
