@@ -89,6 +89,11 @@ export default Service.extend({
       }
     }
     
+    // A new token ends the dead session's flag. Otherwise only an async check_token success
+    // reset it, so after an in-place re-login it stayed true on a healthy session (session
+    // expired badge, sync skipping its token check at services/persistence.js:2222).
+    this.set('invalid_token', false);
+
     var promises = [];
     promises.push(this.persist({
       access_token: response.access_token,
@@ -719,6 +724,12 @@ export default Service.extend({
     var full_invalidate = true;
     if(full_invalidate) {
       if(!modal.route) {
+        /* No modal route (early boot, or after an SPA logout's clear_user_state -> modal.reset):
+           tear down FIRST, synchronously, so logout_under_way() is already true when the next
+           concurrent failure reaches the ajax layer's de-dupe (utils/extras.js). invalidate
+           clears isAuthenticated only after stashes.flush and a runloop delay, and window.alert
+           blocks in between, so without this every failure raised its own alert and invalidate. */
+        this._tear_down_dead_session();
         this.alert(message);
         this.invalidate(true);
       } else {

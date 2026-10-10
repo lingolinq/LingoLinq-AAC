@@ -820,5 +820,39 @@ describe('session', function() {
       expect(session.get('invalid_token')).toEqual(true);
       expect(invalidated).toEqual(false);
     });
+
+    /* BEFORE THE MODAL ROUTE EXISTS (early boot, or any time after an SPA logout, which calls
+       clear_user_state -> modal.reset) force_logout falls back to alert + invalidate(true). That
+       branch skipped the teardown, so neither flag changed synchronously, the ajax layer's
+       de-dupe (utils/extras.js, keyed on logout_under_way) never held, and every concurrent
+       dead-session 400 raised its own blocking alert and its own invalidate. */
+    it('stale-token: tears down synchronously before the modal route exists, so later failures are de-duped', function() {
+      modal.route = null;
+      var alerts = 0;
+      var invalidates = 0;
+      stub(sessionTarget(), 'alert', function() { alerts++; });
+      stub(sessionTarget(), 'invalidate', function() { invalidates++; });
+      stub(sessionTarget(), 'persist', function() { return RSVP.resolve(); });
+      session.set('isAuthenticated', true);
+      session.set('invalid_token', false);
+      session.force_logout('session expired');
+      expect(session.logout_under_way()).toEqual(true);
+      expect(alerts).toEqual(1);
+      expect(invalidates).toEqual(1);
+    });
+  });
+
+  /* A NEW SIGN-IN ENDS THE DEAD SESSION'S FLAG. `invalid_token` was reset only by an async
+     check_token success, so after an in-place re-login (or an SPA logout then login, which never
+     reloads) it stayed true on a healthy session: the "!" session-expired badge stayed lit,
+     sync skipped its token check (services/persistence.js:2222), and login.js:29 would not redirect. */
+  describe('confirm_authentication', function() {
+    it('stale-token: clears invalid_token once a new token is installed', function() {
+      stub(sessionTarget(), 'persist', function() { return RSVP.resolve(); });
+      stub(persistenceTarget(), 'store', function() { return RSVP.resolve(); });
+      session.set('invalid_token', true);
+      session.confirm_authentication({access_token: 'fresh-token', user_name: 'bob', user_id: '1_1'});
+      expect(session.get('invalid_token')).toEqual(false);
+    });
   });
 });
