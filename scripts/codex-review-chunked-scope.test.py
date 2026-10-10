@@ -279,6 +279,10 @@ def run_blocks(text):
 
 FILE_COMMAND_TARGET_RE = re.compile(r"GITHUB_(?:ENV|OUTPUT)")
 
+# A step-level `if:` key in a step's YAML text (steps are indented six spaces, their keys eight).
+# Quoted keys count: YAML reads `"if":` and `'if':` as the same key.
+GUARD_IF_RE = re.compile(r"""\n        (?:if|"if"|'if')[ \t]*:""")
+
 
 def file_command_writes(script):
     """Return (writes, unparsed) for $GITHUB_ENV / $GITHUB_OUTPUT use.
@@ -669,7 +673,14 @@ class WorkflowLogExposureTest(unittest.TestCase):
         self.assertGreaterEqual(len(steps), 6, "status-pending guard steps not found")
         for step in steps:
             with self.subTest(step=step.split("\n", 1)[0]):
-                self.assertNotRegex(step, r"\n        if:")
+                self.assertNotRegex(step, GUARD_IF_RE)
+
+    # YAML accepts a quoted key, so `"if":` and `'if':` skip a step as `if:` does (2026-10-10).
+    def test_the_guard_attribute_check_sees_every_spelling_of_if(self):
+        for key in ("if:", '"if":', "'if':", '"if" :'):
+            with self.subTest(key=key):
+                self.assertRegex(f"Guard\n        {key} false\n        run: x", GUARD_IF_RE)
+        self.assertNotRegex("Guard\n        run: echo 'if: x'\n        env:\n          SHIFT: 1", GUARD_IF_RE)
 
     def test_the_review_refuses_to_run_until_the_environment_restricts_deployment_branches(self):
         # The codex-review environment isolates the secrets only once it restricts which branches

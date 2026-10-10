@@ -672,6 +672,23 @@ class ChunkedEnvelopeTest(unittest.TestCase):
         hidden = self.chunk_body + "\nBinary files a/app/models/x.rb and b/app/models/x.rb differ\n"
         self.assertEqual(self._chunked_with_full_diff(hidden), "incomplete_evidence")
 
+    # git's own binary list decides on the chunked path too: a file it lists as binary withholds
+    # the APPROVE even when no "Binary files" line names it (a name holding " and " splits that
+    # line), and a listed image is read at the head (2026-10-10).
+    def test_full_diff_binary_guard_uses_gits_binary_list(self):
+        def chunked(binary_files, read_head):
+            self.manifest["full_raw_diff_sha256"] = build_envelope._sha256_text(self.chunk_body)
+            (self.evidence / "manifest.json").write_text(json.dumps(self.manifest))
+            final, _, _, _, _ = build_envelope.validate_chunked_evidence(
+                self.evidence / "manifest.json", self.evidence, [self.chunk_review, self.chunk_review_2],
+                [self.synthesis, self.synthesis_2], self.chunk_body, read_head, binary_files,
+            )
+            return final["kind"]
+        listed = lambda *paths: build_envelope.GitBinaryFiles(paths, paths)
+        self.assertEqual(chunked(listed("app/models/x and y.rb"), lambda path: b""), "incomplete_evidence")
+        self.assertEqual(chunked(listed("img/a.png"), lambda path: b"system('id')\n\x00"), "incomplete_evidence")
+        self.assertEqual(chunked(listed("img/a.png"), lambda path: PNG_BYTES), "approved")
+
     def test_full_diff_disguised_image_blocks_and_a_real_one_approves(self):
         image = self.chunk_body + "\nBinary files /dev/null and b/img/x.png differ\n"
         disguised = lambda path: b"system('id')\n\x00"
