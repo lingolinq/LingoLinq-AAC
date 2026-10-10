@@ -1077,7 +1077,7 @@ var speecher = EmberObject.extend({
     audio.pause();
     if(audio.media) { audio.media.pause(); }
     audio.currentTime = 0;
-    var _this = this;
+    var _this = this; var play_for = live_service(speecher.get_app_state()); // the live app this playback belongs to, if any
     var speak_id = ref.speak_id;
     cleanup_audio(audio);
     var audio_status = {init: (new Date()).getTime()};
@@ -1094,7 +1094,7 @@ var speecher = EmberObject.extend({
         if(audio.className == 'throwaway') {
           audio.src = null;
         }
-        _this.speak_end_handler(speak_id);    
+        if(owner_gone(play_for)) { return; } _this.speak_end_handler(speak_id); // that app is gone: do not advance another's speech queue
       }
     };
     audio.lastListener = handler;
@@ -1443,17 +1443,18 @@ speecher.check_readiness();
 // Static service registry for explicit injection
 speecher._services = {};
 
-// Getter methods for services with fallback to globals
+// Getter methods for services with fallback to globals. A service DESTROYED with the app instance
+// that owned it (tests tear apps down) counts as absent: see ./live_service.
 speecher.get_app_state = function() {
-  return speecher._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+  return live_service(speecher._services.app_state) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 speecher.get_persistence = function() {
-  return speecher._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+  return live_service(speecher._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
 speecher.get_stashes = function() {
-  return speecher._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+  return live_service(speecher._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 /*
@@ -1478,7 +1479,7 @@ speecher.get_stashes = function() {
  * of which this module already imports, so it adds no cycle.
  */
 speecher.get_tts_voices = function() {
-  return speecher.tts_voices || speecher._services.tts_voices || window.tts_voices || tts_voices;
+  return speecher.tts_voices || live_service(speecher._services.tts_voices) || window.tts_voices || tts_voices;
 };
 
 // Service registration method
@@ -1492,3 +1493,5 @@ speecher.register_services = function(appStateService, persistenceService, stash
 window.speecher = speecher;
 
 export default speecher;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service, owner_gone } from './live_service';

@@ -15,6 +15,7 @@ import openRecommendedHomeBoard, { vocalFlairButtonsForGrid } from 'frontend/uti
 import LingoLinq from 'frontend/app';
 import modal from 'frontend/utils/modal';
 import app_state from 'frontend/utils/app_state';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * board-preview-overlay#pick_for_home resolves its target as
@@ -31,6 +32,7 @@ import app_state from 'frontend/utils/app_state';
 describe('recommended_home_board setup_user lifetime', function() {
   var previewOpen = false;
   var previewed = null;
+  var ownerGoneSkips = null; // restored in afterEach too, so a failed wait cannot leave it installed
 
   var communicator = EmberObject.create({ id: '1_33', user_name: 'hannah_lee' });
 
@@ -47,6 +49,7 @@ describe('recommended_home_board setup_user lifetime', function() {
 
   afterEach(function() {
     app_state.set('setup_user', null);
+    if (ownerGoneSkips) { ownerGoneSkips.restore(); ownerGoneSkips = null; }
   });
 
   it('maps a recommended grid to a published Vocal Flair set', function() {
@@ -138,6 +141,33 @@ describe('recommended_home_board setup_user lifetime', function() {
     waitsFor(function() { return waited; });
     runs(function() {
       expect(app_state.get('setup_user')).toEqual(other);
+    });
+  });
+
+  it('stops watching the preview once the app that opened it is gone', function() {
+    // The watch loop polls the CURRENT app's modal every 400 ms for up to 10 minutes; once the app
+    // that opened the preview is torn down it must stop, not act on whichever app is current.
+    var realAppState = LingoLinq.appState;
+    var owner = EmberObject.create({ setup_user: null });
+    var polls = 0;
+    var done = false;
+    LingoLinq.appState = owner;
+    openRecommendedHomeBoard(60, communicator);
+    waitsFor(function() { return previewOpen; });
+    runs(function() {
+      stub(modal, 'board_preview_open', function() { polls++; return true; });
+      ownerGoneSkips = recordOwnerGoneSkips(owner);
+      owner.destroy();
+      LingoLinq.appState = realAppState;
+      setTimeout(function() { done = true; }, 900);
+    });
+    waitsFor(function() { return done; });
+    runs(function() {
+      expect(polls).toEqual(0);
+      // Exactly this loop's own skip. Earlier tests in this module that close the preview before the
+      // loop's first 400 ms check leave their loops polling into later tests; a skip of theirs that
+      // lands here belongs to another owner, so the recorder passes it on to the harness report.
+      expect(ownerGoneSkips.count).toEqual(1);
     });
   });
 });

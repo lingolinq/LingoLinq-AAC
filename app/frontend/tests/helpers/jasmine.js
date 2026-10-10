@@ -36,7 +36,7 @@ function async_test_wrap(name, instance, befores, afters, lookup) {
   });
   QUnit.test(name, async function(current_assert) {
     var _this = this;
-    assert = current_assert;
+    assert = current_assert; reportLateAssertions(assert);
     try {
       emberRun(function() {
         pre.forEach(function(callback) {
@@ -86,26 +86,26 @@ function test_wrap(name, instance, befores, afters, lookup) {
   // + wait-gate fixes cut this to a low single-digit residual on one real-boards test;
   // this bounded auto-retry absorbs that residual so it can't fail CI on good PRs.
   // A genuinely broken test still fails all attempts and is reported. All OTHER modules
-  // take the byte-identical original path below — zero blast radius.
+  // take the general path below (no retry; it waits for returned promises).
   var retryOn = name.indexOf('persistence-sync') !== -1;
   QUnit.test(name, function(current_assert) {
     var _this = this;
-    assert = current_assert;
+    assert = current_assert; reportLateAssertions(assert);
     var this_arg = lookup || _this;
     var testDone = assert.async(); test_started_at = Date.now(); // QUnit's test timeout runs from here
 
     if (!retryOn) {
-      // ---- ORIGINAL PATH (all non-persistence-sync tests) — VERBATIM, so the poll
+      // ---- GENERAL PATH (all non-persistence-sync tests). Its poll loop is unchanged, so the poll
       // cap stays dynamically re-evaluated each iteration (some tests, e.g. capabilities
       // timeout/sensor tests, legitimately poll ~4.8s and must not be cut off early). ----
       emberRun(function() {
         pre.forEach(function(callback) { callback.call(_this); });
         current_test_id++;
-        instance.call(this_arg);
+        trackReturnedPromise(instance.call(this_arg));
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0;
+            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0; // the general post-test settle, unchanged from develop (kept per Traci, commit c57256633)
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -123,11 +123,11 @@ function test_wrap(name, instance, befores, afters, lookup) {
             var delay = pollAttempts < 10 ? 10 : 100;
             setTimeout(pollUntilIdle, delay);
           } else {
-            assert.ok(false, 'async work did not finish in time');
-            cancelHarnessAsyncWork();
-            restoreStubs();
+            assert.ok(false, 'async work did not finish in time'); // then the SAME cleanup as a normal end, so a stuck test cannot leave its state to the tests after it
+            cancelHarnessAsyncWork(); current_afters = []; try { post.forEach(function(callback) { callback.call(_this); }); } catch (e) { assert.ok(false, 'afterEach failed after the timeout: ' + ((e && e.message) || e)); } finally { restoreStubs(); }
             assert = null;
             testDone();
+            if (typeof LingoLinq !== 'undefined') { LingoLinq.sync_testing = false; }
           }
         };
         pollUntilIdle();
@@ -270,7 +270,7 @@ var xdescribe = function(name, lookup, callback) {
   }
 };
 var expect = function(data) {
-  var expectation = {};
+  var expectation = {}; if (!assert) { recordLateAssertion(data); } // see recordLateAssertion
   expectation.toEqual = function(arg) {
     if((data === undefined && arg === null) || (data === null && arg === undefined)) {
       assert.ok(true, 'both empty values');
@@ -526,8 +526,18 @@ function shouldUseEmberSet(object, method, replacement) {
   return true;
 }
 
+function hasOwn(object, method) {
+  try { return Object.prototype.hasOwnProperty.call(object, method); } catch (e) { return false; }
+}
+// Restore must put the object back exactly as it was. When the method was INHERITED (or absent),
+// assigning the stash back left an own copy behind; through a forwarding proxy such as
+// utils/persistence that copy is a function bound to that test's service, which outlived it
+// (tests/helpers/leak-check.js flagged it after every test). So remember whether the stub CREATED
+// the own property, and delete it on restore. Accessors (editManager.controller) create none, so
+// they keep the assign-back path through their setter.
 function applyStub(object, method, replacement, stashList) {
   var stash;
+  var hadOwn = hasOwn(object, method);
   if (shouldUseEmberSet(object, method, replacement)) {
     stash = emberGet(object, method);
     emberSet(object, method, replacement);
@@ -539,7 +549,7 @@ function applyStub(object, method, replacement, stashList) {
       emberSet(object, method, replacement);
     }
   }
-  stashList.push([object, method, stash]);
+  stashList.push([object, method, stash, !hadOwn && hasOwn(object, method)]);
 }
 
 var stub = function(object, method, replacement) {
@@ -567,8 +577,14 @@ function restoreStubs() {
     var obj = list[0];
     var method = list[1];
     var stash = list[2];
+    var createdOwn = list[3];
     if (!obj || obj.isDestroyed) { return; }
     try {
+      if (createdOwn && delete obj[method] && !hasOwn(obj, method)) {
+        // The old emberSet path notified observers and computeds; a delete does not, so do it here.
+        if (typeof obj.notifyPropertyChange === 'function') { obj.notifyPropertyChange(method); }
+        return;
+      }
       if (shouldUseEmberSet(obj, method, stash)) {
         emberSet(obj, method, stash);
       } else {
@@ -584,4 +600,98 @@ function restoreStubs() {
 }
 
 
-export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};
+// An it() callback may return a promise (`return c.confirm().then(function() { expect(...) })`).
+// Count it as pending work, like a runs() block, so the test ends only after it settles and its
+// assertions land inside the test. Ignoring it let those assertions run after cleanup had nulled
+// `assert`, which only a fixed post-test settle used to hide (task log 2026-10-05_ci-test-stalls).
+// A rejection fails the test instead of vanishing.
+function trackReturnedPromise(result) {
+  if (!result || typeof result.then !== 'function') { return; }
+  var id = current_test_id;
+  waiting[id] = (waiting[id] || 0) + 1;
+  var settle = function() {
+    if (id == current_test_id) { waiting[id]--; }
+  };
+  result.then(settle, function(error) {
+    if (id == current_test_id && assert) {
+      assert.ok(false, 'the promise returned by the test rejected: ' + ((error && error.message) || error));
+    }
+    settle();
+  });
+}
+
+// expect() called when no test is running (`assert` is null) means an assertion ran after its
+// test had ended. It then throws a TypeError, and if app code or a promise chain catches that,
+// the assertion would vanish without failing anything. So it is recorded here first, and the
+// next test to start fails, naming where the late call came from. A late call after the very
+// last test can only be logged.
+var late_assertions = [];
+function recordLateAssertion(data) {
+  // Skip this function and expect() itself; in the built bundle every test frame is in tests.js.
+  var frame = (new Error().stack || '').split('\n').slice(3).filter(function(line) { return /tests\.js|\/tests\//.test(line); })[0] || '';
+  var value;
+  try { value = JSON.stringify(data); } catch (e) { value = String(data); }
+  var entry = 'expect(' + String(value).slice(0, 80) + ') at ' + (frame.trim().replace(/^at /, '') || 'an unknown test file');
+  late_assertions.push(entry);
+  console.error('[TEST] late assertion, will fail the next test: ' + entry);
+}
+function reportLateAssertions(current) {
+  if (!late_assertions.length || !current) { return; }
+  var entries = late_assertions.splice(0, late_assertions.length);
+  current.ok(false, 'expect() ran after its test had ended (a late assertion from an earlier test, so its result never counted): ' + entries.join(' | '));
+}
+// Report into EVERY test, not only the Jasmine-style ones: a late call followed by a plain QUnit
+// test (or by no further Jasmine-style test in a shard) would otherwise only be logged.
+var reportLateAssertionsHook = function(current) { reportLateAssertions(current); }; QUnit.hooks.beforeEach(reportLateAssertionsHook); // named so a test can call only this hook
+
+// Two app pollers check connectivity every 30 s of WALL-CLOCK time and rewrite persistence's
+// `online` flag to match the browser (app/services/persistence.js _setupOnlineListeners, and the
+// module-level one in app/utils/persistence.js). In tests the browser is online while a test may
+// have put persistence offline on purpose, so a tick landing mid-test flipped it back online and a
+// local-only save went to the server: the wandering "condition failed for more than 5500ms" flake
+// (reproduced by firing the tick inside the test). No test may depend on when the clock ticks, so
+// both pollers are stopped before every test. One started during a test cannot tick within it
+// (its first tick is 30 s later).
+function stopOnlinePollers() {
+  stopUtilOnlineCheck();
+  var service = (typeof window !== 'undefined') ? unwrapLeakProxy(window.persistence) : null; // may be a torn-down one: stopping its poller is not a leak
+  if (service && service._online_check_interval) {
+    clearInterval(service._online_check_interval);
+    service._online_check_interval = null;
+  }
+}
+QUnit.hooks.beforeEach(stopOnlinePollers); // the function itself, so a test can confirm it is registered
+
+// A third wall-clock poller: capabilities re-reads the access token from stashes every 2 s
+// (app/utils/capabilities.js `_auth_sync_interval`). It kept ticking after the app that started it
+// was torn down, reading whichever stashes the globals then pointed at (a destroyed one): the
+// "async localStorage.getItem in capabilities.sync_access_token" global failure named in
+// app/frontend/CLAUDE.md. Stopped before every test like the others. One started during a test can
+// tick within that test, but only against that test's own live services; app start-up still syncs
+// the token once right away, so no test loses that.
+function stopAuthSyncPoller() {
+  if (capabilities && capabilities._auth_sync_interval) {
+    clearInterval(capabilities._auth_sync_interval);
+    capabilities._auth_sync_interval = null;
+  }
+}
+QUnit.hooks.beforeEach(stopAuthSyncPoller);
+// Test-only access, for tests/utils/jasmine_waitsfor-test.js.
+var lateAssertionTesting = {
+  pending: function() { return late_assertions.slice(); },
+  withoutAssert: function(callback) { var saved = assert; assert = null; try { callback(); } finally { assert = saved; } },
+  report: reportLateAssertions, globalHook: reportLateAssertionsHook
+};
+
+// Placed after every line-anchored ESLint baseline row in this file on purpose; ES imports are hoisted.
+import { stopUtilOnlineCheck } from '../../utils/persistence';
+import { unwrapLeakProxy } from './leak-check';
+import capabilities from '../../utils/capabilities';
+
+export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting, stopOnlinePollers, stopAuthSyncPoller};
+
+// The 500 ms pause after every sync-mode test (in test_wrap) holds cleanup back so async work a test
+// scheduled runs inside it instead of inside the next test. It is the general settle develop has,
+// kept per Traci's instruction (commit c57256633: removing it is a follow-up, not part of this PR).
+// Leftover work each module scheduled was also traced (task log 2026-10-05_ci-test-stalls.md,
+// session 5) and fixed at its source; the leak check and late-assertion reporting still run.

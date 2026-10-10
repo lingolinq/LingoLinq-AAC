@@ -5,8 +5,34 @@ import { setApplication } from '@ember/test-helpers';
 import { setup } from 'qunit-dom';
 import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
+// First of the local imports: CI shard selection must be in place before any test module registers.
+import './helpers/apply-parallel-pool';
+// Fails a test that leaves state behind for later tests, or uses state an earlier test left behind.
+import './helpers/leak-check';
+import { set_owner_gone_listener } from 'frontend/utils/live_service';
 
 QUnit.config.testTimeout = 15000;
+
+// A deferred-work guard (owner_gone in app/utils/live_service.js) skips work whose app was torn down:
+// an earlier test scheduled it and did not wait. Skipping keeps it out of the current test, but it
+// must not be silent: each skip is logged with the test running when it fired (the Ember shard jobs
+// copy these lines into the job summary), and a browser console run ends with a count (testem prints
+// console output with the next test result, so output after the last one never appears). A self-test
+// that tears an owner down on purpose counts its own skips instead (tests/helpers/owner-gone.js), so
+// every line here is real late work. Reported, not failed: when the late work lands
+// depends on timing.
+const ownerGoneSkips = [];
+set_owner_gone_listener(function() {
+  const current = QUnit.config.current;
+  const name = current ? `${current.module.name}: ${current.testName}` : '(between tests)';
+  ownerGoneSkips.push(name);
+  // eslint-disable-next-line no-console
+  console.warn(`[owner-gone] late work from an earlier test was skipped while running: ${name}`);
+});
+QUnit.done(function() {
+  // eslint-disable-next-line no-console
+  console.warn(`[owner-gone] ${ownerGoneSkips.length} piece(s) of late work skipped after their app was torn down`);
+});
 // Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+
 // DOM nodes and every later test slowed with them (per-test floor ~40 ms -> ~1.5 s in CI;
 // suite 46.9 -> 20.3 min with this set). Failed tests are still listed.
@@ -34,18 +60,28 @@ if (req && req.entries && typeof req === 'function') {
   const testMods = all.filter((n) => n.match(/[-_]test$/));
   let loaded = 0;
   let failed = 0;
+  const loadFailures = [];
   testMods.forEach(function(mod) {
     try {
       req(mod);
       loaded++;
     } catch (e) {
       failed++;
+      loadFailures.push(mod + ': ' + e.message);
       console.warn('[TEST] Failed to load', mod, e.message);
     }
   });
   if (failed > 0) {
     console.warn('[TEST] Pre-loaded', loaded, 'modules,', failed, 'failed');
   }
+  // A test module that throws while loading registers none of its tests, so it dropped out of
+  // every run while CI stayed green. This always-registered test turns that into a failure that
+  // names the module.
+  QUnit.module('Test loading', function() {
+    QUnit.test('every test module loads', function(assert) {
+      assert.deepEqual(loadFailures, [], 'test modules that failed to load (none of their tests ran)');
+    });
+  });
 }
 
 // Log summary when run completes (browser console; Testem shows "X tests complete" in terminal)

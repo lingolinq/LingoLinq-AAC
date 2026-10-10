@@ -67,7 +67,9 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 Work through the checklist in `.claude/skills/pr-preflight/SKILL.md` (claim
 verification against HEAD, entry-point enumeration for access changes,
 `scripts/regenerate-register.sh --check` for compliance paths, the status block the PR
-template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`.
+template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`. Testing
+standards (which kind of test, red-then-falsify, test isolation enforced by the frontend leak
+check, Playwright e2e is not in CI, the CI gates) are in `.claude/rules/testing-frontend.md`.
 
 Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
 pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not

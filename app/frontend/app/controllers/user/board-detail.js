@@ -1071,9 +1071,9 @@ export default Controller.extend(prefClasses, {
   // the message grows we scroll it to the bottom so the user always sees
   // what they just added, with older rows scrolled up out of view. `next`
   // waits for the new chips to render before measuring scrollHeight.
-  _scroll_sentence_to_newest: observer('sentence_parts.[]', function() {
+  _scroll_sentence_to_newest: observer('sentence_parts.[]', function() { var _this = this;
     next(function() {
-      var el = document.querySelector('#speak .md-board-detail-sentence-bar__text--with-symbols');
+      if(_this.isDestroyed || _this.isDestroying) { return; } var el = document.querySelector('#speak .md-board-detail-sentence-bar__text--with-symbols');
       // Only pin to the newest (bottom) when chips have genuinely wrapped to a
       // SECOND row. A single row exactly fills the viewport, and a few px of
       // sub-row overflow (border/rounding) shouldn't scroll — doing so would

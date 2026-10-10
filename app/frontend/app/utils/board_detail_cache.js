@@ -193,7 +193,7 @@ function _push_board_to_store(raw) {
 
 function _is_online() {
   try {
-    if (!persistence) { return false; }
+    if (!persistence || (window.persistence && !live_service(window.persistence))) { return false; } // a torn-down app's persistence is not online
     if (typeof persistence.get === 'function') {
       return !!persistence.get('online');
     }
@@ -340,12 +340,12 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs, seq_opts
     if (index >= rootKeys.length) {
       return RSVP.resolve(true);
     }
-    if (_document_hidden() || !_is_online()) {
+    if (_document_hidden() || !_is_online() || !_pipeline_app_alive(seq_opts)) {
       return RSVP.resolve(false);
     }
     if (seq_opts.respectBoardsPage && boardsPageListCache.isBoardsPageActive()) {
       return _wait_while_boards_page_active().then(function() {
-        if (_document_hidden() || !_is_online()) {
+        if (_document_hidden() || !_is_online() || !_pipeline_app_alive(seq_opts)) {
           return RSVP.resolve(false);
         }
         return processNext();
@@ -796,7 +796,7 @@ export default {
             phaseDone.phase1 = true;
             return RSVP.resolve();
           }
-          return _process_roots_sequentially(_this, lookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+          return _process_roots_sequentially(_this, lookups, warm_opts, gapMs, { respectBoardsPage: true, app: pipeline_opts.app }).then(function(completed) {
             _complete_phase_if_done(phaseDone, 'phase1', completed);
           }, function() {
             delete phaseDone.phase1;
@@ -818,7 +818,7 @@ export default {
               phaseDone.phase2 = true;
               return RSVP.resolve();
             }
-            return _process_roots_sequentially(_this, lookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+            return _process_roots_sequentially(_this, lookups, warm_opts, gapMs, { respectBoardsPage: true, app: pipeline_opts.app }).then(function(completed) {
               _complete_phase_if_done(phaseDone, 'phase2', completed);
             }, function() {
               delete phaseDone.phase2;
@@ -847,7 +847,7 @@ export default {
                 phaseDone.phase3 = true;
                 return RSVP.resolve();
               }
-              return _process_roots_sequentially(_this, phased.phase3, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+              return _process_roots_sequentially(_this, phased.phase3, warm_opts, gapMs, { respectBoardsPage: true, app: pipeline_opts.app }).then(function(completed) {
                 _complete_phase_if_done(phaseDone, 'phase3', completed);
               }, function() {
                 delete phaseDone.phase3;
@@ -891,7 +891,7 @@ export default {
               phaseDone.phase4 = true;
               return RSVP.resolve();
             }
-            return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+            return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs, { respectBoardsPage: true, app: pipeline_opts.app }).then(function(completed) {
               _complete_phase_if_done(phaseDone, 'phase4', completed);
             }, function() {
               delete phaseDone.phase4;
@@ -923,7 +923,7 @@ export default {
     if (!_is_online()) { return; }
     if (_document_hidden()) { return; }
 
-    var _this = this;
+    var _this = this, pipeline_app = live_service(LingoLinq.appState); // the live app whose user change started this chain, if any
     _this._prefetch_pipeline_running = _this._prefetch_pipeline_running || {};
     if (_this._prefetch_pipeline_running[user_id]) { return; }
     _this._prefetch_pipeline_running[user_id] = true;
@@ -934,7 +934,7 @@ export default {
     };
 
     runLater(function() {
-      _this._run_prefetch_pipeline(user, warm_opts).then(function() {
+      _this._run_prefetch_pipeline(user, warm_opts, { app: pipeline_app }).then(function() {
         delete _this._prefetch_pipeline_running[user_id];
       }, function() {
         delete _this._prefetch_pipeline_running[user_id];
@@ -1167,3 +1167,12 @@ export default {
     return process_layer(collect_layer_keys(raw));
   }
 };
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from './live_service';
+
+// A prefetch chain belongs to the app whose user change started it (pipeline opts `app`). It stops at
+// the next board once that app-state is destroyed, instead of carrying on against whichever app is
+// current by then (tests boot a new app per test; production never destroys its app-state).
+function _pipeline_app_alive(opts) {
+  return !(opts && opts.app) || !!live_service(opts.app);
+}

@@ -1778,8 +1778,8 @@ export default Controller.extend({
       modal.open('about-lingolinq');
     },
     full_screen: function() {
-      capabilities.fullscreen(true).then(null, function() {
-        modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
+      capabilities.fullscreen(true).then(null, () => {
+        if(this.isDestroyed || this.isDestroying) { return; } modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
       });
     },
     launch_board: function() {

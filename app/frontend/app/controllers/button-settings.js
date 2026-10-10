@@ -128,7 +128,7 @@ export default modal.ModalController.extend({
       _this.set('lessonpix_enabled', true);
       if(stashes.get('last_image_library') == 'lessonpix') {
         runLater(function() {
-          _this.set('image_library', 'lessonpix');
+          if(!_this.isDestroyed && !_this.isDestroying) { _this.set('image_library', 'lessonpix'); }
         });
       }
     }, function(err) {

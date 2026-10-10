@@ -1,12 +1,15 @@
 import QUnit from 'qunit';
+import RSVP from 'rsvp';
 import {
   describe,
   it,
+  afterEach, beforeEach,
   expect,
   waitsFor,
   runs,
   stub,
-  currentAssert
+  currentAssert,
+  lateAssertionTesting
 } from 'frontend/tests/helpers/jasmine';
 
 // waitsFor(condition[, message][, timeoutMs]): a timeout the caller passes
@@ -59,5 +62,83 @@ describe('waitsFor timeout', function() {
     });
     waitsFor(function() { return false; }, 60000);
     runs(function() {});
+  });
+});
+
+// When a test's pending work never finishes, the harness fails it and must still run the same
+// cleanup as a normal end (afterEach hooks, stub restore), or one stuck test leaves its state to
+// the tests after it and a single problem shows up as a cascade of failures.
+describe('harness timeout cleanup', function() {
+  var cleaned_up_after = [];
+  var started = [];
+  var cleanup_seen_by_next_test = null;
+  beforeEach(function() {
+    started.push(currentAssert() ? currentAssert().test.testName : 'unknown');
+  });
+  afterEach(function() {
+    cleaned_up_after.push(currentAssert() ? currentAssert().test.testName : 'unknown');
+  });
+
+  it('a test whose returned promise never settles fails on its own', function() {
+    var a = currentAssert();
+    var push = a.pushResult;
+    stub(a, 'pushResult', function(result) {
+      if(result && result.result === false && /async work did not finish in time/.test(result.message)) {
+        return push.call(a, { result: true, actual: result.message, expected: result.message, message: 'the harness failed the stuck test' });
+      }
+      return push.call(a, result);
+    });
+    return new RSVP.Promise(function() {});
+  });
+
+  it('runs that test\'s afterEach hooks before the next test starts', function() {
+    // Every test of this module that started before this one, by name and in order, has had its
+    // afterEach run (the stuck test above included). Run alone with --filter, nothing started before
+    // it, so it checks nothing; run the module to exercise it.
+    cleanup_seen_by_next_test = cleaned_up_after.slice();
+    expect(cleanup_seen_by_next_test).toEqual(started.slice(0, -1));
+  });
+});
+
+// An expect() that runs after its test has ended throws a TypeError (no live assert). If the
+// caller swallows that, the assertion would vanish; the harness records it and fails the next
+// test instead.
+describe('late assertion reporting', function() {
+  it('records an expect() made after its test ended even when the error is swallowed', function() {
+    var before = lateAssertionTesting.pending().length;
+    lateAssertionTesting.withoutAssert(function() {
+      try {
+        expect('a late value').toEqual('a late value');
+      } catch (e) {
+        // swallowed, as an app-level catch or promise chain might
+      }
+    });
+    var pending = lateAssertionTesting.pending();
+    expect(pending.length).toEqual(before + 1);
+    expect(/a late value/.test(pending[pending.length - 1])).toEqual(true);
+
+    var reported = [];
+    lateAssertionTesting.report({ ok: function(result, message) { reported.push([result, message]); } });
+    expect(reported.length).toEqual(1);
+    expect(reported[0][0]).toEqual(false);
+    expect(/after its test had ended/.test(reported[0][1])).toEqual(true);
+    expect(lateAssertionTesting.pending()).toEqual([]);
+  });
+  // Plain QUnit tests never go through the Jasmine-style wrappers, so the report also runs from a
+  // global QUnit beforeEach hook; otherwise a late call followed only by plain tests (or by none
+  // in a shard) would just be logged.
+  it('reports a recorded late expect() from the global beforeEach hook, so plain QUnit tests catch it too', function() {
+    lateAssertionTesting.withoutAssert(function() {
+      try { expect('another late value').toEqual('x'); } catch (e) { /* swallowed */ }
+    });
+    var reported = [];
+    var fake = { ok: function(result, message) { reported.push([result, message]); } };
+    // Only this hook: running every global hook with a fake assert would also re-snapshot the leak check.
+    expect((QUnit.config.globalHooks.beforeEach || []).includes(lateAssertionTesting.globalHook)).toEqual(true);
+    lateAssertionTesting.globalHook.call({}, fake);
+    expect(reported.length).toEqual(1);
+    expect(reported[0][0]).toEqual(false);
+    expect(/another late value/.test(reported[0][1])).toEqual(true);
+    expect(lateAssertionTesting.pending()).toEqual([]);
   });
 });

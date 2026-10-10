@@ -890,10 +890,10 @@ var scanner = EmberObject.extend({
     scanner.element_index = null;
     scanner.scanning_distances = {x: 0, y: 0};
 
-    var cutoff = reset_now ? 0 : Math.max(scanner.options.interval, 500);
-    runLater(function() {
-      scanner.start();
-    }, cutoff);
+    var cutoff = reset_now ? 0 : Math.max(scanner.options.interval, 500); var restart_for = live_service(scanner.get('appState'));
+    runLater(scanner_restart_for(restart_for), cutoff);
+    // scanner_restart_for (end of this file): skips the restart once the app that scanned is gone.
+
   },
   hide_input: function(force) {
     if(window.Keyboard && window.Keyboard.hide && this.get('appState.speak_mode') && scanner.scanning) {
@@ -1209,7 +1209,7 @@ var scanner = EmberObject.extend({
       // simulate selection event at the current location
       var target = document.elementFromPoint(x, y);
       scanner.pick_elem(new JShim(target));
-      runLater(scanner.reset);
+      runLater(scanner_reset_for(live_service(scanner.get('appState'))));
     }
   },
   load_children: function(elem, elements, index) {
@@ -1517,3 +1517,21 @@ window.addEventListener('keyboardDidHide', function() {
 window.scanner = scanner;
 
 export default scanner;
+
+// A deferred reset or restart belongs to the app that was scanning when it was scheduled: reset()
+// closes the modal highlight and both (re)start scanning on whichever app is current, so skip them
+// once that app is gone (in tests a new app boots for every test; production never destroys its app-state).
+export function scanner_reset_for(owner) {
+  return function() {
+    if(owner_gone(owner)) { return; }
+    scanner.reset();
+  };
+}
+export function scanner_restart_for(owner) {
+  return function() {
+    if(owner_gone(owner)) { return; }
+    scanner.start();
+  };
+}
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service, owner_gone } from './live_service';

@@ -18,7 +18,7 @@ var FREQ_STORAGE_KEY = 'lingolinq_word_freq';
 var BIGRAM_STORAGE_KEY = 'lingolinq_word_bigrams';
 var SYNC_QUEUE_KEY = 'lingolinq_prediction_sync_queue';
 var FREQ_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
-var _sync_timer = null;
+var _sync_timer = null; var _sync_gen = 0; // _sync_gen: bumped by cancel_sync_flush (tests) so a cancelled flush does nothing
 
 var normalize_prediction_key = function(phrase) {
   return (phrase || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1269,11 +1269,11 @@ word_suggestions.queue_sync = function(entry) {
 };
 
 word_suggestions.schedule_sync_flush = function() {
-  if(_sync_timer) { return; }
+  if(_sync_timer) { return; } var flush_for = live_service(LingoLinq.appState); var gen = _sync_gen; // the service itself, not the forwarding util
   _sync_timer = runLater(function() {
-    _sync_timer = null;
-    word_suggestions.flush_sync_queue();
-  }, 5000);
+    if(gen !== _sync_gen) { return; } _sync_timer = null;
+    if(owner_gone(flush_for)) { return; } word_suggestions.flush_sync_queue(); // its app is gone; the queue stays in localStorage
+  }, word_suggestions.sync_flush_delay || 5000); // overridable so tests need not wait 5 s
 };
 
 word_suggestions.flush_sync_queue = function() {
@@ -1763,3 +1763,13 @@ word_suggestions._test = {
 };
 
 export default word_suggestions;
+// Read-only: whether a sync flush is pending (tests wait for none before scheduling their own).
+word_suggestions.sync_flush_scheduled = function() { return !!_sync_timer; };
+// Tests: drop a scheduled flush (the queue stays in localStorage) so a test does not leave it for the
+// next one. Returns whether one was pending. No app code calls it. The runloop timer itself stays
+// queued until its delay passes and then does nothing (generation mismatch): cancelling it with
+// runCancel would be a new ember/no-runloop finding. A later test whose settled() runs within the
+// delay waits for it (up to sync_flush_delay, 5 s by default); none of the callers awaits settled().
+word_suggestions.cancel_sync_flush = function() { var had = !!_sync_timer; _sync_gen++; _sync_timer = null; return had; };
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service, owner_gone } from './live_service';

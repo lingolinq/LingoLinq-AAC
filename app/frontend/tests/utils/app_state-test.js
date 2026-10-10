@@ -42,9 +42,9 @@ function primeSpeakModeUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // A store record always has reload, so stub it outright: in speak mode the check_inbox observer
+  // (app/services/app-state.js:3706-3734) reloads the user, a real fetch the test never waited for.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;
@@ -421,7 +421,7 @@ describe('app_state', function() {
       app_state.set('currentUser', EmberObject.create({preferences: {speak_on_speak_mode: true}}));
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       setTimeout(function() { done = true; }, 500);
-      waitsFor(function() { return called; });
+      waitsFor(function() { return called && done; }); // and its own 500 ms timer, so it does not fire in a later test
       runs();
     });
   });
@@ -3109,7 +3109,7 @@ describe('app_state', function() {
       later(function() {
         waited = true;
       }, 500);
-      waitsFor(function() { return waited; });
+      waitsFor(function() { return waited && app_state.get('loading_overlay_message') == null; }); // and the overlay's own ~700 ms hide
       runs(function() {
         expect(noticed).toEqual(true);
         expect(app_state.get('speak_mode')).toEqual(false);
@@ -3124,4 +3124,57 @@ describe('app_state', function() {
       expect('test').toEqual('todo');
     });
   });
+
+  describe("teardown", function() {
+    // jump_to_board polls for the new board (runLater, every 200 ms) and holds the module-level
+    // buttonTracker.transitioning flag; neither may outlive the app-state that started them.
+    it("stops polling for a board change once the service is destroyed", function() {
+      var svc = LingoLinq.appState;
+      app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
+      app_state.jump_to_board({key: 'yodel', id: '1_1'});
+      var reads = 0;
+      var realGet = svc.get;
+      svc.get = function(key) {
+        if (key === 'currentBoardState.key') { reads++; }
+        return realGet.apply(this, arguments);
+      };
+      svc.destroy();
+      var waited = false;
+      setTimeout(function() { waited = true; }, 450);
+      waitsFor(function() { return waited; });
+      runs(function() {
+        expect(reads).toEqual(0);
+      });
+    });
+
+    it("detaches the scanner it drives when destroyed", function() {
+      var svc = LingoLinq.appState;
+      var savedAppState = scanner.get('appState');
+      var savedScanning = scanner.scanning;
+      scanner.set('appState', svc);
+      scanner.scanning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        var detached = scanner.get('appState');
+        var scanning = scanner.scanning;
+        scanner.set('appState', savedAppState);
+        scanner.scanning = savedScanning;
+        expect(detached).toEqual(null);
+        expect(scanning).toEqual(false);
+      });
+    });
+
+    it("ends the board transition it started when destroyed", function() {
+      var svc = LingoLinq.appState;
+      teardownButtonTracker.transitioning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        expect(teardownButtonTracker.transitioning).toEqual(false);
+      });
+    });
+  });
 });
+// Kept below the baselined lint rows so they do not shift (see .eslint-todo).
+import teardownButtonTracker from '../../utils/raw_events';

@@ -662,9 +662,9 @@ modal.ModalController = Controller.extend({
         service.cancelAutoClose();
       }
       
-      if(settings && settings.inactivity_timeout) {
+      if(settings && settings.inactivity_timeout) { var close_for = live_service(service); // the live modal service this auto-close belongs to, if any
         modal.auto_close_callback = function() {
-          if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
+          if(owner_gone(close_for)) { return; } if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
             modal.close();
             modal.auto_close = false;
           }
@@ -675,7 +675,7 @@ modal.ModalController = Controller.extend({
         if(scanner.options && scanner.options.interval && scanner.options.auto_start) {
           // If scanning, wait until 2 times through the list to auto-close
           runLater(function() {
-            var targets = Math.max(5, modal.scannable_targets().length);
+            if(owner_gone(close_for)) { return; } var targets = Math.max(5, modal.scannable_targets().length);
             duration = Math.max(duration, scanner.options.interval * targets * 2);
             if(modal.auto_close) {
               modal.auto_close_timer = runLater(modal.auto_close_callback, duration);
@@ -717,3 +717,5 @@ modal.ModalController = Controller.extend({
 window.modal = modal;
 
 export default modal;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service, owner_gone } from './live_service';

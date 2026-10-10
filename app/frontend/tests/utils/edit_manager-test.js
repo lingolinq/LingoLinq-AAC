@@ -334,6 +334,11 @@ describe('editManager', function() {
       testBoardDom.parentNode.removeChild(testBoardDom);
       testBoardDom = null;
     }
+    // get_edited_image / retrieve_badge leave a pending-request callback on the singleton (holding
+    // that test's promise) until the editor answers; drop it so no later test's editor message can
+    // resolve this test's request.
+    editManager.imageEditingCallback = null;
+    editManager.badgeEditingCallback = null;
   });
 
   describe("setup", function() {
@@ -2629,8 +2634,11 @@ describe('editManager', function() {
       });
       stubBoardReload('1_2', {board: {id: '1_2', key: 'example/copy'}});
       stubCopyBoardSideEffects(b);
-      editManager.copy_board(b, null, copyBoardUser()).then(null, function() { });
-      waitsFor(function() { return found; });
+      // copy_board settles after reloading the copy, which is fetched in the same flush as the copy's
+      // button set (app/utils/edit_manager.js:2749-2768): waiting for it covers both fetches.
+      var settled = false;
+      editManager.copy_board(b, null, copyBoardUser()).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return found && settled; });
       runs();
     });
 
