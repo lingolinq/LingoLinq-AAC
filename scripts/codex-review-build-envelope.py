@@ -174,9 +174,13 @@ def _extension(path):
     return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
 
-def unreviewable_binary_paths(diff, read_head=None):
+def unreviewable_binary_paths(diff, read_head=None, binary_files=None):
     """Paths that diff as binary and are not an expected binary type. With read_head, also an
-    expected-type file at the head whose content does not start like that type."""
+    expected-type file at the head whose content does not start like that type.
+
+    binary_files (git_binary_files) is git's own list of binary paths. The "Binary files X and Y
+    differ" line is ambiguous for a name that holds " and ", so when the list is given it decides
+    which files are binary and which head-side files are read; the parsed line only adds to it."""
     paths = set()
     for match in _BINARY_DIFF_RE.finditer(diff or ""):
         for side in match.groups():
@@ -185,9 +189,40 @@ def unreviewable_binary_paths(diff, read_head=None):
                 continue
             if _extension(path) not in REVIEWABLE_BINARY_EXTENSIONS:
                 paths.add(path)
-    if read_head is not None:
+    if binary_files is not None:
+        paths.update(p for p in binary_files.paths if _extension(p) not in REVIEWABLE_BINARY_EXTENSIONS)
+        if read_head is not None:
+            paths.update(_content_mismatches(binary_files.head_paths, read_head))
+    elif read_head is not None:
         paths.update(binary_content_mismatches(diff, read_head))
     return sorted(paths)
+
+
+class GitBinaryFiles:
+    """Binary paths between two commits as git lists them: every binary path, and those still
+    present at the head (the ones whose content can be read)."""
+
+    def __init__(self, paths, head_paths):
+        self.paths = list(paths)
+        self.head_paths = list(head_paths)
+
+
+def git_binary_files(base, head):
+    """GitBinaryFiles for base...head from the local git objects. NUL-separated, so no file name is
+    split or quoted; --no-renames lists a rename by both names. Raises on a git failure."""
+    def git_diff(*args):
+        return subprocess.run(
+            ["git", "-c", "core.quotepath=false", "diff", *args, "--no-renames", "--no-textconv", "-z", f"{base}...{head}"],
+            capture_output=True, check=True,
+        ).stdout.decode("utf-8", "surrogateescape")
+    paths = []
+    for record in git_diff("--numstat").split("\0"):
+        if record.count("\t") >= 2:
+            added, removed, path = record.split("\t", 2)
+            if added == "-" and removed == "-":
+                paths.append(path)
+    deleted = set(git_diff("--name-only", "--diff-filter=D").split("\0"))
+    return GitBinaryFiles(paths, [p for p in paths if p not in deleted])
 
 
 def _starts(*prefixes):
@@ -196,6 +231,24 @@ def _starts(*prefixes):
 
 def _riff(form):
     return lambda head: head[:4] == b"RIFF" and head[8:12] == form
+
+
+def _after(skip, check):
+    # check() applied after leading bytes a real file may carry: a UTF-8 BOM and whitespace before
+    # %PDF-, zero padding before an MP3 frame. Only those exact bytes are skipped.
+    def match(head):
+        rest = head
+        if skip == "bom_space":
+            rest = rest[3:] if rest.startswith(b"\xef\xbb\xbf") else rest
+            rest = rest.lstrip(b" \t\r\n")
+        elif skip == "zeros":
+            rest = rest.lstrip(b"\x00")
+        return check(rest)
+    return match
+
+
+def _mp3_frame(head):
+    return head.startswith(b"ID3") or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)
 
 
 def _iso_media(head):
@@ -212,25 +265,26 @@ BINARY_SIGNATURES = {
     "jpeg": _starts(b"\xff\xd8\xff"),
     "gif": _starts(b"GIF87a", b"GIF89a"),
     "webp": _riff(b"WEBP"),
-    "ico": _starts(b"\x00\x00\x01\x00"),
+    "ico": _starts(b"\x00\x00\x01\x00", b"\x89PNG\r\n\x1a\n"),  # browsers accept a PNG saved as .ico
     "bmp": _starts(b"BM"),
-    "tif": _starts(b"II*\x00", b"MM\x00*"),
-    "tiff": _starts(b"II*\x00", b"MM\x00*"),
+    "tif": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),  # classic and BigTIFF
+    "tiff": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),
     "avif": _iso_media,
     "heic": _iso_media,
-    "pdf": _starts(b"%PDF-"),
+    "pdf": _after("bom_space", _starts(b"%PDF-")),
     "woff": _starts(b"wOFF"),
     "woff2": _starts(b"wOF2"),
     "ttf": _starts(b"\x00\x01\x00\x00", b"true", b"OTTO"),
     "otf": _starts(b"OTTO", b"\x00\x01\x00\x00"),
     "eot": lambda head: head[34:36] == b"LP",
-    "mp3": lambda head: head.startswith(b"ID3") or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0),
-    "wav": _riff(b"WAVE"),
+    "mp3": _after("zeros", _mp3_frame),
+    "wav": lambda head: head[:4] in (b"RIFF", b"RF64") and head[8:12] == b"WAVE",
     "ogg": _starts(b"OggS"),
     "oga": _starts(b"OggS"),
     "m4a": _iso_media,
-    "aac": lambda head: head.startswith((b"ADIF", b"ID3")) or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xF6 == 0xF0),
-    "flac": _starts(b"fLaC"),
+    "aac": lambda head: (head.startswith((b"ADIF", b"ID3")) or _iso_media(head)
+                         or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xF6 == 0xF0)),
+    "flac": _starts(b"fLaC", b"ID3"),  # an ID3v2 tag may precede the FLAC stream
     "mp4": _iso_media,
     "m4v": _iso_media,
     "webm": _starts(b"\x1a\x45\xdf\xa3"),
@@ -242,10 +296,18 @@ def binary_content_mismatches(diff, read_head):
     """Head-side paths of an expected binary type whose content does not start like that type, or
     cannot be read (fail closed). read_head(path) returns the file's first bytes at the PR head. A
     deleted file (head side /dev/null) is not read."""
-    paths = set()
+    head_paths = []
     for match in _BINARY_DIFF_RE.finditer(diff or ""):
         path = _binary_side_path(match.group(2))
-        if path is None or _extension(path) not in BINARY_SIGNATURES:
+        if path is not None:
+            head_paths.append(path)
+    return _content_mismatches(head_paths, read_head)
+
+
+def _content_mismatches(head_paths, read_head):
+    paths = set()
+    for path in head_paths:
+        if _extension(path) not in BINARY_SIGNATURES:
             continue
         try:
             head = read_head(path)
@@ -256,7 +318,7 @@ def binary_content_mismatches(diff, read_head):
     return sorted(paths)
 
 
-def git_head_reader(sha, length=64):
+def git_head_reader(sha, length=1024):
     """read_head for binary_content_mismatches: the first bytes of <sha>:<path> from the local git
     objects (the workflow fetches the PR commits and never checks them out). Reads only `length`
     bytes; a missing object yields b"", which the caller treats as a mismatch."""
@@ -275,12 +337,12 @@ def git_head_reader(sha, length=64):
 UNREVIEWED_BINARY_OUTCOME = {
     "kind": "incomplete_evidence",
     "status_state": "failure",
-    "status_description": "Codex review APPROVE withheld: a non-media file diffs as binary (needs human)",
+    "status_description": "Codex review APPROVE withheld: a binary file's content was not reviewed (needs human)",
     "human_label": "Unreviewed binary content",
 }
 
 
-def guarded_outcome(review, diff, binary_diff=None, read_head=None):
+def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files=None):
     """Per-run outcome with the prompt-injection guard applied: an APPROVE whose
     diff carries verdict-steering text is withheld and fails closed.
 
@@ -295,7 +357,7 @@ def guarded_outcome(review, diff, binary_diff=None, read_head=None):
             "status_description": "Codex review APPROVE withheld: possible prompt-injection in the diff (needs human)",
             "human_label": "Suspected prompt-injection",
         }
-    if outcome["kind"] == "approved" and unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head):
+    if outcome["kind"] == "approved" and unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head, binary_files):
         return dict(UNREVIEWED_BINARY_OUTCOME)
     return outcome
 
@@ -476,7 +538,7 @@ def _git_changed_paths(base_sha, head_sha):
 
 
 def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, synthesis_paths, full_diff,
-                              read_head=None):
+                              read_head=None, binary_files=None):
     manifest = _load(manifest_path)
     policy = _load_policy()
     errors = []
@@ -626,11 +688,11 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
         else:
             review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
         return outcome, "full raw diff injection guard", 0, review_body, synthesis_reviews[decisive_index]
-    hidden = unreviewable_binary_paths(full_diff, read_head) if final["kind"] == "approved" else []
+    hidden = unreviewable_binary_paths(full_diff, read_head, binary_files) if final["kind"] == "approved" else []
     if hidden:
         finding = _path_coverage_finding(
             head_sha,
-            "A file that is not an expected binary type diffs as binary, so its content was not reviewed.",
+            "A binary file's content was not reviewed (not an expected binary type, or not the type its name says).",
             "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
         )
         if review_body.get("findings"):
@@ -677,11 +739,23 @@ def main():
     if args.binary_scan_diff:
         # Fail closed: an unreadable file must not read as "no binary files".
         try:
-            binary_diff = pathlib.Path(args.binary_scan_diff).read_text()
+            # Not cut at the bounded size, so it can hold bytes that are not UTF-8: keep them
+            # (surrogateescape) rather than crash the step.
+            binary_diff = pathlib.Path(args.binary_scan_diff).read_bytes().decode("utf-8", "surrogateescape")
         except OSError as error:
             parser.error(f"--binary-scan-diff unreadable: {error.__class__.__name__}")
     read_head = git_head_reader(args.binary_content_at) if args.binary_content_at else None
-    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head) for path in args.reviews]
+    binary_files = None
+    if args.binary_content_at:
+        base = os.environ.get("BASE_SHA")
+        if not base:
+            parser.error("--binary-content-at needs BASE_SHA in the environment")
+        try:
+            binary_files = git_binary_files(base, args.binary_content_at)
+        except (OSError, subprocess.CalledProcessError) as error:
+            # Fail closed: without git's list the binary guard cannot be trusted.
+            parser.error(f"could not list binary files with git: {error.__class__.__name__}")
+    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head, binary_files) for path in args.reviews]
 
     if args.need_third:
         # A 3rd run is needed only when the two runs disagree.
@@ -697,6 +771,7 @@ def main():
             args.synthesis_reviews,
             diff,
             read_head,
+            binary_files,
         )
         per_run_kind = [final_outcome["kind"]]
         run_count = len(args.chunk_reviews) + len(args.synthesis_reviews)
@@ -709,6 +784,19 @@ def main():
             len(outcomes) - 1,
         )
         review_body = _load(args.reviews[decisive_index])
+        if final_outcome == UNREVIEWED_BINARY_OUTCOME:
+            # Name the files, as the chunked path does (validate_chunked_evidence).
+            hidden = unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head, binary_files)
+            head_sha = os.environ.get("HEAD_SHA", "")
+            finding = _path_coverage_finding(
+                head_sha,
+                "A binary file's content was not reviewed (not an expected binary type, or not the type its name says).",
+                "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
+            )
+            if review_body.get("findings"):
+                review_body["findings"].append(finding)
+            else:
+                review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
         per_run_kind = [o["kind"] for o in outcomes]
         run_count = len(outcomes)
         synthesis_body = None

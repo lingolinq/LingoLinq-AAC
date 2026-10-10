@@ -196,6 +196,39 @@ class BinaryContentTest(unittest.TestCase):
         diff = "Binary files a/public/images/old.png and /dev/null differ\n"
         self.assertEqual(build_envelope.binary_content_mismatches(diff, self.reader({})), [])
 
+    # One or more genuine starts per type (including real-world variants: a BOM before %PDF-, an ID3
+    # tag before FLAC, RF64 WAV, BigTIFF, a PNG saved as .ico, an M4A saved as .aac, zero padding
+    # before an MP3 frame), and one disguised file per type (2026-10-10).
+    GENUINE = {
+        "png": [PNG_BYTES], "jpg": [b"\xff\xd8\xff\xe0\x00\x10JFIF"], "jpeg": [b"\xff\xd8\xff\xe1\x00\x10Exif"],
+        "gif": [b"GIF89a\x01\x00", b"GIF87a\x01\x00"], "webp": [b"RIFF\x24\x00\x00\x00WEBPVP8 "],
+        "ico": [b"\x00\x00\x01\x00\x01\x00\x10\x10", PNG_BYTES], "bmp": [b"BM\x36\x00\x00\x00"],
+        "tif": [b"II*\x00\x08\x00", b"II+\x00\x08\x00"], "tiff": [b"MM\x00*\x00\x00", b"MM\x00+\x00\x08"],
+        "avif": [b"\x00\x00\x00\x1cftypavif"], "heic": [b"\x00\x00\x00\x18ftypheic"],
+        "pdf": [b"%PDF-1.7\n", b"\xef\xbb\xbf%PDF-1.4\n", b"\n%PDF-1.5\n"],
+        "woff": [b"wOFF\x00\x01\x00\x00"], "woff2": [b"wOF2\x00\x01\x00\x00"],
+        "ttf": [b"\x00\x01\x00\x00\x00\x10", b"true\x00\x10"], "otf": [b"OTTO\x00\x0a"],
+        "eot": [b"\x00" * 34 + b"LP" + b"\x00" * 4],
+        "mp3": [b"ID3\x04\x00\x00", b"\xff\xfb\x90\x64", b"\x00\x00\x00\xff\xfb\x90\x64"],
+        "wav": [b"RIFF\x24\x00\x00\x00WAVEfmt ", b"RF64\xff\xff\xff\xffWAVEds64"],
+        "ogg": [b"OggS\x00\x02"], "oga": [b"OggS\x00\x02"], "m4a": [b"\x00\x00\x00\x20ftypM4A "],
+        "aac": [b"\xff\xf1\x50\x80", b"ADIF\x00", b"\x00\x00\x00\x20ftypM4A "],
+        "flac": [b"fLaC\x00\x00\x00\x22", b"ID3\x04\x00\x00\x00\x00\x00\x00fLaC"],
+        "mp4": [b"\x00\x00\x00\x20ftypisom"], "m4v": [b"\x00\x00\x00\x20ftypM4V "],
+        "webm": [b"\x1a\x45\xdf\xa3\x01\x00"], "mov": [b"\x00\x00\x00\x14ftypqt  ", b"\x00\x00\x00\x08wide"],
+    }
+
+    def test_every_type_accepts_its_genuine_starts_and_rejects_a_disguise(self):
+        self.assertEqual(set(self.GENUINE), set(build_envelope.BINARY_SIGNATURES))
+        for extension, starts in self.GENUINE.items():
+            for start in starts:
+                with self.subTest(extension=extension, start=start[:12]):
+                    self.assertTrue(build_envelope.BINARY_SIGNATURES[extension](start + b"\x00" * 32))
+            for disguise in (b"puts File.read('/etc/passwd')\n\x00", b"<?php system($_GET[1]); ?>\x00",
+                             b"# %PDF-1.7 ftypisom fLaC OggS\nsystem('id')\x00"):
+                with self.subTest(extension=extension, disguise=disguise[:12]):
+                    self.assertFalse(build_envelope.BINARY_SIGNATURES[extension](disguise))
+
     def test_every_expected_binary_type_has_a_signature(self):
         self.assertEqual(set(build_envelope.BINARY_SIGNATURES), set(build_envelope.REVIEWABLE_BINARY_EXTENSIONS))
 
@@ -207,35 +240,79 @@ class BinaryContentTest(unittest.TestCase):
         clean = self.reader({"public/images/x.png": PNG_BYTES})
         self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff, None, clean)["kind"], "approved")
 
-    def test_the_cli_reads_the_head_commit(self):
+    def run_cli(self, base_files, head_changes, bounded=None):
+        """Commit base_files, apply head_changes ({path: bytes, or None to delete}), then run the
+        envelope CLI on the real BASE...HEAD diff as the workflow does. `bounded` (bytes) stands in
+        for the reviewer's cut diff; by default it is the full diff. Returns the status state."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp) / "repo"
             repo.mkdir()
             git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
             subprocess.run(git + ["init", "-q"], check=True)
-            (repo / "img").mkdir()
-            (repo / "img/real.png").write_bytes(PNG_BYTES)
-            (repo / "img/fake.png").write_bytes(b"system('id')\n\x00")
-            subprocess.run(git + ["add", "-A"], check=True)
-            subprocess.run(git + ["commit", "-qm", "head"], check=True)
+            for files in (base_files, head_changes):
+                for path, content in files.items():
+                    target = repo / path
+                    if content is None:
+                        target.unlink()
+                        continue
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(content)
+                subprocess.run(git + ["add", "-A"], check=True)
+                subprocess.run(git + ["commit", "-qm", "c", "--allow-empty"], check=True)
+                if files is base_files:
+                    base = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
             head = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            diff = pathlib.Path(tmp) / "full.diff"
+            diff.write_bytes(subprocess.run(git + ["-c", "core.quotepath=false", "diff", "--no-textconv", f"{base}...{head}"],
+                                            check=True, capture_output=True).stdout)
+            cut = diff
+            if bounded is not None:
+                cut = pathlib.Path(tmp) / "bounded.diff"
+                cut.write_bytes(bounded)
             review = pathlib.Path(tmp) / "review.json"
             review.write_text(json.dumps(APPROVE))
-            outcomes = {}
-            for name in ("real", "fake"):
-                diff = pathlib.Path(tmp) / f"{name}.diff"
-                diff.write_text(f"Binary files /dev/null and b/img/{name}.png differ\n")
-                out = pathlib.Path(tmp) / f"{name}.json"
-                env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=head, LOOP_N="1", REVIEWER_ROUTE="codex", RUN_ID="1",
-                           PATH="/usr/bin:/bin")
-                result = subprocess.run(
-                    [sys.executable, str(MODULE_PATH), "--diff", str(diff), "--binary-scan-diff", str(diff),
-                     "--binary-content-at", head, "--out", str(out), str(review)],
-                    cwd=repo, env=env, capture_output=True, text=True,
-                )
-                self.assertEqual(result.returncode, 0, result.stderr)
-                outcomes[name] = json.loads(out.read_text())["status"]["state"]
-            self.assertEqual(outcomes, {"real": "success", "fake": "failure"})
+            out = pathlib.Path(tmp) / "envelope.json"
+            env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=base, LOOP_N="1", REVIEWER_ROUTE="codex", RUN_ID="1",
+                       PATH="/usr/bin:/bin")
+            result = subprocess.run(
+                [sys.executable, str(MODULE_PATH), "--diff", str(cut), "--binary-scan-diff", str(diff),
+                 "--binary-content-at", head, "--out", str(out), str(review)],
+                cwd=repo, env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.last_envelope = json.loads(out.read_text())
+            return self.last_envelope["status"]["state"]
+
+    def test_the_cli_reads_the_head_commit(self):
+        self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/real.png": PNG_BYTES}), "success")
+        self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/fake.png": b"system('id')\n\x00"}), "failure")
+
+    # The bounded path names the files behind a withheld APPROVE, as the chunked path does, so a
+    # human does not have to hunt for them (2026-10-10).
+    def test_a_withheld_approve_names_the_binary_file(self):
+        self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/fake.png": b"system('id')\n\x00"}), "failure")
+        review = self.last_envelope["review"]
+        self.assertEqual(review["verdict"], "NEEDS_HUMAN")
+        self.assertTrue(any("img/fake.png" in f.get("evidence", "") for f in review["findings"]), review)
+
+    def test_a_deleted_image_is_not_read(self):
+        self.assertEqual(self.run_cli({"img/old.png": PNG_BYTES}, {"img/old.png": None}), "success")
+
+    # "Binary files /dev/null and b/x.png and b/public/images/real.png differ" is ambiguous text: read
+    # greedily it names a genuine image that already exists, while the file actually added holds code.
+    # The binary list therefore comes from git (NUL-separated), not from that line (2026-10-10).
+    def test_a_name_holding_and_cannot_point_the_check_at_another_file(self):
+        disguised = "x.png and b/public/images/real.png"
+        state = self.run_cli({"public/images/real.png": PNG_BYTES}, {disguised: b"system('id')\n\x00"})
+        self.assertEqual(state, "failure")
+
+    # The full diff the binary guard reads is not cut, so it can hold bytes that are not UTF-8 (a
+    # Latin-1 text file past the cut) that the bounded diff never shows; reading it must not crash
+    # the step (develop reads only the cut diff, so it reviewed such a PR).
+    def test_a_full_diff_that_is_not_utf8_past_the_cut_is_read(self):
+        state = self.run_cli({"README": b"r\n"}, {"lib/latin1.txt": "caf\xe9\n".encode("latin-1")},
+                             bounded=b"diff --git a/README b/README\n")
+        self.assertEqual(state, "success")
 
     def test_every_envelope_call_in_the_workflow_checks_binary_content(self):
         text = WORKFLOW.read_text()
@@ -462,6 +539,32 @@ class ChunkedEnvelopeTest(unittest.TestCase):
             injected,
         )
         self.assertEqual(final["kind"], "suspected_prompt_injection")
+
+    def _chunked_with_full_diff(self, full_diff, read_head=None):
+        self.manifest["full_raw_diff_sha256"] = build_envelope._sha256_text(full_diff)
+        (self.evidence / "manifest.json").write_text(json.dumps(self.manifest))
+        final, _, _, _, _ = build_envelope.validate_chunked_evidence(
+            self.evidence / "manifest.json",
+            self.evidence,
+            [self.chunk_review, self.chunk_review_2],
+            [self.synthesis, self.synthesis_2],
+            full_diff,
+            read_head,
+        )
+        return final["kind"]
+
+    # The chunked path's own binary guard (the full diff, after synthesis approves): a source file
+    # hidden as binary, or an expected-type file whose content is not that type, withholds APPROVE.
+    def test_full_diff_binary_blocks_even_when_chunks_approve(self):
+        hidden = self.chunk_body + "\nBinary files a/app/models/x.rb and b/app/models/x.rb differ\n"
+        self.assertEqual(self._chunked_with_full_diff(hidden), "incomplete_evidence")
+
+    def test_full_diff_disguised_image_blocks_and_a_real_one_approves(self):
+        image = self.chunk_body + "\nBinary files /dev/null and b/img/x.png differ\n"
+        disguised = lambda path: b"system('id')\n\x00"
+        real = lambda path: PNG_BYTES
+        self.assertEqual(self._chunked_with_full_diff(image, disguised), "incomplete_evidence")
+        self.assertEqual(self._chunked_with_full_diff(image, real), "approved")
 
     def test_synthesis_rejection_blocks(self):
         body = json.loads(self.synthesis.read_text())

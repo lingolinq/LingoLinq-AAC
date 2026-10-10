@@ -175,9 +175,12 @@ APPROVE (`incomplete_evidence`, needs human): git decides "binary" from file
 content, so the diff cannot show what changed. Archives (`.zip`, `.gz`,
 `.tgz`, `.obz` board packages) are in that group on purpose: one can carry
 source or data the reviewer never sees. An expected binary type must also be
-that type: the envelope reads the first bytes of each such file at the PR head
-(`--binary-content-at`) and withholds an APPROVE when they do not start like
-the type (a `.png` holding code, a "PDF" that is a CSV) or cannot be read.
+that type: the envelope takes the list of binary files from git itself
+(`git diff --numstat -z`, so a name containing " and " cannot point the check
+at another file), reads the first bytes of each such file at the PR head
+(`--binary-content-at`), and withholds an APPROVE, naming the files, when they
+do not start like the type (a `.png` holding code, a "PDF" that is a CSV) or
+cannot be read.
 
 The exclusion policy is stored in `.github/codex/evidence-policy.json`, which
 comes from the trusted checkout of the workflow ref. Exclusions are deterministic
