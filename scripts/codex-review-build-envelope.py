@@ -229,8 +229,22 @@ def _starts(*prefixes):
     return lambda head: head.startswith(prefixes)
 
 
+# Bytes a script can be made of: tab, newline, carriage return and printable ASCII. A header field
+# that is all such bytes is a script posing as that header, not a real value.
+_TEXT_BYTES = frozenset(b"\t\n\r" + bytes(range(0x20, 0x7F)))
+
+
+def _is_text(field):
+    return bool(field) and all(byte in _TEXT_BYTES for byte in field)
+
+
+def _riff_size(head):
+    # The RIFF size field: a real one is not four text bytes (`RIFF=1;#WEBP` runs as Ruby).
+    return len(head) >= 8 and not _is_text(head[4:8])
+
+
 def _riff(form):
-    return lambda head: head[:4] == b"RIFF" and head[8:12] == form
+    return lambda head: head[:4] == b"RIFF" and _riff_size(head) and head[8:12] == form
 
 
 def _after(skip, check):
@@ -247,13 +261,44 @@ def _after(skip, check):
     return match
 
 
+def _id3v2_length(head):
+    """Length of the ID3v2 tag that starts head (header, body and any footer), or None when head
+    does not start with a real ID3v2 header: version 2 to 4 and a size of four 7-bit (syncsafe)
+    bytes. `ID3=1;` (valid Ruby) has neither."""
+    if len(head) < 10 or head[:3] != b"ID3" or head[3] not in (2, 3, 4) or any(b & 0x80 for b in head[6:10]):
+        return None
+    size = (head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9]
+    footer = 10 if head[3] == 4 and head[5] & 0x10 else 0
+    return 10 + size + footer
+
+
 def _mp3_frame(head):
-    return head.startswith(b"ID3") or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)
+    return _id3v2_length(head) is not None or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)
+
+
+def _flac(head):
+    # fLaC, or an ID3v2 tag with fLaC straight after it (past the bytes read, the file is withheld).
+    if head.startswith(b"fLaC"):
+        return True
+    length = _id3v2_length(head)
+    return length is not None and head[length:length + 4] == b"fLaC"
 
 
 def _iso_media(head):
-    # ISO base media (the MP4 family, AVIF, HEIC): a box size, then "ftyp".
-    return head[4:8] == b"ftyp"
+    # ISO base media (the MP4 family, AVIF, HEIC): a box size, then "ftyp". A real ftyp box is a few
+    # dozen bytes, so its size starts with two zero bytes (`x=0;ftyp=1;` runs as Ruby).
+    return head[:2] == b"\x00\x00" and head[4:8] == b"ftyp"
+
+
+def _sfnt(*versions):
+    # A TrueType/OpenType header: the version tag, then numTables, which is far below 256.
+    return lambda head: head.startswith(versions) and len(head) > 4 and head[4] == 0
+
+
+def _pdf_header(head):
+    # `%PDF-` with a d.d version and the end of the header line (`%PDF-1;...` runs as Perl).
+    return (head.startswith(b"%PDF-") and head[5:6].isdigit() and head[6:7] == b"." and head[7:8].isdigit()
+            and head[8:9] in (b"\r", b"\n"))
 
 
 # How each expected binary type starts. A file named for one of these types that does not start that
@@ -266,29 +311,32 @@ BINARY_SIGNATURES = {
     "gif": _starts(b"GIF87a", b"GIF89a"),
     "webp": _riff(b"WEBP"),
     "ico": _starts(b"\x00\x00\x01\x00", b"\x89PNG\r\n\x1a\n"),  # browsers accept a PNG saved as .ico
-    "bmp": _starts(b"BM"),
+    "bmp": lambda head: head.startswith(b"BM") and head[6:10] == b"\x00\x00\x00\x00",  # reserved, zero
     "tif": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),  # classic and BigTIFF
     "tiff": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),
     "avif": _iso_media,
     "heic": _iso_media,
-    "pdf": _after("bom_space", _starts(b"%PDF-")),
+    "pdf": _after("bom_space", _pdf_header),
     "woff": _starts(b"wOFF"),
     "woff2": _starts(b"wOF2"),
-    "ttf": _starts(b"\x00\x01\x00\x00", b"true", b"OTTO"),
-    "otf": _starts(b"OTTO", b"\x00\x01\x00\x00"),
-    "eot": lambda head: head[34:36] == b"LP",
+    "ttf": _sfnt(b"\x00\x01\x00\x00", b"true", b"OTTO"),
+    "otf": _sfnt(b"OTTO", b"\x00\x01\x00\x00"),
+    # The magic at 34, and the high bytes of each version EOT defines (0x00010000, 0x00020001,
+    # 0x00020002, little-endian at 8) are zero.
+    "eot": lambda head: head[34:36] == b"LP" and head[9:10] == b"\x00" and head[11:12] == b"\x00",
     "mp3": _after("zeros", _mp3_frame),
-    "wav": lambda head: head[:4] in (b"RIFF", b"RF64") and head[8:12] == b"WAVE",
+    "wav": lambda head: head[:4] in (b"RIFF", b"RF64") and _riff_size(head) and head[8:12] == b"WAVE",
     "ogg": _starts(b"OggS"),
     "oga": _starts(b"OggS"),
     "m4a": _iso_media,
-    "aac": lambda head: (head.startswith((b"ADIF", b"ID3")) or _iso_media(head)
+    "aac": lambda head: (head.startswith(b"ADIF") or _id3v2_length(head) is not None or _iso_media(head)
                          or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xF6 == 0xF0)),
-    "flac": _starts(b"fLaC", b"ID3"),  # an ID3v2 tag may precede the FLAC stream
+    "flac": _flac,  # an ID3v2 tag may precede the FLAC stream
     "mp4": _iso_media,
     "m4v": _iso_media,
     "webm": _starts(b"\x1a\x45\xdf\xa3"),
-    "mov": lambda head: head[4:8] in (b"ftyp", b"moov", b"mdat", b"wide", b"free", b"skip", b"pnot"),
+    # The first atom's size: a first atom of 16 MiB or more is withheld (`x=0;free=1;` runs as Ruby).
+    "mov": lambda head: head[:1] == b"\x00" and head[4:8] in (b"ftyp", b"moov", b"mdat", b"wide", b"free", b"skip", b"pnot"),
 }
 
 

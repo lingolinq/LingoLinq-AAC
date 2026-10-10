@@ -229,6 +229,37 @@ class BinaryContentTest(unittest.TestCase):
                 with self.subTest(extension=extension, disguise=disguise[:12]):
                     self.assertFalse(build_envelope.BINARY_SIGNATURES[extension](disguise))
 
+    # Each signature that is plain text, or sits next to text a script can supply, can begin a
+    # program: every disguise below runs as Ruby (the PDF ones as Perl) and must match no type
+    # (2026-10-10).
+    ASCII_DISGUISES = (
+        b"ID3=1;puts File.read('/etc/passwd')\n",
+        b"BM=1;puts File.read('/etc/passwd')\n",
+        b"true;puts File.read('/etc/passwd')\n",
+        b"OTTO=1;puts File.read('/etc/passwd')\n",
+        b"x=0;free=1;system('id')\n",
+        b"x=0;ftyp=1;system('id')\n",
+        b"system('id') #".ljust(34) + b"LP\n",
+        b"\n%PDF-1;system('id')\n",
+        b" %PDF-1.7;system('id')\n",
+        b"RIFF=1;#WEBP\nsystem('id')\n",
+        b"RIFF=1;#WAVE\nsystem('id')\n",
+    )
+
+    def test_no_type_accepts_a_script_that_starts_with_its_magic(self):
+        for extension, signature in build_envelope.BINARY_SIGNATURES.items():
+            for disguise in self.ASCII_DISGUISES:
+                with self.subTest(extension=extension, disguise=disguise[:16]):
+                    self.assertFalse(signature(disguise))
+
+    # Formats that share a container must still tell each other apart.
+    def test_a_container_holding_another_format_is_not_accepted(self):
+        # An MP3 opens with the same ID3 tag a FLAC may carry; only fLaC after the tag makes it FLAC.
+        for extension, other in (("webp", "wav"), ("wav", "webp"), ("flac", "mp3")):
+            for start in self.GENUINE[other]:
+                with self.subTest(extension=extension, start=start[:12]):
+                    self.assertFalse(build_envelope.BINARY_SIGNATURES[extension](start + b"\x00" * 32))
+
     def test_every_expected_binary_type_has_a_signature(self):
         self.assertEqual(set(build_envelope.BINARY_SIGNATURES), set(build_envelope.REVIEWABLE_BINARY_EXTENSIONS))
 
