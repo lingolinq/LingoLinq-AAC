@@ -409,6 +409,40 @@ class BinaryContentTest(unittest.TestCase):
                     self.assertIn(message, result.stderr)
                     self.assertEqual(result.stdout, "", "a convergence answer was printed")
 
+    # The slice above would also come from reading the whole blob and cutting it; the reader must
+    # ask git's pipe for no more than `length` bytes, so a huge blob is never pulled into memory, and
+    # must stop git afterwards (round 3b, 2026-10-10).
+    def test_the_head_reader_asks_git_for_only_length_bytes(self):
+        calls = []
+
+        class Pipe:
+            def read(self, *args):
+                calls.append(("read", args))
+                return b"\x89PNG"
+
+            def close(self):
+                calls.append(("close", ()))
+
+        class Process:
+            def __init__(self, command, **_kwargs):
+                calls.append(("popen", tuple(command)))
+                self.stdout = Pipe()
+
+            def kill(self):
+                calls.append(("kill", ()))
+
+            def wait(self):
+                calls.append(("wait", ()))
+
+        original = build_envelope.subprocess.Popen
+        build_envelope.subprocess.Popen = Process
+        try:
+            self.assertEqual(build_envelope.git_head_reader("f" * 40, length=64)("img/a.png"), b"\x89PNG")
+        finally:
+            build_envelope.subprocess.Popen = original
+        self.assertEqual(calls, [("popen", ("git", "cat-file", "blob", "f" * 40 + ":img/a.png")),
+                                 ("read", (64,)), ("close", ()), ("kill", ()), ("wait", ())])
+
     def test_the_head_reader_reads_only_the_start_of_a_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp)
