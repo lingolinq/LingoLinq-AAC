@@ -271,7 +271,7 @@ class BinaryContentTest(unittest.TestCase):
         clean = self.reader({"public/images/x.png": PNG_BYTES})
         self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff, None, clean)["kind"], "approved")
 
-    def run_cli(self, base_files, head_changes, bounded=None):
+    def run_cli(self, base_files, head_changes, bounded=None, executable=()):
         """Commit base_files, apply head_changes ({path: bytes, or None to delete}), then run the
         envelope CLI on the real BASE...HEAD diff as the workflow does. `bounded` (bytes) stands in
         for the reviewer's cut diff; by default it is the full diff. Returns the status state."""
@@ -288,6 +288,9 @@ class BinaryContentTest(unittest.TestCase):
                         continue
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(content)
+                if files is head_changes:
+                    for path in executable:
+                        (repo / path).chmod(0o755)
                 subprocess.run(git + ["add", "-A"], check=True)
                 subprocess.run(git + ["commit", "-qm", "c", "--allow-empty"], check=True)
                 if files is base_files:
@@ -325,6 +328,25 @@ class BinaryContentTest(unittest.TestCase):
         review = self.last_envelope["review"]
         self.assertEqual(review["verdict"], "NEEDS_HUMAN")
         self.assertTrue(any("img/fake.png" in f.get("evidence", "") for f in review["findings"]), review)
+
+    # The guard lists binary files with rename detection off, so a binary that is not an expected
+    # type withholds an APPROVE when it is renamed or its mode changes, not only when its content
+    # does: a rename can change how content nobody reviewed is used (data.bin to boot.rb), and a
+    # mode change can make it executable (README "Oversized and excluded evidence", 2026-10-10).
+    def test_a_binary_that_is_renamed_moved_or_made_executable_withholds_approve(self):
+        blob = b"puts 1\n\x00"
+        cases = {
+            "content change": ({"tools/data.bin": blob}, {"tools/data.bin": b"puts 2\n\x00"}, ()),
+            "rename to .rb": ({"tools/data.bin": blob}, {"tools/data.bin": None, "config/boot.rb": blob}, ()),
+            "same-extension move": ({"tools/data.bin": blob}, {"tools/data.bin": None, "bin/data.bin": blob}, ()),
+            "mode only": ({"tools/data.bin": blob}, {}, ("tools/data.bin",)),
+        }
+        for why, (base, head, executable) in cases.items():
+            with self.subTest(why=why):
+                self.assertEqual(self.run_cli(dict(base, README=b"r\n"), head, executable=executable), "failure")
+
+    def test_a_renamed_image_is_still_approved(self):
+        self.assertEqual(self.run_cli({"img/a.png": PNG_BYTES}, {"img/a.png": None, "img/b.png": PNG_BYTES}), "success")
 
     def test_a_deleted_image_is_not_read(self):
         self.assertEqual(self.run_cli({"img/old.png": PNG_BYTES}, {"img/old.png": None}), "success")
