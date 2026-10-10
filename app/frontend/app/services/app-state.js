@@ -20,6 +20,7 @@ import $ from 'jquery';
 // stashes now injected as service
 // persistence now injected as service
 import boundClasses from '../utils/bound_classes';
+import { clear_user_reload } from '../utils/reload_intent';
 import utterance from '../utils/utterance';
 import modal from '../utils/modal';
 import LingoLinq from '../app';
@@ -2236,6 +2237,10 @@ export default Service.extend({
     try {
       if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
     } catch(e) { /* sessionStorage unavailable */ }
+    /* The reload marker, cleared for the same reason: it is keyed by URL, not by user id, so on a
+       shared clinic device an unconsumed one would otherwise suppress the next person's landing.
+       Its own module owns the key and the in-memory latch (utils/reload_intent.js). */
+    clear_user_reload();
 
     // Per-user transient UI overlays / refresh timers
     this.set('loading_overlay_message', null);

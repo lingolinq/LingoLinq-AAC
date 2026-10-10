@@ -9,6 +9,7 @@ import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { mark_user_reload } from '../../utils/reload_intent';
 import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
 import { badge_snapshot } from '../../utils/badge_display';
@@ -1560,6 +1561,12 @@ export default Component.extend({
       }
     },
     reload: function() {
+      /* Records that THIS page is the one the user asked to reload, so the boot that follows is not
+         classified as a login / app launch and does not re-land them somewhere else
+         (utils/reload_intent.js; the classification itself is routes/index.js:37). Must run before
+         `location.reload()`, which tears down every bit of in-memory state — which is why the
+         marker goes to sessionStorage and not to app_state. */
+      mark_user_reload();
       location.reload();
     },
     searchBoards: function() {
@@ -1665,9 +1672,6 @@ export default Component.extend({
         }
       }
       this.set('index_nav_state', nav);
-    },
-    toggle_extras: function() {
-      this.set('show_main_extras', !this.get('show_main_extras'));
     },
     intro_video: function(id) {
       if(window.ga) {
