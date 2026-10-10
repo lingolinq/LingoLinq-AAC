@@ -294,3 +294,77 @@ short-circuits.
 The classifier was also taught the `{fakeXHR, result}` shape (keyed on `invalid_token`, not the
 message, unlike its older branches whose message list is pinned by existing tests), which lights
 up the second logout site at `app-state.js:585`.
+
+
+## NEXT STEP (not yet done): stop `routes/user.js` painting the error page over a dying session
+
+**Verified cause of the "Failed to load" symptom — a RACE, not a missing handler.**
+1. Token goes stale mid-session; a request answers 400 `Token needs refresh` + `invalid_token`.
+2. The app correctly BEGINS tearing the session down.
+3. Requests already in flight follow it out WITHOUT a token, so they answer 400 `Not authorized`
+   (anonymous; `invalid_token` absent — confirmed in a browser probe).
+4. A route model hook rejects and `routes/user.js:108-110` sends ANY 400 to `transitionTo('error')`.
+5. That error page wins the race against the logout already under way.
+
+`routes/user.js` is the parent of ~20 child routes (home, boards, logs, stats, board-detail…),
+which is why a fix in `routes/application.js` provably cannot reach it: that action returns
+`false` and never bubbles.
+
+**The fix**: before the existing `400 || 403` branch, do not paint the error page when the
+session is already dead or the error is itself a dead-session error — let the logout land.
+Keep the existing behaviour for an ordinary permission denial on a HEALTHY session; that is this
+route's documented job (see its comment at :99-107).
+
+**Red tests, written and falsified against the unfixed code — paste into
+`app/frontend/tests/unit/routes/idle-session-logout-test.js` (needs `import Service from
+'@ember/service';`):**
+
+```js
+  /* THE DOMINANT PATH. `routes/user.js` is the parent of ~20 child routes (home, boards, logs,
+     stats, board-detail…), and its error action sent EVERY 400 to the error page. A dying
+     session produces exactly that: the teardown starts, in-flight requests follow it out
+     without a token, and those answer 400 — so the error page wins the race against the logout
+     the app has already begun, which is why the symptom was "Failed to load" rather than a
+     login screen. */
+  module('the user route does not paint the error page over a dying session', function(inner) {
+    function userRoute(context, opts) {
+      context.owner.unregister('service:session');
+      context.owner.register('service:session', Service.extend({
+        invalid_token: opts.invalid_token,
+        is_logout_worthy_auth_error: function() { return !!opts.worthy; }
+      }));
+      return context.owner.lookup('route:user');
+    }
+
+    inner.test('a 400 while the session is already known dead does not render the error page', function(assert) {
+      var r = userRoute(this, { invalid_token: true });
+      var transitions = [];
+      r.router = { transitionTo: function(n) { transitions.push(n); } };
+      var bubbled = r.actions.error.call(r, { fakeXHR: { status: 400 }, result: 'Not authorized' }, null);
+      assert.deepEqual(transitions, [], 'does NOT transition to the error page');
+      assert.notOk(bubbled, 'and does not bubble');
+    });
+
+    inner.test('a 400 that is itself a dead-session error does not render it either', function(assert) {
+      var r = userRoute(this, { invalid_token: false, worthy: true });
+      var transitions = [];
+      r.router = { transitionTo: function(n) { transitions.push(n); } };
+      r.actions.error.call(r, { fakeXHR: { status: 400, responseJSON: { invalid_token: true } }, result: 'Token needs refresh' }, null);
+      assert.deepEqual(transitions, [], 'no error-page transition');
+    });
+
+    /* THE BRACKET: an ordinary permission denial on a healthy session must STILL show the error
+       page — that is this route's documented job (routes/user.js:99-107). */
+    inner.test('an ordinary 400 on a healthy session still shows the error page', function(assert) {
+      var r = userRoute(this, { invalid_token: false, worthy: false });
+      var transitions = [];
+      r.router = { transitionTo: function(n) { transitions.push(n); } };
+      var bubbled = r.actions.error.call(r, { fakeXHR: { status: 400 }, result: 'Not authorized' }, null);
+      assert.deepEqual(transitions, ['error'], 'still routed to the error page');
+      assert.notOk(bubbled, 'and still stops bubbling, as before');
+    });
+  });
+```
+
+**Proof required before calling it fixed** — not a green unit test. Re-run the mid-session
+reproduction below and confirm `failed_to_load` flips from true to false.
