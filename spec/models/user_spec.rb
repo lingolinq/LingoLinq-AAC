@@ -4584,7 +4584,7 @@ describe User, :type => :model do
       it "should return true for a valid code" do
         travel_to(mid_window) do
           u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")
           code = totp.at(Time.now)
           expect(u.settings['2fa']['last_otp']).to eq(nil)
           ts = u.valid_2fa?(code)
@@ -4614,7 +4614,7 @@ describe User, :type => :model do
       it "should return false for a replayed code" do
         travel_to(mid_window) do
           u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")
           code = totp.at(Time.now)
           ts = u.valid_2fa?(code)
           expect(ts).to_not eq(false)
