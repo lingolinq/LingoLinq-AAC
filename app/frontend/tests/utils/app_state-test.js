@@ -3124,4 +3124,37 @@ describe('app_state', function() {
       expect('test').toEqual('todo');
     });
   });
+
+  /* THE FORCE-LOGOUT DIALOG SURVIVES NAVIGATION WHILE THE LOGOUT IS UNDER WAY. Every route
+     change closed every modal, so the Back button (or any link) dismissed the "Please Log Back
+     In" dialog and nothing re-prompted: the user was left on pages whose requests all fail. */
+  describe('global_transition: the force-logout dialog', function() {
+    function transitionWith(open_template, invalid_token, isAuthenticated, to_route) {
+      var closed = false;
+      // Only the main dialog outlet: close_board_preview also calls close(null, 'board-preview').
+      stub(modal, 'close', function(success, outlet) { if(!outlet || outlet === 'modal') { closed = true; } });
+      stub(modal, 'is_open', function(template) { return template === open_template; });
+      stub(app_state, 'refresh_session_user', function() { });
+      session.set('invalid_token', invalid_token);
+      session.set('isAuthenticated', isAuthenticated);
+      app_state.global_transition({to_route: to_route || 'user.boards'});
+      return closed;
+    }
+
+    it("stays open across a navigation while the logout is under way", function() {
+      expect(transitionWith('force-logout', true, false)).toEqual(false);
+    });
+
+    it("still closes once the user has signed back in", function() {
+      expect(transitionWith('force-logout', true, true)).toEqual(true);
+    });
+
+    it("never keeps any OTHER dialog open", function() {
+      expect(transitionWith('some-other-modal', true, false)).toEqual(true);
+    });
+
+    it("closes when the user is heading to the login page, which has its own form", function() {
+      expect(transitionWith('force-logout', true, false, 'login')).toEqual(true);
+    });
+  });
 });

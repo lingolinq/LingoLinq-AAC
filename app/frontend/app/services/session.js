@@ -832,6 +832,9 @@ export default Service.extend({
             // reading destroyed Ember Data records.
             try {
               if(_this.router && typeof _this.router.transitionTo === 'function') {
+                // The force-logout dialog survives navigation while a logout is under way
+                // (app-state keeps_force_logout_open); this IS the logout, so close it here.
+                modal.close();
                 var promise = _this.router.transitionTo('index');
                 if(promise && typeof promise.then === 'function') {
                   promise.then(function() {

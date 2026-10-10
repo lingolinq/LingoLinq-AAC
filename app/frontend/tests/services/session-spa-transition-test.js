@@ -13,6 +13,7 @@ import RSVP from 'rsvp';
 import session from '../../utils/session';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import modal from '../../utils/modal';
 
 describe("session.invalidate auth_spa_transition", function() {
   var transitionToCalls, transitionToCallTime, transitionToReturn;
@@ -193,6 +194,22 @@ describe("session.invalidate auth_spa_transition", function() {
     runs(function() {
       expect(transitionToCalls.length).toEqual(0);
       expect(reloadCalls.length).toEqual(0);
+    });
+  });
+
+  /* LOG OUT FROM THE FORCE-LOGOUT DIALOG. That dialog now survives navigation while a logout is
+     under way (services/app-state.js global_transition), and invalidate() leaves
+     `invalid_token` set, so the SPA path's own transition would carry it onto the landing page.
+     invalidate closes it explicitly, before navigating. */
+  it("SPA path closes the force-logout dialog BEFORE transitioning", function() {
+    session._invalidate_spa_eligible = function() { return true; };
+    var closedAt = 0;
+    stub(modal, 'close', function() { closedAt = closedAt || Date.now(); });
+    session.invalidate(true);
+    waitsFor(function() { return clearUserStateCalls > 0; });
+    runs(function() {
+      expect(closedAt).toBeGreaterThan(0);
+      expect(closedAt).toBeLessThan(transitionToCallTime + 1);
     });
   });
 });

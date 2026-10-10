@@ -745,7 +745,7 @@ export default Service.extend({
       }
     }, controller && controller.updateTitle ? 0 : 500);
     
-    modal.close();
+    if(!this.keeps_force_logout_open(transition)) { modal.close(); }
     if (!this.get('board_picker_pick_in_progress')) {
       modal.close_board_preview();
     }
@@ -5476,7 +5476,19 @@ export default Service.extend({
   compressed_view_active: computed('sessionUser', 'sessionUser.preferences.compressed_view', 'feature_flags.compressed_view', function() {
     return !!this.get('sessionUser') &&
            compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
-  })
+  }),
+
+  /* READ by global_transition before its modal.close(). Every route change closes every
+     modal, which let the Back button (or any link) dismiss the "Please Log Back In" dialog with
+     nothing re-prompting, leaving the user on pages whose requests all fail. While the logout is
+     under way (session.logout_under_way(): torn down, not signed back in) that one dialog stays.
+     Not on the way to `login`, which has its own form; and invalidate() closes it explicitly
+     before its own SPA transition (services/session.js). Placed last so the ESLint baseline's
+     line anchors above do not shift. */
+  keeps_force_logout_open: function(transition) {
+    if((transition && transition.to_route) === 'login') { return false; }
+    return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
+  }
 });
 
 // ScrollTopRoute exported separately for backward compatibility
