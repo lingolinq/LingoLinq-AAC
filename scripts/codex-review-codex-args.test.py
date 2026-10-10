@@ -184,6 +184,12 @@ class ReviewerToolsTest(unittest.TestCase):
                     pass
         finally:
             server.shutdown()
+        # The only request is the review itself. A model-list refresh (a GET such as /v1/models)
+        # could merge a live catalog over the locked one in production; codex 0.160.0 makes none
+        # through this provider, with or without the locked catalog (checked 2026-10-09), so this
+        # cannot fail at the current pin. It is the tripwire for a pin bump that adds one.
+        self.assertEqual({(path, "POST" if body else "GET") for path, body in server.captured},
+                         {("/v1/responses", "POST")}, "codex sent a request other than the review")
         posts = [body for path, body in server.captured if body]
         self.assertTrue(posts, "codex sent no request to the local stand-in, so nothing was checked")
         request = json.loads(posts[0])
