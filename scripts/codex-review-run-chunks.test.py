@@ -300,6 +300,44 @@ class RunChunksTest(unittest.TestCase):
         self.assertEqual(list(pathlib.Path(workdir).iterdir()), [], "codex's working directory is not empty")
         self.assertTrue(pathlib.Path(command[command.index("--output-schema") + 1]).is_absolute())
 
+    # The whole command, built here from the hardening file and the catalog's constants rather than
+    # from codex_exec_args(), so a flag added in run_model or a lock argument dropped there fails
+    # (round 3b, 2026-10-10).
+    def test_run_model_sends_exactly_the_reviewed_arguments(self):
+        catalog = run_chunks.model_catalog
+        hardening = [line for line in run_chunks.CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+                     if line and not line.startswith("#")]
+        seen = []
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = pathlib.Path(tmp) / "prompt.md"
+            prompt.write_text("prompt")
+            output = pathlib.Path(tmp) / "out.json"
+
+            def fake_run(command, **_kwargs):
+                seen.append(list(command))
+                output.write_text(json.dumps({"verdict": "APPROVE"}))
+                return Ok()
+
+            try:
+                run_chunks.subprocess.run = fake_run
+                run_chunks.run_model(object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL)
+            finally:
+                run_chunks.subprocess.run = original
+        self.assertEqual(len(seen), 1)
+        command = seen[0]
+        expected = ["codex", "exec", *hardening,
+                    "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                    "-c", f'model_catalog_json="{pathlib.Path(os.environ["RUNNER_TEMP"]) / catalog.CATALOG_NAME}"',
+                    "-C", run_chunks.codex_workdir(), "-m", run_chunks.CHUNK_MODEL,
+                    "--output-schema", str(pathlib.Path("schema.json").resolve()),
+                    "--output-last-message", str(output.resolve())]
+        self.assertEqual(command, expected)
+
     def test_refuses_to_build_a_codex_call_without_hardening_arguments(self):
         original = run_chunks.CODEX_EXEC_ARGS_FILE
         with tempfile.TemporaryDirectory() as tmp:

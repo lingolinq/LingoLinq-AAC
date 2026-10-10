@@ -281,9 +281,13 @@ The review job runs PR content only as data:
 - The CI job `codex-review-tests` installs the pinned codex version and checks
   that each disabled feature exists in it and is really off, that the other
   overrides are accepted, and that `codex exec` accepts every flag. It also
-  runs the real binary with the review's exact arguments against a local
-  stand-in for the API and checks the tools named in the request it sends.
-  The reviewer step refuses to run if the argument list is empty.
+  runs the real binary with the hardening file, the lock arguments, `-C` and
+  `-m` (the review's arguments without the two output flags, plus one override
+  that points it at a local stand-in for the API) and checks the tools named
+  in the request it sends. Separately, the unit tests pin the whole argument
+  list of every bounded call (both runs and the retry) and of the chunked
+  path's `run_model`, so a flag added anywhere fails them. The reviewer step
+  refuses to run if the argument list is empty.
 - Model calls get no other credential and no `GITHUB_*` runtime variable in
   their environment (`scripts/codex-review-quiet-exec.py`). `GH_TOKEN` is set
   only on the steps that call `gh`; neither reviewer step has it.

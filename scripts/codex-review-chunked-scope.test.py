@@ -909,6 +909,33 @@ class WorkflowLogExposureTest(unittest.TestCase):
                     self.assertEqual(sorted(keys), sorted(hardening_keys + ["model_provider", "model_catalog_json"]),
                                      "a config key is missing, repeated (a later -c wins) or not in the locked set")
 
+    # The whole argv, not just the parts above: codex reads every flag, so an added `--enable
+    # shell_tool`, `--sandbox danger-full-access` or `--dangerously-bypass-approvals-and-sandbox`
+    # undoes the hardening whatever else is present (round 3b, 2026-10-10).
+    def test_every_bounded_codex_call_has_exactly_the_reviewed_arguments(self):
+        catalog = load_module("codex_review_model_catalog", REPO_ROOT / "scripts/codex-review-model-catalog.py")
+        hardening = [line for line in (REPO_ROOT / ".github/codex/codex-exec-args.txt").read_text().splitlines()
+                     if line and not line.startswith("#")]
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.bounded_step(tmp, "ok")
+            self.assertEqual(result.returncode, 0, "bounded reviewer step did not complete")
+            self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "3")
+            # Call 1 writes invalid JSON, so its retry writes the same file; call 2 writes the second.
+            for n, output in ((1, "review-1.json"), (2, "review-1.json"), (3, "review-2.json")):
+                args = json.loads((pathlib.Path(tmp) / f"args-{n}").read_text())
+                with self.subTest(call=n):
+                    expected = ["exec", *hardening,
+                                "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                                "-c", f'model_catalog_json="{pathlib.Path(tmp) / catalog.CATALOG_NAME}"',
+                                "-C", None, "-m", "gpt-5.6-terra",
+                                "--output-schema", str(REPO_ROOT / ".github/codex/review-schema.json"),
+                                "--output-last-message", str(pathlib.Path(tmp) / output)]
+                    self.assertEqual(len(args), len(expected), args)
+                    workdir = args[expected.index("-C") + 1]
+                    self.assertTrue(os.path.isabs(workdir) and workdir != str(REPO_ROOT), workdir)
+                    expected[expected.index("-C") + 1] = workdir
+                    self.assertEqual(args, expected)
+
     def test_w2_post_failure_does_not_echo_the_response_body(self):
         script = extract_step_run("POST result to n8n W2 and resolve status")
         with tempfile.TemporaryDirectory() as tmp:
