@@ -381,6 +381,32 @@ import app_state from './app_state';
           result = xhr.responseJSON.error;
         }
         console.log("ember ajax error: " + xhr.status + ": " + result + " (" + options.type + " " + options.url + ")");
+        /* A DEAD SESSION ENDS IN A LOGIN PROMPT, NOT IN A BROKEN PAGE (2026-10-09).
+           After the inactivity window every request answers 400 + `invalid_token`
+           (app/models/device.rb:285-297) and there is NO browser refresh path — the only
+           endpoint is integration-only (config/routes.rb:86) — so the session is simply over.
+           Nothing acted on that: the sibling check at :297 lives in the SUCCESS continuation
+           (an HTTP 200 carrying an error body) and a real 400 lands here instead, and the
+           route-level handlers each do their own thing with the rejection
+           (routes/user.js:108-110 sends 400 to the error page and stops it bubbling), so the
+           user sat on "Failed to load" with no way back.
+           HERE, because this is the one point every caller crosses — the Ember Data adapter,
+           persistence.ajax and component-level ajax alike — so it covers the routes that
+           swallow a rejection and the routes that intercept it, in one place.
+           GUARDED THE SAME WAY :297 IS: never in speak mode, where throwing an AAC user to a
+           login screen mid-sentence is worse than the stale page. The `invalid_token` check on
+           the session makes it fire once: a page issues several requests at a time and they all
+           fail together, and force_logout opens a modal. */
+        /* `typeof` CHECKED, not called straight: `./session` is a Proxy over `LingoLinq.session`
+           that returns undefined for EVERY property until app-state's setup_controller assigns
+           the service (utils/session.js). This runs on every ajax failure, boot-time ones
+           included, so calling it bare would throw a TypeError inside the error handler and
+           swallow the real failure. Same defence app-state.js:585 uses on this service. */
+        var dead_session = (typeof session.dead_session_response === 'function') && session.dead_session_response(xhr);
+        var already_dead = (typeof session.get === 'function') && session.get('invalid_token');
+        if(dead_session && !already_dead && !extras.get_app_state().get('speak_mode')) {
+          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"));
+        }
         if(error) {
           xhr.responseJSON = xhr.responseJSON || {error: 'unknown error ' + result};
           // Ember is expecting an error message, even if the response isn't JSON

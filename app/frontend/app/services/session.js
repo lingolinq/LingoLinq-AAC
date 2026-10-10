@@ -637,6 +637,22 @@ export default Service.extend({
     }
   },
 
+  /* IS THIS RESPONSE A DEAD SESSION? Read by the ajax layer's failure branch
+     (utils/extras.js) so a token that has gone stale ends in a login prompt rather than in
+     whatever each route does with a rejected model.
+     KEYED ON `invalid_token`, NEVER ON THE MESSAGE. `allowed?` answers EVERY permission denial
+     with 400 and the message "Not authorized" (app/controllers/application_controller.rb:282,
+     238 call sites) — matching text would log a healthy user out for opening an org page or a
+     shared utterance they lack rights to. `invalid_token` is set only where the token itself is
+     rejected (app/models/device.rb:350, propagated at application_controller.rb:158), so the two
+     cannot be confused. `unauthorized: true` is the denial's own marker and is deliberately not
+     consulted here. */
+  dead_session_response: function(xhr) {
+    if(!xhr || xhr.status != 400) { return false; }
+    var body = xhr.responseJSON;
+    return !!(body && body.invalid_token);
+  },
+
   // READ by app-state setup_controller find_user to decide force_logout.
   // extras.js already calls force_logout when result.invalid_token is set and
   // speak mode is off; this helper covers the Ember Data reject shapes that
@@ -644,6 +660,18 @@ export default Service.extend({
   is_logout_worthy_auth_error: function(err) {
     if(!err) { return false; }
     if(err.invalid_token || (err.result && err.result.invalid_token)) { return true; }
+    /* THE SHAPE THE AJAX LAYER ACTUALLY REJECTS WITH: `{fakeXHR, message, result}` where `result`
+       is the error STRING (utils/extras.js:380-393), optionally wrapped as `_result`
+       (the form app/app.js:55 already copes with). Neither `err.status` nor `err.result.status`
+       exists there, so every branch below missed it and this predicate returned false for the
+       very errors it lists by name.
+       Matched on `invalid_token` ALONE rather than on the message, unlike the older shapes
+       below: this path is new, and a permission denial arrives here with the identical status
+       and a "Not authorized" message, so message-matching would end a healthy session. The older
+       branches keep their message list because existing behaviour is pinned by
+       tests/utils/session-test.js:783-788. */
+    var xhr = err.fakeXHR || (err._result && err._result.fakeXHR);
+    if(xhr && this.dead_session_response(xhr)) { return true; }
     var err_msg = err.error || (err.result && err.result.error);
     if(err.errors && err.errors[0] && !err_msg) {
       err_msg = err.errors[0].error || err.errors[0].detail || err.errors[0];

@@ -92,6 +92,7 @@ import 'frontend/tests/unit/components/board-icon-pick-behavior-test';
 import 'frontend/tests/unit/components/board-density-defaults-test';
 import 'frontend/tests/unit/components/boards-layout-toggle-test';
 import 'frontend/tests/unit/components/guided-tour-board-picker-arm-test';
+import 'frontend/tests/unit/routes/idle-session-logout-test';
 import 'frontend/tests/unit/components/view-switcher-availability-test';
 import 'frontend/tests/unit/utils/tours-registry-classic-test';
 import 'frontend/tests/unit/components/classic-view-observer-kick-test';
