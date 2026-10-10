@@ -794,7 +794,11 @@ export default Component.extend({
     // the default Focused View, whose tour isn't built yet), skip the tour but
     // STILL run the handoff so the home-board pick is never lost.
     if (!this.get('tourBuilder')) { handoff(); return; }
-    this._startTour({ afterComplete: handoff });
+    // `armBoardPickerTour` so the picker's own tour opens when the user LANDS there, the way
+    // the manual first-time finish already did via `onPickBoard` (:1119). Without it this
+    // path — the one a newly-registered user actually takes — navigated to /board-picker and
+    // left the page tour-less, which is the asymmetry this flag closes.
+    this._startTour({ afterComplete: handoff, armBoardPickerTour: true });
   },
 
   // Route a supporter to their caseload and start the CASELOAD tour there.
@@ -1134,11 +1138,20 @@ export default Component.extend({
     //  • menu — returning user: swap the linear walkthrough for the topic MENU.
     //  • onPickBoard — the menu-mode outro's "Go to your board picker" link (the
     //    component owns the router, so navigation is supplied here, not in step data).
+    // The board-picker tour's welcome step offers a way BACK to the home page, for a user who
+    // was handed here by the home tour and is not ready to choose yet. Supplied from here for
+    // the same reason `onPickBoard` is: the component owns the router.
+    // `index` rather than `user.home` directly — routes/index.js#_land_on_default resolves the
+    // user name itself, so this cannot drift from wherever Home actually lives. The transition
+    // carries a `from`, so index does not treat the arrival as a login entry.
+    var onReturnHome = function() {
+      _this.router.transitionTo('index');
+    };
     var builtSteps = builder(isHomeTour ? {
       handoff: firstTime,
       menu: menuMode,
       onPickBoard: onPickBoard
-    } : {});
+    } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : {}));
     // Smooth "scroll then show" for every attached step (runner-level, so all
     // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
     // steps with the injected beforeShowPromise + scrollTo:false. `tour` is
@@ -1216,18 +1229,41 @@ export default Component.extend({
         tour.tourObject.on('complete', function() { _this._unlockTourScroll(); });
         tour.tourObject.on('cancel', function() { _this._unlockTourScroll(); });
       }
+      // ONE GUARD, SHARED BY BOTH HANDOFF BRANCHES BELOW — it was written out twice,
+      // identically, and a third copy was about to be added for the arming listener.
+      // Refuse the handoff when the "start speaking" body button took over (it routes to
+      // the user's board in speak mode instead of the board picker; _startSpeakingHandoff
+      // sets _speakHandoffActive before cancelling the tour), and once the user is already
+      // on board-detail: a stale home-tour cancel/complete must never yank them back to
+      // /board-picker after "Pick this Board" (Skip/X on the speak tour).
+      var handoffBlocked = function() {
+        if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return true; }
+        var route = _this.get('appState.current_route') || '';
+        return route.indexOf('user.board-detail') === 0;
+      };
       if (options.afterComplete && tour.tourObject) {
-        // Auto-open handoff (critical-mode setup) — fire however the tour ends,
-        // UNLESS the "start speaking" body button took over (it routes to the
-        // user's board in speak mode instead of the board picker; _startSpeakingHandoff
-        // sets _speakHandoffActive before cancelling the tour).
-        // Also refuse once the user is already on board-detail: a stale home-tour
-        // cancel/complete must never yank them back to /board-picker after
-        // "Pick this Board" (Skip/X on the speak tour).
+        // ARM THE BOARD-PICKER TOUR — bound to `complete` ONLY, unlike the handoff below.
+        //
+        // The handoff itself fires however the tour ends, because a newly-registered user
+        // must reach the picker even if they skip. The TOUR must not: auto-opening one for
+        // someone who just skipped a tour is the "second, unrequested tour" recorded as a
+        // past defect in the note above `isHomeTour`. Finishing is the only ending that
+        // means "I'm ready for the next step".
+        //
+        // Registered BEFORE `afterCompleteGuarded` so the flag is set before that handler
+        // transitions — `_consumePendingBoardPickerTour` (:471) reads it once the route and
+        // tourKey settle, so a flag set after the transition would arrive too late to be
+        // observed as a change. Takes the same guard, so a suppressed handoff cannot leave
+        // the flag standing for some later visit to /board-picker.
+        if (options.armBoardPickerTour) {
+          tour.tourObject.on('complete', function() {
+            if (handoffBlocked()) { return; }
+            _this.appState.set('board_picker_tour_pending', true);
+          });
+        }
+        // Auto-open handoff (critical-mode setup) — fire however the tour ends.
         var afterCompleteGuarded = function() {
-          if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return; }
-          var route = _this.get('appState.current_route') || '';
-          if (route.indexOf('user.board-detail') === 0) { return; }
+          if (handoffBlocked()) { return; }
           options.afterComplete();
         };
         tour.tourObject.on('complete', afterCompleteGuarded);
@@ -1235,13 +1271,10 @@ export default Component.extend({
       } else if (firstTimeNav && tour.tourObject) {
         // Manual first-time finish — hand off to the board picker on FINISH only
         // (not on skip/close), and not when "start speaking" took over.
-        var firstTimeNavGuarded = function() {
-          if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return; }
-          var route = _this.get('appState.current_route') || '';
-          if (route.indexOf('user.board-detail') === 0) { return; }
+        tour.tourObject.on('complete', function() {
+          if (handoffBlocked()) { return; }
           firstTimeNav();
-        };
-        tour.tourObject.on('complete', firstTimeNavGuarded);
+        });
       }
       _this._lockTourScroll();
       tour.start();

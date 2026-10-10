@@ -44,7 +44,33 @@ function orSeparator() {
 }
 
 // Centered intro step (no attachTo) — frames what this page is for.
-function welcomeStep() {
+//
+// THIS IS THE HAND-OFF LANDING, not a tour the user went looking for: the home tour ends by
+// routing here (components/guided-tour.js#_startHomeAutoOpen), so the first thing this step has
+// to do is say WHY the page changed under them. It also has to offer a way back, because a user
+// who is not ready to choose a board had, before this, no route home from here.
+function welcomeStep(options) {
+  options = options || {};
+  var buttons = [];
+  // RETURN HOME FIRST, and `action` rather than `type: 'cancel'`: cancelling only dismisses the
+  // popover and would leave the user standing on a page they did not ask for. The navigation
+  // comes from the component (options.onReturnHome) because the tour builder has no router.
+  // Omitted entirely when no callback was supplied, so the button can never be a dead control.
+  if (options.onReturnHome) {
+    buttons.push({
+      text: i18n.t('board_picker_tour_return_home', "Return to my home page"),
+      classes: 'md-tour__btn md-tour__btn--ghost',
+      action: function() {
+        this.complete();
+        options.onReturnHome();
+      }
+    });
+  }
+  buttons.push({
+    text: i18n.t('board_picker_tour_choose_board', "Choose my board"),
+    type: 'next',
+    classes: 'md-tour__btn md-tour__btn--primary'
+  });
   return {
     id: 'board_picker_tour_welcome',
     title: decoratedTitle('board_picker_tour_welcome_title', "Pick your communication board"),
@@ -52,20 +78,9 @@ function welcomeStep() {
       i18n.t('board_picker_tour_welcome_b1', "Let us choose a starter board for you"),
       i18n.t('board_picker_tour_welcome_b2', "Build your own from scratch"),
       i18n.t('board_picker_tour_welcome_b3', "Browse and preview ready-made boards")
-    ], i18n.t('board_picker_tour_welcome_lead', "This is where you choose the board (page-set) your communicator will talk with."), null, { separator: orSeparator() }),
+    ], i18n.t('board_picker_tour_welcome_lead', "Now it is time to choose your home board. This is the board your communicator will talk with."), null, { separator: orSeparator() }),
     classes: 'md-tour__step md-tour__step--intro md-tour__step--welcome',
-    buttons: [
-      {
-        text: i18n.t('home_tour_skip', "Skip tour"),
-        type: 'cancel',
-        classes: 'md-tour__btn md-tour__btn--ghost'
-      },
-      {
-        text: i18n.t('home_tour_start', "Start the tour"),
-        type: 'next',
-        classes: 'md-tour__btn md-tour__btn--primary'
-      }
-    ]
+    buttons: buttons
   };
 }
 
@@ -77,52 +92,19 @@ function welcomeStep() {
 function interiorSteps() {
   return [
     {
-      id: 'board_picker_tour_assign',
-      sel: '.board-picker-page__assign-btn',
-      on: 'bottom',
-      // Nudged down 10rem (the assign button sits near the bottom, so this popover
-      // flips ABOVE it and rode too high) — see .md-tour__step--bp-assign in app.scss.
-      cls: 'md-tour__step--bp-assign',
-      title: i18n.t('board_picker_tour_assign_title', "Let us pick for you"),
-      text: tourChecklist([
-        i18n.t('board_picker_tour_assign_b1', "We choose a great starter home board"),
-        i18n.t('board_picker_tour_assign_b2', "Set up and ready to use right away"),
-        i18n.t('board_picker_tour_assign_b3', "You can change it anytime")
-      ])
-    },
-    {
-      id: 'board_picker_tour_new',
-      sel: '.board-picker-page__new-btn',
-      on: 'bottom',
-      title: i18n.t('board_picker_tour_new_title', "Create your own board"),
-      text: tourChecklist([
-        i18n.t('board_picker_tour_new_b1', "Start from a blank board"),
-        i18n.t('board_picker_tour_new_b2', "Add and arrange your own buttons"),
-        i18n.t('board_picker_tour_new_b3', "Make it truly yours")
-      ])
-    },
-    {
-      id: 'board_picker_tour_tabs',
-      sel: '.md-home-boards-picker__nav',
-      on: 'bottom',
-      // Container-type target (a square-cornered region, not a single rounded
-      // control) — use a stylized padded + rounded cutout instead of the tight
-      // shape-matched square (see pushInteriorSteps / `padded`).
-      padded: true,
-      title: i18n.t('board_picker_tour_tabs_title', "Browse by category"),
-      text: tourChecklist([
-        i18n.t('board_picker_tour_tabs_b1', "Robust vocabularies for everyday talk"),
-        i18n.t('board_picker_tour_tabs_b2', "Simple starts and functional boards"),
-        i18n.t('board_picker_tour_tabs_b3', "Keyboards and more")
-      ])
-    },
-    {
-      // FIRST board card — explain what a board option IS. The popover sits
-      // BELOW the card (consistent with every other interior step — the card
-      // always reads directly under the spotlight, so the tour moves smoothly
-      // DOWN the page instead of jumping side to side). The card (~278px) is too
-      // tall to fit a below-popover when centered, so this step scrolls it to the
-      // TOP (`block: 'start'`) which leaves room below. Padded rounded cutout.
+      // THE ONE SPOTLIGHT. This was six — assign, new, tabs, card, grid, search — one per
+      // control, which made the tour a tour of widgets rather than of the choice. Cut to a
+      // single step on the board list (requested 2026-10-09), the same consolidation the
+      // classic home tour was given: the welcome step above already names the three ways to
+      // get a board, so this only has to show WHERE they live.
+      //
+      // The board card is the target rather than the CTAs: it is the page's main content and
+      // is present for every user, whereas `.board-picker-page__assign-btn` and its sibling
+      // are not shown in every state. Keeps the existing `board_picker_tour_card_*` copy keys,
+      // so no locale churn for a step that says the same thing.
+      //
+      // The card (~278px) is too tall to fit a below-popover when centered, so this scrolls it
+      // to the TOP (`block: 'start'`), which leaves room below. Padded rounded cutout.
       id: 'board_picker_tour_card',
       sel: '.md-home-boards-picker__board',
       on: 'bottom',
@@ -133,31 +115,6 @@ function interiorSteps() {
         i18n.t('board_picker_tour_card_b1', "Each card is a ready-made board"),
         i18n.t('board_picker_tour_card_b2', "Check its name and grid size"),
         i18n.t('board_picker_tour_card_b3', "There's no wrong choice")
-      ])
-    },
-    {
-      // ...then zoom in on THAT card's "Preview" pill, popover BELOW it (same
-      // consistent placement). Reuses the historically-named grid_* copy keys.
-      id: 'board_picker_tour_grid',
-      sel: '.md-home-boards-picker__board .info',
-      on: 'bottom',
-      title: i18n.t('board_picker_tour_grid_title', "Preview board options"),
-      text: tourChecklist([
-        i18n.t('board_picker_tour_grid_b1', "Tap any board to preview it"),
-        i18n.t('board_picker_tour_grid_b2', "See how its buttons are laid out"),
-        i18n.t('board_picker_tour_grid_b3', "Pick the one that fits today")
-      ])
-    },
-    {
-      id: 'board_picker_tour_search',
-      sel: '.md-home-boards-picker__search',
-      on: 'top',
-      padded: true,
-      title: i18n.t('board_picker_tour_search_title', "Search for more boards"),
-      text: tourChecklist([
-        i18n.t('board_picker_tour_search_b1', "Search public boards by name"),
-        i18n.t('board_picker_tour_search_b2', "Find a specific style or layout"),
-        i18n.t('board_picker_tour_search_b3', "Explore the full catalog")
       ])
     }
   ];
@@ -262,7 +219,13 @@ function doneStep() {
 function buildBoardPickerSteps(layout, options) {
   options = options || {};
   var steps = [];
-  steps.push(welcomeStep());
+  steps.push(welcomeStep(options));
+  // THREE STEPS TOTAL (requested 2026-10-09): welcome, one spotlight, outro. This used to push
+  // up to six interior spotlights — one per control on the page — which is the same
+  // one-item-per-step shape the classic home tour was cut down from. `interiorSteps()` now
+  // returns a single consolidated entry; it is still DOM-resolved and still skipped when its
+  // target is absent, so a page that has not rendered its board list yields two steps rather
+  // than a step pointing at nothing.
   pushInteriorSteps(steps);
   steps.push(doneStep());
   if (layout === 'focused') {
