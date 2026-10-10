@@ -194,11 +194,12 @@ which every real media file in this repo has. So a `.png` that is plain code, a
   a human look.
 
 That list is made with rename detection off, so for a binary file that is not
-an expected type a pure rename, a move or a mode-only change also withholds an
-APPROVE, although it is header-only for chunk coverage above: a rename can
-change how content nobody reviewed is used (`data.bin` to `config/boot.rb`),
-and a mode change can make it executable. Renaming an expected binary type that
-still starts like its type passes.
+an expected type a pure rename, a move, a mode-only change or a deletion also
+withholds an APPROVE, although each is header-only for chunk coverage above: a
+rename can change how content nobody reviewed is used (`data.bin` to
+`config/boot.rb`), a mode change can make it executable, and a deletion removes
+content nobody reviewed either. Renaming an expected binary type that still
+starts like its type passes, and deleting one passes without being read.
 
 The exclusion policy is stored in `.github/codex/evidence-policy.json`, which
 comes from the trusted checkout of the workflow ref. Exclusions are deterministic

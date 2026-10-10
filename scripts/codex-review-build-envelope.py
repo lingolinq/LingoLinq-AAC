@@ -551,6 +551,15 @@ def _review_with_appended_finding(review, outcome, finding):
     return body
 
 
+def _withheld_review(review_body, outcome, head_sha, finding):
+    """The review kept with a withheld APPROVE: the run's findings plus this one, with the verdict
+    the outcome gives (never APPROVE), or a NEEDS_HUMAN review holding only this finding when the
+    run had none."""
+    if review_body.get("findings"):
+        return _review_with_appended_finding(review_body, outcome, finding)
+    return _synthetic_review("NEEDS_HUMAN", head_sha, finding)
+
+
 def _path_coverage_finding(head_sha, description, evidence):
     return {
         "id": "EVIDENCE-1",
@@ -772,10 +781,7 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
             "status_description": "Codex review APPROVE withheld: possible prompt-injection in the diff (needs human)",
             "human_label": "Suspected prompt-injection",
         }
-        if review_body.get("findings"):
-            review_body = _review_with_appended_finding(review_body, outcome, finding)
-        else:
-            review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
+        review_body = _withheld_review(review_body, outcome, head_sha, finding)
         return outcome, "full raw diff injection guard", 0, review_body, synthesis_reviews[decisive_index]
     hidden = unreviewable_binary_paths(full_diff, read_head, binary_files) if final["kind"] == "approved" else []
     if hidden:
@@ -784,10 +790,7 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
             "A binary file's content was not reviewed (not an expected binary type, or not the type its name says).",
             "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
         )
-        if review_body.get("findings"):
-            review_body = _review_with_appended_finding(review_body, UNREVIEWED_BINARY_OUTCOME, finding)
-        else:
-            review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
+        review_body = _withheld_review(review_body, UNREVIEWED_BINARY_OUTCOME, head_sha, finding)
         return dict(UNREVIEWED_BINARY_OUTCOME), "full raw diff binary guard", 0, review_body, synthesis_reviews[decisive_index]
     return final, f"synthesis: {reason}", approve_count, review_body, synthesis_reviews[decisive_index]
 
@@ -876,19 +879,24 @@ def main():
             len(outcomes) - 1,
         )
         review_body = _load(args.reviews[decisive_index])
+        head_sha = os.environ.get("HEAD_SHA", "")
         if final_outcome == UNREVIEWED_BINARY_OUTCOME:
             # Name the files, as the chunked path does (validate_chunked_evidence).
             hidden = unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head, binary_files)
-            head_sha = os.environ.get("HEAD_SHA", "")
             finding = _path_coverage_finding(
                 head_sha,
                 "A binary file's content was not reviewed (not an expected binary type, or not the type its name says).",
                 "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
             )
-            if review_body.get("findings"):
-                review_body = _review_with_appended_finding(review_body, final_outcome, finding)
-            else:
-                review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
+            review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
+        elif final_outcome["kind"] == "suspected_prompt_injection":
+            # guarded_outcome withheld the run's APPROVE; say why, as the chunked guard does.
+            finding = _path_coverage_finding(
+                head_sha,
+                "The diff contains possible prompt-injection text.",
+                "The BASE...HEAD diff the reviewer saw matched the CI prompt-injection guard.",
+            )
+            review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
         per_run_kind = [o["kind"] for o in outcomes]
         run_count = len(outcomes)
         synthesis_body = None
