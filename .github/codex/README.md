@@ -22,7 +22,7 @@
 > the sticky comment); (4) re-add `codex-review/deep-pass` to branch protection
 > on develop and staging: OPEN, the check is still not in the required set on
 > develop, staging or main; (5) decide the canary variables (see Evidence
-> modes): OPEN. Until (4) a failing deep pass does not block merge, and the
+> modes): OPEN. Revival requires internal privacy and security sign-off. Until (4) a failing deep pass does not block merge, and the
 > `--admin` exception policy in `docs/process/deep-pass-admin-exception-policy.md`
 > has nothing to override. Known gap: simultaneous PR events (for example
 > `opened` plus auto `review_requested`) can each dispatch before W1's
@@ -233,9 +233,12 @@ The review job runs PR content only as data:
   helpers run by the same absolute path.
 - The PR's commits are fetched as git objects and never checked out. Diffs are
   computed from those objects with the trusted worktree's git attributes, and
-  the path classifier matches NUL-separated names, so quoting cannot hide a
-  data-bearing path. It lists a rename by both names (`--no-renames`), so
-  moving a file out of a data-bearing path does not hide the old one. A file
+  the path classifier fails closed (exit 3, no route) on a name git quotes (a
+  tab, newline, `"` or `\`), on an empty diff and on a git or grep failure, so
+  quoting cannot hide a data-bearing path. It matches in any letter case and
+  byte by byte (`LC_ALL=C`), treats every path under `db/language/` as
+  data-bearing, and lists a rename by both names (`--no-renames`), so moving a
+  file out of a data-bearing path does not hide the old one. A file
   that diffs as binary is checked on the untruncated diff (see Oversized and
   excluded evidence).
 - `codex exec` runs from an empty directory with a fresh `CODEX_HOME`, the key

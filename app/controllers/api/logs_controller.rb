@@ -101,8 +101,8 @@ class Api::LogsController < ApplicationController
         cutoff = user_id_cutoffs[id]
         query_string += " OR " if query_string.length > 0
         if cutoff == 0
-          query_string += "(user_id != ?)"
-          query_params << id
+          # A zero cutoff shows none of this user's sessions; the clause matches no rows.
+          query_string += "(1 = 0)"
         elsif cutoff
           query_string += "(user_id = ? AND started_at > ?)"
           query_params << id

@@ -855,11 +855,14 @@ class WorkflowLogExposureTest(unittest.TestCase):
 
 class PathClassifierTest(unittest.TestCase):
     """scripts/codex-review-path-classifier.sh against a real repository (2026-10-02): a name git
-    quotes (tab, newline, `"`, `\\`) must still match the anchored data-bearing patterns."""
+    quotes (tab, newline, `"`, `\\`) must never reach a reviewer. Since the merge with develop
+    (2026-10-09, approved by Traci) the classifier fails closed on such a name: exit 3, no route
+    written, as scripts/tests/codex-review-path-classifier-test.sh also pins."""
 
-    def classify(self, names, moves=()):
+    def classify(self, names, moves=(), expect_exit=0):
         """`names` are added at head. Each (old, new) in `moves` is committed at base, then renamed
-        at head with one line appended, so git still pairs the two as a rename."""
+        at head with one line appended, so git still pairs the two as a rename. With expect_exit=3
+        the classifier must fail closed: that exit status and no route written (returns None)."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp) / "repo"
             repo.mkdir()
@@ -892,19 +895,22 @@ class PathClassifierTest(unittest.TestCase):
                 [str(REPO_ROOT / "scripts/codex-review-path-classifier.sh"), base, head],
                 cwd=repo, env=env, capture_output=True, text=True,
             )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.returncode, expect_exit, result.stderr)
+            if expect_exit != 0:
+                self.assertEqual(output.read_text(), "", "a route was written although the classifier failed")
+                return None
             return dict(line.split("=", 1) for line in output.read_text().split())
 
     def test_ordinary_paths_go_to_codex(self):
         self.assertEqual(self.classify(["app/models/a.rb"])["reviewer_route"], "codex")
 
-    def test_data_bearing_names_that_git_quotes_are_still_blocked(self):
+    def test_data_bearing_names_that_git_quotes_fail_closed(self):
         for name in ("db/data/a\tb.json", "dump\"x.sql", "back\\slash.csv", "db/data/a\nb.json", "notes\nx.sql"):
             with self.subTest(name=name):
-                self.assertEqual(self.classify([name])["reviewer_route"], "blocked")
+                self.classify([name], expect_exit=3)
 
-    def test_compliance_names_that_git_quotes_still_route_to_claude_deep(self):
-        self.assertEqual(self.classify(["docs/legal/a\tb.md"])["reviewer_route"], "claude-deep")
+    def test_compliance_names_that_git_quotes_fail_closed(self):
+        self.classify(["docs/legal/a\tb.md"], expect_exit=3)
 
     def test_renaming_a_data_bearing_file_out_is_still_blocked(self):
         # A rename's diff carries the old path and its rows, so the old name must be classified too.

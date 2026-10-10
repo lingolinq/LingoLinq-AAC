@@ -30,7 +30,7 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **Feature flags** (`lib/feature_flags.rb`) for every NEW user-facing feature. Small
   changes to shipped features and bug fixes do not need one.
 - **PII never leaves the platform.** Every AI or external-service call goes through
-  `lib/pii_scrubber.rb`. Never paste fixtures, seeds, cassettes, migrations or logs that
+  `lib/pii_scrubber.rb`. Never paste fixtures, seeds, cassettes, migrations, `db/language/` files or logs that
   could hold real student or patient rows into a prompt for a reviewer without a BAA.
 - **Node 22** (`.nvmrc`), **Ruby 3.4.4** (`.ruby-version`). No TypeScript conversion.
 - **Never suppress a deprecation**; fix the root cause. Edit existing SCSS selectors in
@@ -81,12 +81,14 @@ non-functional, so do not look for it. Before the pass fetches any diff you must
 PII pre-flight yourself, because the deployed skill does not run it for you and the pass
 ships the diff to an external model on a consumer account with NO BAA. Match the form to
 your argument: for a PR number,
-`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`;
-for a branch or the working tree, `bash ~/ai-company-brain/scripts/codex-review-guard.sh
-<base-ref>`. Use `set -o pipefail` on the pipe. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report the flagged paths;
-send nothing. Running the `<base-ref>` form while reviewing a PR number guards a
-local diff that is not the PR and records a pass it did not earn, which is worse than
-skipping it. That guard lives in a private LingoLinq repo: if you cannot reach
+`bash ~/ai-company-brain/scripts/review-preflight.sh pr <n> lingolinq/LingoLinq-AAC`;
+for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> <head>`;
+for the working tree, `bash ~/ai-company-brain/scripts/review-preflight.sh working <base>`.
+Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report the flagged paths;
+send nothing. On exit 0, review only the `DIFF_FILE` the preflight prints (never fetch
+the diff again by another route) and record the full `REVIEWED=` line verbatim. Running the `range` or
+`working` form while reviewing a PR number guards a local diff that is not the PR and
+records a pass it did not earn, which is worse than skipping it. That guard lives in a private LingoLinq repo: if you cannot reach
 `~/ai-company-brain/`, you are not set up to run this pass, so stop and hand it to
 someone who is rather than proceeding without it. When you finish, record the reviewer,
 the head SHA you actually reviewed, and the verdict.
@@ -116,7 +118,7 @@ it. A green CI run is not the dual review.
 Path-scoped rules that Claude loads by file path and Codex does not: before editing
 under `docs/legal/` or `audit-reports/` read `.claude/rules/compliance-docs.md`
 (registers are the source of truth; attested bytes are frozen); before touching
-fixtures, factories, cassettes, seeds, migrations or `lib/tasks/` read
+fixtures, factories, cassettes, seeds, migrations, `db/language/` or `lib/tasks/` read
 `.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
 deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 `config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`;
