@@ -426,6 +426,94 @@ class BinaryContentTest(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def run_chunked_cli(self, base_files, head_changes, renames=()):
+        """The chunked path end to end on a throwaway repo: commit base_files, apply head_changes
+        ({path: bytes, or None to delete}) and git-mv each (old, new) in renames, build the evidence
+        with the real scripts/codex-review-build-evidence.py, approve every chunk and the synthesis
+        twice, then run the envelope CLI as the workflow does (--manifest ... --binary-content-at).
+        Returns the envelope."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp) / "repo"
+            (repo / ".github/codex").mkdir(parents=True)
+            git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+            subprocess.run(git + ["init", "-q"], check=True)
+            # The validator and the evidence builder read the policy from the working directory.
+            (repo / ".github/codex/evidence-policy.json").write_bytes(
+                (MODULE_PATH.parents[1] / ".github/codex/evidence-policy.json").read_bytes())
+            (repo / "README").write_text("r\n")
+            for path, content in base_files.items():
+                (repo / path).parent.mkdir(parents=True, exist_ok=True)
+                (repo / path).write_bytes(content)
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "base"], check=True)
+            base = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            for old, new in renames:
+                (repo / new).parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(git + ["mv", old, new], check=True)
+            for path, content in head_changes.items():
+                if content is None:
+                    (repo / path).unlink()
+                    continue
+                (repo / path).parent.mkdir(parents=True, exist_ok=True)
+                (repo / path).write_bytes(content)
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "head"], check=True)
+            head = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            evidence = pathlib.Path(tmp) / "evidence"
+            built = subprocess.run(
+                [sys.executable, str(MODULE_PATH.with_name("codex-review-build-evidence.py")), "--base", base,
+                 "--head", head, "--out-dir", str(evidence), "--evidence-mode", "chunked"],
+                cwd=repo, capture_output=True, text=True,
+            )
+            self.assertEqual(built.returncode, 0, built.stderr)
+            manifest = json.loads((evidence / "manifest.json").read_text())
+            chunk_reviews = []
+            for chunk in manifest["chunks"]:
+                for n in (1, 2):
+                    path = pathlib.Path(tmp) / f"{chunk['id']}-review-{n}.json"
+                    path.write_text(json.dumps({"verdict": "APPROVE", "head_sha": head, "chunk_id": chunk["id"],
+                                                "chunk_hash": chunk["raw_sha256"], "findings": [],
+                                                "reviewed_structural_index": []}))
+                    chunk_reviews.append(str(path))
+            synthesis = []
+            for n in (1, 2):
+                path = pathlib.Path(tmp) / f"synthesis-{n}.json"
+                path.write_text(json.dumps({"verdict": "APPROVE", "head_sha": head, "coverage_complete": True,
+                                            "chunk_results_complete": True, "findings": [],
+                                            "checks_run": {"register_drift": "n/a", "modes": "pass", "ci": "green"},
+                                            "resolved_from_prior_loop": [], "cross_file_notes": [], "dedupe_notes": []}))
+                synthesis.append(str(path))
+            out = pathlib.Path(tmp) / "envelope.json"
+            env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=base, LOOP_N="1", REVIEWER_ROUTE="codex", RUN_ID="1",
+                       CODEX_REVIEW_EVIDENCE_MODE="chunked", PATH="/usr/bin:/bin")
+            result = subprocess.run(
+                [sys.executable, str(MODULE_PATH), "--manifest", str(evidence / "manifest.json"),
+                 "--evidence-dir", str(evidence), "--full-diff", str(evidence / "full.diff"),
+                 "--chunk-reviews", *chunk_reviews, "--synthesis-reviews", *synthesis,
+                 "--binary-content-at", head, "--out", str(out)],
+                cwd=repo, env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(out.read_text())
+
+    # The chunked path through the CLI, as the workflow runs it (round 3b, 2026-10-10): main() must
+    # hand the guard both git's binary list (a pure rename prints no "Binary files" line, so only
+    # the list sees it) and the head reader (a disguised .png is caught only by reading it).
+    def test_the_chunked_cli_withholds_binaries_only_git_and_the_head_reveal(self):
+        text = {"app/a.rb": b"a = 1\n"}
+        control = self.run_chunked_cli(text, {"app/a.rb": b"a = 2\n", "img/ok.png": PNG_BYTES})
+        self.assertEqual(control["status"]["state"], "success", control["review_outcome"])
+        cases = {
+            "disguised png": ({}, {"img/x.png": b"system('id')\n\x00"}, ()),
+            "pure rename of a binary": ({"tools/data.bin": b"puts 1\n\x00"}, {}, (("tools/data.bin", "tools/data2.bin"),)),
+            "binary named x and y.rb": ({}, {"app/x and y.rb": b"puts 1\n\x00"}, ()),
+        }
+        for why, (base, head, renames) in cases.items():
+            with self.subTest(why=why):
+                envelope = self.run_chunked_cli(dict(text, **base), dict({"app/a.rb": b"a = 2\n"}, **head), renames)
+                self.assertEqual(envelope["status"]["state"], "failure", envelope["review_outcome"])
+                self.assertEqual(envelope["review_outcome"], build_envelope.UNREVIEWED_BINARY_OUTCOME)
+
     def test_the_cli_reads_the_head_commit(self):
         self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/real.png": PNG_BYTES}), "success")
         self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/fake.png": b"system('id')\n\x00"}), "failure")
