@@ -20,7 +20,7 @@ The code is open source so you're free to run it yourself. We require a code con
 We welcome contributions! Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** before opening a pull request. Key points:
 
 - All PRs should target the `develop` branch (not `main`)
-- Every PR to `develop` receives an automated Copilot code review
+- The Codex GitHub connector is set to review every PR automatically; a core team member will also review yours
 - See CONTRIBUTING.md for branch naming conventions, the review process, and deployment workflow
 
 ### Technical Notes
