@@ -426,9 +426,9 @@ class BinaryContentTest(unittest.TestCase):
                     self.assertIn(message, result.stderr)
                     self.assertEqual(result.stdout, "", "a convergence answer was printed")
 
-    # The slice above would also come from reading the whole blob and cutting it; the reader must
-    # ask git's pipe for no more than `length` bytes, so a huge blob is never pulled into memory, and
-    # must stop git afterwards (round 3b, 2026-10-10).
+    # The slice test_the_head_reader_reads_only_the_start_of_a_file checks would also come from
+    # reading the whole blob and cutting it; the reader must ask git's pipe for no more than `length`
+    # bytes, so a huge blob is never pulled into memory, and must stop git afterwards (round 3b).
     def test_the_head_reader_asks_git_for_only_length_bytes(self):
         calls = []
 
@@ -565,8 +565,6 @@ class BinaryContentTest(unittest.TestCase):
                 self.assertEqual(envelope["status"]["state"], "failure", envelope["review_outcome"])
                 self.assertEqual(envelope["review_outcome"], build_envelope.UNREVIEWED_BINARY_OUTCOME)
 
-    # The blocked route's review (GUARD-1, written by the workflow) must still become an envelope when
-    # a name in the diff is not UTF-8 (round 3b, 2026-10-10).
     # _sha256_text hashes text read with surrogateescape (the blocked route only) as its original
     # bytes. This pins the helper alone: the chunked path reads its diff strictly and
     # build-evidence.py decodes strictly, so such text never reaches a manifest hash there.
@@ -592,6 +590,8 @@ class BinaryContentTest(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0, "a diff that is not UTF-8 was read on a reviewer route")
                     self.assertIn("UnicodeDecodeError", result.stderr)
 
+    # The blocked route's review (GUARD-1, written by the workflow) must still become an envelope when
+    # a name in the diff is not UTF-8 (round 3b, 2026-10-10).
     def test_the_cli_builds_the_blocked_envelope_for_a_name_that_is_not_utf8(self):
         guard = {"verdict": "NEEDS_HUMAN", "findings": [dict(LOW_FINDING, id="GUARD-1", severity="HIGH")]}
         name = os.fsdecode(b"db/data/caf\xe9.csv")
@@ -634,8 +634,6 @@ class BinaryContentTest(unittest.TestCase):
     def test_a_renamed_image_is_still_approved(self):
         self.assertEqual(self.run_cli({"img/a.png": PNG_BYTES}, {"img/a.png": None, "img/b.png": PNG_BYTES}), "success")
 
-    # An APPROVE that already carries a finding: once the binary guard withholds it, the review it
-    # names the file in must not still say APPROVE (2026-10-10).
     # The bounded injection guard withholds an APPROVE too; its review must say so and why, as the
     # chunked guard's does (round 3b, 2026-10-10).
     def test_a_bounded_approve_withheld_for_injection_is_no_longer_an_approve(self):
@@ -649,6 +647,8 @@ class BinaryContentTest(unittest.TestCase):
                 self.assertEqual(body["findings"][-1]["id"], "EVIDENCE-1")
                 self.assertIn("prompt-injection", body["findings"][-1]["description"])
 
+    # An APPROVE that already carries a finding: once the binary guard withholds it, the review it
+    # names the file in must not still say APPROVE (2026-10-10).
     def test_a_withheld_approve_with_findings_is_no_longer_an_approve(self):
         low = dict(APPROVE, findings=[dict(LOW_FINDING)])
         self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/fake.png": b"system('id')\n\x00"}, review_body=low), "failure")
