@@ -92,10 +92,11 @@ describe('harness timeout cleanup', function() {
   });
 
   it('runs that test\'s afterEach hooks before the next test starts', function() {
-    // Every test of this module that started before this one has had its afterEach run (counted, not
-    // assumed, so the test also holds when run alone with --filter).
+    // Every test of this module that started before this one, by name and in order, has had its
+    // afterEach run (the stuck test above included). Run alone with --filter, nothing started before
+    // it, so it checks nothing; run the module to exercise it.
     cleanup_seen_by_next_test = cleaned_up_after.slice();
-    expect(cleanup_seen_by_next_test.length).toEqual(started.length - 1);
+    expect(cleanup_seen_by_next_test).toEqual(started.slice(0, -1));
   });
 });
 

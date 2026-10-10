@@ -41,4 +41,11 @@ module('Unit | Utility | live_service', function() {
       set_owner_gone_listener(previous); // the harness listener stays in place for later tests
     }
   });
+
+  test('tests/test-helper.js installs the harness listener, so a skip is reported', function(assert) {
+    assert.expect(1);
+    const harness = set_owner_gone_listener(null);
+    set_owner_gone_listener(harness);
+    assert.strictEqual(typeof harness, 'function', 'a listener is installed for the whole run');
+  });
 });
