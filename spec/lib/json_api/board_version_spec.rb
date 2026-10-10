@@ -8,6 +8,29 @@ describe JsonApi::BoardVersion do
   end
 
   describe "build_json" do
+    # Board#update_privacy (the batch privacy cascade) describes its save; history must list it.
+    it "lists a version saved by the batch privacy change" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.update_privacy('public', u, [b.global_id])
+      expect(b.reload.settings['edit_description']['notes']).to eq(['batch set to public'])
+
+      json = nil
+      expect { json = JsonApi::BoardVersion.paginate({}, Board.user_versions(b.global_id)) }.not_to raise_error
+      expect(json['boardversion'].map { |v| v['action'] }).to include('batch set to public')
+    end
+
+    # Versions already stored in production hold that description's notes as a single String.
+    it "labels a version whose stored notes are a single String" do
+      u = User.create
+      stored = Board.new(settings: {'name' => 'stored', 'edit_description' => {'timestamp' => 1.0, 'notes' => 'batch set to public'}})
+      version = PaperTrail::Version.new(item_type: 'Board', event: 'update', whodunnit: "user:#{u.global_id}", created_at: Time.now)
+      allow(Board).to receive(:load_version).with(version).and_return(stored)
+
+      json = nil
+      expect { json = JsonApi::BoardVersion.build_json(version) }.not_to raise_error
+      expect(json['action']).to eq('batch set to public')
+    end
     it "should return appropriate attributes" do
       u = User.create
       PaperTrail.request.whodunnit = "user:#{u.global_id}"

@@ -868,16 +868,19 @@ class Board < ApplicationRecord
     self.settings['total_buttons'] = buttons.length + (self.settings['total_downstream_buttons'] || 0)
     self.settings['unlinked_buttons'] = buttons.select{|btn| !btn['load_board'] }.length + (self.settings['unlinked_downstream_buttons'] || 0)
 
-    if @buttons_changed.is_a?(String)
-      @edit_description ||= {
+    # An @edit_description set for this save (process_params, update_privacy) describes this save
+    # and is always kept: comparing it with the previous save's stored description dropped it
+    # whenever the previous described edit was more than a second earlier, so version history
+    # showed "updated" for ordinary edits. A description derived from @buttons_changed keeps that
+    # one-second comparison, unchanged; its labels (rollback, translated, swapped images) can still
+    # be dropped the same way (follow-up, see docs/task-management/2026-10-07_rspec-speed.md).
+    if @buttons_changed.is_a?(String) && !@edit_description
+      derived = {
         'timestamp' => Time.now.to_f,
         'notes' => [@buttons_changed]
       }
-    end
-    if @edit_description
-      if self.settings['edit_description'] && self.settings['edit_description']['timestamp'] < @edit_description['timestamp'] - 1
-        @edit_description = nil
-      end
+      stored = self.settings['edit_description']
+      @edit_description = derived unless stored && stored['timestamp'] < derived['timestamp'] - 1
     end
     self.settings['edit_description'] = @edit_description
     @edit_description = nil
@@ -2801,7 +2804,7 @@ class Board < ApplicationRecord
       update_board.instance_variable_set('@map_later', true)
       update_board.instance_variable_set('@edit_description', {
         'timestamp' => Time.now.to_f,
-        'notes' => 'batch set to public'
+        'notes' => ['batch set to public']
       })
       update_board.save 
       PaperTrail.request.whodunnit = whodunnit
