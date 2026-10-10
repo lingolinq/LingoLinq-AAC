@@ -607,7 +607,9 @@ class ChunkRunnerLogExposureTest(unittest.TestCase):
         env["FAKE_CODEX_RECEIVED_DIR"] = str(root)
         env["FAKE_CODEX_MODEL_CANARY"] = MODEL_CANARY
         env["FAKE_CODEX_MODE"] = mode
-        env["CODEX_REVIEW_MODEL_CALL_TIMEOUT"] = "1"
+        # Only the timeout mode tests the per-call timeout; in the other modes a 1 s limit let a fake codex that
+        # started slowly under machine load trip a retry, which failed this test at random (2026-10-10).
+        env["CODEX_REVIEW_MODEL_CALL_TIMEOUT"] = "1" if mode == "timeout" else "30"
         result = subprocess.run(
             [
                 sys.executable,
