@@ -48203,122 +48203,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-columns: 50fr 50fr !important;
   }
 }
-/* A SMALL action card that ends up spanning BOTH columns (a lone trailing card in
-   an odd count renders as a full-width 'X X' row) takes the page (md-shell) gradient
-   as its background and centres its [image | text] cluster — the title/sub keep their
-   left alignment against the image. The md-grid--fullspan-<key> class is added by
-   gridLayoutState for whichever section is the wide one. Scoped to the >950px
-   two-column layout, where "spanning both columns" is meaningful. */
 @media (min-width: 951px) {
-  .md-grid.md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button,
-  .md-grid.md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button,
-  .md-grid.md-grid--fullspan-account .md-card.md-card--account.md-card--as-button,
-  .md-grid.md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button,
-  .md-grid.md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button,
-  .md-grid.md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button {
-    background:
-      /* Lift the CENTRE of the wide button — a soft white glow over the page
-         gradient so the middle reads brighter than the corners. Glow widened +
-         the colored tints below dialed back so the override reads a bit lighter. */
-      radial-gradient(ellipse 56% 122% at 50% 50%, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0) 74%),
-      radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.14), transparent 50%),
-      radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.11), transparent 50%),
-      radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.12), transparent 50%),
-      radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.09), transparent 45%),
-      radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.06), transparent 50%),
-      linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 15%)} 0%, #{color.adjust($brand-stone-200, $lightness: 15%)} 50%, #{color.adjust($brand-stone-300, $lightness: 15%)} 100%) !important;
-  }
-  /* The Speak card uses its own variant classes (--speak-wide-only article /
-     --speak-as-button narrow), NOT the generic --as-button, so it must be listed
-     explicitly or it would stay left-aligned when it's the lone full-width card. */
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only .md-card__head,
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button .md-card__head,
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button .md-card__head,
-  .md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button .md-card__head,
-  .md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__head,
-  .md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__head,
-  .md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__head,
-  .md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__head {
-    justify-content: center !important;
-  }
-  /* The icon+text CLUSTER is centered on the page (head justify-content above), but the
-     TITLE + STATUS/SUB text stay LEFT-aligned within their titles div (per request) — so
-     a shorter status reads flush under the START of the title rather than centered under
-     it. The titles div is shrink-to-fit to the wider line (the title), so left-align
-     pins the shorter status to that line's left edge. */
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only .md-card__titles,
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button .md-card__titles,
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button .md-card__titles,
-  .md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button .md-card__titles,
-  .md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__titles,
-  .md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__titles,
-  .md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__titles,
-  .md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__titles {
-    text-align: left !important;
-  }
-  /* Full-span (both-column) action cards get a taller min-height (230px) for a more
-     substantial presence at the wide size. 230px is intentionally taller than BOTH base
-     action-card heights — the 160px Speak card AND the 180px badge-action cards (Account
-     / Create a Board / Reports / Edit Dashboard, see `.md-grid--dashboard
-     .md-card--badge-action`, app.scss ~52887). An earlier 192px barely cleared the 180px
-     badge-action base, so it looked like it wasn't applying to those; 230px applies
-     visibly to every full-span action card. (0,4,0) specificity beats that (0,2,0) base. */
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only,
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button,
-  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button,
-  .md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button,
-  .md-grid--fullspan-account .md-card.md-card--account.md-card--as-button,
-  .md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button,
-  .md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button,
-  .md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button {
-    min-height: 230px !important;
-  }
-  /* Full-span action cards: icon TILE (the tinted bg) + GLYPH 50% larger — 64px→96px
-     tile (radius 22px→33px) and 34px→51px glyph — for a stronger presence at the wide
-     size. The visible Speak card is `--speak-as-button` (the `--speak-wide-only` variant
-     is display:none, app.scss ~47799). A leading `.md-grid.md-grid--fullspan-X` (double
-     class) gives (0,6,0), beating the base 64px icon-tile rule (~47875, (0,5,0)) which
-     sits LATER in source. */
-  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon,
-  .md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon,
-  .md-grid.md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__icon,
-  .md-grid.md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__icon,
-  .md-grid.md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__icon,
-  .md-grid.md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__icon {
-    width: 96px !important;
-    height: 96px !important;
-    border-radius: 33px !important;
-  }
-  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph,
-  .md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon-glyph,
-  .md-grid.md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__icon-glyph,
-  .md-grid.md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__icon-glyph,
-  .md-grid.md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__icon-glyph,
-  .md-grid.md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__icon-glyph {
-    width: 51px !important;
-    height: 51px !important;
-  }
-  /* Full-span Speak card ONLY: replace the SVG glyph + tinted tile entirely with the
-     speak-circle-light image (the image is itself the icon AND its background). Drop the
-     tile's gradient fill, border, and shadow so just the image shows, and hide the inner
-     SVG glyph. Tile keeps its 96px full-span size from the rule above. (0,6,0) beats the
-     base speak icon-bg rule (~47882, (0,4,0)). */
-  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
-    background: url(../images/speak-circle-light.png) center / contain no-repeat !important;
-    border: none !important;
-    box-shadow: none !important;
-    /* Show the image 50% larger than the shared 96px full-span tile (→ 144px). Overrides
-       the 96px size rule above (same specificity, later in source). */
-    width: 144px !important;
-    height: 144px !important;
-  }
-  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
-    display: none !important;
-  }
-  /* My Caseload full-span hero (Gentle supervisor home) — mirrors the full-span Speak
-     card: centered head, 230px min-height, and the icon replaced by the
-     caseload circle image. The visible variant is --caseload-as-button
-     (--caseload-wide-only is display:none, ~43219), exactly like Speak. Scoped to Gentle
+  /* My Caseload full-span hero (Gentle supervisor home): centered head, 230px
+     min-height, and the icon replaced by the caseload circle image. The visible
+     variant is --caseload-as-button (--caseload-wide-only is display:none). Scoped to Gentle
      (md-grid--layout-gentle) so Focused keeps its existing caseload treatment until its
      own supervisor view is built. */
   .md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__head {
@@ -48342,55 +48230,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     display: none !important;
   }
 }
-/* ≤950px (Gentle single-column stack) — the full-span treatment above is gated to
-   ≥951px, so at this width the full-span Speak card would otherwise revert to the normal
-   160px height + SVG glyph. The `--fullspan-speak` class is JS-computed (persists at all
-   widths), so re-apply the Speak full-span HEIGHT (230px) + IMAGE replacement (144px
-   speak-circle-light tile, glyph hidden) here. Scoped to Gentle so Focused is untouched. */
-@media (max-width: 950px) {
-  .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button {
-    min-height: 230px !important;
-  }
-  .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
-    width: 144px !important;
-    height: 144px !important;
-    background: url(../images/speak-circle-light.png) center / contain no-repeat !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
-    display: none !important;
-  }
-}
-/* Supervisor home (with-caseload): Speak Mode stays FULL-WIDTH but is Tier 2 — scale
-   its full-span hero DOWN to medium (icon + height) so it reads below the Tier-1
-   Caseload/Rooms/Attention cards. (0,6,0) beats the Tier-1 full-span Speak rules above
-   in both the ≥951px and ≤950px media blocks. */
-.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button {
-  min-height: 150px !important;
-}
-.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
-  width: 110px !important;
-  height: 110px !important;
-}
 /* Slightly darker "Speak Mode" title on the supervisor card so it reads a touch
    stronger than the inherited navy. */
 .md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--speak-as-button .md-card__title {
   color: color.adjust($la-navy, $lightness: -10%) !important;
-}
-/* Edit Dashboard (full-width) icon on the supervisor home — its fullspan tile
-   (96px/33px-radius) felt oversized and used a different corner radius than the
-   other action-button icons. Shrink the tile/glyph and match the 22px radius the
-   paired button icons use. (0,6,0) ties the fullspan icon rule but wins on source
-   order. */
-.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-editdashboard .md-card--edit-dashboard.md-card--as-button .md-card__icon {
-  width: 66px !important;
-  height: 66px !important;
-  border-radius: 22px !important;
-}
-.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-editdashboard .md-card--edit-dashboard.md-card--as-button .md-card__icon-glyph {
-  width: 34px !important;
-  height: 34px !important;
 }
 /* Supervisor (with-caseload) Gentle home action buttons (Account / Create a Board /
    Reports / Edit Dashboard / Extras): compact, fixed 150px tall (matching the Speak
@@ -55599,20 +55442,6 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   }
 }
 
-/* HOME BOARD badge sits 6px higher in COMPACT (2026-08-16, requested in three steps of
-   2px). The base rule
-   (`&__board-item-home-badge`, ~68922) pins every density at `top: 8px`; compact tiles are
-   shorter, so the same offset reads lower on the card relative to its content.
-   A DENSITY-SCOPED rule rather than an edit to that base value on purpose — changing the
-   8px there would move the badge in DETAILED view too, which was not asked for and is
-   already correct.
-   Specificity (0,3,0) against the base rule's (0,1,0), so it wins on weight alone —
-   no `!important` needed, and the base stays the single source for everything else about
-   the badge (fill, radius, shadow, centring). */
-.ub-boards-page__board-grid.ll-boards-grid--compact .ub-boards-page__board-item-home-badge {
-  top: 2px;
-}
-
 /* Side-by-side at <=1024px reclaims the workspace's horizontal padding, dropping it to
    the 14px the next breakpoint down (`@media (max-width: 820px)`, ~44326) already uses.
    The two columns are tight at this width and the 40px gutters cost more than they give.
@@ -57213,27 +57042,13 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   overflow: hidden !important;
 }
 /* Shared as-button rules set the icon radius AND size, and out-specify
-   .md-card__icon--extras: 33px / 96px on the full-span action icons ((0,6,0))
-   and 22px / 64px on the base as-button icons ((0,5,0)) — both shared across
-   Speak / Account / Create-a-Board / Reports / Edit-Dashboard. For the EXTRAS
-   icon ONLY, re-assert (a) a full circle and (b) a 25%-larger size, by
-   out-specifying BOTH shared rules with extras-scoped selectors. The trailing
+   .md-card__icon--extras: 22px / 64px on the base as-button icons ((0,5,0)),
+   shared across Speak / Account / Create-a-Board / Reports / Edit-Dashboard. For
+   the EXTRAS icon ONLY, re-assert (a) a full circle and (b) a 25%-larger size, by
+   out-specifying that shared rule with an extras-scoped selector. The trailing
    .md-card__icon--extras raises specificity above them and keeps the change off
    every other card's icon. The image inside is width/height:100%, so it scales
-   up with the container automatically. One rule per context so each grows from
-   its own base. */
-/* The 120px (full-span) size must be gated to the SAME breakpoint as its 96px
-   baseline (@media min-width:951px) — below 951px the grid collapses to one
-   column but keeps the fullspan-extras class, so an ungated 120px would oversize
-   the icon on mobile. Below 951px the 80px rule below applies (circle preserved
-   by both rules). */
-@media (min-width: 951px) {
-  .md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
-    border-radius: 50% !important;
-    width: 120px !important;  /* 96 × 1.25 */
-    height: 120px !important;
-  }
-}
+   up with the container automatically. */
 .md-grid .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
   border-radius: 50% !important;
   width: 80px !important;   /* 64 × 1.25 */
@@ -63783,26 +63598,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   color: $brand-verdigris-aa;
 }
 
-.md-strip__home-badge {
-  /* Small pill centered near the top of the tile (was a larger crowning
-     "ribbon"). Reads as a quiet tag, not a banner. */
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
-  box-shadow: 0 1px 3px rgba($la-navy, 0.20);
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 2;
-}
 .md-strip__label {
   margin-top: 10px; /* 8 * 1.2 */
   font-weight: 800;
@@ -71992,32 +71787,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     0 8px 24px rgba($brand-verdigris, 0.18),
     0 2px 8px rgba($brand-blue-black, 0.05) !important;
 }
-.board-picker__home-badge {
-  position: absolute;
-  /* Sits INSIDE the tile's top edge, not crowning it. The original -10px was
-     written for the removed My Boards modal, whose tiles had their own card
-     chrome and outer margin to overhang; on the picker's grid it read as
-     floating above the tile.
-     Landed at 8px by eye over two passes (-10 → 6 → 8), which turns out to be
-     EXACTLY the boards page's own home badge offset
-     (`.ub-boards-page__board-item-home-badge`, top: 8px). Keep the two in step:
-     they mark the same board on two surfaces a user moves between. */
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
-  box-shadow: 0 2px 6px rgba($la-navy, 0.22);
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 1;
-}
 
 /* --- Card-width-driven badge offset — board-picker page, COMPACT rows only ---
    Compact rows are `grid-template-columns: 1fr` (two columns from 1024px up,
@@ -72038,22 +71807,16 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    as long as a full-screen overlay is covering it, so the change is unobservable.
 
    Scoped to the home tile because it is the only tile with a badge — this avoids
-   putting containment on every card in the grid. */
+   putting containment on every card in the grid.
+   THE BADGE IS GONE (replaced by a home glyph, ce40014ec) and so are the two
+   `@container ll-picker-home-tile` rules that read this container, so this rule now only
+   applies containment. Kept rather than deleted (2026-10-10) because removing containment
+   from a tile that still renders is a layout change that was not verified on the live
+   picker; delete it together with a before/after check of the compact home tile. */
 .md-shell--board-picker .ll-boards-grid--compact .md-home-boards-picker__board.board-picker__item--home:not(:has(.ll-premium-progress)) {
   container-type: inline-size;
   container-name: ll-picker-home-tile;
 }
-/* Wide card: the pill has room to sit clear of the row's top edge.
-   22px, tuned by eye on the real compact picker (8px base → 24 → 22). */
-@container ll-picker-home-tile (width >= 465px) {
-  .board-picker__home-badge { top: 22px; }
-}
-/* Narrow card: the row is short, so the pill rides flush with the top edge
-   rather than colliding with the board name beneath it. */
-@container ll-picker-home-tile (width < 465px) {
-  .board-picker__home-badge { top: 0; }
-}
-
 /* Currently-viewing tile + badge — distinct visual treatment from
    the home-board tile so users can tell the two states apart at a
    glance. Uses the brand slate-blue family (rather than verdigris)
@@ -75281,38 +75044,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
         0 8px 24px rgba($brand-verdigris, 0.18),
         0 2px 12px rgba(0, 0, 0, 0.06) !important;
     }
-  }
-  &__board-item-home-badge {
-    /* Small centered pill — mirrors the home-page strip's .md-strip__home-badge
-       (was a larger crowning "ribbon"). */
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
-    color: #fff;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    padding: 2px 7px;
-    border-radius: 999px;
-    box-shadow: 0 1px 3px rgba($la-navy, 0.20);
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 30;
-  }
-  /* Defensive override: the boards-page parent grid sets
-     `> .simple_board_holder > * { width: 100%; display: flex;
-     align-items: stretch }` (line ~36561) which stretches the home
-     badge into a wide ribbon across the top of the tile. Higher
-     specificity (0,3,0) wins against that (0,2,1) rule and keeps the
-     badge as a centered shrink-to-fit pill. */
-  &__board-item.simple_board_holder > &__board-item-home-badge {
-    width: auto;
-    max-width: max-content;
-    display: inline-block;
-    align-self: auto;
   }
 
   /* Fixed card width so every board tile aligns on boards + search pages */
