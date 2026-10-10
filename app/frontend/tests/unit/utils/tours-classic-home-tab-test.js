@@ -5,8 +5,15 @@ import { buildClassicHomeSteps } from 'frontend/utils/tours/classic-home';
  * review, requested: "fix the basic home tour"). Started on the Communicators tab, its Reports step
  * spotlit the first `.ch-tile--reports` on screen -- a communicator card's Reports link
  * (classic-view.hbs) -- and the Speak and Extras steps were dropped because their tiles were not
- * rendered. The tour now switches to the Actions tab as it begins, the Reports step matches only
- * the Actions tile, and each Actions-tab step is skipped at show time if its tile is not there.
+ * rendered. The tour now switches to the Actions tab as it begins, and each Actions-tab step is
+ * skipped at show time if its target is not there.
+ *
+ * RETARGETED 2026-10-09: the per-card Speak/Reports/Extras steps became ONE step on the Actions
+ * grid, so these assertions moved from `classic_tour_reports` to `classic_tour_cards`. The
+ * guarantees are unchanged -- switch to Actions, never spotlight something on another tab, skip
+ * when absent -- and one is ADDED, because the new selector carries a collision the old one did
+ * not: `.ch-grid` also matches the Extras drawer, which is why the step excludes
+ * `.ch-grid--extras`.
  */
 module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
   var root;
@@ -26,14 +33,27 @@ module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
 
   function step(steps, id) { return steps.find(function(s) { return s.id === id; }); }
 
-  test('started on Communicators: Reports never spotlights a communicator card', function(assert) {
+  test('started on Communicators: the cards step never spotlights a communicator card', function(assert) {
     assert.expect(3);
     var steps = buildClassicHomeSteps();
-    var reports = step(steps, 'classic_tour_reports');
-    assert.ok(reports, 'the Reports step is kept for when the Actions tab shows');
-    var target = typeof reports.attachTo.element === 'function' ? reports.attachTo.element() : reports.attachTo.element;
+    var cards = step(steps, 'classic_tour_cards');
+    assert.ok(cards, 'the cards step is kept for when the Actions tab shows');
+    var target = typeof cards.attachTo.element === 'function' ? cards.attachTo.element() : cards.attachTo.element;
     assert.notStrictEqual(target, document.getElementById('card-reports'), 'not the communicator card link');
-    assert.false(reports.showOn(), 'skipped while the Actions Reports tile is not on screen');
+    assert.false(cards.showOn(), 'skipped while the Actions grid is not on screen');
+  });
+
+  test('the cards step never spotlights the Extras drawer', function(assert) {
+    assert.expect(2);
+    // The drawer also carries `.ch-grid`, and is LATER in the DOM, so a bare `.ch-grid`
+    // selector would match it once it is open.
+    root.insertAdjacentHTML('beforeend',
+      '<div class="ch-grid ch-grid--extras" id="drawer" style="display:block;width:300px;height:40px"></div>');
+    var steps = buildClassicHomeSteps();
+    var cards = step(steps, 'classic_tour_cards');
+    assert.false(cards.showOn(), 'an open drawer alone does not make the step show');
+    var target = typeof cards.attachTo.element === 'function' ? cards.attachTo.element() : cards.attachTo.element;
+    assert.notStrictEqual(target, document.getElementById('drawer'), 'not the drawer');
   });
 
   test('the first interior step switches to the Actions tab', async function(assert) {
@@ -49,12 +69,12 @@ module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
     assert.expect(2);
     var actions = root.querySelector('[data-tour-tab="main"]');
     actions.classList.add('is-active');
-    root.insertAdjacentHTML('beforeend', '<button class="ch-tile ch-tile--big ch-tile--reports" id="actions-reports" style="display:block;width:80px;height:30px">Reports</button>');
+    root.insertAdjacentHTML('beforeend', '<div class="ch-grid" id="actions-grid" style="display:block;width:300px;height:80px"><button class="ch-tile ch-tile--big ch-tile--reports" style="display:block;width:80px;height:30px">Reports</button></div>');
     var clicked = 0;
     actions.addEventListener('click', function() { clicked++; });
     var steps = buildClassicHomeSteps();
     await steps[1].beforeShowPromise();
     assert.strictEqual(clicked, 0, 'no tab click');
-    assert.true(step(steps, 'classic_tour_reports').showOn(), 'the Actions Reports tile is spotlit');
+    assert.true(step(steps, 'classic_tour_cards').showOn(), 'the Actions grid is spotlit');
   });
 });

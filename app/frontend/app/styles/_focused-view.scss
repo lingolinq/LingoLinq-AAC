@@ -4419,7 +4419,20 @@ $ch-focused-hero-more-ink: #E5E5E5;
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-ideas-start 0%, $ch-focused-ideas-end 100%));
     body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-ideas-hero-center, $ch-focused-ideas-hero-edge, ch-hero-fallbacks($ch-hero-ideas-c, $ch-hero-ideas-h)); }
   }
-  .ch-tile--big.ch-tile--extras-toggle {
+  // THE FOURTH SLOT. It was `.ch-tile--extras-toggle` until 2026-10-09, when the Extras drawer
+  // stopped collapsing and that slot became a plain Account link. The class moved; the slot did
+  // not, so the treatment follows it here rather than being re-solved.
+  //
+  // This was the bug behind "the My Account outline doesn't match the others": with the rule
+  // still keyed to a class nothing renders, the card fell through to Gentle's
+  // `ch-tile-tint($brand-teal-blue)` and wore a TEAL rim at 0.30 while its three siblings wore
+  // the glass tile's dark one. Same fill family as before, so the four-card set keeps the
+  // palette it was solved as (blue / teal / fawn / slate).
+  //
+  // `.ch-tile--account` names the SLOT, not the destination. The card in it is Settings as of
+  // 2026-10-09 — it and the account tile were swapped — and the class stayed put so the four
+  // cards keep one style hook each.
+  .ch-tile--big.ch-tile--account {
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-extras-start 0%, $ch-focused-extras-end 100%));
     body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-extras-hero-center, $ch-focused-extras-hero-edge, ch-hero-fallbacks($ch-hero-extras-c, $ch-hero-extras-h)); }
   }
@@ -4553,12 +4566,12 @@ $ch-focused-hero-more-ink: #E5E5E5;
     // CTA bar keeps its exact height. In `em`, so it scales with the glyph at every breakpoint
     // rather than being a figure that only holds on desktop.
     //
-    // NOT APPLIED TO EXTRAS, for two reasons. Its glyph is U+25BE, a filled triangle with a
-    // different optical centre that this figure would not fit; and
-    // `.ch-tile--extras-toggle.is-open .ch-tile__rule` rotates the element 180deg
-    // (_classic-home.scss), which would invert this nudge into a downward one whenever the
-    // drawer is open.
-    &:not(.ch-tile--extras-toggle) .ch-tile__rule::before {
+    // The `:not(.ch-tile--extras-toggle)` that used to guard this is GONE (2026-10-09). It
+    // existed because that card's glyph was U+25BE, a filled triangle with a different optical
+    // centre, and because its `.is-open` rule rotated the element 180deg — which would have
+    // inverted this nudge. Neither applies: the fourth slot is an Account link now and draws
+    // the same U+2192 arrow as the other three, so it wants the same nudge.
+    .ch-tile__rule::before {
       transform: translateY(-0.085em);
     }
 

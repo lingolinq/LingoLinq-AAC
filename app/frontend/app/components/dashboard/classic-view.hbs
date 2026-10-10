@@ -893,7 +893,7 @@
             </span>
             <div class="ch-intro__content">
               <h2 class="ch-card__title">{{t "Let's Get Started" key="lets_get_started"}}</h2>
-              <p class="ch-card__text">{{t "New to %app_name%? Take a quick guided tour to learn how the app works and where to find the tools you need." key="classic_intro_guided_tour"}}</p>
+              <p class="ch-card__text">{{t "Take a quick guided tour." key="classic_intro_guided_tour"}}</p>
             </div>
             {{!-- `start_tour`, not the parent's `intro` (2026-09-03). This is now the ONLY
                   walkthrough offer in Basic view: the rail's "Welcome! Take a tour" row was
@@ -921,10 +921,11 @@
                (authenticated-view.js#homeInSpeakMode), so a supporter gets a working
                control rather than a dead one. Takes its teal-blue from
                .ch-tile--speak-main (_classic-home.scss), which shares one mixin call
-               with .ch-tile--account. NOTE: that pairing is now historical — My Account
-               moved into the Extras drawer and renders silver there, so the two no
-               longer match on screen. The shared call is kept because it still defines
-               this tile; .ch-tile--account itself is currently unused. --}}
+               with .ch-tile--account. The pairing is LIVE again as of 2026-10-09: My Account
+               was promoted out of the Extras drawer into the fourth card slot and wears
+               .ch-tile--account, so the two share a mixin call AND match on screen. (This
+               note previously said the class was unused — it was, while that tile sat in the
+               drawer rendering silver.) --}}
           <button type="button" class="ch-tile ch-tile--big ch-tile--speak-main" {{on "click" (this.ctrlAction "homeInSpeakMode")}}>
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as
@@ -996,15 +997,14 @@
               </span>
             </button>
           {{/if}}
-          {{!-- Extras — expands the row below. `show_main_extras` lives on the shared
-               component class (authenticated-view.js:1670) but is read ONLY here, and
-               `toggle_extras` is called ONLY here — the modern template does neither, so
-               nothing on this row can reach Card View. classic-view.js overrides the
-               action to scroll this card to the top once the drawer has rendered. --}}
-          <button type="button" class="ch-tile ch-tile--big ch-tile--extras-toggle {{if this.show_main_extras "is-open"}}"
-                  aria-expanded={{if this.show_main_extras "true" "false"}}
-                  aria-controls="ch-extras-row"
-                  {{on "click" (this.ctrlAction "toggle_extras")}}>
+          {{!-- THE FOURTH SLOT (2026-10-09). It held the Extras TOGGLE until the drawer stopped
+               collapsing, then My Account, and now SETTINGS — promoted from the drawer and
+               swapped with the account tile, which took its place there. Each move carried the
+               tile's own route, model, icon, strings and keys verbatim, so neither destination
+               exists twice on the page. The styling belongs to the SLOT: `.ch-tile--account` is
+               the fourth-card style hook here, not a statement about what the card links to.
+               `aria-expanded` / `aria-controls` went with the toggle they described. --}}
+          <LinkTo @route="user.preferences" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--account">
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as
                  one centred column, so the description was announced and read AFTER the action
@@ -1017,18 +1017,18 @@
                  contains it. Class names, text, actions and ARIA are unchanged. --}}
             <span class="ch-tile__info">
               <span class="ch-tile__chip" aria-hidden="true">
-              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/></svg>
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2" stroke="#2A9D8F"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1A1.7 1.7 0 0 0 10.13 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9.1a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.03z" stroke="#46505F"/></svg>
             </span>
               <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "Extras" key="extras"}}<span class="ch-tile__toggle-caret" aria-hidden="true"></span></span>
-                <span class="ch-tile__more">{{t "Access additional communication tools and resources." key="classic_more_extras"}}</span>
+                <span class="ch-tile__label">{{t "Settings" key="settings"}}</span>
+                <span class="ch-tile__more">{{t "Voice, speed, scanning and the other preferences for this account." key="classic_more_settings"}}</span>
               </span>
             </span>
             <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "More tools" key="classic_sub_extras"}}</span>
+              <span class="ch-tile__sub">{{t "Preferences" key="classic_sub_preferences"}}</span>
               <span class="ch-tile__rule" aria-hidden="true"></span>
             </span>
-          </button>
+          </LinkTo>
         </div>
         {{!-- The expanded Extras row. The main grid above is deliberately just four
              tiles — Speak, Reports, Modeling Ideas, Extras (requested 2026-09-02) —
@@ -1046,8 +1046,82 @@
              vetted for that when they sat in the grid, and their destinations have not
              changed. My Boards and Badges remain excluded on purpose: both are fully
              modern and would be a new leak until their classic counterparts exist. --}}
-        {{#if this.show_main_extras}}
         <div class="ch-grid ch-grid--extras" id="ch-extras-row">
+          {{#if this.showLearnAndSetupTile}}
+          <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "intro")}}>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" stroke="#46505F"/><line x1="8.5" y1="8" x2="15.5" y2="8" stroke="#2A9D8F"/><line x1="8.5" y1="12" x2="13" y2="12" stroke="#2A9D8F"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Learn and Setup" key="learn_and_setup"}}</span>
+                <span class="ch-tile__more">{{t "A guided pass through home boards, speak mode and logging." key="classic_more_learn"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Let's Learn" key="classic_sub_lets_learn"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
+          </button>
+          {{/if}}
+          {{#if this.app_state.currentUser.preferences.logging}}
+            <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manual_session")}}>
+            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+              <span class="ch-tile__info">
+                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
+                <span class="ch-tile__text">
+                  <span class="ch-tile__label">{{t "Manual Log Session" key="manual_log_session"}}</span>
+                  <span class="ch-tile__more">{{t "Record a session that happened away from the app, with your own notes." key="classic_more_manual_log"}}</span>
+                </span>
+              </span>
+              <span class="ch-tile__cta">
+                <span class="ch-tile__sub">{{t "Log Session" key="classic_sub_log_session"}}</span>
+                <span class="ch-tile__rule" aria-hidden="true"></span>
+              </span>
+            </button>
+          {{/if}}
+          <LinkTo @route="user.logs" @model={{this.classicUser.user_name}} @query={{hash type="note"}} class="ch-tile ch-tile--big ch-tile--silver">
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true">
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#46505F"/><polyline points="3.5 6.5 12 13 20.5 6.5" stroke="#2A9D8F"/></svg>
+            </span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Messages" key="messages"}}</span>
+                <span class="ch-tile__more">{{t "Notes sent between you and the people who supervise this account." key="classic_more_messages"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Add Notes" key="classic_sub_add_notes"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
+          </LinkTo>
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as
@@ -1094,159 +1168,6 @@
               <span class="ch-tile__rule" aria-hidden="true"></span>
             </span>
           </button>
-          <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "searchBoards")}}>
-          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-            <span class="ch-tile__info">
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#46505F"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="#4C86D8"/></svg></span>
-              <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "Search Boards" key="search_boards"}}</span>
-                <span class="ch-tile__more">{{t "Browse public boards you can open, copy or set as a home board." key="classic_more_search"}}</span>
-              </span>
-            </span>
-            <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "Find Boards" key="classic_sub_find_boards"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-            </span>
-          </button>
-          {{!-- LEARN AND SETUP IS HIDDEN FOR NOW (requested 2026-09-30: "we need to make sure the home
-               page tours are actually wired up correctly before we include them there"). A closed
-               access point, not a removed feature: the tile and its `intro` action are kept, behind
-               `showLearnAndSetupTile` (classic-view.js). The intro card's "How To Use" button still
-               starts the tour while that card shows. --}}
-          {{#if this.showLearnAndSetupTile}}
-          <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "intro")}}>
-          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-            <span class="ch-tile__info">
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" stroke="#46505F"/><line x1="8.5" y1="8" x2="15.5" y2="8" stroke="#2A9D8F"/><line x1="8.5" y1="12" x2="13" y2="12" stroke="#2A9D8F"/></svg></span>
-              <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "Learn and Setup" key="learn_and_setup"}}</span>
-                <span class="ch-tile__more">{{t "A guided pass through home boards, speak mode and logging." key="classic_more_learn"}}</span>
-              </span>
-            </span>
-            <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "Let's Learn" key="classic_sub_lets_learn"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-            </span>
-          </button>
-          {{/if}}
-          {{#unless this.app_state.currentUser.supporter_role}}
-            <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manage_supervisors")}}>
-            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-              <span class="ch-tile__info">
-                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/></svg></span>
-                <span class="ch-tile__text">
-                  <span class="ch-tile__label">{{t "Supervisors" key="supervisors"}}</span>
-                  <span class="ch-tile__more">{{t "Add or remove the people who can view reports and edit boards." key="classic_more_supervisors"}}</span>
-                </span>
-              </span>
-              <span class="ch-tile__cta">
-                <span class="ch-tile__sub">{{t "Who can help with this account" key="classic_sub_supervisors"}}</span>
-                <span class="ch-tile__rule" aria-hidden="true"></span>
-              </span>
-            </button>
-          {{/unless}}
-          {{#if this.app_state.currentUser.preferences.logging}}
-            <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manual_session")}}>
-            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-              <span class="ch-tile__info">
-                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
-                <span class="ch-tile__text">
-                  <span class="ch-tile__label">{{t "Manual Log Session" key="manual_log_session"}}</span>
-                  <span class="ch-tile__more">{{t "Record a session that happened away from the app, with your own notes." key="classic_more_manual_log"}}</span>
-                </span>
-              </span>
-              <span class="ch-tile__cta">
-                <span class="ch-tile__sub">{{t "Log Session" key="classic_sub_log_session"}}</span>
-                <span class="ch-tile__rule" aria-hidden="true"></span>
-              </span>
-            </button>
-          {{/if}}
-          <LinkTo @route="user.preferences" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
-          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-            <span class="ch-tile__info">
-              <span class="ch-tile__chip" aria-hidden="true">
-              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2" stroke="#2A9D8F"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1A1.7 1.7 0 0 0 10.13 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9.1a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.03z" stroke="#46505F"/></svg>
-            </span>
-              <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "Settings" key="settings"}}</span>
-                <span class="ch-tile__more">{{t "Voice, speed, scanning and the other preferences for this account." key="classic_more_settings"}}</span>
-              </span>
-            </span>
-            <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "Preferences" key="classic_sub_preferences"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-            </span>
-          </LinkTo>
-          <LinkTo @route="user.logs" @model={{this.classicUser.user_name}} @query={{hash type="note"}} class="ch-tile ch-tile--big ch-tile--silver">
-          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-            <span class="ch-tile__info">
-              <span class="ch-tile__chip" aria-hidden="true">
-              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#46505F"/><polyline points="3.5 6.5 12 13 20.5 6.5" stroke="#2A9D8F"/></svg>
-            </span>
-              <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "Messages" key="messages"}}</span>
-                <span class="ch-tile__more">{{t "Notes sent between you and the people who supervise this account." key="classic_more_messages"}}</span>
-              </span>
-            </span>
-            <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "Add Notes" key="classic_sub_add_notes"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-            </span>
-          </LinkTo>
           <LinkTo @route="user.recordings" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as
@@ -1272,6 +1193,52 @@
               <span class="ch-tile__rule" aria-hidden="true"></span>
             </span>
           </LinkTo>
+          <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "searchBoards")}}>
+          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+            <span class="ch-tile__info">
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#46505F"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="#4C86D8"/></svg></span>
+              <span class="ch-tile__text">
+                <span class="ch-tile__label">{{t "Search Boards" key="search_boards"}}</span>
+                <span class="ch-tile__more">{{t "Browse public boards you can open, copy or set as a home board." key="classic_more_search"}}</span>
+              </span>
+            </span>
+            <span class="ch-tile__cta">
+              <span class="ch-tile__sub">{{t "Find Boards" key="classic_sub_find_boards"}}</span>
+              <span class="ch-tile__rule" aria-hidden="true"></span>
+            </span>
+          </button>
+            <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "manage_supervisors")}}>
+            {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
+                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
+                 one centred column, so the description was announced and read AFTER the action
+                 text. Grouping them puts identity first and the action last, which is both the
+                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
+                 visual order and DOM order now agree, so nothing relies on CSS `order`.
+                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
+                 a button or a link — nesting one inside this control would be invalid and would
+                 add a second tab stop. It is the visual action indicator for the card that
+                 contains it. Class names, text, actions and ARIA are unchanged. --}}
+              <span class="ch-tile__info">
+                <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/></svg></span>
+                <span class="ch-tile__text">
+                  <span class="ch-tile__label">{{t "Supervisors" key="supervisors"}}</span>
+                  <span class="ch-tile__more">{{t "Add or remove the people who can view reports and edit boards." key="classic_more_supervisors"}}</span>
+                </span>
+              </span>
+              <span class="ch-tile__cta">
+                <span class="ch-tile__sub">{{t "Who can help with this account" key="classic_sub_supervisors"}}</span>
+                <span class="ch-tile__rule" aria-hidden="true"></span>
+              </span>
+            </button>
           <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "support")}}>
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as
@@ -1298,7 +1265,6 @@
             </span>
           </button>
         </div>
-        {{/if}}
 
         {{!-- HIDDEN 2026-09-02 (requested) — may come back.
 

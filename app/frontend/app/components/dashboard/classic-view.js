@@ -136,13 +136,13 @@ export default AuthenticatedView.extend({
       this._pending_index_nav = null;
       this.send('set_index_nav', nav);
     }
-    /* The Extras drawer handed off by a switch from the Extras page (utils/basic_landing.js).
-       Opened through `toggle_extras`, the Extras card's own action, so the arrival gets exactly
-       the click's behaviour: the drawer opens and the card scrolls to the top once it renders.
-       After the tab above, because the drawer lives on the Actions tab. */
+    /* The Extras handoff from a switch off the Extras page (utils/basic_landing.js). It used to
+       OPEN the drawer; as of 2026-10-09 the drawer no longer collapses, so arriving on the
+       Actions tab — which `index_nav: 'main'` above already does — IS the whole handoff. The
+       flag is still consumed here so it cannot survive into the next navigation or, via
+       app-state's reset, the next account. */
     if(this._pending_open_extras) {
       this._pending_open_extras = false;
-      if(!this.get('show_main_extras')) { this.send('toggle_extras'); }
     }
     if(this._pending_open_supervisee) {
       var name = this._pending_open_supervisee;
@@ -437,39 +437,12 @@ export default AuthenticatedView.extend({
       modal.success(i18n.t('switched_to_card_view', "Switched to Modern View. You can go back to Basic any time from the View menu."));
     },
 
-    // OVERRIDE. The parent's `toggle_extras` (authenticated-view.js:1669) only flips
-    // `show_main_extras`. That flag is read nowhere but this template, and this template
-    // is its only caller — but the action lives on the shared class, so it is overridden
-    // here rather than edited there, keeping the "no edits to authenticated-view.js"
-    // contract this file opens with.
-    //
-    // The drawer renders BELOW the Actions row (classic-view.hbs:705), so when that row
-    // sits mid-page the ten revealed tiles open past the bottom of the screen and the
-    // click reads as having done nothing. Scrolling the Extras card itself to the top
-    // puts the drawer in the space below it.
-    //
-    // ON OPEN ONLY. Scrolling on close would yank the page upward as the user is putting
-    // the drawer away, which is worse than not scrolling — this app's users include
-    // scanning and eye-gaze users for whom an unrequested viewport jump costs a
-    // re-acquire. `super` flips the flag first, so the value read here is the NEW one.
-    //
-    // DEFERRED, because the scroll depends on the drawer existing: until those ten tiles
-    // are in the DOM the page may not be tall enough to bring this row to the top, and
-    // the scroll would silently fall short.
-    //
-    // `requestAnimationFrame` and not `scheduleOnce('afterRender')`: Ember's render queue
-    // flushes synchronously before the browser hands out the next animation frame, so the
-    // drawer is in the DOM by the time this runs — and it keeps the component free of
-    // `@ember/runloop`, which `ember/no-runloop` forbids in new code.
-    toggle_extras: function() {
-      this._super.apply(this, arguments);
-      if(!this.get('show_main_extras')) { return; }
-      var _this = this;
-      window.requestAnimationFrame(function() {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        scrollBelowHeader(document.querySelector('.ch-tile--extras-toggle'));
-      });
-    },
+    // `toggle_extras` OVERRIDE REMOVED 2026-10-09. It existed to scroll the Extras card to the
+    // top once the drawer had rendered, so the ten revealed tiles did not open past the bottom
+    // of the screen. The drawer no longer collapses and the card that opened it is now a plain
+    // Account link, so there is no open event to scroll for. The parent's action
+    // (authenticated-view.js:1669) is left untouched and simply has no caller here.
+
 
     // Menu open/close. Toggling the already-open one closes it.
     toggle_supervisee_menu: function(id) {
@@ -537,7 +510,7 @@ export default AuthenticatedView.extend({
      ({tab, extras, supervisee}); components/view-switcher.js reads it through
      utils/basic_landing.js modern_landing_for. Cleared when this page goes away, so a stale place
      can never send a switch made elsewhere. */
-  publish_basic_home_place: observer('currentTab', 'show_main_extras', 'openSuperviseeId', function() {
+  publish_basic_home_place: observer('currentTab', 'openSuperviseeId', function() {
     this._publish_basic_home_place();
   }),
   _publish_basic_home_place() {
@@ -546,7 +519,14 @@ export default AuthenticatedView.extend({
     var open = open_id != null && (this.get('decoratedSupervisees') || []).find(function(s) { return s && s.id === open_id; });
     this.get('app_state').set('basic_home_place', {
       tab: this.get('currentTab'),
-      extras: !!this.get('show_main_extras'),
+      // ALWAYS FALSE as of 2026-10-09, and this is load-bearing rather than tidying.
+      // `modern_landing_for` (utils/basic_landing.js) routes a Basic -> Modern switch to
+      // `user.extras` when `tab === 'main' && place.extras`. That was right while the drawer
+      // was a state a user had deliberately opened; with it permanently open, reporting true
+      // would send EVERY switch from the Actions tab to the Extras page instead of the Modern
+      // home. The key is kept rather than dropped so the shape of the published place is
+      // unchanged for its reader.
+      extras: false,
       supervisee: (open && open.user_name) || null
     });
   },

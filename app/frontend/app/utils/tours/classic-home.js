@@ -37,7 +37,6 @@ var CLASSIC = { classic: true };
 // eslint-disable-next-line no-unused-vars
 function _classic_home_tour_i18n_extractor_no_op() {
   i18n.t('classic_tour_welcome_title', "Welcome to your home page");
-  i18n.t('classic_tour_done_title', "You know your way around");
 }
 
 // Centered intro step (no attachTo) — frames what the page is for.
@@ -66,75 +65,29 @@ function welcomeStep() {
   };
 }
 
-// The interior spotlights, in reading order: the rail first (who you are, what still
-// needs setting up), then the action cards.
+// The interior spotlights. REGIONS, NOT ITEMS (2026-10-09): this was six steps, one per
+// control — account, setup rows, Speak, Reports, Extras, tabs. It now describes each MENU as a
+// whole, which is both shorter and more durable: a step bound to `.ch-rail` keeps working when a
+// row is added or a card is renamed, where `.ch-tile--speak-main` did not.
+//
 //   `sel`    — target selector (first VISIBLE match wins)
 //   `on`     — popover placement; floating-ui flips automatically if there is no room
 //   `padded` — region targets that want a roomy rounded cutout rather than a tight hug
+//   `last`   — ends the tour from this step instead of a separate outro
 function interiorSteps() {
   return [
     {
-      id: 'classic_tour_identity',
-      sel: '.ch-rail__identity',
-      on: 'bottom',
-      title: i18n.t('classic_tour_identity_title', "Your account"),
-      text: tourChecklist([
-        i18n.t('classic_tour_identity_b1', "Check who you are signed in as"),
-        i18n.t('classic_tour_identity_b2', "Open your profile, password and subscription")
-      ], null, null, CLASSIC)
-    },
-    {
-      // The rail's setup rows: home board, supervisors, logging, sync. A region, so it
-      // takes the padded cutout rather than hugging one row.
+      // The whole rail: identity block AND the setup rows under it, which used to be two
+      // separate steps hugging `.ch-rail__identity` and `.ch-rail__list`.
       id: 'classic_tour_rail',
-      sel: '.ch-rail__list',
+      sel: '.ch-rail',
       on: 'right',
       padded: true,
-      title: i18n.t('classic_tour_rail_title', "Your setup"),
+      title: i18n.t('classic_tour_rail_title', "Your side menu"),
       text: tourChecklist([
-        i18n.t('classic_tour_rail_b1', "See your home board and who supports you"),
-        i18n.t('classic_tour_rail_b2', "Turn logging on to build reports"),
-        i18n.t('classic_tour_rail_b3', "Sync before you go somewhere without wifi")
-      ], null, null, CLASSIC)
-    },
-    {
-      id: 'classic_tour_speak',
-      sel: '.ch-tile--speak-main',
-      tab: 'main',
-      on: 'bottom',
-      title: i18n.t('classic_tour_speak_title', "Speak"),
-      text: tourChecklist([
-        i18n.t('classic_tour_speak_b1', "Opens your board ready to talk"),
-        i18n.t('classic_tour_speak_b2', "The one button you will use most")
-      ], null, null, CLASSIC)
-    },
-    {
-      id: 'classic_tour_reports',
-      // `--big` is the Actions tile; a communicator card's Reports link also carries
-      // `ch-tile--reports` (classic-view.hbs) and was being spotlit from the Communicators tab.
-      sel: '.ch-tile--big.ch-tile--reports',
-      tab: 'main',
-      on: 'bottom',
-      title: i18n.t('classic_tour_reports_title', "Reports"),
-      text: tourChecklist([
-        i18n.t('classic_tour_reports_b1', "See which words are being used"),
-        i18n.t('classic_tour_reports_b2', "Needs logging turned on first")
-      ], null, null, CLASSIC)
-    },
-    {
-      // Deliberately spotlights the CLOSED toggle and describes what it opens, rather
-      // than opening the drawer as part of the tour. Opening it would make the ten
-      // revealed tiles targets that only exist mid-tour, and the runner disables the
-      // spotlit element (`canClickTarget: false`), so a user could not act on them
-      // anyway. Describing beats animating here.
-      id: 'classic_tour_extras',
-      sel: '.ch-tile--extras-toggle',
-      tab: 'main',
-      on: 'bottom',
-      title: i18n.t('classic_tour_extras_title', "Extras"),
-      text: tourChecklist([
-        i18n.t('classic_tour_extras_b1', "Opens the rest of your tools"),
-        i18n.t('classic_tour_extras_b2', "Boards, settings, messages and recordings")
+        i18n.t('classic_tour_rail_b1', "Who you are signed in as, and your account settings"),
+        i18n.t('classic_tour_rail_b2', "Your home board, your supporters and logging"),
+        i18n.t('classic_tour_rail_b3', "It stays in the same place on every screen")
       ], null, null, CLASSIC)
     },
     {
@@ -149,6 +102,23 @@ function interiorSteps() {
         i18n.t('classic_tour_tabs_b2', "Boards browses and finds boards"),
         i18n.t('classic_tour_tabs_b3', "Updates has notifications and recent sessions")
       ], null, null, CLASSIC)
+    },
+    {
+      // The whole Actions row, replacing the separate Speak / Reports / Extras steps.
+      // `:not(.ch-grid--extras)` so an open Extras drawer does not win the match — both
+      // carry `.ch-grid`, and the drawer is the later element in the DOM.
+      id: 'classic_tour_cards',
+      sel: '.ch-grid:not(.ch-grid--extras)',
+      tab: 'main',
+      on: 'top',
+      padded: true,
+      last: true,
+      title: i18n.t('classic_tour_cards_title', "Your main actions"),
+      text: tourChecklist([
+        i18n.t('classic_tour_cards_b1', "Speak opens your board ready to talk"),
+        i18n.t('classic_tour_cards_b2', "Reports shows how communication is going"),
+        i18n.t('classic_tour_cards_b3', "Extras opens the rest of your tools")
+      ], i18n.t('classic_tour_cards_lead', "You can take this tour again any time from the side menu."), null, CLASSIC)
     }
   ];
 }
@@ -183,7 +153,19 @@ function pushInteriorSteps(steps) {
       title: cfg.title,
       text: cfg.text,
       classes: 'ch-tour__step' + (cfg.cls ? ' ' + cfg.cls : ''),
-      buttons: standardButtons(CLASSIC)
+      // The final step ends the tour itself, so there is no separate outro screen.
+      //
+      // An ACTION, not `type: 'complete'`: ember-shepherd's makeButton accepts only
+      // back/cancel/next as types and ASSERTS otherwise, which in a development build once
+      // stopped this whole tour from starting. Carried over from the outro step this replaces.
+      buttons: cfg.last ? [
+        standardButtons(CLASSIC)[0],
+        {
+          text: i18n.t('home_tour_done', "Got it"),
+          action: function() { return this.complete(); },
+          classes: 'ch-tour__btn ch-tour__btn--primary'
+        }
+      ] : standardButtons(CLASSIC)
     };
     // Force a scroll for every step so placement is consistent, rather than the runner's
     // "already visible? skip" fast-path, which would let floating-ui flip the popover.
@@ -199,30 +181,6 @@ function pushInteriorSteps(steps) {
   });
 }
 
-// Centered outro. No handoff — unlike the modern home tour there is no board-picker
-// step to pass to; a classic user who needs a board reaches it from the rail.
-function doneStep() {
-  return {
-    id: 'classic_tour_done',
-    title: decoratedTitle('classic_tour_done_title', "You know your way around", CLASSIC),
-    text: tourChecklist([
-      i18n.t('classic_tour_done_b1', "Speak whenever you are ready"),
-      i18n.t('classic_tour_done_b2', "Everything else is one tap away")
-    ], i18n.t('classic_tour_done_lead', "You can take this tour again any time from the rail."), null, CLASSIC),
-    classes: 'ch-tour__step ch-tour__step--intro ch-tour__step--done',
-    buttons: [
-      {
-        text: i18n.t('home_tour_done', "Got it"),
-        // An ACTION, not `type: 'complete'` (2026-10-02): ember-shepherd's makeButton accepts only
-        // back/cancel/next as types and asserts otherwise, which in a development build stopped
-        // this whole tour from starting. The other tours finish the same way (utils/tours/home.js).
-        action: function() { return this.complete(); },
-        classes: 'ch-tour__btn ch-tour__btn--primary'
-      }
-    ]
-  };
-}
-
 // `options` is accepted for signature parity with the other builders (the registry's
 // thunk forwards caller options through); this tour has no handoff, so nothing reads it
 // yet. Kept so adding one later does not change every call site.
@@ -231,7 +189,6 @@ function buildClassicHomeSteps(options) {
   var steps = [];
   steps.push(welcomeStep());
   pushInteriorSteps(steps);
-  steps.push(doneStep());
   return steps;
 }
 
