@@ -147,7 +147,8 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     );
     assert.deepEqual(
       sectionsForLayout(SHAPES['a communicator'], 'gentle').map(function(s) { return s.key; }),
-      ['speak', 'boards', 'createboard', 'editdashboard', 'extras'],
+      // `extras` moved up beside `speak` (extrasBesideSpeak, 2026-10-09 request).
+      ['speak', 'extras', 'boards', 'createboard', 'editdashboard'],
       'and for a communicator'
     );
   });

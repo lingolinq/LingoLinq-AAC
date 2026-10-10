@@ -29,20 +29,32 @@ module('Unit | Utility | dashboard sections layout engine', function() {
        full-width row of its own; Reports, left alone after the pair, does the same. Pinning
        it means a later change to the packing cannot quietly re-pair them without this test
        saying so. */
+    /* SPEC CHANGED 2026-10-09 by request: "do not allow any of the buttons to span the full
+       row. put speak mode and extras next to each other (with speak mode on the left) and
+       compact them" (Gentle View).
+       Three consequences are pinned below, all deliberate:
+         • `speak extras` — the two are now a NAMED PAIR (packOrder#pairedWith) and `extras` is
+           moved beside `speak` by `extrasBesideSpeak`, so Speak is always the LEFT cell.
+         • `account .` / `reports .` — a small card with no row-partner now occupies ONE column
+           and leaves the other empty, where it used to stretch to 'X X'. The holes are the
+           cost of the request and are what this assertion exists to make visible.
+         • NO `md-grid--fullspan-*` for small cards — that class is emitted only for a row whose
+           two cells are the same key, so it falls away on its own.
+       `boards boards` is UNCHANGED: Boards is a content panel, not a button, and `fullWidth()`
+       still returns true for it and the other panels. */
     var vis = visFor(['account', 'extras', 'boards', 'createboard', 'speak', 'reports', 'editdashboard']);
     var state = gridLayoutState(vis, null, 'gentle');
     assert.deepEqual(state.areas, [
-      'speak speak',
+      'speak extras',
       'boards boards',
-      'account account',
+      'account .',
       'createboard editdashboard',
-      'reports reports',
-      'extras extras',
+      'reports .',
       '. sup'
     ], 'default communicator areas');
-    assert.equal(state.rows, 'auto auto auto auto auto auto 0', 'rows');
-    assert.ok(state.classes.indexOf('md-grid--fullspan-speak') !== -1, 'speak full-width styling');
-    assert.ok(state.classes.indexOf('md-grid--fullspan-extras') !== -1, 'extras full-width styling');
+    assert.equal(state.rows, 'auto auto auto auto auto 0', 'rows');
+    assert.strictEqual(state.classes.indexOf('md-grid--fullspan-speak'), -1, 'speak no longer a full-width showcase');
+    assert.strictEqual(state.classes.indexOf('md-grid--fullspan-extras'), -1, 'extras no longer a full-width showcase');
   });
 
   test('Boards always renders full-width and flags md-grid--boards-full', function(assert) {
@@ -51,20 +63,25 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     assert.ok(state.classes.indexOf('md-grid--boards-full') !== -1, 'boards-full class');
   });
 
-  test('a lone trailing small card spans full width + gets a fullspan flag', function(assert) {
+  /* RENAMED AND INVERTED 2026-10-09 with the request above: a lone trailing small card used to
+     span both columns and take the fullspan showcase styling. It now keeps one column. */
+  test('a lone trailing small card keeps one column and gets no fullspan flag', function(assert) {
     var state = gridLayoutState(visFor(['account']), ['account'], 'gentle');
-    assert.deepEqual(state.areas, ['account account', '. sup'], 'lone card full-width');
-    assert.ok(state.classes.indexOf('md-grid--fullspan-account') !== -1, 'fullspan-account class');
+    assert.deepEqual(state.areas, ['account .', '. sup'], 'lone card occupies one column');
+    assert.strictEqual(state.classes.indexOf('md-grid--fullspan-account'), -1, 'no fullspan-account class');
   });
 
   test('order controls placement; hidden cards are skipped', function(assert) {
-    // Uses the small paired cards (account / createboard / reports) — Extras is a
-    // full-width showcase now, so it no longer pairs.
+    // Uses the small paired cards (account / createboard / reports). Extras is deliberately
+    // absent: as of 2026-10-09 it is pinned beside Speak as a named pair, so including it here
+    // would test that pairing rather than positional packing. (This comment previously said
+    // Extras was "a full-width showcase now, so it no longer pairs" — both halves are false
+    // since that request; nothing is a full-width showcase among the buttons any more.)
     var vis = visFor(['account', 'createboard', 'reports']);
     var a = gridLayoutState(vis, ['account', 'createboard', 'reports'], 'gentle');
-    assert.deepEqual(a.areas, ['account createboard', 'reports reports', '. sup'], 'account|createboard then reports');
+    assert.deepEqual(a.areas, ['account createboard', 'reports .', '. sup'], 'account|createboard then a one-column reports');
     var b = gridLayoutState(vis, ['reports', 'account', 'createboard'], 'gentle');
-    assert.deepEqual(b.areas, ['reports account', 'createboard createboard', '. sup'], 'reordered');
+    assert.deepEqual(b.areas, ['reports account', 'createboard .', '. sup'], 'reordered; the odd card keeps one column');
   });
 
   test('reorderInsert moves a card before/after a target in the full order', function(assert) {

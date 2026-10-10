@@ -384,7 +384,7 @@ function defaultOrderFor(user, layout) {
      takes it above and only promotes its hero -- so the Edit-Dashboard-beside-Create-a-Board
      move has to happen on this side of that branch, not inside it. Putting it in the shared
      function reordered Focused's utility row too, which the request did not ask for. */
-  return editBesideCreate(base);
+  return extrasBesideSpeak(editBesideCreate(base));
 }
 
 // The visible section keys in display order: start from the saved order (or the
@@ -410,6 +410,20 @@ function orderedVisible(vis, order, defaultOrder) {
    Both callers matter: the live grid (`dashboardLayout`) and the editor/preview
    (`gentleDefaultOrder`). This file already records what happens when only one of them gets a
    new order -- the preview reorders and the real page does not. */
+/* SPEAK MODE SITS BESIDE EXTRAS, SPEAK ON THE LEFT (requested 2026-10-09, Gentle View).
+   DERIVED, NOT EDITED INTO THE CONSTANTS, for the reason editBesideCreate records directly
+   below: the three *_DEFAULT_ORDER lists are read by BOTH layouts, and `focusedLayout` builds
+   on them, so moving `extras` in place would reorder Focused's cards too. Applied at the two
+   Gentle-only seams instead (defaultOrderFor's gentle branch and dashboardLayout).
+   Only when BOTH are visible; either alone packs normally. */
+function extrasBesideSpeak(base) {
+  var i = base.indexOf('speak');
+  if (i === -1 || base.indexOf('extras') === -1) { return base; }
+  var out = base.filter(function(k) { return k !== 'extras'; });
+  out.splice(out.indexOf('speak') + 1, 0, 'extras');
+  return out;
+}
+
 function editBesideCreate(base) {
   var i = base.indexOf('createboard');
   if (i === -1 || base.indexOf('editdashboard') === -1) { return base; }
@@ -439,16 +453,22 @@ function packOrder(keys, extraFull) {
      orders above put the two adjacent so the row is emitted where Create a Board sits.
      Only applies when BOTH are visible; either one alone packs normally. */
   var pairedWith = function(key, next) {
+    // Speak + Extras, Speak on the LEFT (2026-10-09). Stated as a pair for exactly the reason
+    // the note above gives for Create-a-Board + Edit Dashboard: packing is positional, so the
+    // same order yields different pairings for different visibility combinations. Naming the
+    // pair makes "side by side, Speak first" hold for every user. `extrasBesideSpeak` puts the
+    // two adjacent in the order so the row is emitted where Speak sits.
+    if (key === 'speak' && next === 'extras') { return true; }
     return key === 'createboard' && next === 'editdashboard';
   };
   for (var i = 0; i < keys.length; i++) {
     var key = keys[i];
     if (pairedWith(key, keys[i + 1])) {
-      if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
+      if (pending) { rows.push(a(pending) + ' .'); pending = null; }
       rows.push(a(key) + ' ' + a(keys[i + 1]));
       i++;
     } else if (fullWidth(key)) {
-      if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
+      if (pending) { rows.push(a(pending) + ' .'); pending = null; }
       rows.push(a(key) + ' ' + a(key));
     } else if (pending) {
       rows.push(a(pending) + ' ' + a(key)); pending = null;
@@ -456,7 +476,7 @@ function packOrder(keys, extraFull) {
       pending = key;
     }
   }
-  if (pending) { rows.push(a(pending) + ' ' + a(pending)); }
+  if (pending) { rows.push(a(pending) + ' .'); }
   return rows;
 }
 
@@ -487,8 +507,14 @@ function dashboardLayout(vis, order) {
      order has to be added in BOTH places or the dashboard and its editor disagree. That is
      exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
      alone: the preview reordered and the real page did not. */
-  var def = editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER));
-  var extraFull = supervisor ? ['speak'] : ['speak', 'extras'];
+  var def = extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)));
+  /* NO SMALL CARD GETS A FULL-WIDTH ROW ANY MORE (requested 2026-10-09: "do not allow any of
+     the buttons to span the full row"). This was `supervisor ? ['speak'] : ['speak','extras']`,
+     which made Speak -- and Extras for a communicator -- full-width showcase rows.
+     The CONTENT panels keep theirs: `fullWidth()` in packOrder still returns true for boards,
+     caseload, rooms, attention and org unconditionally. Those are panels, not buttons, and the
+     request was about the buttons. */
+  var extraFull = [];
   return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
 
