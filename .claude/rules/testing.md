@@ -57,9 +57,14 @@ setting to relax.
 
 ## Time
 
-- An assertion that compares against the clock runs at a fixed instant: `travel_to`
-  (`ActiveSupport::Testing::TimeHelpers`), placed away from any window boundary the code uses
-  (30 s TOTP windows, hourly or daily rollovers). Real `Time.now` near a boundary is a flake.
+- An assertion that compares against the clock runs at a fixed instant: `travel_to`, placed away
+  from any window boundary the code uses (30 s TOTP windows, hourly or daily rollovers). Real
+  `Time.now` near a boundary is a flake. `travel_to` is not available by default: add
+  `include ActiveSupport::Testing::TimeHelpers` to the describe block (as `spec/models/user_spec.rb`
+  does in `valid_2fa?`).
+- A fixed instant written into a record must not race the real clock. If the code compares that
+  value with one taken from `Time.now`, the result flips once the real date passes the fixed one;
+  write every value the comparison reads, or pin the clock for the whole example.
 
 ## Running and reading results
 

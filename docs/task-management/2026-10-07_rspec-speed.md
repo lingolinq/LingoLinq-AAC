@@ -343,7 +343,8 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   CLAUDE.md, AGENTS.md, .github/copilot-instructions.md.
 - Not fixed here, recorded: N2 shared-board cache race (see PR body), N3 skipped remote delete
   no longer lands in Resque's failed list, N4 dotenv's Rails hook can re-add `op://` values from
-  `.env` after the scrub, N5 SafeHttp DNS lookups are not covered by WebMock.
+  `.env` after the scrub (only in a test boot outside rspec: spec_helper requires dotenv before
+  Rails, and dotenv 3.1.8 installs its Rails hook only when Rails is already loaded), N5 SafeHttp DNS lookups are not covered by WebMock.
 
 ## N2: shared-board cache race (unit 1 committed; unit 2 open)
 
@@ -381,3 +382,117 @@ Goal: cut the wall time of the `rspec` CI job without weakening any spec (CLAUDE
   the Redis suffix isolates parallel runs (the test DB is still shared: 4 spurious User.create
   failures beside a full run); a verification grep matched "examples," and missed "1 example".
   All caught before commit.
+
+## Second adversarial review (commits c31c54f5c, 059d1f521) and its follow-ups
+
+- Verdict: do not block. The sharing.rb change strictly reduces stale serving and rebuilds.
+- Medium, fixed (Traci approved removal): the old clock-pinned microsecond example would have
+  failed every run from 2027-01-15 08:00 UTC (`date -u -d @1800000000`): since unit 1 its first
+  stamp comes from the real share time, not the pinned clock. Removed; the column-pinned example
+  ("rebuilds after a sharing change in the same hundredth of a second") covers the same precision.
+- Low, fixed: the stale-caller example now asserts the stale rebuild ran (its stored stamp_us is the
+  stale caller's); testing.md says `travel_to` needs `include ActiveSupport::Testing::TimeHelpers`
+  and warns against fixed instants racing the real clock; the new OpenSymbols example uses env_wrap.
+- Low, recorded, not fixed (separate unit): `UserLink.links_for` caches 24 h under
+  `updated_at.to_f.round(3)` (user_link.rb:97) and `touch_connections` never invalidates it, so a
+  sharing change within the same millisecond as the user's previous updated_at write can be read
+  from the old links. Same family as the precision bug, one layer down.
+- Low, not changed: CLAUDE.md says it is kept under 200 lines; it is 232 on develop, 233 here.
+  Pre-existing; trimming it is a governance edit for Scot.
+
+### Unit 2 red example (kept here so it cannot be lost; uncommitted in sharing_spec)
+
+Inside `describe "an unshare that commits while the list is being rebuilt"`:
+
+```ruby
+      it "is dropped when the unshare's jobs finish before the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2, run_jobs: true)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+```
+
+At 059d1f521 it fails on the last line: the rebuild's save restores the unshared board in
+`available_private_board_ids`. Since unit 1 the `?shared` list heals on the next read, so that list
+is no longer a symptom; the access list still is.
+
+## Unit 2: the rebuild no longer saves the caller's whole settings copy (uncommitted until run D)
+
+- Option B (move the cache to Redis) REJECTED after reading history: 680c09e47 (2019, "move share
+  cache from redis to db") moved it out of Redis the same day as 117de85de ("prevent storing large
+  data blocks in redis cache"); lists reach 10,000 ids. Reversing it risks Redis memory pressure.
+- Red first (all CONFIRMED red on 059d1f521): the unshare's job removes the board from
+  `available_private_board_ids` and the rebuild's save restores it; a preference saved by another
+  process mid-rebuild is wiped; the rebuild writes into the caller's in-memory settings.
+- Proposal A reviewed by the adversary agent before editing: no caller regressions (every caller
+  checked; the rebuild's save was never another caller's only save), same callbacks, no
+  transaction wraps a caller, single-row lock so no ordering deadlock.
+- Fix: the cache check reads with `dig` (no mutation); the entry is stored by
+  `Board.store_shared_board_ids_entry` onto `User.lock.find_by` inside a transaction, only the
+  entry changed, `save(touch: false)`. The caller's object is never changed or saved.
+- Falsified: reverting the fix turns exactly the 4 unit-2 examples red; removing only `.lock` turns
+  only the lock example red (it asserts `SELECT ... FOR UPDATE` on users precedes the UPDATE).
+  sharing_spec 62/0.
+- Review findings not acted on (Low): a stale caller still stores an entry that is already stale
+  (one extra row lock and settings re-encrypt; never serves stale); the row lock is held through
+  generate_defaults (Redis DEL, billing queries) with no lock_timeout (ms in normal operation).
+- NEW, reported by the review, NOT fixed, separate investigation (High, PLAUSIBLE, pre-existing
+  since 2019): org membership links (org_user/org_manager/org_supervisor) bump only updated_at in
+  `UserLink#touch_connections` (user_link.rb:19-23), not boards_updated_at, but the viewing list
+  includes private org home boards (sharing.rb:236-241). After a student is detached from an org,
+  the cached list (and the available_private_board_ids built from it, board_caching.rb:60) can keep
+  the former district's private home boards: cross-district access. Needs its own red test.
+- Run D (full suite with unit 2, guard on): 7,821 examples, 1 failure, 51 pending (17 min 6 s).
+  The failure, json_api/board_version_spec.rb:234 "should include button labels" (version [2]
+  action "updated", expected "modified buttons"), is NOT caused by unit 2: a tracer prepended to
+  Board recorded zero calls to all_shared_board_ids_for / store_shared_board_ids_entry across that
+  file, and the file passed 3/3 alone with unit 2 and 3/3 alone without it. Versions are ordered by
+  id (secure_serialize.rb user_versions), so not a timestamp tie. Earlier full runs on this branch
+  passed it. Intermittent in full order only; root cause not diagnosed (follow-up).
+
+## Board history labels: the run D failure, diagnosed and fixed (uncommitted until run E)
+
+- json_api/board_version_spec.rb:234 failed in run D only. CONFIRMED mechanism with a controlled
+  reproduction (travel_to gaps): edits 0.2 s apart label the admin edit "modified buttons", 2 s
+  apart "updated". Board#generate_defaults dropped an edit's own @edit_description whenever the
+  previously stored description was more than 1 s older (board.rb ~877-880). A real production
+  bug: in version history roughly every other ordinary edit showed "updated".
+- My first diagnosis (the check guards stale @buttons_changed-derived descriptions) was WRONG,
+  caught by the proposal review: the 1 s check is in the first public commit (869c59c2f, 2016);
+  the derived block came in 541e5c77b (2021). The check's purpose is undocumented, and it gives an
+  explicit description no protection (an older explicit timestamp makes it less likely to fire).
+- Fix: an @edit_description set for this save (process_params, update_privacy) is always kept;
+  the derived-from-@buttons_changed description keeps the old 1 s comparison unchanged. The
+  review's High: update_privacy stored notes as a String ('batch set to public') and build_json
+  calls .join on notes, so the history endpoint raised NoMethodError for that version; keeping the
+  description always would have made that certain. Fixed both ends: update_privacy stores an Array;
+  build_json uses Array(notes) for versions already stored with a String.
+- Red first, then falsified per piece: "keeps the description of an edit made seconds after the
+  previous described edit" (board_spec), "lists a version saved by the batch privacy change" and
+  "labels a version whose stored notes are a single String" (board_version_spec). The 2 s timing
+  reproduction now labels "modified buttons". board_spec + board_version_spec 310/0.
+- Follow-ups recorded, not fixed: derived labels (rollback, translated, swapped images,
+  suggested sounds) can still be dropped by the 1 s comparison; update_privacy's note says
+  "public" for private and unlisted too; inline suggested sounds reload the board inside
+  before_save (PLAUSIBLE loss of the outer save's settings).
+- Own errors this stretch: the stale-caller assertion that could not distinguish old from new
+  code (compared against an object the old code mutates); the wrong staleness diagnosis above.
+
+## Run E: 7,824 examples, 1 failure (a test bug, pre-existing)
+
+- sharing_spec.rb:814 expected `[b, b3, b4]` ids in creation order but compared them with a
+  `.sort`ed actual list; global ids are strings, so `["1_997","1_999","1_1000"].sort` is
+  `["1_1000","1_997","1_999"]`. It fails only when the example's ids straddle a digit boundary,
+  which depends on how many records earlier specs created (new specs moved it into range).
+  Fixed (Traci approved, this example only) with `contain_exactly`.
+- NOT fixed, recorded (Traci: no grand sweep): ~30 other assertions sort actual ids and compare
+  with an unsorted multi-id list (grep `\.sort)\.to eq(\[[a-z0-9_]+\.global_id`): sharing_spec
+  729/751/773/792/870, boards_controller_spec 304/529/766/821/936/999/1026, user_spec
+  2479/2501/2546, organization_spec 539/3320, subscription_spec 2167, lesson_spec 451,
+  word_data_spec 1022, organization_unit_spec 263, renaming_spec 331, sharing_spec 1107/1118.
+  Each can fail the same way when its ids cross 999/1000 or 9999/10000. Fix one at a time if seen.
