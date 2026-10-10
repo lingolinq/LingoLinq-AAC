@@ -87,6 +87,14 @@ class ShardCompareTest(unittest.TestCase):
         problems = self.check(short, tap(A, shard=(6, 10)), tap(B, shard=(4, 10)))
         self.assertIn("the full run has 9 result lines for 10 tests", problems)
 
+    def test_a_shard_log_with_surplus_result_lines_is_reported(self):
+        lines = tap(A, shard=(6, 10)).splitlines()
+        doubled = [l for l in lines if l.endswith(A[2])]
+        self.assertEqual(len(doubled), 1)
+        surplus = "\n".join(lines[:lines.index(doubled[0]) + 1] + doubled + lines[lines.index(doubled[0]) + 1:]) + "\n"
+        problems = self.check(tap(ALL), surplus, tap(B, shard=(4, 10)))
+        self.assertIn("shard 1 has 7 result lines for 6 tests", problems)
+
     def test_shard_totals_that_differ_from_the_full_run_are_reported(self):
         problems = self.check(tap(ALL + ["m10: test 10"]), tap(A, shard=(6, 10)), tap(B, shard=(4, 10)))
         self.assertIn("shards ran 10 tests, the full run 11", problems)
