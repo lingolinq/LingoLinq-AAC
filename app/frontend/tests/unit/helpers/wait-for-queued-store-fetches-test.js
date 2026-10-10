@@ -10,7 +10,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   setupTest(hooks);
 
   test('resolves only once no Ember Data fetch is still queued', async function(assert) {
-    assert.expect(3);
+    assert.expect(5);
     const store = this.owner.lookup('service:store');
     const adapter = store.adapterFor('application');
     const realFindRecord = adapter.findRecord;
@@ -19,9 +19,10 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
       store.findRecord('board', 'queued-fetch-probe').catch(function() {});
       const fetchManager = store._fetchManager;
       assert.true(fetchManager._pendingFetch.size > 0, 'the fetch is queued, not yet sent');
-      await waitForQueuedStoreFetches(this.owner);
+      assert.true(await waitForQueuedStoreFetches(this.owner), 'it reports that a fetch was still queued');
       assert.strictEqual(fetchManager._pendingFetch.size, 0, 'after the wait, nothing is still queued');
       assert.false(store.isDestroyed, 'and the store is still alive, so the send happened before teardown');
+      assert.false(await waitForQueuedStoreFetches(this.owner), 'with nothing queued it reports nothing');
     } finally {
       adapter.findRecord = realFindRecord;
     }

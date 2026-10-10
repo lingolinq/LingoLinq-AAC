@@ -9,8 +9,26 @@ import { isTesting } from '@ember/debug';
 import './helpers/apply-parallel-pool';
 // Fails a test that leaves state behind for later tests, or uses state an earlier test left behind.
 import './helpers/leak-check';
+import { set_owner_gone_listener } from 'frontend/utils/live_service';
 
 QUnit.config.testTimeout = 15000;
+
+// A deferred-work guard (owner_gone in app/utils/live_service.js) skips work whose app was torn down:
+// an earlier test scheduled it and did not wait. Skipping keeps it out of the current test, but it
+// must not be silent: each skip is logged with the test running when it fired, and the run ends with
+// a count. Reported, not failed: when the late work lands depends on timing.
+const ownerGoneSkips = [];
+set_owner_gone_listener(function() {
+  const current = QUnit.config.current;
+  const name = current ? `${current.module.name}: ${current.testName}` : '(between tests)';
+  ownerGoneSkips.push(name);
+  // eslint-disable-next-line no-console
+  console.warn(`[owner-gone] late work from an earlier test was skipped while running: ${name}`);
+});
+QUnit.done(function() {
+  // eslint-disable-next-line no-console
+  console.warn(`[owner-gone] ${ownerGoneSkips.length} piece(s) of late work skipped after their app was torn down`);
+});
 // Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+
 // DOM nodes and every later test slowed with them (per-test floor ~40 ms -> ~1.5 s in CI;
 // suite 46.9 -> 20.3 min with this set). Failed tests are still listed.

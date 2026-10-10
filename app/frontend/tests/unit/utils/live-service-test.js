@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { live_service, owner_gone } from 'frontend/utils/live_service';
+import { live_service, owner_gone, set_owner_gone_listener } from 'frontend/utils/live_service';
 
 /*
  * owner_gone(owner) is the test the deferred-work guards use. It is true only when an owner was
@@ -23,5 +23,22 @@ module('Unit | Utility | live_service', function() {
     assert.false(owner_gone(null), 'nothing captured is not gone');
     owner.destroy();
     assert.true(owner_gone(owner), 'a destroyed owner is gone');
+  });
+
+  test('the harness listener hears only a torn-down owner', function(assert) {
+    assert.expect(2);
+    const heard = [];
+    const previous = set_owner_gone_listener(() => heard.push(1));
+    try {
+      const owner = EmberObject.create();
+      owner_gone(owner);
+      owner_gone(undefined);
+      assert.strictEqual(heard.length, 0, 'a live or missing owner is not reported');
+      owner.destroy();
+      owner_gone(owner);
+      assert.strictEqual(heard.length, 1, 'a torn-down owner is reported');
+    } finally {
+      set_owner_gone_listener(previous); // the harness listener stays in place for later tests
+    }
   });
 });

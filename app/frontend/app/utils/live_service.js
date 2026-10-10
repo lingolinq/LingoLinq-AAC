@@ -15,5 +15,17 @@ export function live_service(svc) {
    stopped switch scanning restarting after a selection (scanner.appState is unset when the
    highlight controller set the scanner up). */
 export function owner_gone(owner) {
-  return !!owner && !live_service(owner);
+  var gone = !!owner && !live_service(owner);
+  if(gone && owner_gone_listener) { owner_gone_listener(); }
+  return gone;
+}
+
+/* Test builds only: the harness (tests/test-helper.js) registers a listener so each piece of late
+   work a guard skipped is reported (it was scheduled by an earlier test that did not wait for it).
+   Nothing in the app sets it, so in production this is never called. */
+var owner_gone_listener = null;
+export function set_owner_gone_listener(fn) {
+  var previous = owner_gone_listener;
+  owner_gone_listener = fn || null;
+  return previous; // so a test can put the harness listener back
 }
