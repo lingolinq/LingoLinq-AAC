@@ -3,7 +3,7 @@ import RSVP from 'rsvp';
 import {
   describe,
   it,
-  afterEach,
+  afterEach, beforeEach,
   expect,
   waitsFor,
   runs,
@@ -70,7 +70,11 @@ describe('waitsFor timeout', function() {
 // the tests after it and a single problem shows up as a cascade of failures.
 describe('harness timeout cleanup', function() {
   var cleaned_up_after = [];
+  var started = [];
   var cleanup_seen_by_next_test = null;
+  beforeEach(function() {
+    started.push(currentAssert() ? currentAssert().test.testName : 'unknown');
+  });
   afterEach(function() {
     cleaned_up_after.push(currentAssert() ? currentAssert().test.testName : 'unknown');
   });
@@ -88,8 +92,10 @@ describe('harness timeout cleanup', function() {
   });
 
   it('runs that test\'s afterEach hooks before the next test starts', function() {
+    // Every test of this module that started before this one has had its afterEach run (counted, not
+    // assumed, so the test also holds when run alone with --filter).
     cleanup_seen_by_next_test = cleaned_up_after.slice();
-    expect(cleanup_seen_by_next_test.length).toEqual(1);
+    expect(cleanup_seen_by_next_test.length).toEqual(started.length - 1);
   });
 });
 
@@ -126,7 +132,9 @@ describe('late assertion reporting', function() {
     });
     var reported = [];
     var fake = { ok: function(result, message) { reported.push([result, message]); } };
-    (QUnit.config.globalHooks.beforeEach || []).forEach(function(hook) { hook.call({}, fake); });
+    // Only this hook: running every global hook with a fake assert would also re-snapshot the leak check.
+    expect((QUnit.config.globalHooks.beforeEach || []).includes(lateAssertionTesting.globalHook)).toEqual(true);
+    lateAssertionTesting.globalHook.call({}, fake);
     expect(reported.length).toEqual(1);
     expect(reported[0][0]).toEqual(false);
     expect(/another late value/.test(reported[0][1])).toEqual(true);

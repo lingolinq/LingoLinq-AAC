@@ -105,7 +105,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
         var pollAttempts = 0;
         var pollUntilIdle = function() {
           if ((waiting[current_test_id] || 0) === 0) {
-            // No post-test pause: every test now waits for or stops its own async work (see .claude/rules/testing.md section 5).
+            var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0; // the general post-test settle, unchanged from develop (kept per Traci, commit c57256633)
             var runCleanup = function() {
               emberRun(function() {
                 cancelHarnessAsyncWork();
@@ -117,7 +117,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
                 if (typeof LingoLinq !== 'undefined') { LingoLinq.sync_testing = false; }
               });
             };
-            runCleanup();
+            if (settleMs > 0) { setTimeout(runCleanup, settleMs); } else { runCleanup(); }
           } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55) || (wait_deadlines[current_test_id] && pollAttempts < WAIT_POLL_LIMIT && Date.now() < wait_deadlines[current_test_id] + 500)) {
             pollAttempts++;
             var delay = pollAttempts < 10 ? 10 : 100;
@@ -642,7 +642,7 @@ function reportLateAssertions(current) {
 }
 // Report into EVERY test, not only the Jasmine-style ones: a late call followed by a plain QUnit
 // test (or by no further Jasmine-style test in a shard) would otherwise only be logged.
-QUnit.hooks.beforeEach(function(current) { reportLateAssertions(current); });
+var reportLateAssertionsHook = function(current) { reportLateAssertions(current); }; QUnit.hooks.beforeEach(reportLateAssertionsHook); // named so a test can call only this hook
 
 // Two app pollers check connectivity every 30 s of WALL-CLOCK time and rewrite persistence's
 // `online` flag to match the browser (app/services/persistence.js _setupOnlineListeners, and the
@@ -680,7 +680,7 @@ QUnit.hooks.beforeEach(stopAuthSyncPoller);
 var lateAssertionTesting = {
   pending: function() { return late_assertions.slice(); },
   withoutAssert: function(callback) { var saved = assert; assert = null; try { callback(); } finally { assert = saved; } },
-  report: reportLateAssertions
+  report: reportLateAssertions, globalHook: reportLateAssertionsHook
 };
 
 // Placed after every line-anchored ESLint baseline row in this file on purpose; ES imports are hoisted.
@@ -690,8 +690,8 @@ import capabilities from '../../utils/capabilities';
 
 export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert, lateAssertionTesting, stopOnlinePollers, stopAuthSyncPoller};
 
-// There used to be a fixed 500 ms pause after every sync-mode test, so async work a test had
-// scheduled ran inside it instead of inside the next test. It is gone: each module's leftover work
-// was traced with a crossing probe (task log 2026-10-05_ci-test-stalls.md, session 5) and fixed at
-// its source, so tests wait for or stop their own timers. A test that needs a pause has a leak;
-// the leak check, late-assertion reporting and .claude/rules/testing.md section 7 are how to find it.
+// The 500 ms pause after every sync-mode test (in test_wrap) holds cleanup back so async work a test
+// scheduled runs inside it instead of inside the next test. It is the general settle develop has,
+// kept per Traci's instruction (commit c57256633: removing it is a follow-up, not part of this PR).
+// Leftover work each module scheduled was also traced (task log 2026-10-05_ci-test-stalls.md,
+// session 5) and fixed at its source; the leak check and late-assertion reporting still run.
