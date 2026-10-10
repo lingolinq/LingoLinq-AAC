@@ -133,6 +133,10 @@ class CoverageTest(unittest.TestCase):
         self.assertIn("shard selections add up to 12, but 10 tests are registered", problems)
         self.assertIn("run by more than one shard (shard 1, shard 2): %s" % A[0], problems)
 
+    def test_selections_that_leave_a_test_in_no_shard_fail(self):
+        problems = self.cover(tap(A, shard=(6, 10)), tap(B[:3], shard=(3, 10)))
+        self.assertIn("shard selections add up to 9, but 10 tests are registered", problems)
+
     def test_a_test_in_both_shards_fails_even_when_the_counts_add_up(self):
         a_with_overlap = A[:-1] + [B[0]]  # A[-1] dropped, B[0] doubled: counts still 6 + 4
         problems = self.cover(tap(a_with_overlap, shard=(6, 10)), tap(B, shard=(4, 10)))
