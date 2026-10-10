@@ -643,6 +643,31 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 self.assertEqual(run.returncode == 0, ok, run.stderr)
                 self.assertEqual("state=failure" in calls, not ok, calls)
 
+    def test_the_review_refuses_to_run_until_the_environment_restricts_deployment_branches(self):
+        # The codex-review environment isolates the secrets only once it restricts which branches
+        # may deploy to it (README "Admin preconditions"); until then a run must fail closed.
+        script = extract_step_run("Require the codex-review environment to restrict deployment branches")
+        cases = {
+            # name: (what GET environments/codex-review answers, should pass)
+            "environment missing": ("missing", False),
+            "no deployment branch rule": ("null", False),
+            "rule that restricts nothing": ('{"protected_branches":false,"custom_branch_policies":false}', False),
+            "protected branches only": ('{"protected_branches":true,"custom_branch_policies":false}', True),
+            "custom branch policies": ('{"protected_branches":false,"custom_branch_policies":true}', True),
+        }
+        for name, (answer, ok) in cases.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                install_fake(bin_dir, "gh", ENVIRONMENT_GH)
+                run = run_step(localize(script, tmp), tmp, bin_dir, extra_env={
+                    "FAKE_ENVIRONMENT": answer, "HEAD_SHA": "a" * 40,
+                    "RUN_URL": "https://run/1", "GITHUB_REPOSITORY": "o/r", "GH_TOKEN": "t",
+                })
+                calls = (pathlib.Path(tmp) / "gh-calls").read_text() if (pathlib.Path(tmp) / "gh-calls").exists() else ""
+                self.assertEqual(run.returncode == 0, ok, run.stderr)
+                self.assertEqual("state=failure" in calls, not ok, calls)
+
     def test_status_final_resolves_every_review_job_result_to_a_terminal_failure(self):
         # The step uses jq, as on GitHub's runners. Fail clearly rather than through its retry sleeps.
         self.assertIsNotNone(shutil.which("jq"), "jq is required to run this step (preinstalled on GitHub runners)")
@@ -967,6 +992,23 @@ if any("/commits/" in a for a in args):
 else:
     with (pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls").open("a") as handle:
         handle.write(" ".join(args) + "\\n")
+'''
+
+# GET environments/codex-review as the deployment-branch check sees it: FAKE_ENVIRONMENT is the
+# deployment_branch_policy value (JSON), or "missing" for a 404; status writes are recorded.
+ENVIRONMENT_GH = r'''#!/usr/bin/env python3
+import os, pathlib, sys
+args = sys.argv[1:]
+joined = " ".join(args)
+if "/environments/" in joined:
+    answer = os.environ["FAKE_ENVIRONMENT"]
+    if answer == "missing":
+        sys.stderr.write("gh: Not Found (HTTP 404)\\n")
+        sys.exit(1)
+    print('{"id":1,"name":"codex-review","protection_rules":[],"deployment_branch_policy":%s}' % answer)
+else:
+    with (pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls").open("a") as handle:
+        handle.write(joined + "\\n")
 '''
 
 # The PR and compare APIs as the base_sha binding sees them; status writes are recorded.

@@ -80,6 +80,7 @@ jobs:
     permissions:
       statuses: write
       pull-requests: read
+      actions: read  # GET environments/codex-review (deployment-branch check below)
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -125,6 +126,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REVIEWER_ROUTE: ${{ inputs.reviewer_route }}
+
+      - name: Require the codex-review environment to restrict deployment branches
+        # README "Admin preconditions": the codex-review environment isolates the review secrets
+        # only once it restricts which branches may deploy to it. Read through the API, so no
+        # secret is touched here (status jobs never read secrets). Fails closed while the
+        # environment is missing, unreadable, or open to every branch. Deleting the
+        # repository-level copies of the secrets cannot be checked from this workflow: that stays
+        # an admin step.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fail() {
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="$1" \
+              -f target_url="${RUN_URL}"
+            echo "::error::$1" >&2
+            exit 1
+          }
+          gh api "repos/${GITHUB_REPOSITORY}/environments/codex-review" > /tmp/codex-review-environment.json \
+            || fail "codex-review environment missing or unreadable (admin precondition)"
+          python3 -I -c 'import json, sys; p = json.load(open(sys.argv[1])).get("deployment_branch_policy") or {}; sys.exit(0 if p.get("protected_branches") or p.get("custom_branch_policies") else 1)' \
+            /tmp/codex-review-environment.json \
+            || fail "codex-review environment allows every branch (admin precondition)"
 
       - name: Bind pr_number to head_sha (refuse a stale/mismatched W1 dispatch)
         # Codex review flagged that pr_number and head_sha were trusted

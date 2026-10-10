@@ -277,7 +277,11 @@ The review job runs PR content only as data:
   `CODEX_OPENAI_API_KEY`, `CLAUDE_REVIEW_API_KEY`,
   `N8N_CODEX_RESULTS_WEBHOOK_URL` and `N8N_CODEX_RESULTS_HMAC_SECRET` into the
   environment and deletes the repository-level copies, and (3) rotates all
-  four. Until then the workflow runs exactly as before on that front.
+  four. Step (1) is enforced: `status-pending` reads the environment through
+  the API and fails the run (failure status, no review) while it is missing or
+  open to every branch. Steps (2) and (3) cannot be checked from the workflow
+  (that would mean reading secrets outside the environment, and a modified copy
+  of the workflow would drop the check anyway), so they stay admin actions.
 - Three jobs: `status-pending` posts the pending anchor, `codex-review` holds
   the environment and does the review, and `status-final` (`always()`)
   resolves deep-pass from the review job's result. The two status jobs hold no
