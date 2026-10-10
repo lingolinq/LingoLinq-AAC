@@ -682,6 +682,54 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 self.assertRegex(f"Guard\n        {key} false\n        run: x", GUARD_IF_RE)
         self.assertNotRegex("Guard\n        run: echo 'if: x'\n        env:\n          SHIFT: 1", GUARD_IF_RE)
 
+    # A denylist of `if` spellings cannot be complete: YAML also reads `"i\x66":`, `!!str if:`, the
+    # explicit `? if` / `: false` form, and `- if: false` written before `name:`. So the
+    # status-pending job is allowlisted instead: exactly these job keys, exactly these six guard
+    # steps in order, and on each step only keys that cannot skip it or let it fail softly. Every
+    # line the YAML could read as a job or step key must match (round 3b, 2026-10-10).
+    STATUS_PENDING_JOB_KEYS = ["runs-on", "timeout-minutes", "permissions", "steps"]
+    STATUS_PENDING_STEPS = [
+        "Validate head_sha", "Set codex-review/deep-pass = pending", "Validate remaining inputs",
+        "Require the codex-review environment to restrict deployment branches",
+        "Bind pr_number to head_sha", "Bind base_sha to the PR's base branch",
+    ]
+    GUARD_STEP_KEYS = {"name", "id", "env", "run"}
+
+    def test_status_pending_holds_exactly_its_guard_steps_with_allowlisted_keys(self):
+        text = WORKFLOW.read_text()
+        job = text.split("\n  status-pending:\n", 1)[1].split("\n  codex-review:\n", 1)[0]
+        job_keys, steps, in_steps = [], [], False
+        for line in job.splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            indent = len(line) - len(line.lstrip(" "))
+            if indent > 8 or (indent == 6 and not in_steps):
+                continue  # inside a value (a run block, env, permissions)
+            with self.subTest(line=line):
+                if indent == 4:
+                    match = re.fullmatch(r"    ([a-z-]+):( .*)?", line)
+                    self.assertIsNotNone(match, "a job-level line that is not a plain key")
+                    job_keys.append(match.group(1))
+                    in_steps = match.group(1) == "steps"
+                elif indent == 6:
+                    match = re.fullmatch(r"      - name: (.+)", line)
+                    self.assertIsNotNone(match, "a step that does not open with its name")
+                    steps.append({"name": match.group(1), "keys": ["name"]})
+                elif indent == 8:
+                    match = re.fullmatch(r"        ([a-z-]+):( .*)?", line)
+                    self.assertIsNotNone(match, "a step line that is not a plain key")
+                    self.assertTrue(steps, "a step key before the first step")
+                    steps[-1]["keys"].append(match.group(1))
+                else:
+                    self.fail("a line outside the job, step and value indents")
+        self.assertEqual(job_keys, self.STATUS_PENDING_JOB_KEYS)
+        self.assertEqual(len(steps), len(self.STATUS_PENDING_STEPS), [step["name"] for step in steps])
+        for step, expected in zip(steps, self.STATUS_PENDING_STEPS):
+            with self.subTest(step=expected):
+                self.assertTrue(step["name"].startswith(expected), step["name"])
+                self.assertLessEqual(set(step["keys"]), self.GUARD_STEP_KEYS, step["keys"])
+                self.assertEqual(len(step["keys"]), len(set(step["keys"])), "a key appears twice")
+
     def test_the_review_refuses_to_run_until_the_environment_restricts_deployment_branches(self):
         # The codex-review environment isolates the secrets only once it restricts which branches
         # may deploy to it (README "Admin preconditions"); until then a run must fail closed.
