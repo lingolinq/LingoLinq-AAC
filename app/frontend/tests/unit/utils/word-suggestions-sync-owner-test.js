@@ -12,8 +12,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 module('Unit | Utility | word_suggestions sync flush after its app is gone', function(hooks) {
   standInGlobals(hooks, { appState: () => EmberObject.create({}) });
-  hooks.beforeEach(async function() {
-    for (let i = 0; i < 70 && word_suggestions.sync_flush_scheduled(); i++) { await wait(100); } // an earlier flush must finish first
+  hooks.beforeEach(function() {
     this.flushes = 0;
     this.savedFlush = Object.getOwnPropertyDescriptor(word_suggestions, 'flush_sync_queue');
     word_suggestions.flush_sync_queue = () => { this.flushes++; };
@@ -30,6 +29,17 @@ module('Unit | Utility | word_suggestions sync flush after its app is gone', fun
     word_suggestions.schedule_sync_flush();
     await wait(60);
     assert.strictEqual(this.flushes, 1, 'flushed once');
+  });
+
+  // Earlier tests cancel the flush they schedule (record_selection), so none is pending here; a
+  // cancelled flush never runs.
+  test('a cancelled flush does not run', async function(assert) {
+    assert.expect(3);
+    assert.false(word_suggestions.sync_flush_scheduled(), 'no earlier flush is pending');
+    word_suggestions.schedule_sync_flush();
+    assert.true(word_suggestions.cancel_sync_flush(), 'it was pending and is cancelled');
+    await wait(60);
+    assert.strictEqual(this.flushes, 0, 'not flushed');
   });
 
   test('the flush does not run once its app is gone', async function(assert) {

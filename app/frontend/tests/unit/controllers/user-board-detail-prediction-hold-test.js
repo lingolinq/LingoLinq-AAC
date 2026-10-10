@@ -74,6 +74,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     restore.reverse().forEach(([obj, key, value]) => { obj[key] = value; });
     restore = [];
     document.querySelectorAll('.qa-pred-fixture').forEach((n) => n.remove());
+    wordSuggestions.cancel_sync_flush(); // record_selection schedules a 5 s usage-sync flush: do not leave it for the next test
   });
 
   test('a resolved symbol is replayed onto later lookups of the same word', function(assert) {

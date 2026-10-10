@@ -37,4 +37,35 @@ module('Unit | Utility | persistence online pollers', function(hooks) {
       window.persistence = savedWindowPersistence;
     }
   });
+
+  // The harness stops the real poller, so the production path it drives is pinned here with its tick
+  // captured and fired by hand. A token check that hit a network error marks persistence offline
+  // (session.check_token) while the browser still reports online; the next tick puts it back online.
+  // This records current production behaviour (2026-10-10 review); whether that recovery is intended
+  // is an owner decision noted on PR #1110.
+  test('a tick after a network-error token check puts persistence back online while the browser is online', function(assert) {
+    const service = this.owner.lookup('service:persistence');
+    const savedOnline = service.get('online');
+    const savedSetInterval = window.setInterval;
+    const savedOverride = navigator.online_override;
+    let tick = null;
+    assert.expect(2);
+    try {
+      window.setInterval = (fn, ms) => { if (ms === 30000) { tick = fn; return 0; } return savedSetInterval(fn, ms); };
+      service._setupOnlineListeners();
+      window.setInterval = savedSetInterval;
+      assert.strictEqual(typeof tick, 'function', 'the 30 s poller tick was captured, not scheduled');
+
+      navigator.online_override = true; // the browser reports online
+      service.set('online', false); // what check_token does on a network error
+      tick();
+      assert.true(service.get('online'), 'the tick restored online');
+    } finally {
+      window.setInterval = savedSetInterval;
+      if (service._online_check_interval) { clearInterval(service._online_check_interval); }
+      service._online_check_interval = null;
+      navigator.online_override = savedOverride;
+      service.set('online', savedOnline);
+    }
+  });
 });

@@ -19,12 +19,6 @@ function fakeAppState() {
 module('Unit | Utility | utterance deferred suggestions refresh', function(hooks) {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // An earlier test may have left its own 100 ms refresh pending (its owner can still be live, e.g. a
-  // stand-in). Let it fire BEFORE this test's stand-in app is installed (beforeEach hooks run in
-  // registration order), so it cannot be counted here.
-  hooks.beforeEach(async function() {
-    await wait(120);
-  });
   standInGlobals(hooks, {
     appState: fakeAppState,
     stashes: () => EmberObject.create({ persist() {}, persist_object() {} })
