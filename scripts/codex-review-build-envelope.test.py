@@ -257,6 +257,64 @@ class BinaryContentTest(unittest.TestCase):
                 with self.subTest(extension=extension, disguise=disguise[:16]):
                     self.assertFalse(signature(disguise))
 
+    # Disguises generated from every genuine start rather than picked by hand (2026-10-10, round 3b):
+    # each sample with its binary bytes turned into text of the same length (so every magic stays at
+    # its offset), and each sample's leading magic on its own, followed by code and the NUL that makes
+    # git treat the file as binary. Ruby stops reading at the NUL, so all of the code runs.
+    CODE = b"=1;system('echo pwned')\n\x00"
+
+    @staticmethod
+    def _textified(sample, fill):
+        out, run = bytearray(), 0
+        for byte in sample + b"\x00":
+            if byte in b"\t\n\r" or 0x20 <= byte < 0x7F:
+                if run:
+                    # Whole characters only: a cut UTF-8 character is not text (Ruby refuses it).
+                    out += fill * (run // len(fill)) + b"x" * (run % len(fill))
+                    run = 0
+                if byte:
+                    out.append(byte)
+            else:
+                run += 1
+        return bytes(out[:len(sample)])
+
+    def generated_disguises(self):
+        disguises = {}
+        for extension, starts in self.GENUINE.items():
+            for start in starts:
+                magic = self._textified(start, b"\x00").split(b"\x00", 1)[0]
+                fills = {"letters": b"x", "whitespace": b"\t\n\r ", "utf-8": "\u00e9".encode()}
+                for name, fill in fills.items():
+                    text = self._textified(start, fill)
+                    disguises[f"{extension} {start[:8]!r} as {name}"] = text + self.CODE
+                disguises[f"{extension} magic {magic!r}"] = magic + self.CODE
+                disguises[f"{extension} magic {magic!r} + utf-8"] = magic + "\u00e9".encode() + self.CODE
+        # The round-3 review's probes (scratchpad sigprobe.py), kept as written.
+        disguises.update({
+            "probe gif": b"GIF89a=1;system('echo PWNED-gif')\n\x00",
+            "probe woff": b"wOFF=1;system('echo PWNED-woff')\n\x00",
+            "probe woff2": b"wOF2=1;system('echo PWNED-woff2')\n\x00",
+            "probe ogg": b"OggS=1;system('echo PWNED-ogg')\n\x00",
+            "probe aac": b"ADIF=1;system('echo PWNED-aac')\n\x00",
+            "probe flac": b"fLaC=1;system('echo PWNED-flac')\n\x00",
+            "probe webp": "RIFF\u00e9\u00e9WEBP=1;system('echo PWNED-webp')\n".encode() + b"\x00",
+            "probe wav": "RIFF\u00e9\u00e9WAVE=1;system('echo PWNED-wav')\n".encode() + b"\x00",
+            "probe pdf": b"%PDF-1.7\n;system('echo PWNED-pdf');\n__END__\n\x00",
+            # A control byte inside a comment passes the 20-byte check (it runs as Ruby); the RIFF
+            # size field, read as UTF-8 text, still gives these away.
+            "riff webp comment": "RIFF\u00e9\u00e9WEBP=1#".encode() + b"\x01\nsystem('id')\n\x00",
+            "riff wav comment": "RIFF\u00e9\u00e9WAVE=1#".encode() + b"\x01\nsystem('id')\n\x00",
+        })
+        return disguises
+
+    def test_no_type_accepts_its_own_start_turned_into_text_and_code(self):
+        disguises = self.generated_disguises()
+        self.assertGreater(len(disguises), 100)
+        for name, disguise in disguises.items():
+            for extension, signature in build_envelope.BINARY_SIGNATURES.items():
+                with self.subTest(disguise=name, extension=extension):
+                    self.assertFalse(signature(disguise[:1024]))
+
     # Formats that share a container must still tell each other apart.
     def test_a_container_holding_another_format_is_not_accepted(self):
         # An MP3 opens with the same ID3 tag a FLAC may carry; only fLaC after the tag makes it FLAC.

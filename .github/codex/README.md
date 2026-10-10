@@ -179,8 +179,19 @@ that type: the envelope takes the list of binary files from git itself
 (`git diff --numstat -z`, so a name containing " and " cannot point the check
 at another file), reads the first bytes of each such file at the PR head
 (`--binary-content-at`), and withholds an APPROVE, naming the files, when they
-do not start like the type (a `.png` holding code, a "PDF" that is a CSV) or
-cannot be read.
+do not start like the type or cannot be read. "Start like the type" means the
+type's magic and header fields, plus a byte that script text cannot hold (NUL,
+another control byte, or a byte outside valid UTF-8) within the first 20 bytes,
+which every real media file in this repo has. So a `.png` that is plain code, a
+"PDF" that is a CSV, and a script that opens with a format's magic
+(`GIF89a=1;system(...)`) are withheld. This is a heuristic, not a parser:
+
+- a script that puts such a byte early still passes, for example a NUL right
+  after very short code, or a control byte inside a comment followed by more
+  code on the next line (`GIF89a=1#<0x01>` then code);
+- a PDF whose first 20 bytes after any BOM or whitespace are all text (no
+  binary comment line, or one written in valid UTF-8) is withheld, which costs
+  a human look.
 
 That list is made with rename detection off, so for a binary file that is not
 an expected type a pure rename, a move or a mode-only change also withholds an
