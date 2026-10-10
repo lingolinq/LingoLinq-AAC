@@ -37,7 +37,8 @@
 # EXIT CODES
 #   0  classified; the route above was written
 #   3  nothing was classified: a git diff failure, an empty diff, a git-quoted
-#      path the patterns cannot read, or a grep failure. No route is written and
+#      path the patterns cannot read, a grep failure, or (on a route to a
+#      reviewer) a path that is not valid UTF-8. No route is written and
 #      the step fails, so the job stops before any reviewer runs (fail closed).
 #
 # ENV
@@ -154,6 +155,16 @@ elif [ "$compliance_path" = "true" ] && [ "$CODEX_COMPLIANCE_PATHS" = "block" ];
   reviewer_route="claude-deep"
 else
   reviewer_route="codex"
+fi
+
+# A route that sends the diff to a reviewer hands it names that are read as UTF-8
+# (core.quotepath=false writes them raw; codex-review-assemble-prompt.py read_required
+# decodes strictly), so a name that is not UTF-8 would crash the reviewer steps. Stop here
+# instead. A blocked diff reaches no reviewer and keeps its route. iconv failing for any
+# reason, missing included, fails closed too.
+if [ "$reviewer_route" != "blocked" ]; then
+  printf '%s\n' "$paths" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 \
+    || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
 fi
 
 {

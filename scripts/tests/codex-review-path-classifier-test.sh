@@ -285,6 +285,24 @@ report ERR3 'git diff fails (unknown head)'
 stub_case ERR3 'empty listing from git (stubbed git)' ''
 stub_case ERR3 'git diff exits non-zero after printing paths (stubbed git)' $'README.md\n' 128
 stub_case ERR3 'git-quoted path (stubbed git)' $'README.md\n"db/language/en/a\\tb.json"\n'
+# The reviewer steps read the names as UTF-8 (codex-review-assemble-prompt.py read_required), so a
+# name that is not UTF-8 would crash them; it must stop here instead. A data-bearing name of the
+# same shape stays blocked (the db/migrate case above). Control: a valid non-ASCII name still routes.
+head="$(commit_paths $'app/models/caf\351.rb')"
+classify "$BASE" "$head"
+report ERR3 'app/models/caf<0xe9>.rb (Latin-1 name)'
+head="$(commit_paths $'docs/legal/caf\351.md')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report ERR3 'docs/legal/caf<0xe9>.md with CODEX_COMPLIANCE_PATHS=block'
+real_case codex 'app/models/café.rb'
+# The UTF-8 check must fail closed when the checker itself fails.
+ICONV_STUB="$WORK/iconv-stub"
+mkdir -p "$ICONV_STUB"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$ICONV_STUB/iconv"
+chmod +x "$ICONV_STUB/iconv"
+head="$(commit_paths 'app/models/user.rb')"
+classify "$BASE" "$head" PATH="$ICONV_STUB:$PATH"
+report ERR3 'iconv fails during the UTF-8 check'
 # Its own directory: $STUBS still holds the git stub, which would turn this case into
 # the empty-listing case above and prove nothing about grep.
 GREP_STUB="$WORK/grep-stub"
