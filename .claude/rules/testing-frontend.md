@@ -136,13 +136,17 @@ cache what they return across tests, and do not treat "destroyed once" as "destr
 forwarding util (`utils/app_state`, `utils/persistence`, `utils/_stashes`, `modal`) acts on whichever
 app is current WHEN IT FIRES, not the one that scheduled it. Capture the owner when scheduling
 (`var owner = live_service(LingoLinq.appState)`) and return early at fire time if
-`!live_service(owner)`. That includes work scheduled while no app was live: it has no owner, so it
-does not run (letting it through means it runs against whichever app, dead or alive, is current
-later). Every later step the callback schedules carries the same owner (a follow-up beep, a retry).
-Only work that does not belong to an app (audio playback already started) skips the guard when it
-has no owner. Do not "fix" this by cancelling timers at teardown: a cancelled app timer silently
-drops any assertion downstream of it (a test that forgot to wait then passes) and can leave a flag
-that only its own callback clears stuck for the rest of the run.
+`owner_gone(owner)` (`app/utils/live_service.js`): true only when an owner WAS captured and has
+since been torn down. Never write the guard as `if(!live_service(owner)) return;`: that also returns
+when nothing was captured, and work scheduled with no owner is legitimate (the highlight controller
+sets up the scanner without an `appState`; that guard stopped switch scanning restarting after a
+selection). Work scheduled with no owner therefore runs, and the harness does not report it. Every
+skip `owner_gone` makes is logged as `[owner-gone]` with the test that was running, because it means
+an earlier test scheduled work and did not wait for it. Every later step the callback schedules
+carries the same owner (a follow-up beep, a retry). Do not "fix" this by cancelling timers at
+teardown: a cancelled app timer silently drops any assertion downstream of it (a test that forgot to
+wait then passes) and can leave a flag that only its own callback clears stuck for the rest of the
+run.
 
 **Hooks start work too.** Restoring observed state in an `afterEach` (setting a property an observer
 watches) re-runs the observer, which can schedule deferred work owned by this test's stand-in. A
