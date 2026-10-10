@@ -124,7 +124,10 @@
    THE CONTENT KEEPS ITS INSET -- `.md-hero--org` carries its own top padding (20px, and 28px
    above 1200px where more room was asked for earlier the same week), so removing the
    workspace's padding moves the block up without pushing the title against the card edge. */
-/* `--board-picker` ADDED 2026-10-09, when that page gained the same rail. Stated as a second
+/* `.la-system-settings .la-main` ADDED 2026-10-10, when System Settings gained the rail. Its
+   page has no `.md-shell`; `main.la-main` is the flex column the rail and the workspace share,
+   and `.la-system-settings` appears only in templates/system-settings.hbs, so nothing else moves.
+   `--board-picker` ADDED 2026-10-09, when that page gained the same rail. Stated as a second
    selector rather than generalised to `.md-shell:has(> .ch-rail)`, which would read better but
    would ALSO newly match templates/organization.hbs -- it carries `md-shell--org` (not
    `--org-directory`) and mounts a rail, so a generic selector would change that page's layout
@@ -136,8 +139,21 @@ body.ll-view-basic .md-shell--board-picker {
   gap: 24px;
   padding: 80px 28px 24px !important;
 }
+/* SYSTEM SETTINGS: the same row, its own top. Its page is `.la-wrapper`, a FIXED full-viewport
+   overlay that starts at y=0 under the app header, where the shells above flow BELOW it. The rail
+   sits header + 24px down on Organizations at every width (measured 2026-10-10: 70+24=94 from
+   768px up, 114+24=138 at 767px and below), so this main's top is header + 36: the 24px gap plus
+   the rail's own -12px top margin. The header height is 70px / 114px either side of 768px; the
+   <=767px step is in the media block below. */
+body.ll-view-basic .la-system-settings .la-main {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 106px 28px 24px !important;
+}
 body.ll-view-basic .md-shell--org-directory > .md-workspace,
-body.ll-view-basic .md-shell--board-picker > .md-workspace {
+body.ll-view-basic .md-shell--board-picker > .md-workspace,
+body.ll-view-basic .la-system-settings .la-main > .md-workspace {
   flex: 1 1 auto !important;
   min-width: 0;
   margin-top: 0 !important;
@@ -223,13 +239,24 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-main--org {
    126 -> 90). The 80px above now holds at every width, as `.ch-page`'s own does. */
 /* Stacks at the same width `.ch-page` stacks. */
 @media (max-width: 900px) {
-  body.ll-view-basic .md-shell--org-directory {
+  body.ll-view-basic .md-shell--org-directory,
+  body.ll-view-basic .la-system-settings .la-main {
     flex-direction: column !important;
   }
 }
 /* Sides narrow with `.ch-page`'s, top left alone. */
 @media (max-width: 767px) {
   body.ll-view-basic .md-shell--org-directory {
+    padding-right: 22px !important;
+    padding-left: 22px !important;
+    padding-bottom: 28px !important;
+  }
+}
+/* System Settings at <=767px: the header is 114px here, so the top is 114 + 36 (see above);
+   sides narrow like the directory's. */
+@media (max-width: 767px) {
+  body.ll-view-basic .la-system-settings .la-main {
+    padding-top: 150px !important;
     padding-right: 22px !important;
     padding-left: 22px !important;
     padding-bottom: 28px !important;

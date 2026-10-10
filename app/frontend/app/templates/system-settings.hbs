@@ -1,6 +1,12 @@
 <div class="la-wrapper la-wrapper--pricing la-wrapper--support la-system-settings">
   <div class="app-shell">
     <main class="la-main">
+      {{!-- Basic only: the rail beside every settings page, as on Organizations. A direct
+           child of `.la-main` so _classic-home.scss can turn this one page's main into a row;
+           Modern renders exactly as before. --}}
+      {{#if this.isBasicView}}
+        <Dashboard::ClassicRail />
+      {{/if}}
       <div class="md-workspace md-workspace--support">
         <section class="la-section la-system-settings__section" aria-labelledby="system-settings-heading">
           <div class="la-section-header la-system-settings__header">
