@@ -1,4 +1,16 @@
 <div class="md-shell md-shell--home-boards md-shell--board-picker">
+  {{!-- BASIC VIEW GETS THE `ch-` RAIL BESIDE THIS PAGE (2026-10-09), for the reason
+       templates/organizations.hbs records at its own mount: this is a top-level route, so it
+       received neither this rail nor the Modern `AccountRail`, and a user handed off here at the
+       end of the home tour had no way back to their home page.
+
+       A DIRECT CHILD OF `.md-shell`, deliberately. `.md-shell` carries the page gradient, so a
+       rail outside it would sit on bare page background; and `.md-shell > .md-workspace` is a
+       DIRECT-CHILD selector, so any wrapper between the two silently stops it applying.
+       Modern's rail is not mounted here -- it comes from the app shell via CHROME_ROUTES. --}}
+  {{#if this.isBasicView}}
+    <Dashboard::ClassicRail />
+  {{/if}}
   <div class="md-workspace">
     <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Board picker navigation" key="board_picker_nav_label"}}>
       <LinkTo @route="user.boards" @model={{this.boardsBackUserName}} class="md-pillnav__pill md-pillnav__pill--home">

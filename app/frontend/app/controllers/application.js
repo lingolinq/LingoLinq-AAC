@@ -8,7 +8,24 @@ const CHROME_ROUTES = [
   'user.boards', 'user.extras', 'user.logs', 'user.log',
   'user.index', 'user.account', 'user.goals', 'user.goal', 'user.badges',
   'user.edit', 'user.recordings', 'user.stats', 'user.preferences',
-  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus'
+  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus',
+  /* The standalone home-board picker (2026-10-09). It is a top-level route, so it received
+     neither the Modern rail nor Basic's -- a user handed off here at the end of the home tour
+     had no navigation at all. It maps to no pill (utils/primary_nav.js), so `globalNavActive`
+     stays null and only the RAIL renders; the page keeps its own `md-pillnav` breadcrumb and
+     does not get a second nav. Basic view is unaffected by this list -- `showGlobalChrome`
+     returns false for it below, and the `ch-` rail is mounted in the page's own template. */
+  'board-picker',
+  /* Three more destinations the Modern dashboard links to directly but which were never in this
+     list, so they rendered with no account rail at all (2026-10-09 audit):
+       create-board-new  — the "Create a New Board" card
+       search            — `transitionTo('search')` from the dashboard
+       offline_boards    — `transitionTo('offline_boards')`
+     The rail is part of the app shell wrapping the outlet (templates/application.hbs), not of
+     each page's own markup, so a page needs no `md-shell` of its own to receive it — `search`
+     has none. None of the three maps to a pill (utils/primary_nav.js), so `globalNavActive`
+     stays null and they get the rail WITHOUT a second nav, exactly as board-picker does. */
+  'create-board-new', 'search', 'offline_boards'
 ];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
