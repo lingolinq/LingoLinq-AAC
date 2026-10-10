@@ -63759,6 +63759,30 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     0 8px 24px rgba($brand-verdigris, 0.18),
     var(--md-shadow-2) !important;
 }
+/* HOME-BOARD GLYPH (2026-10-09) — the green home mark that replaced the "HOME BOARD" pills.
+   Two selectors, one treatment: BoardIcon draws `.board-icon__home-glyph` inside its `.name`
+   (boards page + board picker), the home-page strip draws `.md-strip__home-glyph` inside its
+   `.md-strip__label`. Both sit at the START of the name, so they are inline-flex with a small
+   trailing gap rather than positioned chrome.
+   SOLID, not an outline, and sized ABOVE the name's own type (requested 2026-10-09: filled,
+   larger, more prominent). A filled shape at this size reads as a mark rather than as a tiny
+   piece of line art, which is what the stroked 14px version looked like beside the title.
+   $brand-verdigris-aa, not $brand-verdigris: this is a non-text indicator and so needs 3:1
+   (WCAG 1.4.11), and the -aa token is the one measured at 5.05:1 on white. A solid fill is the
+   favourable case for that floor — the stroked version only ever met it on its 2px strokes. It
+   also keeps the mark in the same verdigris family as the home tile's existing halo.
+   `vertical-align` + `flex: 0 0 auto` so a long board name that wraps or ellipsises cannot
+   squeeze or drag the glyph out of line. */
+.board-icon__home-glyph,
+.md-strip__home-glyph {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-right: 5px;
+  vertical-align: -3px;
+  color: $brand-verdigris-aa;
+}
+
 .md-strip__home-badge {
   /* Small pill centered near the top of the tile (was a larger crowning
      "ribbon"). Reads as a quiet tag, not a banner. */

@@ -105,11 +105,6 @@
       {{/if}}
     </button>
   {{/unless}}
-  {{#if this.flag_home }}
-    {{#if this.board_record.home_board}}
-      <div style='position: absolute; top: 0; left: 5px; color: #888;' aria-label={{t "Home board" key="home_board"}}><span class='glyphicon glyphicon-home' aria-hidden="true"></span></div>
-    {{/if}}
-  {{/if}}
   {{!-- Card body content: img, optional credit, name, optional author.
        These are direct children of the outer role="button" div above.
        draggable="false" on the IMG defers any image-drag intent to
@@ -128,8 +123,16 @@
          routed through i18n to keep the no-raw-strings convention. --}}
     <div class="board-icon__credit">{{t "CC-By OpenAAC" key="cc_by_openaac"}}</div>
   {{/if}}
+  {{!-- HOME BOARD INDICATOR (2026-10-09). Replaces the "HOME BOARD" pill that call sites used to
+       paint over the tile: a green home glyph at the START of the board name instead.
+       `flag_home` was already this component's home flag but NOTHING passed it, so the grey
+       absolutely-positioned glyphicon it used to render was dead code. It is live now — every
+       call site that previously drew the badge passes the SAME condition it tested, so which
+       boards read as "home" is unchanged; only the presentation moved.
+       Carries the accessible name the badge's visible text used to supply, so removing the words
+       costs a screen-reader user nothing. --}}
   <div class={{if this.noinfo "name compact" "name"}} title={{this.best_name}}>
-  {{this.best_name}}
+  {{#if this.flag_home}}<span class="board-icon__home-glyph" aria-label={{t "Home Board" key="home_board"}} title={{t "Home Board" key="home_board"}}><svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M10.707 2.293a1 1 0 0 0-1.414 0l-7 7A1 1 0 0 0 3 11h1v6a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3h2v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-6h1a1 1 0 0 0 .707-1.707l-7-7Z"/></svg></span>{{/if}}{{this.best_name}}
   </div>
   {{#if this.compactRow}}
     {{!-- Directional affordance for the compact row. Decorative only — the card

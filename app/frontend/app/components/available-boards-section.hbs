@@ -405,9 +405,6 @@
                             draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
                             {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
                           >
-                            {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
-                              <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
-                            {{/if}}
                             {{#if board.board.starred_for_current_user}}
                               <span class="ub-boards-page__board-item-heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -415,7 +412,7 @@
                                 </svg>
                               </span>
                             {{/if}}
-                            <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
+                            <BoardIcon @board={{board}} @flag_home={{is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                             {{#if this.boardsCtrl.model.permissions.edit}}
                               {{!-- Contextual remove affordance. DELETE is deliberately NOT offered
                                    here: a hover-only trash can sitting on a board tile is a one-click
@@ -772,9 +769,6 @@
                 draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
                 {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
               >
-                {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
-                  <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
-                {{/if}}
                 {{#if board.board.starred_for_current_user}}
                   {{!-- Filled-heart indicator in the top-right corner
                        for liked boards (mirrors the My Boards picker
@@ -795,7 +789,7 @@
                      it. The Preview chip (with its "N boards" count)
                      still provides the cluster-inspection
                      affordance. --}}
-                <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
+                <BoardIcon @board={{board}} @flag_home={{is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{!-- Contextual remove affordance. DELETE is deliberately NOT offered
                        here: a hover-only trash can sitting on a board tile is a one-click

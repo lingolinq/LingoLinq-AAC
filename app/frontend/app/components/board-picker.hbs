@@ -173,10 +173,7 @@
                   {{#each group.result.boards as |board|}}
                     {{#if board.key}}
                       <div class="md-home-boards-picker__board simple_board_holder {{if (is_equal board.key this.home_board_key) "board-picker__item--home"}}">
-                        {{#if (is_equal board.key this.home_board_key)}}
-                          <span class="board-picker__home-badge">{{t "Home Board" key="home_board"}}</span>
-                        {{/if}}
-                        <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
+                        <BoardIcon @board={{board}} @flag_home={{is_equal board.key this.home_board_key}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
                       </div>
                     {{/if}}
                   {{/each}}
@@ -206,16 +203,14 @@
         {{else if this.display_category_boards.length}}
           {{#each this.display_category_boards as |board|}}
             {{#if board.key}}
-              {{!-- The tile for the board the subject ALREADY calls home gets the
-                   verdigris halo + floating "HOME BOARD" pill (see
-                   .board-picker__item--home / .board-picker__home-badge in
-                   app.scss). Same treatment the boards page gives it, so the
-                   already-chosen board reads the same on both surfaces. --}}
+              {{!-- The tile for the board the subject ALREADY calls home keeps the verdigris
+                   halo (.board-picker__item--home in app.scss). The floating "HOME BOARD" pill
+                   that used to sit on it was replaced on 2026-10-09 by a green home glyph at the
+                   start of the board name, which BoardIcon draws from `@flag_home` below. Same
+                   treatment the boards page gives it, so the already-chosen board reads the same
+                   on both surfaces. --}}
               <div class="md-home-boards-picker__board simple_board_holder {{if (is_equal board.key this.home_board_key) "board-picker__item--home"}}">
-                {{#if (is_equal board.key this.home_board_key)}}
-                  <span class="board-picker__home-badge">{{t "Home Board" key="home_board"}}</span>
-                {{/if}}
-                <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
+                <BoardIcon @board={{board}} @flag_home={{is_equal board.key this.home_board_key}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
               </div>
             {{/if}}
           {{/each}}

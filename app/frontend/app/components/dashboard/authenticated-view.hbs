@@ -576,13 +576,6 @@
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards key="key" as |preview|}}
             <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}} {{if preview.isEmergency 'md-strip__item--emergency'}} {{if preview.board.starred_for_current_user 'md-strip__item--liked'}}" role="listitem" {{on "click" (fn this.onGoToBoard preview.key)}}>
-              {{#if preview.isHome}}
-                {{!-- Home Board badge — pinned to the top of the tile
-                     (absolute, see .md-strip__home-badge in app.scss)
-                     so it visually crowns the tile without shifting
-                     the thumb/label layout that the other tiles use. --}}
-                <span class="md-strip__home-badge">{{t "Home Board" key="home_board"}}</span>
-              {{/if}}
               {{#if preview.board.starred_for_current_user}}
                 {{!-- Filled-heart indicator in the top-right for liked
                      boards (mirrors the My Boards picker + boards-page
@@ -607,7 +600,12 @@
                 <img src={{if preview.board preview.board.icon_url_with_fallback preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
               <div class="md-strip__label">
-                <span class="md-strip__name">{{preview.name}}</span>
+                {{!-- Green home glyph at the START of the name (2026-10-09), replacing the
+                     "HOME BOARD" pill that used to crown this tile. The tile keeps its
+                     `--home` verdigris halo, so the row still reads as the home board at a
+                     glance; this only swaps the word-pill for a mark on the name. Carries the
+                     label the pill's text used to supply. --}}
+                {{#if preview.isHome}}<span class="md-strip__home-glyph" aria-label={{t "Home Board" key="home_board"}} title={{t "Home Board" key="home_board"}}><svg viewBox="0 0 20 20" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M10.707 2.293a1 1 0 0 0-1.414 0l-7 7A1 1 0 0 0 3 11h1v6a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3h2v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-6h1a1 1 0 0 0 .707-1.707l-7-7Z"/></svg></span>{{/if}}<span class="md-strip__name">{{preview.name}}</span>
                 {{#if (board-attribution-owner (or preview.board (hash key=preview.key)))}}
                   <span class="md-strip__owner">{{t "by" key="by"}} {{board-attribution-owner (or preview.board (hash key=preview.key))}}</span>
                 {{/if}}
