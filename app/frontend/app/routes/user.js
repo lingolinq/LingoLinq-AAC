@@ -60,6 +60,7 @@ export default Route.extend({
       return finish(data);
     });
   },
+  session: service('session'),
   /* Publish "whose account is this page" so app-level chrome (the supervising
      context pill) can name it. Set on the PARENT `:user_id` route rather than in
      each of the ~20 child routes — one set/clear pair covers every child, and
@@ -76,40 +77,24 @@ export default Route.extend({
   },
   actions: {
     error: function(error, transition) {
-      // Handle 404 errors gracefully to prevent console errors
-      // Ember Data can structure errors in different ways, so we check multiple formats
-      var status = null;
-      if(error && error.status) {
-        status = error.status;
-      } else if(error && error.errors && error.errors[0] && error.errors[0].status) {
-        status = error.errors[0].status;
-      } else if(error && error.fakeXHR && error.fakeXHR.status) {
-        status = error.fakeXHR.status;
+      if(error && error.reserved_path) {
+        return false; // the model hook already redirected; nothing to show
       }
-      
-      if(status == 404 || status == '404') {
-        // Check if it's a reserved path (already redirected)
-        if(error.reserved_path) {
-          return false; // Don't bubble the error
-        }
-        // Transition to error route for 404s
-        this.router.transitionTo('error');
-        return false; // Don't bubble the error
-      }
-      /* 400 is this API's PERMISSION DENIED, not a malformed request:
-         application_controller#allowed? renders `api_error 400` (:300) for every
-         denial. It reaches here routinely — a supporter following a link to a
-         communicator they can only model for is refused `view_detailed`
-         (user.rb:70), which gates both the user payload and the board list
-         (boards_controller:77). Bubbling it produced an unhandled rejection and
-         a blank route rather than a page, so it is routed to the same error
-         screen a 404 gets: the outcome for the reader is identical — this page
-         cannot be shown for this account. */
-      if(status == 400 || status == '400' || status == 403 || status == '403') {
-        this.router.transitionTo('error');
+      /* WHILE THE SESSION IS ENDING the force-logout dialog is the page. The teardown clears the
+         token, so requests still in flight answer 400 "Not authorized" as anonymous; bubbling those
+         would render "Failed to load" in place of the sign-in prompt. The dead-session response
+         itself is held back too, for speak mode, where utils/extras.js deliberately does not log
+         out mid-sentence. */
+      if(this.session.logout_under_way() || this.session.dead_session_response(error && error.fakeXHR)) {
         return false;
       }
-      // Let other errors bubble up
+      /* 404, and 400/403 (this API's PERMISSION DENIED: application_controller#allowed? answers
+         every denial with 400, e.g. a supporter refused `view_detailed` on a communicator,
+         user.rb:70) BUBBLE, like every other error: the application route's action clears board
+         state and Ember renders templates/error.hbs, "this page cannot be shown for this account".
+         They used to `transitionTo('error')` and `return false`, but there is no transitionable
+         `error` route (Ember's generated one needs an `:error` segment), so nothing rendered and
+         the navigation silently did nothing. */
       return true;
     }
   }
