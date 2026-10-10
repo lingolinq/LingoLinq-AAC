@@ -21,6 +21,10 @@
 # USAGE
 #   scripts/codex-review-path-classifier.sh <base-sha> <head-sha>
 #   (in GitHub Actions: pass github.event.pull_request.base.sha / head.sha)
+#   scripts/codex-review-path-classifier.sh --paths-from <file>
+#   (path-list mode: classify the newline-separated paths in <file> instead of a git
+#   diff; scripts/data-bearing-path-check.sh uses it for a merge commit's combined
+#   diff. The same exit-3 rules apply: an empty list or a git-quoted path fails.)
 #
 # OUTPUT
 #   Writes these `key=value` lines to $GITHUB_OUTPUT (with GITHUB_OUTPUT unset they
@@ -36,8 +40,9 @@
 #
 # EXIT CODES
 #   0  classified; the route above was written
-#   3  nothing was classified: a git diff failure, an empty diff, a git-quoted
-#      path the patterns cannot read, or a grep failure. No route is written and
+#   3  nothing was classified: a git diff failure, an empty diff, an unreadable
+#      --paths-from file, a git-quoted path the patterns cannot read, or a grep
+#      failure. No route is written and
 #      the step fails, so the job stops before any reviewer runs (fail closed).
 #
 # ENV
@@ -45,8 +50,13 @@
 #
 set -euo pipefail
 
-BASE_SHA="${1:?usage: $0 <base-sha> <head-sha>}"
-HEAD_SHA="${2:?usage: $0 <base-sha> <head-sha>}"
+PATHS_FROM=""
+if [ "${1:-}" = --paths-from ]; then
+  PATHS_FROM="${2:-}"
+else
+  BASE_SHA="${1:?usage: $0 <base-sha> <head-sha> | --paths-from <file>}"
+  HEAD_SHA="${2:?usage: $0 <base-sha> <head-sha> | --paths-from <file>}"
+fi
 CODEX_COMPLIANCE_PATHS="${CODEX_COMPLIANCE_PATHS:-allow}"
 
 # ---------------------------------------------------------------------------
@@ -96,8 +106,13 @@ die3() { echo "classifier: ERROR: $*. Nothing was classified; failing closed." >
 # --no-renames lists a rename as a delete plus an add, so both the old and the new
 # name are classified. --no-relative keeps a diff.relative setting from trimming
 # the paths the anchored patterns read.
-paths="$($GITQ diff --name-only --no-renames --no-relative "$BASE_SHA...$HEAD_SHA")" \
-  || die3 "git diff $BASE_SHA...$HEAD_SHA failed"
+if [ "${1:-}" = --paths-from ]; then
+  # cat fails on a missing, unreadable or empty file name, or a directory.
+  paths="$(cat -- "$PATHS_FROM")" || die3 "could not read the --paths-from file '$PATHS_FROM'"
+else
+  paths="$($GITQ diff --name-only --no-renames --no-relative "$BASE_SHA...$HEAD_SHA")" \
+    || die3 "git diff $BASE_SHA...$HEAD_SHA failed"
+fi
 
 # An empty listing is not evidence of a clean diff, so it cannot route to a reviewer.
 if [ -z "$(printf '%s' "$paths" | tr -d '[:space:]')" ]; then
