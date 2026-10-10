@@ -714,6 +714,20 @@ class WorkflowLogExposureTest(unittest.TestCase):
     ]
     GUARD_STEP_KEYS = {"name", "id", "env", "run"}
 
+    def test_status_pending_permissions_are_exactly_what_its_steps_need(self):
+        # contents: read is what the base_sha check's compare call needs (a GITHUB_TOKEN without it gets a
+        # 404 and the job fails closed); anything more would be a needless grant.
+        text = WORKFLOW.read_text()
+        job = text.split("\n  status-pending:\n", 1)[1].split("\n  codex-review:\n", 1)[0]
+        block = job.split("\n    permissions:\n", 1)[1]
+        permissions = {}
+        for line in block.splitlines():
+            if not line.startswith("      ") or line.startswith("       "):
+                break
+            key, _, value = line.strip().partition(":")
+            permissions[key] = value.split("#", 1)[0].strip()  # values carry inline comments
+        self.assertEqual(permissions, {"statuses": "write", "pull-requests": "read", "actions": "read", "contents": "read"})
+
     def test_status_pending_holds_exactly_its_guard_steps_with_allowlisted_keys(self):
         text = WORKFLOW.read_text()
         job = text.split("\n  status-pending:\n", 1)[1].split("\n  codex-review:\n", 1)[0]
