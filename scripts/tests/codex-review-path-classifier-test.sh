@@ -303,6 +303,25 @@ chmod +x "$ICONV_STUB/iconv"
 head="$(commit_paths 'app/models/user.rb')"
 classify "$BASE" "$head" PATH="$ICONV_STUB:$PATH"
 report ERR3 'iconv fails during the UTF-8 check'
+# glibc iconv accepts byte sequences that are not UTF-8 (a code point past U+10FFFF, the old
+# 5-byte form); the reviewer steps decode with Python, which rejects them, so the check must too.
+head="$(commit_paths $'app/models/a\364\220\200\200.rb')"
+classify "$BASE" "$head"
+report ERR3 'app/models/a<f4 90 80 80>.rb (past U+10FFFF)'
+head="$(commit_paths $'app/models/a\370\210\200\200\200.rb')"
+classify "$BASE" "$head"
+report ERR3 'app/models/a<f8 88 80 80 80>.rb (5-byte form)'
+# Every name is checked, not only the first one listed.
+head="$(commit_paths 'app/models/a.rb' $'app/models/z\351.rb')"
+classify "$BASE" "$head"
+report ERR3 'a valid name, then app/models/z<0xe9>.rb'
+PY_STUB="$WORK/python-stub"
+mkdir -p "$PY_STUB"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$PY_STUB/python3"
+chmod +x "$PY_STUB/python3"
+head="$(commit_paths 'app/models/user.rb')"
+classify "$BASE" "$head" PATH="$PY_STUB:$PATH"
+report ERR3 'python3 fails during the UTF-8 check'
 # Its own directory: $STUBS still holds the git stub, which would turn this case into
 # the empty-listing case above and prove nothing about grep.
 GREP_STUB="$WORK/grep-stub"

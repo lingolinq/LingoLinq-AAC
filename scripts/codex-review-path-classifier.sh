@@ -160,10 +160,14 @@ fi
 # A route that sends the diff to a reviewer hands it names that are read as UTF-8
 # (core.quotepath=false writes them raw; codex-review-assemble-prompt.py read_required
 # decodes strictly), so a name that is not UTF-8 would crash the reviewer steps. Stop here
-# instead. A blocked diff reaches no reviewer and keeps its route. iconv failing for any
-# reason, missing included, fails closed too.
+# instead. A blocked diff reaches no reviewer and keeps its route. Python's strict decoder
+# is the one the reviewer steps use; glibc iconv also accepts sequences that are not UTF-8
+# (past U+10FFFF, the old 5-byte form), so it is not enough alone. Either checker failing
+# for any reason, missing included, fails closed too.
 if [ "$reviewer_route" != "blocked" ]; then
   printf '%s\n' "$paths" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 \
+    || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
+  printf '%s\n' "$paths" | python3 -I -c 'import sys; sys.stdin.buffer.read().decode("utf-8")' >/dev/null 2>&1 \
     || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
 fi
 

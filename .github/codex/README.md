@@ -259,7 +259,10 @@ The review job runs PR content only as data:
   computed from those objects with the trusted worktree's git attributes, and
   the path classifier fails closed (exit 3, no route) on a name git quotes (a
   tab, newline, `"` or `\`), on an empty diff and on a git or grep failure, so
-  quoting cannot hide a data-bearing path. It matches in any letter case and
+  quoting cannot hide a data-bearing path. On a route to a reviewer it also
+  fails closed on a name that is not valid UTF-8 (checked with Python's strict
+  decoder, which the reviewer steps use, and iconv), or when either checker
+  fails; a data-bearing diff keeps its `blocked` route. It matches in any letter case and
   byte by byte (`LC_ALL=C`), treats every path under `db/language/` as
   data-bearing, and lists a rename by both names (`--no-renames`), so moving a
   file out of a data-bearing path does not hide the old one. A file
