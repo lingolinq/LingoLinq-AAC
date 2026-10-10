@@ -211,7 +211,7 @@ line verbatim with the verdict. The `range` or `working` form run against a PR n
 wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
-Codex-specific invocation detail lives in `AGENTS.md`. No bot reviews every PR: no repository rule requests Copilot code review (an author's own Copilot settings may still request one), and the Codex GitHub connector is set (since 2026-10-09) to auto-review "team PRs", a Codex option OpenAI does not define, so confirm a PR actually got its review rather than assuming (a `@codex review` comment requests one; it posts under your GitHub account, so ask before posting).
+Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
 
 ## Audit and compliance system
 

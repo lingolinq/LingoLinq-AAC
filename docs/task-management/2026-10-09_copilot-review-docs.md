@@ -29,11 +29,18 @@ code review runs automatically on every PR to `develop`. Recent PRs had no Copil
 - The "Copilot PR Review" ruleset was removed at Scot's direction on 2026-10-09. The
   `develop` ruleset is separate and was checked afterwards: its deletion, non-fast-forward
   and pull request rules still apply.
-- The four docs above now say no bot reviews every PR, that an author's own Copilot or Codex
-  settings may still produce an automatic review, and that a core team member can request one.
 - Scot switched the repository's Codex automatic review setting to "Team PRs" on 2026-10-09.
-  Whether it covers every core team author is not yet confirmed; check the next ready PR from
-  an author other than Scot for a `chatgpt-codex-connector` review or comment.
+  It did not cover Traci: her PR #1117, opened ready for review after the switch, had no
+  `chatgpt-codex-connector` comment, review or reaction two hours later. "Team" most likely
+  means the ChatGPT workspace.
+- Scot then switched it to "All PRs" (2026-10-10 UTC). The docs now say the Codex connector is
+  set to review every PR automatically, that its review skips the PII pre-flight and is not
+  either dual-review pass, and that a `@codex review` comment posts under the commenter's
+  account. Copilot: no repository rule requests it, though an author's own Copilot settings
+  may. Not yet confirmed: the next ready PR from an author other than Scot should show a
+  `chatgpt-codex-connector` review or comment.
+- `AGENTS.md` now carries the same rule, per the keep-in-step rule in `CLAUDE.md` (the Codex
+  connector pointed this out on this PR).
 - `CONTRIBUTING.md` "Branch Protection Rules" said `staging` requires approval from Scot.
   Its ruleset and branch protection require no approvals (checked 2026-10-09), so that line
   now lists only what is enforced, and the approval summary is stated as team policy that
