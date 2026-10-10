@@ -704,6 +704,19 @@ describe Sharing, :type => :model do
   end
   
   describe "all_shared_board_ids" do
+    # Runs the block once, inside the next rebuild, after links_for and before the save
+    # (Organization.attached_orgs runs there on the !plus_editing branch of all_shared_board_ids_for).
+    def during_rebuild(&block)
+      ran = false
+      allow(Organization).to receive(:attached_orgs).and_wrap_original do |original, *args|
+        unless ran
+          ran = true
+          block.call
+        end
+        original.call(*args)
+      end
+    end
+
     it "should return all shallow shares" do
       u = User.create
       u2 = User.create
@@ -797,8 +810,9 @@ describe Sharing, :type => :model do
       Worker.process_queues
       b.reload.reload.share_with(u3, true)
       b4.reload.reload.share_with(u3)
-      
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b3.global_id, b4.global_id])
+
+      # any order: ids are strings, so a sorted list puts "1_1000" before "1_997"
+      expect(Board.all_shared_board_ids_for(u3.reload)).to contain_exactly(b.global_id, b3.global_id, b4.global_id)
     end
     
     it "should return downstream deep shares by any of the co-authors, even if the share is pending" do
@@ -869,23 +883,6 @@ describe Sharing, :type => :model do
       expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
     end
 
-    it "does not serve a list cached moments before a sharing change" do
-      u = User.create
-      u2 = User.create
-      b = Board.create(:user => u)
-      b2 = Board.create(:user => u)
-      b.share_with(u2)
-      built_at = Time.at(1_800_000_000, 120_000, :usec)
-      allow(Time).to receive(:now).and_return(built_at)
-      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
-      allow(Time).to receive(:now).and_call_original
-
-      b2.share_with(u2)
-      # the change lands 4 ms after the list was built: same hundredth of a second
-      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 124_000, :usec))
-      expect(Board.all_shared_board_ids_for(u2.reload).sort).to eq([b.global_id, b2.global_id].sort)
-    end
-
     # The stamp comes from the user's stored boards_updated_at, so this pins that column (not the
     # clock): a change 4 ms after the list's stamp, in the same hundredth of a second, must rebuild.
     it "rebuilds after a sharing change in the same hundredth of a second as the list's stamp" do
@@ -937,13 +934,10 @@ describe Sharing, :type => :model do
       # run_jobs, the jobs the unshare queues also finish there, before the rebuild saves.
       def unshare_mid_rebuild(board, user, run_jobs: false)
         @unshared_mid_rebuild = false
-        allow(Organization).to receive(:attached_orgs).and_wrap_original do |original, *args|
-          unless @unshared_mid_rebuild
-            @unshared_mid_rebuild = true
-            board.reload.unshare_with(User.find(user.id))
-            Worker.process_queues if run_jobs
-          end
-          original.call(*args)
+        during_rebuild do
+          @unshared_mid_rebuild = true
+          board.reload.unshare_with(User.find(user.id))
+          Worker.process_queues if run_jobs
         end
       end
 
@@ -974,8 +968,15 @@ describe Sharing, :type => :model do
         UserLink.links_for(stale)
         b.reload.unshare_with(User.find(u2.id))
 
+        loaded_stamp = Board.boards_updated_stamp(stale)
+        # the stale caller really rebuilds (no cache hit), from its own cached links; matched by
+        # identity, since other copies of the same user compare equal
+        allow(UserLink).to receive(:links_for).and_call_original
+        expect(UserLink).to receive(:links_for).with(satisfy { |rec| rec.equal?(stale) }).and_call_original
+
         Board.all_shared_board_ids_for(stale, false)
 
+        expect(User.find(u2.id).settings['all_shared_board_ids']['viewing']['stamp_us']).to eq(loaded_stamp)
         expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
       end
 
@@ -989,6 +990,77 @@ describe Sharing, :type => :model do
         expect(@unshared_mid_rebuild).to eq(true)
         expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
         expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+
+      it "is dropped when the unshare's jobs finish before the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2, run_jobs: true)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+    end
+
+    # settings is one serialized column, written whole on save (go_secure persist_secure_object). The
+    # rebuild must store only its own cache entry, never the caller's copy of everything else.
+    describe "storing the rebuilt list" do
+      it "keeps settings that another process changed while the list was being rebuilt" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        caller_copy = User.find(u2.id)
+        ran = false
+        during_rebuild do
+          ran = true
+          other = User.find(u2.id)
+          other.settings['preferences'] ||= {}
+          other.settings['preferences']['spec_marker'] = 'changed elsewhere'
+          other.save
+        end
+
+        expect(Board.all_shared_board_ids_for(caller_copy, false)).to eq([b.global_id])
+
+        expect(ran).to eq(true)
+        stored = User.find(u2.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('changed elsewhere')
+        expect(stored.settings['all_shared_board_ids']['viewing']['list']).to eq([b.global_id])
+      end
+
+      it "leaves the caller's copy of the user unchanged" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        caller_copy = User.find(u2.id)
+        before = caller_copy.settings.to_json
+
+        expect(Board.all_shared_board_ids_for(caller_copy, false)).to eq([b.global_id])
+
+        expect(caller_copy.settings.to_json).to eq(before)
+      end
+
+      # The read-modify-write of the fresh copy holds the row lock, so a settings write from another
+      # process cannot land between that read and the save (and then be overwritten).
+      it "reads the copy it saves under a row lock" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        user_sql = []
+        record = ->(*, payload) { user_sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          Board.all_shared_board_ids_for(User.find(u2.id), false)
+        end
+
+        locked = user_sql.index { |sql| sql =~ /FOR UPDATE/ }
+        updated = user_sql.index { |sql| sql.start_with?('UPDATE "users"') }
+        expect(locked).not_to be_nil
+        expect(updated).not_to be_nil
+        expect(locked).to be < updated
       end
     end
   end
