@@ -350,6 +350,15 @@ def run_step(script, tmp, bin_dir, mode="ok", extra_env=None):
     )
 
 
+def write_locked_catalog(runner_temp):
+    """The locked model catalog the install step writes under $RUNNER_TEMP, locked from a stub
+    because codex in these tests is a fake."""
+    catalog = load_module("codex_review_model_catalog", REPO_ROOT / "scripts/codex-review-model-catalog.py")
+    stub = {"models": [dict({"slug": slug}, **{field: "set" for field in catalog.TOOL_FIELDS})
+                       for slug in catalog.APPROVED_MODELS]}
+    (pathlib.Path(runner_temp) / catalog.CATALOG_NAME).write_text(json.dumps(catalog.locked_catalog(stub)))
+
+
 class WorkflowLogExposureTest(unittest.TestCase):
     def assert_no_canary(self, log):
         self.assertFalse(CANARY_STEM in log, "PR content or model output reached the job log")
@@ -366,12 +375,7 @@ class WorkflowLogExposureTest(unittest.TestCase):
         (pathlib.Path(tmp) / "pr_diff.txt").write_text(f"+{DIFF_CANARY}\n")
         (pathlib.Path(tmp) / "pr_diff_full.txt").write_text(f"+{DIFF_CANARY}\n")
         if with_catalog:
-            # The locked model catalog the install step writes under $RUNNER_TEMP, locked from a
-            # stub because codex here is a fake.
-            catalog = load_module("codex_review_model_catalog", REPO_ROOT / "scripts/codex-review-model-catalog.py")
-            stub = {"models": [dict({"slug": slug}, **{field: "set" for field in catalog.TOOL_FIELDS})
-                               for slug in catalog.APPROVED_MODELS]}
-            (pathlib.Path(tmp) / catalog.CATALOG_NAME).write_text(json.dumps(catalog.locked_catalog(stub)))
+            write_locked_catalog(tmp)
         return run_step(localize(script, tmp), tmp, bin_dir, mode, extra_env={"RUNNER_TEMP": str(tmp)})
 
     def test_bounded_reviewer_step_keeps_codex_transcript_out_of_the_log(self):
@@ -848,9 +852,24 @@ class WorkflowLogExposureTest(unittest.TestCase):
             install_fake(bin_dir, "codex", FAKE_CODEX)
             (pathlib.Path(tmp) / "calls").write_text("0")
             (pathlib.Path(tmp) / "prompt.md").write_text("p")
-            result = run_step(localize(script, tmp), tmp, bin_dir, extra_env={"GITHUB_WORKSPACE": str(workspace)})
+            # The locked catalog is present, so only the hardening-argument guard can stop the step
+            # (without it, the catalog check passes and codex runs).
+            write_locked_catalog(tmp)
+            result = run_step(localize(script, tmp), tmp, bin_dir,
+                              extra_env={"GITHUB_WORKSPACE": str(workspace), "RUNNER_TEMP": str(tmp)})
             self.assertNotEqual(result.returncode, 0)
+            self.assertIn("hardening arguments are missing", result.stdout + result.stderr)
             self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "0", "codex ran without its hardening")
+
+    # A hung model call (the reviewer is still offered request_user_input) must not hold the job
+    # to its 90-minute cap: each bounded call has the same per-call ceiling as the chunked path.
+    def test_every_bounded_codex_call_has_a_timeout(self):
+        script = extract_step_run("Run reviewer (codex exec, converge across runs)")
+        calls = re.findall(r'"\$QUIET"[^\n]*', script)
+        self.assertEqual(len(calls), 2, "expected the first call and its retry")
+        for call in calls:
+            with self.subTest(call=call):
+                self.assertRegex(call, r'"\$QUIET" --timeout \d+ -- codex exec')
 
 
 class PathClassifierTest(unittest.TestCase):

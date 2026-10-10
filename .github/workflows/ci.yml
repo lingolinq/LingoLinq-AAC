@@ -429,7 +429,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, the commit codex-review.yml pins
+        with:
+          # These tests read the checkout and build throwaway repos; nothing here needs the token.
+          persist-credentials: false
 
       # Guards the codex-review envelope logic: status fail-closed mapping,
       # the prompt-injection guard, the per-chunk convergence policy, and the

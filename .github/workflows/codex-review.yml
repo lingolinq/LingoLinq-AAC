@@ -460,7 +460,10 @@ jobs:
             # model output) out of the public job log; on failure it prints
             # only the exit code and a fixed label. --ephemeral stops codex
             # saving the session (the same transcript) under CODEX_HOME.
-            python3 -I "$QUIET" -- codex exec \
+            # --timeout 1500 is the per-call ceiling the chunked path also uses
+            # (MODEL_CALL_TIMEOUT_SECONDS in codex-review-run-chunks.py): a hung call exits
+            # 124 and fails the step instead of holding the job to its 90-minute cap.
+            python3 -I "$QUIET" --timeout 1500 -- codex exec \
               "${CODEX_HARDENING[@]}" \
               -C "$CODEX_WORKDIR" \
               -m gpt-5.6-terra \
@@ -473,7 +476,7 @@ jobs:
             if ! python3 -I -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
               echo "Run produced invalid JSON; retrying with stricter instruction." >&2
               { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | python3 -I "$QUIET" -- codex exec "${CODEX_HARDENING[@]}" -C "$CODEX_WORKDIR" -m gpt-5.6-terra \
+                | python3 -I "$QUIET" --timeout 1500 -- codex exec "${CODEX_HARDENING[@]}" -C "$CODEX_WORKDIR" -m gpt-5.6-terra \
                     --output-schema "$SCHEMA" \
                     --output-last-message "$1"
             fi

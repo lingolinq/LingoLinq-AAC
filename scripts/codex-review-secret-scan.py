@@ -33,7 +33,9 @@ import re
 import sys
 
 PATTERNS = {
-    "openai_or_anthropic_key": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    # Not after a letter or digit: "task-clean_old_..." holds "sk-" inside a word. "_", "=", quotes
+    # and other punctuation in front still match, so KEY=sk-... and "sk-..." are found.
+    "openai_or_anthropic_key": re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}"),
     "github_token": re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,})"),
     # No word boundary in front: the key id is found even when glued to preceding letters.
     "aws_access_key_id": re.compile(r"(?:AKIA|ASIA)[0-9A-Z]{16}(?![0-9A-Z])"),

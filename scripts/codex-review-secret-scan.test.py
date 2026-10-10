@@ -98,6 +98,18 @@ class SecretScanTest(unittest.TestCase):
         )
         self.assertEqual(secret_scan.scan(text, {"PATH": "/usr/bin"}), [])
 
+    # Repo text such as the scheduler task name task-clean_old_deleted_boards (docs/legal) or an
+    # anchor like #risk-register-and-mitigations holds "sk-" inside a word; that is not a key.
+    def test_sk_inside_a_word_is_not_a_key(self):
+        text = "Restore task-clean_old_deleted_boards; see #risk-register-and-mitigations."
+        self.assertEqual(secret_scan.scan(text, {"PATH": "/usr/bin"}), [])
+
+    def test_a_key_after_punctuation_is_still_found(self):
+        key = "sk-" + "A1b2C3d4E5f6G7h8I9j0K1l2"
+        for text in (f"OPENAI_API_KEY={key}", f'"{key}"', f"key:{key}", f"_{key}"):
+            with self.subTest(text=text):
+                self.assertNotEqual(secret_scan.scan(text, {"PATH": "/usr/bin"}), [])
+
     def test_a_hit_exits_one_and_never_prints_the_value(self):
         value = POSITIVES["stripe_key"]
         with tempfile.TemporaryDirectory() as tmp:
