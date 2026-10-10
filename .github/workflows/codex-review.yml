@@ -516,7 +516,7 @@ jobs:
           # converging straight to fail-closed without a wasted third run).
           run_codex /tmp/review-1.json
           run_codex /tmp/review-2.json
-          NEED_THIRD="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --need-third --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt /tmp/review-1.json /tmp/review-2.json)"
+          NEED_THIRD="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --need-third --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --binary-content-at "$HEAD_SHA" /tmp/review-1.json /tmp/review-2.json)"
           echo "convergence: third tiebreaker needed? ${NEED_THIRD}"
           if [ "$NEED_THIRD" = "yes" ]; then
             run_codex /tmp/review-3.json
@@ -623,9 +623,10 @@ jobs:
               --full-diff /tmp/codex-review-evidence/full.diff \
               --chunk-reviews "${CHUNK_REVIEWS[@]}" \
               --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
+              --binary-content-at "$HEAD_SHA" \
               --out /tmp/envelope.json
           else
-            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --out /tmp/envelope.json $REVIEWS
+            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --binary-content-at "$HEAD_SHA" --out /tmp/envelope.json $REVIEWS
           fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}

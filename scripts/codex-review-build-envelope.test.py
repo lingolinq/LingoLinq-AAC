@@ -4,6 +4,7 @@ prompt-injection guard, and the convergence policy."""
 import importlib.util
 import json
 import pathlib
+import re
 import sys
 import subprocess
 import tempfile
@@ -155,6 +156,96 @@ class InjectionGuardTest(unittest.TestCase):
     def test_binary_guard_never_upgrades_a_block(self):
         outcome = build_envelope.guarded_outcome(REQUIRES_CHANGES, "Binary files a/a.rb and b/a.rb differ\n")
         self.assertEqual(outcome["kind"], "requires_attention")
+
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + b"\x00" * 40
+WORKFLOW = MODULE_PATH.parent.parent / ".github/workflows/codex-review.yml"
+
+
+class BinaryContentTest(unittest.TestCase):
+    """An expected binary type passes on its extension alone unless its content is checked too: a
+    file named x.png can hold code (Ruby stops parsing at a NUL) or a scan of student records. With
+    --binary-content-at, an expected-type file must start the way that type starts (2026-10-09)."""
+
+    @staticmethod
+    def reader(files):
+        def read_head(path):
+            if path not in files:
+                raise OSError("not in the head commit")
+            return files[path]
+        return read_head
+
+    def test_a_real_image_passes(self):
+        diff = "Binary files /dev/null and b/public/images/logo.png differ\n"
+        self.assertEqual(build_envelope.binary_content_mismatches(diff, self.reader({"public/images/logo.png": PNG_BYTES})), [])
+
+    def test_code_named_as_an_image_or_pdf_is_flagged(self):
+        files = {
+            "public/images/x.png": b"puts File.read('/etc/passwd')\n\x00",
+            "docs/roster.PDF": b"name,dob\nstudent,2015-01-01\n\x00",
+        }
+        diff = "".join(f"Binary files a/{p} and b/{p} differ\n" for p in files)
+        self.assertEqual(build_envelope.binary_content_mismatches(diff, self.reader(files)),
+                         ["docs/roster.PDF", "public/images/x.png"])
+
+    def test_an_unreadable_file_is_flagged(self):
+        diff = "Binary files /dev/null and b/public/images/missing.png differ\n"
+        self.assertEqual(build_envelope.binary_content_mismatches(diff, self.reader({})), ["public/images/missing.png"])
+
+    def test_a_deleted_file_is_not_read(self):
+        diff = "Binary files a/public/images/old.png and /dev/null differ\n"
+        self.assertEqual(build_envelope.binary_content_mismatches(diff, self.reader({})), [])
+
+    def test_every_expected_binary_type_has_a_signature(self):
+        self.assertEqual(set(build_envelope.BINARY_SIGNATURES), set(build_envelope.REVIEWABLE_BINARY_EXTENSIONS))
+
+    def test_a_mismatch_withholds_approve_and_never_upgrades_a_block(self):
+        diff = "Binary files /dev/null and b/public/images/x.png differ\n"
+        read_head = self.reader({"public/images/x.png": b"<?php system($_GET[1]); ?>\x00"})
+        self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff, None, read_head)["kind"], "incomplete_evidence")
+        self.assertEqual(build_envelope.guarded_outcome(REQUIRES_CHANGES, diff, None, read_head)["kind"], "requires_attention")
+        clean = self.reader({"public/images/x.png": PNG_BYTES})
+        self.assertEqual(build_envelope.guarded_outcome(APPROVE, diff, None, clean)["kind"], "approved")
+
+    def test_the_cli_reads_the_head_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp) / "repo"
+            repo.mkdir()
+            git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (repo / "img").mkdir()
+            (repo / "img/real.png").write_bytes(PNG_BYTES)
+            (repo / "img/fake.png").write_bytes(b"system('id')\n\x00")
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "head"], check=True)
+            head = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            review = pathlib.Path(tmp) / "review.json"
+            review.write_text(json.dumps(APPROVE))
+            outcomes = {}
+            for name in ("real", "fake"):
+                diff = pathlib.Path(tmp) / f"{name}.diff"
+                diff.write_text(f"Binary files /dev/null and b/img/{name}.png differ\n")
+                out = pathlib.Path(tmp) / f"{name}.json"
+                env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=head, LOOP_N="1", REVIEWER_ROUTE="codex", RUN_ID="1",
+                           PATH="/usr/bin:/bin")
+                result = subprocess.run(
+                    [sys.executable, str(MODULE_PATH), "--diff", str(diff), "--binary-scan-diff", str(diff),
+                     "--binary-content-at", head, "--out", str(out), str(review)],
+                    cwd=repo, env=env, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                outcomes[name] = json.loads(out.read_text())["status"]["state"]
+            self.assertEqual(outcomes, {"real": "success", "fake": "failure"})
+
+    def test_every_envelope_call_in_the_workflow_checks_binary_content(self):
+        text = WORKFLOW.read_text()
+        # each invocation with its backslash-continued lines joined
+        calls = [re.sub(r"\\\n\s*", " ", c) for c in re.findall(
+            r'codex-review-build-envelope\.py"((?:[^\n]*\\\n)*[^\n]*)', text)]
+        self.assertEqual(len(calls), 3, calls)
+        for call in calls:
+            with self.subTest(call=call[:60]):
+                self.assertIn('--binary-content-at "$HEAD_SHA"', call)
 
 
 def _clean(kind_approve):
