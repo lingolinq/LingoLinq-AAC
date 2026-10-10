@@ -73,4 +73,33 @@ module('Unit | idle session lands on login, not the error page', function(hooks)
       assert.false(s.is_logout_worthy_auth_error({ status: 500, error: 'boom' }));
     });
   });
+
+  /* "HAS THE LOGOUT BEGUN?" is a different question from "is the token dead?". Sync's
+     check_token(false) (services/persistence.js:2224) sets `invalid_token` on a dead token WITHOUT
+     tearing the session down (session.js check_token, allow_invalidate false). utils/extras.js keyed
+     its force_logout de-dupe on `invalid_token`, so after that sync check every dead 400 skipped the
+     logout. Reproduced live (2026-10-10): after the sync check, /:user/boards and /:user/logs kept
+     auth with no login prompt while every request failed (the boards list showing its own inline
+     "Failed to load"). Each case below is a state one of the flags' writers produces. */
+  module('logout_under_way: has the teardown actually happened?', function() {
+    function flags(context, invalid_token, isAuthenticated) {
+      var s = session(context);
+      s.set('invalid_token', invalid_token);
+      s.set('isAuthenticated', isAuthenticated);
+      return s.logout_under_way();
+    }
+
+    test('torn down (_tear_down_dead_session): yes', function(assert) {
+      assert.true(flags(this, true, false));
+    });
+
+    test('flagged by a sync token check but never torn down: NO, so the logout still fires', function(assert) {
+      assert.false(flags(this, true, true));
+    });
+
+    test('a healthy signed-in session or an anonymous visitor: no', function(assert) {
+      assert.false(flags(this, false, true), 'signed in');
+      assert.false(flags(this, false, false), 'anonymous');
+    });
+  });
 });

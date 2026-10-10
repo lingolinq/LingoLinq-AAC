@@ -653,6 +653,17 @@ export default Service.extend({
     return !!(body && body.invalid_token);
   },
 
+  /* HAS THE LOGOUT ALREADY BEGUN? True only once `_tear_down_dead_session` has run: it is the one
+     writer that sets `invalid_token` AND clears `isAuthenticated` together, synchronously.
+     `invalid_token` ALONE does not mean that. check_token(false) — sync's token check
+     (services/persistence.js:2224) — sets it on a dead token WITHOUT tearing down (check_token
+     only force-logs-out when `allow_invalidate` is set), and after an in-place re-login
+     restore() sets `isAuthenticated` back while `invalid_token` stays until a new token is
+     installed. Read by the ajax layer's force_logout de-dupe (utils/extras.js). */
+  logout_under_way: function() {
+    return !!(this.get('invalid_token') && !this.get('isAuthenticated'));
+  },
+
   // READ by app-state setup_controller find_user to decide force_logout.
   // extras.js already calls force_logout when result.invalid_token is set and
   // speak mode is off; this helper covers the Ember Data reject shapes that

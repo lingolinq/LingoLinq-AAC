@@ -394,16 +394,18 @@ import app_state from './app_state';
            persistence.ajax and component-level ajax alike — so it covers the routes that
            swallow a rejection and the routes that intercept it, in one place.
            GUARDED THE SAME WAY :297 IS: never in speak mode, where throwing an AAC user to a
-           login screen mid-sentence is worse than the stale page. The `invalid_token` check on
-           the session makes it fire once: a page issues several requests at a time and they all
-           fail together, and force_logout opens a modal. */
+           login screen mid-sentence is worse than the stale page. `logout_under_way` makes it
+           fire once: a page issues several requests at a time and they all fail together, and
+           force_logout opens a modal. It is NOT `invalid_token` alone: sync's check_token(false)
+           sets that flag on a dead token without logging out, and keying the de-dupe on it
+           skipped every logout afterwards: auth intact, every request failing, no login prompt. */
         /* `typeof` CHECKED, not called straight: `./session` is a Proxy over `LingoLinq.session`
            that returns undefined for EVERY property until app-state's setup_controller assigns
            the service (utils/session.js). This runs on every ajax failure, boot-time ones
            included, so calling it bare would throw a TypeError inside the error handler and
            swallow the real failure. Same defence app-state.js:585 uses on this service. */
         var dead_session = (typeof session.dead_session_response === 'function') && session.dead_session_response(xhr);
-        var already_dead = (typeof session.get === 'function') && session.get('invalid_token');
+        var already_dead = (typeof session.logout_under_way === 'function') && session.logout_under_way();
         if(dead_session && !already_dead && !extras.get_app_state().get('speak_mode')) {
           session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"));
         }
