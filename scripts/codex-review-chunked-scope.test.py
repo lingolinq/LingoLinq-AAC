@@ -854,6 +854,36 @@ class WorkflowLogExposureTest(unittest.TestCase):
                     windows = [args[i:i + len(hardening)] for i in range(len(args) - len(hardening) + 1)]
                     self.assertIn(hardening, windows, "the hardening arguments did not reach codex intact")
 
+    # The hardening flags alone leave the catalog's tools (exec, spawn_agent and others) on; the
+    # locked catalog and provider remove them (codex-exec-args.txt header). Each bounded call must
+    # select both, and no config key may be set twice or added unlisted, because a later `-c`
+    # overrides an earlier one (a dropped or emptied lock, or `-c features.shell_tool=true` after
+    # the hardening, passed every test before 2026-10-10).
+    def test_every_bounded_codex_call_selects_the_locked_catalog_and_overrides_nothing(self):
+        catalog = load_module("codex_review_model_catalog", REPO_ROOT / "scripts/codex-review-model-catalog.py")
+        hardening = [line for line in (REPO_ROOT / ".github/codex/codex-exec-args.txt").read_text().splitlines()
+                     if line and not line.startswith("#")]
+        hardening_keys = [hardening[i + 1].split("=", 1)[0] for i, arg in enumerate(hardening) if arg == "-c"]
+        self.assertIn("features.shell_tool", hardening_keys)
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.bounded_step(tmp, "ok")
+            self.assertEqual(result.returncode, 0, "bounded reviewer step did not complete")
+            catalog_path = pathlib.Path(tmp) / catalog.CATALOG_NAME
+            for n in (1, 2, 3):
+                args = json.loads((pathlib.Path(tmp) / f"args-{n}").read_text())
+                settings = []
+                for i, arg in enumerate(args):
+                    if arg in ("-c", "--config"):
+                        settings.append(args[i + 1])
+                    elif arg.startswith("--config=") or (arg.startswith("-c") and arg != "-c" and not arg.startswith("--")):
+                        settings.append(arg.split("=", 1)[1] if arg.startswith("--config=") else arg[2:])
+                keys = [setting.split("=", 1)[0] for setting in settings]
+                with self.subTest(call=n):
+                    self.assertIn(f'model_provider="{catalog.PROVIDER_ID}"', settings)
+                    self.assertIn(f'model_catalog_json="{catalog_path}"', settings)
+                    self.assertEqual(sorted(keys), sorted(hardening_keys + ["model_provider", "model_catalog_json"]),
+                                     "a config key is missing, repeated (a later -c wins) or not in the locked set")
+
     def test_w2_post_failure_does_not_echo_the_response_body(self):
         script = extract_step_run("POST result to n8n W2 and resolve status")
         with tempfile.TemporaryDirectory() as tmp:
