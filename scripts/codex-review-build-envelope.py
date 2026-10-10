@@ -792,6 +792,9 @@ def main():
             binary_diff = pathlib.Path(args.binary_scan_diff).read_bytes().decode("utf-8", "surrogateescape")
         except OSError as error:
             parser.error(f"--binary-scan-diff unreadable: {error.__class__.__name__}")
+    if args.binary_content_at is not None and not args.binary_content_at.strip():
+        # Fail closed: an unset HEAD_SHA expands to "" and would silently turn the guard off.
+        parser.error("--binary-content-at is empty; the binary content guard needs the PR head SHA")
     read_head = git_head_reader(args.binary_content_at) if args.binary_content_at else None
     binary_files = None
     if args.binary_content_at:

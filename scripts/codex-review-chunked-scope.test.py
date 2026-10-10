@@ -364,7 +364,7 @@ class WorkflowLogExposureTest(unittest.TestCase):
     def assert_no_canary(self, log):
         self.assertFalse(CANARY_STEM in log, "PR content or model output reached the job log")
 
-    def bounded_step(self, tmp, mode, with_catalog=True):
+    def bounded_step(self, tmp, mode, with_catalog=True, head_sha=None):
         script = extract_step_run("Run reviewer (codex exec, converge across runs)")
         bin_dir = pathlib.Path(tmp) / "bin"
         bin_dir.mkdir()
@@ -377,7 +377,12 @@ class WorkflowLogExposureTest(unittest.TestCase):
         (pathlib.Path(tmp) / "pr_diff_full.txt").write_text(f"+{DIFF_CANARY}\n")
         if with_catalog:
             write_locked_catalog(tmp)
-        return run_step(localize(script, tmp), tmp, bin_dir, mode, extra_env={"RUNNER_TEMP": str(tmp)})
+        # The step checks binary content at HEAD_SHA against BASE_SHA, as the job's env sets them; this
+        # checkout's own commit for both is a real, empty range. head_sha="" is an unset HEAD_SHA.
+        own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True,
+                             capture_output=True, text=True).stdout.strip()
+        shas = {"HEAD_SHA": own if head_sha is None else head_sha, "BASE_SHA": own}
+        return run_step(localize(script, tmp), tmp, bin_dir, mode, extra_env=dict(shas, RUNNER_TEMP=str(tmp)))
 
     def test_bounded_reviewer_step_keeps_codex_transcript_out_of_the_log(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -392,6 +397,15 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 with self.subTest(call=n):
                     self.assertIn(DIFF_CANARY, received, "the model did not receive the diff")
                     self.assertIn(BODY_CANARY, received, "the model did not receive the PR body")
+            self.assert_no_canary(result.stdout + result.stderr)
+
+    # An unset HEAD_SHA expands to an empty --binary-content-at, which once turned the binary
+    # content guard off silently; the step must fail instead (2026-10-10).
+    def test_bounded_reviewer_fails_when_head_sha_is_unset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.bounded_step(tmp, "ok", head_sha="")
+            self.assertNotEqual(result.returncode, 0, "the step ran the binary guard with no head SHA")
+            self.assertIn("--binary-content-at is empty", result.stderr)
             self.assert_no_canary(result.stdout + result.stderr)
 
     def test_bounded_reviewer_refuses_to_run_without_the_locked_model_catalog(self):

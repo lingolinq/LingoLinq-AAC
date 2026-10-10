@@ -3,6 +3,7 @@
 prompt-injection guard, and the convergence policy."""
 import importlib.util
 import json
+import os
 import pathlib
 import re
 import sys
@@ -320,6 +321,52 @@ class BinaryContentTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.last_envelope = json.loads(out.read_text())
             return self.last_envelope["status"]["state"]
+
+    # The binary content guard fails closed when it cannot run: an empty head SHA (an unset
+    # HEAD_SHA), no BASE_SHA, or a git failure stop the CLI with a usage error (exit 2) instead of
+    # reading as "no binary files" (2026-10-10).
+    def test_the_cli_refuses_to_run_the_binary_guard_blind(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+            subprocess.run(git + ["init", "-q"], check=True)
+            subprocess.run(git + ["commit", "-qm", "c", "--allow-empty"], check=True)
+            head = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            review = repo / "review.json"
+            review.write_text(json.dumps(APPROVE))
+            cases = {
+                "empty head SHA": ("", {"BASE_SHA": head}, "--binary-content-at is empty"),
+                "blank head SHA": ("  ", {"BASE_SHA": head}, "--binary-content-at is empty"),
+                "no BASE_SHA": (head, {}, "needs BASE_SHA"),
+                "git fails": (head, {"BASE_SHA": "0" * 40}, "could not list binary files with git"),
+            }
+            for why, (at, env, message) in cases.items():
+                with self.subTest(why=why):
+                    result = subprocess.run(
+                        [sys.executable, str(MODULE_PATH), "--need-third", "--diff", str(review),
+                         "--binary-content-at", at, str(review), str(review)],
+                        cwd=repo, env=dict(env, PATH="/usr/bin:/bin"), capture_output=True, text=True,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn(message, result.stderr)
+                    self.assertEqual(result.stdout, "", "a convergence answer was printed")
+
+    def test_the_head_reader_reads_only_the_start_of_a_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (repo / "big.png").write_bytes(PNG_BYTES + b"\x00" * 5000)
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "c"], check=True)
+            cwd = os.getcwd()
+            os.chdir(repo)
+            try:
+                read_head = build_envelope.git_head_reader("HEAD")
+                self.assertEqual(read_head("big.png"), (PNG_BYTES + b"\x00" * 5000)[:1024])
+                self.assertEqual(read_head("missing.png"), b"")
+            finally:
+                os.chdir(cwd)
 
     def test_the_cli_reads_the_head_commit(self):
         self.assertEqual(self.run_cli({"README": b"r\n"}, {"img/real.png": PNG_BYTES}), "success")
