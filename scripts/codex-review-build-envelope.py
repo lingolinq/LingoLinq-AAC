@@ -732,7 +732,7 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
             "human_label": "Suspected prompt-injection",
         }
         if review_body.get("findings"):
-            review_body["findings"].append(finding)
+            review_body = _review_with_appended_finding(review_body, outcome, finding)
         else:
             review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
         return outcome, "full raw diff injection guard", 0, review_body, synthesis_reviews[decisive_index]
@@ -744,7 +744,7 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
             "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
         )
         if review_body.get("findings"):
-            review_body["findings"].append(finding)
+            review_body = _review_with_appended_finding(review_body, UNREVIEWED_BINARY_OUTCOME, finding)
         else:
             review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
         return dict(UNREVIEWED_BINARY_OUTCOME), "full raw diff binary guard", 0, review_body, synthesis_reviews[decisive_index]
@@ -842,7 +842,7 @@ def main():
                 "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
             )
             if review_body.get("findings"):
-                review_body["findings"].append(finding)
+                review_body = _review_with_appended_finding(review_body, final_outcome, finding)
             else:
                 review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
         per_run_kind = [o["kind"] for o in outcomes]
