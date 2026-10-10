@@ -81,6 +81,7 @@ jobs:
       statuses: write
       pull-requests: read
       actions: read  # GET environments/codex-review (deployment-branch check below)
+      contents: read  # GET compare (base_sha binding below); develop's single job had it
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step

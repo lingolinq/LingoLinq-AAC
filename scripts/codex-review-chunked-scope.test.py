@@ -157,6 +157,7 @@ counter = pathlib.Path(os.environ["FAKE_COUNTER"])
 calls = int(counter.read_text() or "0") + 1
 counter.write_text(str(calls))
 pathlib.Path(os.environ["FAKE_RECEIVED_DIR"], f"received-{calls}").write_text(prompt)
+pathlib.Path(os.environ["FAKE_RECEIVED_DIR"], f"args-{calls}").write_text(json.dumps(args))
 finding = {"id": "CR-1", "severity": "HIGH", "category": "code", "file": "app/a.rb",
            "line": 1, "description": os.environ["FAKE_MODEL_CANARY"], "evidence": "e",
            "suggested_fix": "f", "verifiable_check": "v"}
@@ -643,6 +644,19 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 self.assertEqual(run.returncode == 0, ok, run.stderr)
                 self.assertEqual("state=failure" in calls, not ok, calls)
 
+    # The step-text tests read only a step's run: body, so they cannot see an attribute that skips
+    # a guard or lets it fail softly. No step may fail softly, and no status-pending guard may be
+    # skipped: each one is a fail-closed check (2026-10-10).
+    def test_no_guard_step_can_fail_softly_or_be_skipped(self):
+        text = WORKFLOW.read_text()
+        self.assertNotIn("continue-on-error", text)
+        pending = text.split("\n  status-pending:\n", 1)[1].split("\n  codex-review:\n", 1)[0]
+        steps = re.split(r"\n      - name: ", pending)[1:]
+        self.assertGreaterEqual(len(steps), 6, "status-pending guard steps not found")
+        for step in steps:
+            with self.subTest(step=step.split("\n", 1)[0]):
+                self.assertNotRegex(step, r"\n        if:")
+
     def test_the_review_refuses_to_run_until_the_environment_restricts_deployment_branches(self):
         # The codex-review environment isolates the secrets only once it restricts which branches
         # may deploy to it (README "Admin preconditions"); until then a run must fail closed.
@@ -824,6 +838,22 @@ class WorkflowLogExposureTest(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, hardening)
 
+    # What codex actually receives, not the shape of the call in the workflow text: every line of the
+    # shared hardening file, in order, in every bounded call (a pipeline that dropped or reordered
+    # lines left the step text unchanged and passed the test above, 2026-10-10).
+    def test_every_bounded_codex_call_receives_the_whole_hardening_file(self):
+        hardening = [line for line in (REPO_ROOT / ".github/codex/codex-exec-args.txt").read_text().splitlines()
+                     if line and not line.startswith("#")]
+        self.assertGreater(len(hardening), 10)
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.bounded_step(tmp, "ok")
+            self.assertEqual(result.returncode, 0, "bounded reviewer step did not complete")
+            for n in (1, 2, 3):
+                args = json.loads((pathlib.Path(tmp) / f"args-{n}").read_text())
+                with self.subTest(call=n):
+                    windows = [args[i:i + len(hardening)] for i in range(len(args) - len(hardening) + 1)]
+                    self.assertIn(hardening, windows, "the hardening arguments did not reach codex intact")
+
     def test_w2_post_failure_does_not_echo_the_response_body(self):
         script = extract_step_run("POST result to n8n W2 and resolve status")
         with tempfile.TemporaryDirectory() as tmp:
@@ -894,7 +924,9 @@ class WorkflowLogExposureTest(unittest.TestCase):
         self.assertEqual(len(calls), 2, "expected the first call and its retry")
         for call in calls:
             with self.subTest(call=call):
-                self.assertRegex(call, r'"\$QUIET" --timeout \d+ -- codex exec')
+                # the chunked path's ceiling, not just any number (0 or a huge value would pass \d+)
+                ceiling = load_module("codex_review_run_chunks", REPO_ROOT / "scripts/codex-review-run-chunks.py").MODEL_CALL_TIMEOUT_SECONDS
+                self.assertIn(f'"$QUIET" --timeout {ceiling} -- codex exec', call)
 
 
 class PathClassifierTest(unittest.TestCase):
