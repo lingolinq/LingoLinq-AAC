@@ -212,17 +212,11 @@ Four tests encoded the OLD layout and were updated — a spec change the user re
 weakening. One comment in them asserted the opposite of the new behaviour and was corrected.
 
 ## Open
-- `system-settings.emails` basic rail (above).
-- **Idle-session token bug.** After the inactivity window `Device#clean_old_keys` marks a browser
-  key `needs_refresh` (`app/models/device.rb:291-296`), every API call 400s, and NO frontend code
-  calls any refresh endpoint — `grep "token/refresh"` across `app/frontend/app/` returns nothing.
-  The only endpoint (`session#oauth_token_refresh`, `routes.rb:86`) serves INTEGRATION tokens
-  only. Intended behaviour is a clean logout (`is_logout_worthy_auth_error` already lists the
-  error) but the failing queries trip the route's error substate first, so the user sees
-  "Failed to load" instead of the login screen. Needs its own fact sheet + red test.
-- Dead CSS: `md-grid--fullspan-{speak,extras,account,createboard,reports,editdashboard}` rules
-  (`app.scss:48206-48306`) can no longer match. Left in place rather than deleting a 100-line
-  range at the end of a long session.
+- ~~`system-settings.emails` basic rail~~ RESOLVED 2026-10-10 for ALL FOUR System Settings pages — see "Follow-ups resolved" below.
+- ~~**Idle-session token bug.**~~ RESOLVED 2026-10-10 — see "Resolution" below. The cause was
+  not the route error substate: sync's `check_token(false)` flagged the session without logging
+  out, and extras.js's force_logout de-dupe then skipped every logout.
+- ~~Dead CSS: `md-grid--fullspan-*` and the HOME BOARD badge rules~~ RESOLVED 2026-10-10 — see "Follow-ups resolved" below.
 
 ## HOME BOARD badge -> green home glyph on the name
 
@@ -296,7 +290,7 @@ message, unlike its older branches whose message list is pinned by existing test
 up the second logout site at `app-state.js:585`.
 
 
-## NEXT STEP (not yet done): stop `routes/user.js` painting the error page over a dying session
+## SUPERSEDED (see "Resolution" below): stop `routes/user.js` painting the error page over a dying session
 
 **Verified cause of the "Failed to load" symptom — a RACE, not a missing handler.**
 1. Token goes stale mid-session; a request answers 400 `Token needs refresh` + `invalid_token`.
@@ -368,3 +362,114 @@ route's documented job (see its comment at :99-107).
 
 **Proof required before calling it fixed** — not a green unit test. Re-run the mid-session
 reproduction below and confirm `failed_to_load` flips from true to false.
+
+## Resolution (2026-10-10): the cause was the extras.js de-dupe guard, not routes/user.js
+
+**The section above is wrong in its central claim.** Verified live on the unfixed code:
+
+- `routes/user.js:109`'s `this.router.transitionTo('error')` renders NOTHING. There is no `error`
+  route (router.js:164 is commented out); a direct `router.transitionTo('error')` in the running
+  app RESOLVES, leaves the URL unchanged and shows no error template. `error.hbs` renders only as
+  the application error substate when an error BUBBLES. So that branch never painted "Failed to
+  load" — it silently aborts the transition. Opening another user's page (/marcus_williams_slp)
+  with a dead token on unfixed code: route stays `user`, no error page, dialog up, auth cleared.
+- The "Failed to load" seen on `/:user/boards` is the boards list's OWN inline state
+  (`components/available-boards-section.hbs:16`), not the error page. The probe that reported
+  `failed_to_load: true` matched the string anywhere on the page; it must match error.hbs's body
+  text ("The requested resource failed to load") to mean the error page.
+- The real defect (found by the adversarial review, then reproduced): sync "Step 0.5" calls
+  `check_token(false)` (services/persistence.js:2224). token_check treats a needs_refresh key as
+  ignorable (application_controller.rb:153, device.rb:348), so check_token sets
+  `invalid_token=true` WITHOUT tearing down (session.js:292-296). extras.js keyed its force_logout
+  de-dupe on `invalid_token`, so every later dead 400 skipped the logout. Observed: auth intact,
+  no dialog, every request failing (25 on /:user/logs), lists showing inline "Failed to load".
+
+**Fix:** `session.logout_under_way()` = `invalid_token && !isAuthenticated` (the state only
+`_tear_down_dead_session` produces), and extras.js's `already_dead` reads it instead of
+`invalid_token`. `routes/user.js` is unchanged: a route change was written, then dropped because
+the branch it guarded has no visible effect, so no live evidence could support it.
+
+**Live proof** (scripts in the session scratchpad; recipe: mint a browser Device token, inject
+`lingolinqStash-auth_settings`, load /example/home, wait 13s, age keys to now-13h AND delete the
+Redis `user_token/<token>` entry — device.rb:313 answers from cache otherwise — then optionally
+`session.check_token(false)`, then navigate). An earlier probe that AWAITED that call inside
+page.evaluate hung for 5+ minutes; cause unverified — non-awaited runs all resolved within 4s:
+
+| case | unfixed | fixed |
+|---|---|---|
+| sync check, then /:user/boards | auth intact, no dialog | dialog opens right after the check, auth cleared |
+| sync check, then /:user/logs | auth intact, no dialog, 25 failing requests | dialog, auth cleared |
+| another user's page | dialog, auth cleared | unchanged |
+| /:user/boards (no sync check) | dialog, auth cleared | unchanged |
+
+**Falsified:** `logout_under_way` returning `invalid_token` alone turns the "flagged by a sync token
+check" unit test red; restoring only the old extras.js guard brings the live bug back (auth intact,
+no dialog). Gates: `lint:js:ci` 0 new findings, baseline untouched.
+
+**Probe caveat:** any route change closes all modals (app-state.js:748, on `routeWillChange`), so a
+scripted navigation after the dialog opens closes it. A real user returning to an idle tab sees
+the dialog before navigating.
+
+### Commits (2026-10-10)
+- `b7acf6cb8` fix(session): log out a dead session even after sync has flagged it — THE idle-session fix
+- `80b5700e9` fix(session): one logout before the modal route exists; clear the dead flag on sign-in (C, D)
+- `6bf31788b` fix(session): keep the "Please Log Back In" dialog up until the user acts on it (B)
+- `b26945d67` fix(routes): let /:user page errors reach the error page (A)
+- `1fc817fc9` fix(basic-view): give every System Settings page the Basic rail (E)
+- `f2a909d98` chore(styles): remove CSS that can no longer match anything (F)
+`e00e224e4` (earlier) was a real but PARTIAL fix; `b7acf6cb8` is what closes the reported bug.
+Final full suite at these changes: 3351 tests, 0 fail, 37 skip, 5 todo (baseline 3330 + 21 new).
+
+### Follow-ups resolved (2026-10-10, same session; A-E red test first, A-D also falsified by reverting the fix; E and F verified live or by compile)
+
+**A. `routes/user.js` showed no error page.** 404 and 400/403 now BUBBLE (`return true`), so the
+application route's action runs and Ember renders templates/error.hbs. `reserved_path` is still
+swallowed. Held back (`return false`) while `session.logout_under_way()` or when the response is
+itself a dead-session response, so in-flight anonymous 400s never replace the force-logout
+dialog. Live: /no_such_user_zz9 on HEAD stayed on user.home with nothing shown; fixed, route
+`error` with error.hbs. Dead token on another user's page: dialog stays, no error page.
+Tests: tests/unit/routes/user-error-action-test.js (7).
+
+**B. Navigation / Escape / backdrop closed the force-logout dialog.** `@uncloseable="true"` on it
+(its Log Out and sign-in remain the exits); `global_transition` keeps it open while
+`logout_under_way()` except on the way to `login` (`app-state#keeps_force_logout_open`, placed
+last in the file so no ESLint anchor shifts); `invalidate`'s SPA path closes it before its own
+transition. Live: after the sync check, the dialog survived Escape AND navigation (was closed
+before); Log Out lands on `/` with the dialog gone. Tests: app_state-test
+`global_transition: the force-logout dialog` (4), session-spa-transition-test (1).
+NOTE: a stub of `modal.close` must filter by outlet — `close_board_preview` also calls
+`modal.close(null, 'board-preview')`, which made a correct fix look red.
+
+**C. No modal route: repeated alerts.** `force_logout`'s no-modal branch now runs
+`_tear_down_dead_session()` before `alert` + `invalidate(true)`, so `logout_under_way()` is true
+at once and extras.js's de-dupe holds. An early return in force_logout itself was tried and
+DROPPED: it broke `check_token` › "should invalidate the session if allowed" (check_token sets
+`invalid_token` immediately before calling force_logout, and with isAuthenticated already false
+the early return swallowed a real logout). Test: session-test force_logout (1).
+
+**D. Stale `invalid_token` after a new sign-in.** `confirm_authentication` resets it. Test:
+session-test confirm_authentication (1). The two shifted `.eslint-todo` rows for session.js
+(205->210, 321->326; same rule/column/hash) were updated with explicit approval.
+
+**E. System Settings Basic rail.** The log said only `emails`; NO System Settings page had it.
+`isBasicView` on controllers/system-settings.js (utils/view_style#is_classic, as Organizations);
+`<Dashboard::ClassicRail />` mounted once in templates/system-settings.hbs as the first child of
+`main.la-main`; layout in _classic-home.scss. The page is a FIXED overlay starting at y=0, so its
+own rule sets top = header + 36 (106px from 768px up, 150px at <=767; header measured 70/114),
+which puts the rail exactly where Organizations has it (measured 94/106 desktop, 138 phone).
+Tests: tests/integration/system-settings-basic-rail-test.js (4). Modern untouched by
+construction (all rules under `body.ll-view-basic`, rail behind `isBasicView`).
+
+**F. Dead CSS removed.** All `md-grid--fullspan-{speak,extras,account,createboard,reports,
+editdashboard}` rules (only `fullWidth()` keys can emit fullspan, dashboard_sections.js:443-445,
+and `extraFull` is `[]`); the HOME BOARD badge rules (`.md-strip__home-badge`,
+`.board-picker__home-badge` + its two `@container` offsets, `&__board-item-home-badge` + its
+width override, the compact offset). No emitter exists in app/ or public/. Sass compiles.
+KEPT: `:not(.board-picker__home-badge)` at app.scss:5922 (dropping it lowers specificity), and
+the picker home tile's `container-type` rule (now only applies containment; removing it is a
+live layout change that could not be measured because the dev picker rendered no tiles —
+its comment says so).
+
+**Still open (outside this task log's list):** board/index.js and user/board-alt/index.js error
+actions return undefined, so their comment's "error.hbs renders" is false; lesson.js and
+board routes paint their own failure state on any 400. 87 Dependabot alerts (pre-existing).
