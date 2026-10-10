@@ -1766,7 +1766,9 @@ export default word_suggestions;
 // Read-only: whether a sync flush is pending (tests wait for none before scheduling their own).
 word_suggestions.sync_flush_scheduled = function() { return !!_sync_timer; };
 // Tests: drop a scheduled flush (the queue stays in localStorage) so a test does not leave it for the
-// next one. Returns whether one was pending. No app code calls it.
+// next one. Returns whether one was pending. No app code calls it. The runloop timer itself stays
+// queued until its delay passes and then does nothing (generation mismatch): cancelling it with
+// runCancel would be a new ember/no-runloop finding, and none of the callers awaits settled().
 word_suggestions.cancel_sync_flush = function() { var had = !!_sync_timer; _sync_gen++; _sync_timer = null; return had; };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { live_service, owner_gone } from './live_service';

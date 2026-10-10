@@ -313,7 +313,7 @@ var utterance = EmberObject.extend({
       utterance.set('last_spoken_button', last_spoken_button);
       stashesService.persist('working_vocalization', buttonList);
       if(!utterance.suggestion_refresh_scheduled) {
-        utterance.suggestion_refresh_scheduled = true; var refresh_for = live_service(LingoLinq.appState); // the live app this refresh belongs to (none: it does not run)
+        utterance.suggestion_refresh_scheduled = true; var refresh_for = live_service(LingoLinq.appState); // the live app this refresh belongs to (none captured: it still runs, see owner_gone)
         runLater(function() {
           utterance.suggestion_refresh_scheduled = false;
           if(owner_gone(refresh_for)) { return; } app_state.refresh_suggestions(); // its app is gone: do not refresh another
