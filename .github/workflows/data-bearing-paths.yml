@@ -1,0 +1,129 @@
+name: Data-bearing paths
+
+# Merge gate for real user data (brain issue #233). A PR that adds or changes a
+# fixture, factory, seed, migration, VCR cassette, data rake task, data file or
+# db/language/ path fails until a reviewer confirms the data is synthetic and adds
+# the `synthetic-data` label. A push, a reopen or a base change removes the label
+# (the reset-label job), and the label counts only when applied after the PR's current
+# head arrived on GitHub, so the reviewer re-applies it for each new head. Any change
+# under .github/workflows/ needs the label too.
+#
+# Rollout: make `data-bearing-paths` a required check with its integration pinned to
+# GitHub Actions, then run the canary (including a labeled, already-red head) before
+# relying on it. A PR's own pull_request job with the same name could otherwise post a
+# result beside this one.
+#
+# What it does and does not do: it keeps real data out of develop, staging and main
+# and flags it when a PR is opened or updated. This repo is public, so a pushed
+# branch is already published; the check cannot unpublish it, and the author's own
+# look before pushing comes first. Anyone with write access can apply the label, and
+# ruleset bypass actors can merge past a required check.
+#
+# WHY pull_request_target: it runs THIS file and the scripts from the repository's
+# default branch (develop), for PRs to staging and main too (GitHub, since
+# 2025-12-08), so a PR cannot edit the check that judges it; a change to the check
+# takes effect only after it merges to develop. It is safe here because nothing from
+# the PR is executed: the PR's commits are fetched as data and read with git diff,
+# git diff-tree and git rev-list. Do not add a step that checks out, builds or runs PR
+# code, and do not add secrets: this trigger runs for fork PRs with the base
+# repository's token, which here can write pull requests (to remove the label).
+# Bootstrap: this workflow runs only once it is on develop.
+
+on:
+  pull_request_target:
+    branches: [ develop, staging, main ]
+    # edited covers a PR retargeted after it was opened.
+    types: [ opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled ]
+
+permissions:
+  contents: read
+  # write: the synthetic-data label is removed on a push, reopen or base change.
+  pull-requests: write
+  issues: read
+  checks: read
+
+jobs:
+  # Removes the synthetic-data label on a push, a reopen or a base change. It has no
+  # concurrency group and needs no checkout, so no later event can cancel or replace it
+  # and it finishes within seconds of the event; the decision job below reads the label
+  # only after a full checkout and both harnesses.
+  reset-label:
+    if: >-
+      github.event.action == 'synchronize' ||
+      github.event.action == 'reopened' ||
+      (github.event.action == 'edited' && github.event.changes.base)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove the synthetic-data label from the new head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          has_label() { gh api "repos/$REPO/issues/$PR_NUMBER/labels?per_page=100" --jq 'any(.[]; .name == "synthetic-data")'; }
+          # Assign first: under set -e a failed lookup stops the step, where a test
+          # like [ "$(has_label)" = true ] would read the failure as "no label".
+          has="$(has_label)"
+          case "$has" in true) ;; false) exit 0 ;; *) echo "unexpected label lookup '$has'" >&2; exit 1 ;; esac
+          if ! gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/synthetic-data" --silent; then
+            # Removed by someone else in the meantime is fine; still present is not.
+            has="$(has_label)"
+            [ "$has" = false ] || { echo "could not remove the synthetic-data label" >&2; exit 1; }
+          fi
+          echo "Removed the synthetic-data label; a reviewer re-applies it for the new head."
+
+  data-bearing-paths:
+    needs: reset-label
+    # always(): this job must run and decide even when reset-label was skipped (no reset
+    # needed) or failed. A skipped job counts as passing for a required check.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    # One queue per PR, nothing cancelled or dropped (up to 100 pending): every run
+    # decides in turn on the PR's live state, so the last one to finish reflects the
+    # latest push, label and base. A stale run fails on the moved head.
+    concurrency:
+      group: data-bearing-paths-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Require the label reset to have finished
+        env:
+          RESET_RESULT: ${{ needs.reset-label.result }}
+        run: |
+          case "$RESET_RESULT" in
+            success|skipped) ;;
+            *) echo "data-bearing-path-check: the label reset ended '$RESET_RESULT'; failing closed." >&2; exit 3 ;;
+          esac
+
+      # The default branch (pull_request_target's ref), with full history so
+      # origin/develop and the merge bases resolve.
+      - name: Checkout the default branch (trusted scripts)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The PR's commits, as data only. Nothing from them is checked out or run.
+      - name: Fetch the PR's commits (data only)
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: git fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
+
+      - name: Parse-check the check and its test harness
+        run: bash -n scripts/data-bearing-path-check.sh && bash -n scripts/data-bearing-path-check-ci.sh && bash -n scripts/tests/data-bearing-path-check-test.sh && bash -n scripts/codex-review-path-classifier.sh
+
+      # Prove the check and its classifier fire before trusting the verdict on this PR.
+      - name: Verify the data-bearing path check actually fires
+        run: bash scripts/tests/codex-review-path-classifier-test.sh && bash scripts/tests/data-bearing-path-check-test.sh
+
+      - name: Data-bearing path check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_ACTION: ${{ github.event.action }}
+          # Set only when an edited event changed the base branch.
+          BASE_FROM: ${{ github.event.changes.base.ref.from }}
+        run: bash scripts/data-bearing-path-check-ci.sh

@@ -311,6 +311,27 @@ site_case ERR3 'fixtures' 'grep fails only at the data-bearing patterns' 'app/mo
 site_case ERR3 '[lL][aA]' 'grep fails only at the db/language pattern' 'app/models/user.rb'
 site_case ERR3 'docs/legal' 'grep fails only at the compliance patterns' 'app/models/user.rb'
 
+echo "== path-list mode (--paths-from <file>), used by data-bearing-path-check.sh =="
+# The caller lists the paths (a merge commit's combined diff), so the same patterns
+# judge them without a second copy of the list.
+# list_case <expect> <label> <file-content|MISSING>
+list_case() {
+  local expect="$1" label="$2" content="$3" f="$WORK/paths-list"
+  rm -f "$f"
+  [ "$content" = MISSING ] || printf '%s' "$content" > "$f"
+  classify --paths-from "$f"
+  report "$expect" "$label"
+}
+list_case blocked 'path list: a fixture is data-bearing'              $'app/models/user.rb\nspec/fixtures/users.yml\n'
+list_case blocked 'path list: a db/language path is data-bearing'      $'db/language/en/words.json\n'
+list_case codex   'path list: code only routes to the reviewer'        $'app/models/user.rb\nREADME.md\n'
+list_case ERR3    'path list: an empty file fails closed'              ''
+list_case ERR3    'path list: blank lines only fail closed'            $'\n\n'
+list_case ERR3    'path list: a missing file fails closed'             MISSING
+list_case ERR3    'path list: a git-quoted path fails closed'          $'README.md\n"spec/fixtures/a\\tb.yml"\n'
+classify --paths-from ''
+report ERR3 'path list: an empty file name fails closed'
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "codex-review-path-classifier-test: OK ($total cases)"

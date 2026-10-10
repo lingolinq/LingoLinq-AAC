@@ -212,6 +212,17 @@ wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
 Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
+A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
+or the check's own files fails the `data-bearing-paths` check until a reviewer confirms
+every changed data file is synthetic (and has looked at any workflow change) and adds the
+`synthetic-data` label. The check removes the label on every push, reopen or base change,
+so the reviewer re-applies it for each new head. `develop` is squash-only, so a PR to it is
+judged by its net diff. PRs to `staging` and `main` are checked commit by commit for changes
+that never went through `develop`; a merge commit counts only for what it adds beyond its
+parents, so a release merge of `develop` does not trip again. The check does not verify who
+applied the label; the approving reviewer should be the one. This repo is public: never
+push real user data, since a pushed branch is published whether or not it merges.
 
 ## Audit and compliance system
 
