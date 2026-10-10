@@ -110,8 +110,8 @@ spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer 
 that pass. A second, CI-side route for the senior-dev
 pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
 dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
-status; per that workflow's own header, status-stamped 2026-09-12, it is dormant (not in
-the required set on `develop`, `staging` or `main`, no run dispatched since 2026-08-04).
+status; per that workflow's own header, status-stamped 2026-10-03, it is disabled in
+Actions (last run 2026-09-28) and not in the required set on `develop`, `staging` or `main`.
 Nothing re-verifies that stamp, so confirm it against branch protection before relying on
 it. A green CI run is not the dual review.
 

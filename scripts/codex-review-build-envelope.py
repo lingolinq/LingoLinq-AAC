@@ -149,9 +149,304 @@ def diff_has_injection(diff):
     return bool(diff) and bool(_INJECTION_RE.search(diff))
 
 
-def guarded_outcome(review, diff):
+# A file git treats as binary is not shown in the diff: the reviewer sees only "Binary files ...
+# differ". Git decides that from content (a NUL byte), so a PR can make a source file "binary" and
+# hide it. Media and fonts are expected to be binary and pass; any other path that diffs as binary
+# withholds an APPROVE. Archives (.zip, .gz, .tgz, .obz board packages) are deliberately not on the
+# list: one can carry source or data the reviewer never sees, so a human looks at it. (PR-added
+# .gitattributes cannot force this: the workflow diffs from a trusted worktree.)
+REVIEWABLE_BINARY_EXTENSIONS = frozenset((
+    "png", "jpg", "jpeg", "gif", "webp", "ico", "bmp", "tif", "tiff", "avif", "heic",
+    "pdf", "woff", "woff2", "ttf", "otf", "eot",
+    "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "mp4", "m4v", "webm", "mov",
+))
+_BINARY_DIFF_RE = re.compile(r"^Binary files (.+) and (.+) differ$", re.MULTILINE)
+
+
+def _binary_side_path(side):
+    if side == "/dev/null":
+        return None
+    return side[2:] if side[:2] in ("a/", "b/") else side
+
+
+def _extension(path):
+    name = path.rsplit("/", 1)[-1]
+    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+
+def unreviewable_binary_paths(diff, read_head=None, binary_files=None):
+    """Paths that diff as binary and are not an expected binary type. With read_head, also an
+    expected-type file at the head whose content does not start like that type.
+
+    binary_files (git_binary_files) is git's own list of binary paths. The "Binary files X and Y
+    differ" line is ambiguous for a name that holds " and ", so when the list is given it decides
+    which files are binary and which head-side files are read; the parsed line only adds to it."""
+    paths = set()
+    for match in _BINARY_DIFF_RE.finditer(diff or ""):
+        for side in match.groups():
+            path = _binary_side_path(side)
+            if path is None:
+                continue
+            if _extension(path) not in REVIEWABLE_BINARY_EXTENSIONS:
+                paths.add(path)
+    if binary_files is not None:
+        paths.update(p for p in binary_files.paths if _extension(p) not in REVIEWABLE_BINARY_EXTENSIONS)
+        if read_head is not None:
+            paths.update(_content_mismatches(binary_files.head_paths, read_head))
+    elif read_head is not None:
+        paths.update(binary_content_mismatches(diff, read_head))
+    return sorted(paths)
+
+
+class GitBinaryFiles:
+    """Binary paths between two commits as git lists them: every binary path, and those still
+    present at the head (the ones whose content can be read)."""
+
+    def __init__(self, paths, head_paths):
+        self.paths = list(paths)
+        self.head_paths = list(head_paths)
+
+
+def git_binary_files(base, head):
+    """GitBinaryFiles for base...head from the local git objects. NUL-separated, so no file name is
+    split or quoted; --no-renames lists a rename by both names. Raises on a git failure."""
+    def git_diff(*args):
+        return subprocess.run(
+            ["git", "-c", "core.quotepath=false", "diff", *args, "--no-renames", "--no-textconv", "-z", f"{base}...{head}"],
+            capture_output=True, check=True,
+        ).stdout.decode("utf-8", "surrogateescape")
+    paths = []
+    for record in git_diff("--numstat").split("\0"):
+        if record.count("\t") >= 2:
+            added, removed, path = record.split("\t", 2)
+            if added == "-" and removed == "-":
+                paths.append(path)
+    deleted = set(git_diff("--name-only", "--diff-filter=D").split("\0"))
+    return GitBinaryFiles(paths, [p for p in paths if p not in deleted])
+
+
+def _starts(*prefixes):
+    return lambda head: head.startswith(prefixes)
+
+
+# Bytes a script can be made of: tab, newline, vertical tab, form feed, carriage return (Ruby skips
+# each as whitespace), printable ASCII, and any character in valid UTF-8 (Ruby reads source as
+# UTF-8). A header field that is all text is a script posing as that header, not a real value.
+_TEXT_BYTES = frozenset(b"\t\n\x0b\x0c\r" + bytes(range(0x20, 0x7F)))
+
+
+def _binary_byte_within(data, limit):
+    """True when data[:limit] holds a byte script text cannot: NUL or another control byte, DEL, or
+    a byte that is not part of a valid UTF-8 character."""
+    i = 0
+    while i < min(limit, len(data)):
+        byte = data[i]
+        if byte < 0x80:
+            if byte not in _TEXT_BYTES:
+                return True
+            i += 1
+            continue
+        width = 2 if 0xC2 <= byte <= 0xDF else 3 if 0xE0 <= byte <= 0xEF else 4 if 0xF0 <= byte <= 0xF4 else 0
+        if not width:
+            return True
+        try:
+            data[i:i + width].decode("utf-8")
+        except UnicodeDecodeError:
+            return True
+        i += width
+    return False
+
+
+def _is_text(field):
+    return bool(field) and not _binary_byte_within(field, len(field))
+
+
+def _riff_size(head):
+    # The RIFF size field: a real one is not four text bytes (`RIFF=1;#WEBP` runs as Ruby).
+    return len(head) >= 8 and not _is_text(head[4:8])
+
+
+def _riff(form):
+    return lambda head: head[:4] == b"RIFF" and _riff_size(head) and head[8:12] == form
+
+
+def _after(skip, check):
+    # check() applied after leading bytes a real file may carry: a UTF-8 BOM and whitespace before
+    # %PDF-, zero padding before an MP3 frame. Only those exact bytes are skipped.
+    def match(head):
+        rest = head
+        if skip == "bom_space":
+            rest = rest[3:] if rest.startswith(b"\xef\xbb\xbf") else rest
+            rest = rest.lstrip(b" \t\r\n")
+        elif skip == "zeros":
+            rest = rest.lstrip(b"\x00")
+        return check(rest)
+    return match
+
+
+def _id3v2_length(head):
+    """Length of the ID3v2 tag that starts head (header, body and any footer), or None when head
+    does not start with a real ID3v2 header: version 2 to 4 and a size of four 7-bit (syncsafe)
+    bytes. `ID3=1;` (valid Ruby) has neither."""
+    if len(head) < 10 or head[:3] != b"ID3" or head[3] not in (2, 3, 4) or any(b & 0x80 for b in head[6:10]):
+        return None
+    size = (head[6] << 21) | (head[7] << 14) | (head[8] << 7) | head[9]
+    footer = 10 if head[3] == 4 and head[5] & 0x10 else 0
+    return 10 + size + footer
+
+
+def _mp3_frame(head):
+    return _id3v2_length(head) is not None or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)
+
+
+def _flac(head):
+    # fLaC, or an ID3v2 tag with fLaC straight after it (past the bytes read, the file is withheld).
+    if head.startswith(b"fLaC"):
+        return True
+    length = _id3v2_length(head)
+    return length is not None and head[length:length + 4] == b"fLaC"
+
+
+def _iso_media(head):
+    # ISO base media (the MP4 family, AVIF, HEIC): a box size, then "ftyp". A real ftyp box is a few
+    # dozen bytes, so its size starts with two zero bytes (`x=0;ftyp=1;` runs as Ruby).
+    return head[:2] == b"\x00\x00" and head[4:8] == b"ftyp"
+
+
+def _sfnt(*versions):
+    # A TrueType/OpenType header: the version tag, then numTables, which is far below 256.
+    return lambda head: head.startswith(versions) and len(head) > 4 and head[4] == 0
+
+
+def _pdf_header(head):
+    # `%PDF-` with a d.d version and the end of the header line (`%PDF-1;...` runs as Perl).
+    return (head.startswith(b"%PDF-") and head[5:6].isdigit() and head[6:7] == b"." and head[7:8].isdigit()
+            and head[8:9] in (b"\r", b"\n"))
+
+
+def _pdf_binary_line(head):
+    """After the header line, a NUL within the first 20 bytes, or the binary comment line the PDF
+    spec recommends (`%` and four bytes of 128 or more; both real PDFs in this repo have one). A
+    control byte in a string literal (`%PDF-1.7\\n="\\x01";...`) is neither."""
+    start = 10 if head[8:10] == b"\r\n" else 9
+    return b"\x00" in head[:_HEADER_BYTES] or (
+        head[start:start + 1] == b"%" and all(byte >= 0x80 for byte in head[start + 1:start + 5])
+        and len(head) >= start + 5)
+
+
+# How each expected binary type starts. A file named for one of these types that does not start that
+# way is not that type: a .png can hold code (Ruby stops parsing at a NUL) or a scanned roster. A real
+# file that starts unusually only costs a human look (the APPROVE is withheld), never a missed one.
+# Every real file of these types other than PDF holds a NUL within its first 20 bytes (all 481
+# such files in this repo do). Ruby stops reading a script at a NUL, so Ruby code in a disguised
+# file must fit in the 19 bytes before it, magic included. Any other byte script text cannot hold is
+# not enough: a control byte inside a string literal (`GIF89a="\x01";...`) or a comment is legal
+# Ruby. A PDF has its own check (_pdf_binary_line). This does not stop a shell: bash skips a NUL
+# that is not on the first line, so `bash x.gif` can run code of any length. What still passes is
+# listed in .github/codex/README.md; it is a residual risk, not a closed class.
+_HEADER_BYTES = 20
+
+
+def _binary_header(check):
+    return lambda head: b"\x00" in head[:_HEADER_BYTES] and check(head)
+
+
+BINARY_SIGNATURES = {
+    "png": _starts(b"\x89PNG\r\n\x1a\n"),
+    "jpg": _starts(b"\xff\xd8\xff"),
+    "jpeg": _starts(b"\xff\xd8\xff"),
+    "gif": _starts(b"GIF87a", b"GIF89a"),
+    "webp": _riff(b"WEBP"),
+    "ico": _starts(b"\x00\x00\x01\x00", b"\x89PNG\r\n\x1a\n"),  # browsers accept a PNG saved as .ico
+    "bmp": lambda head: head.startswith(b"BM") and head[6:10] == b"\x00\x00\x00\x00",  # reserved, zero
+    "tif": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),  # classic and BigTIFF
+    "tiff": _starts(b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"),
+    "avif": _iso_media,
+    "heic": _iso_media,
+    "pdf": _after("bom_space", lambda rest: _pdf_header(rest) and _pdf_binary_line(rest)),
+    "woff": _starts(b"wOFF"),
+    "woff2": _starts(b"wOF2"),
+    "ttf": _sfnt(b"\x00\x01\x00\x00", b"true", b"OTTO"),
+    "otf": _sfnt(b"OTTO", b"\x00\x01\x00\x00"),
+    # The magic at 34, and the high bytes of each version EOT defines (0x00010000, 0x00020001,
+    # 0x00020002, little-endian at 8) are zero.
+    "eot": lambda head: head[34:36] == b"LP" and head[9:10] == b"\x00" and head[11:12] == b"\x00",
+    "mp3": _after("zeros", _mp3_frame),
+    "wav": lambda head: head[:4] in (b"RIFF", b"RF64") and _riff_size(head) and head[8:12] == b"WAVE",
+    "ogg": _starts(b"OggS"),
+    "oga": _starts(b"OggS"),
+    "m4a": _iso_media,
+    "aac": lambda head: (head.startswith(b"ADIF") or _id3v2_length(head) is not None or _iso_media(head)
+                         or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xF6 == 0xF0)),
+    "flac": _flac,  # an ID3v2 tag may precede the FLAC stream
+    "mp4": _iso_media,
+    "m4v": _iso_media,
+    "webm": _starts(b"\x1a\x45\xdf\xa3"),
+    # The first atom's size: a first atom of 16 MiB or more is withheld (`x=0;free=1;` runs as Ruby).
+    "mov": lambda head: head[:1] == b"\x00" and head[4:8] in (b"ftyp", b"moov", b"mdat", b"wide", b"free", b"skip", b"pnot"),
+}
+# The PDF entry applies its own check (_pdf_binary_line) after its BOM and whitespace.
+BINARY_SIGNATURES = {extension: check if extension == "pdf" else _binary_header(check)
+                     for extension, check in BINARY_SIGNATURES.items()}
+
+
+def binary_content_mismatches(diff, read_head):
+    """Head-side paths of an expected binary type whose content does not start like that type, or
+    cannot be read (fail closed). read_head(path) returns the file's first bytes at the PR head. A
+    deleted file (head side /dev/null) is not read."""
+    head_paths = []
+    for match in _BINARY_DIFF_RE.finditer(diff or ""):
+        path = _binary_side_path(match.group(2))
+        if path is not None:
+            head_paths.append(path)
+    return _content_mismatches(head_paths, read_head)
+
+
+def _content_mismatches(head_paths, read_head):
+    paths = set()
+    for path in head_paths:
+        if _extension(path) not in BINARY_SIGNATURES:
+            continue
+        try:
+            head = read_head(path)
+        except Exception:
+            head = None
+        if not head or not BINARY_SIGNATURES[_extension(path)](head):
+            paths.add(path)
+    return sorted(paths)
+
+
+def git_head_reader(sha, length=1024):
+    """read_head for binary_content_mismatches: the first bytes of <sha>:<path> from the local git
+    objects (the workflow fetches the PR commits and never checks them out). Reads only `length`
+    bytes; a missing object yields b"", which the caller treats as a mismatch."""
+    def read_head(path):
+        process = subprocess.Popen(["git", "cat-file", "blob", f"{sha}:{path}"],
+                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        try:
+            return process.stdout.read(length)
+        finally:
+            process.stdout.close()
+            process.kill()
+            process.wait()
+    return read_head
+
+
+UNREVIEWED_BINARY_OUTCOME = {
+    "kind": "incomplete_evidence",
+    "status_state": "failure",
+    "status_description": "Codex review APPROVE withheld: a binary file's content was not reviewed (needs human)",
+    "human_label": "Unreviewed binary content",
+}
+
+
+def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files=None):
     """Per-run outcome with the prompt-injection guard applied: an APPROVE whose
-    diff carries verdict-steering text is withheld and fails closed."""
+    diff carries verdict-steering text is withheld and fails closed.
+
+    binary_diff is the UNTRUNCATED diff for the binary guard: the bounded diff the reviewer sees is
+    cut at a size cap, and a hidden file past the cut must still withhold an APPROVE. read_head (see
+    binary_content_mismatches) also checks that each expected-type binary file is that type."""
     outcome = review_outcome(review)
     if outcome["kind"] == "approved" and diff_has_injection(diff):
         return {
@@ -160,6 +455,8 @@ def guarded_outcome(review, diff):
             "status_description": "Codex review APPROVE withheld: possible prompt-injection in the diff (needs human)",
             "human_label": "Suspected prompt-injection",
         }
+    if outcome["kind"] == "approved" and unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head, binary_files):
+        return dict(UNREVIEWED_BINARY_OUTCOME)
     return outcome
 
 
@@ -215,11 +512,14 @@ def _load(path):
     return json.loads(pathlib.Path(path).read_text())
 
 
-def _read_diff(diff_path):
+def _read_diff(diff_path, errors="strict"):
     if not diff_path:
         return ""
     try:
-        return pathlib.Path(diff_path).read_text()
+        # errors="surrogateescape" only on the blocked route (main): a data-bearing name need not
+        # be UTF-8, and the GUARD-1 envelope must still be built. Elsewhere a byte that is not UTF-8
+        # fails the step, as before.
+        return pathlib.Path(diff_path).read_bytes().decode("utf-8", errors)
     except OSError:
         return ""
 
@@ -229,7 +529,9 @@ def _sha256_file(path):
 
 
 def _sha256_text(text):
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    # surrogateescape gives back the original bytes of a diff _read_diff read on the blocked route;
+    # strictly read text encodes the same either way.
+    return hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()
 
 
 def _synthetic_review(verdict, head_sha, finding):
@@ -261,6 +563,15 @@ def _review_with_appended_finding(review, outcome, finding):
     findings.append(finding)
     body["findings"] = findings
     return body
+
+
+def _withheld_review(review_body, outcome, head_sha, finding):
+    """The review kept with a withheld APPROVE: the run's findings plus this one, with the verdict
+    the outcome gives (never APPROVE), or a NEEDS_HUMAN review holding only this finding when the
+    run had none."""
+    if review_body.get("findings"):
+        return _review_with_appended_finding(review_body, outcome, finding)
+    return _synthetic_review("NEEDS_HUMAN", head_sha, finding)
 
 
 def _path_coverage_finding(head_sha, description, evidence):
@@ -338,7 +649,8 @@ def _git_changed_paths(base_sha, head_sha):
     return {line for line in output.splitlines() if line}
 
 
-def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, synthesis_paths, full_diff):
+def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, synthesis_paths, full_diff,
+                              read_head=None, binary_files=None):
     manifest = _load(manifest_path)
     policy = _load_policy()
     errors = []
@@ -483,11 +795,17 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
             "status_description": "Codex review APPROVE withheld: possible prompt-injection in the diff (needs human)",
             "human_label": "Suspected prompt-injection",
         }
-        if review_body.get("findings"):
-            review_body["findings"].append(finding)
-        else:
-            review_body = _synthetic_review("NEEDS_HUMAN", head_sha, finding)
+        review_body = _withheld_review(review_body, outcome, head_sha, finding)
         return outcome, "full raw diff injection guard", 0, review_body, synthesis_reviews[decisive_index]
+    hidden = unreviewable_binary_paths(full_diff, read_head, binary_files) if final["kind"] == "approved" else []
+    if hidden:
+        finding = _path_coverage_finding(
+            head_sha,
+            "A binary file's content was not reviewed (not an expected binary type, or not the type its name says).",
+            "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
+        )
+        review_body = _withheld_review(review_body, UNREVIEWED_BINARY_OUTCOME, head_sha, finding)
+        return dict(UNREVIEWED_BINARY_OUTCOME), "full raw diff binary guard", 0, review_body, synthesis_reviews[decisive_index]
     return final, f"synthesis: {reason}", approve_count, review_body, synthesis_reviews[decisive_index]
 
 
@@ -495,6 +813,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--diff", default=None, help="bounded diff file for the injection guard")
     parser.add_argument("--full-diff", default=None, help="complete raw diff file for chunked injection guard")
+    parser.add_argument(
+        "--binary-scan-diff",
+        default=None,
+        help="untruncated diff for the binary guard on the bounded path (must be readable)",
+    )
+    parser.add_argument(
+        "--binary-content-at",
+        default=None,
+        metavar="SHA",
+        help="check that each expected-type binary file starts like its type, read from this commit",
+    )
     parser.add_argument("--manifest", default=None, help="chunked evidence manifest")
     parser.add_argument("--evidence-dir", default=None, help="chunked evidence directory")
     parser.add_argument("--chunk-reviews", nargs="*", default=[], help="chunk review JSON files")
@@ -511,8 +840,32 @@ def main():
     if not args.manifest and not args.reviews:
         parser.error("review JSON files are required unless --manifest is provided")
 
-    diff = _read_diff(args.full_diff) if args.full_diff else _read_diff(args.diff)
-    outcomes = [guarded_outcome(_load(path), diff) for path in args.reviews]
+    errors = "surrogateescape" if os.environ.get("REVIEWER_ROUTE") == "blocked" else "strict"
+    diff = _read_diff(args.full_diff, errors) if args.full_diff else _read_diff(args.diff, errors)
+    binary_diff = None
+    if args.binary_scan_diff:
+        # Fail closed: an unreadable file must not read as "no binary files".
+        try:
+            # Not cut at the bounded size, so it can hold bytes that are not UTF-8: keep them
+            # (surrogateescape) rather than crash the step.
+            binary_diff = pathlib.Path(args.binary_scan_diff).read_bytes().decode("utf-8", "surrogateescape")
+        except OSError as error:
+            parser.error(f"--binary-scan-diff unreadable: {error.__class__.__name__}")
+    if args.binary_content_at is not None and not args.binary_content_at.strip():
+        # Fail closed: an unset HEAD_SHA expands to "" and would silently turn the guard off.
+        parser.error("--binary-content-at is empty; the binary content guard needs the PR head SHA")
+    read_head = git_head_reader(args.binary_content_at) if args.binary_content_at else None
+    binary_files = None
+    if args.binary_content_at:
+        base = os.environ.get("BASE_SHA")
+        if not base:
+            parser.error("--binary-content-at needs BASE_SHA in the environment")
+        try:
+            binary_files = git_binary_files(base, args.binary_content_at)
+        except (OSError, subprocess.CalledProcessError) as error:
+            # Fail closed: without git's list the binary guard cannot be trusted.
+            parser.error(f"could not list binary files with git: {error.__class__.__name__}")
+    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head, binary_files) for path in args.reviews]
 
     if args.need_third:
         # A 3rd run is needed only when the two runs disagree.
@@ -527,6 +880,8 @@ def main():
             args.chunk_reviews,
             args.synthesis_reviews,
             diff,
+            read_head,
+            binary_files,
         )
         per_run_kind = [final_outcome["kind"]]
         run_count = len(args.chunk_reviews) + len(args.synthesis_reviews)
@@ -539,6 +894,24 @@ def main():
             len(outcomes) - 1,
         )
         review_body = _load(args.reviews[decisive_index])
+        head_sha = os.environ.get("HEAD_SHA", "")
+        if final_outcome == UNREVIEWED_BINARY_OUTCOME:
+            # Name the files, as the chunked path does (validate_chunked_evidence).
+            hidden = unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head, binary_files)
+            finding = _path_coverage_finding(
+                head_sha,
+                "A binary file's content was not reviewed (not an expected binary type, or not the type its name says).",
+                "Binary in the full BASE...HEAD diff: " + ", ".join(hidden[:20]),
+            )
+            review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
+        elif final_outcome["kind"] == "suspected_prompt_injection":
+            # guarded_outcome withheld the run's APPROVE; say why, as the chunked guard does.
+            finding = _path_coverage_finding(
+                head_sha,
+                "The diff contains possible prompt-injection text.",
+                "The BASE...HEAD diff the reviewer saw matched the CI prompt-injection guard.",
+            )
+            review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
         per_run_kind = [o["kind"] for o in outcomes]
         run_count = len(outcomes)
         synthesis_body = None

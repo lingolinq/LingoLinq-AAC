@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,32 @@ MODULE_PATH = pathlib.Path(__file__).with_name("codex-review-run-chunks.py")
 SPEC = importlib.util.spec_from_file_location("codex_review_run_chunks", MODULE_PATH)
 run_chunks = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(run_chunks)
+
+_FIXTURE_DIR = None
+_ORIGINAL_RUNNER_TEMP = None
+
+
+def setUpModule():
+    # Every codex call needs the locked model catalog the workflow writes under $RUNNER_TEMP
+    # (codex_exec_args refuses to build one without it). These tests use a fake codex, so the
+    # catalog is locked from a stub rather than from `codex debug models --bundled`.
+    global _FIXTURE_DIR, _ORIGINAL_RUNNER_TEMP
+    catalog = run_chunks.model_catalog
+    _FIXTURE_DIR = tempfile.TemporaryDirectory()
+    _ORIGINAL_RUNNER_TEMP = os.environ.get("RUNNER_TEMP")
+    stub = {"models": [dict({"slug": slug}, **{field: "set" for field in catalog.TOOL_FIELDS})
+                       for slug in catalog.APPROVED_MODELS]}
+    path = pathlib.Path(_FIXTURE_DIR.name) / catalog.CATALOG_NAME
+    path.write_text(json.dumps(catalog.locked_catalog(stub)))
+    os.environ["RUNNER_TEMP"] = _FIXTURE_DIR.name
+
+
+def tearDownModule():
+    if _ORIGINAL_RUNNER_TEMP is None:
+        os.environ.pop("RUNNER_TEMP", None)
+    else:
+        os.environ["RUNNER_TEMP"] = _ORIGINAL_RUNNER_TEMP
+    _FIXTURE_DIR.cleanup()
 
 
 class RunChunksTest(unittest.TestCase):
@@ -262,6 +289,128 @@ class RunChunksTest(unittest.TestCase):
             finally:
                 run_chunks.subprocess.run = original
         self.assertIn("--ephemeral", seen[0])
+        # The shared hardening arguments, an empty working directory and absolute paths
+        # (2026-10-02): codex runs with no tools, no PR files and no user config.
+        command = seen[0]
+        for required in run_chunks.codex_exec_args():
+            self.assertIn(required, command)
+        self.assertIn("features.shell_tool=false", command)
+        workdir = command[command.index("-C") + 1]
+        self.assertTrue(pathlib.Path(workdir).is_dir())
+        self.assertEqual(list(pathlib.Path(workdir).iterdir()), [], "codex's working directory is not empty")
+        self.assertTrue(pathlib.Path(command[command.index("--output-schema") + 1]).is_absolute())
+
+    # The whole command, built here from the hardening file and the catalog's constants rather than
+    # from codex_exec_args(), so a flag added in run_model or a lock argument dropped there fails
+    # (round 3b, 2026-10-10).
+    def test_run_model_sends_exactly_the_reviewed_arguments(self):
+        catalog = run_chunks.model_catalog
+        hardening = [line for line in run_chunks.CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+                     if line and not line.startswith("#")]
+        seen = []
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = pathlib.Path(tmp) / "prompt.md"
+            prompt.write_text("prompt")
+            output = pathlib.Path(tmp) / "out.json"
+
+            def fake_run(command, **_kwargs):
+                seen.append(list(command))
+                output.write_text(json.dumps({"verdict": "APPROVE"}))
+                return Ok()
+
+            try:
+                run_chunks.subprocess.run = fake_run
+                run_chunks.run_model(object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL)
+            finally:
+                run_chunks.subprocess.run = original
+        self.assertEqual(len(seen), 1)
+        command = seen[0]
+        expected = ["codex", "exec", *hardening,
+                    "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                    "-c", f'model_catalog_json="{pathlib.Path(os.environ["RUNNER_TEMP"]) / catalog.CATALOG_NAME}"',
+                    "-C", run_chunks.codex_workdir(), "-m", run_chunks.CHUNK_MODEL,
+                    "--output-schema", str(pathlib.Path("schema.json").resolve()),
+                    "--output-last-message", str(output.resolve())]
+        self.assertEqual(command, expected)
+
+    # The retry after invalid JSON, and a synthesis call with its own model and schema, send the
+    # same whole command (round 3c, 2026-10-10): a flag added only to the retry, or only to a
+    # synthesis output, fails.
+    def test_run_model_retry_and_synthesis_calls_send_exactly_the_reviewed_arguments(self):
+        catalog = run_chunks.model_catalog
+        hardening = [line for line in run_chunks.CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+                     if line and not line.startswith("#")]
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        cases = {
+            "chunk call and its retry": ("chunk-0001-review-1.json", ".github/codex/chunk-review-schema.json",
+                                         run_chunks.CHUNK_MODEL, 2),
+            "synthesis call": ("synthesis-1.json", ".github/codex/synthesis-schema.json", run_chunks.SYNTHESIS_MODEL, 1),
+        }
+        for why, (name, schema, model, count) in cases.items():
+            with self.subTest(why=why), tempfile.TemporaryDirectory() as tmp:
+                prompt = pathlib.Path(tmp) / "prompt.md"
+                prompt.write_text("prompt")
+                output = pathlib.Path(tmp) / name
+                seen = []
+
+                def fake_run(command, **_kwargs):
+                    seen.append(list(command))
+                    # The first answer is not JSON when a retry is wanted.
+                    output.write_text("not json" if len(seen) < count else json.dumps({"verdict": "APPROVE"}))
+                    return Ok()
+
+                try:
+                    run_chunks.subprocess.run = fake_run
+                    self.assertTrue(run_chunks.run_model(object(), prompt, schema, output, model=model))
+                finally:
+                    run_chunks.subprocess.run = original
+                expected = ["codex", "exec", *hardening,
+                            "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                            "-c", f'model_catalog_json="{pathlib.Path(os.environ["RUNNER_TEMP"]) / catalog.CATALOG_NAME}"',
+                            "-C", run_chunks.codex_workdir(), "-m", model,
+                            "--output-schema", str(pathlib.Path(schema).resolve()),
+                            "--output-last-message", str(output.resolve())]
+                self.assertEqual(seen, [expected] * count)
+
+    def test_refuses_to_build_a_codex_call_without_hardening_arguments(self):
+        original = run_chunks.CODEX_EXEC_ARGS_FILE
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = pathlib.Path(tmp) / "args.txt"
+            empty.write_text("# nothing\n\n")
+            run_chunks.CODEX_EXEC_ARGS_FILE = empty
+            try:
+                with self.assertRaises(RuntimeError):
+                    run_chunks.codex_exec_args()
+            finally:
+                run_chunks.CODEX_EXEC_ARGS_FILE = original
+
+    def test_refuses_to_build_a_codex_call_without_the_locked_model_catalog(self):
+        self.assertIn("model_provider=\"codex-review\"", run_chunks.codex_exec_args())
+        original = os.environ["RUNNER_TEMP"]
+        with tempfile.TemporaryDirectory() as empty:
+            os.environ["RUNNER_TEMP"] = empty
+            try:
+                with self.assertRaises((RuntimeError, OSError)):
+                    run_chunks.codex_exec_args()
+            finally:
+                os.environ["RUNNER_TEMP"] = original
+
+    def test_the_locked_catalog_holds_exactly_the_models_the_review_runs(self):
+        # The catalog is the only list codex can pick from, so a model the review asks for must be
+        # in it, and nothing else may be.
+        workflow = (MODULE_PATH.parents[1] / ".github/workflows/codex-review.yml").read_text()
+        used = set(re.findall(r"-m (gpt-[\w.-]+)", workflow))
+        used |= {run_chunks.DEFAULT_CHUNK_MODEL, run_chunks.DEFAULT_SYNTHESIS_MODEL}
+        self.assertEqual(used, set(run_chunks.model_catalog.APPROVED_MODELS))
 
     def test_needs_tiebreak_for_approve_block_split(self):
         with tempfile.TemporaryDirectory() as tmp:

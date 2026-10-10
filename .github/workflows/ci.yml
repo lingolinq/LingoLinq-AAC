@@ -651,7 +651,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, the commit codex-review.yml pins
+        with:
+          # These tests read the checkout and build throwaway repos; nothing here needs the token.
+          persist-credentials: false
 
       # Guards the codex-review envelope logic: status fail-closed mapping,
       # the prompt-injection guard, the per-chunk convergence policy, and the
@@ -659,6 +662,12 @@ jobs:
       # dependencies are needed.
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the last check before the review leaves the runner: each credential format the
+      # scan knows is found (also \u-escaped or split by zero-width characters), ordinary review
+      # text is not, and a hit is reported by check name only, never by value.
+      - name: Run codex-review secret-scan unit tests
+        run: python3 scripts/codex-review-secret-scan.test.py
 
       # Guards the chunked-evidence builder: deterministic diff, structural
       # index (added + removed symbols with real source lines), sub-cap chunk
@@ -683,6 +692,32 @@ jobs:
       # git or grep failure exits 3 with no route written.
       - name: Run codex-review path-classifier tests
         run: bash -n scripts/codex-review-path-classifier.sh && scripts/tests/codex-review-path-classifier-test.sh
+
+      # The codex hardening arguments (.github/codex/codex-exec-args.txt) checked against the real
+      # binary at the version codex-review.yml pins. codex ignores an unknown key silently, so this
+      # is the only check that each tool really is off. No API key, no model call; the test fails
+      # if the version installed here differs from the workflow's pin.
+      - name: Install the pinned Codex CLI
+        # Network step in a required job: retried so a registry blip does not fail every PR.
+        run: npm install -g --ignore-scripts --no-audit --no-fund --fetch-retries=5 @openai/codex@0.160.0
+
+      - name: Run codex hardening checks against the pinned Codex CLI
+        run: python3 scripts/codex-review-codex-args.test.py
+
+      # Static scan of the review workflow with zizmor, offline (no token, no online audits).
+      # Pinned release binary, checked against its published sha256 before it runs. Fails on any
+      # medium-or-higher finding under the strict "auditor" persona.
+      - name: Scan codex-review.yml with zizmor
+        env:
+          ZIZMOR_VERSION: 1.30.1
+          ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+        run: |
+          curl -sSfL --retry 3 --retry-delay 2 --retry-all-errors -o "$RUNNER_TEMP/zizmor.tgz" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  $RUNNER_TEMP/zizmor.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/zizmor.tgz" -C "$RUNNER_TEMP" zizmor
+          "$RUNNER_TEMP/zizmor" --offline --persona auditor --min-severity medium .github/workflows/codex-review.yml
+
 
   security-scan:
     runs-on: ubuntu-latest

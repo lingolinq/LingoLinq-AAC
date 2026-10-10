@@ -1,7 +1,17 @@
 # Codex review pipeline
 
-> **Status: disabled since 2026-09-27 (`codex-review.yml` is disabled in Actions), not
-> required.** Dispatch stopped after
+> **Status 2026-10-03: disabled.** `codex-review.yml` is disabled in GitHub
+> Actions (state `disabled_manually`; last run 2026-09-28) until the hardening
+> in PR #1103 lands and its admin steps are done (restrict the `codex-review`
+> environment's deployment branches; remove the repo-level copies of its
+> secrets). 268 of the 296 runs so far were dispatched on the `staging` ref, so
+> `github.workflow_sha` (the trusted checkout) was staging's copy of this
+> workflow. The other 28 (2026-07-16 to 2026-08-04, during development) were
+> dispatched on feature branches and ran that branch's copy with the
+> repo-level secrets: the exact path the environment's branch rule closes. W1
+> must keep dispatching on a protected branch.
+>
+> **Earlier, 2026-09-26: live again, not yet required.** Dispatch stopped after
 > 2026-08-04 because W1's `Debounce Delay` was a Code node sleeping 300s, equal
 > to n8n's 300s task-runner timeout, so every reviewable event timed out there.
 > On 2026-09-26 it was replaced with a native n8n Wait node (same 5-minute
@@ -102,7 +112,8 @@ sticky-comment payload so a later audit can tell which path produced a verdict.
 
 ## Chunked evidence contract
 
-The trusted workflow-ref helper `scripts/codex-review-build-evidence.py`
+The helper `scripts/codex-review-build-evidence.py` (run from the trusted checkout; see
+[Execution isolation](#execution-isolation))
 generates:
 
 - `manifest.json`
@@ -157,11 +168,53 @@ file/line evidence remains attributable.
 One oversized hunk is not split. It marks coverage incomplete and the envelope
 returns `NEEDS_HUMAN`.
 
-Header-only changes are complete coverage. This includes binary diffs,
-mode-only changes, pure renames, and deletions.
+Header-only changes are complete coverage. This includes mode-only changes,
+pure renames, deletions, and binary diffs of expected binary types (images,
+fonts, PDFs, audio/video). Any other path that diffs as binary withholds an
+APPROVE (`incomplete_evidence`, needs human): git decides "binary" from file
+content, so the diff cannot show what changed. Archives (`.zip`, `.gz`,
+`.tgz`, `.obz` board packages) are in that group on purpose: one can carry
+source or data the reviewer never sees. An expected binary type must also be
+that type: the envelope takes the list of binary files from git itself
+(`git diff --numstat -z`, so a name containing " and " cannot point the check
+at another file), reads the first bytes of each such file at the PR head
+(`--binary-content-at`), and withholds an APPROVE, naming the files, when they
+do not start like the type or cannot be read. "Start like the type" means the
+type's magic and header fields, plus:
+
+- for every type but PDF, a NUL within the first 20 bytes (all 481 such files
+  in this repo have one);
+- for PDF, a `%PDF-d.d` header line followed by a NUL within the first 20
+  bytes or by the binary comment line the PDF spec recommends (`%` and four
+  bytes of 128 or more; both PDFs in this repo have one).
+
+So a `.png` that is plain code, a "PDF" that is a CSV, and a script that opens
+with a format's magic (`GIF89a=1;system(...)`, or the same with a control byte
+in a string literal or comment) are withheld. This is a heuristic, not a
+parser, and these still pass:
+
+- Ruby (or another language that stops at a NUL) whose code, magic included,
+  fits in the 19 bytes before the NUL, for example `GIF89a=`id`` then a NUL;
+- any expected-type file run by a shell (`bash x.gif`, `sh x.pdf`): bash skips
+  a NUL that is not on the first line and treats `%PDF-1.7` as a failed job
+  reference, so code of any length after the first line runs;
+- a file run by an interpreter that ignores the binary bytes the check needs.
+
+This residual is not closed: it needs Scot's written risk acceptance before the
+workflow is re-enabled. A real PDF without the binary
+comment line, or one whose header comes after more than a BOM and whitespace, is
+withheld (a human look).
+
+That list is made with rename detection off, so for a binary file that is not
+an expected type a pure rename, a move, a mode-only change or a deletion also
+withholds an APPROVE, although each is header-only for chunk coverage above: a
+rename can change how content nobody reviewed is used (`data.bin` to
+`config/boot.rb`), a mode change can make it executable, and a deletion removes
+content nobody reviewed either. Renaming an expected binary type that still
+starts like its type passes, and deleting one passes without being read.
 
 The exclusion policy is stored in `.github/codex/evidence-policy.json`, which
-is restored from the workflow ref before it is used. Exclusions are deterministic
+comes from the trusted checkout of the workflow ref. Exclusions are deterministic
 policy coverage, not semantic model review. The policy separates paths excluded
 from chunking from approval-safe classes, and the envelope recomputes approval
 safety from the trusted policy before approval.
@@ -206,6 +259,82 @@ The guard scans the complete raw diff, every chunk, and the synthesis input.
 Raw diff hashes identify the exact Git evidence. Prompt hashes identify the
 defanged bytes sent to the model. `CI_INJECT` markers in diff or model-authored
 chunk findings are defanged before prompt assembly.
+
+## Execution isolation
+
+The review job runs PR content only as data:
+
+- The workspace is a checkout of the workflow ref (`persist-credentials:
+  false`). Every helper, prompt, schema and policy file comes from it. Python
+  helpers run as `python3 -I "$GITHUB_WORKSPACE/scripts/..."`; the shell
+  helpers run by the same absolute path.
+- The PR's commits are fetched as git objects and never checked out. Diffs are
+  computed from those objects with the trusted worktree's git attributes, and
+  the path classifier fails closed (exit 3, no route) on a name git quotes (a
+  tab, newline, `"` or `\`), on an empty diff and on a git or grep failure, so
+  quoting cannot hide a data-bearing path. On a route to a reviewer it also
+  fails closed on a name that is not valid UTF-8 (checked with Python's strict
+  decoder, which the reviewer steps use, and iconv), or when either checker
+  fails; a data-bearing diff keeps its `blocked` route, and on that route alone
+  the prompt assembler and the envelope keep such bytes (surrogateescape) so the
+  GUARD-1 envelope is still built. It matches in any letter case and
+  byte by byte (`LC_ALL=C`), treats every path under `db/language/` as
+  data-bearing, and lists a rename by both names (`--no-renames`), so moving a
+  file out of a data-bearing path does not hide the old one. A file
+  that diffs as binary is checked on the untruncated diff (see Oversized and
+  excluded evidence).
+- `codex exec` runs from an empty directory with a fresh `CODEX_HOME`, the key
+  only in `CODEX_API_KEY` on the reviewer step (no `codex login`, no stored
+  credential), and the arguments in `.github/codex/codex-exec-args.txt`:
+  read-only sandbox, no command, browser, image, web, plugin or goal tools, no
+  session saving, and an explicit `codex-review` provider for the OpenAI API.
+- The feature flags do not remove every tool: the bundled catalog entry for
+  the model adds `exec`, `apply_patch` and the collaboration tools
+  (`spawn_agent`, which takes a model name, and others). The install step
+  therefore writes a locked catalog (`scripts/codex-review-model-catalog.py`):
+  the approved models only, with the fields that add those tools set to null.
+  Every call selects it and the `codex-review` provider, and refuses to run
+  without it. The model is offered only `request_user_input`, which nobody
+  can answer in `codex exec`.
+- The CI job `codex-review-tests` installs the pinned codex version and checks
+  that each disabled feature exists in it and is really off, that the other
+  overrides are accepted, and that `codex exec` accepts every flag. It also
+  runs the real binary with the hardening file, the lock arguments, `-C` and
+  `-m` (the review's arguments without the two output flags, plus one override
+  that points it at a local stand-in for the API) and checks the tools named
+  in the request it sends. Separately, the unit tests pin the whole argument
+  list of every bounded call (both runs, the retry and the tiebreak run) and
+  of the chunked path's `run_model` (a chunk call, its retry, and a synthesis
+  call), so a flag added to any of them fails. The reviewer step
+  refuses to run if the argument list is empty.
+- Model calls get no other credential and no `GITHUB_*` runtime variable in
+  their environment (`scripts/codex-review-quiet-exec.py`). `GH_TOKEN` is set
+  only on the steps that call `gh`; neither reviewer step has it.
+- Secrets are passed as step `env`, never written into a step script. The
+  webhook URL reaches `curl` as a config line on stdin; the HMAC key is read
+  from the step environment. Before the W2 POST,
+  `scripts/codex-review-secret-scan.py` refuses an envelope that contains
+  anything credential-shaped (best effort: a split or encoded secret is not
+  found) and posts a specific failure status.
+- **Admin preconditions, NOT enforced by this file.** The job names the
+  `codex-review` environment, but GitHub creates a referenced environment with
+  no protection, and `secrets.*` falls back to repository secrets. Isolation
+  holds only after a repo admin (1) restricts the environment's deployment
+  branches to the branch W1 dispatches from, (2) moves
+  `CODEX_OPENAI_API_KEY`, `CLAUDE_REVIEW_API_KEY`,
+  `N8N_CODEX_RESULTS_WEBHOOK_URL` and `N8N_CODEX_RESULTS_HMAC_SECRET` into the
+  environment and deletes the repository-level copies, and (3) rotates all
+  four. Step (1) is enforced: `status-pending` reads the environment through
+  the API and fails the run (failure status, no review) while it is missing or
+  open to every branch. Steps (2) and (3) cannot be checked from the workflow
+  (that would mean reading secrets outside the environment, and a modified copy
+  of the workflow would drop the check anyway), so they stay admin actions.
+- Three jobs: `status-pending` posts the pending anchor, `codex-review` holds
+  the environment and does the review, and `status-final` (`always()`)
+  resolves deep-pass from the review job's result. The two status jobs hold no
+  environment and no secret, so a run the environment refuses still gets a
+  terminal status.
+- `zizmor` scans this workflow in CI (`--persona auditor`, medium and above).
 
 ## Watchdog and heartbeat
 
@@ -256,11 +385,13 @@ Actions; scheduling cannot provide one. There is also no `workflow_dispatch`
 on the watchdog, so there is currently no operator lever and no audited manual
 path (issue #717).
 
-Chunked reviews can legitimately take longer than the old 2-3 model-call path,
-so `scripts/codex-review-run-chunks.py` reposts pending status before every
-model call and retry. Heartbeat failures are non-fatal; they are progress hints,
-not correctness gates. A real hang stops heartbeating and the watchdog fails it
-closed whenever the next sweep happens to run.
+Chunked reviews can legitimately take longer than the old 2-3 model-call path.
+`scripts/codex-review-run-chunks.py` can repost pending status before every
+model call (`--heartbeat`), but the workflow no longer passes that flag
+(2026-10-02): the heartbeat needs a GitHub token in the process that starts
+codex, and it only ever refreshed the pending text. The watchdog times a run
+from its EARLIEST pending status, so heartbeats never moved its clock. Progress
+is in the run log.
 
 Measured smoke timing:
 
@@ -270,8 +401,7 @@ Measured smoke timing:
 - Total workflow wall-clock: about 2 minutes 27 seconds.
 - Reasoning effort: none, as currently shipped by
   `scripts/codex-review-run-chunks.py`.
-- Heartbeats fired about every 5-6 seconds, far below the 30-minute staleness
-  threshold.
+- Heartbeats (then enabled) fired about every 5-6 seconds.
 
 The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
 a rough lower-bound throughput check, assuming the smoke had no structural
@@ -283,8 +413,7 @@ once, so up to about 50 minutes for that chunk), and several hung calls can
 still reach the 90-minute job timeout. Past that, the watchdog will fail the
 stale status, but only once it is 30 minutes old AND a scheduled sweep actually
 runs, which is best-effort and unbounded.
-Each model call still posts a pending-status heartbeat before it starts. Treat
-5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
+Treat 5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
 the manifest block embedded in every chunk prompt grows with chunk count.
 
 Two known limits this cap raise does not address, both unchanged from the
