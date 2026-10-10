@@ -42,9 +42,9 @@ function primeSpeakModeUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // A store record always has reload, so stub it outright: in speak mode the check_inbox observer
+  // (app/services/app-state.js:3706-3734) reloads the user, a real fetch the test never waited for.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;
