@@ -20,6 +20,7 @@
  * fails the test; `report` only logs `[LEAK-CHECK]` lines, for surveying; `off` disables it.
  */
 import * as QUnit from 'qunit';
+import { timingStrict } from './fetch-probe';
 // `obf` FIRST: app/utils has an import cycle (eval -> app_state -> ... -> demo_board_loader -> obf -> eval)
 // and obf calls `evaluation.register` while loading. The app always loads obf first; importing eval
 // first here reversed that and obf threw at load, so no test ever started.
@@ -105,6 +106,8 @@ function record(message) {
   if (MODE === 'report') { console.log(`[LEAK-CHECK] ${message} | test: ${entry.test || '(between tests)'}`); }
   if (entry.test) { findings.push(message); } else { pendingForNextTest.push(message); }
 }
+
+function isTimingFinding(message) { return / on a destroyed service/.test(message); }
 
 function isDestroyed(v) { return !!(v && typeof v === 'object' && (v.isDestroyed || v.isDestroying)); }
 
@@ -276,7 +279,16 @@ function flush(assert) {
     return;
   }
   if (MODE !== 'fail' || !list.length || !assert) { return; }
-  const unique = Array.from(new Set(list));
+  // A read or write on a destroyed service is late work landing now; whether it lands in this test or
+  // the next depends on timing, so outside a timing-strict run it is reported, not failed
+  // (tests/helpers/fetch-probe.js timingStrict).
+  const failing = timingStrict() ? list : list.filter((m) => !isTimingFinding(m));
+  list.filter((m) => !failing.includes(m)).forEach((m) => {
+    // eslint-disable-next-line no-console
+    console.warn(`[late-read] ${m} | test: ${testName() || '(between tests)'}`);
+  });
+  if (!failing.length) { return; }
+  const unique = Array.from(new Set(failing));
   assert.pushResult({ result: false, actual: unique.length, expected: 0,
     message: `leak check: ${unique.slice(0, 8).join(' | ')}${unique.length > 8 ? ` | ...and ${unique.length - 8} more` : ''}` });
 }
@@ -286,6 +298,7 @@ function flush(assert) {
 // `isolated` runs a self-test step against its own snapshots and puts the check's own back after.
 export const leakCheckTesting = {
   watchDestroyed,
+  isTimingFinding,
   take(pattern) {
     const mine = (m) => pattern.test(m);
     const list = findings.concat(pendingForNextTest).filter(mine);

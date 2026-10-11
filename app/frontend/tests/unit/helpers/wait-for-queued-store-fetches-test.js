@@ -35,6 +35,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   // short of its assert.expect(2). Synchronous on purpose: QUnit reaches the hooks before the flush.
   test('a test that ends with a fetch still queued is failed by setupTest', function(assert) {
     assert.expect(2);
+    this.__strictQueuedFetch = true; // the failing mode, whatever this run's timingStrict is
     const push = assert.pushResult;
     assert.pushResult = function(result) {
       if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
@@ -70,5 +71,22 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
     store.findRecord('board', 'queued-by-another-test').catch(function() {});
     markQueuedByAnotherTest(store._fetchManager);
     assert.ok(true, 'a fetch is left queued, attributed to another test');
+  });
+  // Outside a timing-strict run (the required build-and-test) a queued fetch is reported, not failed:
+  // it may be an earlier test's late callback, which the harness cannot tell apart.
+  test('outside a timing-strict run a queued fetch is reported, not failed', function(assert) {
+    assert.expect(1);
+    this.__strictQueuedFetch = false;
+    const push = assert.pushResult;
+    assert.pushResult = function(result) {
+      if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
+        return push.call(assert, { result: false, actual: 'failed', expected: 'reported only', message: 'setupTest failed a queued fetch outside a timing-strict run' });
+      }
+      return push.call(assert, result);
+    };
+    const store = this.owner.lookup('service:store');
+    store.adapterFor('application').findRecord = function() { return Promise.reject(new Error('not sent in this test')); };
+    store.findRecord('board', 'queued-in-report-mode').catch(function() {});
+    assert.ok(true, 'a fetch is left queued in report mode');
   });
 });

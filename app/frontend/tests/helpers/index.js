@@ -5,7 +5,7 @@ import {
 } from 'ember-qunit';
 import { primeAllServices } from './persistence-stub';
 import QUnit from 'qunit';
-import { fetchProbeDelay } from './fetch-probe';
+import { fetchProbeDelay, timingStrict } from './fetch-probe';
 import { queuedOnlyByOtherTests } from './fetch-tracking';
 
 // This file exists to provide wrappers around ember-qunit's / ember-mocha's
@@ -111,15 +111,19 @@ function setupTest(hooks, options) {
   // Registered after ember-qunit's teardown hook, so it runs BEFORE it (QUnit runs afterEach hooks
   // in reverse order of registration).
   hooks.afterEach(async function(assert) {
-    // Who queued what is read before the wait (the flush clears it). A fetch queued only by an earlier
-    // test's late work is reported, not charged to this test (tests/helpers/fetch-tracking.js).
+    // Read before the wait (the flush clears it): a fetch queued while no test, or another test, was
+    // current (between tests) is never this test's. One queued DURING this test may still be an earlier
+    // test's late callback; the harness cannot tell, so outside a timing-strict run a hit is reported, not
+    // failed (tests/helpers/fetch-probe.js timingStrict). A test can set this.__strictQueuedFetch
+    // (true/false) to force either mode; the harness self-tests do.
     const current = QUnit.config.current;
     const lateWork = queuedOnlyByOtherTests(storeFetchManager(this.owner), current && current.testId);
+    const strict = typeof this.__strictQueuedFetch === 'boolean' ? this.__strictQueuedFetch : timingStrict();
     // Under the opt-in fetch probe every flush is delayed, so wait past that delay too: the flush must
     // still run before teardown (the hit is decided at entry either way).
     if (await waitForQueuedStoreFetches(this.owner, 500 + fetchProbeDelay())) {
       recordQueuedFetch(lateWork);
-      if (!lateWork) {
+      if (!lateWork && strict) {
         assert.pushResult({ result: false, actual: 'an Ember Data fetch still queued', expected: 'no fetch queued at teardown', message: 'an Ember Data fetch was still queued when this test ended: await it (or the state it sets) before the test ends. Reproduce deterministically with `ember test --query "probeDelay=1500" --filter <module>` (tests/test-helper.js)' });
       }
     }

@@ -1,11 +1,11 @@
 import Store from 'ember-data/store';
 import QUnit from 'qunit';
 
-// Which tests queued the Ember Data fetches a store still holds. setupTest's teardown check
-// (tests/helpers/index.js) fails a test that ends with a fetch still queued, but a late callback from an
-// EARLIER test can queue a fetch on the current test's store (LingoLinq.store points at the current
-// one). Recording the queuing test lets the check fail only the test that queued it and report the rest
-// as late work.
+// Which test was current when each pending Ember Data fetch was queued. setupTest's teardown check
+// (tests/helpers/index.js) uses it to tell a fetch queued while no test or another test was current
+// (between tests) from one queued during the test that is ending. It cannot tell an EARLIER test's late
+// callback that runs during this test from this test's own work (both are queued while this test is
+// current), which is why that check only fails in timing-strict runs (tests/helpers/fetch-probe.js).
 //
 // Also the opt-in fetch probe (`?probeDelay=<ms>`, tests/helpers/fetch-probe.js): every flush is then
 // delayed by that long, so a fetch queued near the end of a test is still pending when the teardown
@@ -49,7 +49,7 @@ export function installFetchTracking(probeDelay) {
   });
 }
 
-// True when every fetch the manager still holds was queued while ANOTHER test (or no test) was running.
+// True when every fetch the manager still holds was queued while ANOTHER test (or no test) was current.
 export function queuedOnlyByOtherTests(fetchManager, testId) {
   const by = fetchManager && fetchManager[QUEUED_BY];
   return !!by && by.size > 0 && !by.has(testId);

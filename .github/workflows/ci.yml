@@ -336,9 +336,9 @@ jobs:
       matrix:
         include:
           - shard: pool
-            query: pool=include
+            query: pool=include&timingStrict=1
           - shard: main
-            query: pool=exclude
+            query: pool=exclude&timingStrict=1
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -399,7 +399,7 @@ jobs:
           # A test name may hold an escaped quote. The harness self-tests in Unit | Helper | waitForQueuedStoreFetches
           # (tests/unit/helpers/wait-for-queued-store-fetches-test.js) leave fetches queued on purpose and log
           # [queued-fetch] lines every run; they are not late work.
-          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | grep -v '\[queued-fetch\].*Unit | Helper | waitForQueuedStoreFetches:' | sort | uniq -c || true)
+          late_work=$(grep -oE '\[(queued-fetch|owner-gone|late-read)\] ([^"\\]|\\.)*' ember-test.log | grep -v '\[queued-fetch\].*Unit | Helper | waitForQueuedStoreFetches:' | sort | uniq -c || true)
           if [ -n "$late_work" ]; then
             { echo "Late work reported by the harness (a test did not wait for work it started):"; echo '```'; printf '%s\n' "$late_work"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           fi

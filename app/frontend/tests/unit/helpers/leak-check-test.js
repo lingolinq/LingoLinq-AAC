@@ -84,4 +84,38 @@ module('Unit | Helper | leak check', function() {
       node.remove();
     }
   });
+  // The check must FAIL the test it finds a leak in (QUnit.hooks.afterEach, fail mode by default), not
+  // just record it. This plants a stub, lets the global hook report it, and turns that one expected
+  // failure into a pass; a check softened to pass, warn, or not run leaves it one assertion short or red.
+  test('a deterministic finding fails the test it is found in', function(assert) {
+    assert.expect(2);
+    const push = assert.pushResult;
+    assert.pushResult = function(result) {
+      if (result && /^leak check: .*modal\.close was replaced and not restored/.test(result.message)) {
+        return push.call(assert, result.result === false
+          ? { result: true, actual: result.message, expected: result.message, message: 'the leak check failed the test that left a stub' }
+          : { result: false, actual: 'reported as a pass', expected: 'a failure', message: 'the leak check reported the stub but did not fail the test' });
+      }
+      return push.call(assert, result);
+    };
+    const original = modal.close;
+    const hadOwn = Object.prototype.hasOwnProperty.call(modal, 'close');
+    try {
+      leakCheckTesting.isolated(() => {
+        leakCheckTesting.snapshotFunctions();
+        modal.close = function() {};
+        leakCheckTesting.checkFunctions(); // recorded for this test; the global hook flushes it
+      });
+    } finally {
+      if (hadOwn) { modal.close = original; } else { delete modal.close; }
+    }
+    assert.ok(true, 'a stub was left and put back; its finding stays recorded for this test');
+  });
+
+  test('only reads and writes on a destroyed service count as timing-dependent findings', function(assert) {
+    assert.true(leakCheckTesting.isTimingFinding('read window.appState.get on a destroyed service @ x'));
+    assert.true(leakCheckTesting.isTimingFinding('write app_state.foo on a destroyed service @ x'));
+    assert.false(leakCheckTesting.isTimingFinding('modal.close was replaced and not restored (a stub left on a shared singleton)'));
+    assert.false(leakCheckTesting.isTimingFinding('<div#x> was left under <body>'));
+  });
 });

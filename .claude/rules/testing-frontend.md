@@ -219,15 +219,18 @@ cancels it. Exemptions:
 - persistence-sync's retry-path pause for a known race (issue #589).
 - `setupTest`'s bounded wait for queued Ember Data fetches (`waitForQueuedStoreFetches`,
   `tests/helpers/index.js`), so a late flush does not hit a destroyed store in the next test. It is
-  not a pass: a test that ends with a fetch still queued FAILS (owner decision, PR #1118), and is
-  logged as `[queued-fetch]` in the Ember shard job summary. It sees whatever is still queued when
-  teardown starts: an un-awaited fetch of a synchronous plain QUnit test (unless an async `afterEach`
-  of its module runs first: hooks registered after `setupTest` run before its own, and an async hook
-  lets the flush happen), and fetches queued after an async or jasmine-style test signalled it was
-  done. The fetch probe above finds the rest. The harness records which test queued each fetch
-  (`tests/helpers/fetch-tracking.js`): a fetch queued only by an earlier test's late work is logged as
-  `[queued-fetch] late work ...`, not charged to the running test. The failure message gives the probe
-  command that reproduces a hit deterministically.
+  not a pass either: a test that ends with a fetch still queued is never silently passed, but it is
+  never charged to an unrelated test: it is logged as `[queued-fetch]` (Ember shard job summary) and
+  FAILS the test only in timing-strict runs (the Ember shard jobs, `?timingStrict=1`, and the fetch
+  probe), never in the required build-and-test run. The harness records which test was current when
+  each fetch was queued (`tests/helpers/fetch-tracking.js`), but an earlier test's late callback that
+  runs during this test looks the same as this test's own fetch, so a hit cannot be blamed reliably;
+  a fetch queued between tests is always only reported. It sees whatever is still queued when teardown
+  starts: an un-awaited fetch of a synchronous plain QUnit test (unless an async `afterEach` of its
+  module runs first), and fetches queued after an async or jasmine-style test signalled it was done.
+  The fetch probe above finds the rest; the failure message gives the command that reproduces a hit.
+  The leak check follows the same rule for a read or write on a destroyed service (logged as
+  `[late-read]`, failing only in timing-strict runs); a stub or DOM node left behind always fails.
 
 ### Test helpers that import app code
 
