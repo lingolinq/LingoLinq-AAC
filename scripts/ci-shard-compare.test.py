@@ -133,6 +133,23 @@ class CoverageTest(unittest.TestCase):
         self.assertIn("shard selections add up to 12, but 10 tests are registered", problems)
         self.assertIn("run by more than one shard (shard 1, shard 2): %s" % A[0], problems)
 
+    def test_a_shard_that_ran_more_than_it_selected_fails(self):
+        self.assertIn("shard 1 ran 6 tests but selected 5", self.cover(tap(A, shard=(5, 10)), tap(B, shard=(4, 10))))
+
+    def test_the_last_summary_and_the_first_shard_line_count(self):
+        # A log can repeat them (a retried step, a re-printed selection); the final total and the
+        # selection QUnit actually applied first are the ones that describe the run.
+        log = (STAMP + '{"type":"log","text":"[SHARD] selected=6 registered=10"}\n'
+               + STAMP + "# tests 2\n" + tap(A, shard=(1, 10)))
+        counts, _results, shard = compare_mod.parse(log)
+        self.assertEqual(counts["tests"], 6)
+        self.assertEqual(shard, (6, 10))
+
+    def test_a_skipped_result_line_counts_toward_the_total(self):
+        skipped = STAMP + "skip 7 Chrome 147.0 - [0 ms] - m10: test 10"
+        log = tap(A, shard=(7, 11), extra_lines=[skipped])
+        self.assertEqual(self.cover(log, tap(B, shard=(4, 11))), [])
+
     def test_selections_that_leave_a_test_in_no_shard_fail(self):
         problems = self.cover(tap(A, shard=(6, 10)), tap(B[:3], shard=(3, 10)))
         self.assertIn("shard selections add up to 9, but 10 tests are registered", problems)
