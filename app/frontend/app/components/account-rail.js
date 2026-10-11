@@ -312,5 +312,11 @@ export default Component.extend({
       if(pill) { return 'home'; }
       return ROW_FOR_ROUTE[route] || null;
     }
-  )
+  ),
+
+  // The dropdown trigger's accessible name (account-rail.hbs, <=900px): the visible label first
+  // (WCAG 2.5.3, label in name), then what the button opens.
+  menuTriggerLabel: computed('activeLabel', function() {
+    return this.get('activeLabel') + ', ' + i18n.t('account_menu', "Account menu");
+  })
 });

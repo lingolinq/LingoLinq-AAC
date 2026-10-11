@@ -557,4 +557,16 @@ module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero'
     }
     assert.deepEqual(bad.slice(0, 3), [], 'no ragged rows or split areas');
   });
+
+  // extrasBesideSpeak moves Extras up beside Speak Mode, but only when BOTH are shown. With Speak
+  // Mode hidden in Dashboard Design, Extras keeps its own place (last, as on develop) instead of
+  // jumping to the top of the page.
+  test('Gentle with Speak Mode hidden: Extras keeps its place instead of leading the page', function(assert) {
+    var vis = visFor(['account', 'extras', 'boards', 'createboard', 'reports', 'editdashboard']);
+    var areas = gridLayoutState(vis, null, 'gentle').areas;
+    assert.strictEqual(areas[0], 'boards boards', 'Boards leads, as it does without Speak Mode');
+    var extrasRow = areas.findIndex(function(a) { return a.split(' ').indexOf('extras') !== -1; });
+    var reportsRow = areas.findIndex(function(a) { return a.split(' ').indexOf('reports') !== -1; });
+    assert.true(extrasRow >= reportsRow, 'Extras comes after Reports, at the end');
+  });
 });

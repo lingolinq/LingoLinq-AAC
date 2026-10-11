@@ -415,10 +415,11 @@ function orderedVisible(vis, order, defaultOrder) {
    below: the three *_DEFAULT_ORDER lists are read by BOTH layouts, and `focusedLayout` builds
    on them, so moving `extras` in place would reorder Focused's cards too. Applied at the two
    Gentle-only seams instead (defaultOrderFor's gentle branch and dashboardLayout).
-   Only when BOTH are visible; either alone packs normally. */
-function extrasBesideSpeak(base) {
+   Only when BOTH are visible (the live grid passes `vis`; the editor's default order, which
+   lists every card, does not); either alone packs normally. */
+function extrasBesideSpeak(base, vis) {
   var i = base.indexOf('speak');
-  if (i === -1 || base.indexOf('extras') === -1) { return base; }
+  if (i === -1 || base.indexOf('extras') === -1 || (vis && !(vis.speak && vis.extras))) { return base; }
   var out = base.filter(function(k) { return k !== 'extras'; });
   out.splice(out.indexOf('speak') + 1, 0, 'extras');
   return out;
@@ -507,7 +508,7 @@ function dashboardLayout(vis, order) {
      order has to be added in BOTH places or the dashboard and its editor disagree. That is
      exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
      alone: the preview reordered and the real page did not. */
-  var def = extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)));
+  var def = extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)), vis);
   /* NO SMALL CARD GETS A FULL-WIDTH ROW ANY MORE (requested 2026-10-09: "do not allow any of
      the buttons to span the full row"). This was `supervisor ? ['speak'] : ['speak','extras']`,
      which made Speak -- and Extras for a communicator -- full-width showcase rows.

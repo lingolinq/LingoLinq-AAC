@@ -20,7 +20,7 @@
        rather than <details>: a closed <details> cannot be kept open above 900px without a
        content box that would break the panel's row layout. Closing on choice / outside click /
        Escape lives in account-rail.js, mirroring modifiers/details-autoclose.js. --}}
-  <button type="button" class="md-acct-rail__menu-trigger" aria-haspopup="true" aria-expanded={{if this.menuOpen "true" "false"}} aria-controls="acct_rail_rows" {{on "click" this.toggleMenu}}>
+  <button type="button" class="md-acct-rail__menu-trigger" aria-label={{this.menuTriggerLabel}} aria-expanded={{if this.menuOpen "true" "false"}} aria-controls="acct_rail_rows" {{on "click" this.toggleMenu}}>
     <span class="md-acct-rail__menu-label">{{this.activeLabel}}</span>
     <svg class="md-acct-rail__menu-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
   </button>
