@@ -333,11 +333,11 @@ The review job runs PR content only as data:
   `CODEX_OPENAI_API_KEY`, `CLAUDE_REVIEW_API_KEY`,
   `N8N_CODEX_RESULTS_WEBHOOK_URL` and `N8N_CODEX_RESULTS_HMAC_SECRET` into the
   environment and deletes the repository-level copies, and (3) rotates all
-  four. Step (1) is checked only partly: `status-pending` reads the
-  environment through the API and fails the run (failure status, no review)
-  while it is missing or open to every branch, but it does not yet check that
-  the only allowed branch is the dispatch ref (`staging`), so a rule that
-  allows other branches passes. Steps (2) and (3) cannot be checked from the
+  four. Step (1) is checked: `status-pending` reads the environment and its
+  deployment-branch policies through the API and fails the run (failure status,
+  no review) unless the environment exists, does not use protected-branches
+  mode, and allows exactly one branch, named `staging` (the dispatch ref), with
+  no wildcard. Steps (2) and (3) cannot be checked from the
   workflow (that would mean reading secrets outside the environment, and a
   modified copy of the workflow would drop the check anyway), so they stay
   admin actions. None of these checks helps until this workflow is on the

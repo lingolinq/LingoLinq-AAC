@@ -837,21 +837,31 @@ class WorkflowLogExposureTest(unittest.TestCase):
         # The codex-review environment isolates the secrets only once it restricts which branches
         # may deploy to it (README "Admin preconditions"); until then a run must fail closed.
         script = extract_step_run("Require the codex-review environment to restrict deployment branches")
+        restricted = '{"protected_branches":false,"custom_branch_policies":true}'
+        one = '{"total_count":1,"branch_policies":[{"id":1,"name":"staging","type":"branch"}]}'
         cases = {
-            # name: (what GET environments/codex-review answers, should pass)
-            "environment missing": ("missing", False),
-            "no deployment branch rule": ("null", False),
-            "rule that restricts nothing": ('{"protected_branches":false,"custom_branch_policies":false}', False),
-            "protected branches only": ('{"protected_branches":true,"custom_branch_policies":false}', True),
-            "custom branch policies": ('{"protected_branches":false,"custom_branch_policies":true}', True),
+            # name: (environment's deployment_branch_policy, GET deployment-branch-policies, should pass)
+            "environment missing": ("missing", one, False),
+            "no deployment branch rule": ("null", one, False),
+            "rule that restricts nothing": ('{"protected_branches":false,"custom_branch_policies":false}', one, False),
+            "protected branches only": ('{"protected_branches":true,"custom_branch_policies":false}', one, False),
+            "exactly the dispatch branch": (restricted, one, True),
+            "protected branches as well": ('{"protected_branches":true,"custom_branch_policies":true}', one, False),
+            "a wildcard pattern": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"*","type":"branch"}]}', False),
+            "a wildcard that also matches staging": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"stag*","type":"branch"}]}', False),
+            "two policies": (restricted, '{"total_count":2,"branch_policies":[{"id":1,"name":"staging","type":"branch"},{"id":2,"name":"develop","type":"branch"}]}', False),
+            "the wrong branch": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"develop","type":"branch"}]}', False),
+            "a tag policy": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"staging","type":"tag"}]}', False),
+            "no policies": (restricted, '{"total_count":0,"branch_policies":[]}', False),
+            "policies API error": (restricted, "missing", False),
         }
-        for name, (answer, ok) in cases.items():
+        for name, (answer, policies, ok) in cases.items():
             with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
                 bin_dir = pathlib.Path(tmp) / "bin"
                 bin_dir.mkdir()
                 install_fake(bin_dir, "gh", ENVIRONMENT_GH)
                 run = run_step(localize(script, tmp), tmp, bin_dir, extra_env={
-                    "FAKE_ENVIRONMENT": answer, "HEAD_SHA": "a" * 40,
+                    "FAKE_ENVIRONMENT": answer, "FAKE_POLICIES": policies, "HEAD_SHA": "a" * 40,
                     "RUN_URL": "https://run/1", "GITHUB_REPOSITORY": "o/r", "GH_TOKEN": "t",
                 })
                 calls = (pathlib.Path(tmp) / "gh-calls").read_text() if (pathlib.Path(tmp) / "gh-calls").exists() else ""
@@ -1345,15 +1355,24 @@ ENVIRONMENT_GH = r'''#!/usr/bin/env python3
 import os, pathlib, sys
 args = sys.argv[1:]
 joined = " ".join(args)
-if "/environments/" in joined:
-    answer = os.environ["FAKE_ENVIRONMENT"]
-    if answer == "missing":
+repo = "repos/" + os.environ["GITHUB_REPOSITORY"]
+def answer(name):
+    value = os.environ[name]
+    if value == "missing":
         sys.stderr.write("gh: Not Found (HTTP 404)\\n")
         sys.exit(1)
-    print('{"id":1,"name":"codex-review","protection_rules":[],"deployment_branch_policy":%s}' % answer)
-else:
+    return value
+# Exact API paths only: any other GET (another environment, another endpoint) is an error.
+if args == ["api", repo + "/environments/codex-review"]:
+    print('{"id":1,"name":"codex-review","protection_rules":[],"deployment_branch_policy":%s}' % answer("FAKE_ENVIRONMENT"))
+elif args == ["api", repo + "/environments/codex-review/deployment-branch-policies"]:
+    print(answer("FAKE_POLICIES"))
+elif args[:2] == ["api", repo + "/statuses/" + os.environ["HEAD_SHA"]]:
     with (pathlib.Path(os.environ["FAKE_RECEIVED_DIR"]) / "gh-calls").open("a") as handle:
         handle.write(joined + "\\n")
+else:
+    sys.stderr.write("unexpected gh call: " + joined + "\\n")
+    sys.exit(3)
 '''
 
 # The PR and compare APIs as the base_sha binding sees them; status writes are recorded.
