@@ -403,6 +403,13 @@ jobs:
               printf '%s\n' "$RAW"
             fi
           } > /tmp/pr_diff.txt
+          # CI's own record of whether it cut the diff, for the envelope step: the NOTE above sits
+          # in the same file as PR text, so it is never parsed back.
+          if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
+            echo truncated > /tmp/pr_diff_state.txt
+          else
+            echo complete > /tmp/pr_diff_state.txt
+          fi
 
       - name: Build chunked PR evidence
         if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
@@ -629,7 +636,13 @@ jobs:
               --binary-content-at "$HEAD_SHA" \
               --out /tmp/envelope.json
           else
-            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --binary-content-at "$HEAD_SHA" --out /tmp/envelope.json $REVIEWS
+            # An APPROVE over a cut diff is withheld. Fail closed: anything but CI's own `complete`
+            # record (Gather PR diff) counts as truncated.
+            TRUNCATED_FLAG=--bounded-truncated
+            if [ "$(cat /tmp/pr_diff_state.txt 2>/dev/null)" = complete ]; then
+              TRUNCATED_FLAG=
+            fi
+            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --binary-content-at "$HEAD_SHA" $TRUNCATED_FLAG --out /tmp/envelope.json $REVIEWS
           fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}

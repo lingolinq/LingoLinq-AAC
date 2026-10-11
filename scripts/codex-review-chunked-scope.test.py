@@ -503,6 +503,44 @@ class WorkflowLogExposureTest(unittest.TestCase):
             self.assertFalse(CANARY_STEM in output.read_text(), "PR content written to GITHUB_OUTPUT")
             self.assert_no_canary(result.stdout + result.stderr)
 
+    # The truncation decision is CI's own size check, recorded in a file the PR cannot write, and
+    # the envelope step withholds APPROVE unless that file says exactly `complete` (Part B item 3).
+    def test_gather_pr_diff_records_whether_it_cut_the_diff(self):
+        for why, size, expected in (("small diff", 100, "complete"), ("diff over the cap", 70000, "truncated")):
+            with self.subTest(why), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                install_fake(bin_dir, "git", SIZED_DIFF_GIT)
+                script = localize(extract_step_run("Gather PR diff"), tmp)
+                result = run_step(script, tmp, bin_dir, extra_env={
+                    "HEAD_SHA": "a" * 40, "BASE_SHA": "b" * 40, "FAKE_DIFF_SIZE": str(size)})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((pathlib.Path(tmp) / "pr_diff_state.txt").read_text().strip(), expected)
+
+    def test_the_bounded_envelope_withholds_approve_unless_ci_recorded_a_complete_diff(self):
+        script = extract_step_run("Build W2 envelope")
+        own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True,
+                             capture_output=True, text=True).stdout.strip()
+        # state file content (None = missing), expected deep-pass state
+        cases = {"complete": ("complete\n", "success"), "truncated": ("truncated\n", "failure"),
+                 "missing": (None, "failure"), "unexpected text": ("COMPLETE-ish\n", "failure")}
+        for why, (state, expected) in cases.items():
+            with self.subTest(why), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                root = pathlib.Path(tmp)
+                (root / "review-1.json").write_text(json.dumps({"verdict": "APPROVE", "findings": []}))
+                (root / "pr_diff.txt").write_text("diff --git a/a.rb b/a.rb\n+x\n")
+                (root / "pr_diff_full.txt").write_text("diff --git a/a.rb b/a.rb\n+x\n")
+                if state is not None:
+                    (root / "pr_diff_state.txt").write_text(state)
+                result = run_step(localize(script, tmp), tmp, bin_dir, extra_env={
+                    "PR_NUMBER": "7", "HEAD_SHA": own, "BASE_SHA": own, "LOOP_N": "0", "RUN_ID": "1",
+                    "REVIEWER_ROUTE": "codex", "CODEX_REVIEW_EVIDENCE_MODE": "bounded"})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                envelope = json.loads((root / "envelope.json").read_text())
+                self.assertEqual(envelope["status"]["state"], expected)
+
     def test_run_blocks_parses_every_scalar_form(self):
         for header in ("run: |", "run: |-", "run: |+", "run: >", "run: >-", "run: >+"):
             with self.subTest(header=header):
@@ -1232,6 +1270,23 @@ class PathClassifierTest(unittest.TestCase):
     def test_an_uppercase_data_directory_is_still_blocked(self):
         self.assertEqual(self.classify(["spec/Fixtures/users.json"])["reviewer_route"], "blocked")
 
+
+# git for the bounded diff step: a diff of FAKE_DIFF_SIZE bytes of ordinary lines.
+SIZED_DIFF_GIT = r'''#!/usr/bin/env python3
+import os, sys
+args = sys.argv[1:]
+while args[:1] == ["-c"]:
+    args = args[2:]
+if args[:1] == ["diff"] and "--name-only" in args:
+    print("app/a.rb")
+elif args[:1] == ["diff"]:
+    size = int(os.environ["FAKE_DIFF_SIZE"])
+    head = "diff --git a/app/a.rb b/app/a.rb\n"
+    line = "+x = 1\n"
+    sys.stdout.write(head + line * ((size - len(head)) // len(line)))
+else:
+    sys.exit(2)
+'''
 
 # Records every gh call (one line of arguments each) instead of reaching GitHub.
 RECORDING_GH = r'''#!/usr/bin/env python3

@@ -1026,5 +1026,63 @@ class ChunkedEnvelopeTest(unittest.TestCase):
         self.assertIsNotNone(synthesis)
 
 
+
+# The bounded diff is cut at 60,000 bytes. CI knows when it cut, so it passes --bounded-truncated
+# (from its own size check, never parsed from the diff text, which a PR can write): an APPROVE over
+# a diff the reviewer did not see in full is withheld with a HIGH finding (Part B item 3, 2026-10-10).
+class TruncatedBoundedDiffTest(unittest.TestCase):
+    def run_cli(self, review_body, truncated):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            git = ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (repo / "README").write_text("r\n")
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "base"], check=True)
+            base = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            (repo / "app.rb").write_text("puts 1\n")
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "head"], check=True)
+            head = subprocess.run(git + ["rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+            diff = repo / "pr_diff.txt"
+            diff.write_text("diff --git a/app.rb b/app.rb\n+puts 1\n")
+            review = repo / "review.json"
+            review.write_text(json.dumps(review_body))
+            out = repo / "envelope.json"
+            env = dict(PR_NUMBER="7", HEAD_SHA=head, BASE_SHA=base, LOOP_N="0", REVIEWER_ROUTE="codex", RUN_ID="1",
+                       PATH="/usr/bin:/bin")
+            command = [sys.executable, str(MODULE_PATH), "--diff", str(diff), "--binary-scan-diff", str(diff),
+                       "--binary-content-at", head, "--out", str(out)]
+            if truncated:
+                command.append("--bounded-truncated")
+            result = subprocess.run(command + [str(review)], cwd=repo, env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(out.read_text())
+
+    def test_an_approve_over_a_truncated_diff_is_withheld_with_a_high_finding(self):
+        for why, review in {"no findings": APPROVE, "a LOW finding": dict(APPROVE, findings=[dict(LOW_FINDING)])}.items():
+            with self.subTest(why=why):
+                envelope = self.run_cli(review, truncated=True)
+                self.assertEqual(envelope["status"]["state"], "failure")
+                self.assertEqual(envelope["review_outcome"]["kind"], "incomplete_evidence")
+                self.assertIn("truncated", envelope["status"]["description"])
+                body = envelope["review"]
+                self.assertEqual(body["verdict"], "NEEDS_HUMAN")
+                self.assertEqual(body["findings"][-1]["id"], "EVIDENCE-1")
+                self.assertEqual(body["findings"][-1]["severity"], "HIGH")
+                self.assertIn("truncated", body["findings"][-1]["description"])
+                if review["findings"]:
+                    self.assertEqual([f["id"] for f in body["findings"]], ["LOW-1", "EVIDENCE-1"])
+
+    def test_a_complete_diff_still_approves(self):
+        self.assertEqual(self.run_cli(APPROVE, truncated=False)["status"]["state"], "success")
+
+    def test_truncation_never_upgrades_a_block(self):
+        envelope = self.run_cli(REQUIRES_CHANGES, truncated=True)
+        self.assertEqual(envelope["review_outcome"]["kind"], "requires_attention")
+        self.assertEqual(envelope["review"]["verdict"], "NEEDS_HUMAN")
+        self.assertEqual(len(envelope["review"]["findings"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

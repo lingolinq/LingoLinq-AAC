@@ -439,8 +439,17 @@ UNREVIEWED_BINARY_OUTCOME = {
     "human_label": "Unreviewed binary content",
 }
 
+# The bounded diff was cut at its size cap (the workflow's own size check says so through
+# --bounded-truncated), so the reviewer did not see every hunk and its APPROVE is withheld.
+TRUNCATED_DIFF_OUTCOME = {
+    "kind": "incomplete_evidence",
+    "status_state": "failure",
+    "status_description": "Codex review APPROVE withheld: the diff was truncated (needs human)",
+    "human_label": "Incomplete evidence - truncated diff",
+}
 
-def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files=None):
+
+def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files=None, truncated=False):
     """Per-run outcome with the prompt-injection guard applied: an APPROVE whose
     diff carries verdict-steering text is withheld and fails closed.
 
@@ -457,6 +466,8 @@ def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files
         }
     if outcome["kind"] == "approved" and unreviewable_binary_paths(diff if binary_diff is None else binary_diff, read_head, binary_files):
         return dict(UNREVIEWED_BINARY_OUTCOME)
+    if outcome["kind"] == "approved" and truncated:
+        return dict(TRUNCATED_DIFF_OUTCOME)
     return outcome
 
 
@@ -824,6 +835,11 @@ def main():
         metavar="SHA",
         help="check that each expected-type binary file starts like its type, read from this commit",
     )
+    parser.add_argument(
+        "--bounded-truncated",
+        action="store_true",
+        help="the bounded diff was cut at its size cap (set by the workflow's own size check): withhold APPROVE",
+    )
     parser.add_argument("--manifest", default=None, help="chunked evidence manifest")
     parser.add_argument("--evidence-dir", default=None, help="chunked evidence directory")
     parser.add_argument("--chunk-reviews", nargs="*", default=[], help="chunk review JSON files")
@@ -865,7 +881,8 @@ def main():
         except (OSError, subprocess.CalledProcessError) as error:
             # Fail closed: without git's list the binary guard cannot be trusted.
             parser.error(f"could not list binary files with git: {error.__class__.__name__}")
-    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head, binary_files) for path in args.reviews]
+    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head, binary_files, args.bounded_truncated)
+                for path in args.reviews]
 
     if args.need_third:
         # A 3rd run is needed only when the two runs disagree.
@@ -910,6 +927,13 @@ def main():
                 head_sha,
                 "The diff contains possible prompt-injection text.",
                 "The BASE...HEAD diff the reviewer saw matched the CI prompt-injection guard.",
+            )
+            review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
+        elif final_outcome == TRUNCATED_DIFF_OUTCOME:
+            finding = _path_coverage_finding(
+                head_sha,
+                "The diff was truncated at the bounded size cap, so the reviewer did not see every hunk.",
+                "The workflow's size check cut the BASE...HEAD diff (--bounded-truncated).",
             )
             review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
         per_run_kind = [o["kind"] for o in outcomes]
