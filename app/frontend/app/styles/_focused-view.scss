@@ -3208,8 +3208,8 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms {
 // Top: the token is set on the card, 20 -> 10px, with the sides and bottom restated unchanged.
 // Bottom: the divider pulls up 4px into that gap, 8 -> 4px, leaving the gap itself (and the
 // divider-to-tiles spacing it also sets) alone.
-// NOT IN COMPRESSED VIEW: Compressed sets `--dn-card-pad` and the header padding on
-// `.md-shell--home` (_compressed-view.scss); setting the token on the card would override it.
+// The `:not(.ll-density-compressed)` qualifier is from Compressed View, removed 2026-10-10. It
+// always matches now; it is kept so this rule's specificity, and so the cascade, is unchanged.
 // `section.` because the Supervisors tab's "rooms:" list is an `article.md-card--rooms` in the
 // same `.md-grid` (authenticated-view.hbs) and reads the same padding token.
 body.ll-layout-focused:not(.ll-density-compressed) .md-grid section.md-card.md-card--rooms {
@@ -3335,9 +3335,7 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__all {
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list {
   display: grid;
   // 260px: avatar, a readable name, and the arrow, with the room card's padding. min() keeps a
-  // single track from overflowing a card narrower than that. Compressed View sets
-  // --dn-attention-track to the Rooms card's track so the two cards' columns line up
-  // (_compressed-view.scss; checked by scripts/compressed-attention-columns-qa.mjs).
+  // single track from overflowing a card narrower than that.
   grid-template-columns: repeat(auto-fill, minmax(min(var(--dn-attention-track, 260px), 100%), 1fr));
 }
 // <=768px: one card per row (requested 2026-10-05), with the header stacking at the same width
@@ -5926,24 +5924,6 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:f
     inset 0 -2px 4px rgba($la-navy, 0.10),
     0 4px 10px rgba($la-navy, 0.16),
     0 16px 34px rgba($la-navy, 0.22) !important;
-}
-
-// COMPRESSED VIEW: the Need Attention card takes the Focused caseload hero's surface (requested
-// 2026-09-29), the oklab navy radial of `.md-card--caseload-focused` (app.scss), built from the
-// same $focus-hero-* tokens so the two cannot drift. Read by the card's `$bg-token` above; the
-// card's light title ink already suits it. Gentle's value is set in _compressed-view.scss.
-body.ll-layout-focused.ll-density-compressed .md-shell--home {
-  // A custom property takes any value, so an unparseable modern value would not fall back: the
-  // `background` reading it would turn transparent. So the sRGB value is the default and the
-  // modern one is set only where the browser supports it (_color-fallbacks.scss).
-  --dn-attention-bg-focused: radial-gradient(ellipse at center, #{$focus-hero-center-fallback} 0%, #{$focus-hero-edge-fallback} 100%);
-}
-@supports (background: radial-gradient(ellipse at center in oklab, red, blue)) and (color: color-mix(in oklch, red, blue)) {
-  body.ll-layout-focused.ll-density-compressed .md-shell--home {
-    --dn-attention-bg-focused: radial-gradient(ellipse at center in oklab,
-      #{$focus-hero-center} 0%,
-      #{$focus-hero-edge} 100%);
-  }
 }
 
 // Count chips (app.scss `.md-attention__count, .md-rooms__count`). The base 14% verdigris tint mixes

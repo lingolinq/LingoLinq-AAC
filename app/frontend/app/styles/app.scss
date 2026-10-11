@@ -7,8 +7,7 @@
 @use "focus" as *;
 @use "eval_quick";
 @use "focused-view";
-@use "compressed-view";
-@use "caseload-compact";
+@use "caseload-head";
 @use "caseload";
 @use "modern_pages";
 @use "badges";
@@ -46708,8 +46707,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   --md-shadow: 0 18px 50px #{rgba($brand-blue-black, 0.12)};
   --md-shadow-2: 0 12px 28px #{rgba($brand-blue-black, 0.10)};
 
-  /* The My Caseload card-as-button's glass surface, named once so other cards can wear it:
-     Compressed View gives it to the Need Attention card (_compressed-view.scss). */
+  /* The My Caseload card-as-button's glass surface, named once so other cards can wear it. */
   --md-caseload-glass-bg:
     radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
     radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
@@ -48699,8 +48697,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    then Gentle the same day). The 360px track above suits the org pages' wide room cards; on the
    home card it left one room per row in Gentle's column. 220px fits the room tile (door, name,
    arrow, padding) with the name still readable, and auto-fill adds a column whenever another
-   220px track fits. `min()` keeps a single track from overflowing a narrow card. Not in
-   Compressed View, which sizes this card itself. */
+   220px track fits. `min()` keeps a single track from overflowing a narrow card. The
+   `:not(.ll-density-compressed)` is from Compressed View, removed 2026-10-10: it always matches
+   now and is kept so these rules' specificity, and so the cascade, is unchanged. */
 body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__grid {
   grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
 }
@@ -48757,7 +48756,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      flex+grid item's default `min-width: auto` keeps it at content width. */
   min-width: 0;
   gap: 10px;
-  /* Compressed View tightens this on the Rooms list (--dn-room-card-pad, _compressed-view.scss). */
+  /* `--dn-room-card-pad`: a density hook left from Compressed View (removed 2026-10-10); unset. */
   padding: var(--dn-room-card-pad, 14px 16px);
   border-radius: 14px;
   /* Match the My Account icon exactly: white→denim gradient + top-left radial highlight,
@@ -48836,7 +48835,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
 }
 .md-room-card__icon {
   flex: 0 0 auto;
-  /* Compressed View shrinks this on the Rooms list (--dn-room-card-icon, _compressed-view.scss). */
+  /* `--dn-room-card-icon`: a density hook left from Compressed View (removed 2026-10-10); unset. */
   width: var(--dn-room-card-icon, 55px);
   height: var(--dn-room-card-icon, 55px);
   background: url(../images/door.png) center / contain no-repeat;
@@ -49018,7 +49017,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   align-items: center !important;
   gap: 14px !important;
   border-bottom: none !important;
-  /* 0 unless Compressed View sets --dn-card-head-pad-y (_compressed-view.scss). */
+  /* `--dn-card-head-pad-y`: a density hook left from Compressed View (removed 2026-10-10); unset. */
   padding-top: var(--dn-card-head-pad-y, 0) !important;
   padding-bottom: var(--dn-card-head-pad-y, 0) !important;
   /* 8px in from the card's content edge (requested 2026-09-29), matched on the Rooms header. */

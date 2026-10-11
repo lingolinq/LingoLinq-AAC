@@ -4,11 +4,6 @@
      NOTE: this control still invokes `startDisplayStyle` / the tour component for
      now — the class + visible label have been repurposed to "Display Style"; the
      underlying action/behavior is a separate (pending) change. --}}
-{{!-- `@triggerless` (Compressed View, components/app-navbar-authenticated-inner.hbs) mounts the
-     component WITHOUT its disc, the same contract as <GuidedTour @triggerless>: mounting is what
-     registers `appState.dashboard_design_opener`, so everything else that opens Dashboard Design
-     keeps working. --}}
-{{#unless @triggerless}}
 <button
   type="button"
   class="md-display-style__trigger display-style"
@@ -30,4 +25,3 @@
   {{!-- Label ("Display Style") shows at all widths (see app.scss). --}}
   <span class="md-display-style__trigger-label">{{t "Display Style" key="display_style"}}</span>
 </button>
-{{/unless}}

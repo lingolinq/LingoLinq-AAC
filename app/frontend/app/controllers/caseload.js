@@ -677,20 +677,8 @@ export default Controller.extend({
     }
   },
 
-  /* COMPACT CASELOAD (requested 2026-09-29): Modern view + Focused style + Compressed View.
-     The page renders a compact work list instead of the tiled rows (templates/caseload.hbs):
-     identity, attention status and Model / Speak / "…" on one row; "…" opens the SAME
-     expanded panel as More Actions, where Reports, Modeling Ideas and the additional actions
-     sit. Every action calls the same handler as the tiled rows. Kept below the file's one
-     ESLint baseline entry so the line-anchored gate does not shift. */
-  compactCaseload: computed('appState.compressed_view_active', 'appState.effectiveLayout', 'appState.effective_view_style', function() {
-    return this.get('appState.compressed_view_active') === true &&
-           this.get('appState.effectiveLayout') === 'focused' &&
-           this.get('appState.effective_view_style') === 'modern';
-  }),
-
-  /* Modern view + Focused style, with or without Compressed View: the page header (title,
-     communicator count, "Needs attention" toggle) shows here (requested 2026-09-29). */
+  /* Modern view + Focused style: the page header (title, communicator count, "Needs attention"
+     toggle) shows here (requested 2026-09-29). */
   focusedCaseload: computed('appState.effectiveLayout', 'appState.effective_view_style', function() {
     return this.get('appState.effectiveLayout') === 'focused' &&
            this.get('appState.effective_view_style') === 'modern';
