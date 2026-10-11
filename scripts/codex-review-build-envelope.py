@@ -145,8 +145,25 @@ def review_outcome(review):
     }
 
 
+# The live state and the synthesis input carry PR text JSON-encoded (gh pr view --json; json.dumps of
+# chunk results): a line break arrives as \n or \r\n, a quote as \", a tab as \t. The model reads the
+# decoded text, so the guard reads it too. Zero-width characters are dropped first (as the secret scan
+# does), so a word cannot be split by one. Scanning an extra view can only add detections.
+_JSON_ESCAPE_RE = re.compile(r'\\(?:u([0-9a-fA-F]{4})|(["\\/bfnrt]))')
+_JSON_SIMPLE_ESCAPES = {'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t"}
+_ZERO_WIDTH_RE = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u00ad]")
+
+
+def _json_unescaped(text):
+    return _JSON_ESCAPE_RE.sub(
+        lambda m: chr(int(m.group(1), 16)) if m.group(1) else _JSON_SIMPLE_ESCAPES[m.group(2)], text)
+
+
 def diff_has_injection(diff):
-    return bool(diff) and bool(_INJECTION_RE.search(diff))
+    if not diff:
+        return False
+    views = (diff, _json_unescaped(diff))
+    return any(_INJECTION_RE.search(_ZERO_WIDTH_RE.sub("", view)) for view in views)
 
 
 # A file git treats as binary is not shown in the diff: the reviewer sees only "Binary files ...
