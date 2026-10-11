@@ -394,6 +394,9 @@ jobs:
           printf '%s\n' "$RAW" > /tmp/pr_diff_full.txt
           TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
           FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
+          # Decided once: the cut below and the record the envelope step reads both follow this.
+          DIFF_STATE=complete
+          if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then DIFF_STATE=truncated; fi
           # Build the bounded diff ONCE into a file. It is used twice: read by
           # the prompt assembler (from this file, never via a step output) AND
           # scanned by the prompt-injection guard in build-envelope.py, which
@@ -403,7 +406,7 @@ jobs:
           # without a positive signal it can wrongly assume the diff is partial
           # and refuse a verdict.
           {
-            if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
+            if [ "$DIFF_STATE" = truncated ]; then
               echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
               echo ""
               # Cut on a line boundary: drop the final (possibly partial) line
@@ -423,11 +426,7 @@ jobs:
           } > /tmp/pr_diff.txt
           # CI's own record of whether it cut the diff, for the envelope step: the NOTE above sits
           # in the same file as PR text, so it is never parsed back.
-          if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
-            echo truncated > /tmp/pr_diff_state.txt
-          else
-            echo complete > /tmp/pr_diff_state.txt
-          fi
+          echo "$DIFF_STATE" > /tmp/pr_diff_state.txt
 
       - name: Build chunked PR evidence
         if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'

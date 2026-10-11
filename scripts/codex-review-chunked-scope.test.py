@@ -517,6 +517,24 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((pathlib.Path(tmp) / "pr_diff_state.txt").read_text().strip(), expected)
 
+    def test_the_recorded_diff_state_always_matches_whether_the_diff_was_cut(self):
+        # The record must follow the same decision as the cut, at sizes either side of the 60,000-byte cap
+        # (final review, 2026-10-11: a state derived from the cut file's own size read "complete" for a
+        # cut diff whose last line was long).
+        for size in (100, 59990, 60020, 70000):
+            with self.subTest(size=size), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                install_fake(bin_dir, "git", SIZED_DIFF_GIT)
+                script = localize(extract_step_run("Gather PR diff"), tmp)
+                result = run_step(script, tmp, bin_dir, extra_env={
+                    "HEAD_SHA": "a" * 40, "BASE_SHA": "b" * 40, "FAKE_DIFF_SIZE": str(size)})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                state = (pathlib.Path(tmp) / "pr_diff_state.txt").read_text().strip()
+                cut = "TRUNCATED" in (pathlib.Path(tmp) / "pr_diff.txt").read_text()
+                self.assertEqual(state, "truncated" if cut else "complete")
+                self.assertEqual(cut, size > 60000)
+
     def test_the_bounded_envelope_withholds_approve_unless_ci_recorded_a_complete_diff(self):
         script = extract_step_run("Build W2 envelope")
         own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True,
