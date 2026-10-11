@@ -6,7 +6,7 @@ paths:
   - "app/frontend/testem.js"
   - "app/frontend/playwright.config.js"
   - ".github/workflows/ci.yml"
-  - "app/frontend/app/utils/**"
+  - "app/frontend/app/**"
 ---
 
 # Testing standards: frontend, end-to-end and CI
@@ -192,8 +192,9 @@ callback in `afterEach`, or a later test's message resolves this test's promise.
   the test sets a model). The harness's teardown wait finds only some tests that skip this (a
   synchronous plain QUnit test; after an async or jasmine-style test the fetch is usually flushed
   before the wait runs). To find them all, delay every FetchManager flush past the post-test settle
-  (`ember test --query "probeDelay=1500"`, `tests/test-helper.js`; run weekly and on demand by
-  `.github/workflows/ember-fetch-probe.yml`).
+  (`ember test --query "probeDelay=1500"`, `tests/test-helper.js`). `.github/workflows/ember-fetch-probe.yml`
+  runs it weekly and on demand, but GitHub runs those triggers from the default branch only, so it
+  starts once it is on `main` and then probes `main`; probe a branch locally with that command.
 
 **DOM.** Remove every element the test (or app code it drives) appends to `<body>`. Elements the
 app creates once and caches for the page lifetime still leak between tests: the test that triggers
@@ -220,8 +221,11 @@ cancels it. Exemptions:
   `tests/helpers/index.js`), so a late flush does not hit a destroyed store in the next test. It is
   not a pass: a test that ends with a fetch still queued FAILS (owner decision, PR #1118), and is
   logged as `[queued-fetch]` in the Ember shard job summary. It sees whatever is still queued when
-  teardown starts: every un-awaited fetch of a synchronous plain QUnit test, and fetches queued after
-  an async or jasmine-style test signalled it was done; the fetch probe above finds the rest.
+  teardown starts: an un-awaited fetch of a synchronous plain QUnit test (unless an async `afterEach`
+  of its module runs first: hooks registered after `setupTest` run before its own, and an async hook
+  lets the flush happen), and fetches queued after an async or jasmine-style test signalled it was
+  done. The fetch probe above finds the rest. The failure message says the fetch may be an earlier
+  test's late work and gives the probe command that reproduces it.
 
 ### Test helpers that import app code
 

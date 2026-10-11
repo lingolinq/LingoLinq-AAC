@@ -10,7 +10,7 @@ is kept under 200 lines. Everything else loads on demand:
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
 | `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
-| `.claude/rules/testing-frontend.md` | touching frontend tests, e2e or `ci.yml` | the frontend testing standards: which test, isolation, running, CI |
+| `.claude/rules/testing-frontend.md` | touching frontend tests, e2e, `ci.yml` or `app/frontend/app/**` | the frontend testing standards: which test, isolation, deferred-work guards, running, CI |
 | `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |

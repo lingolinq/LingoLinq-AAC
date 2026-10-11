@@ -41,7 +41,9 @@ module.exports = {
     // A deferred-work guard must be `if(owner_gone(owner)) return;` (app/utils/live_service.js), never
     // `if(!live_service(owner)) return;`: that also returns when no owner was captured, which stopped
     // switch scanning restarting after a selection (scanner.appState is unset when the highlight
-    // controller sets the scanner up). See .claude/rules/testing-frontend.md, deferred work.
+    // controller sets the scanner up). See .claude/rules/testing-frontend.md, deferred work. A tripwire
+    // for the literal form only (positive forms, aliases and ternaries are not matched); the scanner
+    // test "they still run when no app was captured" is the real guard.
     'no-restricted-syntax': ['error', {
       selector: "IfStatement[test.type='UnaryExpression'][test.operator='!'][test.argument.callee.name='live_service']:matches([consequent.type='ReturnStatement'], [consequent.body.0.type='ReturnStatement'])",
       message: 'Guard deferred work with `if(owner_gone(owner)) return;`: `!live_service(owner)` also returns when no owner was captured.'

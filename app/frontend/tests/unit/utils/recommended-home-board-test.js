@@ -186,9 +186,9 @@ describe('recommended_home_board setup_user lifetime', function() {
     waitsFor(function() { return done; });
     runs(function() {
       expect(polls).toEqual(0);
-      // Exactly this loop's own skip. Earlier tests in this module that close the preview before the
-      // loop's first 400 ms check leave their loops polling into later tests; a skip of theirs that
-      // lands here belongs to another owner, so the recorder passes it on to the harness report.
+      // Exactly this loop's own skip. A loop left running by an earlier case (none today: each one ends its
+      // own, closePreviewAndWaitForRelease) would belong to another owner, so the recorder would pass its
+      // skip on to the harness report rather than count it here.
       expect(ownerGoneSkips.count).toEqual(1);
     });
   });
