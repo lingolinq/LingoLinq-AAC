@@ -54,10 +54,9 @@
 # USAGE
 #   scripts/data-bearing-path-check-ci.sh              decide, and record an approval
 #   scripts/data-bearing-path-check-ci.sh --mark pending|error
-#       post that state for data-bearing-paths/<EVENT_BASE_REF> on EVENT_HEAD_SHA. The
-#       workflow posts pending itself before its checkout (so it needs no script) and
-#       runs --mark error from its failure step, so an earlier pass cannot outlive a run
-#       that failed.
+#       post that state for data-bearing-paths/<EVENT_BASE_REF> on EVENT_HEAD_SHA, by
+#       hand. The workflow posts both inline (pending before its checkout, error from its
+#       failure step), so neither depends on the checkout.
 #
 # ENV (required unless noted)
 #   REPO            owner/name

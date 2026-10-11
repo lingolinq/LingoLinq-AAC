@@ -24,8 +24,13 @@ name: Data-bearing paths
 #      DATA_BEARING_APP_CLIENT_ID. For pull_request_target the environment rules are
 #      checked against the default branch, so this workflow can enter it; a PR's own
 #      pull_request workflow cannot.
-#   Until both exist, every run fails at the token step and posts nothing, which keeps
-#   the required check missing and the PR blocked.
+#   3. Before 2026-11-02, when GitHub starts blocking pull_request_target on public
+#      repositories without an event policy: under Settings > Actions > Policies, an
+#      active policy targeting only .github/workflows/data-bearing-paths.yml whose event
+#      rule allows pull_request_target. Without it the check never runs and every PR
+#      shows the required check as missing.
+#   Until 1 and 2 exist, every run fails at the token step and posts nothing, which
+#   keeps the required check missing and the PR blocked.
 #
 # Rollout: require the data-bearing-paths/develop, /staging and /main contexts on their
 # branches with the source pinned to the App, then run the canary before relying on it:
@@ -172,11 +177,13 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bash scripts/data-bearing-path-check-ci.sh
 
-      # A run that failed or was cancelled before posting a verdict replaces its pending
-      # status with an error. If the checkout itself failed, the pending status stays,
-      # which blocks the merge just the same.
+      # A run that failed or was cancelled before posting a verdict replaces the verdict
+      # on its head with an error, so an earlier pass cannot stand. It posts inline with
+      # the App token and one retry, so it does not need the checkout. If the token step
+      # itself failed nothing can be posted, and an earlier status on the head stays
+      # until the check is re-run.
       - name: Mark error if no verdict was posted
-        if: (failure() || cancelled()) && steps.live.outputs.current == 'true' && steps.check.outputs.verdict_posted != 'true' && steps.app.outputs.token != ''
+        if: (failure() || cancelled()) && steps.live.outputs.current != 'false' && steps.check.outputs.verdict_posted != 'true' && steps.app.outputs.token != ''
         env:
           STATUS_TOKEN: ${{ steps.app.outputs.token }}
           REPO: ${{ github.repository }}
@@ -184,8 +191,20 @@ jobs:
           EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ -f scripts/data-bearing-path-check-ci.sh ]; then
-            bash scripts/data-bearing-path-check-ci.sh --mark error
-          else
-            echo "The checkout did not complete; the pending status stays and blocks the merge."
-          fi
+          set -uo pipefail
+          case "$EVENT_BASE_REF" in
+            develop|staging|main) ;;
+            *) echo "Base $EVENT_BASE_REF is not checked; nothing to mark."; exit 0 ;;
+          esac
+          for attempt in 1 2; do
+            if GH_TOKEN="$STATUS_TOKEN" gh api -X POST "repos/$REPO/statuses/$EVENT_HEAD_SHA" \
+                -f state=error -f context="data-bearing-paths/$EVENT_BASE_REF" \
+                -f description="The check did not finish; see the workflow run." \
+                -f target_url="$RUN_URL" --silent; then
+              echo "Marked data-bearing-paths/$EVENT_BASE_REF as error."
+              exit 0
+            fi
+            [ "$attempt" = 2 ] || sleep 5
+          done
+          echo "Could not mark the verdict as error; an earlier status on this head may stand. Re-run this check." >&2
+          exit 1
