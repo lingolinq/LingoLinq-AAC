@@ -488,6 +488,16 @@ body.ll-layout-focused {
     margin-top: 0 !important;
   }
 
+  /* (The Updates-arrival rules that sat here moved just below this block on 2026-10-10, scoped to
+     BOTH Modern layouts.) */
+}
+
+// THE UPDATES ARRIVAL, BOTH MODERN LAYOUTS (2026-10-10, requested: "make the page content
+// positioning of the logs page in modern gentle the same as it is in modern focused"). These two
+// rules were Focused-only; Gentle's logs-from-Updates page instead took the account section's
+// tighter spacing and its title rode up into the pill-nav's blur band. Same selectors and weight as
+// before ((0,1,1) from the body class), so Focused is unchanged.
+body.ll-view-modern {
   /* UPDATES (logs) page — no top padding at >=1024px (requested 2026-09-22). The target is
      `.md-main--user`, not the workspace: app.scss:47050 gives every account-section page
      `padding-top: calc(var(--bottombar-height, 59px) - 24px)` (the 35px the inspector showed).
@@ -4095,6 +4105,13 @@ $ch-focused-extras-hero-edge:   color-mix(in oklch, $ch-focused-extras-hero-base
 // later nudge downward would have failed. At #88909F they read 5.58 and 5.32.
 $ch-focused-panel-start:   #A8AEB9;
 $ch-focused-panel-end:     #969EAC;
+// THE LIGHT PANEL (requested 2026-10-10: the Updates cards and then the Boards panel, "lighter,
+// with less of a gradient effect"). Paler steel with the two stops close together, so the ramp
+// barely reads. The pair above stays for the communicator cards (`.ch-comm`, flat
+// $ch-focused-panel-end by its own request). Every ink drawn on this panel is near-black
+// ($ch-focused-ink-on-tint) or the dark link indigo, so a paler ground only raises contrast.
+$ch-focused-light-panel-start: #DCE0E7;
+$ch-focused-light-panel-end:   #CED4DD;
 
 // Ink for the mid-tone tinted surfaces. Measured on the gradient ENDS, which are the darker
 // stop and therefore the worst case for a dark ink: label and sub 4.61-6.92, cue at 0.70
@@ -4350,6 +4367,14 @@ $ch-focused-hero-more-ink: #E5E5E5;
 @mixin ch-focused-panel($hover: true) {
   @include ch-focused-glass-tile(
     linear-gradient(155deg, $ch-focused-panel-start 0%, $ch-focused-panel-end 100%),
+    $hover: $hover
+  );
+}
+
+// The light twin: the Boards panel and the two Updates cards (see the tokens above).
+@mixin ch-focused-light-panel($hover: true) {
+  @include ch-focused-glass-tile(
+    linear-gradient(155deg, $ch-focused-light-panel-start 0%, $ch-focused-light-panel-end 100%),
     $hover: $hover
   );
 }
@@ -5286,9 +5311,17 @@ body.ll-layout-focused {
   // most of the classic page went from dark surfaces to light ones. These two cards did NOT
   // go with it — they were still the dark navy `.ch-card` — so navy body text was sitting on
   // a navy card at 1.35:1 and 1.27:1. The surface moving is what makes those inks correct.
+  // THE COMPACT ACTIONS CARDS' ARROW (2026-10-10). The compact row (_classic-home.scss
+  // `ch-compact-row`) draws its arrow in navy, which disappears on these DARK cards; it reads
+  // `--ch-compact-arrow`, set here to the same light grey the tall card's arrow uses. On the
+  // Actions grid only: the Extras drawer's silver tiles are light, and keep the navy default.
+  .ch-grid:not(.ch-grid--extras) { --ch-compact-arrow: #{$ch-focused-hero-more-ink}; }
+
   .ch-card--list,
   .ch-card--install {
-    @include ch-focused-panel($hover: false);
+    // LIGHTER, LESS GRADIENT (requested 2026-10-10, twice: "a bit lighter", then "still a bit too
+    // dark"). The light panel the Boards container also wears, so the two stay one material.
+    @include ch-focused-light-panel($hover: false);
 
     // The shared gloss is suppressed so this ground is EXACTLY the boards container's. The
     // mixin already lays a specular and a raking band; `.ch-card::before` adds a third white
@@ -5599,7 +5632,10 @@ body.ll-layout-focused {
     padding: 16px;
     border-radius: 20px;
     border: 1px solid;
-    @include ch-focused-panel($hover: false);
+    // LIGHTER, LESS GRADIENT (requested 2026-10-10), the same light panel as the Updates cards.
+    // This ends the fill pairing with `.ch-comm` described above; the communicator cards keep
+    // their flat darker colour, which was its own request.
+    @include ch-focused-light-panel($hover: false);
 
     // RE-INK THE EMPTY/ERROR TEXT. `ch-focused-panel` is a mid-tone ramp, and the mixin
     // header above states the constraint it imposes: nothing drawn on it may be muted

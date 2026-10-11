@@ -145,14 +145,14 @@ export default Component.extend({
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
     'appState.currentUser.managing_supervision_orgs',
-    'appState.currentUser.supervisees', 'appState.compressed_view_active',
+    'appState.currentUser.supervisees',
     function() {
       // Derived by the shared layout description, which the two preview surfaces
       // also call — so a section the previews hide is a section this page hides.
       // (That includes Focused View's forced-off Extras: Speak takes the focal
       // full-width hero slot, and a visible-but-unplaced card would land in an
       // implicit grid row of its own.)
-      return this._compressVisibility(layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis);
+      return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis;
     }
   ),
 
@@ -263,9 +263,9 @@ export default Component.extend({
   // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
   // GREETING hero — on the Extras tab the same <header> is the page header, which
   // the toggle must never hide.
-  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', 'compressedHomeLabel', function() {
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', function() {
     if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
-    return (this.get('compressedHomeLabel') || sectionHidden(this.get('appState.currentUser'), 'hero')) ? htmlSafe('display: none !important;') : htmlSafe('');
+    return sectionHidden(this.get('appState.currentUser'), 'hero') ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
@@ -1064,21 +1064,20 @@ export default Component.extend({
       // dependent-keys comment above for why.
       var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
       var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
-      // Cap the home + middle section at 4 (home board + up to 3 favourites,
-      // falling back to 3 others from the collection) so that, with the Crisis
-      // board appended below, the strip shows exactly FIVE tiles total.
+      // How many show is utils/preview-boards.js#capPreviewBoards (up to 12 with the Crisis
+      // board, since 2026-10-10; it was 5). Every board is added here in order and the cap is
+      // applied once, below, so the order rule and the count rule live in one place each.
+      // (That module is imported at the end of this file: see the note there.)
       starredAlpha.forEach(function(board) {
-        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
       othersAlpha.forEach(function(board) {
-        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
 
-      var top = ordered.slice(0, 4);
-      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as the
-      // 5th/last tile — same key/name/image the sidebar uses.
+      // The system "Crisis Vocabulary" board (on everyone's sidebar) is always the last
+      // tile — same key/name/image the sidebar uses.
+      var crisisItem = null;
       try {
         var sidebars = this.appState.get('sidebar_boards') || [];
         var crisis = null;
@@ -1087,29 +1086,30 @@ export default Component.extend({
           if (ck && ck.split('/').pop() === 'crisis-vocabulary') { crisis = sidebars[ci]; break; }
         }
         if (crisis) {
-          var crisisKey = emberGet(crisis, 'key');
-          if (!top.some(function(it) { return it.key === crisisKey; })) {
-            top = top.concat([{
-              board: null,
-              name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
-              imageUrl: emberGet(crisis, 'image') || '',
-              key: crisisKey,
-              languageLabel: null,
-              isHome: false,
-              // The system Crisis/Emergency board — flagged so the strip can keep
-              // showing it (alongside the home board) when the small-screen rule
-              // hides the other tiles (see ≤1024px rule in app.scss).
-              isEmergency: true
-            }]);
-          }
+          crisisItem = {
+            board: null,
+            name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
+            imageUrl: emberGet(crisis, 'image') || '',
+            key: emberGet(crisis, 'key'),
+            languageLabel: null,
+            isHome: false,
+            // The system Crisis/Emergency board — flagged so the small-screen limit in
+            // app.scss keeps showing it while it hides the boards past the fifth.
+            isEmergency: true
+          };
         }
       } catch (e) { /* crisis tile is a best-effort append — never block the strip */ }
+      var top = capPreviewBoards(ordered, crisisItem);
       return top.map(function(item, idx) {
         item.thumbClass = thumbClasses[idx % thumbClasses.length];
         return item;
       });
     }
   ),
+  // 5 or fewer boards in the card: the Boards page's full-size cards instead of its compact rows.
+  previewBoardsFull: computed('previewBoards.length', function() {
+    return previewUsesFullCards(this.get('previewBoards.length'));
+  }),
   _loadPreviewBoards: observer('appState.currentUser.id', function() {
     var _this = this;
     var user = _this.get('appState.currentUser');
@@ -1850,35 +1850,8 @@ export default Component.extend({
     }
   },
 
-  /* COMPRESSED VIEW (services/app-state.js#compressed_view_active). Kept at the end of the
-     component so no line of the line-anchored ESLint baseline shifts.
-
-     On the home tab the greeting hero, the My Caseload card and the Create a Board / Edit
-     Dashboard cards give way to one heading row with those actions as a toolbar
-     (authenticated-view.hbs, `md-compact-head`). The three cards are removed from the grid
-     through the same visibility map the Dashboard Design preferences use, so the shared layout
-     engine reflows the rest (Need Attention, then Rooms) exactly as if the user had hidden them;
-     they stay in the DOM, hidden, like any turned-off card. */
-  compressedHome: computed('appState.compressed_view_active', 'activeTab', function() {
-    return this.get('appState.compressed_view_active') === true && this.get('activeTab') === 'home';
-  }),
-
-  /* The Dashboard page label in place of the greeting hero: Compressed View in FOCUSED only.
-     Compressed Gentle keeps the same "Welcome back" hero as Gentle without Compressed View
-     (requested 2026-09-30); the rest of compressedHome's changes still apply there. */
-  compressedHomeLabel: computed('compressedHome', 'effectiveLayout', function() {
-    return this.get('compressedHome') === true && this.get('effectiveLayout') === 'focused';
-  }),
-
-  _compressVisibility: function(vis) {
-    if (!this.get('appState.compressed_view_active') || !vis) { return vis; }
-    var out = Object.assign({}, vis);
-    ['caseload', 'createboard', 'editdashboard'].forEach(function(k) { out[k] = false; });
-    return out;
-  },
-
-  /* The Need Attention card lists the first few flagged communicators, in Compressed View or not
-     (requested 2026-09-29), and "View all communicators" links to the caseload for the rest. */
+  /* The Need Attention card lists the first few flagged communicators (requested 2026-09-29), and
+     "View all communicators" links to the caseload for the rest. */
   attentionShown: computed('attentionCommunicators.[]', function() {
     return (this.get('attentionCommunicators') || []).slice(0, ATTENTION_ROWS);
   }),
@@ -1901,3 +1874,8 @@ export default Component.extend({
 
 // Rows the Need Attention card shows before "View all communicators".
 const ATTENTION_ROWS = 3;
+
+// Imported HERE, not with the imports at the top: ES imports are hoisted, so it is available
+// everywhere above, and placing it at the end keeps the line-anchored lint baseline (.eslint-todo)
+// for this file from shifting (2026-10-10).
+import { capPreviewBoards, previewUsesFullCards } from '../../utils/preview-boards';

@@ -518,8 +518,10 @@ function dashboardLayout(vis, order) {
   return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
 
-// The small "utility" action cards that share ONE row on Focused View.
-var FOCUSED_ACTION_KEYS = ['account', 'createboard', 'reports', 'editdashboard'];
+// The small "utility" action cards that share ONE row on Focused View. Extras joined them on
+// 2026-10-10, when it started showing on Focused (requested: "show all of the buttons that we have
+// available for the home page"); it is styled there as one of these cards (app.scss).
+var FOCUSED_ACTION_KEYS = ['account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
 // Wrap packed N-column rows with the constant 0-height spacer ('.' ×(N-1) + 'sup',
 // so the spacer row has exactly N columns like the content rows). N-wide
@@ -562,7 +564,10 @@ function focusedLayout(vis, order, heroKey) {
   // supervisor the hero is Caseload and Speak is simply not part of their Focused
   // dashboard. The hero itself stays in the ordered set so it packs AT ITS SAVED
   // POSITION (default = the front, per heroFirst).
-  var rest = Object.assign({}, vis, { extras: false });
+  /* EDIT DASHBOARD IS NOT ON THE FOCUSED HOME, AND EXTRAS IS (2026-10-10, requested). Extras used to
+     be dropped here and now takes Edit Dashboard's place; the Dashboard Design editor that card
+     opened is still one tap away on the navbar's Display Style button. */
+  var rest = Object.assign({}, vis, { editdashboard: false });
   /* ORG DASHBOARDS PAIR CASELOAD + SPEAK ON ONE BOTTOM ROW (2026-08-16, requested):
      My Caseload on the left, Speak Mode on the right. Everywhere else a non-Speak hero
      drops the Speak card entirely (the line below), which is why an org dashboard used to
@@ -607,9 +612,52 @@ function focusedLayout(vis, order, heroKey) {
   });
   // Bottom row: Caseload left, Speak right.
   if (pairKeys) { rowsOut.push(halfRow()); }
+  /* CREATE A BOARD AND EXTRAS BESIDE THE SPEAK HERO (2026-10-10, requested: "make the let's
+     communicate button only fill the first column on the home page, and stack the create board and
+     edit dashboard buttons to its right (one on top of the other)", and any other action cards
+     "below the boards div (where the create board and edit dashboard buttons currently are)").
+     The same day Extras replaced Edit Dashboard in that stack (see BESIDE_SPEAK_KEYS).
+     Two columns: Speak spans one row per stacked card in the first, the cards fill the second; the
+     remaining action cards keep the utility row's slot, side by side or one spanning both.
+     BELOW 1025px the grid is a flex column ordered by `orderIndices` (the `--ord-*` properties).
+     By default those are read from these areas, so small screens show Speak, then the pair, then
+     Boards, as the wide layout does (requested the same day). A SAVED Dashboard Design order is the
+     user's own arrangement: then they are read from `flowAreas`, the stacked layout built above
+     from that order, so small screens keep following it. */
+  var beside = besideSpeak(keys, heroKey);
+  if (beside.length) {
+    var others = actionKeys.filter(function(k) { return beside.indexOf(k) === -1; });
+    var gridRows = [], othersEmitted = false;
+    keys.forEach(function(k) {
+      if (k === 'speak') {
+        beside.forEach(function(b) { gridRows.push(a('speak') + ' ' + a(b)); });
+      } else if (beside.indexOf(k) !== -1) {
+        return;
+      } else if (others.indexOf(k) !== -1) {
+        if (!othersEmitted) { gridRows.push(others.length === 1 ? (a(others[0]) + ' ' + a(others[0])) : others.map(a).join(' ')); othersEmitted = true; }
+      } else {
+        gridRows.push(a(k) + ' ' + a(k));
+      }
+    });
+    var besideBuilt = framedN(gridRows, 2);
+    besideBuilt.cols = 2;
+    besideBuilt.beside = true;
+    if (order && order.length) { besideBuilt.flowAreas = framedN(rowsOut, cols).areas; }
+    return besideBuilt;
+  }
   var built = framedN(rowsOut, cols);
   built.cols = cols;
   return built;
+}
+
+// The action cards that stack beside the Speak hero in Focused View, in their saved order: Create a
+// Board and Extras (Extras took Edit Dashboard's place, 2026-10-10), when Speak is the hero and is
+// shown. Empty means the plain layout. At most two, which is what keeps the remaining action cards
+// (Account, Reports) to a two-column row.
+var BESIDE_SPEAK_KEYS = ['createboard', 'extras'];
+function besideSpeak(keys, heroKey) {
+  if ((heroKey && heroKey !== 'speak') || keys.indexOf('speak') === -1) { return []; }
+  return keys.filter(function(k) { return BESIDE_SPEAK_KEYS.indexOf(k) !== -1; });
 }
 
 // Move srcKey to just before/after dstKey in a FULL order array (all section
@@ -661,6 +709,17 @@ function gridLayoutState(vis, order, layout, heroKey) {
      any future case of visible-but-unplaced, not just this one. */
   var speakPlaced = areas.some(function(row) { return row.split(' ').indexOf('speak') !== -1; });
   if (vis.speak && !speakPlaced) { classes.push('md-grid--speak-unplaced'); }
+  /* WHICH OF SPEAK / EXTRAS THE LAYOUT GAVE AN AREA (2026-10-10). app.scss forces both to
+     `grid-column: 1 / -1` as a safety net for a card with NO area (the browser would otherwise
+     auto-place it into a new track); these flags let that rule skip a card that HAS one. Without
+     them the span overrode Gentle's `"speak extras"` row and stacked the two cards in one cell.
+     Derived from the built areas, like speakPlaced: Gentle always places both, Focused never
+     places Extras, so Focused keeps the safety net exactly as before. */
+  if (speakPlaced) { classes.push('md-grid--speak-placed'); }
+  if (areas.some(function(row) { return row.split(' ').indexOf('extras') !== -1; })) { classes.push('md-grid--extras-placed'); }
+  // Focused's Create a Board / Extras stack beside the Speak hero (focusedLayout). app.scss
+  // tightens that stack.
+  if (built.beside) { classes.push('md-grid--speak-beside'); }
   // Flag when Boards spans BOTH columns (a full-width 'boards boards' row) so the
   // CSS can let the board strip shrink to fit instead of horizontally scrolling.
   if (areas.some(function(row) { var t = row.split(' '); return t.length > 1 && t.every(function(c) { return c === 'boards'; }); })) { classes.push('md-grid--boards-full'); }
@@ -697,7 +756,9 @@ function gridLayoutState(vis, order, layout, heroKey) {
   var areaToKey = {};
   Object.keys(AREA).forEach(function(k) { areaToKey[AREA[k]] = k; });
   var orderIndices = {}, oidx = 0, seenArea = {};
-  areas.forEach(function(row) {
+  // `flowAreas` when the layout has one: a SAVED order with the Focused pair beside Speak keeps
+  // the user's stacked order on small screens (focusedLayout, "BESIDE THE SPEAK HERO").
+  (built.flowAreas || areas).forEach(function(row) {
     row.split(' ').forEach(function(tok) {
       if (tok === '.' || tok === 'sup' || seenArea[tok]) { return; }
       seenArea[tok] = true;
@@ -790,10 +851,10 @@ function layoutPresentation(user, layout, opts) {
       vis[s.key] = !sectionHidden(user, s.key);
     });
   }
-  // Focused View never shows Extras — Speak takes the focal full-width hero slot.
+  // Focused View never shows Edit Dashboard (since 2026-10-10; it showed Extras' slot before).
   // Forced here so the grid matrix and the per-card hiding agree; a card left
   // visible but unnamed in the areas lands in an implicit row of its own.
-  if (focused) { vis.extras = false; }
+  if (focused) { vis.editdashboard = false; }
 
   // Drag order, gated. `dashboard_order` is only ever SET by the flagged drag UI,
   // so with the flag off the saved value must be ignored and the canonical default

@@ -6,7 +6,7 @@ import { sectionsForLayout, availableHomeSections, layoutPresentation, gridLayou
  * "Choose what appears on your home page" was built from `availableHomeSections(user)`, which
  * takes no layout — so it offered every section the USER has, whether or not the SELECTED view
  * places it. Focused View structurally drops two:
- *   - `extras`, always (dashboard_sections.js#focusedLayout: `Object.assign({}, vis, {extras:false})`)
+ *   - `editdashboard`, always (focusedLayout; Extras took its place on 2026-10-10)
  *   - `speak`, whenever Speak is not the role hero and the org caseload+speak pair does not
  *     apply (same function, `if (heroKey && heroKey !== 'speak' && !orgPair) rest.speak = false`)
  * A section dropped from the areas is not merely unplaced: `gridLayoutState` flags it and
@@ -95,7 +95,7 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     assert.expect(2);
     var keys = sectionsForLayout(SHAPES['a communicator'], 'focused').map(function(s) { return s.key; });
     assert.notStrictEqual(keys.indexOf('speak'), -1, 'Speak is the communicator hero, so the toggle stays');
-    assert.strictEqual(keys.indexOf('extras'), -1, 'Extras is never rendered on Focused View');
+    assert.strictEqual(keys.indexOf('editdashboard'), -1, 'Edit Dashboard is not on the Focused home (2026-10-10)');
   });
 
   test('Gentle View offers every section available to the user', function(assert) {
@@ -120,13 +120,13 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     // it comes before Attention and Rooms. Ranking by SUPERVISOR_DEFAULT_ORDER put it last.
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'focused').map(function(s) { return s.key; }),
-      ['caseload', 'createboard', 'editdashboard', 'attention', 'rooms'],
+      ['caseload', 'createboard', 'extras', 'attention', 'rooms'],
       'the collapsed utility row is listed at its rendered position'
     );
     // The org caseload+speak PAIR is emitted as the bottom row, after the utility row.
     assert.deepEqual(
       sectionsForLayout(SHAPES['an org manager who also supervises'], 'focused').map(function(s) { return s.key; }),
-      ['org', 'createboard', 'editdashboard', 'caseload', 'speak'],
+      ['org', 'createboard', 'extras', 'caseload', 'speak'],
       'the bottom pair row is listed last'
     );
   });

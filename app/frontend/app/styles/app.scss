@@ -46877,15 +46877,40 @@ body.ll-view-modern:not(.ll-layout-focused) .md-shell {
    match it. `min-height: 0` for the reason the account-page rule gives: the shell's own 100vh
    would double-count against the space above it and overflow.
    Both views, as asked; scoped to the Home-section pages by `:has(.ll-appshell__navbar)`,
-   which leaves the account pages to the rule above. */
+   which leaves the account pages to the rule above.
+
+   SUPERSEDED 2026-10-10: THE WASH IS THE SHELL'S AGAIN, AND IT COVERS THE WHOLE PAGE. Requested:
+   "the md-shell bg should be the only bg showing: it should stretch all the way up to the
+   navbar and all the way to the bottom of the page". On `.ll-appshell` it stopped one viewport
+   down: the appshell measured 900px tall against 945-1017px of page, so scrolling showed
+   `#content`'s own background below it (a flat grey on Boards, a second gradient on the
+   dashboard) -- two backgrounds on one page.
+   NOW A VIEWPORT-FIXED LAYER BEHIND THE SHELL, as its `::before`: `position: fixed; inset: 0`
+   fills the screen at every scroll position, so the wash runs from the navbar to the bottom on a
+   short page and a long one alike, with nothing to measure. A fixed box adds no scroll height,
+   and escapes the shell's `overflow-x: clip` and `#content`'s scrolling, neither of which is its
+   containing block. The shell's own background stays transparent so its box cannot paint a
+   second, scroll-sized copy over the layer.
+   `isolation: isolate` gives the shell its own stacking context, which `z-index: -1` needs to
+   sit behind the shell's content and still above `#content`'s background. That context sits
+   in the same layer as the rail, which comes first in the page; the rail's ≤900px rule gives it
+   `z-index: 1` so its dropdown is not covered. */
 @media (max-width: 900px) {
   #content:has(.ll-appshell__navbar) .ll-appshell {
-    @include md-page-wash;
     min-height: 100vh;
   }
   #content:has(.ll-appshell__navbar) .ll-appshell .md-shell {
     background: transparent !important;
     min-height: 0 !important;
+    isolation: isolate;
+  }
+  #content:has(.ll-appshell__navbar) .ll-appshell .md-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    @include md-page-wash;
   }
 }
 /* Two-class selector (0,2,0) so this beats the plain `.md-shell` (0,1,0)
@@ -48201,6 +48226,51 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-columns: 50fr 50fr !important;
   }
 }
+/* SPEAK MODE KEEPS ITS FULL-WIDTH LOOK, AT HALF WIDTH (restored 2026-10-10, requested: "give
+   speak mode button back the image and styles it had when it was full width (except for the full
+   width part)"). These came from the `md-grid--fullspan-speak` rules, removed in f2a909d98 once
+   Speak stopped being a full-width row (bb07e4d7b paired it with Extras). Restated on the Gentle
+   Speak card itself, which is always placed in Gentle (dashboard_sections.js, the sweep in
+   tests/unit/utils/dashboard-grid-placement-test.js):
+     - the speak-circle image IS the icon (144px; its tile fill, border, shadow and SVG glyph go);
+     - above 950px the icon + text cluster is centred, the title and status left-aligned beside it.
+   NOT RESTORED: the 230px min-height. In a shared row it would stretch Extras too and undo the 12px
+   card padding asked for the same day.
+   76px, NOT THE FULL-WIDTH 144px (requested the same day: "make the speak mode image shrink to fit
+   its new height"). The main cards' floor is now 100px with 12px of padding top and bottom, which
+   leaves 76px; at 144px the image held the whole Speak / Extras row at ~168px.
+   (0,6,0) beats the base speak icon-tile rules, as the full-span rules did. */
+.md-grid.md-grid--layout-gentle .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
+  /* 95px: the 76px fit, then 25% larger (requested 2026-10-10). The card grows past its 100px
+     floor to hold it (95 + 12px padding top and bottom). */
+  width: 95px !important;
+  height: 95px !important;
+  background: url(../images/speak-circle-light.png) center / contain no-repeat !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.md-grid.md-grid--layout-gentle .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
+  display: none !important;
+}
+/* EXTRAS IS CENTRED THE SAME WAY (requested 2026-10-10: "make the extras button content
+   centered (like the speak mode button)"), so the two cards sharing the row read as a pair. */
+@media (min-width: 951px) {
+  .md-grid--layout-gentle .md-card.md-card--speak.md-card--speak-as-button .md-card__head,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__head {
+    justify-content: center !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--speak.md-card--speak-as-button .md-card__titles,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__titles {
+    text-align: left !important;
+  }
+}
+/* Supervisor home (with-caseload): Speak is Tier 2 there, so its image is the medium 110px it
+   was as a full-width card. (0,7,0) beats the rule above. */
+.md-grid.md-grid--with-caseload.md-grid--layout-gentle .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
+  width: 110px !important;
+  height: 110px !important;
+}
+
 @media (min-width: 951px) {
   /* My Caseload full-span hero (Gentle supervisor home): centered head, 230px
      min-height, and the icon replaced by the caseload circle image. The visible
@@ -54248,12 +54318,16 @@ a.md-goal-nav-action:hover,
 
   height: 100% !important;
 
-  /* Always tall enough to show the board preview row in full —
-     stops the card from collapsing when the surrounding column
-     (Extras / My Organizations stack) is shorter than the boards
-     content. 362 → 450 → 425 → 415 → 400 — keeps the mini-boards
-     row + CTA visible without overshooting the adjacent column. */
-  min-height: 400px;
+  /* SIZED TO ITS CONTENT (requested 2026-10-10: "the boards div is not adjusting its height to its
+     content (on modern gentle)"). This was `min-height: 400px` (362 → 450 → 425 → 415 → 400), to
+     match an adjacent column when Boards sat beside Extras / My Organizations; it is a full-width
+     row now, so the floor only padded a short list with empty space (measured: 400px for two
+     boards at 1024 and up, in both Gentle accounts checked). */
+  min-height: 0;
+  /* ...AND NEVER TALLER THAN 400px (requested 2026-10-10: "make the max-height of the boards-div
+     400px so it can't grow beyond that"). A list longer than that scrolls inside the card
+     (`.md-card--boards__compact-grid`) rather than being cut off. */
+  max-height: 400px !important;
 
   padding-right: calc(18px + 0.25rem) !important;
 
@@ -54445,7 +54519,10 @@ a.md-goal-nav-action:hover,
    the right edge via `justify-self: end`. */
 .md-card--boards .md-card__head--between {
   display: grid !important;
-  grid-template-columns: 1fr auto;
+  /* `1fr auto auto` since 2026-10-10: View All Boards joined the header, right of Create a Board
+     (requested: "move View All boards up to the right of Create a Board"). With no boards it is not
+     rendered and the last track is empty. */
+  grid-template-columns: 1fr auto auto;
   align-items: center !important;
   gap: 12px !important;
 }
@@ -55963,7 +56040,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   justify-content: space-between !important;
   flex-wrap: wrap !important;
   gap: 16px !important;
-  padding: 20px 32px !important;
+  /* 12px top and bottom (requested 2026-10-10, Modern home main button cards; was 20px). Focused's
+     Speak hero keeps its own 20px from its higher-specificity hero rule. */
+  padding: 12px 32px !important;
 }
 .md-card--speak .md-card__head {
   flex: 1 1 auto !important;
@@ -56018,9 +56097,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   justify-content: center !important;
   text-align: center !important;
   gap: 24px !important;
-  /* Hero height — 20px taller (200→220) for a bit more presence. */
-  min-height: 220px !important;
-  padding: 20px 32px !important;
+  /* HEIGHT AND PADDING ARE PER HERO, in the two rules after this one (2026-10-10). */
   color: $focus-on-dark !important;
   font: inherit !important;
   cursor: pointer !important;
@@ -56049,6 +56126,22 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     0 20px 40px rgba($focus-shadow-ink, 0.42),
     0 38px 70px rgba($focus-shadow-ink, 0.30),
     0 0 28px rgba($focus-hero-glow, 0.10) !important;
+}
+/* THE SPEAK HERO IS 100px SHORTER (requested 2026-10-10: "the main let's communicate button
+   height needs to be 100px shorter height (not width)"): 220 -> 120. Its content was 166px (the
+   126px badge plus 20px above and below), so the floor alone could not come down: the padding
+   goes to 12px and the badge to 94px (`.md-card--speak-focused__img`), 94 + 24 + the 2px border = 120, with the
+   78px title block beside it. Width is untouched.
+   The Caseload hero keeps its 220px: it shared these two declarations until this split, and the
+   request named only Let's Communicate. */
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused {
+  min-height: 120px !important;
+  padding: 12px 32px !important;
+}
+.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
+  /* Hero height — 20px taller (200→220) for a bit more presence. */
+  min-height: 220px !important;
+  padding: 20px 32px !important;
 }
 /* Hover: a clear "press me" cue — lift 2px, deepen the drop shadow, and bloom a
    faint brand-blue glow around the whole card so it reads as interactive. */
@@ -56114,9 +56207,17 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-grid.md-grid--speak-unplaced > .md-card.md-card--speak-focused {
   display: none !important;
 }
-.md-grid.md-grid--dashboard:not(.md-grid--hero-org) > .md-card.md-card--speak-focused,
-.md-grid.md-grid--dashboard:not(.md-grid--hero-org) > .md-card.md-card--speak,
-.md-grid.md-grid--dashboard > .md-card.md-card--extras {
+/* ONLY A CARD THE LAYOUT DID NOT PLACE (2026-10-10). The paragraph above about Gentle is out of
+   date: since bb07e4d7b, Gentle pairs Speak and Extras on ONE row (`"speak extras"`), and a lone
+   one sits in half a row (`"speak ."`). Spanning them overrode that and stacked both cards in the
+   same cell, Extras painted over Speak. utils/dashboard_sections.js#gridLayoutState now flags
+   `md-grid--speak-placed` / `md-grid--extras-placed` from the built areas, and the span skips a
+   placed card. Swept over every visibility combination and hero: Gentle always places both;
+   Focused never places Extras (so it still spans) and places Speak only as a full row (where the
+   span was a no-op), so Focused renders exactly as before. */
+.md-grid.md-grid--dashboard:not(.md-grid--hero-org):not(.md-grid--speak-placed) > .md-card.md-card--speak-focused,
+.md-grid.md-grid--dashboard:not(.md-grid--hero-org):not(.md-grid--speak-placed) > .md-card.md-card--speak,
+.md-grid.md-grid--dashboard:not(.md-grid--extras-placed) > .md-card.md-card--extras {
   grid-column: 1 / -1 !important;
 }
 /* The plain Speak card is hidden only where Speak IS the hero — mirroring the caseload
@@ -56169,13 +56270,19 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    and a communicator sees the Speak one. */
 .md-card--caseload-focused__img { width: 144px; height: 148px; display: block; object-fit: fill; }
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
-   becomes the hero's unmistakable focal point. */
-.md-card--speak-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
+   becomes the hero's unmistakable focal point. 94px since 2026-10-10, when the hero came down
+   100px (see "THE SPEAK HERO IS 100px SHORTER"): 126px no longer fit inside it. */
+.md-card--speak-focused__img { width: 94px; height: 94px; display: block; object-fit: contain; }
 /* Image on the left, title + subheader stacked + LEFT-aligned on the right. */
 .md-card--speak-focused__text,
 .md-card--caseload-focused__text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; }
 .md-card--speak-focused__title,
 .md-card--caseload-focused__title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; color: $focus-on-dark; }
+/* 2px SMALLER AT 1024px AND BELOW (requested 2026-10-10: "on 1024px and smaller, reduce the speak
+   mode header by 2px"). Speak Mode only; the Caseload hero's title keeps 25px. */
+@media (max-width: 1024px) {
+  .md-card--speak-focused__title { font-size: 23px; }
+}
 /* Divider between the title and subheader: a left→right fading hairline
    (white, on the dark button). */
 .md-card--speak-focused__divider,
@@ -56286,14 +56393,22 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    bottom-centred rule (.md-grid--dashboard …, 0,3,0). */
 .md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide {
   position: absolute !important;
-  top: 16px !important;
+  /* 24px, not 16px: with the pill now the "+ Create" pill's 40px height, this lines its top up
+     with that pill's (measured 451 against 443 at 16px). */
+  top: 24px !important;
   right: calc(18px + 0.25rem) !important;
   margin: 0 !important;
   width: fit-content !important;
   z-index: 3 !important;
-  /* Trim 2px top/bottom off the base .md-btn 14px → 12px (left/right unchanged)
-     so the View All Boards pill reads tighter on Focused View. */
-  padding: 12px 20px !important;
+  /* THE SAME VERTICAL BOX AS THE "+ Create" PILL beside it (requested 2026-10-10): no top or
+     bottom padding, 40px tall, label centred -- that pill's `height: 40px; padding: 0 …` below.
+     `min-height` rather than `height` so a label that wraps on a narrow screen grows the pill
+     instead of spilling out of it. */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 40px !important;
+  padding: 0 20px !important;
 }
 /* Focused View — the Boards card sizes to its CONTENT. The 400px min-height +
    flex-grow strip existed to match the adjacent column in the 2-up layout; full-
@@ -56315,6 +56430,25 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-card--boards__add { display: none; }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card__head--between {
   grid-template-columns: auto auto 1fr !important;
+}
+/* 500px AND BELOW: THE TWO BUTTONS SHARE A SECOND ROW (requested 2026-10-10: "on 500px and smaller,
+   wrap the create and boards buttons to a new row together"). The title block takes the whole first
+   row, so it no longer squeezes into a sliver beside them (measured: 39px wide at 390px), and "+
+   Create" and "Boards" sit side by side under it, from its left edge (Create's 16px nudge off the
+   title is not needed there). `!important` because the rules these replace carry it. */
+@media (max-width: 500px) {
+  .md-grid.md-grid--layout-focused .md-card--boards .md-card__head--between {
+    grid-template-columns: auto auto !important;
+    /* Packed to the left: `md-card__head--between` spreads its columns (space-between), which put
+       Boards at the far edge, away from Create. */
+    justify-content: start !important;
+  }
+  .md-grid.md-grid--layout-focused .md-card--boards .md-card__head--between > .md-card__left {
+    grid-column: 1 / -1;
+  }
+  .md-grid.md-grid--layout-focused .md-card--boards .md-card__head--between > .md-card--boards__add {
+    margin-left: 0 !important;
+  }
 }
 /* Shape only — colour/border/background come from the shared View-All rule above
    so the "+" is styled IDENTICALLY to the View All Boards button. */
@@ -56413,6 +56547,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-shell--layout-focused { padding-top: 0 !important; }
 #within_ember:has(.page-footer) #content.index.with_user:has(.md-shell--layout-focused) {
   padding-top: var(--topbar-height) !important;
+  --ll-content-pad-extra: 0px !important; /* see the Gentle `#content:has(.ll-appshell)` rule */
 }
 /* Speak Mode card-as-button — rendered at ≤1024px (see
    components/dashboard/authenticated-view.js#is_narrow_dashboard).
@@ -56665,7 +56800,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    cluster, and subtle blurred shapes balancing the empty right side — all
    <=7% so it reads as ambient depth, never decoration. */
 .md-grid .md-card.md-card--speak-as-button {
-  min-height: 160px;
+  min-height: 100px; /* 2026-10-10, was 160px: the main button cards' floor (see the Extras rule) */
   background:
     radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
     radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
@@ -56714,42 +56849,20 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-card--edit-dashboard { grid-area: editdashboard; align-self: stretch; }
 /* Typography — slightly larger title (subtitle removed per design). */
 .md-grid .md-card.md-card--speak-as-button .md-card__title,
-.md-grid .md-card.md-card--extras.md-card--as-button .md-card__title,
-.md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__title {
+.md-grid .md-card.md-card--extras.md-card--as-button .md-card__title {
   font-size: 24px !important;
 }
-/* Divider below the title — a short teal gradient bar that fades out to
-   the right, guiding the eye down toward the "ready" status line. */
-.md-grid .md-card.md-card--speak-as-button .md-card__title::after {
-  content: "";
-  display: block;
-  /* Slightly stronger anchor than before — wider + thicker + a touch more
-     solid before the fade — so it grounds the title without dominating it. */
-  width: 260px;
-  max-width: 100%;
-  height: 3px;
-  margin-top: 8px;
-  border-radius: 3px;
-  /* Same brand gradient as the hero "where you left off" text, masked to
-     fade out toward the right so it guides the eye down to the next line. */
-  /* Reversed brand gradient (denim → verdigris) so the colour that was on the
-     right now reads on the left. */
-  background: linear-gradient(90deg, #4C86D8, #2A9D8F);
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+/* CREATE A BOARD / EDIT DASHBOARD: 2px SMALLER than the two main cards (requested 2026-10-10:
+   "more sleek, less padding than the two main buttons, and font sizes should be 2px smaller (header
+   and subheader) and should scale down on smaller screens"). The steps down are in the <=900 /
+   <=600 Gentle block (search "SLEEKER SECONDARY BUTTONS"). Focused sizes these at 18px in its own
+   later rule, which still wins. */
+.md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__title {
+  /* 22 -> 20px: a further 2px down, asked for the same day ("make the create board and edit
+     dashboard header font on modern gentle 2px smaller and scale down on smaller screens"). */
+  font-size: 20px !important;
 }
-/* On the supervisor (non-communicator) home — `md-grid--with-caseload`, where My
-   Caseload is the hero and Speak is just another card — drop Speak's heavier hero
-   divider down to the uniform home-card accent (matching Organizations / Account /
-   etc.). The communicator home (no with-caseload) keeps the hero divider above. */
-.md-grid.md-grid--with-caseload .md-card.md-card--speak-as-button .md-card__title::after {
-  width: 208px;
-  height: 2px;
-  border-radius: 2px;
-  opacity: 0.7;
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
-}
+/* (Speak's title divider is defined with Extras' below — one divider for both since 2026-10-10.) */
 /* Single supporting accent — a low-priority "ready" status line (muted
    teal + soft dot). Signals the card is active, no interactive UI added.
    Indented slightly so it sits offset from the title's left edge. */
@@ -56773,15 +56886,17 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   background: $brand-verdigris;
   box-shadow: 0 0 6px rgba(42, 157, 143, 0.55);
 }
-/* Extras card — same title divider as the Speak card: the brand highlight
-   gradient ($la-highlight-gradient, verdigris→denim) with the same
-   dimensions + right-fade mask. */
+/* THE HOME CARDS' TITLE DIVIDER — Speak Mode, Extras and the badge-action cards share ONE.
+   Speak Mode had its own heavier hero divider (260px x 3px, full opacity, fading from 68%) until
+   2026-10-10 (requested: "make the modern speak mode button divider match the extras button
+   divider"); the supervisor home already gave it exactly these values, so that override went too. */
+.md-grid .md-card.md-card--speak-as-button .md-card__title::after,
 .md-grid .md-card.md-card--extras.md-card--as-button .md-card__title::after,
 .md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__title::after {
   content: "";
   display: block;
   /* Uniform home-card accent divider — matches the My Organizations divider.
-     Speak Mode + My Caseload keep their own heavier hero dividers. */
+     My Caseload keeps its own heavier hero divider. */
   width: 208px;
   max-width: 100%;
   height: 2px;
@@ -56844,14 +56959,19 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      9.44:1 -> 7.55:1, both still far above the 4.5:1 AA floor for normal text.
      THE TOP-LEFT SHEEN IS LEFT AT 0.65 — only the three COLOUR stops are darkened, which is
      what was asked. The sheen is white, so the darkening reads weakest under it and strongest
-     away from it; if the card should come down evenly, that alpha is the second lever. */
+     away from it; if the card should come down evenly, that alpha is the second lever.
+     LIGHTER AGAIN (requested 2026-10-10, for every secondary action card on the Focused home:
+     Create a Board, Edit Dashboard, and the Account / Reports / Caseload / Speak action cards
+     other roles see, which all share this rule). The 10% black step is gone and the denim
+     comes back from 23/35% to 17/27%, the values before the last "bluer" pass. Navy ink on a
+     lighter fill, so contrast only rises. */
   // sRGB fallback, all three layers restated (_color-fallbacks.scss); the modern value follows.
   background:
     radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0) 48%),
-    radial-gradient(28% 40% at 100% 100%, cf-srgb(cf-oklab-mix(cf-oklch-mix($brand-verdigris, white, 24%), black, 90%)) 0%, transparent 46%),
+    radial-gradient(28% 40% at 100% 100%, cf-srgb(cf-oklch-mix($brand-verdigris, white, 24%)) 0%, transparent 46%),
     linear-gradient(140deg,
-      cf-srgb(cf-oklab-mix(cf-oklch-mix($brand-dusty-denim, white, 23%), black, 90%)) 0%,
-      cf-srgb(cf-oklab-mix(cf-oklch-mix($brand-dusty-denim, white, 35%), black, 90%)) 100%) !important;
+      cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 17%)) 0%,
+      cf-srgb(cf-oklch-mix($brand-dusty-denim, white, 27%)) 100%) !important;
   background:
     /* Top-left white sheen. 0.65 -> 0.40: at 0.65 this washed the denim tint out across
        most of the card, so raising the denim percentage kept measuring bluer while barely
@@ -56861,13 +56981,13 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     /* Verdigris tucked tight into the FAR bottom-right corner (a small radial
        glow), fading into the denim tint everywhere else. */
     radial-gradient(28% 40% at 100% 100%,
-      color-mix(in oklab, color-mix(in oklch, $brand-verdigris 24%, white) 90%, black) 0%,
+      color-mix(in oklch, $brand-verdigris 24%, white) 0%,
       transparent 46%),
     /* LIGHT denim-tinted base — keeps the brand hue but stays bright enough for a
        dark navy header to clear WCAG AA. */
     linear-gradient(140deg,
-      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 23%, white) 90%, black) 0%,
-      color-mix(in oklab, color-mix(in oklch, $brand-dusty-denim 35%, white) 90%, black) 100%) !important;
+      color-mix(in oklch, $brand-dusty-denim 17%, white) 0%,
+      color-mix(in oklch, $brand-dusty-denim 27%, white) 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba($la-navy, 0.06),
@@ -56877,12 +56997,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button:hover,
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button:focus-visible {
+  /* SOFTER (requested 2026-10-10: "the shadow effect on hover ... needs to be less dramatic").
+     The 22px/44px drop at 0.40 and the 13px inner lip at 0.40 read as the card lifting well off
+     the page; each layer now sits a step above the resting shadow rather than far past it. The
+     1px lift stays, so hover is still visible without the shadow carrying it. */
   box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.26),
-    inset 0 -6px 13px rgba($la-navy, 0.40),
-    0 4px 8px rgba($la-navy, 0.26),
-    0 22px 44px rgba($la-navy, 0.40),
-    0 0 26px rgba($brand-verdigris, 0.16) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 8px rgba($la-navy, 0.14),
+    0 3px 6px rgba($la-navy, 0.12),
+    0 12px 24px rgba($la-navy, 0.16),
+    0 0 18px rgba($brand-verdigris, 0.10) !important;
   transform: translateY(-1px) !important;
 }
 /* Sub text. This rule used to lighten the description to #7B8798 to make it recede, and
@@ -57050,8 +57174,13 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    up with the container automatically. */
 .md-grid .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
   border-radius: 50% !important;
-  width: 80px !important;   /* 64 × 1.25 */
-  height: 80px !important;
+  /* 76px: THE SAME SIZE AS THE SPEAK MODE IMAGE beside it (requested 2026-10-10: "make the
+     extras image grow to match the speak mode's image size"). Speak's image fits the 100px card
+     floor at 76px (100 - 12px padding top and bottom), so this matches it rather than the 80px
+     (64 x 1.25) it was. */
+  /* 95px, matching Speak's after both went 25% larger (requested 2026-10-10). */
+  width: 95px !important;
+  height: 95px !important;
   /* The extras-circle image is a full circular illustration on its own, so hide the
      icon TILE chrome behind it (coral gradient background, border, glow/drop shadow)
      — otherwise it reads as a second circle around the image. This 0,6,0 rule beats
@@ -57406,6 +57535,48 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      orphaned the arrow onto a second line, so the four headers sat at different
      heights. Matches the 16px the <=1024px flex fallback already uses. */
   gap: var(--dn-grid-gap-focused, 14px) !important;
+}
+/* ONE EXTRAS CARD PER LAYOUT (2026-10-10). authenticated-view.hbs renders two: the illustrated card
+   and, for Focused, an action card like Create a Board with a drawn icon (`md-card--extras-focused`).
+   Chosen here from the grid's layout class, not in the template, because the Dashboard Design
+   previews copy the markup and switch only that class. The cards' own `display` rules carry
+   `!important`, so these do too. */
+.md-grid.md-grid--layout-focused > .md-card.md-card--extras:not(.md-card--extras-focused),
+.md-grid:not(.md-grid--layout-focused) > .md-card.md-card--extras-focused {
+  display: none !important;
+}
+/* THE STACK BESIDE THE SPEAK HERO, ABOVE 1024px (2026-10-10, requested: "the top of the create board
+   should line up with the top of the speak mode button and the bottom of the extras button should
+   line up with the bottom of the speak mode button", and less space between the two).
+   `md-grid--speak-beside` is set by dashboard_sections.js#gridLayoutState for exactly this layout.
+   - The hero's own 6px / 10px vertical margins (its base rule) were what offset its edges from the
+     stack's; they go to 0 here so both span the same rows.
+   - The two stacked cards are 8px apart instead of the grid's 14px. That gap is the grid's
+     row-gap, shared by every row, so Boards takes the 6px back as a top margin and keeps its 14. */
+@media (min-width: 1025px) {
+  .md-grid.md-grid--layout-focused.md-grid--speak-beside {
+    row-gap: 8px !important;
+  }
+  /* The `:not()`s match the hero's base rule weight, (0,6,0), which this has to clear. */
+  .md-grid.md-grid--layout-focused.md-grid--speak-beside:not(.md-grid--hero-caseload):not(.md-grid--hero-org) > .md-card.md-card--speak-focused {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  /* EQUAL HEIGHTS (requested 2026-10-10: "make the extras button and create board button heights
+     match each other (splitting the space in the two rows that speak mode button spans)"). Each
+     card fills its row, and the hero's spare height is shared equally between the two `auto`
+     rows it spans, so the pair splits it evenly. The cards are already column flex boxes that
+     centre their content vertically, with the icon and text at the left and the title's arrow at
+     the right edge, so nothing else is needed (a horizontal `align-items: center` here centred all
+     of it, measured the same day). */
+  .md-grid.md-grid--layout-focused.md-grid--speak-beside > .md-card.md-card--create-board,
+  .md-grid.md-grid--layout-focused.md-grid--speak-beside > .md-card.md-card--extras {
+    align-self: stretch !important;
+    height: auto !important;
+  }
+  .md-grid.md-grid--layout-focused.md-grid--speak-beside > .md-card.md-card--boards {
+    margin-top: 6px !important;
+  }
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   min-height: 0 !important;
@@ -63433,10 +63604,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 /* Gentle layout: card sub/status text at 18px — "Games & Resources",
    "Ready to communicate", "Manage your boards". */
 .md-grid .md-card.md-card--extras.md-card--as-button .md-card__sub,
-.md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__sub,
 .md-grid .md-card.md-card--speak-as-button .md-card__status,
 .md-grid--layout-gentle .md-card--boards .md-card__sub {
   font-size: 18px !important;
+}
+/* Create a Board / Edit Dashboard: 2px smaller (2026-10-10, see their title rule). */
+.md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__sub {
+  font-size: 16px !important;
 }
 /* "(Page-sets)" parenthetical clarifier rendered inline after the
    "Boards" word inside the boards card's h3 title. Verdigris brand
@@ -63637,40 +63811,133 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   padding-bottom: calc(10px + 1rem) !important;
 
 }
-.md-grid--dashboard .md-card--boards .md-strip {
-  margin-top: calc(4px + 0.6rem) !important;
+.md-grid--dashboard .md-card--boards .md-card--boards__compact-grid {
+  /* NO TOP MARGIN, AND EQUAL PADDING TOP AND BOTTOM (requested 2026-10-10: "boards div md-strip,
+     remove the top margin, and make the top padding match the bottom padding"), 8px each. The board
+     row here was the `.md-strip` until later the same day, when it became the Boards page's compact
+     cards (authenticated-view.hbs); the spacing request carried over to the new container. */
+  margin-top: 0 !important;
+  padding: 8px 0 !important;
 
+  /* The scrolling part of the 400px-capped card: takes the space left under the header and scrolls
+     its rows when they need more. `min-height: 0` lets a flex child shrink below its content. */
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+
+  /* 8px BETWEEN THE BOARDS; TWO COLUMNS ABOVE 900px, THREE ABOVE 1024px (requested 2026-10-10).
+     The Boards page's own compact list (_board_picker.scss, `.ll-boards-grid--compact`) stays
+     1-up then 2-up from 1024px; this card is wider than one of that page's columns, so it gets
+     its own counts. Same specificity as that rule and emitted after it, so no `!important`.
+     900px and below keep the shared single column.
+     `display: grid` IS THIS RULE'S TO SET: the shared compact rule only shapes a grid, and on the
+     Boards page the grid itself comes from that page's own class, which this card does not carry.
+     Without it the container was a block, so neither the columns nor the gap applied (measured:
+     `display: block`, rows touching). */
+  display: grid;
+  gap: 8px;
 }
-.md-grid--dashboard .md-card--boards .md-btn--wide {
-  margin-top: 24px !important;
-
-  /* Shrink to fit its label ("View All Boards →") instead of spanning the
-     full card width (the base .md-btn--wide is width:100%, and .md-btn is a
-     block-level flex container so plain width:auto would still fill). Auto
-     horizontal margins center it regardless of the card's flex direction. */
+@media (min-width: 901px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1025px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* FULL-SIZE CARDS: AT MOST 3 PER ROW ABOVE 1024px, NEVER WIDER THAN THE CARD (requested 2026-10-10:
+   "make the amount of full size boards shown on the home page 3 boards (so they don't exceed the
+   width of their div)"). The Boards page's grid is a wrapping flex row of fixed 280px cards
+   (`ub-boards-page__board-grid`), which puts as many on a row as fit; here it is three columns of
+   at most 280px, centred, so 4 or 5 boards make a row of 3 and a row of the rest, and on a narrower
+   card the three shrink rather than overflow. `!important` on `display` and the holder width only
+   because the Boards page rule sets them that way. */
+/* ONE OF THE TWO LISTS BY WIDTH (requested 2026-10-10: "on 1024px and smaller, we need to keep the
+   board compressed buttons in the layout they were"). With 5 or fewer boards the template renders the
+   full-size cards and the compact rows (`--narrow-only`): the cards above 1024px, the rows below. */
+@media (min-width: 1025px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid--narrow-only { display: none; }
+}
+@media (max-width: 1024px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__full-grid { display: none !important; }
+}
+@media (min-width: 1025px) {
+  /* As many columns as boards, up to 3, so one or two cards sit centred rather than in the
+     left-hand tracks of an empty three-column row. */
+  .md-grid--dashboard .md-card--boards .md-card--boards__full-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 280px);
+    justify-content: center;
+    /* No top/bottom padding (the compact list's 8px): a row of full-size cards is ~275px and the
+       400px-capped card leaves 277px for it, so the 16px of padding made a single row scroll and
+       cut off the cards' bottom edges (measured with 2 boards at 1440). */
+    padding: 0 !important;
+  }
+  .md-grid--dashboard .md-card--boards .md-card--boards__full-grid:has(> :nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+  }
+  .md-grid--dashboard .md-card--boards .md-card--boards__full-grid:has(> :nth-child(3)) {
+    grid-template-columns: repeat(3, minmax(0, 280px));
+  }
+  .md-grid--dashboard .md-card--boards .md-card--boards__full-grid > .simple_board_holder {
+    width: auto !important;
+    max-width: 100%;
+  }
+}
+/* UP TO 6 BOARDS AT 1024px AND BELOW (requested 2026-10-10: up to 12 on full-size screens, 6 on
+   smaller ones, Crisis Vocabulary counted). The list is built for 12 (utils/preview-boards.js, Crisis
+   last); here the boards past the fifth are hidden and Crisis is kept, so it is 5 + Crisis = 6. A
+   list of 5 or fewer is unaffected, so the full-size cards (`md-card--boards__full-grid`) never
+   lose one. */
+@media (max-width: 1024px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid > .simple_board_holder:nth-child(n+6):not(.md-card--boards__item--crisis) {
+    display: none;
+  }
+}
+.md-grid--dashboard:not(.md-grid--layout-focused) .md-card--boards .md-btn--wide {
+  /* ON THE HEADER ROW, BESIDE CREATE A BOARD (2026-10-10). It used to sit centred under the board
+     strip (margin-top 24px, auto side margins); it now lives in the header grid, which places it, so
+     it carries no margins of its own. Requested in two steps: "move View All boards up to the right
+     of Create a Board", then "same padding and height as create a board ... and vertically align it
+     like the create a board button": so Create a Board's own metrics (`.md-btn--pill` padding and
+     the 14px / 6px overrides in the pill carve-out below) and the header's centre alignment.
+     NOT FOCUSED (`:not(.md-grid--layout-focused)`): Focused positions this button absolutely at the
+     card's top-right with its own padding and font, and must keep them — measured, the 14px here
+     had shrunk Focused's button from 181px to 164px wide before this was scoped. */
   width: fit-content !important;
-
-  margin-left: auto !important;
-
-  margin-right: auto !important;
+  margin: 0 !important;
+  align-self: center !important;
+  padding: 6px calc(12px + 0.25rem) !important;
+  font-size: 14px !important;
 
 }
 .md-grid--dashboard .md-card--extras,
 .md-grid--dashboard .md-card--badge-action {
-  /* Match the Speak Mode card's padding (20px top/bottom, 32px left/right).
+  /* Match the Speak Mode card's padding (12px top/bottom, 32px left/right).
      Flex column + centered so the icon + header sit vertically centered on
      the button (the .md-card__extras-wave is position:absolute, so it's
      unaffected by the flex layout). */
   display: flex !important;
   flex-direction: column !important;
   justify-content: center !important;
-  padding: 20px 32px !important;
+  /* 12px top and bottom, matching Speak Mode (requested 2026-10-10; was 20px). Focused's small
+     action buttons keep their own 9px from `.md-grid--layout-focused ... --badge-action`. */
+  padding: 12px 32px !important;
 
-  min-height: 180px !important;
+  /* 100px (requested 2026-10-10; was 180px). A floor, not a height: a card grows past it when
+     its content needs more. */
+  min-height: 100px !important;
 
 }
+/* SLEEKER THAN THE TWO MAIN CARDS (requested 2026-10-10): 8px top and bottom and 24px sides,
+   against Speak / Extras' 12px / 32px. Focused sets its own 9px on these at higher specificity. */
+.md-grid--dashboard .md-card--badge-action {
+  padding: 8px 24px !important;
+}
 /* HALF THE SIDE PADDING AT 1200 AND BELOW (requested 2026-09-21, Gentle): "on 1200px and
-   smaller reduce the l/r padding of these cards by half" -- 32px -> 16px. The vertical 20px
+   smaller reduce the l/r padding of these cards by half" -- 32px -> 16px. The vertical padding
    is untouched; only the left/right were named, and they are what squeezes the icon and title
    together as the card narrows.
    A sibling rule rather than a change to the padding above, because that declaration is the
@@ -64652,6 +64919,11 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      bottom` did the opposite — it revealed the lower part of the image,
      pulling content up.) Lower this % to drop the image further. */
   background-position: center 43% !important;
+
+  /* FADED (requested 2026-10-10: "place a higher transparency on the image that acts as its
+     background (so it looks more faded)"). Decoration only — the element is aria-hidden and sits
+     under the head (z-index 0) — so lowering it costs no contrast on the card's text. */
+  opacity: 0.45 !important;
 
   pointer-events: none !important;
 
@@ -67290,9 +67562,19 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      this never touches it. */
   .md-grid.md-grid--dashboard.md-grid--layout-gentle {
     display: flex !important;
-    flex-direction: column !important;
+    /* ROWS THAT WRAP, not a column (2026-10-10, requested: two buttons per row down to 769px, one
+       per row at 768px and below). Full-width cards keep `width: 100%` (the `.md-grid .md-card`
+       rule in this block) and take a row each; the button cards take half a row (below). `order`
+       is unchanged, so the pairs are Speak + Extras and Create a Board + Edit Dashboard, as on
+       desktop. */
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
     align-items: stretch !important;
     gap: 16px !important;
+  }
+  .md-grid.md-grid--dashboard.md-grid--layout-gentle > .md-card--speak-as-button,
+  .md-grid.md-grid--dashboard.md-grid--layout-gentle > .md-card--as-button {
+    width: calc(50% - 8px) !important;
   }
   .md-grid--layout-gentle > .md-card--caseload { order: var(--ord-caseload, 1) !important; }
   .md-grid--layout-gentle > .md-card--rooms { order: var(--ord-rooms, 2) !important; }
@@ -67450,10 +67732,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     min-height: min-content !important;
 
   }
-  .md-grid .md-card--boards .md-btn--wide {
-    margin-top: 20px !important;
-
-  }
+  /* (Its 20px top margin went on 2026-10-10: View All Boards is on the header row now, not under
+     the strip; see `.md-grid--dashboard .md-card--boards .md-btn--wide`.) */
 }
 
 /* ≤640px: split Caseload and Speak Mode back into their own rows.
@@ -68171,10 +68451,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-grid--layout-focused > .md-card--create-board { order: var(--ord-createboard, 6) !important; }
   .md-grid--layout-focused > .md-card--reports { order: var(--ord-reports, 8) !important; }
   .md-grid--layout-focused > .md-card--edit-dashboard { order: var(--ord-editdashboard, 9) !important; }
+  /* Extras is one of these action cards on Focused since 2026-10-10. */
+  .md-grid--layout-focused > .md-card--extras { order: var(--ord-extras, 10) !important; }
   .md-grid--layout-focused > .md-card--account,
   .md-grid--layout-focused > .md-card--create-board,
   .md-grid--layout-focused > .md-card--reports,
-  .md-grid--layout-focused > .md-card--edit-dashboard {
+  .md-grid--layout-focused > .md-card--edit-dashboard,
+  .md-grid--layout-focused > .md-card--extras {
     /* Basis slightly under half (16px gap → −8px) plus a rounding buffer, with
        flex-grow:1 so the pair still fills the row exactly. Prevents a sub-pixel
        overflow from wrapping them to one column. */
@@ -68191,6 +68474,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-grid--layout-focused > .md-card--create-board,
   .md-grid--layout-focused > .md-card--reports,
   .md-grid--layout-focused > .md-card--edit-dashboard,
+  .md-grid--layout-focused > .md-card--extras,
   .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload-action,
   .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-action {
     flex: 1 1 100% !important;
@@ -68205,9 +68489,22 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     top: auto !important;
     right: auto !important;
     width: fit-content !important;
-    margin: 12px auto 0 !important;
+    /* 0, not `12px auto 0` (2026-10-10, requested: "the boards button should be vertically
+       aligned"). The button now sits in the header row beside "+ Create" (authenticated-view.hbs),
+       not on a line of its own under it, so that top margin only dropped it 6px below Create. */
+    margin: 0 !important;
+  }  /* "Boards" with a smaller arrow in place of "View All Boards →" (requested 2026-10-10); the two
+     labels are in authenticated-view.hbs. */
+  .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__view-all-full { display: none; }
+  .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__view-all-short {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
 }
+/* The short label exists only for the rule above; everywhere else the full label shows. */
+.md-card--boards__view-all-short { display: none; }
+.md-card--boards__view-all-arrow { font-size: 0.75em; line-height: 1; }
 /* Focused View — at ≤375px the pill-nav collapses to the dropdown; the 24px top
    margin goes on the TRIGGER (the visible button) so it actually shifts down (the
    container's margin wasn't moving it). Also pull the dashboard's L/R padding in
@@ -112012,7 +112309,16 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
      for the same reason its comment gives: on an authenticated page `--topbar-height` is
      16px (it describes #content's padding, not the bar), and the fallback inside the
      var() matters because an unset variable would otherwise invalidate the whole max(). */
-  top: max(var(--topbar-height, 70px), 70px);
+  /* FLUSH WITH THE NAVBAR (requested 2026-10-10: "the top blur line should be flush with the
+     bottom of the navbar"). Chrome measures this offset from INSIDE `#content`'s top padding,
+     not from its top edge (measured: padding 26px + 70 = the bar drawn at 96 under a header that
+     ends at 70; 16px pages drew it at 86). That padding is `--topbar-height` plus a per-page
+     extra (0 or 1rem), so both are taken off and the bar meets the header on every page. The
+     extra comes from `--ll-content-pad-extra`, set beside the padding in each rule that wins it;
+     a page that sets neither keeps its extra as a gap rather than sliding under the header.
+     Named so the in-flow ordering at 900px and below can give the bar the same margin. */
+  --ll-navbar-sticky-top: calc(max(var(--topbar-height, 70px), 70px) - var(--topbar-height, 0px) - var(--ll-content-pad-extra, 0px));
+  top: var(--ll-navbar-sticky-top);
   /* Above page content, below the app navbar and any modal. */
   z-index: 60;
   /* Opaque-ish, or the content scrolls visibly through the pills. */
@@ -112112,8 +112418,15 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
    GENTLE ONLY, as asked. Focused sets these per page in _focused-view.scss and is untouched. */
 body:not(.ll-layout-focused) #within_ember #content:has(.ll-appshell) {
   padding-top: calc(var(--topbar-height) + 1rem) !important;
+  /* What this padding adds beyond `--topbar-height`, for the pill bar's sticky offset at 900px and
+     below (see `--ll-navbar-sticky-top` on `.ll-appshell__navbar`). `!important` like the padding,
+     so whichever rule wins the padding also wins this. */
+  --ll-content-pad-extra: 1rem !important;
 }
-body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
+/* Not the Updates arrival (2026-10-10): it takes Focused's positioning in both layouts — the
+   shell keeps its nav clearance (`.ll-appshell .md-shell`); see `md-main--updates-arrival` in
+   _focused-view.scss. */
+body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell {
   padding-top: 0 !important;
 }
 /* ...AND 52px OF IT BACK AT 1024 AND BELOW (requested 2026-09-21: "the main page content
@@ -112154,11 +112467,23 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
    down to 901 (the <=900 block after the general <=1024 block), so above 900 these would push the
    page 12px (36px on Boards) below where it sits at full size. Below 900 nothing changes. */
 @media (max-width: 900px) {
-  body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
+  body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell {
     padding-top: 52px !important;
   }
   body:not(.ll-layout-focused) #content.boards-page .ll-appshell .md-shell {
     padding-top: 76px !important;
+  }
+  /* THE HOME PAGE HAS NONE (requested 2026-10-10: "on 900px and lower, modern view, the top
+     padding of the md-shell on the home page needs to be removed"). This clearance kept content
+     out from under a pill bar that floated over the shell; at these widths the bar and the
+     account-rail dropdown now sit above the shell in the flow, so on the dashboard it was only a
+     gap. Same two selectors as the Focused dashboard rule below (the dashboard answers to
+     `home-page` and to `index`, and Extras also carries `index`). `:has(.ll-appshell)` matches the
+     general rule's weight, (1,5,1): without it this lost to that rule, as the Boards line above
+     still does (Boards measures 52px, not 76). */
+  body:not(.ll-layout-focused) #content.home-page:has(.ll-appshell) .ll-appshell .md-shell,
+  body:not(.ll-layout-focused) #content.index:not(.extras-page):has(.ll-appshell) .ll-appshell .md-shell {
+    padding-top: 0 !important;
   }
 }
 /* NO TOP PADDING OR MARGIN ON THE WORKSPACE BELOW 901px (requested 2026-09-21, Gentle:
@@ -112174,6 +112499,11 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell) .ll-appshell .md-shell {
   body:not(.ll-layout-focused) #content:has(.ll-appshell) .md-workspace {
     padding-top: 0 !important;
     margin-top: 0 !important;
+    /* AND NONE ON `.md-main` INSIDE IT (requested 2026-10-10: "modern gentle view on 900px and
+       smaller, remove the top padding from md-main"). Its base rule reads this variable (18px by
+       default; Compressed View sets 36px on the home shell), so it is set here, on the workspace
+       that holds `.md-main`, which is closer than the shell and so wins in both densities. */
+    --dn-main-pad-top: 0px;
   }
 }
 
@@ -112219,10 +112549,14 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
    the top-level `index` route gets `index`. The `:not(.extras-page)` is load-bearing -- the
    extras page ALSO carries `index` (its live class list is "index modern-dashboard
    extras-page"), so a bare `#content.index` would have moved Extras too. */
+/* THEN TO 0 (requested 2026-10-10: "the top padding of the md-shell on the home page needs to be
+   removed"). The pill bar and the account-rail dropdown now sit above the shell in the flow at
+   these widths, so there is nothing left for this clearance to clear. Gentle's home is set to
+   match beside its 52px general rule. */
 @media (max-width: 900px) {
   body.ll-layout-focused #content.home-page .ll-appshell .md-shell,
   body.ll-layout-focused #content.index:not(.extras-page) .ll-appshell .md-shell {
-    padding-top: 80px !important;
+    padding-top: 0 !important;
   }
 }
 
@@ -112252,8 +112586,10 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
 @media (max-width: 900px) {
   body.ll-layout-focused #within_ember #content.boards-page,
   body.ll-layout-focused #within_ember #content.extras-page,
-  body.ll-layout-focused #within_ember #content:has(.ll-appshell__navbar):has(.md-shell--user) {
+  // UPDATES IN BOTH MODERN LAYOUTS (2026-10-10, requested: Gentle's logs page positioned as Focused's).
+  body.ll-view-modern #within_ember #content:has(.ll-appshell__navbar):has(.md-shell--user) {
     padding-top: var(--topbar-height) !important;
+    --ll-content-pad-extra: 0px !important; /* see the Gentle `#content:has(.ll-appshell)` rule */
 
     .ll-appshell .md-shell {
       padding-top: 80px !important;
@@ -112348,8 +112684,12 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
        they were at y=86. Changing `top` alone would have moved the pills with it. */
     top: max(var(--topbar-height, 70px), 70px);
     padding-top: var(--dn-nav-pad-top, 16px);
-    /* 6px base + the 12px asked for. */
-    padding-bottom: var(--dn-nav-pad-bottom, 18px);
+    /* 0: THE BAND ENDS AT THE BOTTOM OF THE PILLS (requested 2026-10-10: "the blur underneath the
+       main pill-nav menu stretches too far downward -> make it only stretch to the bottom of the
+       pill-nav menu"). It was 18px (6px base + 12px asked for on 2026-09-21), which carried the
+       blur 18px past the pills and over the top of the page content. Only the band's bottom edge
+       moves: the pills are placed by `top` + `padding-top` above, so they stay at y=86. */
+    padding-bottom: var(--dn-nav-pad-bottom, 0);
     left: var(--ll-rail-width);
     right: 0;
     /* The in-flow band it cancelled no longer exists. */
@@ -112495,7 +112835,7 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
    argument. The shell's 52 -> 0 is untouched by that second step.
    The title clears the fixed header either way; its bottom edge is y=70. */
 @media (max-width: 1024px) {
-  body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--user {
+  body:not(.ll-layout-focused) #content:not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell.md-shell--user {
     padding-top: 0 !important;
   }
 }
@@ -112585,13 +112925,20 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
 @media (min-width: 901px) {
   /* Not Basic (2026-10-01): its rail pages take the home page's `#content` padding so the rail
      starts at one height on every page (_classic-home.scss, "ONE MENU HEIGHT"). */
+  /* THE UPDATES ARRIVAL IS EXCLUDED FROM THE SHELL AND WORKSPACE RULES BELOW (2026-10-10). The
+     logs page opened from the home pill-nav's Updates (`md-main--updates-arrival`,
+     templates/user.hbs) shares `.md-shell--user` with the account pages but, unlike them, HAS the
+     floating pill-nav. Cutting the shell's nav clearance lifted its title into the nav's blur band
+     (measured 131 against the band's 146 at 1280). It takes Focused's positioning instead (shell
+     clearance kept; workspace and main zeroed by the arrival rules in _focused-view.scss). The
+     `#content` rule just below is NOT excluded: its 46px is exactly Focused's value. */
   body:not(.ll-layout-focused):not(.ll-view-basic) #within_ember #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) {
     padding-top: calc(var(--topbar-height) + 3rem) !important;
   }
-  body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) .ll-appshell .md-shell {
+  body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell {
     padding-top: 3rem !important;
   }
-  body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)) .ll-appshell .md-shell--user > .md-workspace {
+  body:not(.ll-layout-focused) #content:has(.md-shell--user):not(:has(.md-hero--dashboard-user)):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell--user > .md-workspace {
     padding-top: 20px !important;
   }
 }
@@ -112620,5 +112967,149 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
   body:not(.ll-layout-focused) #content .ll-appshell .md-shell--stats > .md-workspace {
     margin-top: 0 !important;
     padding-top: 40px !important;
+  }
+}
+
+/* ── GENTLE HOME BUTTONS ON SMALLER SCREENS (2026-10-10) ──────────────────────────────────────
+   Requested: "on 900px and smaller -> make the home page main buttons more compact -> a bit smaller
+   font, and it should show two each row until 768px and lower", and for Create a Board / Edit
+   Dashboard, fonts that "scale down on smaller screens" (SLEEKER SECONDARY BUTTONS).
+   Gentle only: Focused lays these cards out with its own rules. At the end of the file so these
+   sit after the base sizes they step down from. */
+/* SPEAK AND EXTRAS SCALE DOWN FROM 1024px (requested 2026-10-10: "on 1024px and smaller, the speak
+   and extras button content should scale smaller (including their images) so no content is cut
+   off"). Measured before: in the half-width cards (333-380px) the text block started ~156px in
+   (32px padding + 95px image + 30px gap) and was a fixed 208px wide (its divider), so it ran past
+   the card's edge at 1024, 980, 951, 950, 820 and 769. Everything that takes width steps down
+   together; the fonts are the <=900 step's, moved up to here. Full-width again at <=768.
+   FROM 1100px SINCE THE SAME DAY (requested: "starting at 1100px, the modern view gentle view speak
+   and extras cards need to start scaling down"): between 1025 and 1100 the cards were 327-364px
+   wide at full size (24px titles, 95px images). */
+@media (max-width: 1100px) {
+  .md-grid.md-grid--layout-gentle .md-card.md-card--speak.md-card--speak-as-button .md-card__icon,
+  .md-grid .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__head,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__head {
+    gap: 16px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--speak-as-button,
+  .md-grid.md-grid--layout-gentle.md-grid--dashboard .md-card.md-card--extras {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__title::after,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__title::after {
+    width: min(150px, 100%) !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__title,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__title {
+    font-size: 20px !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__status,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__sub {
+    font-size: 16px !important;
+  }
+}
+/* CREATE A BOARD / EDIT DASHBOARD SCALE DOWN WITH THE SCREEN (requested 2026-10-10: "the create board
+   and edit dashboard buttons on modern gentle are not scaling down on smaller screens (font size,
+   padding, icon size, etc)"). Measured before: 20/16px text to 901px, and a 64px icon, 34px glyph,
+   30px icon gap and 16px sides at every width. Now everything steps together, three times:
+              title  sub   icon  glyph  gap   padding
+     >1100     20    16    64    34     30    8px 16-24px (unchanged)
+     <=1100    16    14    48    26     16    6px 14px
+     <=900     15    14    42    22     12    6px 12px
+     <=600     14    14    38    20     10    4px 10px
+   Each step was taken one notch further the same day ("make them scale down further"); the first
+   pass ran 18/56/20 at 1100, 16/48/16 at 900 and 14/44/12 at 600.
+   14px is the AAC text floor (see the <=600 step). The selectors add `md-grid--layout-gentle` to
+   the shared as-button icon/head rules' own, so they win at equal `!important`. */
+@media (max-width: 1100px) {
+  .md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__title {
+    font-size: 16px !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__sub {
+    font-size: 14px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__icon {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
+    width: 26px;
+    height: 26px;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__head {
+    gap: 16px !important;
+  }
+  .md-grid.md-grid--layout-gentle.md-grid--dashboard .md-card.md-card--badge-action {
+    padding: 6px 14px !important;
+  }
+}
+@media (max-width: 900px) {
+  /* SLEEKER SECONDARY BUTTONS, step 1 (title 20 -> 18px with the second 2px cut); 15px now that the
+     1100px step above takes 16 (see the table). */
+  .md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__title {
+    font-size: 15px !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__sub {
+    font-size: 14px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__icon {
+    width: 42px !important;
+    height: 42px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
+    width: 22px;
+    height: 22px;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__head {
+    gap: 12px !important;
+  }
+  .md-grid.md-grid--layout-gentle.md-grid--dashboard .md-card.md-card--badge-action {
+    padding: 6px 12px !important;
+  }
+}
+/* One per row at 768 and below. */
+@media (max-width: 768px) {
+  .md-grid.md-grid--dashboard.md-grid--layout-gentle > .md-card--speak-as-button,
+  .md-grid.md-grid--dashboard.md-grid--layout-gentle > .md-card--as-button {
+    width: 100% !important;
+  }
+}
+@media (max-width: 600px) {
+  /* The two main cards step down again here, so the <=900 sizes above never ENLARGE a phone's
+     (Speak's title was already 18px at 390 before 2026-10-10, from an older small-screen rule). */
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__title,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__title {
+    font-size: 18px !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__status,
+  .md-grid--layout-gentle .md-card.md-card--extras.md-card--as-button .md-card__sub {
+    font-size: 14px !important;
+  }
+  /* SLEEKER SECONDARY BUTTONS, step 2: still 2px under the main cards' title. The subtitle stays at
+     14px with theirs: that is this app's AAC text floor. */
+  .md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__title {
+    font-size: 14px !important; /* 16 -> 14px with the second 2px cut; 14px is the AAC floor */
+  }
+  .md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__sub {
+    font-size: 14px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__icon {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__icon-glyph {
+    width: 20px;
+    height: 20px;
+  }
+  .md-grid.md-grid--layout-gentle .md-card.md-card--badge-action.md-card--as-button .md-card__head {
+    gap: 10px !important;
+  }
+  .md-grid.md-grid--layout-gentle.md-grid--dashboard .md-card.md-card--badge-action {
+    padding: 4px 10px !important;
   }
 }

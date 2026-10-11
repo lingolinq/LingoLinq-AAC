@@ -546,7 +546,7 @@ function _applyGridPresentation(gridEl, pres) {
   // `--boards-full`, `--with-*` and the hero class all key off the layout, and a stale
   // one from the live page would style the preview for the wrong arrangement.
   Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
-    if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-|hero-)/.test(c)) { gridEl.classList.remove(c); }
+    if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-|hero-|speak-placed|extras-placed|speak-beside)/.test(c)) { gridEl.classList.remove(c); }
   });
   pres.grid.classes.forEach(function(c) { gridEl.classList.add(c); });
   gridEl.style.setProperty('grid-template-areas', pres.grid.areasValue, 'important');
@@ -1203,17 +1203,17 @@ function _onDisplayShow(component) {
       if (saveEl) { saveEl.className = saveButtonClass(layout) + (saveEl.disabled ? ' md-ds-save--disabled' : ''); }
       updateSpeakLabel(layout);
     };
-    // The Speak checklist item reads as "Let's Communicate" on Focused View (where
-    // Speak is the full-width hero) and "Speak Mode" on Gentle View. Kept in sync
-    // here so switching the layout on the style page updates the label live.
-    var updateSpeakLabel = function(layout) {
+    // The Speak checklist item read "Let's Communicate" on Focused View until 2026-10-10, when
+    // the Focused hero took the name "Speak Mode" (requested). Both layouts now use that label;
+    // this re-asserts it after a layout switch, so the switch handler above is unchanged.
+    var updateSpeakLabel = function() {
       var input = el.querySelector('.md-ds-section__input[data-gst-section="speak"]');
       var row = input && input.closest('.md-ds-section');
       var labelEl = row && row.querySelector('.md-ds-section__label');
       if (labelEl) {
-        labelEl.textContent = (layout === 'focused')
-          ? i18n.t('lets_communicate', "Let's Communicate")
-          : i18n.t('speak_mode', "Speak Mode");
+        labelEl.textContent = i18n.t('speak_mode', "Speak Mode");
+        // No layout branch: the card this row toggles is titled "Speak Mode" on Focused
+        // too, so the checklist and the page say the same thing.
       }
     };
     // Keep the right-panel checklist in the SAME order as the live preview cards:
@@ -1991,10 +1991,10 @@ export default Component.extend({
         '</label>';
     };
     var items = sections.map(function(s) {
-      // In THIS list the Speak section reads as "Let's Communicate" on Focused View
-      // (where it's the full-width hero) but as its normal "Speak Mode" on Gentle
-      // View. _onDisplayShow.updateSpeakLabel keeps it in sync if the layout changes.
-      var label = (s.key === 'speak' && layout === 'focused') ? i18n.t('lets_communicate', "Let's Communicate") : sectionLabel(s);
+      // In THIS list the Speak section reads as its normal "Speak Mode" in both layouts: the
+      // Focused hero is called "Speak Mode" too since 2026-10-10 (it was "Let's Communicate").
+      // _onDisplayShow.updateSpeakLabel re-asserts it if the layout changes.
+      var label = sectionLabel(s);
       return toggleItem(s.key, label, false);
     }).join('');
     // Non-grid toggles (e.g. the welcome hero banner) — rendered after the cards.

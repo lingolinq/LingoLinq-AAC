@@ -3098,9 +3098,35 @@ button.ch-tile--silver:focus-visible {
 // modifiers changes the Updates tab and nothing else; `--alert`, `--intro` and `--switch`
 // are on the Actions tab and keep the near-white glass above. A modifier rule rather than an
 // edit to `.ch-card`, matching how `--alert` and `--intro` already repaint themselves.
+// THE LIGHT CARD SURFACE (2026-10-10): the Updates cards and the Boards panel, which are to
+// match. The chip material (rim, inset shading, drop shadow) over a PALER ramp than the chip's
+// own (#EAEFF6 -> #D2DAE5, which read too dark for full-width cards — requested "lighter, with
+// less of a gradient effect"); the stops sit close together so the ramp barely reads. The rail
+// icons keep the plain chip. Every ink on these surfaces is navy, so a paler ground only raises
+// contrast. Focused paints the same two elements with its own light panel (_focused-view.scss
+// `ch-focused-light-panel`), scoped under `body.ll-layout-focused`, which outranks this.
+@mixin ch-light-card-surface {
+  @include ch-chip;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.90) 0%,
+      rgba(255, 255, 255, 0.42) 48%,
+      rgba(255, 255, 255, 0) 64%),
+    linear-gradient(160deg, #F4F7FB 0%, #E6EBF2 100%);
+}
+
+// THE BOARDS PANEL, GENTLE (2026-10-10, requested: "updates and boards divs on basic should
+// match"). Gentle had no panel styling at all, so the board tiles sat loose on the page while
+// Updates sat on cards. Geometry matches Focused's panel: 16px padding, 20px radius, 1px rim.
+.ch-boards__panel {
+  padding: 16px;
+  border-radius: 20px;
+  @include ch-light-card-surface;
+}
+
 .ch-card--list,
 .ch-card--install {
-  @include ch-chip;
+  @include ch-light-card-surface;
 
   // The shared gloss is suppressed so the ground is EXACTLY the rail icon's. `ch-chip`
   // already lays a white sheen over its top; `ch-gloss(0.45)` adds a second one across the
@@ -4925,7 +4951,10 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   //
   // Focused is unaffected: its own arrow rule is scoped `body.ll-layout-focused …` at (0,5,1)
   // and still outranks this (0,4,0).
-  .ch-tile__rule  { font-size: 21px; color: rgba(27, 54, 93, 0.88); }
+  // The arrow's ink is a token, defaulting to the navy that suits Gentle's light fills. Focused's
+  // Actions cards are DARK, where navy vanishes (measured: navy on navy / green / charcoal); it
+  // sets `--ch-compact-arrow` for that grid (_focused-view.scss) rather than out-ranking this.
+  .ch-tile__rule  { font-size: 21px; color: var(--ch-compact-arrow, rgba(27, 54, 93, 0.88)); }
 }
 
 // COMPACT AT EVERY WIDTH. This was gated `min-width: 1025px` while the Extras drawer was a
@@ -4933,13 +4962,17 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
 // been unusable. The drawer no longer collapses and the grids wrap to two columns below 1300
 // (next block), so the tall tile has nowhere left to be correct — the cards were simply
 // expanding again on small screens. The compact row is now the card at every width.
-.ch-grid:not(.ch-grid--extras) .ch-tile--big {
-  @include ch-compact-row;
+// AT 1500px AND BELOW (2026-10-10). Above 1500px the four Actions cards are the tall
+// LARGE-SCREEN DESTINATION CARDS (that block, ~:3643, was never removed; this mixin, applied later
+// in the file, outranks it wherever both apply). Requested in two steps the same day: first
+// "restore the styles we originally had on full sized screens" (this was gated at 1024px), then
+// "at 1500px and smaller, switch to their view on 1024px and smaller". The Extras drawer tiles
+// stay compact at every width; only the four main cards change.
+@media (max-width: 1500px) {
+  .ch-grid:not(.ch-grid--extras) .ch-tile--big {
+    @include ch-compact-row;
 
-  // Below 1025px the card is icon + title + arrow and nothing else. Above it the description
-  // returns as a subtitle (see the `min-width: 1025px` block below), which is why this is a
-  // media query here rather than a flat declaration in the mixin.
-  @media (max-width: 1024px) {
+    // Icon + title + arrow and nothing else at this width.
     .ch-tile__more { display: none; }
   }
 }
@@ -4995,13 +5028,12 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   }
 
 // =============================================================================
-// DESKTOP ONLY (>1024px): SUBTITLES ON THE FOUR CARDS, AND MORE AIR BETWEEN SECTIONS
+// DESKTOP ONLY (>1024px): MORE AIR BETWEEN SECTIONS
 // =============================================================================
-// Requested 2026-10-09. Two things, both confined to screens wider than 1024px:
-//
-//   1. the four Actions cards carry their description again, as a subtitle under the title;
-//   2. the three stacked sections of the Actions tab — Getting Started, the four cards, the
-//      Extras tiles — sit further apart, and the cards are tall enough to hold two lines.
+// Requested 2026-10-09, confined to screens wider than 1024px: the three stacked sections of the
+// Actions tab — Getting Started, the four cards, the Extras tiles — sit further apart.
+// (Its first part, a subtitle on the compact desktop card, went on 2026-10-10 when the four cards
+// returned to the tall destination cards above 1024px.)
 //
 // PLACED AFTER the two `ch-compact-row` call sites above, NOT in the earlier
 // `min-width: 1025px` block at ~:3590. Every selector here is (0,4,0) or narrower against the
@@ -5010,73 +5042,10 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
 // same trap for its media queries; it applies to the mixin applications too.
 @media (min-width: 1025px) {
 
-  // ── 1. THE SUBTITLE ────────────────────────────────────────────────────────
-  // `display` is not set here. Removing the hide from the mixin is what reveals this: the
-  // shared `.ch-tile--big .ch-tile__more { display: block }` (:2229) then applies on its own,
-  // as it did before the card was compacted. Only the SIZES are this block's business.
-  //
-  // THE FOUR ACTIONS CARDS ONLY. `.ch-grid:not(.ch-grid--extras)` excludes the nine Extras
-  // tiles, which keep their hide at every width.
-  .ch-grid:not(.ch-grid--extras) .ch-tile--big {
-
-    // Room for a second line. The mixin's clamp(76px, 10vh, 104px) was sized for a
-    // single-line card; a two-line one at these sizes needs ~16px more, and the floor is
-    // raised rather than the padding so a card whose title wraps still has somewhere to put
-    // the subtitle. Still a floor, not a height — the card grows past it if the copy needs it.
-    min-height: clamp(92px, 11vh, 120px);
-
-    .ch-tile__info {
-      // 6px -> 10px top and bottom. This is the breathing room INSIDE the card; the sides are
-      // unchanged so the chip and the arrow stay where they are.
-      padding: 10px 4px 10px 6px;
-    }
-
-    // Title -> subtitle. Small deliberately: these are two parts of one label, and a larger
-    // gap reads as two separate pieces of text stacked in a box.
-    .ch-tile__text { gap: 3px; }
-
-    // FLAT 18px ON LARGE SCREENS (requested 2026-10-09), replacing the shared
-    // `clamp(15px, calc(0.68rem + 0.42vw), 19px)` that `ch-compact-row` gives every compact tile
-    // — which ran 15px at 1025 up to 19px near 1920, so the label grew with the viewport.
-    //
-    // THE FOUR ACTIONS CARDS ONLY. `.ch-grid:not(.ch-grid--extras)` scopes this block, so the
-    // nine Extras drawer tiles keep the clamp they are re-pinned to at their own call site
-    // (:4885) and are untouched.
-    .ch-tile__label { font-size: 18px; }
-
-    .ch-tile__more {
-      // Scales 14 -> 16px across 1025-1920. Written with calc() because the clamp mixes px
-      // and vw, which SassC cannot fold; 0.73rem + 0.22vw is 14.0px at 1025 and 15.9px at
-      // 1920. The floor is 14px rather than something smaller because the AAC type scale asks
-      // for body copy at or near 16px, and this is the only body text on the card.
-      font-size: clamp(14px, calc(0.73rem + 0.22vw), 16px);
-      line-height: 1.35;
-      // A measure rather than a width, so it tracks the type. Narrower than the 34ch the tall
-      // card used: the column here is shortened by the chip on its left and the arrow on its
-      // right, and 34ch would only ever be clamped by the track.
-      max-width: 28ch;
-      // NO `color` HERE, DELIBERATELY — and NOT the base rule's #334155 slate either (:2234),
-      // which this element has not actually worn on these cards for some time.
-      //
-      // `_focused-view.scss:4488` sets `.ch-tile__more { color: #0D1B33 }` inside a block that
-      // compiles UNSCOPED — despite the filename it has no `body.ll-layout-focused`, so it
-      // serves Basic and Gentle alike, and at (0,4,0) it outranks both #334155 (0,1,0) and the
-      // `.ch-tile--big` sizing rules (0,2,0). Its sibling does the same to the label
-      // (#0F172A). Verified in the compiled CSS, not inferred from the file.
-      //
-      // That value is already the right one and is already measured: #0D1B33 is chosen there
-      // as the step quieter than the label, at 4.72-5.25:1 across the four fills. It is also
-      // DARKER than $la-navy (relative luminance 0.0111 vs 0.0366), so restating the title's
-      // navy here would LOWER this text's contrast rather than raise it. Size and weight carry
-      // the hierarchy instead: ~15px/500 against the label's ~19px/700.
-      //
-      // Focused keeps its own grey regardless: `_focused-view.scss:4248` sets
-      // $ch-focused-hero-more-ink (#E5E5E5) with `!important` on the scoped hero tiles. That
-      // grey was measured at 4.54:1 worst against the VEILED panel (_focused-view.scss:3865);
-      // the compact row removes that veil, and since the veil only ever LIGHTENED the surface,
-      // a light ink on the bare shell can read higher than that figure but never lower.
-    }
-  }
+  // ── 1. (REMOVED 2026-10-10) ───────────────────────────────────────────────
+  // This section sized the COMPACT card's subtitle on desktop. The four cards are the tall
+  // destination cards above 1024px again (see the `max-width: 1024px` compact block above), which
+  // carry their own description styling, so it had nothing left to style.
 
   // ── 2. AIR BETWEEN THE THREE SECTIONS ──────────────────────────────────────
   // `.ch-tabpanel` is a flex column with `gap: 16px` (:1154), and a margin on a flex item ADDS
@@ -5163,18 +5132,38 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  flex: 0 0 auto;
+  // A LITTLE LARGER, AND DRAWN RATHER THAN TYPED (requested 2026-10-10: "more elegant and a bit
+  // larger"). 26 -> 30px. The rim is softer and a faint drop shadow lifts it off the tile, so it
+  // reads as a small glass control rather than an outlined circle.
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: 1px solid rgba($brand-cool-steel, 0.55);
-  background: rgba(255, 255, 255, 0.92);
-  font-size: 15px;
-  line-height: 1;
+  border: 1px solid rgba($brand-cool-steel, 0.38);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 247, 251, 0.94) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 3px rgba($brand-blue-black, 0.10);
+  font-size: 0;
+  line-height: 0;
   // Full-strength navy on a near-white badge. It is a non-text affordance (the span is
   // `aria-hidden`), so 3:1 is its floor under 1.4.11; this clears it many times over.
   color: $la-navy;
 
-  &::before { content: "\203A"; }
+  // THE CHEVRON IS A STROKE, not the `\203A` glyph it used to be. A font glyph renders at the
+  // font's own weight and sits on its baseline, so it read thin and a pixel off-centre in the
+  // disc. Two borders of a rotated square give a crisp, even 1.75px chevron with rounded ends
+  // at any zoom; the -1.5px nudge puts the chevron's visual centre (not its box's) in the middle.
+  // Still the "opens something" chevron rather than the `\2192` arrow the main cards keep.
+  &::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-top: 1.75px solid currentColor;
+    border-right: 1.75px solid currentColor;
+    border-radius: 0 1.5px 0 0;
+    transform: translateX(-1.5px) rotate(45deg);
+  }
 }
 
 // The intro CTA's trailing arrow goes below 1024 (requested 2026-10-09). At that width the card
