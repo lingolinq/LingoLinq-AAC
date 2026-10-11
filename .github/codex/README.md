@@ -101,6 +101,41 @@ author's PRs.
 - `none`, `off`, or `bounded` force the bounded path.
 - any unknown value fails safe to the bounded path.
 
+### Large-PR fallback (bounded to chunked)
+
+The bounded path cuts the diff at `bounded_max_bytes` in
+`.github/codex/evidence-policy.json` (60,000 bytes), and an APPROVE over a cut
+diff is always withheld, so a bounded review of a larger PR could only ever
+end in a non-approval while still paying its 2-3 model calls. The step "Choose
+evidence for the diff size" in `codex-review.yml` therefore switches a run to
+chunked evidence when all of these hold:
+
+- the effective mode after the variables above is `bounded`;
+- the CI path classifier routed the PR to `codex` (`claude-deep` and `blocked`
+  are never switched);
+- the full `BASE...HEAD` diff, sized by CI from the git objects exactly as
+  "Gather PR diff" sizes it, is larger than the cap.
+
+The log says `diff N bytes > cap M: using chunked evidence`, and the live
+state given to the reviewer records `evidence_mode_reason=size` (otherwise
+`configured`). The switch only ever goes from bounded to chunked: an explicit
+`chunked` run is left alone, and nothing is ever downgraded. If CI cannot
+compute the size, the run stays bounded with a warning; "Gather PR diff" then
+makes its own size decision and a cut diff still cannot be approved. One value
+drives both steps: `scripts/codex-review-bounded-cap.py` reads
+`bounded_max_bytes`, and the step fails if it is missing or not a positive
+integer.
+
+Cost: a chunked run pays per chunk (about 40 KB each), not per PR. Each chunk
+takes 1 model call when it blocks and 2-3 when it approves, plus 1-3 synthesis
+calls, so a PR just over the cap (2 chunks at least) costs 3-9 logical calls
+instead of 2-3, and the per-run ceiling is the chunked budget below (51 logical calls).
+A PR past `max_chunks` (16 chunks, roughly 640 KB of diff) still records
+`too_many_chunks` and withholds APPROVE; for such a run, and for any manifest
+that already reports incomplete coverage, `scripts/codex-review-run-chunks.py`
+makes no model call at all and writes NEEDS_HUMAN placeholders, so the
+envelope posts its fail-closed "evidence incomplete (needs human)" result.
+
 During the first-week canary (started 2026-07-23), the variables were set to:
 
 ```text
@@ -110,7 +145,8 @@ CODEX_REVIEW_CHUNKED_SCOPE=scot
 
 They are still set that way as of 2026-09-12 and the canary was never closed
 out, so when the gate is revived, non-Scot PRs would get the bounded path
-(60,000-byte truncated diff). Revival step (5): either switch
+(60,000-byte diff; since the large-PR fallback above, a codex-routed PR over
+that cap is switched to chunked evidence). Revival step (5): either switch
 `CODEX_REVIEW_CHUNKED_SCOPE=all` to expand chunked evidence repo-wide, or unset
 both variables to keep everyone on the bounded path. Record the effective evidence mode in the envelope and
 sticky-comment payload so a later audit can tell which path produced a verdict.
@@ -162,7 +198,10 @@ under the old cap. A PR that needs a 17th chunk still records
 
 A blocking chunk verdict is not rerun for confirmation, but the remaining
 chunks still run so the author receives complete findings and CI can attest
-coverage.
+coverage. The exception is a manifest that already reports incomplete coverage
+(for example `too_many_chunks` or an oversized hunk): the envelope then
+discards every chunk and synthesis review and returns NEEDS_HUMAN, so no chunk
+is sent to a model at all.
 
 ## Oversized and excluded evidence
 
@@ -461,9 +500,12 @@ If real timings approach the 30-minute staleness threshold, keep the
 fail-closed status behavior and revisit chunk parallelism or job boundaries as a
 separate design. Do not treat the watchdog as a timing backstop it cannot be.
 
-Chunked evidence is still opt-in through `CODEX_REVIEW_EVIDENCE_MODE=chunked`;
-the workflow defaults to bounded evidence. Do not make chunked evidence the
-default, or raise the 16-chunk ceiling, without a fresh large non-PII smoke and
+Chunked evidence is still opt-in through `CODEX_REVIEW_EVIDENCE_MODE=chunked`
+for PRs within the bounded cap; the workflow defaults to bounded evidence, and
+only a codex-routed PR over the cap is switched to chunked automatically (see
+"Large-PR fallback" above). The 16-chunk worst case that such a PR can reach
+has still not been live-smoked. Do not make chunked evidence the default for
+every PR, or raise the 16-chunk ceiling, without a fresh large non-PII smoke and
 recorded wall-clock result.
 
 This timing is valid only for the current `reasoning effort: none` config. If
