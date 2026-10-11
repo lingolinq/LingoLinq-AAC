@@ -3156,5 +3156,13 @@ describe('app_state', function() {
     it("closes when the user is heading to the login page, which has its own form", function() {
       expect(transitionWith('force-logout', true, false, 'login')).toEqual(true);
     });
+
+    // The dialog's own links (components/login-form.hbs: "need help?", "forgot password", "sign
+    // up"): kept open over them, the user could not reach the page they asked for.
+    ['forgot_login', 'forgot_password', 'register'].forEach(function(route) {
+      it("closes when the user follows the dialog's own link to " + route, function() {
+        expect(transitionWith('force-logout', true, false, route)).toEqual(true);
+      });
+    });
   });
 });

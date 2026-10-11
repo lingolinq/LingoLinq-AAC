@@ -299,7 +299,7 @@ export default Service.extend({
           if(_this.persistence && _this.persistence.tokens) {
             _this.persistence.tokens[key] = false;
           }
-          if(allow_invalidate) {
+          if(allow_invalidate && _this._token_still_stored(store_data.access_token)) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: true};
           }
@@ -409,7 +409,7 @@ export default Service.extend({
           }
           _this.set('invalid_token', true);
           _this.set('token_validated', false);
-          if(allow_invalidate) {
+          if(allow_invalidate && _this._token_still_stored(store_data.access_token)) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: false, needsReauth: true};
           }
@@ -718,6 +718,14 @@ export default Service.extend({
     try {
       this.persist({});
     } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }
+  },
+
+  // False once the token a check_token request was sent with is no longer the stored one: a
+  // failure that landed while the request was in flight already tore the session down
+  // (_tear_down_dead_session persists {}), so that logout must not run a second time.
+  _token_still_stored: function(token) {
+    var stored = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
+    return !!token && stored.access_token === token;
   },
 
   force_logout: function(message) {

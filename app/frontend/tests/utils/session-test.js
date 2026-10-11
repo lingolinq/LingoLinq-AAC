@@ -735,6 +735,28 @@ describe('session', function() {
       });
     });
 
+    // A check that was in flight when another failure already tore the session down (utils/extras.js)
+    // must not run the logout a second time: by then the token it checked is no longer stored.
+    it('does not log out again when the checked token was already torn down', function() {
+      modal.route = null;
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() { invalidated = true; });
+      var stored = {access_token: 'happy_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      var settled = false;
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        stored = {};
+        return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(true).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled; });
+      runs(function() {
+        expect(invalidated).toEqual(false);
+      });
+    });
+
     it('should not invalidate the session if not allowed', function() {
       var invalidated = false;
       stub(sessionTarget(), 'invalidate', function() {
