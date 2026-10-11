@@ -396,7 +396,9 @@ jobs:
           # tests/test-helper.js); testem prints console output with the next test result, so the end-of-run
           # lists (after the last result) never reach this log. List the per-test lines here instead.
           # Report only: never fails the step.
-          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | sort | uniq -c || true) # a test name may hold an escaped quote
+          # A test name may hold an escaped quote. The harness self-test that leaves a fetch queued on purpose
+          # (tests/unit/helpers/wait-for-queued-store-fetches-test.js) logs one line every run; it is not late work.
+          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | grep -v 'a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
           if [ -n "$late_work" ]; then
             { echo "Late work reported by the harness (a test did not wait for work it started):"; echo '```'; printf '%s\n' "$late_work"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           fi

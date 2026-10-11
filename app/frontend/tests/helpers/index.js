@@ -47,8 +47,9 @@ function setupRenderingTest(hooks, options) {
 // before the setTimeout(0) flush). After an async test or a jasmine-style it() (which ends through
 // assert.async, then a setTimeout), a fetch queued during the body is normally flushed already, so
 // only a fetch queued after the test signalled it was done is seen. It therefore does not find every
-// test that skips waiting; the slowed-flush probe described in commit 7b0848298 does (it found and
-// fixed 9).
+// test that skips waiting; the opt-in fetch probe does (`?probeDelay=`, tests/test-helper.js; it found
+// and fixed 9, commit 7b0848298). setupTest fails the test on a hit (owner decision, PR #1118); the
+// wait still runs first, so the late flush does not reach a destroyed store in the next test.
 export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   if (!owner || owner.isDestroyed || owner.isDestroying) { return false; }
   let store;
@@ -63,12 +64,11 @@ export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   return wasPending;
 }
 
-// Tests that ended with an Ember Data fetch still queued. Each is logged during its own test, so testem
-// prints it with that test's result; the Ember shard jobs copy those lines into the job summary
-// (.github/workflows/ci.yml). The QUnit.done list is only visible in a browser console run: testem
-// prints console output with the next test result, and after the last one there is none. A queued
-// fetch at teardown is timing-dependent,
-// so this reports rather than fails: failing would make a required check flaky.
+// Tests that ended with an Ember Data fetch still queued: setupTest fails each one and logs it here as
+// well, during its own test, so testem prints the line with that test's result and the Ember shard jobs
+// copy it into the job summary (.github/workflows/ci.yml). The QUnit.done list is only visible in a
+// browser console run: testem prints console output with the next test result, and after the last one
+// there is none.
 export const queuedFetchReport = [];
 let queuedFetchSummaryRegistered = false;
 function recordQueuedFetch() {
@@ -99,8 +99,11 @@ function setupTest(hooks, options) {
 
   // Registered after ember-qunit's teardown hook, so it runs BEFORE it (QUnit runs afterEach hooks
   // in reverse order of registration).
-  hooks.afterEach(async function() {
-    if (await waitForQueuedStoreFetches(this.owner)) { recordQueuedFetch(); }
+  hooks.afterEach(async function(assert) {
+    if (await waitForQueuedStoreFetches(this.owner)) {
+      recordQueuedFetch();
+      assert.pushResult({ result: false, actual: 'an Ember Data fetch still queued', expected: 'no fetch queued at teardown', message: 'this test ended without awaiting an Ember Data fetch it started; wait for it (or for the state it sets) before the test ends' });
+    }
   });
 }
 

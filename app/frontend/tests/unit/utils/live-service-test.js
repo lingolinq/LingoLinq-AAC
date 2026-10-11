@@ -77,4 +77,31 @@ module('Unit | Utility | live_service', function() {
     set_owner_gone_listener(harness);
     assert.strictEqual(typeof harness, 'function', 'a listener is installed for the whole run');
   });
+
+  // tests/test-helper.js puts the harness listener back after every test and fails a test that left
+  // another one installed. Part 1 leaves a recorder installed on purpose and turns that one expected
+  // failure into a pass: without the guard it would be one assertion short of its assert.expect(2).
+  let harnessListenerSeen = null;
+  test('a test that leaves a recorder installed is failed by the harness (part 1)', function(assert) {
+    assert.expect(2);
+    harnessListenerSeen = set_owner_gone_listener(null);
+    set_owner_gone_listener(harnessListenerSeen);
+    const push = assert.pushResult;
+    assert.pushResult = function(result) {
+      if (result && result.result === false && /owner-gone listener swapped out/.test(result.message)) {
+        return push.call(assert, { result: true, actual: result.message, expected: result.message, message: 'the harness failed the test that left its recorder installed' });
+      }
+      return push.call(assert, result);
+    };
+    recordOwnerGoneSkips(EmberObject.create()); // deliberately not restored
+    assert.ok(true, 'a recorder is left installed');
+  });
+
+  test('the harness listener is back after that test (part 2)', function(assert) {
+    assert.expect(1);
+    const installed = set_owner_gone_listener(null);
+    set_owner_gone_listener(installed);
+    const expected = harnessListenerSeen === null ? installed : harnessListenerSeen; // null when run alone with --filter
+    assert.strictEqual(installed, expected, 'the listener in place is the harness one');
+  });
 });

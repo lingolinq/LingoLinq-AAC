@@ -145,7 +145,8 @@ selection). Work scheduled with no owner therefore runs, and the harness does no
 skip `owner_gone` makes is logged as `[owner-gone]` with the test that was running, because it means
 an earlier test scheduled work and did not wait for it; a self-test that destroys an owner on purpose
 counts the skips for the owner it destroyed with `recordOwnerGoneSkips(owner)`
-(`tests/helpers/owner-gone.js`); skips for other owners still reach the report. Only guards that call
+(`tests/helpers/owner-gone.js`); skips for other owners still reach the report. After every test the
+harness puts its own listener back and fails a test that left another one installed. Only guards that call
 `owner_gone` report: older destroyed-owner returns that check `isDestroyed` directly (for example in
 `edit_manager.js`, `persistence.js`, `raw_events.js`, and the board prefetch pipeline's
 `_pipeline_app_alive` in `board_detail_cache.js`) stop silently, so the report is not complete. Every later step the callback schedules
@@ -191,7 +192,8 @@ callback in `afterEach`, or a later test's message resolves this test's promise.
   the test sets a model). The harness's teardown wait finds only some tests that skip this (a
   synchronous plain QUnit test; after an async or jasmine-style test the fetch is usually flushed
   before the wait runs). To find them all, delay every FetchManager flush past the post-test settle
-  (the probe in commit 7b0848298).
+  (`ember test --query "probeDelay=1500"`, `tests/test-helper.js`; run weekly and on demand by
+  `.github/workflows/ember-fetch-probe.yml`).
 
 **DOM.** Remove every element the test (or app code it drives) appends to `<body>`. Elements the
 app creates once and caches for the page lifetime still leak between tests: the test that triggers
@@ -215,13 +217,11 @@ cancels it. Exemptions:
 - develop's general 500 ms settle after sync-mode tests (kept as is).
 - persistence-sync's retry-path pause for a known race (issue #589).
 - `setupTest`'s bounded wait for queued Ember Data fetches (`waitForQueuedStoreFetches`,
-  `tests/helpers/index.js`), so a late flush does not hit a destroyed store. It sees whatever is
-  still queued when teardown starts: every un-awaited fetch of a synchronous plain QUnit test (which
-  it then absorbs, turning a teardown failure into a pass plus a log line), and fetches queued after
-  an async or jasmine-style test signalled it was done. Each hit is logged as `[queued-fetch]` and
-  listed in the Ember shard job summary. It does not excuse a test from awaiting its own fetches.
-  Whether to keep it, remove it, or make a hit fail the test is an open decision for the owner
-  (PR #1110).
+  `tests/helpers/index.js`), so a late flush does not hit a destroyed store in the next test. It is
+  not a pass: a test that ends with a fetch still queued FAILS (owner decision, PR #1118), and is
+  logged as `[queued-fetch]` in the Ember shard job summary. It sees whatever is still queued when
+  teardown starts: every un-awaited fetch of a synchronous plain QUnit test, and fetches queued after
+  an async or jasmine-style test signalled it was done; the fetch probe above finds the rest.
 
 ### Test helpers that import app code
 

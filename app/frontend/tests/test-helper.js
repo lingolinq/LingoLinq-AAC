@@ -10,8 +10,41 @@ import './helpers/apply-parallel-pool';
 // Fails a test that leaves state behind for later tests, or uses state an earlier test left behind.
 import './helpers/leak-check';
 import { set_owner_gone_listener } from 'frontend/utils/live_service';
+import Store from 'ember-data/store';
 
 QUnit.config.testTimeout = 15000;
+
+// Opt-in fetch probe: `?probeDelay=<ms>` (ember test --query "probeDelay=1500"; used by
+// .github/workflows/ember-fetch-probe.yml). Delays every Ember Data fetch flush by that long, longer than
+// the post-test settle and setupTest's teardown wait, so a test that ends without awaiting a fetch it
+// started is always caught by that teardown check (tests/helpers/index.js). In a normal run the flush is
+// usually done before the check runs, so such a test can pass unnoticed. Off by default. Patched on the
+// FetchManager prototype, reached through the store's lazily assigned _fetchManager, so every store is
+// covered. Commit 7b0848298 describes the investigation that needed it.
+const fetchProbeDelay = (function() {
+  const match = /[?&]probeDelay=(\d+)/.exec(window.location.search || '');
+  return match ? parseInt(match[1], 10) : 0;
+})();
+if (fetchProbeDelay > 0) {
+  Object.defineProperty(Store.prototype, '_fetchManager', {
+    configurable: true,
+    get() { return this.__fetchProbeManager; },
+    set(manager) {
+      const proto = manager && Object.getPrototypeOf(manager);
+      if (proto && !proto.__fetchProbeDelayed) {
+        const flush = proto.flushAllPendingFetches;
+        proto.flushAllPendingFetches = function() {
+          const self = this;
+          setTimeout(function() { flush.call(self); }, fetchProbeDelay);
+        };
+        proto.__fetchProbeDelayed = true;
+        // eslint-disable-next-line no-console
+        console.warn(`[fetch-probe] every Ember Data fetch flush is delayed by ${fetchProbeDelay} ms`);
+      }
+      this.__fetchProbeManager = manager;
+    }
+  });
+}
 
 // A deferred-work guard (owner_gone in app/utils/live_service.js) skips work whose app was torn down:
 // an earlier test scheduled it and did not wait. Skipping keeps it out of the current test, but it
@@ -22,12 +55,23 @@ QUnit.config.testTimeout = 15000;
 // every line here is real late work. Reported, not failed: when the late work lands
 // depends on timing.
 const ownerGoneSkips = [];
-set_owner_gone_listener(function() {
+const harnessOwnerGoneListener = function() {
   const current = QUnit.config.current;
   const name = current ? `${current.module.name}: ${current.testName}` : '(between tests)';
   ownerGoneSkips.push(name);
   // eslint-disable-next-line no-console
   console.warn(`[owner-gone] late work from an earlier test was skipped while running: ${name}`);
+};
+set_owner_gone_listener(harnessOwnerGoneListener);
+// A test that swaps the listener (recordOwnerGoneSkips) must put it back. If it does not, every later
+// skip in the run is counted by its recorder or dropped, and the report goes quiet. So after each test
+// (global hooks run after the module's own hooks) put the harness listener back, and fail the test
+// that left another one installed.
+QUnit.hooks.afterEach(function(assert) {
+  const installed = set_owner_gone_listener(harnessOwnerGoneListener);
+  if (installed !== harnessOwnerGoneListener) {
+    assert.pushResult({ result: false, actual: 'another listener', expected: 'the harness [owner-gone] listener', message: 'this test left the owner-gone listener swapped out (restore its recorder in a finally block or afterEach); the harness listener is now back' });
+  }
 });
 QUnit.done(function() {
   // eslint-disable-next-line no-console
