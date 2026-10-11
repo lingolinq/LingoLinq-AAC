@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
+import { waitForUtteranceRefresh } from '../../helpers/utterance-refresh';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
@@ -21,6 +22,9 @@ import modal from 'frontend/utils/modal';
  * reintroduce exactly the silent-resume this module rules out.
  */module('Unit | Service | app-state modelling ends with speak mode', function(hooks) {
   setupTest(hooks);
+  // Registered right after setupTest, so it runs after this module's own afterEach (which can rebuild the
+  // sentence too) and before the owner is torn down: each test waits for the utterance refresh it scheduled.
+  hooks.afterEach(async function() { await waitForUtteranceRefresh(); });
 
   function user(id, name) {
     return EmberObject.create({

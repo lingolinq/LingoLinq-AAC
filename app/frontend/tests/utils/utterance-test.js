@@ -12,14 +12,13 @@ import utterance from '../../utils/utterance';
 import speecher from '../../utils/speecher';
 import stashes from '../../utils/_stashes';
 import app_state from '../../utils/app_state';
+import { utteranceRefreshPending } from '../helpers/utterance-refresh';
 
-// set_button_list schedules a suggestion refresh 100 ms later (utils/utterance.js,
-// utterance.suggestion_refresh_scheduled). A test that ends first leaves it to fire in the next test,
-// where owner_gone skips it and the harness reports it as late work. Tests that build the sentence
-// call this as their last step (every test in this file does: which of them schedule it depends on the
-// app state an earlier test left, so all of them wait; with nothing scheduled the wait passes at once).
+// Every test in this file ends by waiting for the suggestion refresh it may have scheduled
+// (tests/helpers/utterance-refresh.js). Which tests schedule one depends on the app state an earlier test
+// left, so all of them wait; with nothing scheduled the wait passes at once.
 function waitForSuggestionRefresh() {
-  waitsFor(function() { return !utterance.suggestion_refresh_scheduled; });
+  waitsFor(function() { return !utteranceRefreshPending(); });
   runs();
 }
 import Button from '../../utils/button';
