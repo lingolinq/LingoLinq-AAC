@@ -3,6 +3,7 @@ import EmberObject from '@ember/object';
 import LingoLinq from 'frontend/app';
 import utterance from 'frontend/utils/utterance';
 import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
+import { waitForUtteranceRefresh } from 'frontend/tests/helpers/utterance-refresh';
 import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
@@ -24,18 +25,20 @@ module('Unit | Utility | utterance deferred suggestions refresh', function(hooks
     appState: fakeAppState,
     stashes: () => EmberObject.create({ persist() {}, persist_object() {} })
   });
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     this.savedRaw = utterance.get('rawButtonList');
-    this.savedScheduled = utterance.suggestion_refresh_scheduled;
-    utterance.suggestion_refresh_scheduled = false;
+    // An earlier test's refresh may still be pending: wait for it to fire (it clears the flag) rather
+    // than forcing the flag off and restoring it later. Restoring a saved `true` after that refresh had
+    // fired left the flag stuck, so no refresh was ever scheduled again and every later wait on it
+    // timed out (53 utterance tests in review).
+    await waitForUtteranceRefresh();
   });
   // afterEach hooks run in reverse registration order, so this runs while the stand-ins are still in
   // place. Restoring rawButtonList re-runs set_button_list, which schedules a refresh owned by this
   // test's app: wait for it here, or it fires in the next test against whatever app is current then.
   hooks.afterEach(async function() {
     utterance.set('rawButtonList', this.savedRaw);
-    if (utterance.suggestion_refresh_scheduled) { await wait(150); }
-    utterance.suggestion_refresh_scheduled = this.savedScheduled;
+    await waitForUtteranceRefresh();
   });
 
   test('the refresh runs for the app it was scheduled for', async function(assert) {
