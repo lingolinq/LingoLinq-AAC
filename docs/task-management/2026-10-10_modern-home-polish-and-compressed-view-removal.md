@@ -98,3 +98,76 @@ day is logged in `2026-10-09_basic-view-refinements.md`.
 - Run the backfill on staging and production after deploy, and record when and the counts.
 - Declined (2026-10-10): shorter Gentle buttons at <=600px, 2 full-size boards per row at
   1025-~1150px, Gentle Speak Mode heading -2px at <=1024px.
+
+## Pre-PR review (2026-10-11)
+
+`/review-pr` and `/adversary-review` could not run on this machine: the PII guard
+(`~/ai-company-brain/scripts/review-preflight.sh`) and the `adversary` agent are not installed. As a
+substitute, three red-team agents each reviewed one slice of the branch against `origin/develop`
+(session and routing; Compressed View removal and backfill; home, rail and View menu). Every
+finding acted on below was re-checked in code or live first. **The canonical adversary pass is
+still owed.**
+
+### Fixed (red test first; each test failed on the old code)
+- **Force-logout dialog trapped its own links.** "need help?", "forgot password" and "sign up" in
+  the dialog (login-form.hbs) navigated, but the dialog only closed on the way to `login`, so it
+  stayed over the page the user asked for. `app-state#keeps_force_logout_open` now lets those three
+  routes close it. Tests: app_state-test `global_transition: the force-logout dialog` (+3). Live:
+  "forgot password" in the dialog now lands on `/forgot_password` with the dialog gone.
+- **Home Boards card tiles were dead when their record could not load** (offline and not cached, or
+  a failed fetch; Crisis Vocabulary is the likely case). The card moved from plain buttons that
+  opened by key to `BoardIcon`, which (1) rendered no name without the record, (2) set
+  `pointer-events: none` until the record was ready, and (3) returned early from `pick_board`. Now:
+  the card passes the preview's name; `tile_display_name` falls back to it; `opens_by_key` keeps a
+  key-only tile with `@onActionOverride` clickable; `pick_board` hands that caller the key. Other
+  callers keep the not-ready behaviour (tested). Live, with the Crisis board's API request blocked:
+  the tile shows "Crisis" and a real click opens `/lingolinq/board-detail/crisis-vocabulary`.
+- **"Home Board" was never announced.** The tile wrapper's `aria-label` replaces its contents for
+  assistive technology, so the home glyph's own label was not read (true on `develop` as well; the
+  template comment claimed otherwise and is corrected). `tile_aria_name` adds ", Home Board".
+- **Crisis could fall off the card** for the account that owns the system Crisis board (it was
+  kept at its list position, so the 12-cap could cut it, and it lacked the small-screen flag). It now
+  always ends the list, flagged, keeping its loaded record. Test: preview-boards-test (+1).
+- **A token check in flight during a teardown ran the logout again** (a second alert and
+  `invalidate` when there is no modal route). `check_token` now acts only while the token it checked
+  is still the stored one (`session#_token_still_stored`). Test: session-test check_token (+1).
+- **Coverage lost with the Compressed View tests**, restored without changing an assertion: the
+  Need Attention card's three rows and "View all" link (`dashboard-need-attention-test.js`, from the
+  deleted file's normal-mode cases) and Display Style registering the Dashboard Design opener on mount
+  (`display-style-disc-test.js`). Both fail when the code they guard is broken (checked).
+- New code was placed so no `.eslint-todo` row moved (helpers after `actions` in board-icon.js and
+  before `force_logout` in session.js, below the last anchored rows; in-place condition edits).
+
+Verification after these fixes: full Ember suite 3366 tests, 0 failed (37 skip, 5 todo; 3353 + 13
+new); `lint:js:ci` 0 new findings; template lint clean; the live idle-session flows re-run unchanged.
+
+### Checked and not a defect
+- "Errors on user pages are swallowed after a dead-session logout": live, after Log Out
+  `invalid_token` and `logout_under_way()` are false and a nonexistent `/:user` shows the error page.
+
+### Kept as requested, with the trade-off recorded
+- **The force-logout dialog stays uncloseable** (requested 2026-10-09: up until the user acts). Its
+  exits now all work (sign in, Log Out, and the three links). Trade-off: a communicator who does not
+  know the password cannot get back to speak mode without an adult; "basic access" is hidden inside
+  the dialog (`{{#unless this.force_logout}}`, unchanged from `develop`). Recommendation for Scot:
+  show "basic access" in the dialog where the `emergency_boards` flag is on.
+- **The rail's Up/Down pager stays removed** (requested 2026-10-10). Measured: the rail scrolls
+  (`overflow-y: auto`); wheel and keyboard focus reach the last row at 1024x768, 1280x720 and
+  1024x600. The collapsed rail overflows by 89px at 1024x768 and 257px at 1024x600, so a pointer
+  user without a scroll wheel (eye-gaze or head pointer with no scroll tool) must scroll a nested
+  panel. Follow-up: fit the rows at short heights rather than bring back the pager.
+
+### Follow-ups (not in this PR)
+- `!important` grew on this branch: app.scss +105 / -53 lines (net +52), _classic-home.scss +6,
+  plus a few cascade-winning blocks (CLAUDE.md Rule #7 asks for the original selector to be edited). Unwinding them is a styling
+  refactor with live measurement at every breakpoint; it belongs in its own PR.
+- The Reload marker (`utils/reload_intent.js`) is matched by URL and never consumed, so a later
+  sign-in's `location.reload()` on the same URL is not treated as a launch (speak mode not opened).
+- Two tabs on one account: a dead-session 400 in one tab runs `_tear_down_dead_session`, whose
+  `persist({})` clears the sign-in the other tab just saved.
+- No unit test drives the extras.js failure branch itself (400 with `invalid_token` ->
+  `force_logout`, speak-mode guard, de-dupe); it is covered by the live probes only.
+- Rewritten tests marked "approved 2026-10-10" for Scot to confirm: dashboard-sections-test.js,
+  dashboard-sections-layout-test.js, dashboard-grid-placement-test.js,
+  account-rail-collapse-test.js, classic-view-extras-landing-test.js,
+  tours-classic-home-tab-test.js, and spec/spec_helper.rb (TZ=UTC).
