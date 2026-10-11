@@ -261,6 +261,230 @@ jobs:
         timeout-minutes: 50
         run: npx ember test --path dist-test
 
+  # ---------------------------------------------------------------------------------------
+  # SHADOW MODE: the Ember suite split into two parallel shards, run ALONGSIDE build-and-test.
+  # build-and-test above is unchanged and is still the required check on develop and main
+  # (and main's deploy gate). These jobs are NOT required: they only gather evidence that the
+  # split is faithful before a later PR makes build-and-test wait on them instead.
+  # OPT-IN POOL: `pool` runs the modules listed in app/frontend/tests/parallel-pool.js (each
+  # proven to pass without the rest of the suite before it); `main` runs everything else in the
+  # original order, including every new module. tests/helpers/parallel-pool-filter.js turns
+  # ?pool=include|exclude into exact, complementary QUnit filters (not `--filter`: ember-cli
+  # lowercases it and the full list overflows the URL).
+  # Reproduce a shard locally: npx ember test --query pool=include (or pool=exclude).
+  # ---------------------------------------------------------------------------------------
+  ember-shard-scope:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.frontend.outputs.run }}
+    steps:
+      # Same classifier and fail-toward-running decision as build-and-test.
+      - name: Classify frontend impact
+        id: frontend-scope
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            if (context.eventName !== 'pull_request') {
+              core.setOutput('run_frontend', 'true');
+              return;
+            }
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const allowed = (path) =>
+              path.startsWith('docs/') || path.startsWith('audit-reports/');
+            const reportedCount = context.payload.pull_request.changed_files;
+            const completeList =
+              Number.isInteger(reportedCount) && files.length === reportedCount;
+            const documentationOnly =
+              completeList &&
+              files.length > 0 &&
+              files.every((file) =>
+                allowed(file.filename) &&
+                (!file.previous_filename || allowed(file.previous_filename))
+              );
+            core.setOutput('run_frontend', documentationOnly ? 'false' : 'true');
+
+      - name: Decide whether frontend suite is required
+        id: frontend
+        env:
+          CLASSIFIER_OUTCOME: ${{ steps.frontend-scope.outcome }}
+          CLASSIFIED_VALUE: ${{ steps.frontend-scope.outputs.run_frontend }}
+        run: |
+          if [ "$CLASSIFIER_OUTCOME" = "success" ] && [ "$CLASSIFIED_VALUE" = "false" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  ember-shard:
+    needs: ember-shard-scope
+    if: needs.ember-shard-scope.outputs.run == 'true'
+    name: ember-shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: pool
+            query: pool=include
+          - shard: main
+            query: pool=exclude
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      # Same key as build-and-test (Node major in the key: see the note there).
+      - name: Cache node_modules and Puppeteer Chrome
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            app/frontend/node_modules
+            ~/.cache/puppeteer
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: npm install
+
+      - name: Ensure Puppeteer Chrome is present
+        working-directory: app/frontend
+        run: npx puppeteer browsers install chrome
+
+      - name: Build Ember app (test env)
+        working-directory: app/frontend
+        run: npx ember build --environment=test --output-path=dist-test
+
+      # Fails if the tests fail OR if the shard selected no tests at all, so a broken
+      # selection can never pass as an empty green shard.
+      - name: Run Ember tests, shard ${{ matrix.shard }}
+        working-directory: app/frontend
+        timeout-minutes: 50
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_QUERY: ${{ matrix.query }}
+        run: |
+          start=$(date +%s)
+          status=0
+          npx ember test --path dist-test --query "$SHARD_QUERY" 2>&1 | tee ember-test.log || status=$?
+          tests=$(grep -oE '^# tests [0-9]+' ember-test.log | tail -1 | awk '{print $3}' || true)
+          # tests/helpers/apply-parallel-pool.js logs what QUnit selected for this shard and how many
+          # tests are registered in all. The shard must run exactly what it selected.
+          shard_line=$(grep -oE '\[SHARD\] selected=[0-9]+ registered=[0-9]+' ember-test.log | head -1 || true)
+          selected=$(printf '%s' "$shard_line" | sed -nE 's/.*selected=([0-9]+).*/\1/p')
+          registered=$(printf '%s' "$shard_line" | sed -nE 's/.*registered=([0-9]+).*/\1/p')
+          echo "### Ember shard ${SHARD}: ran ${tests:-0} of ${selected:-?} selected (${registered:-?} registered) in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
+          # The harness logs [queued-fetch] and [owner-gone] inside the test that hit them (tests/helpers/index.js,
+          # tests/test-helper.js); testem prints console output with the next test result, so the end-of-run
+          # lists (after the last result) never reach this log. List the per-test lines here instead.
+          # Report only: never fails the step.
+          # A test name may hold an escaped quote. The harness self-test that leaves a fetch queued on purpose
+          # (tests/unit/helpers/wait-for-queued-store-fetches-test.js) logs one line every run; it is not late work.
+          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | grep -v '\[queued-fetch\].*a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
+          if [ -n "$late_work" ]; then
+            { echo "Late work reported by the harness (a test did not wait for work it started):"; echo '```'; printf '%s\n' "$late_work"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${tests:-0}" -eq 0 ]; then
+            echo "::error::shard ${SHARD} ran 0 tests: the pool selection matched nothing"
+            exit 1
+          fi
+          if [ -z "$selected" ]; then
+            echo "::error::shard ${SHARD} logged no [SHARD] selection line: the pool selection did not run"
+            exit 1
+          fi
+          if [ "$tests" -ne "$selected" ]; then
+            echo "::error::shard ${SHARD} ran ${tests} tests but selected ${selected}: the run is incomplete"
+            exit 1
+          fi
+          exit "$status"
+
+  # What the shards can prove WITHOUT a full run: each ran exactly what it selected, both saw the
+  # same registered total, their selections add up to it, and no test ran in more than one shard.
+  # This is the check that must become required when build-and-test stops running the suite
+  # itself (a shard only checks itself, so two shards mis-wired to the same half each pass).
+  ember-shard-coverage:
+    needs: [ember-shard-scope, ember-shard]
+    if: always() && needs.ember-shard-scope.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The job holds a token that can read this run's logs; keep it out of the checkout.
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Check the shards cover every registered test exactly once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
+          for name in ember-shard-pool ember-shard-main; do
+            id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
+            if [ -z "$id" ]; then
+              echo "::error::job ${name} not found in this run"
+              exit 1
+            fi
+            gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
+          done
+          python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
+
+  # Shadow-mode evidence: the shard totals must add up to build-and-test's total and the same
+  # tests must fail in both. A test that fails in only one of them depends on what ran before
+  # it. Not required; read with scripts/ci-shard-compare.py.
+  ember-shard-compare:
+    needs: [build-and-test, ember-shard-scope, ember-shard]
+    if: always() && needs.ember-shard-scope.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The job holds a token that can read this run's logs; keep it out of the checkout.
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Test the comparison script
+        run: python3 scripts/ci-shard-compare.test.py
+
+      - name: Compare the shards with the full run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
+          for name in build-and-test ember-shard-pool ember-shard-main; do
+            id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
+            if [ -z "$id" ]; then
+              echo "::error::job ${name} not found in this run"
+              exit 1
+            fi
+            # Job logs carry terminal colour codes; gh refuses to print them without this flag.
+            gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
+          done
+          python3 scripts/ci-shard-compare.py build-and-test.log ember-shard-pool.log ember-shard-main.log
+
   # Blocking gate for the audit/compliance system's own generated artifacts. These
   # are deterministic, stdlib-only checks (no gems, no network): render checks that
   # fail ONLY if a generated markdown drifts from its JSON source of truth, plus the
@@ -429,7 +653,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, the commit codex-review.yml pins
+        with:
+          # These tests read the checkout and build throwaway repos; nothing here needs the token.
+          persist-credentials: false
 
       # Guards the codex-review envelope logic: status fail-closed mapping,
       # the prompt-injection guard, the per-chunk convergence policy, and the
@@ -437,6 +664,12 @@ jobs:
       # dependencies are needed.
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the last check before the review leaves the runner: each credential format the
+      # scan knows is found (also \u-escaped or split by zero-width characters), ordinary review
+      # text is not, and a hit is reported by check name only, never by value.
+      - name: Run codex-review secret-scan unit tests
+        run: python3 scripts/codex-review-secret-scan.test.py
 
       # Guards the chunked-evidence builder: deterministic diff, structural
       # index (added + removed symbols with real source lines), sub-cap chunk
@@ -461,6 +694,32 @@ jobs:
       # git or grep failure exits 3 with no route written.
       - name: Run codex-review path-classifier tests
         run: bash -n scripts/codex-review-path-classifier.sh && scripts/tests/codex-review-path-classifier-test.sh
+
+      # The codex hardening arguments (.github/codex/codex-exec-args.txt) checked against the real
+      # binary at the version codex-review.yml pins. codex ignores an unknown key silently, so this
+      # is the only check that each tool really is off. No API key, no model call; the test fails
+      # if the version installed here differs from the workflow's pin.
+      - name: Install the pinned Codex CLI
+        # Network step in a required job: retried so a registry blip does not fail every PR.
+        run: npm install -g --ignore-scripts --no-audit --no-fund --fetch-retries=5 @openai/codex@0.160.0
+
+      - name: Run codex hardening checks against the pinned Codex CLI
+        run: python3 scripts/codex-review-codex-args.test.py
+
+      # Static scan of the review workflow with zizmor, offline (no token, no online audits).
+      # Pinned release binary, checked against its published sha256 before it runs. Fails on any
+      # medium-or-higher finding under the strict "auditor" persona.
+      - name: Scan codex-review.yml with zizmor
+        env:
+          ZIZMOR_VERSION: 1.30.1
+          ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+        run: |
+          curl -sSfL --retry 3 --retry-delay 2 --retry-all-errors -o "$RUNNER_TEMP/zizmor.tgz" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  $RUNNER_TEMP/zizmor.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/zizmor.tgz" -C "$RUNNER_TEMP" zizmor
+          "$RUNNER_TEMP/zizmor" --offline --persona auditor --min-severity medium .github/workflows/codex-review.yml
+
 
   security-scan:
     runs-on: ubuntu-latest

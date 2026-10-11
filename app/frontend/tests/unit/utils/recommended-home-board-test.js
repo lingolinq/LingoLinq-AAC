@@ -15,6 +15,7 @@ import openRecommendedHomeBoard, { vocalFlairButtonsForGrid } from 'frontend/uti
 import LingoLinq from 'frontend/app';
 import modal from 'frontend/utils/modal';
 import app_state from 'frontend/utils/app_state';
+import { recordOwnerGoneSkips } from 'frontend/tests/helpers/owner-gone';
 
 /*
  * board-preview-overlay#pick_for_home resolves its target as
@@ -31,22 +32,43 @@ import app_state from 'frontend/utils/app_state';
 describe('recommended_home_board setup_user lifetime', function() {
   var previewOpen = false;
   var previewed = null;
+  var ownerGoneSkips = null; // restored in afterEach too, so a failed wait cannot leave it installed
+  var previewChecks = 0;
+
+  // The watch loop (claim_setup_user in utils/recommended_home_board.js) checks board_preview_open every
+  // 400 ms and releases setup_user only after it has SEEN the preview open and then closed. Closing
+  // before its first check leaves it polling, unreleased, into later tests. So: wait for a check while
+  // open, close, then wait for the next check (the one that releases and stops the loop). Follow with runs().
+  // Every runs() in this harness polls its own condition from the moment it is declared (they are not a
+  // queue), so `ready` must say when the test's earlier steps are done; the preview closes only after that.
+  function closePreviewAndWaitForRelease(ready, beforeClose) {
+    var checksAtClose = null;
+    waitsFor(function() { return ready() && previewChecks > 0; });
+    runs(function() {
+      if (beforeClose) { beforeClose(); }
+      checksAtClose = previewChecks;
+      previewOpen = false;
+    });
+    waitsFor(function() { return checksAtClose !== null && previewChecks > checksAtClose; });
+  }
 
   var communicator = EmberObject.create({ id: '1_33', user_name: 'hannah_lee' });
 
   beforeEach(function() {
     previewOpen = false;
     previewed = null;
+    previewChecks = 0;
     app_state.set('setup_user', null);
     // A board whose key matches the exact vocal-flair regex.
     var board = EmberObject.create({ key: 'lingolinq/vocal-flair-60' });
     stub(LingoLinq.store, 'query', function() { return RSVP.resolve([board]); });
     stub(modal, 'board_preview', function(b) { previewed = b; previewOpen = true; });
-    stub(modal, 'board_preview_open', function() { return previewOpen; });
+    stub(modal, 'board_preview_open', function() { previewChecks++; return previewOpen; });
   });
 
   afterEach(function() {
     app_state.set('setup_user', null);
+    if (ownerGoneSkips) { ownerGoneSkips.restore(); ownerGoneSkips = null; }
   });
 
   it('maps a recommended grid to a published Vocal Flair set', function() {
@@ -61,10 +83,14 @@ describe('recommended_home_board setup_user lifetime', function() {
     var done = false;
     openRecommendedHomeBoard(60, communicator).then(function() { done = true; });
     waitsFor(function() { return done; });
+    var checked = false;
     runs(function() {
       expect(!!previewed).toEqual(true);
       expect(app_state.get('setup_user')).toEqual(communicator);
+      checked = true;
     });
+    closePreviewAndWaitForRelease(function() { return checked; });
+    runs();
   });
 
   it('KEEPS setup_user set while the preview is still open', function() {
@@ -78,24 +104,29 @@ describe('recommended_home_board setup_user lifetime', function() {
       expect(app_state.get('setup_user')).toEqual(communicator);
     });
     // still open a beat later
+    var stillOpenChecked = false;
     var waited = false;
     runs(function() { setTimeout(function() { waited = true; }, 900); });
     waitsFor(function() { return waited; });
     runs(function() {
       expect(previewOpen).toEqual(true);
       expect(app_state.get('setup_user')).toEqual(communicator);
+      stillOpenChecked = true;
     });
+    closePreviewAndWaitForRelease(function() { return stillOpenChecked; });
+    runs();
   });
 
   it('releases setup_user once the preview closes', function() {
     var done = false;
     openRecommendedHomeBoard(60, communicator).then(function() { done = true; });
     waitsFor(function() { return done; });
+    var claimed = false;
     runs(function() {
       expect(app_state.get('setup_user')).toEqual(communicator);
-      previewOpen = false;
+      claimed = true;
     });
-    waitsFor(function() { return app_state.get('setup_user') !== communicator; });
+    closePreviewAndWaitForRelease(function() { return claimed; });
     runs(function() {
       expect(app_state.get('setup_user')).toEqual(null);
     });
@@ -128,16 +159,37 @@ describe('recommended_home_board setup_user lifetime', function() {
     var done = false;
     openRecommendedHomeBoard(60, communicator).then(function() { done = true; });
     waitsFor(function() { return done; });
-    runs(function() {
-      // some other flow legitimately takes ownership, then our preview closes
-      app_state.set('setup_user', other);
-      previewOpen = false;
-    });
-    var waited = false;
-    runs(function() { setTimeout(function() { waited = true; }, 1200); });
-    waitsFor(function() { return waited; });
+    // some other flow legitimately takes ownership, then our preview closes
+    closePreviewAndWaitForRelease(function() { return done; }, function() { app_state.set('setup_user', other); });
     runs(function() {
       expect(app_state.get('setup_user')).toEqual(other);
+    });
+  });
+
+  it('stops watching the preview once the app that opened it is gone', function() {
+    // The watch loop polls the CURRENT app's modal every 400 ms for up to 10 minutes; once the app
+    // that opened the preview is torn down it must stop, not act on whichever app is current.
+    var realAppState = LingoLinq.appState;
+    var owner = EmberObject.create({ setup_user: null });
+    var polls = 0;
+    var done = false;
+    LingoLinq.appState = owner;
+    openRecommendedHomeBoard(60, communicator);
+    waitsFor(function() { return previewOpen; });
+    runs(function() {
+      stub(modal, 'board_preview_open', function() { polls++; return true; });
+      ownerGoneSkips = recordOwnerGoneSkips(owner);
+      owner.destroy();
+      LingoLinq.appState = realAppState;
+      setTimeout(function() { done = true; }, 900);
+    });
+    waitsFor(function() { return done; });
+    runs(function() {
+      expect(polls).toEqual(0);
+      // Exactly this loop's own skip. A loop left running by an earlier case (none today: each one ends its
+      // own, closePreviewAndWaitForRelease) would belong to another owner, so the recorder would pass its
+      // skip on to the harness report rather than count it here.
+      expect(ownerGoneSkips.count).toEqual(1);
     });
   });
 });

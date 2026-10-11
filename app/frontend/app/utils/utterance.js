@@ -313,10 +313,10 @@ var utterance = EmberObject.extend({
       utterance.set('last_spoken_button', last_spoken_button);
       stashesService.persist('working_vocalization', buttonList);
       if(!utterance.suggestion_refresh_scheduled) {
-        utterance.suggestion_refresh_scheduled = true;
+        utterance.suggestion_refresh_scheduled = true; var refresh_for = live_service(LingoLinq.appState); // the live app this refresh belongs to (none captured: it still runs, see owner_gone)
         runLater(function() {
           utterance.suggestion_refresh_scheduled = false;
-          app_state.refresh_suggestions();
+          if(owner_gone(refresh_for)) { return; } app_state.refresh_suggestions(); // its app is gone: do not refresh another
           if(window.editManager) {
             window.editManager.process_for_displaying();
           }
@@ -584,11 +584,11 @@ var utterance = EmberObject.extend({
         // if one is found
         var last_word = app_state.get('button_list')[app_state.get('button_list').length - 1];
         if(last_word && last_word.label) {
-          var lookup_ids = word_suggestions.lookup_board_ids(app_state, stashes, [app_state.get('currentBoardState.id')]);
+          var lookup_ids = word_suggestions.lookup_board_ids(app_state, stashes, [app_state.get('currentBoardState.id')]); var add_for = live_service(LingoLinq.appState);
           word_suggestions.attach_image_for_label(last_word.label, lookup_ids, function(url) {
             emberSet(b, 'suggestion_image', url);
             runLater(function() {
-              utterance.set_button_list();
+              if(owner_gone(add_for)) { return; } utterance.set_button_list(); // its app is gone: do not rebuild another's sentence
             });
           }, { appState: app_state, stashes: stashes });
         }
@@ -1213,12 +1213,12 @@ var utterance = EmberObject.extend({
       appState.set('clearable_history', 0);
     }
     if((do_update || new_list.length != prior_list.length) && allow_clear) {
-      new_list = [].concat(new_list);
+      new_list = [].concat(new_list); var clear_for = live_service(LingoLinq.appState);
       if(new_list.length != prior_list.length) {
         this.remember_utterance(prior_list);
       }
       runLater(function() {
-        utterance.set('rawButtonList', new_list);
+        if(owner_gone(clear_for)) { return; } utterance.set('rawButtonList', new_list); // its app is gone
       });
     }
   },
@@ -1302,15 +1302,32 @@ utterance.register_services = function(appStateService, persistenceService, stas
   if(stashesService) { utterance._services.stashes = stashesService; }
 };
 utterance.get_app_state = function() {
-  return utterance._services.appState || app_state;
+  return live_service(utterance._services.appState) || app_state;
 };
 utterance.get_persistence = function() {
-  return utterance._services.persistence || persistence;
+  return live_service(utterance._services.persistence) || persistence;
 };
 utterance.get_stashes = function() {
-  return utterance._services.stashes || stashes;
+  return live_service(utterance._services.stashes) || stashes;
 };
+
+/* `setup` stores the app's services on this singleton (`this.appState = ...`), and they outlive
+   the app instance that owns them: after it is torn down, every later caller (`clear`,
+   `set_button_list`, via app_state.toggle_mode) worked on DESTROYED services. The three fields are
+   accessors instead: a destroyed service counts as absent and the live util (which resolves the
+   current app's service) is used. `setup`'s assignments go through the setters unchanged. */
+[['appState', app_state], ['persistence', persistence], ['stashes', stashes]].forEach(function(pair) {
+  var key = pair[0], fallback = pair[1], slot = '_' + pair[0] + '_service';
+  Object.defineProperty(utterance, key, {
+    configurable: true,
+    enumerable: true,
+    get: function() { return live_service(this[slot]) || fallback; },
+    set: function(val) { this[slot] = val; }
+  });
+});
 
 window.utterance = utterance;
 
 export default utterance;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service, owner_gone } from './live_service';

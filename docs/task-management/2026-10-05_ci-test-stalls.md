@@ -380,3 +380,230 @@ edit-mode note. QA: `app/frontend/scripts/category-layout-vf112-qa.mjs` 8/8 PASS
    moves.
 3. i18n: new keys `board_category_small_words`, `board_detail_categorized_edit_note` not yet
    generated into locales (`i18n_generator.rb`).
+
+## Session 3 (2026-10-06/07): wall-clock poller flake fixed; leak survey for removing the 500 ms settle
+
+### Persistence offline flake: ROOT CAUSE FIXED (`db0c77db1`, on #1110)
+- Symptom: `persistence DSAdapter updateRecord - should update a locally-created record that hasn't
+  been persisted yet` failed in #1110's main shard (passed in the full run on the same commit).
+  Browser log: `ember ajax error: 404: Not Found (POST /api/v1/boards)` although the test had set
+  persistence offline. Same family as the "wandering waitsFor timeout" in
+  `2026-08-08-qunit-wandering-waitsfor-timeout.md` (this test was a named victim there).
+- CONFIRMED mechanism: two never-cleared 30 s wall-clock pollers rewrite persistence `online` to
+  match the browser (online in tests): `_setupOnlineListeners` in app/services/persistence.js and a
+  module-level duplicate in app/utils/persistence.js (Brian Whitmer 2018; the service copy came with
+  the Jan 2026 service migration) that writes via `window.persistence`. Firing the captured tick
+  right after `setPersistenceOnline(false)` reproduced the CI failure exactly (4761 ms vs 4752 ms,
+  same POST 404). 32 test sites put persistence offline (all exposed).
+- Fix: both pollers keep their handle (in-place one-liners); the harness stops both before every
+  test (global QUnit beforeEach in tests/helpers/jasmine.js). Red test
+  `Unit | Utility | persistence online pollers`: red without the handle, red without the harness
+  stop. CI on db0c77db1: all 11 checks green (shards + compare included). The second poller was
+  found by adversarial review of the proposal.
+
+### Leak survey (removing the 500 ms settle), status: IN PROGRESS, nothing changed in the PR
+- Method that works: tag every scheduled callback (Ember `_backburner.later`, native setTimeout)
+  with the test that scheduled it; log a crossing when it runs during another test. Full suite,
+  settle removed, local: 3,332 tests, 0 failures, 52,760 crossings from 78 code locations, dominated
+  by app background timers (check_scanning 1000, capabilities fullscreen setTimeout 500, stashes
+  persist_object/flush/flush_db_id/setup). No crossing caused a local failure. A "pending at test
+  end" snapshot was misleading (timers accumulate across tests); do not use it.
+- The CI-only failure ("store instance has already been destroyed", charged to app_state
+  toggle_speak_mode test 2007 in #1111's full run) did NOT reproduce locally with the settle removed.
+- DISPROVED: (1) the 38 check_scanning timers left by `speak_mode_handlers - should poll for geo`
+  (they cross into tests 2006/2007; delaying them +1.5 s did not reproduce, 0/2 runs);
+  (2) a fetch queued on a destroyed store inside app_state when run filtered (all live).
+- CURRENT HYPOTHESIS (unproven): `window.LingoLinq.store` is set per app instance
+  (app/instance-initializers/store-setter.js) and is left pointing at a torn-down instance's store
+  after app-booting (acceptance/rendering) tests; setupTest teardown does not wait
+  (`waitForSettled: false`). A later Jasmine-style test that fetches through LingoLinq.store then
+  hits a store whose destruction may or may not have completed: timing-dependent.
+  [STORE] lines from a full-order run (valid) show LingoLinq.store observed DESTROYED after each
+  acceptance test.
+- PROBE BUG (do not reuse its fetch data): the FetchManager keeps its store in `this._store`, not
+  `this.store`; the first full-order store probe therefore mis-attributed every fetch to store #1
+  and could not detect destroyed-store flushes. Rerun with `this._store`.
+- NEXT: rerun the full-order store probe with `this._store`; if fetches are queued on non-live
+  stores, find which code reads LingoLinq.store and which test leaves it stale; fix at the source
+  (e.g. reset/restore LingoLinq.store in teardown), red test first, then remove the settle and
+  re-run the full suite in CI. Ports: use a free --test-port (7381 was left held by an `ember`
+  process that could not be confirmed as this session's; left alone).
+
+## Session 4 (2026-10-06): leak fixes, uncommitted; Rule 13 checkpoint
+
+### Verified (local, NOT committed; working tree on traci/chore/ci-shard-ember-suite)
+- Ember Data fetch still queued at teardown (9 tests in 5 modules): `waitForQueuedStoreFetches` in
+  `tests/helpers/index.js` setupTest afterEach. Test `tests/unit/helpers/wait-for-queued-store-fetches-test.js`
+  green; red with the wait disabled. Race probe (flush +100 ms, pause removed): 9 hits -> 0.
+- `raw-events-test.js` `delete` on accessor properties was a no-op: its `{send}` stub sat in
+  `editManager._controller` ~1,150 tests and caused 16 order-dependent failures (terms-agree gate,
+  app-state effective view, app-state modelling). Fixed with save/restore hooks at the module end.
+- `buttonTracker` getters now skip destroyed services via `live_service` (exported from
+  edit_manager.js). Test `tests/unit/utils/button-tracker-services-test.js` green; red without.
+  Adversarial review: helps persistence/stashes; for appState the global fallback is the same dead object.
+- With all three: pause removed + slowed flush, every batch passes: acceptance 8, integration 100,
+  unit+Jasmine 3,215 = 3,323 tests, 0 failures, 0 race hits.
+
+### Found, not yet fixed: tests reading DESTROYED global services (real, order-dependent)
+user/board-detail prediction hold (stashes via capabilities.sync_access_token, appState, store),
+home board assignment (stubs LingoLinq.store.findRecord on a dead store), prediction symbol scope
+(persistence.url_cache), eval_session (appState in subtestOrder), copying-board (store._fetchManager).
+Survey probe printed first 3 of each finding only: list is a lower bound.
+
+### In progress: general leak check `tests/helpers/leak-check.js` (+ `tests/unit/helpers/leak-check-test.js`)
+Imported from test-helper.js; stopOnlinePollers uses `unwrapLeakProxy`. Default mode `fail`;
+`--query leakcheck=report` logs only. Lint gate OK. NOT yet run successfully: the first report-mode
+batch (Acceptance | board lock) produced no test output for 72 s (suspected hang caused by the
+check; undiagnosed). Next: run ONE small unit module with the check, then acceptance board lock
+alone, diagnose the hang before any survey. Process-kill lesson: never `pkill -f`/`pgrep -f` a
+pattern that appears in the killing command itself; it killed the shell twice.
+
+### Session 4b (2026-10-06): general leak check built; every finding fixed (uncommitted at time of writing)
+- Leak check `tests/helpers/leak-check.js` (imported first-party from test-helper.js; `--query leakcheck=report|off`):
+  destroyed services reached through globals or singleton fields (re-checked at access time), stubs left on
+  ~27 util singletons, nodes left under <body>. First version never ran: importing utils/eval before
+  utils/obf reversed an app import cycle (eval -> app_state -> ... -> demo_board_loader -> obf -> eval) and
+  obf threw at load, so testem waited silently. Fix: import obf first. Diagnosed with a Puppeteer page
+  probe (scratchpad console-probe), not testem, which shows no browser errors for load failures.
+- False positive found and fixed in the check: a slot holding a FORWARDING util (utils/app_state) reports
+  the destroyed-ness of whatever the globals point at, so it can be destroyed when wrapped and live later.
+- Real leaks fixed: utterance service fields (ember_helper.js:1062 sets them to the owner's real services);
+  stub restore leaving own copies (persistence.ajax/find_url through the util proxy); stashes-test
+  push_log assignment (not stub(): the stashes mirror rule would recurse); scanner-test hidden inputs;
+  edit_manager-test pending editor callbacks; capabilities 2 s auth-sync wall-clock poller (the CLAUDE.md
+  "sync_access_token" global failure) now stopped before every test; prefetch pipeline outliving its app
+  (flag/online readers treat a destroyed service as off); five modules reading destroyed globals now get
+  stand-ins (tests/helpers/stand-in-globals.js). eval-session: flag pinned off for existing assertions,
+  new flag-on test (production default is on).
+- Evidence: fail mode, pause removed, every batch: 3,227 unit + 108 integration/acceptance, 0 failures.
+  Two mutant builds: every new test red with its fix reverted; controls stay green.
+- Adversarial review (independent agent): no Critical/High. Fixed its Mediums: findings charged to a QUnit
+  `todo` test are moved to the next real test (a todo test absorbs failures); self-tests no longer drain
+  the check's findings (take(pattern), isolated(), poller hooks registered as named functions and called
+  alone); stub restore by delete now notifies Ember dependents (new test, red without it); flag-on
+  targeting order asserted. Lows fixed: unknown `leakcheck` value means fail; findings after the last test
+  are logged. Accepted, stated: editManager.Button allowlist (setup resets it); app-side live_service guards
+  in _is_online/_flagFromAppState change only torn-down-app behaviour. Coverage limits recorded in review:
+  only 27 singletons, function fields only, destroyed (not live) services only, direct <body> children only.
+- Re-run after the review fixes: fail mode, pause removed: 3,229 unit + 108 integration/acceptance, 0 failures.
+
+## Session 5 (2026-10-07): 500 ms post-test pause kept only where needed
+- Traci: remove the pause only where it can be safely removed; do not remove it globally.
+- Where it applies: only after tests with LingoLinq.sync_testing on (jasmine.js test_wrap). Logged per
+  module (pause unchanged): 791 pauses (~6.6 min), all unit/Jasmine-style; none in integration/acceptance.
+  persistence-sync has its own retry-path 500 ms (issue #589), left untouched.
+- Criterion (crossing probe, pause removed): log every timer/run.later scheduled in a test that fires
+  within 500 ms of it ending, during a later test (what the pause absorbs). 40 of 58 sources also cross
+  from modules that never had the pause (generic app timers: capabilities.fullscreen, stashes
+  persist_object/flush_db_id/setup), so the pause is not what keeps those harmless. Modules with crossings
+  of their OWN keep the pause: app_state (jump_to_board, setup, global_transition, hide_loading_overlay),
+  capabilities (200 ms sensor_listen interval), contentGrabbers (file_dropped), speecher (audio
+  stop/play), session (confirm_authentication persist), videoGrabber (measure_duration), utterance (play).
+  The other 38 modules: pause removed (414 of 791 pauses).
+- Validation: selective build, leak check in fail mode: 3,229 unit tests, 0 failures; unit run 627 s
+  (pause everywhere) -> 413 s (selective) vs 214 s (none). Integration/acceptance unaffected (no pause there).
+
+## Session 6 (2026-10-07): the seven modules' leftover work fixed; post-test pause removed
+- Research: three read-only agents traced every module-specific crossing; each claim was re-checked in
+  code. A stray-call probe (tags every timer with the test that scheduled it; logs calls to
+  speecher.speak_end_handler from an EARLIER test's timer) CONFIRMED the main hidden leak: every
+  speak_text / set_voice test left a ~4 s fallback (speecher speak_utterance) that called
+  speak_end_handler during later tests (videoGrabber, utterance...). The 500 ms pause never covered it.
+- Fixes (app): capabilities.sensor_listen returns a stop for its intervals and listeners; app-state's
+  jump_to_board poller stops on a destroyed service and willDestroy resets buttonTracker.transitioning;
+  the board prefetch chain carries the app that started it and stops when it is destroyed.
+- Fixes (tests): sensor tests stop what they start; file_dropped and two app_state tests wait for their
+  own timers; speecher marks each test's utterances handled at teardown (fake utterances never fire
+  end/error), ends its cloned playback, removes the cached cloud <audio>; the shared fake audio's
+  pause() cancels its pending `ended`.
+- Remaining crossings are inert (guarded no-ops or test-local state) and listed in the session notes.
+- Post-test pause REMOVED (persistence-sync's retry-path pause kept). Final configuration, leak check
+  failing on leaks, stray-call probe: acceptance 8 + integration 100 + unit 3,231 = 3,339 tests,
+  0 failures, 0 stray calls. Local unit run 627 s (pause everywhere) -> 413 s (selective) -> 228 s.
+- New tests for the app fixes, each red on a mutant build: capabilities sensor stop, app_state teardown
+  (poller + flag), prefetch chain live vs destroyed app.
+- Leak check extended (in progress): functions on window, i18n, LingoLinq and its model statics
+  (inherited lookup now walks the whole prototype chain); `--query leakfields=1` logs singleton data
+  fields left changed (survey only, never fails). Survey running.
+- Own errors this session: a test restored window methods by assigning them back (left own copies);
+  the first correction would have DELETED window.setInterval (an own property of window in Chrome).
+  Fixed to restore each property by its exact descriptor. Lesson for the standards: restore by
+  descriptor, never assume own vs inherited.
+- Leak check extension finished: functions on window, i18n, LingoLinq and its model classes are
+  enforced, counting only REPLACED existing functions there (the app adds model classes once as they
+  load); the inherited lookup walks the whole prototype chain. Field survey (`leakfields=1`): 189
+  fields change, mostly per-test resets and app state, so it stays survey-only; destroyed services in
+  fields are already enforced on access. First genuine finding: Visualizations tests left
+  window.ready_to_load_graphs / ready_to_do_maps replaced (fixed: exact-descriptor restore).
+- Two more app fixes found on the way, each with a red test: board_prefetch_planner leaked an
+  unhandled rejection when both public lists failed (RSVP.all -> allSettled; reproduced in isolation,
+  so a real offline/server-error bug); app-state willDestroy now runs the pending board-overlay
+  cleanup (a destroyed service painted an overlay 200 ms later; the leak check cannot see services
+  captured in closures).
+- Green build, final configuration (no pause, extended check failing on leaks): acceptance 8 +
+  integration 100 + unit 3,236, 0 failures after the Visualizations fix (module verified red -> green).
+- Standards updated: exact-descriptor restore, willDestroy cancels owned work, fakes behave like the
+  real object, allSettled for multi-request failures, no post-test pause, long-timer probing, `/i`.
+
+## Session 7 (2026-10-07): CI shard exposed a cross-app refresh; deferred-work audit; timer backstop
+- CI on c54cffc0c: build-and-test GREEN (full suite); main shard failed one test whose minimal
+  app-state stand-in exposed a leak: utterance.set_button_list's 100 ms suggestions refresh calls
+  app_state.refresh_suggestions through the FORWARDING util, so an earlier test's refresh ran against
+  the next test's app. Lesson: "generic" (also produced by unpaused modules) does not mean harmless.
+- Fixed with owner guards + red tests: utterance refresh, recommended_home_board claim_setup_user
+  (400 ms loop polling the current app's modal for up to 10 min), button.js :timer tick.
+- Audit (three read-only agents, every deferred callback in the survey): ~9 more CROSS-APP sources
+  (scanner singleton timers + stale scanner.appState, speecher audio-status poll, modal inactivity
+  auto-close, button-set translate, word_suggestions sync flush, edit_manager relink refresh,
+  utterance image-attach and vocalization-history callbacks, fullscreen warning, view-switch overlay)
+  plus ~10 own-service / DOM-only ones. Traci chose option B: one harness backstop instead of ~20 app edits.
+- Pending-timer survey (every timer still pending at each test's end, full order): app and framework
+  timers only, plus benign test-code ones (persistence-sync polling helpers, the shared fake audio, a
+  2 s helper fallback). So: cancel APP timers at teardown; leave TEST timers exactly as today (a late
+  assertion in them is still reported); never touch FRAMEWORK timers (Ember's own platform timer).
+- tests/helpers/timer-backstop.js; own bug on the way: the classifier's own frame was classified as
+  test code (fixed by naming it so the own-frame filter skips it). Red/green: app timer cancelled with
+  the backstop, runs on the mutant; test timer runs in both.
+- Full order with the backstop: acceptance 8 + integration 100 + unit 3,242 = 3,350 tests, 0 failures
+  (including the deferred-refresh test that failed in full order without it).
+- Backstop DROPPED after adversarial review (Traci approved switching to A). High: cancelling an app
+  timer silently drops any assertion downstream of it (a `.then(expect)` on a promise an app runLater
+  moves forward; a test that forgot to wait used to fail late, would now pass). Medium: flags cleared
+  only inside their own timer callback (utterance.suggestion_refresh_scheduled, two _stashes timers)
+  would stay stuck after cancellation, a new cross-test leak. Instead: owner guards at each source (A).
+- Option A implemented. Owner guards capture `live_service(LingoLinq.appState)` when the work is
+  scheduled and return at fire time if `!live_service(owner)` (strict: work scheduled with no live app
+  has no owner and does not run). A first "cautious" version (skip only when a live owner had died)
+  let ownerless work run against whichever app was current later, which the leak check caught in full
+  order; app-owned guards were switched to strict. The speecher end handler stays cautious (audio
+  already playing is not app-owned). Guarded: utterance refresh,
+  image-attach and vocalization-history callbacks; recommended_home_board loop; button :timer tick;
+  scanner (app-state willDestroy detaches it: scanning=false, slot cleared; the next app re-attaches
+  when the slot is empty or dead; deferred reset/restart carry their owner); speecher end handler;
+  modal inactivity auto-close; word_suggestions sync flush (captures the real service: get_app_state
+  returns the forwarding util); edit_manager relink refresh; button-set translate; fullscreen warnings
+  (app-state, application controller); view-switch overlay removes its own node. Plus destroyed-checks
+  on own-service/DOM-only callbacks (retry_images, align_button_list, sentence scroll, webhook
+  update_state, button-settings, big-button snap x2, stashes 5 s kvstash write).
+- Dedicated red tests (each with a positive control; mutant build red, green build green): scanner
+  helpers + detach, speecher end handler, overlay, application fullscreen, word_suggestions flush
+  (delay overridable via sync_flush_delay; read-only sync_flush_scheduled getter), utterance refresh,
+  recommended_home_board loop, button timer, plus earlier capabilities/app-state/prefetch tests.
+  Without a dedicated test (same one-line pattern, flows hard to drive in a unit test): utterance
+  image-attach / vocalization-history, edit_manager relink, modal auto-close, button-set translate,
+  app-state fullscreen warning, and the own-service/DOM-only guards.
+- Full order after the strict switch still failed the utterance deferred-refresh test (g17, g18), with a
+  different read each time. Two hypotheses were wrong (ownerless refresh; afterEach restore, which a
+  probe could not reproduce because rawButtonList starts empty in isolation). Evidence, not guesses:
+  - wide leak-check stacks on the Unit | Utility subset (reproduces in 552 tests): `stashes.log` read by
+    `speecher.beep` from the `:timer` action's 1.5 s reminder beep. Real app leak: the reminder was not
+    guarded. Fixed with the same owner; positive control now waits for both beeps (asserts 2), new test
+    destroys the app between beeps (asserts 1). Mutant (guard removed): new test red.
+  - instrumented build in full order: the stray refresh was SCHEDULED in the module's positive-control
+    test by a sync observer flush (its afterEach restores rawButtonList -> set_button_list), owned by
+    that test's stand-in (never destroyed), and FIRED in the next test's pre-wait against an earlier
+    test's destroyed app. Test hygiene: the afterEach now waits for the refresh it schedules while the
+    stand-ins are still installed. Rejected: destroying stand-ins at teardown (hides unwaited work).
+- g19 full order: acceptance 8 + integration 100 + unit 3,252 = 3,360 tests, 0 failures.
+- Own mistake: a wait loop used `pgrep -f "<string>"` whose own command line contained the string, so
+  it waited on itself for 30 min. Wait on a PID or a file, never on `pgrep -f` of your own command.

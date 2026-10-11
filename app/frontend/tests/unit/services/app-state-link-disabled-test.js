@@ -92,4 +92,12 @@ module('Unit | Service | app-state link_disabled', function(hooks) {
     await flush();
     assert.equal(this._jumped.length, 0, 'treated as disabled');
   });
+
+  // Activating a button can rebuild the utterance, which schedules a suggestion refresh 100 ms later
+  // (tests/helpers/utterance-refresh.js). Each test waits for its own before the owner is torn down.
+  // Registered last, so it runs before this module's afterEach (which only restores actionLock) and
+  // before setupTest's teardown. Placed here so the baselined lint rows above keep their line numbers.
+  hooks.afterEach(async function() { await waitForUtteranceRefresh(); });
 });
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { waitForUtteranceRefresh } from '../../helpers/utterance-refresh';

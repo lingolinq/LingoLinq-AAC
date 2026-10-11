@@ -112,7 +112,7 @@ function stubScannerModalClosed() {
   modal.highlight2_controller = null;
 }
 
-describe('scanner', function() {
+describe('scanner', function() { removeInputsLeftUnderBody(); // first, so nested describes get it too
 
   beforeEach(function() {
     ensureScannerAppState();
@@ -1926,3 +1926,19 @@ describe('scanner', function() {
     });
   });
 });
+
+// scanner.listen_for_input appends a hidden <input> to <body> (generate_input) and later finds it by
+// id instead of creating it again; in tests the shim's element is appended without an id. Left in
+// place, it made a later test skip generate_input entirely (order-dependent), and
+// tests/helpers/leak-check.js flagged it. Remove any <input> a test added directly under <body>.
+function removeInputsLeftUnderBody() {
+  var before = null;
+  beforeEach(function() {
+    before = new Set(document.body.querySelectorAll(':scope > input'));
+  });
+  afterEach(function() {
+    document.body.querySelectorAll(':scope > input').forEach(function(node) {
+      if (before && !before.has(node)) { node.remove(); }
+    });
+  });
+}

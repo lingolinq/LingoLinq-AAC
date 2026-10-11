@@ -1,0 +1,92 @@
+name: Ember fetch probe
+
+# Finds Ember tests that end without awaiting an Ember Data fetch they started. In a normal run Ember Data
+# usually sends the fetch before setupTest's teardown check looks (tests/helpers/index.js), so such a
+# test can pass and later fail a different test at random. This runs the whole suite with every fetch
+# flush delayed by 1500 ms (tests/test-helper.js, ?probeDelay=), longer than the post-test settle and
+# the teardown wait, so the check always sees the fetch and fails that test.
+#
+# Not a required check, and not run on pull requests: weekly, and on demand from the Actions tab. GitHub
+# runs scheduled and manual workflows from the DEFAULT branch only, so this starts once it is on main and
+# then tests main; to probe another branch, run `ember test --query "probeDelay=1500"` locally. A
+# delayed flush also slows tests that DO await their fetches; one that awaits several in turn can hit
+# its wait limit, so read a failure's message before treating it as a leak.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ember-fetch-probe
+  cancel-in-progress: true
+
+jobs:
+  ember-fetch-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      # Same key as build-and-test in ci.yml (the Node major is part of it; see the note there).
+      - name: Cache node_modules and Puppeteer Chrome
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            app/frontend/node_modules
+            ~/.cache/puppeteer
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: npm install
+
+      - name: Ensure Puppeteer Chrome is present
+        working-directory: app/frontend
+        run: npx puppeteer browsers install chrome
+
+      - name: Build Ember app (test env)
+        working-directory: app/frontend
+        run: npx ember build --environment=test --output-path=dist-test
+
+      - name: Run Ember tests with every fetch flush delayed
+        working-directory: app/frontend
+        timeout-minutes: 110
+        shell: bash
+        run: |
+          status=0
+          npx ember test --path dist-test --query "probeDelay=1500" 2>&1 | tee ember-test.log || status=$?
+          if ! grep -q '\[fetch-probe\] every Ember Data fetch flush is delayed' ember-test.log; then
+            echo "::error::the fetch probe did not switch on (no [fetch-probe] line): this run proves nothing"
+            exit 1
+          fi
+          exit "$status"
+
+      # A separate step, so the list survives a failed or timed-out test step. The harness self-test that
+      # leaves a fetch queued on purpose (tests/unit/helpers/wait-for-queued-store-fetches-test.js) logs a
+      # line every run; it is not an offender.
+      - name: List tests that ended with a fetch still queued
+        if: always()
+        working-directory: app/frontend
+        shell: bash
+        run: |
+          [ -f ember-test.log ] || { echo "No test log (the test step did not run)." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          hits=$(grep -oE '\[queued-fetch\] ([^"\\]|\\.)*' ember-test.log | grep -v 'a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
+          if [ -n "$hits" ]; then
+            { echo "### Tests that ended with an Ember Data fetch still queued"; echo '```'; printf '%s\n' "$hits"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No test ended with an Ember Data fetch still queued." >> "$GITHUB_STEP_SUMMARY"
+          fi

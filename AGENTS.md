@@ -67,7 +67,9 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 Work through the checklist in `.claude/skills/pr-preflight/SKILL.md` (claim
 verification against HEAD, entry-point enumeration for access changes,
 `scripts/regenerate-register.sh --check` for compliance paths, the status block the PR
-template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`.
+template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`. Testing
+standards (which kind of test, red-then-falsify, test isolation enforced by the frontend leak
+check, Playwright e2e is not in CI, the CI gates) are in `.claude/rules/testing-frontend.md`.
 
 Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
 pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
@@ -108,8 +110,8 @@ spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer 
 that pass. A second, CI-side route for the senior-dev
 pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
 dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
-status; per that workflow's own header, status-stamped 2026-09-12, it is dormant (not in
-the required set on `develop`, `staging` or `main`, no run dispatched since 2026-08-04).
+status; per that workflow's own header, status-stamped 2026-10-03, it is disabled in
+Actions (last run 2026-09-28) and not in the required set on `develop`, `staging` or `main`.
 Nothing re-verifies that stamp, so confirm it against branch protection before relying on
 it. A green CI run is not the dual review.
 

@@ -4272,7 +4272,7 @@ document.addEventListener('online', function() {
 document.addEventListener('offline', function() {
   safeSet(getPersistence(), 'online', false);
 });
-setInterval(function() {
+utilOnlineCheckInterval = setInterval(function() { // see stopUtilOnlineCheck at the end of this file
   var online = navigator.online_override || navigator.onLine;
   if(online === true && safeGet(getPersistence(), 'online') === false) {
     safeSet(getPersistence(), 'online', true);
@@ -4671,5 +4671,22 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
   var modelName = type && type.modelName;
   return !(modelName === 'user' && (id === 'self' || id === 'me'));
 };
+
+// The module-level 30 s online poller above (search utilOnlineCheckInterval) runs on wall-clock
+// time for the life of the page and writes `online` on the live service. Tests put persistence
+// offline on purpose; a tick landing mid-test flipped it back online and a local-only save went to
+// the server (the wandering "condition failed" flake, task log 2026-10-05_ci-test-stalls.md). The
+// test harness stops it before each test (tests/helpers/jasmine.js). A bare `var` here keeps the
+// value assigned when the module loaded; it is not reset.
+var utilOnlineCheckInterval;
+export function stopUtilOnlineCheck() {
+  if (utilOnlineCheckInterval) {
+    clearInterval(utilOnlineCheckInterval);
+    utilOnlineCheckInterval = null;
+  }
+}
+export function isUtilOnlineCheckRunning() {
+  return !!utilOnlineCheckInterval;
+}
 
 export default persistenceProxy;

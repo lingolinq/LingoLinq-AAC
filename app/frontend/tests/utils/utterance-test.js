@@ -12,6 +12,15 @@ import utterance from '../../utils/utterance';
 import speecher from '../../utils/speecher';
 import stashes from '../../utils/_stashes';
 import app_state from '../../utils/app_state';
+import { utteranceRefreshPending } from '../helpers/utterance-refresh';
+
+// Every test in this file ends by waiting for the suggestion refresh it may have scheduled
+// (tests/helpers/utterance-refresh.js). Which tests schedule one depends on the app state an earlier test
+// left, so all of them wait; with nothing scheduled the wait passes at once.
+function waitForSuggestionRefresh() {
+  waitsFor(function() { return !utteranceRefreshPending(); });
+  runs();
+}
 import Button from '../../utils/button';
 import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
@@ -79,11 +88,13 @@ describe('utterance', function() {
   describe("setup", function() {
     it("should set the controller", function() {
       expect(utterance.controller).toEqual(utteranceController());
+      waitForSuggestionRefresh();
     });
     it("should retrieve the raw list from the stash", function() {
       stashesForTest().persist('working_vocalization', [{}, {}]);
       utterance.setup(utteranceController());
       expect(utterance.get('rawButtonList')).toEqual(stashesForTest().get('working_vocalization'));
+      waitForSuggestionRefresh();
     });
     it("should keep observe currentUser and keep speecher's voice settings up-to-date", function() {
       var user = EmberObject.extend({
@@ -100,12 +111,14 @@ describe('utterance', function() {
       user.set('preferences.device.voice.volume', 1.0);
       expect(speecher.volume).toEqual(1.0);
       expect(speecher.pitch).toEqual(3.0);
+      waitForSuggestionRefresh();
     });
     it("should set the controller's buttonList attribute", function() {
       stashesForTest().persist('working_vocalization', [{}, {}]);
       utterance.setup(utteranceController());
       expect(utterance.get('rawButtonList')).toEqual(stashesForTest().get('working_vocalization'));
       expect(appStateForTest().get('button_list').length).toEqual(stashesForTest().get('working_vocalization').length);
+      waitForSuggestionRefresh();
     });
   });
 
@@ -116,6 +129,7 @@ describe('utterance', function() {
       ];
       setRawButtons( buttons);
       expect(appStateForTest().get('button_list').map(function(b) { return b.label; })).toEqual(buttons.map(function(b) { return b.label; }));
+      waitForSuggestionRefresh();
     });
     it("should set buttonList to the controller and stash", function() {
       var buttons = [
@@ -127,6 +141,7 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list')[1].label).toEqual('are');
       expect(appStateForTest().get('button_list')[2].label).toEqual('you');
       expect(stashesForTest().get('working_vocalization').map(function(b) { return b.label; })).toEqual(buttons.map(function(b) { return b.label; }));
+      waitForSuggestionRefresh();
     });
     it("should properly handle + and : notations", function() {
       var buttons = [
@@ -162,6 +177,7 @@ describe('utterance', function() {
       computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(1);
       expect(computed[0].label).toEqual("cantankerous");
+      waitForSuggestionRefresh();
     });
 
     it("should properly handle buttons with multiple actions", function() {
@@ -175,6 +191,7 @@ describe('utterance', function() {
       expect(computed[1].label).toEqual("we");
       expect(computed[2].label).toEqual("yours");
       expect(computed[3].label).toEqual("hippos");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -185,21 +202,25 @@ describe('utterance', function() {
       setRawButtons([{label: "it"}, {label: "is"}]);
       var res = utterance.contraction();
       expect(res && res.label).toEqual("it's");
+      waitForSuggestionRefresh();
     });
     it("should contract he/she + is to the possessive-looking form", function() {
       setRawButtons([{label: "he"}, {label: "is"}]);
       expect((utterance.contraction() || {}).label).toEqual("he's");
       setRawButtons([{label: "she"}, {label: "is"}]);
       expect((utterance.contraction() || {}).label).toEqual("she's");
+      waitForSuggestionRefresh();
     });
     it("should still contract an exact negative like 'is not'", function() {
       setRawButtons([{label: "is"}, {label: "not"}]);
       expect((utterance.contraction() || {}).label).toEqual("isn't");
+      waitForSuggestionRefresh();
     });
     it("should still offer a predictive contraction from the last word alone", function() {
       // Only "is" typed so far -> predict the "is not" contraction.
       setRawButtons([{label: "is"}]);
       expect((utterance.contraction() || {}).label).toEqual("isn't");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -209,12 +230,14 @@ describe('utterance', function() {
       expect(result.label).toEqual("cow");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
+      waitForSuggestionRefresh();
     });
     it("should work even if there is no original button", function() {
       var result = utterance.modify_button(null, {label: "+s"});
       expect(result.label).toEqual("s");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
+      waitForSuggestionRefresh();
     });
     it("should handle + notation, even multiple times", function() {
       var result = utterance.modify_button({label: "cow", in_progress: true}, {vocalization: "+s"});
@@ -225,24 +248,28 @@ describe('utterance', function() {
       expect(result.label).toEqual("cowszoo");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(2);
+      waitForSuggestionRefresh();
     });
     it("should allow starting with + notation", function() {
       var result = utterance.modify_button(null, {vocalization: "+s"});
       expect(result.label).toEqual("s");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
+      waitForSuggestionRefresh();
     });
     it("should pluralize properly", function() {
       var result = utterance.modify_button({label: "cow"}, {vocalization: ":plural"});
       expect(result.label).toEqual("cows");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
+      waitForSuggestionRefresh();
     });
     it("should add third-person -s to verbs via :plural", function() {
       var result = utterance.modify_button({label: "walk", part_of_speech: "verb"}, {vocalization: ":plural"});
       expect(result.label).toEqual("walks");
       expect(result.vocalization).toEqual("walks");
       expect(result.modified).toEqual(true);
+      waitForSuggestionRefresh();
     });
     it("should singularize properly", function() {
       var result = utterance.modify_button({label: "cows"}, {vocalization: ":singular"});
@@ -250,6 +277,7 @@ describe('utterance', function() {
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
       expect(result.image).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
+      waitForSuggestionRefresh();
     });
     it("should apply Spanish verb person and gerund modifiers", function() {
       var yo = utterance.modify_button({label: "hablar"}, {vocalization: ":es-yo"});
@@ -259,6 +287,7 @@ describe('utterance', function() {
       expect(gerund.label).toEqual("hablando");
       var noun = utterance.modify_button({label: "gato"}, {vocalization: ":es-yo"});
       expect(noun.label).toEqual("gato");
+      waitForSuggestionRefresh();
     });
     it("should apply Spanish noun and punctuation modifiers", function() {
       var plural = utterance.modify_button({label: "gato"}, {vocalization: ":es-plural"});
@@ -267,6 +296,7 @@ describe('utterance', function() {
       expect(fem.label).toEqual("gata");
       var q = utterance.modify_button({label: "hola"}, {vocalization: ":es-question"});
       expect(q.label).toEqual("¿hola?");
+      waitForSuggestionRefresh();
     });
 
     it("should use the completion image for a word completion", function() {
@@ -284,6 +314,7 @@ describe('utterance', function() {
       result = utterance.modify_button(result, {label: ":complete", completion: "cowszoofill", button_id: 'complete', mod_id: 3});
       expect(result.image).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
       expect(result.label).toEqual("cowszoofill");
+      waitForSuggestionRefresh();
     });
 
     it("should use the addition's image if for a word completion", function() {
@@ -299,6 +330,7 @@ describe('utterance', function() {
       result = utterance.modify_button(result, {label: ":complete", completion: "cowszoofill", image: "http://www.example.com/pic.png", button_id: 'complete', mod_id: 3});
       expect(result.image).toEqual('http://www.example.com/pic.png');
       expect(result.label).toEqual("cowszoofill");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -311,6 +343,7 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list').length).toEqual(1);
       expect(appStateForTest().get('button_list')[0].label).toEqual(b.label);
       expect(stashesForTest().get('working_vocalization')[0].label).toEqual('occupy');
+      waitForSuggestionRefresh();
     });
 
     it("should add return the last modified button", function() {
@@ -325,12 +358,14 @@ describe('utterance', function() {
       var b3 = {label: ":plural"};
       res = addButtonForTest(b3);
       expect(res.label).toEqual('tries');
+      waitForSuggestionRefresh();
     });
 
     it("should support adding buttons with multiple vocalizations", function() {
       var b = {label: "occupy", vocalization: "+w&&+a"};
       var res = addButtonForTest(b);
       expect(res.label).toEqual('wa');
+      waitForSuggestionRefresh();
     });
 
     it("should capitalize keyboard letters and complete them with space", function() {
@@ -345,6 +380,7 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list')[0].label).toEqual("A");
       expect(appStateForTest().get('button_list')[0].vocalization).toEqual("A");
       expect(appStateForTest().get('button_list')[0].in_progress).toEqual(false);
+      waitForSuggestionRefresh();
     });
 
     it("should keep capitalizing letters while caps_lock is on", function() {
@@ -357,6 +393,7 @@ describe('utterance', function() {
       addButtonForTest({label: "b", vocalization: "+b"});
       expect(appStateForTest().get('button_list')[0].label).toEqual("AB");
       expect(appStateForTest().get('caps_lock')).toEqual(true);
+      waitForSuggestionRefresh();
     });
 
     it("should spell STAR in all caps at the start of a sentence when caps_lock is on", function() {
@@ -369,6 +406,7 @@ describe('utterance', function() {
       addButtonForTest({label: "r", vocalization: "+r"});
       expect(appStateForTest().get('button_list').length).toEqual(1);
       expect(appStateForTest().get('button_list')[0].label).toEqual("STAR");
+      waitForSuggestionRefresh();
     });
 
     it("should stop forcing capitals after caps_lock is turned off", function() {
@@ -378,6 +416,7 @@ describe('utterance', function() {
       appStateForTest().set('caps_lock', false);
       addButtonForTest({label: "b", vocalization: "+b"});
       expect(appStateForTest().get('button_list')[0].label).toEqual("Ab");
+      waitForSuggestionRefresh();
     });
 
     it("should still clear shift after one letter when caps_lock is off", function() {
@@ -387,6 +426,7 @@ describe('utterance', function() {
       addButtonForTest({label: "a", vocalization: "+a"});
       expect(appStateForTest().get('button_list')[0].label).toEqual("A");
       expect(appStateForTest().get('shift')).toBeFalsy();
+      waitForSuggestionRefresh();
     });
 
     it("should keep caps_lock on through clear and backspace", function() {
@@ -400,6 +440,7 @@ describe('utterance', function() {
       utterance.backspace({button_triggered: true});
       expect(appStateForTest().get('caps_lock')).toEqual(true);
       expect(appStateForTest().get('button_list').length).toEqual(0);
+      waitForSuggestionRefresh();
     });
 
     it("should toggle caps_lock when the :caps special action runs", function() {
@@ -415,6 +456,7 @@ describe('utterance', function() {
       expect(appState.get('caps_lock')).toEqual(true);
       action.trigger();
       expect(appState.get('caps_lock')).toEqual(false);
+      waitForSuggestionRefresh();
     });
   });
 
@@ -428,6 +470,7 @@ describe('utterance', function() {
       expect(spoken).toEqual("noun");
       utterance.speak_button({vocalization: "broken"});
       expect(spoken).toEqual("broken");
+      waitForSuggestionRefresh();
     });
     it("should speak a button's utterance, not label, if both are set", function() {
       var spoken = null;
@@ -436,6 +479,7 @@ describe('utterance', function() {
       });
       utterance.speak_button({label: "happy", vocalization: "I am happy"});
       expect(spoken).toEqual("I am happy");
+      waitForSuggestionRefresh();
     });
     it("should play audio", function() {
       var played = null;
@@ -444,6 +488,7 @@ describe('utterance', function() {
       });
       utterance.speak_button({label: "happy", vocalization: "I am happy", sound: "http://sound.com/jump.mp3"});
       expect(played).toEqual("http://sound.com/jump.mp3");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -455,6 +500,7 @@ describe('utterance', function() {
       });
       utterance.speak_text("I am glad");
       expect(spoken).toEqual("I am glad");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -466,6 +512,7 @@ describe('utterance', function() {
       });
       utterance.alert();
       expect(spoken).toEqual("beep");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -478,18 +525,21 @@ describe('utterance', function() {
       expect(utterance.get('rawButtonList')).toEqual([]);
       expect(appStateForTest().get('button_list').length).toEqual(0);
       expect(stashesForTest().get('working_vocalization').length).toEqual(0);
+      waitForSuggestionRefresh();
     });
     it("should log a clear event", function() {
       var logged = false;
       stub(stashesForTest(), 'log', function(obj) { logged = obj.action == 'clear'; });
       utterance.clear();
       expect(logged).toEqual(true);
+      waitForSuggestionRefresh();
     });
     it("should not log a clear event if specified", function() {
       var logged = false;
       stub(stashesForTest(), 'log', function(obj) { logged = obj.action == 'clear'; });
       utterance.clear({skip_logging: true});
       expect(logged).toEqual(false);
+      waitForSuggestionRefresh();
     });
   });
 
@@ -503,6 +553,7 @@ describe('utterance', function() {
       expect(utterance.get('rawButtonList').length).toEqual(0);
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(0);
+      waitForSuggestionRefresh();
     });
     it("should remove modification if last button was a + or : notation", function() {
       setRawButtons( [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
@@ -514,6 +565,7 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list')[1].label).toEqual("hippos");
       utterance.backspace();
       expect(appStateForTest().get('button_list')[1]).toEqual(undefined);
+      waitForSuggestionRefresh();
     });
     it("should update the stash and controller", function() {
       setRawButtons( [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
@@ -523,12 +575,14 @@ describe('utterance', function() {
       utterance.backspace();
       expect(appStateForTest().get('button_list')[1].label).toEqual("hippos");
       expect(stashesForTest().get('working_vocalization')[1].label).toEqual("hippos");
+      waitForSuggestionRefresh();
     });
     it("should log a backspace event", function() {
       var logged = false;
       stub(stashesForTest(), 'log', function(obj) { logged = obj.action == 'backspace'; });
       utterance.backspace();
       expect(logged).toEqual(true);
+      waitForSuggestionRefresh();
     });
 
     it('should not remove the last button if a ghost vocalization', function() {
@@ -542,6 +596,7 @@ describe('utterance', function() {
       expect(utterance.get('rawButtonList').length).toEqual(0);
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(0);
+      waitForSuggestionRefresh();
     });
 
     it('should un-ghost the vocalization if a ghost vocalization', function() {
@@ -550,6 +605,7 @@ describe('utterance', function() {
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(2);
       expect(utterance.get('list_vocalized')).toEqual(false);
+      waitForSuggestionRefresh();
     });
   });
 
@@ -562,12 +618,14 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list')[0].label).toEqual(buttons[0].label);
       expect(appStateForTest().get('button_list')[1].label).toEqual(buttons[1].label);
       expect(stashesForTest().get('working_vocalization')).toEqual(buttons);
+      waitForSuggestionRefresh();
     });
 
     it("should vocalize the new button list", function() {
       var buttons = [{label: "smart"}, {label: "lad"}];
       utterance.set_and_say_buttons(buttons);
       expect(utteranceController().vocalized).toEqual(true);
+      waitForSuggestionRefresh();
     });
   });
 
@@ -586,6 +644,7 @@ describe('utterance', function() {
       expect(log).not.toEqual(null);
       expect(log.text).toEqual("how ever are you r hippos");
       expect(log.buttons.length).toEqual(6);
+      waitForSuggestionRefresh();
     });
     it("should generate a list of items for speech synthesis", function() {
       var items = null;
@@ -597,6 +656,7 @@ describe('utterance', function() {
       utterance.vocalize_list();
       expect(items.length).toEqual(1);
       expect(items[0].text).toEqual("how ever are you r hippos");
+      waitForSuggestionRefresh();
     });
   });
 
@@ -616,6 +676,7 @@ describe('utterance', function() {
       }
       utterance.test_voice("", 1.1, 1.3, 2.0);
       expect(correct).toEqual(true);
+      waitForSuggestionRefresh();
     });
 
     it("should correct for bad values", function() {
@@ -633,6 +694,7 @@ describe('utterance', function() {
       }
       utterance.test_voice("hand", "crank");
       expect(correct).toEqual(true);
+      waitForSuggestionRefresh();
     });
   });
 });

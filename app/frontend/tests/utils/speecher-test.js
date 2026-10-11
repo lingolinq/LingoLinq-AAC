@@ -45,14 +45,14 @@ describe('speecher', function() {
     });
   });
 
-  afterEach(function() {
+  afterEach(function() { endLeftoverUtterances();
     try {
       speecher.stop('all');
     } catch (e) { /* mid-teardown */ }
     speecher.scope = window;
     speecher.audio = {};
     speecher.sounds = {};
-    speecher.last_utterance = null;
+    speecher.last_utterance = null; if (window.cloud_speak && window.cloud_speak.audio_elem) { window.cloud_speak.audio_elem.remove(); window.cloud_speak.audio_elem = null; } // the cloud-speech fallback caches one <audio> for the page
   });
 
   describe('stop', function() {
@@ -82,7 +82,7 @@ describe('speecher', function() {
         this.volume = 1;
         this.pitch = 1;
         this.lang = '';
-        this.addEventListener = function() { };
+        this.addEventListener = function() { }; leftoverUtterances.push(this);
         this.removeEventListener = function() { };
       });
       stub(window.speechSynthesis, 'getVoices', function() {
@@ -259,7 +259,7 @@ describe('speecher', function() {
         this.volume = 1;
         this.pitch = 1;
         this.lang = '';
-        this.addEventListener = function() { };
+        this.addEventListener = function() { }; leftoverUtterances.push(this);
         this.removeEventListener = function() { };
       });
       stub(window.speechSynthesis, 'getVoices', function() {
@@ -648,8 +648,8 @@ describe('speecher', function() {
     });
     it('should clone the element if currently playing', function() {
       audio_elem.lastListener = true;
-      speecher.play_audio(audioRef(audio_elem));
-      expect(audio_elem.cloned).toEqual(true);
+      var clone = speecher.play_audio(audioRef(audio_elem));
+      expect(audio_elem.cloned).toEqual(true); endClonedPlayback(clone);
     });
 
     it('should progress on end event', function() {
@@ -952,3 +952,29 @@ describe('speecher', function() {
     });
   });
 });
+
+// The fake SpeechSynthesisUtterance never fires `end` or `error`, so the app's fallback timer
+// (speecher speak_utterance: about 4 s for short text) and its 1 s boundary check stay pending and
+// called speak_end_handler during LATER tests (a stray call can satisfy a later test's
+// waitsFor(ended)). A real browser ends the utterance when speech is cancelled at teardown; here
+// each utterance a test created is marked handled when the test ends, which makes those pending
+// callbacks no-ops (speecher.js checks `utterance.handled`). Kept below the baselined lint rows.
+var leftoverUtterances = [];
+function endLeftoverUtterances() {
+  // Also the one speecher itself recorded, for tests that install their own inline fake.
+  if (speecher.last_utterance) { leftoverUtterances.push(speecher.last_utterance); }
+  leftoverUtterances.forEach(function(u) { u.handled = true; });
+  leftoverUtterances = [];
+}
+
+// play_audio returns the clone it plays; afterEach's stop() cannot reach it (it is not in
+// speecher.audio), and its status poller would call speak_end_handler about 30 s later, during
+// some other test. End the clone's playback inside this test instead.
+function endClonedPlayback(clone) {
+  var ended = false;
+  stub(speecher, 'speak_end_handler', function() { ended = true; });
+  waitsFor(function() { return clone && clone.played; });
+  runs(function() { clone.dispatchEvent(new window.Event('ended')); });
+  waitsFor(function() { return ended; });
+  runs();
+}

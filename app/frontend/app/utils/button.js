@@ -1365,7 +1365,7 @@ Button.extra_actions = function(button) {
   if(button && button.integration && button.integration.action_type == 'webhook') {
     var action_state_id = Math.random();
     var update_state = function(obj) {
-     if(!button.get('action_status') || button.get('action_status.state') == action_state_id) {
+     if(button.isDestroyed || button.isDestroying) { return; } if(!button.get('action_status') || button.get('action_status.state') == action_state_id) {
         if(obj) {
           obj.state = action_state_id;
         }
@@ -2227,14 +2227,14 @@ Button.load_actions = function() {
         var seconds = match ? parseInt(match[1], 10) : 30;
         var duration = templateHelpers.seconds_ago(seconds);
         modal.success(i18n.t('timer_started', "Timer Started:") + " " + duration, true);
-        var start = (new Date()).getTime();
+        var start = (new Date()).getTime(); var timer_for = live_service(LingoLinq.appState); // the live app whose button started it, if any
         var tick = function() {
-          if(app_state.get('speak_mode')) {
+          if(owner_gone(timer_for)) { return; } if(app_state.get('speak_mode')) { // its app is gone: stop
             var now = (new Date()).getTime();
             if(now - start > (seconds * 1000)) {
               speecher.beep();
               runLater(function() {
-                speecher.beep();
+                if(owner_gone(timer_for)) { return; } speecher.beep(); // the reminder beep belongs to the same app
               }, 1500);
               modal.open('modals/timer');
             } else {
@@ -2266,3 +2266,5 @@ Button.clean_text = clean_text;
 window.button_broken_image = Button.broken_image;
 
 export default Button;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service, owner_gone } from './live_service';

@@ -5,7 +5,7 @@ import {
   cancel as runCancel
 } from '@ember/runloop';
 import $ from 'jquery';
-import editManager from './edit_manager';
+import editManager, { live_service } from './edit_manager';
 import modal from './modal';
 import capabilities from './capabilities';
 // import app_state from './app_state';
@@ -772,7 +772,7 @@ var buttonTracker = EmberObject.extend({
   },
   
   get appState() {
-    return this._services.appState || (window.LingoLinq && window.LingoLinq.appState) || window.appState;
+    return live_service(this._services.appState) || (window.LingoLinq && window.LingoLinq.appState) || window.appState;
   },
 
   set appState(val) {
@@ -780,7 +780,7 @@ var buttonTracker = EmberObject.extend({
   },
   
   get persistence() {
-    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+    return live_service(this._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
   },
 
   set persistence(val) {
@@ -788,7 +788,7 @@ var buttonTracker = EmberObject.extend({
   },
 
   get stashes() {
-    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+    return live_service(this._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
   },
 
   set stashes(val) {

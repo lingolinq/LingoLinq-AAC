@@ -69,3 +69,7 @@ New user-facing features MUST be behind a feature flag in `lib/feature_flags.rb`
 ## Testing
 - **Backend**: RSpec (`bundle exec rspec`).
 - **Frontend**: QUnit (`ember test`).
+- **Standards**: `.claude/rules/testing-frontend.md`. New frontend test files use plain QUnit (`module`/`test`), not the
+  legacy Jasmine-style harness. Every test is isolated: `tests/helpers/leak-check.js` fails a test that uses an
+  earlier test's destroyed services, leaves a stub on a shared util, or leaves DOM behind; restore with `stub()` or
+  a matching `afterEach`, never `delete` on an accessor. Each new test must be shown to fail without its fix.
