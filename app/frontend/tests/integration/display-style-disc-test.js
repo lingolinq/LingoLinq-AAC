@@ -17,4 +17,12 @@ QUnit.module('Integration | display-style disc', function(hooks) {
     await render(hbs`<DisplayStyle />`);
     assert.dom('.md-display-style__trigger').exists('the Display Style disc is shown');
   });
+
+  // Mounting registers the opener the phone-width drawer and Edit Dashboard open the page through
+  // (app-navbar-authenticated-inner.js#openDisplayStyle, dashboard/authenticated-view.js).
+  QUnit.test('registers the Dashboard Design opener when mounted', async function(assert) {
+    await render(hbs`<DisplayStyle />`);
+    assert.strictEqual(typeof this.owner.lookup('service:app-state').get('dashboard_design_opener'), 'function',
+      'the opener other entry points use is registered');
+  });
 });
