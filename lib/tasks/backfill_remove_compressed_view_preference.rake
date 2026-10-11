@@ -34,12 +34,21 @@ task "extras:backfill_remove_compressed_view_preference" => :environment do
       next unless prefs.is_a?(Hash) && prefs.has_key?('compressed_view')
       matched += 1
       next unless frd
-      prefs.delete('compressed_view')
-      # Plain settings mutation, as in extras:clear_no_name_placeholder: both after_save hooks
-      # early-return (track_boards needs @do_track_boards; notify_of_changes needs
-      # @password_changed / @email_changed / @opt_out), so this sends no mail and queues no jobs.
-      user.save!
-      updated += 1
+      # settings is ONE encrypted blob and find_each loaded this user with its batch, so saving that
+      # copy would undo any settings change the user made since. with_lock re-reads the row under
+      # SELECT ... FOR UPDATE, so the key is removed from the CURRENT settings and nothing can be
+      # written in between.
+      user.with_lock do
+        current = user.settings && user.settings['preferences']
+        if current.is_a?(Hash) && current.has_key?('compressed_view')
+          current.delete('compressed_view')
+          # Plain settings mutation, as in extras:clear_no_name_placeholder: both after_save hooks
+          # early-return (track_boards needs @do_track_boards; notify_of_changes needs
+          # @password_changed / @email_changed / @opt_out), so this sends no mail and queues no jobs.
+          user.save!
+          updated += 1
+        end
+      end
     rescue => e
       errors += 1
       puts "\n  ERROR on #{user.global_id}: #{e.class}: #{e.message}"

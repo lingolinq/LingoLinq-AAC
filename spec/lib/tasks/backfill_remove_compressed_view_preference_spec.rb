@@ -76,6 +76,22 @@ describe 'extras:backfill_remove_compressed_view_preference rake task' do
     expect(u.reload.settings['preferences']).not_to have_key('compressed_view')
   end
 
+  # find_each loads users a batch at a time and settings is one encrypted blob, so saving the copy
+  # loaded with the batch would undo any settings change the user saved in between.
+  it "should not undo a settings change saved after the batch was loaded" do
+    ENV['FRD'] = '1'
+    u = user_with('compressed_view' => true, 'dashboard_layout' => 'gentle')
+    loaded_with_batch = User.find(u.id)
+    meanwhile = User.find(u.id)
+    meanwhile.settings['preferences']['dashboard_layout'] = 'focused'
+    meanwhile.save!
+    allow(User).to receive(:find_each).and_yield(loaded_with_batch)
+    run_task
+    prefs = u.reload.settings['preferences']
+    expect(prefs['dashboard_layout']).to eq('focused')
+    expect(prefs).not_to have_key('compressed_view')
+  end
+
   it "should keep going when one record raises" do
     ENV['FRD'] = '1'
     bad = user_with('compressed_view' => true)
