@@ -193,8 +193,8 @@ callback in `afterEach`, or a later test's message resolves this test's promise.
   synchronous plain QUnit test; after an async or jasmine-style test the fetch is usually flushed
   before the wait runs). To find them all, delay every FetchManager flush past the post-test settle
   (`ember test --query "probeDelay=1500"`, `tests/test-helper.js`). `.github/workflows/ember-fetch-probe.yml`
-  runs it weekly and on demand, but GitHub runs those triggers from the default branch only, so it
-  starts once it is on `main` and then probes `main`; probe a branch locally with that command.
+  runs it on demand (Actions tab) once it is on the default branch, `develop`, against any branch
+  that has it; a weekly schedule is added after the first green whole-suite run.
 
 **DOM.** Remove every element the test (or app code it drives) appends to `<body>`. Elements the
 app creates once and caches for the page lifetime still leak between tests: the test that triggers

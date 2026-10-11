@@ -3,18 +3,19 @@ name: Ember fetch probe
 # Finds Ember tests that end without awaiting an Ember Data fetch they started. In a normal run Ember Data
 # usually sends the fetch before setupTest's teardown check looks (tests/helpers/index.js), so such a
 # test can pass and later fail a different test at random. This runs the whole suite with every fetch
-# flush delayed by 1500 ms (tests/test-helper.js, ?probeDelay=), longer than the post-test settle and
-# the teardown wait, so the check always sees the fetch and fails that test.
+# flush delayed by 1500 ms (tests/test-helper.js, ?probeDelay=), longer than the post-test settle, so a
+# fetch queued near the end of a test is still pending when setupTest's teardown check looks, and that
+# test fails. (The teardown wait itself lasts 500 ms plus the delay, so the flush still runs before the
+# store is destroyed.)
 #
-# Not a required check, and not run on pull requests: weekly, and on demand from the Actions tab. GitHub
-# runs scheduled and manual workflows from the DEFAULT branch only, so this starts once it is on main and
-# then tests main; to probe another branch, run `ember test --query "probeDelay=1500"` locally. A
-# delayed flush also slows tests that DO await their fetches; one that awaits several in turn can hit
-# its wait limit, so read a failure's message before treating it as a leak.
+# Not a required check, and not run on pull requests. On demand only for now (Actions tab, "Run
+# workflow"): GitHub lists a manual workflow once the file is on the default branch (develop), and a
+# run can then target any branch that has it. A whole-suite run has not been done yet, and a delayed
+# flush also slows tests that DO await their fetches (one that awaits several in turn can hit its wait
+# limit), so read each failure's message before treating it as a leak. Add a weekly `schedule:` once a
+# run is green.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 6 * * 1'
 
 permissions:
   contents: read

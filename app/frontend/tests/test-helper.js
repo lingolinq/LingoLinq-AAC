@@ -17,8 +17,8 @@ QUnit.config.testTimeout = 15000;
 
 // Opt-in fetch probe: `?probeDelay=<ms>` (ember test --query "probeDelay=1500"; used by
 // .github/workflows/ember-fetch-probe.yml). Delays every Ember Data fetch flush by that long, longer than
-// the post-test settle and setupTest's teardown wait, so a test that ends without awaiting a fetch it
-// started is always caught by that teardown check (tests/helpers/index.js). In a normal run the flush is
+// the post-test settle, so a fetch queued near the end of a test is still pending when setupTest's
+// teardown check looks (tests/helpers/index.js), which then waits past the delay before teardown. In a normal run the flush is
 // usually done before the check runs, so such a test can pass unnoticed. Off by default. Patched on the
 // FetchManager prototype, reached through the store's lazily assigned _fetchManager, so every store is
 // covered. Commit 7b0848298 describes the investigation that needed it.
