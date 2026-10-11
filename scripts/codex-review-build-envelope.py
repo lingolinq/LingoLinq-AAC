@@ -449,15 +449,18 @@ TRUNCATED_DIFF_OUTCOME = {
 }
 
 
-def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files=None, truncated=False):
+def guarded_outcome(review, diff, binary_diff=None, read_head=None, binary_files=None, truncated=False,
+                    also_scanned=()):
     """Per-run outcome with the prompt-injection guard applied: an APPROVE whose
     diff carries verdict-steering text is withheld and fails closed.
 
     binary_diff is the UNTRUNCATED diff for the binary guard: the bounded diff the reviewer sees is
     cut at a size cap, and a hidden file past the cut must still withhold an APPROVE. read_head (see
-    binary_content_mismatches) also checks that each expected-type binary file is that type."""
+    binary_content_mismatches) also checks that each expected-type binary file is that type.
+    also_scanned: other PR text the reviewer saw (the live state: title, body, file list), scanned
+    like the diff."""
     outcome = review_outcome(review)
-    if outcome["kind"] == "approved" and diff_has_injection(diff):
+    if outcome["kind"] == "approved" and (diff_has_injection(diff) or any(map(diff_has_injection, also_scanned))):
         return {
             "kind": "suspected_prompt_injection",
             "status_state": "failure",
@@ -661,7 +664,7 @@ def _git_changed_paths(base_sha, head_sha):
 
 
 def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, synthesis_paths, full_diff,
-                              read_head=None, binary_files=None):
+                              read_head=None, binary_files=None, synthesis_input=""):
     manifest = _load(manifest_path)
     policy = _load_policy()
     errors = []
@@ -808,6 +811,22 @@ def validate_chunked_evidence(manifest_path, evidence_dir, chunk_review_paths, s
         }
         review_body = _withheld_review(review_body, outcome, head_sha, finding)
         return outcome, "full raw diff injection guard", 0, review_body, synthesis_reviews[decisive_index]
+    # The synthesis prompt carries text the raw diff does not: the PR title and body, file names and
+    # the model-authored chunk results.
+    if final["kind"] == "approved" and diff_has_injection(synthesis_input):
+        finding = _path_coverage_finding(
+            head_sha,
+            "The synthesis input (PR title and body, file names, chunk results) contains possible prompt-injection text.",
+            "The synthesis prompt matched the CI prompt-injection guard.",
+        )
+        outcome = {
+            "kind": "suspected_prompt_injection",
+            "status_state": "failure",
+            "status_description": "Codex review APPROVE withheld: possible prompt-injection in the PR text (needs human)",
+            "human_label": "Suspected prompt-injection",
+        }
+        review_body = _withheld_review(review_body, outcome, head_sha, finding)
+        return outcome, "synthesis input injection guard", 0, review_body, synthesis_reviews[decisive_index]
     hidden = unreviewable_binary_paths(full_diff, read_head, binary_files) if final["kind"] == "approved" else []
     if hidden:
         finding = _path_coverage_finding(
@@ -840,6 +859,13 @@ def main():
         action="store_true",
         help="the bounded diff was cut at its size cap (set by the workflow's own size check): withhold APPROVE",
     )
+    parser.add_argument(
+        "--injection-scan",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="other model input to scan for prompt injection (bounded: the live state; chunked: the synthesis prompt)",
+    )
     parser.add_argument("--manifest", default=None, help="chunked evidence manifest")
     parser.add_argument("--evidence-dir", default=None, help="chunked evidence directory")
     parser.add_argument("--chunk-reviews", nargs="*", default=[], help="chunk review JSON files")
@@ -867,6 +893,13 @@ def main():
             binary_diff = pathlib.Path(args.binary_scan_diff).read_bytes().decode("utf-8", "surrogateescape")
         except OSError as error:
             parser.error(f"--binary-scan-diff unreadable: {error.__class__.__name__}")
+    scanned = []
+    for path in args.injection_scan:
+        # Fail closed: an unreadable file must not read as "no injection".
+        try:
+            scanned.append(pathlib.Path(path).read_bytes().decode("utf-8", "surrogateescape"))
+        except OSError as error:
+            parser.error(f"--injection-scan unreadable: {error.__class__.__name__}")
     if args.binary_content_at is not None and not args.binary_content_at.strip():
         # Fail closed: an unset HEAD_SHA expands to "" and would silently turn the guard off.
         parser.error("--binary-content-at is empty; the binary content guard needs the PR head SHA")
@@ -881,7 +914,7 @@ def main():
         except (OSError, subprocess.CalledProcessError) as error:
             # Fail closed: without git's list the binary guard cannot be trusted.
             parser.error(f"could not list binary files with git: {error.__class__.__name__}")
-    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head, binary_files, args.bounded_truncated)
+    outcomes = [guarded_outcome(_load(path), diff, binary_diff, read_head, binary_files, args.bounded_truncated, scanned)
                 for path in args.reviews]
 
     if args.need_third:
@@ -899,6 +932,7 @@ def main():
             diff,
             read_head,
             binary_files,
+            "\n".join(scanned),
         )
         per_run_kind = [final_outcome["kind"]]
         run_count = len(args.chunk_reviews) + len(args.synthesis_reviews)
@@ -925,8 +959,8 @@ def main():
             # guarded_outcome withheld the run's APPROVE; say why, as the chunked guard does.
             finding = _path_coverage_finding(
                 head_sha,
-                "The diff contains possible prompt-injection text.",
-                "The BASE...HEAD diff the reviewer saw matched the CI prompt-injection guard.",
+                "The diff or the PR text the reviewer saw (title, body, file list) contains possible prompt-injection text.",
+                "The BASE...HEAD diff or the live state the reviewer saw matched the CI prompt-injection guard.",
             )
             review_body = _withheld_review(review_body, final_outcome, head_sha, finding)
         elif final_outcome == TRUNCATED_DIFF_OUTCOME:

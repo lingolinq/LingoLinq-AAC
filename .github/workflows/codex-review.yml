@@ -634,6 +634,7 @@ jobs:
               --chunk-reviews "${CHUNK_REVIEWS[@]}" \
               --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
               --binary-content-at "$HEAD_SHA" \
+              --injection-scan /tmp/codex-review-results/synthesis-prompt.md \
               --out /tmp/envelope.json
           else
             # An APPROVE over a cut diff is withheld. Fail closed: anything but CI's own `complete`
@@ -642,7 +643,7 @@ jobs:
             if [ "$(cat /tmp/pr_diff_state.txt 2>/dev/null)" = complete ]; then
               TRUNCATED_FLAG=
             fi
-            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --binary-content-at "$HEAD_SHA" $TRUNCATED_FLAG --out /tmp/envelope.json $REVIEWS
+            python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-build-envelope.py" --diff /tmp/pr_diff.txt --binary-scan-diff /tmp/pr_diff_full.txt --binary-content-at "$HEAD_SHA" $TRUNCATED_FLAG --injection-scan /tmp/live_state_prompt.txt --out /tmp/envelope.json $REVIEWS
           fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
