@@ -423,7 +423,7 @@ jobs:
   # itself (a shard only checks itself, so two shards mis-wired to the same half each pass).
   ember-shard-coverage:
     needs: [ember-shard-scope, ember-shard]
-    if: always() && needs.ember-shard-scope.outputs.run == 'true'
+    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -455,7 +455,7 @@ jobs:
   # it. Not required; read with scripts/ci-shard-compare.py.
   ember-shard-compare:
     needs: [build-and-test, ember-shard-scope, ember-shard]
-    if: always() && needs.ember-shard-scope.outputs.run == 'true'
+    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
