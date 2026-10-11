@@ -5,6 +5,7 @@ import {
 } from 'ember-qunit';
 import { primeAllServices } from './persistence-stub';
 import QUnit from 'qunit';
+import { fetchProbeDelay } from './fetch-probe';
 
 // This file exists to provide wrappers around ember-qunit's / ember-mocha's
 // test setup functions. This way, you can easily extend the setup that is
@@ -44,7 +45,8 @@ function setupRenderingTest(hooks, options) {
 //
 // What this sees: whatever is still queued when this hook starts. After a SYNCHRONOUS plain QUnit test
 // that is any fetch it did not wait for (QUnit goes from the test body to its hooks in a microtask,
-// before the setTimeout(0) flush). After an async test or a jasmine-style it() (which ends through
+// before the setTimeout(0) flush), unless an async afterEach of its module runs first (hooks registered
+// after setupTest run before this one, and an async hook lets the flush happen). After an async test or a jasmine-style it() (which ends through
 // assert.async, then a setTimeout), a fetch queued during the body is normally flushed already, so
 // only a fetch queued after the test signalled it was done is seen. It therefore does not find every
 // test that skips waiting; the opt-in fetch probe does (`?probeDelay=`, tests/test-helper.js; it found
@@ -100,9 +102,11 @@ function setupTest(hooks, options) {
   // Registered after ember-qunit's teardown hook, so it runs BEFORE it (QUnit runs afterEach hooks
   // in reverse order of registration).
   hooks.afterEach(async function(assert) {
-    if (await waitForQueuedStoreFetches(this.owner)) {
+    // Under the opt-in fetch probe every flush is delayed, so wait past that delay too: the flush must
+    // still run before teardown (the hit is decided at entry either way).
+    if (await waitForQueuedStoreFetches(this.owner, 500 + fetchProbeDelay())) {
       recordQueuedFetch();
-      assert.pushResult({ result: false, actual: 'an Ember Data fetch still queued', expected: 'no fetch queued at teardown', message: 'this test ended without awaiting an Ember Data fetch it started; wait for it (or for the state it sets) before the test ends' });
+      assert.pushResult({ result: false, actual: 'an Ember Data fetch still queued', expected: 'no fetch queued at teardown', message: 'an Ember Data fetch was still queued when this test ended: await it (or the state it sets) before the test ends. It can also be late work from an EARLIER test landing here; reproduce deterministically with `ember test --query "probeDelay=1500" --filter <module>` (tests/test-helper.js)' });
     }
   });
 }

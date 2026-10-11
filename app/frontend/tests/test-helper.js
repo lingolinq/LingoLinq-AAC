@@ -11,6 +11,7 @@ import './helpers/apply-parallel-pool';
 import './helpers/leak-check';
 import { set_owner_gone_listener } from 'frontend/utils/live_service';
 import Store from 'ember-data/store';
+import { fetchProbeDelay } from './helpers/fetch-probe';
 
 QUnit.config.testTimeout = 15000;
 
@@ -21,11 +22,8 @@ QUnit.config.testTimeout = 15000;
 // usually done before the check runs, so such a test can pass unnoticed. Off by default. Patched on the
 // FetchManager prototype, reached through the store's lazily assigned _fetchManager, so every store is
 // covered. Commit 7b0848298 describes the investigation that needed it.
-const fetchProbeDelay = (function() {
-  const match = /[?&]probeDelay=(\d+)/.exec(window.location.search || '');
-  return match ? parseInt(match[1], 10) : 0;
-})();
-if (fetchProbeDelay > 0) {
+const probeDelay = fetchProbeDelay();
+if (probeDelay > 0) {
   Object.defineProperty(Store.prototype, '_fetchManager', {
     configurable: true,
     get() { return this.__fetchProbeManager; },
@@ -35,11 +33,11 @@ if (fetchProbeDelay > 0) {
         const flush = proto.flushAllPendingFetches;
         proto.flushAllPendingFetches = function() {
           const self = this;
-          setTimeout(function() { flush.call(self); }, fetchProbeDelay);
+          setTimeout(function() { flush.call(self); }, probeDelay);
         };
         proto.__fetchProbeDelayed = true;
         // eslint-disable-next-line no-console
-        console.warn(`[fetch-probe] every Ember Data fetch flush is delayed by ${fetchProbeDelay} ms`);
+        console.warn(`[fetch-probe] every Ember Data fetch flush is delayed by ${probeDelay} ms`);
       }
       this.__fetchProbeManager = manager;
     }

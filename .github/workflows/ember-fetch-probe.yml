@@ -6,7 +6,9 @@ name: Ember fetch probe
 # flush delayed by 1500 ms (tests/test-helper.js, ?probeDelay=), longer than the post-test settle and
 # the teardown wait, so the check always sees the fetch and fails that test.
 #
-# Not a required check, and not run on pull requests: weekly, and on demand from the Actions tab. A
+# Not a required check, and not run on pull requests: weekly, and on demand from the Actions tab. GitHub
+# runs scheduled and manual workflows from the DEFAULT branch only, so this starts once it is on main and
+# then tests main; to probe another branch, run `ember test --query "probeDelay=1500"` locally. A
 # delayed flush also slows tests that DO await their fetches; one that awaits several in turn can hit
 # its wait limit, so read a failure's message before treating it as a leak.
 on:
@@ -62,6 +64,7 @@ jobs:
 
       - name: Run Ember tests with every fetch flush delayed
         working-directory: app/frontend
+        timeout-minutes: 110
         shell: bash
         run: |
           status=0
@@ -70,8 +73,20 @@ jobs:
             echo "::error::the fetch probe did not switch on (no [fetch-probe] line): this run proves nothing"
             exit 1
           fi
-          hits=$(grep -oE '\[queued-fetch\] ([^"\\]|\\.)*' ember-test.log | sort | uniq -c || true)
+          exit "$status"
+
+      # A separate step, so the list survives a failed or timed-out test step. The harness self-test that
+      # leaves a fetch queued on purpose (tests/unit/helpers/wait-for-queued-store-fetches-test.js) logs a
+      # line every run; it is not an offender.
+      - name: List tests that ended with a fetch still queued
+        if: always()
+        working-directory: app/frontend
+        shell: bash
+        run: |
+          [ -f ember-test.log ] || { echo "No test log (the test step did not run)." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          hits=$(grep -oE '\[queued-fetch\] ([^"\\]|\\.)*' ember-test.log | grep -v 'a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
           if [ -n "$hits" ]; then
             { echo "### Tests that ended with an Ember Data fetch still queued"; echo '```'; printf '%s\n' "$hits"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No test ended with an Ember Data fetch still queued." >> "$GITHUB_STEP_SUMMARY"
           fi
-          exit "$status"

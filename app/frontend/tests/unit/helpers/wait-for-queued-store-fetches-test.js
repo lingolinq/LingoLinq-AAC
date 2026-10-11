@@ -36,18 +36,17 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
     assert.expect(2);
     const push = assert.pushResult;
     assert.pushResult = function(result) {
-      if (result && result.result === false && /without awaiting an Ember Data fetch/.test(result.message)) {
+      if (result && result.result === false && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
         return push.call(assert, { result: true, actual: result.message, expected: result.message, message: 'setupTest failed the test that left its fetch queued' });
       }
       return push.call(assert, result);
     };
     const store = this.owner.lookup('service:store');
     const adapter = store.adapterFor('application');
-    const realFindRecord = adapter.findRecord;
+    // Not put back: this owner's adapter is torn down with it, and the queued flush (run during the
+    // teardown wait, possibly delayed by the fetch probe) must still find this stand-in.
     adapter.findRecord = function() { return Promise.reject(new Error('not sent in this test')); };
     store.findRecord('board', 'queued-fetch-left-on-purpose').catch(function() {});
     assert.ok(true, 'a fetch is left queued');
-    // The adapter is put back once the wait has let the flush run (it runs before teardown).
-    setTimeout(function() { adapter.findRecord = realFindRecord; }, 0);
   });
 });

@@ -285,7 +285,7 @@ jobs:
       - name: Classify frontend impact
         id: frontend-scope
         continue-on-error: true
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             if (context.eventName !== 'pull_request') {
@@ -341,17 +341,17 @@ jobs:
             query: pool=exclude
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Node 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           package-manager-cache: false
 
       # Same key as build-and-test (Node major in the key: see the note there).
       - name: Cache node_modules and Puppeteer Chrome
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
             app/frontend/node_modules
@@ -398,7 +398,7 @@ jobs:
           # Report only: never fails the step.
           # A test name may hold an escaped quote. The harness self-test that leaves a fetch queued on purpose
           # (tests/unit/helpers/wait-for-queued-store-fetches-test.js) logs one line every run; it is not late work.
-          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | grep -v 'a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
+          late_work=$(grep -oE '\[(queued-fetch|owner-gone)\] ([^"\\]|\\.)*' ember-test.log | grep -v '\[queued-fetch\].*a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
           if [ -n "$late_work" ]; then
             { echo "Late work reported by the harness (a test did not wait for work it started):"; echo '```'; printf '%s\n' "$late_work"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -430,7 +430,7 @@ jobs:
     steps:
       # The job holds a token that can read this run's logs; keep it out of the checkout.
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
 
@@ -462,7 +462,7 @@ jobs:
     steps:
       # The job holds a token that can read this run's logs; keep it out of the checkout.
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
 
