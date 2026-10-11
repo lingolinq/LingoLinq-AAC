@@ -275,7 +275,7 @@ export default Service.extend({
          force_logout/persistence calls, which a destroyed service must not make either.
          Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
          async leak". */
-      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
+      if(!_this || _this.isDestroyed || _this.isDestroying || !_this._checked_token_is_current(store_data.access_token)) { return RSVP.resolve({ success: false }); }
       var _vb = (window.LingoLinq || {}).verboseDebug;
       if (_vb) {
         console.log('[check_token] Token check succeeded', {
@@ -299,7 +299,7 @@ export default Service.extend({
           if(_this.persistence && _this.persistence.tokens) {
             _this.persistence.tokens[key] = false;
           }
-          if(allow_invalidate && _this._token_still_stored(store_data.access_token)) {
+          if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: true};
           }
@@ -366,7 +366,7 @@ export default Service.extend({
          force_logout/persistence calls, which a destroyed service must not make either.
          Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
          async leak". */
-      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
+      if(!_this || _this.isDestroyed || _this.isDestroying || !_this._checked_token_is_current(store_data.access_token)) { return RSVP.resolve({ success: false }); }
       var onlineStatus = _this.persistence ? _this.persistence.get('online') : false;
       var _vb = (window.LingoLinq || {}).verboseDebug;
       
@@ -409,7 +409,7 @@ export default Service.extend({
           }
           _this.set('invalid_token', true);
           _this.set('token_validated', false);
-          if(allow_invalidate && _this._token_still_stored(store_data.access_token)) {
+          if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: false, needsReauth: true};
           }
@@ -707,6 +707,7 @@ export default Service.extend({
   // or SPA-transition and hide that modal.
   _tear_down_dead_session: function() {
     this._logout_landing = true;
+    var own_token = this.get('access_token');
     this.set('token_validated', false);
     this.set('invalid_token', true);
     this.set('isAuthenticated', false);
@@ -715,17 +716,28 @@ export default Service.extend({
     if(capabilities) {
       capabilities.access_token = null;
     }
-    try {
-      this.persist({});
-    } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }
+    // Clear the stored login only when it is this tab's (or already empty): another tab may have
+    // signed in since, and every tab shares it.
+    var stored = this.stashes.get_object('auth_settings', true) || {};
+    if(!stored.access_token || !own_token || stored.access_token === own_token) {
+      try {
+        this.persist({});
+      } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }
+    }
   },
 
-  // False once the token a check_token request was sent with is no longer the stored one: a
-  // failure that landed while the request was in flight already tore the session down
-  // (_tear_down_dead_session persists {}), so that logout must not run a second time.
-  _token_still_stored: function(token) {
+  // Is the token a check_token request was sent with still THIS TAB's token? If not, its answer is
+  // stale and is ignored (check_token's response guards): this tab already tore the session down
+  // (another failure landed while the request was in flight), or signed in again with a new token.
+  // Compared with this tab's in-memory token, not the stored login, which every tab shares: when
+  // ANOTHER tab logs out or signs in, this tab's dead token still has to log this tab out. Before
+  // restore() has set the in-memory token, the stored login is the reference. No token: not stale.
+  _checked_token_is_current: function(token) {
+    if(!token || token === 'none') { return true; }
+    var current = this.get('access_token');
+    if(current) { return current === token; }
     var stored = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
-    return !!token && stored.access_token === token;
+    return stored.access_token === token;
   },
 
   force_logout: function(message) {

@@ -3157,6 +3157,14 @@ describe('app_state', function() {
       expect(transitionWith('force-logout', true, false, 'login')).toEqual(true);
     });
 
+    // `login` has a child route (router.js), so the leaf name global_transition receives for /login
+    // is `login.index` (routes/application.js#leafRouteName); `login.device` is the other child.
+    ['login.index', 'login.device'].forEach(function(route) {
+      it("closes on the way to " + route + ", the name the router really reports", function() {
+        expect(transitionWith('force-logout', true, false, route)).toEqual(true);
+      });
+    });
+
     // The dialog's own links (components/login-form.hbs: "need help?", "forgot password", "sign
     // up"): kept open over them, the user could not reach the page they asked for.
     ['forgot_login', 'forgot_password', 'register'].forEach(function(route) {

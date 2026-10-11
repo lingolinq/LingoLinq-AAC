@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
+import modal from 'frontend/utils/modal';
 
 /* THE `:user_id` ROUTE MUST LET ITS ERRORS REACH THE ERROR PAGE.
  *
@@ -13,12 +14,19 @@ import { setupTest } from '../../helpers';
  * Ember render templates/error.hbs.
  *
  * EXCEPT WHILE THE SESSION IS ENDING: then the force-logout dialog is the page, and in-flight
- * requests answer 400 as anonymous, which must not replace it with "Failed to load".
+ * requests answer 400 as anonymous, which must not replace it with "Failed to load". Held back
+ * only while that dialog is OPEN (2026-10-11, approved): after an in-app logout it is closed but
+ * `logout_under_way()` stays true until the next sign-in, and a signed-out visitor still needs the
+ * error page.
  */
 module('Unit | routes/user error action', function(hooks) {
   setupTest(hooks);
 
+  var originalIsOpen = modal.is_open;
+  hooks.afterEach(function() { modal.is_open = originalIsOpen; });
+
   function errorAction(context, flags) {
+    modal.is_open = function(template) { return !!flags.dialog_open && template === 'force-logout'; };
     var session = context.owner.lookup('service:session');
     session.set('invalid_token', !!flags.invalid_token);
     session.set('isAuthenticated', flags.isAuthenticated !== false);
@@ -55,9 +63,14 @@ module('Unit | routes/user error action', function(hooks) {
   });
 
   test('an anonymous 400 landing after the logout teardown does not replace the dialog', function(assert) {
-    var res = errorAction(this, { invalid_token: true, isAuthenticated: false })(denial);
+    var res = errorAction(this, { invalid_token: true, isAuthenticated: false, dialog_open: true })(denial);
     assert.false(res.bubbled);
     assert.deepEqual(res.transitions, []);
+  });
+
+  test('after an in-app logout (dialog closed, flag still set) errors reach the error page again', function(assert) {
+    var res = errorAction(this, { invalid_token: true, isAuthenticated: false, dialog_open: false })({ fakeXHR: { status: 404 }, result: 'Not found' });
+    assert.true(res.bubbled);
   });
 
   test('a dead-session response itself does not render the error page', function(assert) {

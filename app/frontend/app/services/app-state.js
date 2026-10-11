@@ -5464,10 +5464,11 @@ export default Service.extend({
      before its own SPA transition (services/session.js). Placed last so the ESLint baseline's
      line anchors above do not shift. */
   keeps_force_logout_open: function(transition) {
-    // The login page has its own form; the other three are the dialog's own links
+    // The login page has its own form (`login` has child routes, so it arrives as `login.index` or
+    // `login.device`; same match as routes/index.js); the other three are the dialog's own links
     // (components/login-form.hbs "need help?", "forgot password", "sign up").
-    var exits = ['login', 'forgot_login', 'forgot_password', 'register'];
-    if(exits.indexOf(transition && transition.to_route) !== -1) { return false; }
+    var to_route = (transition && transition.to_route) || '';
+    if(/^login(\.|$)/.test(to_route) || ['forgot_login', 'forgot_password', 'register'].indexOf(to_route) !== -1) { return false; }
     return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
   }
 });

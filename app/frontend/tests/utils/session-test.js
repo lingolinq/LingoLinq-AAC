@@ -757,6 +757,67 @@ describe('session', function() {
       });
     });
 
+    // The user signed back in (a new token) while a check of the OLD token was in flight: its answer
+    // must not mark the new session expired (sync skips its token check on that flag).
+    it('ignores the answer for a token this tab has already replaced', function() {
+      modal.route = null;
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() { invalidated = true; });
+      var stored = {access_token: 'happy_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      session.set('access_token', 'happy_token');
+      var settled = false;
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        stored = {access_token: 'new_token'};
+        session.set('access_token', 'new_token');
+        session.set('invalid_token', false);
+        return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(true).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled; });
+      runs(function() {
+        expect(invalidated).toEqual(false);
+        expect(session.get('invalid_token')).toEqual(false);
+      });
+    });
+
+    // Another tab logged out while this tab's check was in flight: this tab's token is dead and the
+    // shared stored login is gone, so this tab logs out too instead of showing the old user's data.
+    it('still logs out when another tab cleared the stored login', function() {
+      modal.route = null;
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() { invalidated = true; });
+      var stored = {access_token: 'happy_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      session.set('access_token', 'happy_token');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        stored = {};
+        return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(true);
+      waitsFor(function() { return invalidated; });
+      runs(function() {
+        expect(invalidated).toEqual(true);
+      });
+    });
+
+    // Tearing down this tab's dead session must not erase a login another tab has just saved.
+    it("the teardown leaves another tab's newer stored login alone", function() {
+      var persisted = [];
+      stub(sessionTarget(), 'persist', function(data) { persisted.push(data); });
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return {access_token: 'other_tab_token'}; }
+      });
+      session.set('access_token', 'happy_token');
+      session._tear_down_dead_session();
+      expect(persisted).toEqual([]);
+      expect(session.get('isAuthenticated')).toEqual(false);
+    });
+
     it('should not invalidate the session if not allowed', function() {
       var invalidated = false;
       stub(sessionTarget(), 'invalidate', function() {
