@@ -27,8 +27,8 @@ name: Data-bearing paths
 #   3. Before 2026-11-02, when GitHub starts blocking pull_request_target on public
 #      repositories without an event policy: under Settings > Actions > Policies, an
 #      active policy targeting only .github/workflows/data-bearing-paths.yml whose event
-#      rule allows pull_request_target. Without it the check never runs and every PR
-#      shows the required check as missing.
+#      rule allows pull_request_target. Without it the check never runs: a new head gets
+#      no status and stays blocked, but a status already on a head stays as it was.
 #   Until 1 and 2 exist, every run fails at the token step and posts nothing, which
 #   keeps the required check missing and the PR blocked.
 #
