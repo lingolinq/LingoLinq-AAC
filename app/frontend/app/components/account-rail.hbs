@@ -1,28 +1,4 @@
-<nav id="acct_rail_nav" class="md-acct-rail {{if this.railCollapsed "md-acct-rail--collapsed"}}" aria-label={{t "Account menu" key="account_menu"}} {{on-insert this.railMounted}}>
-  {{!-- SCROLL PAGER, only when the panel actually overflows. On a short viewport the eleven
-       rows do not fit, and a wheel or a Tab key is not available to everyone: an eye-gaze or
-       switch user can only activate what is on screen, so without these the rows below the
-       fold are unreachable.
-       STICKY, not static: the pager lives inside the scrolling panel, so without this it
-       would scroll away with the rows it exists to scroll. It holds the top while they move
-       underneath.
-       Disabled at the ends rather than removed, and the pair renders or vanishes together --
-       see the note in controllers/user/index.js#update_rail_scroll for why a button that
-       disappears mid-scroll is a problem for someone dwelling on it. --}}
-  {{#if this.rail_scrollable}}
-    <div class="md-acct-rail__pager">
-      <button type="button" class="md-acct-rail__pager-btn" id="acct_rail_scroll_up_button"
-              disabled={{this.rail_at_top}} {{on "click" (fn this.scrollRail "up")}}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
-        <span class="md-acct-rail__pager-label">{{t "Up" key="up"}}</span>
-      </button>
-      <button type="button" class="md-acct-rail__pager-btn" id="acct_rail_scroll_down_button"
-              disabled={{this.rail_at_bottom}} {{on "click" (fn this.scrollRail "down")}}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        <span class="md-acct-rail__pager-label">{{t "Down" key="down"}}</span>
-      </button>
-    </div>
-  {{/if}}
+<nav id="acct_rail_nav" class="md-acct-rail {{if this.railCollapsed "md-acct-rail--collapsed"}}" aria-label={{t "Account menu" key="account_menu"}}>
   {{!-- `--home` is a LEVEL UP, not a sibling: every other row in this nav is a `user.*`
        sub-page of the account section, and this one leaves it for the app home. It is
        styled as a quieter, separated link so the eight section pages read as one group. --}}
@@ -37,14 +13,22 @@
        highlight and the announcement disagreeing — the silent 2026-09-21 defect recorded in
        learnings-archive/2026-09.md. <LinkTo> still adds its own default `active` class; nothing
        styles it (only `.md-acct-rail__row.is-active` is), so it is inert. --}}
-  {{!-- COMPRESSED VIEW drops the Home Page row: it goes where the top tabs' Dashboard pill goes,
-       and the tabs already mark which area you are in. --}}
-  {{#unless this.compressed}}
+  {{!-- 900px AND NARROWER: THE ROWS COLLAPSE INTO A DROPDOWN (requested 2026-10-10), shaped like
+       the pill nav's dropdown (components/user-pill-nav.hbs) with the rows' own surface. The
+       trigger is hidden above 900px; the rows below sit in ONE wrapper that is `display: contents`
+       there, so the side panel lays them out exactly as before. A <button> with aria-expanded
+       rather than <details>: a closed <details> cannot be kept open above 900px without a
+       content box that would break the panel's row layout. Closing on choice / outside click /
+       Escape lives in account-rail.js, mirroring modifiers/details-autoclose.js. --}}
+  <button type="button" class="md-acct-rail__menu-trigger" aria-haspopup="true" aria-expanded={{if this.menuOpen "true" "false"}} aria-controls="acct_rail_rows" {{on "click" this.toggleMenu}}>
+    <span class="md-acct-rail__menu-label">{{this.activeLabel}}</span>
+    <svg class="md-acct-rail__menu-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+  <div id="acct_rail_rows" class="md-acct-rail__rows {{if this.menuOpen "is-open"}}">
   <LinkTo @route="index" class="md-acct-rail__row md-acct-rail__row--home {{if (is_equal this.activeRow "home") "is-active"}}" aria-current={{if (is_equal this.activeRow "home") "page"}}>
   <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#4C86D8"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
   <span class="md-acct-rail__label">{{t "Home Page" key="home_page"}}</span>
   </LinkTo>
-  {{/unless}}
   {{!-- WHICH ROW IS LIT is <LinkTo>'s own job, via `@activeClass` -- it already knows which
      route is current and recomputes on every transition. This row used to carry a literal
      `is-active` and a hardcoded `aria-current="page"`, which was harmless while the rail
@@ -70,17 +54,6 @@
   <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
   <span class="md-acct-rail__label">{{t "Account" key="account_lower"}}</span>
   </LinkTo>
-  {{!-- COMPRESSED VIEW: Create Board, moved here from the home page and kept in the rail's
-       alphabetical order (requested 2026-09-29), between Account and Goals. A <button>, not a
-       link: it runs the purchase check before opening the new-board page (`createBoard` in
-       account-rail.js), the same flow as every other Create a Board entry point.
-       `.md-acct-rail__row` already styles a button like the anchor rows. --}}
-  {{#if this.compressed}}
-  <button type="button" class="md-acct-rail__row md-acct-rail__row--create" {{on "click" this.createBoard}}>
-  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5" stroke="#2A9D8F"/><line x1="12" y1="8.5" x2="12" y2="15.5" stroke="#2A9D8F"/><line x1="8.5" y1="12" x2="15.5" y2="12" stroke="#2A9D8F"/></svg></span>
-  <span class="md-acct-rail__label">{{t "Create Board" key="create_board"}}</span>
-  </button>
-  {{/if}}
   <LinkTo @route="user.goals" @model={{this.user.user_name}} class="md-acct-rail__row {{if (is_equal this.activeRow "goals") "is-active"}}" aria-current={{if (is_equal this.activeRow "goals") "page"}}>
   <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><circle cx="12" cy="12" r="5" stroke="#46505F"/><circle cx="12" cy="12" r="1.5" fill="#2A9D8F" stroke="none"/></svg></span>
   <span class="md-acct-rail__label">{{t "Goals" key="goals"}}</span>
@@ -144,11 +117,11 @@
   <span class="md-acct-rail__label">{{t "Home Board" key="home_board"}}<span class="md-acct-rail__sublabel">{{board-key-name this.user.preferences.home_board.key}}</span></span>
   </LinkTo>
   {{/if}}
+  </div>
 </nav>
 {{!-- THE COLLAPSE CONTROL (requested 2026-09-28), a SIBLING of the <nav>, not a row in it.
-     Inside the panel it would cost ~44px of height, and at 1024x768 the menu has ~31px to spare
-     with the Up/Down pager deliberately hidden (app.scss, `.md-acct-rail__pager` display:none
-     block), so Home Board would fall out of reach for switch and eye-gaze users. Out here it is
+     Inside the panel it would cost ~44px of height, and at 1024x768 the menu has ~31px to spare,
+     so Home Board would fall below the fold. Out here it is
      fixed to the app frame and straddles the panel's right border, the same look as Basic's
      `.ch-rail__toggle` (whose classes it reuses), and it never scrolls away with the rows.
      `tagName: ''` on the component is what lets the template have two root elements.

@@ -50087,8 +50087,8 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      identity stack, which is exactly the shape a divider is for.
 
      Identical recipe to the panel's dividers -- a solid dark wall with a 1px lit wall
-     beneath, so the two surfaces read as the same material: see `.md-acct-rail__pager::after`
-     and the Home Page / Home Board rules.
+     beneath, so the two surfaces read as the same material: see the Home Page / Home Board
+     rules.
 
      Centred in the card's 22px `row-gap` at -11px, so it sits between the identity stack and
      the band rather than hugging either. If that gap changes, this moves with it. */
@@ -50478,6 +50478,15 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      follow. */
   margin-bottom: 12px;
 }
+/* THE DIVIDER ON THE HOME PAGE TOO, IN THE EXPANDED MENU (requested 2026-10-10: "the Home Page button
+   needs to move up to make space for a divider below it"). The rule above, and the divider below,
+   were only for Home Page when it is NOT the current page; on the home page itself the row is lit
+   (`.is-active`) and had neither. Here it gets the same room and the same divider, and keeps the
+   active look. The collapsed icon menu is unchanged. */
+.md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__row--home.is-active {
+  position: relative;   /* containing block for the divider */
+  margin-bottom: 12px;
+}
 /* THE DIVIDER, as a line in the gap -- not the row's own `border-bottom`. That was the first
    attempt and it is invisible by construction: the row is a 12px rounded card, so a bottom
    border is read as the button's own edge rather than a rule between two groups. A pseudo
@@ -50489,7 +50498,8 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
 
    Full-bleed to the panel's padding edges (`left/right: -10px` against the panel's 10px
    padding) so it reads as a division of the whole list, not an underline of one button. */
-.md-acct-rail__row--home:not(.is-active)::after {
+.md-acct-rail__row--home:not(.is-active)::after,
+.md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__row--home.is-active::after {
   content: '';
   position: absolute;
   /* FULL BLEED across the panel. -10px cancels the panel's own 10px side padding, so the
@@ -50498,17 +50508,14 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      was the earlier attempt and it read as an underline belonging to one button. */
   left: -10px;
   right: -10px;
-  /* NOT quite centred, on purpose. The clear space below the button is this row's 20px
-     `margin-bottom` plus the nav's `gap` = 32px at the default gap, and the rule sat at half
-     of that. Moving it 4px further down tightens the space between the rule and Account
-     (requested 2026-09-18) while keeping the rule clear of Home Page's glow, which bleeds a
-     few pixels past the button's own edge and was crowding a centred line from above.
-     Result at the default 12px gap: 20px above the rule, 12px below.
-     NOTE the offset is fixed but the gap is not -- above 1200px the nav's gap is 18px, so the
-     same -20px reads as 20 above / 18 below there, closer to centred. That is acceptable
-     because the wide layout has the room; if it ever needs to track exactly, this value has to
-     move per breakpoint alongside the gap. */
-  bottom: -14px;
+  /* CENTRED IN THE SPACE BELOW HOME PAGE (requested 2026-10-10: "the expanded menu's home page
+     divider should be centered"). It used to sit 4px low on purpose (`bottom: -14px`, to clear
+     Home Page's glow), which measured 12px below / 10px above at the 12px gap and 12 / 2 at
+     1200px and below, where the gap is 4px. The space is this row's 12px `margin-bottom` plus the
+     nav's gap; the 2px line (rule + highlight) starts at half of it. `top` is measured from the
+     padding box, which the row's 1px bottom border sits outside, so half the space is exact.
+     12 + 12 here; the 1200px-and-below value is in the media rule after this one. */
+  top: calc(100% + 12px);
   /* 0.22 -> 0.38. At 0.22 the dash was barely separable from the panel's own gradient; this
      is still well short of the row borders, so the rule divides without competing with the
      buttons it sits between. */
@@ -50527,6 +50534,13 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
   pointer-events: none;
 }
+/* 1200px and below the nav's gap is 4px, so the space is 12 + 4 = 16px and the line starts at 8. */
+@media (max-width: 1200px) {
+  .md-acct-rail__row--home:not(.is-active)::after,
+  .md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__row--home.is-active::after {
+    top: calc(100% + 8px);
+  }
+}
 
 /* HOME BOARD mirrors Home Page at the far end: its divider faces UP, into the section rows,
    so the eight of them sit between two dividers as one group. Same 32px of clear space (20px
@@ -50544,85 +50558,22 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   /* Full bleed and solid, matching the rule under Home Page. */
   left: -10px;
   right: -10px;
-  top: -12px;
+  /* CENTRED in the space above Home Board (requested 2026-10-10, with Home Page's): this row's 12px
+     `margin-top` plus the nav's 12px gap. Half of 24, plus the 2px line, measured from inside the
+     row's 1px top border. It was -12px: 13px below the row above, 9px above this one. The 1200px-
+     and-below value (a 4px gap) is in the media rule right after this one. */
+  top: -14px;
   border-top: 1px solid rgba($la-navy, 0.38);
   /* Same groove as the rule under Home Page. */
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
   pointer-events: none;
 }
-/* THE SCROLL PAGER. Sticky to the panel's top so it stays put while the rows move under it;
-   `-10px` insets cancel the panel's own padding so it spans wall to wall, and the negative top
-   pulls it flush with the panel's top edge. The background is opaque because rows scroll
-   BEHIND it -- a translucent pager would show them sliding through the buttons. */
-.md-acct-rail__pager {
-  position: sticky;
-  top: -10px;
-  z-index: 1;
-  display: flex;
-  gap: 8px;
-  margin: -10px -10px 10px;
-  padding: 10px;
-  /* SILVER, not transparent (requested 2026-09-18). `ch-chip` is the app's own silver
-     material -- a white sheen laid over an #EAEFF6 -> #D2DAE5 ramp, with a specular top edge
-     and inset lower shading -- and it is what every classic rail icon and board card is made
-     of. Using it rather than a local gradient means the pager is the same substance as the
-     rest of the app's raised objects, and it tracks `$ch-chip-hi/lo` if those are ever retuned.
-     No `$imp`: that argument exists for `board-card-modern`, which is already `!important`,
-     and the module's own note says never to pass it to win an ordinary cascade.
-     Opaque again also restores what the transparent version gave up -- the rows scroll behind
-     this bar, and a see-through strip let them slide visibly through the gaps between the two
-     buttons. */
-  @include ch-chip;
-  /* The glassiness on top of the silver: the ramp is opaque, so this reads on the sliver of
-     backdrop showing at the bar's edges and keeps it in the same family as the buttons, which
-     carry `glass-bar-surface`. */
-  -webkit-backdrop-filter: blur(20px) saturate(185%);
-  backdrop-filter: blur(20px) saturate(185%);
-}
-/* The groove under the pager, as a pseudo-element rather than a `border-bottom` plus a
-   `box-shadow` on the bar itself. It HAD to move: `ch-chip` above sets `box-shadow` for the
-   silver's gloss line and inset shading, and a second `box-shadow` on the same rule replaces
-   that list wholesale rather than adding to it -- the highlight was silently flattening the
-   very material it sits on. A pseudo-element carries its own shadow and cannot collide.
-   Same carved groove as the two rules bracketing the section rows, so the panel has ONE
-   divider treatment rather than three different lines. `position: sticky` on the bar is a
-   positioned value, so it is already the containing block for this. */
-.md-acct-rail__pager::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-top: 1px solid rgba($la-navy, 0.38);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
-  pointer-events: none;
-}
-/* The app's shared glass treatment, not a local imitation: `glass-bar-surface` is the same
-   mixin the speak-mode compose bar and the edit-mode session bar use, so these buttons read as
-   part of that family rather than a one-off. It brings the gloss line, the upper sheen, the
-   faint lower depth and the backdrop blur -- which is also what lets the container above be
-   transparent without the scrolling rows smearing through the buttons. */
-.md-acct-rail__pager-btn {
-  @include glass-bar-surface;
-  flex: 1 1 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  /* Same 44px floor as the nav rows: these are switch and gaze targets too, and the whole
-     point of the pager is to be reachable by someone who cannot use a wheel. */
-  min-height: 44px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 650;
-  cursor: pointer;
-  appearance: none;
-}
-.md-acct-rail__pager-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
+/* 1200px and below the nav's gap is 4px, so the space above Home Board is 12 + 4 = 16px: half of
+   16, plus the 2px line. After the rule above so it wins at equal weight. */
+@media (max-width: 1200px) {
+  .md-acct-rail__row--board:not(.is-active)::before {
+    top: -10px;
+  }
 }
 
 /* The board's own name under the row label. Quieter than the label so the row still reads
@@ -50714,6 +50665,24 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     padding-top: var(--dn-rail-pad-top-tall, 40px);
     gap: var(--dn-rail-gap-tall, 18px);
   }
+  /* THE EXPANDED MENU NEVER SPACES ITS ROWS MORE THAN 12px (requested 2026-10-10: "no more than
+     12px grid gap on the expanded menu"). `min()` keeps a smaller density value, such as Compressed
+     View's 6px; the collapsed icon menu keeps the gap above. */
+  .md-acct-rail:not(.md-acct-rail--collapsed) {
+    gap: min(var(--dn-rail-gap-tall, 18px), 12px);
+    /* Home Page 12px higher, the room its divider takes (see "THE DIVIDER ON THE HOME PAGE TOO"),
+       so the rows under it stay where they were. Only here: elsewhere the top padding is 10px. */
+    padding-top: calc(var(--dn-rail-pad-top-tall, 40px) - 12px);
+  }
+}
+/* 8px TIGHTER AT 1200px AND BELOW (requested 2026-10-10: "on 1200px and smaller, the acct rail nav
+   grid gap should be 8px smaller"): 12px -> 4px. Only the fallback changes, so Compressed View keeps
+   its own `--dn-rail-gap` (already 4px, which cannot go 8 lower). Below 901px the rows are in the
+   dropdown panel, which sets its own 4px gap, so this governs the side panel from 901 to 1200. */
+@media (max-width: 1200px) {
+  .md-acct-rail {
+    gap: var(--dn-rail-gap, 4px);
+  }
 }
 
 /* ACCOUNT PAGE ONLY: drop the folders tagline below 768px (requested 2026-09-18).
@@ -50792,30 +50761,6 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
    here; that was a THIRD heading scale for one page, and the definition was moved rather than
    duplicated so the two account-section page headers cannot drift apart. */
 
-/* THE PAGER IS NOT FOR REAL SCREENS (requested 2026-09-18): at 1024px wide and 768px tall or
-   better, the menu must fit and the Up/Down pair must not appear.
-
-   A GUARANTEE, not a hope. The content does fit at that size -- measured 667px of rows into a
-   698px panel, once the icon dropped to 30px (rows became 44px rather than 46px, so the WCAG
-   floor governs) and the bookend margins came down to 12px. But `rail_scrollable` is computed
-   from a live `scrollHeight` measurement, so a future row, a longer board name wrapping, or a
-   translation that wraps a label could tip it back on. This rule states the intent in CSS so
-   the pager cannot reappear on a screen that is supposed to be big enough.
-
-   It hides the CONTROL only, never the content: the panel keeps `overflow-y: auto`, so if
-   something ever does overflow at this size the rows stay reachable by wheel, trackpad and
-   keyboard. What would be lost is the switch/gaze route -- which is exactly the tradeoff
-   worth knowing about if a row is ever added. Below either threshold the pager returns. */
-/* EXPANDED RAIL ONLY (2026-09-28). The budget above is the expanded menu's. Collapsed, each
-   row stacks its label under the icon and grows from 44px to ~64px, so eleven rows need ~220px
-   more and DO overflow at this size -- hiding the pager there would strand the bottom rows for
-   exactly the switch and eye-gaze users it exists for. */
-@media (min-width: 1024px) and (min-height: 768px) {
-  .md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__pager {
-    display: none;
-  }
-}
-
 /* ── THE COLLAPSED RAIL (requested 2026-09-28) ──────────────────────────────────────────
    Icon over a short label, the way Basic's collapsed rail reads (_classic-home.scss, the
    `.ch-rail--collapsed` block), toggled by `.md-acct-rail__toggle` (components/account-rail.hbs)
@@ -50849,6 +50794,14 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     left: calc(var(--ll-rail-width) - 16px);
     z-index: 61;
   }
+  /* EXPANDED: CENTRED ON THE DIVIDER UNDER HOME PAGE (requested 2026-10-10: "the expand/collapse arrow
+     should be centered on that divider"). The divider is 56px below the top of the Home Page row
+     (the 44px row plus `bottom: -14px`, ~1px), and the button is 32px tall, so its top is the row's
+     top + 40px. The row's top is the panel's top + its top padding: 10px, or the tall-screen value
+     less 12px (the media rule below). */
+  .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
+    top: calc(max(var(--topbar-height, 70px), 70px) + 10px + 40px);
+  }
   /* The chevron points left to collapse and right to expand, keyed on the attribute that
      states the state, so the icon cannot disagree with what a screen reader hears. */
   .md-acct-rail__toggle[aria-expanded="false"] .ch-rail__toggle-icon {
@@ -50874,10 +50827,9 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Visually hidden, still announced: Home Board's board name and the pager's "Up" / "Down".
+  /* Visually hidden, still announced: Home Board's board name.
      The same clip pattern Basic's collapsed rail uses (and Bootstrap's `.sr-only`). */
-  .md-acct-rail--collapsed .md-acct-rail__sublabel,
-  .md-acct-rail--collapsed .md-acct-rail__pager-label {
+  .md-acct-rail--collapsed .md-acct-rail__sublabel {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -50887,6 +50839,75 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+}
+/* The tall-screen rail starts its rows 12px lower than elsewhere (its own top padding, less 12), so
+   the expanded toggle follows. After the rule above so it wins at equal weight. */
+@media (min-width: 1201px) and (min-height: 860px) {
+  .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
+    top: calc(max(var(--topbar-height, 70px), 70px) + var(--dn-rail-pad-top-tall, 40px) - 12px + 40px);
+  }
+}
+/* 901-1024px: the panel's top padding is 12px there ("NARROWER (<=1024px)"), not 10. */
+@media (min-width: 901px) and (max-width: 1024px) {
+  .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
+    top: calc(max(var(--topbar-height, 70px), 70px) + 12px + 36px);
+  }
+}
+/* 1200px and below the divider sits 4px higher (half of a 4px-smaller space: row top + 52px, not 56),
+   so the arrow does too: +36 rather than +40. 901-1024px is the rule above. */
+@media (min-width: 1025px) and (max-width: 1200px) {
+  .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
+    top: calc(max(var(--topbar-height, 70px), 70px) + 10px + 36px);
+  }
+}
+/* COLLAPSED: THE ARROW SITS IN THE GAP UNDER HOME PAGE (requested 2026-10-10: "make the collapse arrow
+   show inbetween the home page button and its next button"). It was fixed at the top of the panel,
+   over Home Page's corner. Home Page's collapsed row is 65px tall (icon over label) and starts 8px
+   under the navbar; the space below it is 8px where it has its divider (every page but the home
+   page) and the 4px gap where it does not. The 32px button is centred in that space. */
+.md-acct-rail.md-acct-rail--collapsed + .md-acct-rail__toggle {
+  top: calc(max(var(--topbar-height, 70px), 70px) + 8px + 65px + 4px - 16px);
+}
+.md-acct-rail.md-acct-rail--collapsed:has(.md-acct-rail__row--home.is-active) + .md-acct-rail__toggle {
+  top: calc(max(var(--topbar-height, 70px), 70px) + 8px + 65px + 2px - 16px);
+}
+/* THE COLLAPSED MENU'S SPACING (requested 2026-10-10, in three steps: "no more than 8px, no matter
+   the screen size", asked twice, then "on the buttons not home page and the bottom divider, make the
+   grid gap 4px"). Above 1200px it was 12px, or 18px on a tall screen; at 1200px and below 4px; and
+   Home Page and Home Board each added 12px of margin for their dividers, so the space either side of
+   the middle group was 20px (16px at 1200 and below).
+   Now, at every width: 4px between the buttons, and 8px at the divider under Home Page (the 4px gap
+   plus a 4px margin), with the line centred in that 8px (`--ll-rail-divider-space-collapsed`).
+   NO DIVIDER ABOVE HOME BOARD here (requested 2026-10-10: "remove the bottom divider (ensuring the
+   same grid space with the other buttons)"): it is not generated, and Home Board takes no extra
+   margin, so it sits the same 4px from the row above as every other button. (0,2,0) or more, so
+   these outrank the `.md-acct-rail` gap rules. */
+@media (min-width: 901px) {
+  .md-acct-rail.md-acct-rail--collapsed {
+    --ll-rail-divider-space-collapsed: 8px;
+    gap: 4px;
+  }
+  .md-acct-rail--collapsed .md-acct-rail__row--home:not(.is-active) { margin-bottom: 4px; }
+  .md-acct-rail--collapsed .md-acct-rail__row--board:not(.is-active) { margin-top: 0; }
+  /* The line is 2px (its 1px rule and 1px highlight), so it starts 1px short of the middle; that
+     1px is cancelled by the row's own 1px bottom border, which `100%` (the padding box) does not
+     include. */
+  .md-acct-rail--collapsed .md-acct-rail__row--home:not(.is-active)::after {
+    top: calc(100% + var(--ll-rail-divider-space-collapsed) / 2);
+    bottom: auto;
+  }
+  .md-acct-rail--collapsed .md-acct-rail__row--board:not(.is-active)::before {
+    content: none;
+  }
+}
+/* COLLAPSED: HOME PAGE 8px UNDER THE NAVBAR, AT EVERY WIDTH (requested 2026-10-10: "about 12px below
+   it", then "only show 8px between home page button and navbar"). The panel starts at the navbar's
+   bottom edge; its top padding was 40px on a tall wide screen, 12px at 1024px and below and 10px
+   otherwise. (0,2,0), so it outranks each of those `.md-acct-rail` rules. */
+@media (min-width: 901px) {
+  .md-acct-rail.md-acct-rail--collapsed {
+    padding-top: 8px;
   }
 }
 /* MOTION IS OPT-IN, as on Basic's rail. Everything that reads `--ll-rail-width` moves together. */
@@ -50918,9 +50939,21 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   }
 }
 
-/* NARROW: the rail stops floating and becomes a full-width block above the content. Below
-   this width there is not enough room for a 244px column plus a readable account card, and a
-   floated rail would squeeze the content beside it rather than wrapping. */
+/* THE DROPDOWN'S PARTS, HIDDEN / INERT ABOVE 900px (2026-10-10). The trigger only exists for the
+   narrow dropdown below; the rows wrapper is `display: contents` so the side panel lays out its
+   rows exactly as it did before the wrapper existed (no rule targets them as direct children). */
+.md-acct-rail__menu-trigger { display: none; }
+.md-acct-rail__rows { display: contents; }
+
+/* NARROW: the rail stops floating and becomes a block above the content. Below this width there
+   is not enough room for a 244px column plus a readable account card, and a floated rail would
+   squeeze the content beside it rather than wrapping. SINCE 2026-10-10 IT IS A DROPDOWN HERE, not
+   a full-width grid of rows (requested: "on 900px and smaller, the acct rail contents should
+   collapse to a dropdown (very similar to our pillnav dropdown that shows on smaller screens, but
+   with a different bg (same as the current bg of most of the acct-rail row elements)"). The
+   trigger and the open panel are modelled on the pill nav's dropdown as measured at 420px
+   (`.md-pillnav-dropdown__trigger` 48px, radius 14px, 15px/600; `__list` white, radius 14px,
+   `0 8px 24px rgba(0,0,0,.1)`, 6px below the trigger); the trigger takes the rows' white glass. */
 @media (max-width: 900px) {
   /* No gutter reset needed here — it is scoped to `min-width: 901px` above, so the page's own
      padding applies below this width without being zeroed and put back. */
@@ -50948,7 +50981,11 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
        whatever sits above it, and the fixed panel's own breathing room came from `top`, which
        is reset to `auto` just above. The bottom 20px was already here and is unchanged --
        this sets the leading edge to match. */
-    margin: 22px 0 20px;
+    /* 60px TOP since 2026-10-10 (was 22px), requested: "center it on the page and position it below
+       the navbar with a bit of space in between". Measured: the rail's in-flow top sits exactly 44px
+       above the fixed navbar's bottom at both navbar heights (70px from 768px up, 114px below), so
+       22px left the dropdown trigger 22px UNDER the navbar; 60px puts it 16px clear of it. */
+    margin: 60px 0 20px;
     /* PADDING (requested 2026-09-20): +32px on top, and sides set to ALIGN WITH THE WORKSPACE.
        Top was 12px here -- set by the `max-width: 1024px` block above, which this later,
        narrower query overrides at equal specificity -- so +32 lands at 44.
@@ -50972,17 +51009,91 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
        preference leaves BOTH view classes off -- so keying on it would silently drop this
        padding. More importantly the same rail renders on the account-section pages in Basic
        view too, and giving the two views different padding at the same width would read as a
-       bug rather than a choice.
-       NOTE FOR THE NEXT EDIT: `.md-acct-rail__pager` carries `margin: -10px -10px 10px` to
-       cancel the panel's 10px side padding and sit wall-to-wall. It is NOT adjusted here
-       because it cannot render at this width -- the rail is `position: static` with auto
-       height and `overflow-y: visible`, so `scrollHeight === clientHeight` and
-       `rail_scrollable` (components/account-rail.js) is never true. If that ever changes, the
-       pager needs -16px sides to match. */
-    padding: 44px 52px 10px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 8px;
+       bug rather than a choice. */
+    /* THE DROPDOWN HOST, not a grid (2026-10-10). The panel's own surface goes too: it was one of
+       the three backgrounds competing at this width (requested the same day). Padding is just the
+       page's side inset; the rows live in the panel below the trigger. */
+    padding: 0 16px;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    /* Above the shell's stacking context (its fixed wash layer; see "THE WASH IS THE SHELL'S
+       AGAIN"), which shares this layer and comes later in the page. */
+    z-index: 1;
+    background: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .md-acct-rail__menu-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: min(360px, 100%);
+    /* Centred on the page whatever the host's display ends up being. */
+    margin: 0 auto;
+    min-height: 48px;
+    padding: 12px 16px 12px 18px;
+    border-radius: 14px;
+    /* The rows' own surface (`.md-acct-rail__row`): white glass, white rim, soft shadow. */
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.66) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 8px rgba(17, 26, 46, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: $la-navy;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  /* BELOW THE PILL NAV, NOT ABOVE IT (requested 2026-10-10: "actually position it below the pill
+     nav menu instead"). In the DOM the rail comes first and the pill nav sits inside
+     `.ll-appshell__main`, so on pages that have the pill nav the shell becomes a flex column and
+     `__main` steps out of the box tree (`display: contents`) to let `order` put the nav, then this
+     dropdown, then the page. Pages with no pill nav (the account pages) keep the dropdown where it
+     is, just below the navbar. The nav bar's `margin-bottom: -48px` (it floats over the page's
+     wash) is dropped in this arrangement: with it, the next item started 52px INSIDE the bar and
+     the trigger overlapped the pills (measured at 860 / 600 / 390). Without it the dropdown simply
+     follows the bar, and its own small top margin is the gap. */
+  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) {
+    display: flex;
+    flex-direction: column;
+  }
+  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .ll-appshell__main { display: contents; }
+  /* The bar is `position: sticky` with `top: max(var(--topbar-height, 70px), 70px)` (its base rule
+     near the end of this file): at rest that DRAWS it lower than its place in the flow without
+     moving what follows, so the dropdown landed under the bar (measured: bar drawn 96..160, its
+     flow box 26..90, trigger at 98). Here its flow place is moved to where it is drawn, with a
+     margin of the SAME offset, so following items clear it and it sticks where it is drawn. */
+  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .ll-appshell__main > .ll-appshell__navbar {
+    order: 1;
+    margin-top: var(--ll-navbar-sticky-top);
+    margin-bottom: 0 !important;
+  }
+  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .md-acct-rail { order: 2; margin-top: 8px; }
+  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .ll-appshell__main > .ll-appshell__content { order: 3; }
+  .md-acct-rail__menu-chevron { flex: 0 0 auto; transition: transform 0.18s ease; }
+  .md-acct-rail__menu-trigger[aria-expanded="true"] .md-acct-rail__menu-chevron { transform: rotate(180deg); }
+  .md-acct-rail__rows {
+    display: none;
+  }
+  .md-acct-rail__rows.is-open {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(360px, calc(100% - 32px));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    z-index: 1500;
   }
   /* THE BOOKENDS BECOME ORDINARY CELLS HERE. Home Page and Home Board are set apart in the
      side panel by a dashed rule and 20px of extra margin, because there the nav is a vertical
@@ -50995,12 +51106,14 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      at all instead of generating one and hiding it. The margins go back to 0 so the grid's own
      8px `gap` is the only spacing, which is what makes every cell match. */
   .md-acct-rail__row--home:not(.is-active),
-  .md-acct-rail__row--board:not(.is-active) {
+  .md-acct-rail__row--board:not(.is-active),
+  .md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__row--home.is-active {
     margin-top: 0;
     margin-bottom: 0;
   }
   .md-acct-rail__row--home:not(.is-active)::after,
-  .md-acct-rail__row--board:not(.is-active)::before {
+  .md-acct-rail__row--board:not(.is-active)::before,
+  .md-acct-rail:not(.md-acct-rail--collapsed) .md-acct-rail__row--home.is-active::after {
     content: none;
   }
   /* (No `display: contents` on a group wrapper any more — there is no wrapper to flatten,
@@ -68280,19 +68393,19 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   }
   /* NO SPACE ABOVE THE DROPDOWN (requested 2026-10-05: "too far away from the other menu
      items"). Besides the 40px top margin dropped above, two gaps stacked between the stacked
-     account rail's last row and this dropdown (measured at 600px and 400px, home and caseload):
-     the rail's 20px bottom margin (the <=900px `.md-acct-rail` rule, `margin: 22px 0 20px`)
-     and the navbar's 16px top padding (the <=900px `.ll-appshell__navbar` rule). Both are
-     zeroed only while the collapsed dropdown is what the navbar holds, so the pill row above
-     640px and pages without this nav keep them. `:has()` needs Safari 15.4 / Chrome 105; an
-     older engine keeps the two gaps, which is today's layout. */
-  .md-acct-rail:has(~ .ll-appshell__main .md-pillnav-dropdown--primary) {
-    margin-bottom: 0;
-  }
-  /* 8px, not 0 (requested 2026-10-05: 18px down from the menu): with the rail's own 10px
-     bottom padding that puts the dropdown 18px below the last account row. */
+     account rail's last row and this dropdown: the rail's 20px bottom margin and the navbar's
+     16px top padding (the <=900px `.ll-appshell__navbar` rule), reduced below.
+     THE RAIL'S HALF IS GONE (2026-10-10): the account rail is now a dropdown placed BELOW this
+     nav (the <=900px `.md-acct-rail` ordering rules), so zeroing its bottom margin no longer
+     closed a gap above the nav; it pulled the page content up 20px under the account dropdown
+     at 640px and below (requested: "don't have it move up"). The rail keeps its 20px here, as
+     it does above 640. */
+  /* 12px (requested 2026-10-10: "even it out"). Was 8px (2026-10-05, when the account rail sat above
+     this nav). The dropdown is 48px against the pill row's 44px and this padding 16px above 640px,
+     so 12 + 48 matches 16 + 44: the bar is 66px tall on both sides of 640px and nothing below it
+     jumps when the pills become the dropdown. */
   .ll-appshell__navbar:has(> .md-pillnav-dropdown--primary) {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 }
 
@@ -112360,8 +112473,7 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   /* THE RAIL'S WIDTH, stated once (2026-09-28). Read by `.md-acct-rail` (its width),
      `.ll-appshell__main` (margin-left) and the fixed `.ll-appshell__navbar` (left), which were
      three separate 208px literals until the rail became collapsible and had to be able to
-     change all three at once. The collapsed value is set in the collapsed-rail block near
-     `.md-acct-rail__pager`. */
+     change all three at once. The collapsed value is set in THE COLLAPSED RAIL block. */
   --ll-rail-width: var(--dn-rail-width, 208px);
 }
 .ll-appshell.ll-appshell--no-nav {

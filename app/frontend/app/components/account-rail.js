@@ -3,6 +3,7 @@ import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { pillForRoute } from '../utils/primary_nav';
 import { showsRoomsPill } from '../utils/rooms_nav';
+import i18n from '../utils/i18n';
 
 /* THE ROUTES THAT ARE THE ACCOUNT PAGE. It is reachable under two names: `user.index` is the
    section's own index, and routes/user/account.js gives `user.account` the same template. A
@@ -103,12 +104,6 @@ export default Component.extend({
   app_state: service('app-state'),
   stashes: service('stashes'),
 
-  // Compressed View is on (services/app-state.js#compressed_view_active): drops the Home Page
-  // row, which duplicates the top tabs' Dashboard pill.
-  compressed: computed('app_state.compressed_view_active', function() {
-    return this.get('app_state.compressed_view_active') === true;
-  }),
-
   /* ON THE HOME PAGE ITSELF, under either of its route names -- not the wider Home section that
      `activeRow` lights for the pill nav's destinations. Same route reads as `activeRow`. */
   onHomePage: computed('router.currentRouteName', 'app_state.current_route', function() {
@@ -126,6 +121,9 @@ export default Component.extend({
      made with the toggle still wins, and each context remembers its own under its own key, so
      expanding the rail on Reports keeps it open on the other non-home pages without changing
      the home page, and the reverse.
+     EXCEPT ON THE HOME PAGE, which starts expanded at every width (requested 2026-10-10: "don't
+     auto-collapse the acct rail nav on the home page", every width above 900px; 900px and below is
+     the dropdown, which this does not touch).
      NEITHER KEY IS Basic's `classic_rail_collapsed`: the two rails are different designs at
      different widths, and a choice made in one view should not silently rearrange the other.
      Only the rail's own classes read this; the shell's column offset follows through
@@ -133,7 +131,7 @@ export default Component.extend({
   railCollapsed: computed('onHomePage', 'wideScreen', 'stashes.modern_rail_collapsed', 'stashes.modern_rail_collapsed_away', function() {
     var key = this.get('onHomePage') ? 'modern_rail_collapsed' : 'modern_rail_collapsed_away';
     var chosen = this.stashes.get(key);
-    if(chosen === undefined || chosen === null) { return !this.get('wideScreen'); }
+    if(chosen === undefined || chosen === null) { return !this.get('onHomePage') && !this.get('wideScreen'); }
     return !!chosen;
   }),
 
@@ -141,6 +139,14 @@ export default Component.extend({
      Set from `matchMedia` in init() and kept current by its change listener, removed in
      willDestroy. False where matchMedia is unavailable, so the narrow default applies. */
   wideScreen: false,
+
+  /* 900px AND NARROWER: the rail collapses into a dropdown (requested 2026-10-10: "on 900px and
+     smaller, the acct rail contents should collapse to a dropdown (very similar to our pillnav
+     dropdown ...)"). Same matchMedia pattern as `wideScreen`. The ROWS are the same elements at
+     every width -- account-rail.hbs wraps them once in `.md-acct-rail__rows`, which is
+     `display: contents` above 900px -- so the dropdown cannot drift from the rail. */
+  narrowScreen: false,
+  menuOpen: false,
 
   init() {
     this._super(...arguments);
@@ -155,6 +161,39 @@ export default Component.extend({
     if(query.addEventListener) { query.addEventListener('change', this._wideListener); }
     else if(query.addListener) { query.addListener(this._wideListener); }
     this._wideQuery = query;
+
+    var narrow = window.matchMedia('(max-width: 900px)');
+    this.set('narrowScreen', !!narrow.matches);
+    this._narrowListener = function(event) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('narrowScreen', !!event.matches);
+      if(!event.matches) { _this.set('menuOpen', false); }
+    };
+    if(narrow.addEventListener) { narrow.addEventListener('change', this._narrowListener); }
+    else if(narrow.addListener) { narrow.addListener(this._narrowListener); }
+    this._narrowQuery = narrow;
+
+    /* THE DROPDOWN CLOSES THE WAYS `details-autoclose` CLOSES A MENU (modifiers/details-autoclose.js):
+       choosing something in it, clicking away, or Escape (focus back on the trigger). Capture
+       phase for the outside click, as there, so it still runs when something stops propagation. */
+    this._menuOutside = function(event) {
+      if(!_this.get('menuOpen') || _this.isDestroyed) { return; }
+      var nav = document.getElementById('acct_rail_nav');
+      if(nav && event.target && nav.contains(event.target)) {
+        var chosen = event.target.closest && event.target.closest('a, button');
+        if(chosen && !chosen.classList.contains('md-acct-rail__menu-trigger')) { _this.set('menuOpen', false); }
+        return;
+      }
+      _this.set('menuOpen', false);
+    };
+    this._menuEscape = function(event) {
+      if(event.key !== 'Escape' || !_this.get('menuOpen') || _this.isDestroyed) { return; }
+      _this.set('menuOpen', false);
+      var trigger = document.querySelector('#acct_rail_nav .md-acct-rail__menu-trigger');
+      if(trigger) { try { trigger.focus(); } catch(e) { /* not focusable */ } }
+    };
+    document.addEventListener('click', this._menuOutside, true);
+    document.addEventListener('keydown', this._menuEscape);
   },
 
   willDestroy() {
@@ -166,18 +205,57 @@ export default Component.extend({
     }
     this._wideQuery = null;
     this._wideListener = null;
+    var narrow = this._narrowQuery;
+    if(narrow && this._narrowListener) {
+      if(narrow.removeEventListener) { narrow.removeEventListener('change', this._narrowListener); }
+      else if(narrow.removeListener) { narrow.removeListener(this._narrowListener); }
+    }
+    this._narrowQuery = null;
+    this._narrowListener = null;
+    if(typeof document !== 'undefined') {
+      if(this._menuOutside) { document.removeEventListener('click', this._menuOutside, true); }
+      if(this._menuEscape) { document.removeEventListener('keydown', this._menuEscape); }
+    }
   },
+
+  toggleMenu: action(function() {
+    this.set('menuOpen', !this.get('menuOpen'));
+  }),
+
+  /* The trigger names where you are, as the pill nav's dropdown does (`activeLabel` there). The
+     same strings and keys the rows use (account-rail.hbs); a page with no row of its own reads
+     "Account menu", the nav's own aria-label. */
+  activeLabel: computed('activeRow', 'user.supporter_role', 'router.currentRouteName', 'app_state.current_route', function() {
+    /* Goals, Logs and Account light their rows through `@current-when` route lists rather than
+       `activeRow`, so the same lists are read here; otherwise the trigger would say "Account menu"
+       on a page whose row is lit. `activeRow` is checked first: it answers 'home' for a pill-nav
+       arrival on `user.logs`, which must not read as Logs. */
+    var row = this.get('activeRow');
+    var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
+    var inList = function(list) { return list.split(' ').indexOf(route) !== -1; };
+    if(!row) {
+      if(inList(GOALS_ROUTES)) { row = 'goals'; }
+      else if(inList(LOGS_ROUTES)) { row = 'logs'; }
+      else if(inList(ACCOUNT_ROUTES)) { row = 'account'; }
+    }
+    switch(row) {
+      case 'home': return i18n.t('home_page', "Home Page");
+      case 'account': return i18n.t('account_lower', "Account");
+      case 'goals': return i18n.t('goals', "Goals");
+      case 'logs': return i18n.t('logs', "Logs");
+      case 'edit': return i18n.t('profile_lower', "Profile");
+      case 'recordings': return i18n.t('recordings', "Recordings");
+      case 'stats': return i18n.t('reports', "Reports");
+      case 'preferences': return i18n.t('preferences_lower', "Settings");
+      case 'subscription': return i18n.t('my_subscription', "Subscription");
+      case 'supervision': return this.get('user.supporter_role') ? i18n.t('supervision', "Supervision") : i18n.t('supervisors', "Supervisors");
+      default: return i18n.t('account_menu', "Account menu");
+    }
+  }),
 
   toggleRail: action(function() {
     var key = this.get('onHomePage') ? 'modern_rail_collapsed' : 'modern_rail_collapsed_away';
     this.stashes.persist(key, !this.get('railCollapsed'));
-    /* The collapsed rows are taller (label under the icon), so whether the panel overflows can
-       change with the state; re-measure once the new layout exists. The width transition's own
-       `transitionend` (railMounted) catches the settled size. */
-    var _this = this;
-    if(typeof window !== 'undefined' && window.requestAnimationFrame) {
-      window.requestAnimationFrame(function() { _this.updateRailScroll(); });
-    }
   }),
 
   /* Bound into the Account row's `@current-when` so its alias list lives in one place.
@@ -234,91 +312,5 @@ export default Component.extend({
       if(pill) { return 'home'; }
       return ROW_FOR_ROUTE[route] || null;
     }
-  ),
-
-  /* SCROLL AFFORDANCES. Moved wholesale from controllers/user/index.js; see the notes there
-     in git history. The panel is fixed and full-height, so on a short viewport its rows
-     overflow -- a mouse user spins a wheel and a keyboard user tabs, but someone driving this
-     with eye gaze or a switch can only activate what is on screen.
-     Disabled at the ends rather than removed, and the pair only ever renders or vanishes
-     together: a button that disappears mid-scroll moves the target out from under someone
-     dwelling on it (same reasoning as components/speak-menu.js). */
-  rail_scrollable: false,
-  rail_at_top: true,
-  rail_at_bottom: false,
-
-  updateRailScroll() {
-    if(this.isDestroyed || this.isDestroying) { return; }
-    var rail = document.querySelector('.md-acct-rail');
-    if(!rail) { this.teardownRailScroll(); return; }
-    var scrollable = rail.scrollHeight > (rail.clientHeight + 1);
-    this.set('rail_scrollable', scrollable);
-    if(!scrollable) { return; }
-    this.set('rail_at_top', rail.scrollTop <= 1);
-    this.set('rail_at_bottom', (rail.scrollTop + rail.clientHeight) >= (rail.scrollHeight - 1));
-  },
-
-  teardownRailScroll() {
-    if(this._railScrollHandler) {
-      window.removeEventListener('resize', this._railScrollHandler);
-      if(this._railEl) {
-        this._railEl.removeEventListener('scroll', this._railScrollHandler);
-        this._railEl.removeEventListener('transitionend', this._railScrollHandler);
-      }
-      this._railScrollHandler = null;
-      this._railEl = null;
-    }
-  },
-
-  /* Double rAF: the rows are not in the DOM until Ember has rendered, and `scrollHeight` is
-     not meaningful until layout has run. rAF rather than runLater because @ember/runloop is
-     lint-banned in new code (ember/no-runloop). */
-  railMounted: action(function() {
-    this.teardownRailScroll();
-    var _this = this;
-    this._railScrollHandler = function() { _this.updateRailScroll(); };
-    window.addEventListener('resize', this._railScrollHandler);
-    window.requestAnimationFrame(function() {
-      window.requestAnimationFrame(function() {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        var rail = document.querySelector('.md-acct-rail');
-        if(rail && _this._railScrollHandler) {
-          _this._railEl = rail;
-          rail.addEventListener('scroll', _this._railScrollHandler);
-          /* The collapse animates the panel's width; measure again once it has settled. */
-          rail.addEventListener('transitionend', _this._railScrollHandler);
-        }
-        _this.updateRailScroll();
-      });
-    });
-  }),
-
-  /* Compressed View's Create Board row. Same flow as the home page's Create a Board card
-     (dashboard/authenticated-view.js#openNewBoardOnBoards): the purchase check, then the new-board
-     page whether or not it resolves. */
-  createBoard: action(function() {
-    var router = this.get('router');
-    var go = function() { router.transitionTo('create-board-new'); };
-    if(this.app_state.check_for_needing_purchase) {
-      this.app_state.check_for_needing_purchase().then(go, go);
-    } else {
-      go();
-    }
-  }),
-
-  /* A PAGE, not a nudge: 80% of the visible height, so successive activations always leave a
-     row of overlap and nothing is skipped between presses. */
-  scrollRail: action(function(direction) {
-    var rail = document.querySelector('.md-acct-rail');
-    if(!rail) { return; }
-    var step = Math.max(80, Math.round(rail.clientHeight * 0.8));
-    rail.scrollBy({ top: direction === 'up' ? -step : step, behavior: 'smooth' });
-  }),
-
-  /* Unlike the controller this came from, a component DOES get torn down -- on every route
-     change out of the section. Without this the resize listener would outlive it. */
-  willDestroyElement() {
-    this._super(...arguments);
-    this.teardownRailScroll();
-  }
+  )
 });

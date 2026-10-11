@@ -4,8 +4,9 @@ import { setupTest } from '../../helpers';
 
 /* The Modern account rail collapses to its icons and short labels (requested 2026-09-28). Its
  * DEFAULT depends on the SCREEN (spec changed 2026-09-29 at Traci's request; it used to be
- * expanded on the home page and collapsed elsewhere): collapsed on every page at 1200px and
- * narrower, expanded on every page wider than that (`wideScreen`, set explicitly here). A choice
+ * expanded on the home page and collapsed elsewhere): collapsed at 1200px and narrower, expanded
+ * on every page wider than that (`wideScreen`, set explicitly here). Since 2026-10-10 the home
+ * page is the exception and starts expanded at every width (approved spec change). A choice
  * made with the toggle wins; home and away remember theirs separately, each under its own stash
  * key, and neither borrows Basic's `classic_rail_collapsed`.
  *
@@ -33,10 +34,23 @@ module('Unit | Component | account-rail collapse', function(hooks) {
   }
 
   var ROUTES = ['index', 'user.home', 'user.stats', 'user.index', 'user.logs', 'caseload', 'user.boards'];
+  // The home page under both of its route names (account-rail.js HOME_ROUTES).
+  var HOME = ['index', 'user.home'];
+  var AWAY = ROUTES.filter(function(r) { return HOME.indexOf(r) === -1; });
 
-  test('at 1200px and narrower every page, home included, starts collapsed', function(assert) {
-    assert.expect(ROUTES.length);
-    ROUTES.forEach(function(route) {
+  /* CHANGED 2026-10-10 (approved): the home page no longer auto-collapses ("on 1024 px down to
+     900px, don't auto-collapse the acct rail nav on the home page", widened by Traci to every width
+     above 900px). 900px and below are the dropdown and untouched. Every other page is as before. */
+  test('at 1200px and narrower the home page starts expanded', function(assert) {
+    assert.expect(HOME.length);
+    HOME.forEach(function(route) {
+      assert.false(rail(this, route, {}, false).component.get('railCollapsed'), route);
+    }, this);
+  });
+
+  test('at 1200px and narrower every other page starts collapsed', function(assert) {
+    assert.expect(AWAY.length);
+    AWAY.forEach(function(route) {
       assert.true(rail(this, route, {}, false).component.get('railCollapsed'), route);
     }, this);
   });
