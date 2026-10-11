@@ -71,7 +71,7 @@ DATA_BEARING_PATTERNS=(
   '(^|/)lib/tasks/.*(seed|import|export|backfill|load|sync).*\.rake$'
   '(^|/)(spec|test)/(cassettes|vcr_cassettes|vcr)/'
   '(^|/)db/.*\.sql$'
-  '\.(sql|dump|csv|tsv|ndjson|xlsx|xls|parquet)$'
+  '\.(sql|dump|csv|tsv|ndjson|jsonl|har|log|xlsx|xls|parquet)$'
   '(^|/)(fixtures|seeds|sample_data|test_data|data|exports?)/.*\.(json|ya?ml|xml)$'
   '(^|/)(fixtures|seeds|sample_data|test_data)/'
 )

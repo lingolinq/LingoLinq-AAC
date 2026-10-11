@@ -289,6 +289,13 @@ for p in 'spec/support/myfixtures/a.rb' 'spec/myfactories/a.rb' 'app/factories/a
   real_case blocked "$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
 done
 
+echo "== line-per-record and capture formats are data-bearing =="
+# Part B item 5b (2026-10-10): JSON Lines exports, HTTP archives (request and response bodies) and
+# logs carry records, wherever they sit.
+for p in 'exports/users.jsonl' 'spec/support/session.har' 'tmp/server.log' 'EXPORTS/USERS.JSONL'; do
+  real_case blocked "$p"
+done
+
 echo "== fail closed: nothing classified means exit 3 and no route =="
 classify "$BASE" "$BASE"
 report ERR3 'empty diff (base == head)'
