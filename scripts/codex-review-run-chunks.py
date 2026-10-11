@@ -258,7 +258,7 @@ def run_with_timeout(command, stdin):
     return _CallResult(returncode)
 
 
-def write_invalid_review(path, head_sha, chunk=None, reason="model call failed or emitted invalid JSON"):
+def write_invalid_review(path, head_sha, chunk=None, reason="model call failed or emitted invalid JSON", description=None):
     if chunk:
         body = {
             "verdict": "NEEDS_HUMAN",
@@ -272,7 +272,7 @@ def write_invalid_review(path, head_sha, chunk=None, reason="model call failed o
                     "category": "live_state",
                     "file": "(chunk)",
                     "line": None,
-                    "description": "The chunk reviewer did not produce a valid schema-conforming result.",
+                    "description": description or "The chunk reviewer did not produce a valid schema-conforming result.",
                     "evidence": reason,
                     "suggested_fix": "Rerun the codex-review job or route to human review.",
                     "verifiable_check": "scripts/codex-review-run-chunks.py",
@@ -293,7 +293,7 @@ def write_invalid_review(path, head_sha, chunk=None, reason="model call failed o
                     "category": "live_state",
                     "file": "(synthesis)",
                     "line": None,
-                    "description": "The synthesis reviewer did not produce a valid schema-conforming result.",
+                    "description": description or "The synthesis reviewer did not produce a valid schema-conforming result.",
                     "evidence": reason,
                     "suggested_fix": "Rerun the codex-review job or route to human review.",
                     "verifiable_check": "scripts/codex-review-run-chunks.py",
@@ -306,6 +306,52 @@ def write_invalid_review(path, head_sha, chunk=None, reason="model call failed o
             "dedupe_notes": [],
         }
     pathlib.Path(path).write_text(json.dumps(body, indent=2, sort_keys=True))
+
+
+# Fixed log line for a run stopped before any model call; tests and operators search for it.
+COVERAGE_INCOMPLETE_LOG = "coverage incomplete: no model calls made"
+
+
+def coverage_incomplete(manifest):
+    """True when the CI-built manifest itself says the evidence does not cover the whole diff.
+
+    codex-review-build-envelope.py validate_chunked_evidence turns either signal into an
+    incomplete_evidence NEEDS_HUMAN and discards every chunk and synthesis review, so model calls on
+    such a manifest cannot change the verdict. Keyed on the explicit signals only: a manifest without
+    the field still runs (the envelope rejects it anyway)."""
+    return manifest.get("coverage_complete") is False or bool(manifest.get("incomplete_coverage"))
+
+
+def write_skipped_run(manifest, out_dir, head_sha):
+    """Write NEEDS_HUMAN placeholders where the envelope step looks for reviews, and no model call.
+
+    One placeholder per manifest chunk (a diff-wide `chunk-0000` when there are none), and one
+    synthesis placeholder with coverage_complete false, so the envelope step builds and posts its
+    fail-closed incomplete_evidence result instead of failing for missing files."""
+    reason = "evidence coverage is incomplete (see the manifest); no model call was made"
+    description = "Not reviewed: the CI evidence does not cover the whole diff, so this run cannot be approved."
+    chunks = manifest.get("chunks") or [{"id": "chunk-0000", "raw_sha256": ""}]
+    chunk_paths = []
+    for chunk in chunks:
+        path = out_dir / f"{chunk['id']}-review-1.json"
+        write_invalid_review(path, head_sha, chunk, reason=reason, description=description)
+        chunk_paths.append(path)
+    synthesis = out_dir / "synthesis-1.json"
+    write_invalid_review(synthesis, head_sha, reason=reason, description=description)
+    summary = {
+        # No model produced anything, so none is named as the reviewer.
+        "chunk_model": "",
+        "synthesis_model": "",
+        "chunk_reviews": [str(path) for path in chunk_paths],
+        "canonical_chunk_reviews": [str(path) for path in chunk_paths],
+        "chunk_result_groups": [],
+        "synthesis_reviews": [str(synthesis)],
+        "skipped": COVERAGE_INCOMPLETE_LOG,
+    }
+    (out_dir / "run-summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+    # Reason codes only (set by codex-review-build-evidence.py); the entries' paths are PR file names.
+    reasons = sorted({str(item.get("reason")) for item in manifest.get("incomplete_coverage") or []})
+    print(json.dumps({"skipped": COVERAGE_INCOMPLETE_LOG, "chunks": len(manifest.get("chunks") or []), "reasons": reasons}))
 
 
 def build_chunk_prompt(template, live_state, manifest_md, prior_loop, chunk, evidence_dir, out_path):
@@ -360,6 +406,10 @@ def main():
     prior_loop = pathlib.Path(args.prior_loop_file).read_text() if args.prior_loop_file else "N/A (loop 0 - first pass)."
     chunk_template = pathlib.Path(".github/codex/chunk-review-prompt.md").read_text()
     synthesis_template = pathlib.Path(".github/codex/synthesis-prompt.md").read_text()
+
+    if coverage_incomplete(manifest):
+        write_skipped_run(manifest, out_dir, args.head_sha)
+        return 0
 
     chunk_result_paths = []
     canonical_chunk_result_paths = []

@@ -710,5 +710,106 @@ class QuietExecLabelTest(unittest.TestCase):
         self.assertEqual(self.run_child(leave_child, "", timeout=2), (0, None))
 
 
+# A manifest that already says coverage is incomplete can never be approved: the envelope discards every
+# chunk and synthesis review and returns NEEDS_HUMAN (validate_chunked_evidence in
+# codex-review-build-envelope.py). Since the large-PR fallback routes every over-cap PR here, the runner
+# stops before any model call on such a manifest and leaves placeholders the envelope step can read.
+class IncompleteCoverageEarlyStopTest(unittest.TestCase):
+    def run_with_manifest(self, root, manifest_extra, chunk_count):
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        fake = bin_dir / "codex"
+        fake.write_text(FAKE_CODEX)
+        fake.chmod(0o755)
+        counter = root / "codex-calls"
+        counter.write_text("0")
+        evidence = root / "evidence"
+        evidence.mkdir()
+        chunks = []
+        for n in range(1, chunk_count + 1):
+            cid = f"chunk-{n:04d}"
+            body = f"diff --git a/app/{n}.rb b/app/{n}.rb\n@@ -1 +1 @@\n-old\n+{DIFF_CANARY}\n"
+            (evidence / f"{cid}.diff").write_text(body)
+            chunks.append({"id": cid, "path": f"{cid}.diff", "raw_sha256": f"{n:064x}",
+                           "prompt_sha256": "c" * 64, "coverage": [{"path": f"app/{n}.rb"}]})
+        (evidence / "manifest.json").write_text(json.dumps(dict({"chunks": chunks}, **manifest_extra)))
+        (evidence / "manifest.md").write_text("manifest\n")
+        live_state = root / "live_state.txt"
+        live_state.write_text(f"### gh pr view\n{{\"title\": \"t\", \"body\": \"{BODY_CANARY}\"}}\n")
+        out_dir = root / "results"
+        env = dict(os.environ)
+        env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+        env.update({"FAKE_CODEX_COUNTER": str(counter), "FAKE_CODEX_RECEIVED_DIR": str(root),
+                    "FAKE_CODEX_MODEL_CANARY": MODEL_CANARY, "FAKE_CODEX_MODE": "block",
+                    "CODEX_REVIEW_MODEL_CALL_TIMEOUT": "30"})
+        result = subprocess.run(
+            [sys.executable, str(MODULE_PATH), "--evidence-dir", str(evidence), "--live-state-file", str(live_state),
+             "--out-dir", str(out_dir), "--head-sha", "a" * 40],
+            cwd=MODULE_PATH.resolve().parents[1], env=env, capture_output=True, text=True)
+        return result, int(counter.read_text()), out_dir
+
+    INCOMPLETE = {"coverage_complete": False,
+                  "incomplete_coverage": [{"path": "(diff-wide)", "reason": "too_many_chunks", "chunks": 17, "max_chunks": 16}]}
+
+    def test_incomplete_coverage_makes_no_model_call(self):
+        cases = {"too many chunks": (self.INCOMPLETE, 16),
+                 "flag only": ({"coverage_complete": False, "incomplete_coverage": []}, 2),
+                 "reasons only": ({"incomplete_coverage": [{"path": "app/x.rb", "reason": "oversized_hunk"}]}, 2),
+                 "no chunks at all": (self.INCOMPLETE, 0)}
+        for why, (extra, count) in cases.items():
+            with self.subTest(why), tempfile.TemporaryDirectory() as tmp:
+                result, calls, out_dir = self.run_with_manifest(pathlib.Path(tmp), extra, count)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(calls, 0, "a model call was made on evidence that cannot be approved")
+                self.assertIn("coverage incomplete: no model calls made", result.stdout)
+                self.assertFalse(CANARY_STEM in result.stdout + result.stderr)
+
+    def test_the_placeholders_are_what_the_envelope_step_reads(self):
+        for count in (2, 0):
+            with self.subTest(chunks=count), tempfile.TemporaryDirectory() as tmp:
+                _result, _calls, out_dir = self.run_with_manifest(pathlib.Path(tmp), self.INCOMPLETE, count)
+                # The envelope step's globs (codex-review.yml "Build W2 envelope").
+                chunk_reviews = sorted(out_dir.glob("chunk-*-review-*.json"))
+                synthesis = sorted(out_dir.glob("synthesis-*.json"))
+                self.assertEqual(len(chunk_reviews), max(count, 1))
+                self.assertEqual(len(synthesis), 1)
+                for path in chunk_reviews + synthesis:
+                    with self.subTest(path=path.name):
+                        self.assertEqual(json.loads(path.read_text())["verdict"], "NEEDS_HUMAN")
+                self.assertIs(json.loads(synthesis[0].read_text())["coverage_complete"], False)
+                summary = json.loads((out_dir / "run-summary.json").read_text())
+                # No model produced anything, so none is named as the reviewer.
+                self.assertEqual((summary["chunk_model"], summary["synthesis_model"]), ("", ""))
+
+    def test_the_envelope_built_from_the_placeholders_fails_closed(self):
+        own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=MODULE_PATH.resolve().parents[1], check=True,
+                             capture_output=True, text=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _result, _calls, out_dir = self.run_with_manifest(root, dict(self.INCOMPLETE, head_sha=own, base_sha=own), 2)
+            (root / "full.diff").write_text("")
+            envelope = root / "envelope.json"
+            env = dict(os.environ, PR_NUMBER="7", HEAD_SHA=own, BASE_SHA=own, LOOP_N="0", RUN_ID="1",
+                       REVIEWER_ROUTE="codex", CODEX_REVIEW_EVIDENCE_MODE="chunked")
+            built = subprocess.run(
+                [sys.executable, "-I", str(MODULE_PATH.with_name("codex-review-build-envelope.py")),
+                 "--manifest", str(root / "evidence/manifest.json"), "--evidence-dir", str(root / "evidence"),
+                 "--full-diff", str(root / "full.diff"),
+                 "--chunk-reviews", *map(str, sorted(out_dir.glob("chunk-*-review-*.json"))),
+                 "--synthesis-reviews", *map(str, sorted(out_dir.glob("synthesis-*.json"))),
+                 "--out", str(envelope)],
+                cwd=MODULE_PATH.resolve().parents[1], env=env, capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            result = json.loads(envelope.read_text())
+            self.assertEqual(result["status"]["state"], "failure")
+            self.assertEqual(result["review_outcome"]["kind"], "incomplete_evidence")
+
+    def test_complete_coverage_still_runs_the_models(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, calls, _out_dir = self.run_with_manifest(pathlib.Path(tmp), {"coverage_complete": True, "incomplete_coverage": []}, 1)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls, 2, "one chunk call and one synthesis call (block mode)")
+
+
 if __name__ == "__main__":
     unittest.main()

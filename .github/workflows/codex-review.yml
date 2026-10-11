@@ -316,6 +316,45 @@ jobs:
         env:
           CODEX_COMPLIANCE_PATHS: ${{ vars.CODEX_COMPLIANCE_PATHS || 'allow' }}
 
+      - name: Choose evidence for the diff size (a bounded codex run past the cap switches to chunked)
+        # A bounded diff past the cap is cut, and since e6a705666 a cut diff can never be APPROVED
+        # (build-envelope.py --bounded-truncated), so the bounded reviewer would spend its 2-3 model
+        # calls on a guaranteed non-approval. Switch that run to chunked evidence, which covers the
+        # whole diff (and still fails closed past max_chunks). Only ever bounded -> chunked, only on
+        # the codex route (claude-deep and blocked never use chunked evidence). Runs before every
+        # step that reads CODEX_REVIEW_EVIDENCE_MODE, so the recorded effective mode is the real one.
+        env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
+        run: |
+          if [ "$CODEX_REVIEW_EVIDENCE_MODE" != bounded ] || [ "$REVIEWER_ROUTE" != codex ]; then
+            echo "evidence mode ${CODEX_REVIEW_EVIDENCE_MODE} on route ${REVIEWER_ROUTE}: no size check needed"
+            exit 0
+          fi
+          # The same cap Gather PR diff cuts at, from the trusted policy file. An unreadable cap fails
+          # the step: it is a configuration error, and Gather PR diff would fail on the same read.
+          MAX_BYTES="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-bounded-cap.py" "$GITHUB_WORKSPACE/.github/codex/evidence-policy.json")"
+          # Sized from the git objects exactly as Gather PR diff sizes it, so both steps agree on
+          # every byte count. If the size cannot be computed, stay bounded: Gather PR diff makes its
+          # own size decision and the envelope withholds APPROVE unless that decision was
+          # `complete`, so a cut diff still cannot be approved.
+          if ! RAW="$(git -c core.quotepath=false diff --no-ext-diff --no-textconv "${BASE_SHA}...${HEAD_SHA}")"; then
+            echo "::warning::could not compute the diff size; staying on bounded evidence (an APPROVE over a cut diff is still withheld)"
+            exit 0
+          fi
+          TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c | tr -d ' ')"
+          if ! [[ "$TOTAL_BYTES" =~ ^[0-9]+$ ]]; then
+            echo "::warning::diff size unreadable; staying on bounded evidence (an APPROVE over a cut diff is still withheld)"
+            exit 0
+          fi
+          if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
+            echo "diff ${TOTAL_BYTES} bytes > cap ${MAX_BYTES}: using chunked evidence"
+            echo "CODEX_REVIEW_EVIDENCE_MODE=chunked" >> "$GITHUB_ENV"
+            # CI's own marker of why, recorded in the live state (a file, not a step output or env value).
+            echo size > /tmp/codex_review_evidence_mode_reason.txt
+          else
+            echo "diff ${TOTAL_BYTES} bytes <= cap ${MAX_BYTES}: keeping bounded evidence"
+          fi
+
       - name: Gather live state
         id: live_state
         # PR title, body and file list are PR content. They go to files, never
@@ -335,6 +374,7 @@ jobs:
             echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
             echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
             echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "evidence_mode_reason=$(cat /tmp/codex_review_evidence_mode_reason.txt 2>/dev/null || echo configured)"
             echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
             echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
             echo ""
@@ -366,6 +406,7 @@ jobs:
             echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
             echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
             echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "evidence_mode_reason=$(cat /tmp/codex_review_evidence_mode_reason.txt 2>/dev/null || echo configured)"
             echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
             echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
           } > /tmp/live_state.txt
@@ -387,7 +428,7 @@ jobs:
         # to treat unseen hunks as unverified.
         id: pr_diff
         run: |
-          MAX_BYTES=60000
+          MAX_BYTES="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-bounded-cap.py" "$GITHUB_WORKSPACE/.github/codex/evidence-policy.json")"
           RAW="$(git -c core.quotepath=false diff --no-ext-diff --no-textconv "${BASE_SHA}...${HEAD_SHA}")"
           # The untruncated diff, for the binary guard in build-envelope.py: a file that diffs as
           # binary past the size cap below must still withhold an APPROVE.

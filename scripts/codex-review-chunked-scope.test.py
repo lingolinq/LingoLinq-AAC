@@ -1427,5 +1427,188 @@ def load_module(name, path):
     return module
 
 
+# ---------------------------------------------------------------------------
+# Large-PR fallback (PR #1118, 2026-10-11). A bounded diff past the size cap can never be approved
+# (the envelope withholds APPROVE on a cut diff), so a codex-routed bounded run over the cap switches
+# itself to chunked evidence before any diff is gathered. The cap is one value, read by both steps.
+# ---------------------------------------------------------------------------
+
+DECIDE_STEP = "Choose evidence for the diff size"
+POLICY_REF = "$GITHUB_WORKSPACE/.github/codex/evidence-policy.json"
+REASON_FILE = "codex_review_evidence_mode_reason.txt"
+
+# `git diff` prints exactly FAKE_DIFF_SIZE bytes (no trailing newline, so the step's "$(...)" keeps
+# every byte); FAKE_GIT_FAIL makes it fail the way a missing object would.
+EXACT_DIFF_GIT = r'''#!/usr/bin/env python3
+import os, sys
+args = sys.argv[1:]
+while args[:1] == ["-c"]:
+    args = args[2:]
+if args[:1] == ["diff"] and os.environ.get("FAKE_GIT_FAIL"):
+    sys.stderr.write("fatal: bad object\n")
+    sys.exit(128)
+if args[:1] == ["diff"] and "--name-only" in args:
+    print("app/a.rb")
+elif args[:1] == ["diff"]:
+    size = int(os.environ["FAKE_DIFF_SIZE"])
+    head = "diff --git a/app/a.rb b/app/a.rb\n+"
+    sys.stdout.write(head + "x" * (size - len(head)))
+else:
+    sys.exit(2)
+'''
+
+
+def bounded_cap():
+    return int(json.loads((REPO_ROOT / ".github/codex/evidence-policy.json").read_text())["bounded_max_bytes"])
+
+
+class LargePrFallbackTest(unittest.TestCase):
+    def decide(self, tmp, mode, route, size=100, policy=None, git_fail=False):
+        bin_dir = pathlib.Path(tmp) / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        install_fake(bin_dir, "git", EXACT_DIFF_GIT)
+        env_file = pathlib.Path(tmp) / "github_env"
+        env_file.write_text("")
+        # Localize first: it rewrites every /tmp/ path, which would move a temp policy file too.
+        script = localize(extract_step_run(DECIDE_STEP), tmp)
+        if policy is not None:
+            script = script.replace(POLICY_REF, str(policy))
+        extra = {"HEAD_SHA": "a" * 40, "BASE_SHA": "b" * 40, "GITHUB_ENV": str(env_file),
+                 "CODEX_REVIEW_EVIDENCE_MODE": mode, "REVIEWER_ROUTE": route, "FAKE_DIFF_SIZE": str(size)}
+        if git_fail:
+            extra["FAKE_GIT_FAIL"] = "1"
+        result = run_step(script, tmp, bin_dir, extra_env=extra)
+        reason = pathlib.Path(tmp) / REASON_FILE
+        return result, env_file.read_text(), (reason.read_text().strip() if reason.exists() else None)
+
+    def gather_state(self, tmp, size, policy=None):
+        bin_dir = pathlib.Path(tmp) / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        install_fake(bin_dir, "git", EXACT_DIFF_GIT)
+        script = localize(extract_step_run("Gather PR diff"), tmp)
+        if policy is not None:
+            script = script.replace(POLICY_REF, str(policy))
+        result = run_step(script, tmp, bin_dir, extra_env={
+            "HEAD_SHA": "a" * 40, "BASE_SHA": "b" * 40, "FAKE_DIFF_SIZE": str(size)})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return (pathlib.Path(tmp) / "pr_diff_state.txt").read_text().strip()
+
+    def test_a_bounded_codex_run_within_the_cap_stays_bounded(self):
+        cap = bounded_cap()
+        for size in (100, cap - 1, cap):
+            with self.subTest(size=size), tempfile.TemporaryDirectory() as tmp:
+                result, env, reason = self.decide(tmp, "bounded", "codex", size)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn("CODEX_REVIEW_EVIDENCE_MODE=", env)
+                self.assertIsNone(reason)
+
+    def test_a_bounded_codex_run_over_the_cap_switches_to_chunked(self):
+        cap = bounded_cap()
+        for size in (cap + 1, cap * 3):
+            with self.subTest(size=size), tempfile.TemporaryDirectory() as tmp:
+                result, env, reason = self.decide(tmp, "bounded", "codex", size)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(env, "CODEX_REVIEW_EVIDENCE_MODE=chunked\n")
+                self.assertEqual(reason, "size")
+                self.assertIn(f"diff {size} bytes > cap {cap}: using chunked evidence", result.stdout)
+
+    def test_other_routes_are_never_switched(self):
+        for route in ("claude-deep", "blocked", ""):
+            with self.subTest(route=route), tempfile.TemporaryDirectory() as tmp:
+                result, env, reason = self.decide(tmp, "bounded", route, bounded_cap() * 3)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(env, "")
+                self.assertIsNone(reason)
+
+    def test_an_explicit_chunked_run_is_left_alone_and_nothing_is_ever_downgraded(self):
+        for size in (100, bounded_cap() * 3):
+            with self.subTest(size=size), tempfile.TemporaryDirectory() as tmp:
+                result, env, reason = self.decide(tmp, "chunked", "codex", size)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(env, "")
+                self.assertIsNone(reason)
+        # Only ever upgrades: the step writes no other mode value anywhere.
+        script = extract_step_run(DECIDE_STEP)
+        self.assertEqual(re.findall(r"CODEX_REVIEW_EVIDENCE_MODE=(\w+)", script), ["chunked"])
+
+    def test_a_size_that_cannot_be_computed_stays_bounded_with_a_warning(self):
+        # Gather PR diff makes its own size decision and the envelope withholds APPROVE unless that
+        # decision was `complete`, so staying bounded here can never approve a cut diff.
+        with tempfile.TemporaryDirectory() as tmp:
+            result, env, reason = self.decide(tmp, "bounded", "codex", git_fail=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(env, "")
+            self.assertIsNone(reason)
+            self.assertIn("::warning::", result.stdout + result.stderr)
+
+    def test_an_unreadable_cap_fails_the_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for why, text in (("missing", None), ("no key", "{}"), ("zero", '{"bounded_max_bytes": 0}'),
+                              ("text", '{"bounded_max_bytes": "60000"}'), ("bool", '{"bounded_max_bytes": true}')):
+                with self.subTest(why):
+                    policy = pathlib.Path(tmp) / f"policy-{why.replace(' ', '-')}.json"
+                    if text is not None:
+                        policy.write_text(text)
+                    result, env, _reason = self.decide(tmp, "bounded", "codex", 100, policy=policy)
+                    self.assertNotEqual(result.returncode, 0, "the step ran without a valid cap")
+                    self.assertIn("bounded diff cap unreadable", result.stderr)
+                    self.assertEqual(env, "")
+
+    def test_the_decision_and_gather_pr_diff_read_one_cap(self):
+        decide_script = extract_step_run(DECIDE_STEP)
+        gather_script = extract_step_run("Gather PR diff")
+        for name, script in (("decision", decide_script), ("gather", gather_script)):
+            with self.subTest(step=name):
+                self.assertNotRegex(script, r"MAX_BYTES=\d", "the cap is a literal in this step")
+                self.assertNotIn(str(bounded_cap()), script)
+                self.assertIn(POLICY_REF, script)
+        # Behaviourally: move the cap in the policy and both steps move with it, on the same byte.
+        with tempfile.TemporaryDirectory() as tmp:
+            policy = pathlib.Path(tmp) / "policy.json"
+            policy.write_text('{"bounded_max_bytes": 1000}')
+            for size, cut in ((999, False), (1000, False), (1001, True)):
+                with self.subTest(size=size), tempfile.TemporaryDirectory() as run:
+                    _result, env, _reason = self.decide(run, "bounded", "codex", size, policy=policy)
+                    self.assertEqual("chunked" in env, cut)
+                with tempfile.TemporaryDirectory() as run:
+                    self.assertEqual(self.gather_state(run, size, policy=policy), "truncated" if cut else "complete")
+
+    def test_the_switch_and_the_recorded_cut_agree_at_the_real_cap(self):
+        cap = bounded_cap()
+        for size in (cap - 1, cap, cap + 1):
+            with self.subTest(size=size), tempfile.TemporaryDirectory() as tmp:
+                _result, env, _reason = self.decide(tmp, "bounded", "codex", size)
+                with tempfile.TemporaryDirectory() as run:
+                    state = self.gather_state(run, size)
+                self.assertEqual("chunked" in env, state == "truncated")
+
+    def test_the_decision_runs_after_the_classifier_and_before_every_mode_reader(self):
+        names = [line.strip()[len("- name: "):] for line in WORKFLOW.read_text().splitlines()
+                 if line.strip().startswith("- name: ")]
+        at = next(i for i, n in enumerate(names) if n.startswith(DECIDE_STEP))
+        before = next(i for i, n in enumerate(names) if n.startswith("Re-classify paths"))
+        self.assertLess(before, at)
+        for reader in ("Gather live state", "Gather PR diff", "Build chunked PR evidence", "Assemble prompt"):
+            with self.subTest(reader=reader):
+                self.assertLess(at, next(i for i, n in enumerate(names) if n.startswith(reader)))
+
+    def test_live_state_records_why_the_mode_was_chosen(self):
+        for reason, expected in (("size\n", "evidence_mode_reason=size"), (None, "evidence_mode_reason=configured")):
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as tmp:
+                if reason is not None:
+                    (pathlib.Path(tmp) / REASON_FILE).write_text(reason)
+                result, _output = WorkflowLogExposureTest.collection_step(self, tmp, "Gather live state")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                for name in ("live_state.txt", "live_state_prompt.txt"):
+                    self.assertIn(expected, (pathlib.Path(tmp) / name).read_text())
+
+    def test_the_cap_helper_prints_the_policy_value(self):
+        helper = REPO_ROOT / "scripts/codex-review-bounded-cap.py"
+        result = subprocess.run([sys.executable, "-I", str(helper), str(REPO_ROOT / ".github/codex/evidence-policy.json")],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, f"{bounded_cap()}\n")
+
+
 if __name__ == "__main__":
     unittest.main()
