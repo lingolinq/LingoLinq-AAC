@@ -577,7 +577,7 @@
              2026-10-10: "make the board cards their compressed version (from the boards page)
              instead of their full version"). Same component and same `ll-boards-grid--compact`
              styles the Boards page uses (_board_picker.scss), so the two cannot drift.
-             `@board` is the record, or `{id, key}` (both the key) when there is no record in the
+             `@board` is the record, or `{id, key, name}` (id and key both the key) when there is no record in the
              store yet (the home board before it loads; the Crisis board, which never has one here).
              BoardIcon then loads it by key (board-icon.js `set_board_record`). The key is passed as
              the `id` too because that function calls `peekRecord('board', id)` first, and Ember
@@ -767,27 +767,4 @@
   {{/if}}
   </div>{{!-- .md-workspace --}}
 
-  {{#if this.isSearchOpen}}
-    <section class="md-searchOverlay" role="dialog" aria-label={{t "Search" key="search"}}>
-      <div class="md-searchOverlay__top">
-        <input aria-label={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
-          class="md-searchOverlay__input"
-          placeholder={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
-          {{on "keydown" this.onSearchKeydown}}
-        />
-        <button type="button" class="md-btn md-btn--ghost" {{on "click" this.onCloseSearch}}>
-          {{t "Close" key="close"}}
-        </button>
-      </div>
-      <div class="md-searchOverlay__body">
-        <div class="md-muted">{{t "Hook this to your Rails endpoint later." key="md_search_hook"}}</div>
-        <div class="md-quickActions">
-          <button type="button" class="md-row" {{on "click" (fn this.onGoAndCloseSearch "speak")}}>{{t "Continue Speaking" key="continue_speaking"}}</button>
-          <button type="button" class="md-row" {{on "click" (fn this.onGoAndCloseSearch "boards")}}>{{t "Open Boards" key="open_boards"}}</button>
-          <button type="button" class="md-row" {{on "click" (fn this.onGoAndCloseSearch "reports")}}>{{t "View Reports" key="view_reports"}}</button>
-          <button type="button" class="md-row" {{on "click" this.onOpenExtrasTab}}>{{t "Explore Extras" key="explore_extras"}}</button>
-        </div>
-      </div>
-    </section>
-  {{/if}}
 </div>

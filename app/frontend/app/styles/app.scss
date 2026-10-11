@@ -56325,9 +56325,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    one sits in half a row (`"speak ."`). Spanning them overrode that and stacked both cards in the
    same cell, Extras painted over Speak. utils/dashboard_sections.js#gridLayoutState now flags
    `md-grid--speak-placed` / `md-grid--extras-placed` from the built areas, and the span skips a
-   placed card. Swept over every visibility combination and hero: Gentle always places both;
-   Focused never places Extras (so it still spans) and places Speak only as a full row (where the
-   span was a no-op), so Focused renders exactly as before. */
+   placed card. Gentle always places both. Focused has placed Extras too since 2026-10-10 (beside or
+   below the Speak hero, `md-grid--speak-beside`), so the flag skips it there as well; the span now
+   applies only to a card the layout left unplaced. */
 .md-grid.md-grid--dashboard:not(.md-grid--hero-org):not(.md-grid--speak-placed) > .md-card.md-card--speak-focused,
 .md-grid.md-grid--dashboard:not(.md-grid--hero-org):not(.md-grid--speak-placed) > .md-card.md-card--speak,
 .md-grid.md-grid--dashboard:not(.md-grid--extras-placed) > .md-card.md-card--extras {
@@ -65142,85 +65142,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 .md-focusbar__item:active { transform: scale(var(--md-tap)); }
 .md-focusbar__icon { opacity: 0.9; }
 .md-focusbar__text { font-size: 1rem; } /* 16px */
-
-/* ---------- Search Overlay ---------- */
-.md-searchOverlay {
-  position: fixed !important;
-
-  inset: 0 !important;
-
-  z-index: 80 !important;
-
-  background: rgba(238, 241, 246, 0.92) !important;
-
-  backdrop-filter: blur(16px) !important;
-
-  padding: 16px !important;
-
-  display: flex !important;
-
-  flex-direction: column !important;
-
-}
-
-.md-searchOverlay__top {
-  display: flex !important;
-
-  gap: 10px !important;
-
-  align-items: center !important;
-
-}
-
-.md-searchOverlay__input {
-  flex: 1 !important;
-
-  padding: 12px 14px !important;
-
-  border-radius: 18px !important;
-
-  border: 1px solid var(--md-line) !important;
-
-  background: rgba(255, 255, 255, 0.86) !important;
-
-  box-shadow: var(--md-shadow-2) !important;
-
-  outline: none !important;
-
-}
-
-.md-searchOverlay__input:focus-visible {
-  @include focus-ring;
-}
-
-.md-searchOverlay__body {
-  margin-top: 14px !important;
-
-  overflow: auto !important;
-
-  padding-bottom: 100px !important;
-
-}
-
-.md-row {
-  width: 100% !important;
-
-  text-align: left !important;
-
-  padding: 14px 12px !important;
-
-  border-radius: 18px !important;
-
-  border: 1px solid var(--md-line) !important;
-
-  background: rgba(255, 255, 255, 0.70) !important;
-
-  box-shadow: var(--md-shadow-2) !important;
-
-  margin-top: 10px !important;
-
-}
-.md-row:active { transform: scale(var(--md-tap)); }
 
 /* Prevent black flash on modern-dashboard load: paint content area with dashboard bg as soon as route is active */
 #within_ember #content.modern-dashboard {

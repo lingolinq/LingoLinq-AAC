@@ -271,7 +271,6 @@ export default Component.extend({
   activeTab: 'home',
   /** When set (e.g. on user.extras), open this tab on load */
   initialActiveTab: null,
-  isSearchOpen: false,
   showNewBoardForm: false,
 
   init() {
@@ -302,7 +301,6 @@ export default Component.extend({
     this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
     this.onGo = function(dest) { send('go', dest); };
     this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
-    this.onGoAndCloseSearch = function(dest) { send('goAndCloseSearch', dest); };
     this.onExtraAction = function(name) { send('extraAction', name); };
     this.onHomeInSpeakMode = function(boardForUserId, keepAsSelf) {
       send('homeInSpeakMode', boardForUserId, keepAsSelf);
@@ -313,9 +311,6 @@ export default Component.extend({
     this.onGoOrganizations = function() { send('goOrganizations'); };
     this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
     this.onEditDashboard = function() { send('editDashboard'); };
-    this.onCloseSearch = function() { send('closeSearch'); };
-    this.onOpenExtrasTab = function() { send('openExtrasTab'); };
-    this.onSearchKeydown = function(event) { send('onSearchKeydown', event); };
   },
   didInsertElement() {
     this._super(...arguments);
@@ -1309,26 +1304,6 @@ export default Component.extend({
       var next = mode === 'off' ? 'thin' : (mode === 'thin' ? 'thick' : 'off');
       this.set('sectionBorderMode', next);
     },
-    openSearch: function() {
-      this.set('isSearchOpen', true);
-      // Move focus to the search field once the overlay renders (replaces the
-      // `autofocus` attribute, which reduces accessibility and is unreliable in an SPA).
-      runLater(function() {
-        var el = document.querySelector('.md-searchOverlay__input');
-        if(el) { el.focus(); }
-      }, 50);
-    },
-    closeSearch: function() {
-      this.set('isSearchOpen', false);
-    },
-    onSearchKeydown: function(event) {
-      // Escape used to close the pill-nav dropdown FIRST and the search only if the
-      // dropdown was shut. That dropdown now belongs to UserPillNav, which is a native
-      // <details> and closes itself on Escape, so this only has the search to handle.
-      if (event && event.key === 'Escape') {
-        this.set('isSearchOpen', false);
-      }
-    },
     goTab: function(tab) {
       if (tab === 'reports') {
         var u = this.appState.get('currentUser.user_name');
@@ -1436,15 +1411,6 @@ export default Component.extend({
         var ux2 = this.appState.get('currentUser.user_name');
         if (ux2) { this.get('router').transitionTo('user.extras', ux2); }
       }
-    },
-    goAndCloseSearch: function(dest) {
-      this.set('isSearchOpen', false);
-      this.send('go', dest);
-    },
-    openExtrasTab: function() {
-      this.set('isSearchOpen', false);
-      var ue = this.appState.get('currentUser.user_name');
-      if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
       var _this = this;

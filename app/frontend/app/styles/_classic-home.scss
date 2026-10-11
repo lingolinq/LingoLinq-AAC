@@ -2391,10 +2391,6 @@ button.ch-tile:hover .ch-tile__chip {
     &::before { content: "\2192"; }
   }
 
-  // Extras opens a drawer rather than navigating, so it shows a disclosure chevron in
-  // the same place and rotates it when open. That makes the inline caret redundant, so
-  // it is hidden — otherwise the affordance appears twice on the one tile.
-  .ch-tile__toggle-caret { display: none; }
 }
 
 // -----------------------------------------------------------------------------
@@ -2461,21 +2457,6 @@ a.ch-tile--big:active .ch-tile__cta,
 button.ch-tile--big:active .ch-tile__cta {
   background: rgba(255, 255, 255, 0.30);
   box-shadow: inset 0 2px 4px rgba($brand-blue-black, 0.10);
-}
-
-// Clearance for the FIXED navbar when opening the drawer scrolls this card to the top
-// (classic-view.js `toggle_extras` -> utils/scroll_below_header.js, which uses
-// `block: 'start'`). This is only the FALLBACK: the helper measures the live header and
-// overwrites `scroll-margin-top` inline, because no CSS token reports the bar's real
-// height — `--topbar-height` is 16px on authenticated layouts while the rendered bar is
-// ~88px. 100px is a safe static approximation for when that measurement fails; erring
-// high leaves a small gap rather than tucking the card under the header.
-.ch-tile--extras-toggle { scroll-margin-top: 100px; }
-
-.ch-tile--extras-toggle.is-open .ch-tile__rule {
-  // The cue is in flow, so there is no translate for this to have to repeat — the
-  // rotation is the only transform and cannot fight the base rule's positioning.
-  transform: rotate(180deg);
 }
 
 // SUPERVISEE ROW ACTIONS -- Model / Speak / Choose Board.
@@ -2780,25 +2761,8 @@ $ch-gentle-ideas-fawn: #A79A80;
   }
 }
 
-// Extras is COOL SILVER again (requested 2026-09-03), reverting the denim it took on
-// 2026-09-02 to pair with Search Boards. It shares `ch-tile-silver` with the drawer it
-// opens rather than taking a hand-matched silver of its own, so the toggle and the ten
-// tiles it reveals cannot drift apart — and it restores the intent stated at the top of
-// this section: Extras is a disclosure, not an action, and should not compete with Speak
-// or Reports for attention.
-.ch-tile--extras-toggle { @include ch-tile-silver; }
 .ch-tile--silver        { @include ch-tile-silver; }
 
-// `extras-toggle` is BACK in this list (2026-09-03), and it has to be. It was removed
-// while the tile was denim, because this block's neutral blue-black hover shadow at
-// (0,2,1) outranks the hover `ch-tile-tint` installs at (0,2,0) — so a denim tile listed
-// here would have gone silver on hover while looking correct at rest. Now that the tile
-// IS silver, that reasoning inverts: leaving it out would give it no silver hover at all,
-// and it would be the one tile in the group that does not respond like its neighbours.
-a.ch-tile--extras-toggle:hover,
-a.ch-tile--extras-toggle:focus-visible,
-button.ch-tile--extras-toggle:hover,
-button.ch-tile--extras-toggle:focus-visible,
 a.ch-tile--silver:hover,
 a.ch-tile--silver:focus-visible,
 button.ch-tile--silver:hover,
@@ -2807,23 +2771,6 @@ button.ch-tile--silver:focus-visible {
     0 12px 26px rgba($brand-blue-black, 0.12),
     0 2px 5px rgba($brand-blue-black, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
-}
-
-// Caret sits with the label, and flips when the row is open.
-.ch-tile__toggle-caret {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-left: 7px;
-  vertical-align: middle;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid rgba($la-navy, 0.55);
-  transition: transform 0.18s ease;
-}
-
-.ch-tile--extras-toggle.is-open .ch-tile__toggle-caret {
-  transform: rotate(180deg);
 }
 
 // The revealed row sits under the main grid, separated by a hairline so it reads as
@@ -3744,11 +3691,6 @@ button.ch-tile--silver:focus-visible {
   .ch-tile--speak-main    { --ch-accent: 95, 144, 186; }   // blue
   .ch-tile--reports       { --ch-accent: 66, 152, 154; }   // muted teal/sage
   .ch-tile--ideas         { --ch-accent: 169, 134, 72; }   // warm sand/gold
-  // Extras carries the SAME slate as the drawer, not the denim it used to (2026-09-03),
-  // so if the parked material above is ever restored it comes back cool silver and does
-  // not silently undo that change. Matching the drawer's existing value rather than
-  // deriving a new one also keeps it inside this set's Y = 0.26 / S = 0.40 solve.
-  .ch-tile--extras-toggle { --ch-accent: 148, 163, 184; }  // cool silver / slate
   .ch-tile--silver        { --ch-accent: 148, 163, 184; }  // drawer: neutral slate
 
   // PARKED WITH THE BLOCK ABOVE (2026-09-03) — restore the two together.

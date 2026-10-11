@@ -4647,13 +4647,6 @@ $ch-focused-hero-more-ink: #E5E5E5;
     // reads 6.49-7.19 on the veil above.
     .ch-tile__sub { color: $ch-focused-ink-sub; }
 
-    // The disclosure chevron is a CSS triangle, so its colour is a border
-    // (`_classic-home.scss:1390`); on dark, $la-navy at 0.55 is invisible.
-    // The caret is a CSS triangle, so its colour is a border. Light grey for the same reason
-    // as the arrow above, and the same token -- on the dark card the near-black it carried
-    // measured 2.0 on the panel veil, under the 3:1 floor for a non-text cue.
-    .ch-tile__toggle-caret { border-top-color: $ch-focused-hero-more-ink; }
-
     // THE SHARED CHIP -- this block is UNSCOPED (see `.ch-grid:not(.ch-grid--extras)` above,
     // which lost its `body.ll-layout-focused` prefix so Basic could take this palette in BOTH
     // layouts), so what is written here reaches Gentle Basic as well. The pale plate below is
