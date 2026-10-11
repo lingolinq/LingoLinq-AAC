@@ -2300,7 +2300,9 @@ describe('editManager', function() {
       expect(board.get('ordered_buttons')).toEqual(undefined);
       editManager.setup(board);
       editManager.process_for_displaying();
-      waitsFor(function() { return board.get('ordered_buttons'); });
+      // highlight_button is sent by a later step than the one that sets ordered_buttons, so wait for both
+      // before checking the messages (waiting for ordered_buttons alone made this assertion timing-dependent).
+      waitsFor(function() { return board.get('ordered_buttons') && (board.sent_messages || []).indexOf('highlight_button') >= 0; });
       runs(function() {
         expect(board.get('ordered_buttons')).not.toEqual(undefined);
         expect(board.get('ordered_buttons')[0][0].get('label')).toEqual('crow');

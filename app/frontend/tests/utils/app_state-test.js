@@ -90,9 +90,9 @@ function primeSessionUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // Same as primeSpeakModeUser: a store record always has reload, so the old `typeof` guard never
+  // installed this stub; stub it outright so no test here reloads the user through the real store.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;

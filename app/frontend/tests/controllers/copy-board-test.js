@@ -48,7 +48,9 @@ describe('CopyBoardController', 'controller:copy-board', function() {
       BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
     }
     // Opening selects 'self', which fetches that user (components/copy-board.js:209-226, loading=true);
-    // loading clears when the fetch settles (:271 here: no user fixture, so it rejects).
+    // loading clears when the fetch settles (:271 here: no user fixture, so it rejects). On the success
+    // path loading clears (:241) BEFORE the sidebar board fetches are queued, so a 'self' fixture added
+    // later would need a wait on those fetches too.
     waitsFor(function() { return component.get('loading') === false; });
     runs(function() {
       component.destroy();
