@@ -140,10 +140,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # The one ref n8n W1 dispatches this workflow on (README "Admin preconditions"). The
-          # environment must allow exactly this branch, by name, and nothing else (a policy named
-          # exactly `staging` holds no wildcard).
-          CODEX_REVIEW_DISPATCH_REF=staging
+          # The environment must allow exactly ONE branch, named exactly (no wildcard), and not
+          # "protected branches" mode. Which branch is the admin's choice: the one n8n W1 dispatches
+          # from (README "Admin preconditions"). GitHub itself only lets a run on that branch use the
+          # environment, so this check makes sure the rule is that narrow.
           fail() {
             gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
               -f state=failure \
@@ -161,16 +161,16 @@ jobs:
           import json, sys
           environment = json.load(open(sys.argv[1]))
           policies = json.load(open(sys.argv[2]))
-          ref = sys.argv[3]
           rule = environment.get("deployment_branch_policy") or {}
           names = [p.get("name") for p in policies.get("branch_policies") or []]
+          exact = (len(names) == 1 and isinstance(names[0], str) and names[0] != ""
+                   and not any(c in names[0] for c in "*?[]{}\\") and not names[0].startswith("!"))
           ok = (rule.get("protected_branches") is False and rule.get("custom_branch_policies") is True
-                and isinstance(policies.get("branch_policies"), list) and len(names) == 1
-                and names[0] == ref
+                and isinstance(policies.get("branch_policies"), list) and exact
                 and (policies["branch_policies"][0].get("type") or "branch") == "branch")
           sys.exit(0 if ok else 1)
-          ' /tmp/codex-review-environment.json /tmp/codex-review-branch-policies.json "$CODEX_REVIEW_DISPATCH_REF" \
-            || fail "codex-review environment must allow only branch ${CODEX_REVIEW_DISPATCH_REF} (admin precondition)"
+          ' /tmp/codex-review-environment.json /tmp/codex-review-branch-policies.json \
+            || fail "codex-review environment must allow exactly one named branch, no wildcard (admin precondition)"
 
       - name: Bind pr_number to head_sha (refuse a stale/mismatched W1 dispatch)
         # Codex review flagged that pr_number and head_sha were trusted

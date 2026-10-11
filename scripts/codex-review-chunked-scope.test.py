@@ -853,7 +853,9 @@ class WorkflowLogExposureTest(unittest.TestCase):
 
     def test_the_review_refuses_to_run_until_the_environment_restricts_deployment_branches(self):
         # The codex-review environment isolates the secrets only once it restricts which branches
-        # may deploy to it (README "Admin preconditions"); until then a run must fail closed.
+        # may deploy to it (README "Admin preconditions"); until then a run must fail closed. The rule
+        # must name exactly one branch, with no wildcard; WHICH branch is the admin's choice (the one W1
+        # dispatches from): GitHub itself only lets a run on that branch use the environment.
         script = extract_step_run("Require the codex-review environment to restrict deployment branches")
         restricted = '{"protected_branches":false,"custom_branch_policies":true}'
         one = '{"total_count":1,"branch_policies":[{"id":1,"name":"staging","type":"branch"}]}'
@@ -863,12 +865,17 @@ class WorkflowLogExposureTest(unittest.TestCase):
             "no deployment branch rule": ("null", one, False),
             "rule that restricts nothing": ('{"protected_branches":false,"custom_branch_policies":false}', one, False),
             "protected branches only": ('{"protected_branches":true,"custom_branch_policies":false}', one, False),
-            "exactly the dispatch branch": (restricted, one, True),
+            "exactly one named branch": (restricted, one, True),
+            "exactly one other named branch (the admin's choice)": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"develop","type":"branch"}]}', True),
             "protected branches as well": ('{"protected_branches":true,"custom_branch_policies":true}', one, False),
             "a wildcard pattern": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"*","type":"branch"}]}', False),
             "a wildcard that also matches staging": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"stag*","type":"branch"}]}', False),
             "two policies": (restricted, '{"total_count":2,"branch_policies":[{"id":1,"name":"staging","type":"branch"},{"id":2,"name":"develop","type":"branch"}]}', False),
-            "the wrong branch": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"develop","type":"branch"}]}', False),
+            "a single-character wildcard": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"stagin?","type":"branch"}]}', False),
+            "a character class": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"[sd]*","type":"branch"}]}', False),
+            "a brace list": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"{staging,develop}","type":"branch"}]}', False),
+            "a negated pattern": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"!main","type":"branch"}]}', False),
+            "an empty name": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"","type":"branch"}]}', False),
             "a tag policy": (restricted, '{"total_count":1,"branch_policies":[{"id":1,"name":"staging","type":"tag"}]}', False),
             "no policies": (restricted, '{"total_count":0,"branch_policies":[]}', False),
             "policies API error": (restricted, "missing", False),
