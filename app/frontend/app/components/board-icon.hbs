@@ -59,8 +59,9 @@
   {{!-- compactRow suppresses BOTH nested buttons: in the compact board-picker
        row the whole card is the preview target (board-icon.js#pick_board), so a
        Preview button inside it would be an interactive element nested in
-       another. The chevron below is the affordance instead. --}}
-  {{#unless (or this.noinfo this.compactRow)}}
+       another. The chevron below is the affordance instead. Neither renders without a record:
+       board_preview needs one (a key-only tile, board-icon.js#opens_by_key, has nothing to preview). --}}
+  {{#unless (or this.noinfo this.compactRow (not this.board_record))}}
     <button type="button" {{on "click" (this.ctrlActionNoBubble "board_preview" this.board_record)}} class='info' style="cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
       {{#if this.override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
@@ -87,7 +88,7 @@
        button below. When the board has no grid metadata (rare), the
        chip falls back to icon-only and the --with-size modifier is
        not applied so it stays a circle. --}}
-  {{#unless (or this.noinfo this.compactRow)}}
+  {{#unless (or this.noinfo this.compactRow (not this.board_record))}}
     <button
       type="button"
       class='board-icon__info {{if this.board_record.grid.rows "board-icon__info--with-size"}}'

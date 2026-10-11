@@ -7,13 +7,18 @@
 // the fifth there and keeps Crisis (`.md-card--boards__item--crisis`).
 var PREVIEW_BOARDS_MAX = 12;
 
-// When Crisis is also among the user's own boards (only for the account that owns the system board),
-// that entry moves to the end, keeping its loaded record and gaining the Crisis flag.
+// When Crisis is also in the list (the user's home board, or a board the user owns), that entry is
+// used instead, keeping its loaded record and gaining the Crisis flag. As the HOME board it stays
+// first, since home always leads (dashboard/authenticated-view.js#previewBoards); otherwise it
+// moves to the end.
 function capPreviewBoards(ordered, crisis, max) {
   var limit = max || PREVIEW_BOARDS_MAX;
   var list = ordered || [];
   if (!crisis) { return list.slice(0, limit); }
   var own = list.find(function(b) { return b.key === crisis.key; });
+  if (own && own.isHome) {
+    return list.map(function(b) { return b === own ? Object.assign({}, own, { isEmergency: true }) : b; }).slice(0, limit);
+  }
   var others = list.filter(function(b) { return b.key !== crisis.key; });
   var last = own ? Object.assign({}, own, { isEmergency: true }) : crisis;
   return others.slice(0, limit - 1).concat([last]);

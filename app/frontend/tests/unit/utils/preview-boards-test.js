@@ -44,6 +44,16 @@ module('Unit | Utility | preview-boards', function() {
     assert.deepEqual(keys(out).slice(0, 11), keys(items(11)), 'the first 11 boards in their order');
   });
 
+  test('Crisis as the user\'s HOME board stays first (home always leads) and is not repeated', function(assert) {
+    var list = [{ key: crisis.key, isHome: true }].concat(items(20));
+    var out = capPreviewBoards(list, crisis);
+    assert.strictEqual(out.length, 12);
+    assert.strictEqual(out[0].key, crisis.key, 'home board first');
+    assert.true(out[0].isEmergency, 'flagged, so the small-screen limit keeps it');
+    assert.strictEqual(keys(out).filter(function(k) { return k === crisis.key; }).length, 1, 'once');
+    assert.deepEqual(keys(out).slice(1), keys(items(11)), 'then 11 boards');
+  });
+
   test('no Crisis board available: up to 12 of the user\'s boards', function(assert) {
     assert.strictEqual(capPreviewBoards(items(20), null).length, 12);
   });
