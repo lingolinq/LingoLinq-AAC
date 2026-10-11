@@ -8,7 +8,6 @@ import pathlib
 import re
 import subprocess
 import sys
-import tempfile
 
 
 # Model calls go through the quiet runner so the `codex exec` transcript (the
@@ -18,38 +17,6 @@ _QUIET_EXEC_SPEC = importlib.util.spec_from_file_location(
 )
 quiet_exec = importlib.util.module_from_spec(_QUIET_EXEC_SPEC)
 _QUIET_EXEC_SPEC.loader.exec_module(quiet_exec)
-
-# The locked model catalog and provider (approved models only, no catalog-added tools), written by
-# the workflow's install step under $RUNNER_TEMP.
-_MODEL_CATALOG_SPEC = importlib.util.spec_from_file_location(
-    "codex_review_model_catalog", pathlib.Path(__file__).with_name("codex-review-model-catalog.py")
-)
-model_catalog = importlib.util.module_from_spec(_MODEL_CATALOG_SPEC)
-_MODEL_CATALOG_SPEC.loader.exec_module(model_catalog)
-
-# Hardening arguments shared with the bounded reviewer in codex-review.yml: read-only sandbox, no
-# command/browser/web tools, no session saving, no user config.
-CODEX_EXEC_ARGS_FILE = pathlib.Path(__file__).resolve().parents[1] / ".github" / "codex" / "codex-exec-args.txt"
-
-
-def codex_exec_args():
-    lines = CODEX_EXEC_ARGS_FILE.read_text().splitlines()
-    args = [line for line in lines if line and not line.startswith("#")]
-    if not args:
-        raise RuntimeError(f"{CODEX_EXEC_ARGS_FILE} has no arguments; refusing to run codex unhardened")
-    # Raises when the locked catalog is missing or not locked, so no call runs without it.
-    return args + model_catalog.exec_overrides()
-
-
-# codex runs from an empty directory: it needs no files, and the prompt carries all evidence.
-_CODEX_WORKDIR = None
-
-
-def codex_workdir():
-    global _CODEX_WORKDIR
-    if _CODEX_WORKDIR is None:
-        _CODEX_WORKDIR = tempfile.mkdtemp(prefix="codex-review-workdir-")
-    return _CODEX_WORKDIR
 
 
 CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
@@ -210,17 +177,16 @@ def run_model(args, prompt_path, schema_path, output_path, heartbeat_description
     command = [
         "codex",
         "exec",
-        # --ephemeral (no session saved under CODEX_HOME) and the rest are in the shared file.
-        *codex_exec_args(),
-        "-C",
-        codex_workdir(),
+        # Do not save the session (prompt and model output) under CODEX_HOME.
+        "--ephemeral",
+        "--sandbox",
+        "read-only",
         "-m",
         model,
         "--output-schema",
-        # Absolute: codex runs from the empty workdir, not from the trusted checkout.
-        str(pathlib.Path(schema_path).resolve()),
+        str(schema_path),
         "--output-last-message",
-        str(pathlib.Path(output_path).resolve()),
+        str(output_path),
     ]
     if heartbeat_description:
         heartbeat(args, heartbeat_description)
@@ -258,7 +224,7 @@ def run_with_timeout(command, stdin):
     return _CallResult(returncode)
 
 
-def write_invalid_review(path, head_sha, chunk=None, reason="model call failed or emitted invalid JSON", description=None):
+def write_invalid_review(path, head_sha, chunk=None, reason="model call failed or emitted invalid JSON"):
     if chunk:
         body = {
             "verdict": "NEEDS_HUMAN",
@@ -272,7 +238,7 @@ def write_invalid_review(path, head_sha, chunk=None, reason="model call failed o
                     "category": "live_state",
                     "file": "(chunk)",
                     "line": None,
-                    "description": description or "The chunk reviewer did not produce a valid schema-conforming result.",
+                    "description": "The chunk reviewer did not produce a valid schema-conforming result.",
                     "evidence": reason,
                     "suggested_fix": "Rerun the codex-review job or route to human review.",
                     "verifiable_check": "scripts/codex-review-run-chunks.py",
@@ -293,7 +259,7 @@ def write_invalid_review(path, head_sha, chunk=None, reason="model call failed o
                     "category": "live_state",
                     "file": "(synthesis)",
                     "line": None,
-                    "description": description or "The synthesis reviewer did not produce a valid schema-conforming result.",
+                    "description": "The synthesis reviewer did not produce a valid schema-conforming result.",
                     "evidence": reason,
                     "suggested_fix": "Rerun the codex-review job or route to human review.",
                     "verifiable_check": "scripts/codex-review-run-chunks.py",
@@ -306,52 +272,6 @@ def write_invalid_review(path, head_sha, chunk=None, reason="model call failed o
             "dedupe_notes": [],
         }
     pathlib.Path(path).write_text(json.dumps(body, indent=2, sort_keys=True))
-
-
-# Fixed log line for a run stopped before any model call; tests and operators search for it.
-COVERAGE_INCOMPLETE_LOG = "coverage incomplete: no model calls made"
-
-
-def coverage_incomplete(manifest):
-    """True when the CI-built manifest itself says the evidence does not cover the whole diff.
-
-    codex-review-build-envelope.py validate_chunked_evidence turns either signal into an
-    incomplete_evidence NEEDS_HUMAN and discards every chunk and synthesis review, so model calls on
-    such a manifest cannot change the verdict. Keyed on the explicit signals only: a manifest without
-    the field still runs (the envelope rejects it anyway)."""
-    return manifest.get("coverage_complete") is False or bool(manifest.get("incomplete_coverage"))
-
-
-def write_skipped_run(manifest, out_dir, head_sha):
-    """Write NEEDS_HUMAN placeholders where the envelope step looks for reviews, and no model call.
-
-    One placeholder per manifest chunk (a diff-wide `chunk-0000` when there are none), and one
-    synthesis placeholder with coverage_complete false, so the envelope step builds and posts its
-    fail-closed incomplete_evidence result instead of failing for missing files."""
-    reason = "evidence coverage is incomplete (see the manifest); no model call was made"
-    description = "Not reviewed: the CI evidence does not cover the whole diff, so this run cannot be approved."
-    chunks = manifest.get("chunks") or [{"id": "chunk-0000", "raw_sha256": ""}]
-    chunk_paths = []
-    for chunk in chunks:
-        path = out_dir / f"{chunk['id']}-review-1.json"
-        write_invalid_review(path, head_sha, chunk, reason=reason, description=description)
-        chunk_paths.append(path)
-    synthesis = out_dir / "synthesis-1.json"
-    write_invalid_review(synthesis, head_sha, reason=reason, description=description)
-    summary = {
-        # No model produced anything, so none is named as the reviewer.
-        "chunk_model": "",
-        "synthesis_model": "",
-        "chunk_reviews": [str(path) for path in chunk_paths],
-        "canonical_chunk_reviews": [str(path) for path in chunk_paths],
-        "chunk_result_groups": [],
-        "synthesis_reviews": [str(synthesis)],
-        "skipped": COVERAGE_INCOMPLETE_LOG,
-    }
-    (out_dir / "run-summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
-    # Reason codes only (set by codex-review-build-evidence.py); the entries' paths are PR file names.
-    reasons = sorted({str(item.get("reason")) for item in manifest.get("incomplete_coverage") or []})
-    print(json.dumps({"skipped": COVERAGE_INCOMPLETE_LOG, "chunks": len(manifest.get("chunks") or []), "reasons": reasons}))
 
 
 def build_chunk_prompt(template, live_state, manifest_md, prior_loop, chunk, evidence_dir, out_path):
@@ -406,10 +326,6 @@ def main():
     prior_loop = pathlib.Path(args.prior_loop_file).read_text() if args.prior_loop_file else "N/A (loop 0 - first pass)."
     chunk_template = pathlib.Path(".github/codex/chunk-review-prompt.md").read_text()
     synthesis_template = pathlib.Path(".github/codex/synthesis-prompt.md").read_text()
-
-    if coverage_incomplete(manifest):
-        write_skipped_run(manifest, out_dir, args.head_sha)
-        return 0
 
     chunk_result_paths = []
     canonical_chunk_result_paths = []
