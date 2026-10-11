@@ -54,7 +54,9 @@ describe('waitsFor timeout', function() {
     var start = Date.now();
     var limit = QUnit.config.testTimeout || 15000;
     stub(a, 'pushResult', function(result) {
-      if(result && result.result === false && /^condition failed/.test(result.message)) {
+      if(result && /^condition failed/.test(result.message)) {
+        // Only a FAILING report counts: a harness softened to report the stuck wait as a pass must fail here.
+        if(result.result !== false) { return push.call(a, { result: false, actual: 'reported as a pass', expected: 'a failure', message: 'the harness reported the stuck wait but did not fail the test' }); }
         var elapsed = Date.now() - start;
         return push.call(a, { result: elapsed < limit, actual: elapsed, expected: '< ' + limit, message: 'the wait failed on its own after ' + elapsed + 'ms' });
       }
@@ -83,8 +85,11 @@ describe('harness timeout cleanup', function() {
     var a = currentAssert();
     var push = a.pushResult;
     stub(a, 'pushResult', function(result) {
-      if(result && result.result === false && /async work did not finish in time/.test(result.message)) {
-        return push.call(a, { result: true, actual: result.message, expected: result.message, message: 'the harness failed the stuck test' });
+      if(result && /async work did not finish in time/.test(result.message)) {
+        // Only a FAILING report counts: a harness softened to report the stuck test as a pass must fail here.
+        return push.call(a, result.result === false
+          ? { result: true, actual: result.message, expected: result.message, message: 'the harness failed the stuck test' }
+          : { result: false, actual: 'reported as a pass', expected: 'a failure', message: 'the harness reported the stuck test but did not fail it' });
       }
       return push.call(a, result);
     });
