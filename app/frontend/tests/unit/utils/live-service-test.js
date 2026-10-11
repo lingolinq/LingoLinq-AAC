@@ -88,8 +88,11 @@ module('Unit | Utility | live_service', function() {
     set_owner_gone_listener(harnessListenerSeen);
     const push = assert.pushResult;
     assert.pushResult = function(result) {
-      if (result && result.result === false && /owner-gone listener swapped out/.test(result.message)) {
-        return push.call(assert, { result: true, actual: result.message, expected: result.message, message: 'the harness failed the test that left its recorder installed' });
+      if (result && /owner-gone listener swapped out/.test(result.message)) {
+        // Only a FAILING report counts: a guard softened to push a pass must fail this test.
+        return push.call(assert, result.result === false
+          ? { result: true, actual: result.message, expected: result.message, message: 'the harness failed the test that left its recorder installed' }
+          : { result: false, actual: 'reported as a pass', expected: 'a failure', message: 'the harness reported the swapped listener but did not fail the test' });
       }
       return push.call(assert, result);
     };

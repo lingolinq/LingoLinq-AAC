@@ -36,8 +36,11 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
     assert.expect(2);
     const push = assert.pushResult;
     assert.pushResult = function(result) {
-      if (result && result.result === false && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
-        return push.call(assert, { result: true, actual: result.message, expected: result.message, message: 'setupTest failed the test that left its fetch queued' });
+      if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
+        // Only a FAILING report counts: a check softened to log (or to push a pass) must fail this test.
+        return push.call(assert, result.result === false
+          ? { result: true, actual: result.message, expected: result.message, message: 'setupTest failed the test that left its fetch queued' }
+          : { result: false, actual: 'reported as a pass', expected: 'a failure', message: 'setupTest reported the queued fetch but did not fail the test' });
       }
       return push.call(assert, result);
     };

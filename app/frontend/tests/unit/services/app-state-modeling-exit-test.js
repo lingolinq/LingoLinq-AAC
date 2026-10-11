@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
-import { waitForUtteranceRefresh } from '../../helpers/utterance-refresh';
+import { utteranceRefreshPending, waitForUtteranceRefresh } from '../../helpers/utterance-refresh';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
@@ -24,7 +24,7 @@ import modal from 'frontend/utils/modal';
   setupTest(hooks);
   // Registered right after setupTest, so it runs after this module's own afterEach (which can rebuild the
   // sentence too) and before the owner is torn down: each test waits for the utterance refresh it scheduled.
-  hooks.afterEach(async function() { await waitForUtteranceRefresh(); });
+  hooks.afterEach(function() { if (utteranceRefreshPending()) { return waitForUtteranceRefresh(); } }); // synchronous when nothing is pending, so setupTest's queued-fetch check still sees this module's tests
 
   function user(id, name) {
     return EmberObject.create({
