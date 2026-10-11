@@ -119,13 +119,15 @@ still owed.**
   opened by key to `BoardIcon`, which (1) rendered no name without the record, (2) set
   `pointer-events: none` until the record was ready, and (3) returned early from `pick_board`. Now:
   the card passes the preview's name; `tile_display_name` falls back to it; `opens_by_key` keeps a
-  key-only tile with `@onActionOverride` clickable; `pick_board` hands that caller the key. Other
-  callers keep the not-ready behaviour (tested). Live, with the Crisis board's API request blocked:
+  key-only tile with `@onActionOverride` clickable; `pick_board` hands that caller the key. Callers
+  without `@onActionOverride` keep the not-ready behaviour (tested); the one other caller with it,
+  the style-variant picker (board-preview-overlay.hbs:28), now also takes clicks before load
+  (corrected 2026-10-11 after the second review). Live, with the Crisis board's API request blocked:
   the tile shows "Crisis" and a real click opens `/lingolinq/board-detail/crisis-vocabulary`.
 - **"Home Board" was never announced.** The tile wrapper's `aria-label` replaces its contents for
   assistive technology, so the home glyph's own label was not read (true on `develop` as well; the
   template comment claimed otherwise and is corrected). `tile_aria_name` adds ", Home Board".
-- **Crisis could fall off the card** for the account that owns the system Crisis board (it was
+- **Crisis could fall off the card** when it was also in the user's own list (it was
   kept at its list position, so the 12-cap could cut it, and it lacked the small-screen flag). It now
   always ends the list, flagged, keeping its loaded record. Test: preview-boards-test (+1).
 - **A token check in flight during a teardown ran the logout again** (a second alert and
@@ -142,8 +144,11 @@ Verification after these fixes: full Ember suite 3366 tests, 0 failed (37 skip, 
 new); `lint:js:ci` 0 new findings; template lint clean; the live idle-session flows re-run unchanged.
 
 ### Checked and not a defect
-- "Errors on user pages are swallowed after a dead-session logout": live, after Log Out
-  `invalid_token` and `logout_under_way()` are false and a nonexistent `/:user` shows the error page.
+- "Errors on user pages are swallowed after a dead-session logout": NOT refuted, only on the reload
+  path. Live (the `auth_spa_transition` flag off, so Log Out reloads), the flags reset and the error
+  page shows. On the SPA logout path nothing clears `invalid_token` (its only resets are
+  session.js:95, :307, :311), so it stays set until the next sign-in. Corrected 2026-10-11 after the
+  second review; see below.
 
 ### Kept as requested, with the trade-off recorded
 - **The force-logout dialog stays uncloseable** (requested 2026-10-09: up until the user acts). Its
@@ -163,11 +168,39 @@ new); `lint:js:ci` 0 new findings; template lint clean; the live idle-session fl
   refactor with live measurement at every breakpoint; it belongs in its own PR.
 - The Reload marker (`utils/reload_intent.js`) is matched by URL and never consumed, so a later
   sign-in's `location.reload()` on the same URL is not treated as a launch (speak mode not opened).
-- Two tabs on one account: a dead-session 400 in one tab runs `_tear_down_dead_session`, whose
-  `persist({})` clears the sign-in the other tab just saved.
+- ~~Two tabs on one account clearing each other's sign-in~~ fixed 2026-10-11 (second review, item 9).
 - No unit test drives the extras.js failure branch itself (400 with `invalid_token` ->
   `force_logout`, speak-mode guard, de-dupe); it is covered by the live probes only.
 - Rewritten tests marked "approved 2026-10-10" for Scot to confirm: dashboard-sections-test.js,
   dashboard-sections-layout-test.js, dashboard-grid-placement-test.js,
   account-rail-collapse-test.js, classic-view-extras-landing-test.js,
   tours-classic-home-tab-test.js, and spec/spec_helper.rb (TZ=UTC).
+
+## Second review (2026-10-11, `/adversary-review-local`)
+
+Run with the new local skill (`~/.claude/skills/adversary-review-local`, agent
+`~/.claude/agents/adversary-local.md`): four read-only slices (session and routing; Compressed View
+removal; home, rail and View menu; the four fix commits). Still a substitute: the canonical
+`/adversary-review` is owed. Each finding below was re-checked in code (or live) before listing.
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 1 | The dialog's `login` exit never matches: `login` has a child route, so the real transition is `login.index` (router.js:66-68, routes/application.js:126-137). The test passed a synthetic `'login'`. | Medium, regression | **Fixed**: `/^login(\.|$)/`; app_state-test +2 (`login.index`, `login.device`) |
+| 2 | Making key-only tiles clickable (`opens_by_key`) also made their nested Preview buttons clickable; with no record, `board_preview(undefined)` throws at `board.preview_option` (board-icon.js:317). Full-size Boards card and the style-variant picker. | Medium, regression from 9ab036c05 | **Fixed**: the two Preview buttons render only with a record; rendering test board-icon-key-only-test.js (also pins the wrapper's real aria-label) |
+| 3 | SPA logout path never clears `invalid_token`, so `logout_under_way()` stays true until sign-in and routes/user.js swallows `/:user` errors for the signed-out visitor. Only with `auth_spa_transition` on. | Low, regression | **Fixed**: routes/user.js holds errors back only while the force-logout dialog is open; user-error-action-test +1, and the existing case's dialog-open precondition made explicit (approved 2026-10-11) |
+| 4 | Crisis as a user's HOME board moves from first to last (preview-boards.js treats any list entry with the Crisis key as "own"). | Low, regression from 9ab036c05 | **Fixed**: as the home board, Crisis stays first, flagged; preview-boards-test +1 |
+| 5 | A stale `check_token` response still sets `invalid_token` on a freshly re-signed-in session: `_token_still_stored` gates only `force_logout`, not the flag writes above it. | Low, pre-existing (improved) | **Fixed**: a stale answer (token no longer this tab's) is ignored before any flag write (`_checked_token_is_current` in check_token's response guards); session-test +1 |
+| 6 | Backfill race: `find_each` then `save!` of the whole encrypted settings blob, no reload, no lock; a concurrent settings write by that user is undone. Fix: `user.with_lock`. | Low-Medium; recommended before the staging/production run | **Fixed**: `user.with_lock`, removing the key from the re-read settings; task spec +1 (a change saved after the batch load survives) |
+| 7 | Gentle: with Speak Mode hidden, Extras moves to the TOP (`extrasBesideSpeak` runs on the full default order before visibility filtering; its comment says "only when BOTH are visible"). | Low, regression from 2026-10-09 | **Fixed**: `extrasBesideSpeak` takes `vis` on the live grid; dashboard-sections-test +1 |
+| 8 | Rail dropdown trigger at <=900px is named after the current page ("Home Page" even on Boards), not "Account menu"; `aria-haspopup="true"` on a list of links. | Low | **Fixed**: `menuTriggerLabel` ("<visible label>, Account menu"); `aria-haspopup` dropped (a disclosure, not a menu); account-rail-trigger-label-test |
+| 9 | Boot-time `check_token` can skip the logout if another tab changes the stored login mid-check (also protects that tab's new sign-in). | Low | **Fixed**: staleness compares with this tab's in-memory token, so another tab's logout still logs this tab out; the teardown clears the stored login only when it is this tab's (or empty), so another tab's new sign-in survives (closes the two-tab follow-up); session-test +2 |
+| 10 | Dead `.ch-tile--extras-toggle` rules; stale "Focused never places Extras" comment (app.scss ~56327); stale `{id, key}` comment (authenticated-view.hbs:580); `.md-searchOverlay` unused. | Low, hygiene | **Fixed**: Extras-toggle CSS removed (compiled CSS: 47 lines out, none in); comments corrected; the never-opened search overlay removed (template, styles, 5 actions, 5 locale keys x 13 files) with an approved `.eslint-todo` shift (2 rows dropped with their code, 18 moved; 1562 -> 1560) |
+
+Verification after these fixes: full Ember suite 3376 tests, 0 failed (37 skip, 5 todo; 3366 + 10
+new); backfill task spec 6/6; `lint:js:ci` 0 new findings; template lint clean; Sass compiles; the live
+idle-session flows, the dialog's links and the record-less Crisis tile re-run as expected.
+
+Answered clean: no healthy-session logout path; `.eslint-todo` hides no new finding (42 rows removed,
+the rest line shifts; 10 stale rows in dashboard-sections-test.js); `TZ=UTC` in spec_helper matches
+CI and the image; all 13 locales parse with no dangling keys; saved Dashboard Design orders produce
+valid grids for every role simulated; no focus trap in the rail dropdown; touch targets >= 24px.
