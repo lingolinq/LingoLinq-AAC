@@ -225,8 +225,8 @@ export default Component.extend({
     var hasId = typeof board_record.get === 'function' ? board_record.get('id') : board_record.id;
     return hasKey != null || hasId != null;
   }),
-  cursor_style: computed('isReady', function() {
-    if(this.get('isReady')) {
+  cursor_style: computed('isReady', 'opens_by_key', function() {
+    if(this.get('isReady') || this.get('opens_by_key')) {
       return htmlSafe('cursor: pointer;');
     } else {
       return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
@@ -356,6 +356,12 @@ export default Component.extend({
       // If board_record is not available, the action should not have been triggered
       // (template should guard against this), but return early as a safety check
       if(!board_record) {
+        // A caller that opens boards by KEY (the Modern home Boards card) can still act when the
+        // record never loaded (offline and not cached, or a failed fetch): hand it the key it gave us.
+        var given_key = this.get('board.key');
+        if(given_key && _this.onActionOverride && typeof _this.onActionOverride === 'function') {
+          _this.onActionOverride(given_key);
+        }
         return;
       }
 
@@ -469,5 +475,22 @@ export default Component.extend({
         }
       }
     }
-  }
+  },
+  // The wrapper's accessible name (board-icon.hbs). An aria-label replaces the wrapper's contents for
+  // assistive technology, so the home glyph's own label is never announced: the name carries it.
+  // Placed after `actions` so the `.eslint-todo` rows above keep their lines.
+  tile_aria_name: computed('tile_aria_label', 'tile_display_name', 'flag_home', function() {
+    var name = this.get('tile_aria_label') || this.get('tile_display_name');
+    return this.get('flag_home') ? name + ', ' + i18n.t('home_board', "Home Board") : name;
+  }),
+  // The visible name. Before the record loads, or when it never does (offline and not cached), a caller
+  // that passed `{id, key, name}` (the Modern home Boards card) still gets a named, clickable tile.
+  tile_display_name: computed('best_name', 'board.name', function() {
+    return this.get('best_name') || this.get('board.name') || '';
+  }),
+  // True when a click can act without the record: pick_board hands the key to @onActionOverride.
+  // cursor_style keeps such a tile clickable while its record loads, or if it never does.
+  opens_by_key: computed('board.key', 'onActionOverride', function() {
+    return !!this.get('board.key') && typeof this.onActionOverride === 'function';
+  })
 });

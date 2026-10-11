@@ -596,7 +596,7 @@
         <div class="md-card--boards__compact-grid md-card--boards__full-grid ub-boards-page__board-grid" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards key="key" as |preview|}}
             <div class="simple_board_holder {{if preview.isHome "md-card--boards__compact-item--home"}} {{if preview.isEmergency "md-card--boards__item--crisis"}}" role="listitem">
-              <BoardIcon @board={{or preview.board (hash id=preview.key key=preview.key)}} @flag_home={{preview.isHome}} @onActionOverride={{this.onGoToBoard}} />
+              <BoardIcon @board={{or preview.board (hash id=preview.key key=preview.key name=preview.name)}} @flag_home={{preview.isHome}} @onActionOverride={{this.onGoToBoard}} />
             </div>
           {{/each}}
         </div>
@@ -604,7 +604,7 @@
         <div class="md-card--boards__compact-grid ll-boards-grid--compact {{if this.previewBoardsFull "md-card--boards__compact-grid--narrow-only"}}" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards key="key" as |preview|}}
             <div class="simple_board_holder {{if preview.isHome "md-card--boards__compact-item--home"}} {{if preview.isEmergency "md-card--boards__item--crisis"}}" role="listitem">
-              <BoardIcon @board={{or preview.board (hash id=preview.key key=preview.key)}} @flag_home={{preview.isHome}} @compactRow={{true}} @onActionOverride={{this.onGoToBoard}} />
+              <BoardIcon @board={{or preview.board (hash id=preview.key key=preview.key name=preview.name)}} @flag_home={{preview.isHome}} @compactRow={{true}} @onActionOverride={{this.onGoToBoard}} />
             </div>
           {{/each}}
         </div>

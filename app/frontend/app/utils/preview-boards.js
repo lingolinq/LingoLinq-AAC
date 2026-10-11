@@ -7,12 +7,16 @@
 // the fifth there and keeps Crisis (`.md-card--boards__item--crisis`).
 var PREVIEW_BOARDS_MAX = 12;
 
+// When Crisis is also among the user's own boards (only for the account that owns the system board),
+// that entry moves to the end, keeping its loaded record and gaining the Crisis flag.
 function capPreviewBoards(ordered, crisis, max) {
   var limit = max || PREVIEW_BOARDS_MAX;
   var list = ordered || [];
-  var hasCrisis = !!crisis && list.some(function(b) { return b.key === crisis.key; });
-  if (!crisis || hasCrisis) { return list.slice(0, limit); }
-  return list.slice(0, limit - 1).concat([crisis]);
+  if (!crisis) { return list.slice(0, limit); }
+  var own = list.find(function(b) { return b.key === crisis.key; });
+  var others = list.filter(function(b) { return b.key !== crisis.key; });
+  var last = own ? Object.assign({}, own, { isEmergency: true }) : crisis;
+  return others.slice(0, limit - 1).concat([last]);
 }
 
 // FULL-SIZE BOARD CARDS WHEN THERE ARE 5 OR FEWER (requested 2026-10-10): the Boards page's detailed

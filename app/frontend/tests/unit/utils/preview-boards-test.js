@@ -33,6 +33,17 @@ module('Unit | Utility | preview-boards', function() {
     assert.strictEqual(keys(out).filter(function(k) { return k === crisis.key; }).length, 1);
   });
 
+  test('Crisis already in the list past the cap still ends the list, flagged as Crisis', function(assert) {
+    // Only the account that owns the system Crisis board has it among its own boards.
+    var list = items(20); list.splice(15, 0, { key: crisis.key, board: 'own-record' });
+    var out = capPreviewBoards(list, crisis);
+    assert.strictEqual(out.length, 12);
+    assert.strictEqual(out[11].key, crisis.key, 'Crisis is the twelfth');
+    assert.true(out[11].isEmergency, 'flagged, so the small-screen limit keeps it');
+    assert.strictEqual(out[11].board, 'own-record', 'keeps the record already loaded');
+    assert.deepEqual(keys(out).slice(0, 11), keys(items(11)), 'the first 11 boards in their order');
+  });
+
   test('no Crisis board available: up to 12 of the user\'s boards', function(assert) {
     assert.strictEqual(capPreviewBoards(items(20), null).length, 12);
   });
