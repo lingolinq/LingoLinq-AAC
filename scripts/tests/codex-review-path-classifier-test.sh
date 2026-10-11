@@ -277,6 +277,18 @@ head="$(commit_paths 'docs/legal/control.md')"
 classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
 report claude-deep 'docs/legal/control.md with CODEX_COMPLIANCE_PATHS=block (lowercase control)'
 
+echo "== every data-bearing pattern blocks on its own (each path matches that pattern alone) =="
+# Part B item 5a (2026-10-10): one case per pattern, chosen so no other pattern matches it, so
+# dropping any single pattern turns its case red. Lowercase and uppercase. Two patterns cannot be
+# isolated: '(^|/)fixtures/' is a subset of the fixtures|seeds|sample_data|test_data directory
+# pattern, and '(^|/)db/.*\.sql$' a subset of the .sql extension pattern.
+for p in 'spec/support/myfixtures/a.rb' 'spec/myfactories/a.rb' 'app/factories/a.rb' \
+         'spec/support/myfactories.rb' 'lib/factories.rb' 'db/seeds.rb' 'db/data/backfill.rb' \
+         'lib/tasks/import_users.rake' 'spec/vcr/stripe.yml' 'exports/users.json' 'test_data/a.rb'; do
+  real_case blocked "$p"
+  real_case blocked "$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
+done
+
 echo "== fail closed: nothing classified means exit 3 and no route =="
 classify "$BASE" "$BASE"
 report ERR3 'empty diff (base == head)'
