@@ -12,9 +12,11 @@ name: Codex Review
 # 2026-08 reviewer outage), and the workflow is disabled in Actions (last run
 # 2026-09-28) until the PR #1103 hardening and its admin steps are done; see the
 # status banner in .github/codex/README.md. This workflow sets
-# the status `pending` as its FIRST step. Only a successful POST-and-verify to n8n W2 (job
-# success), this job's own terminal-status step (all exit paths, PR #702), or
-# codex-watchdog.yml ever resolves it away from pending. A
+# the status `pending` as its FIRST step. Only these resolve it away from pending: the
+# failure writes of status-pending's own guard steps (bad input, environment, PR binding), the
+# review job's POST-and-verify to n8n W2 (and its failure write when the envelope matches a
+# credential pattern), status-final's terminal-status step (all exit paths, PR #702), and
+# codex-watchdog.yml. A
 # dead/crashed/timed-out run therefore blocks merge instead of silently passing
 # it. Note that watchdog recovery is BEST-EFFORT and unbounded in time (#710),
 # so it is the last resort, not the primary mechanism.
@@ -361,9 +363,8 @@ jobs:
 
       - name: Gather PR diff (bounded)
         if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
-        # The reviewer runs read-only and its in-sandbox shell may be
-        # unavailable (bwrap can fail to initialize on the runner), so it
-        # cannot compute the diff itself. Precompute it here and inject it so
+        # The reviewer has no shell or file tools (.github/codex/codex-exec-args.txt),
+        # so it cannot compute the diff itself. Precompute it here and inject it so
         # the review has real evidence to work from. Bound the size so a huge
         # PR cannot blow up the prompt; a truncation marker tells the reviewer
         # to treat unseen hunks as unverified.
@@ -381,7 +382,7 @@ jobs:
           # scanned by the prompt-injection guard in build-envelope.py, which
           # must see exactly what the reviewer saw. Emit an authoritative
           # completeness NOTE on BOTH paths: CI knows whether the diff fit
-          # under the cap; the reviewer (which may have no shell) does not, and
+          # under the cap; the reviewer (which has no shell) does not, and
           # without a positive signal it can wrongly assume the diff is partial
           # and refuse a verdict.
           {

@@ -4,7 +4,12 @@
 > Actions (state `disabled_manually`; last run 2026-09-28) until the hardening
 > in PR #1103 lands and its admin steps are done (restrict the `codex-review`
 > environment's deployment branches; remove the repo-level copies of its
-> secrets). 268 of the 296 runs so far were dispatched on the `staging` ref, so
+> secrets). **Re-enable only after BOTH:** (a) this hardened workflow is on
+> the ref W1 dispatches on (`staging`): Actions runs the copy on the dispatch
+> ref, and staging's copy (88b712942, 2026-10-08) still checks out the PR head
+> with the secrets in the job; and (b) the repo-level copies of the secrets are
+> deleted and all four are rotated. Neither is checked by the workflow.
+> 268 of the 296 runs so far were dispatched on the `staging` ref, so
 > `github.workflow_sha` (the trusted checkout) was staging's copy of this
 > workflow. The other 28 (2026-07-16 to 2026-08-04, during development) were
 > dispatched on feature branches and ran that branch's copy with the
@@ -255,7 +260,11 @@ model-authored display text.
 
 The envelope is the enforcer. Synthesis can add a block but cannot clear one.
 
-The guard scans the complete raw diff, every chunk, and the synthesis input.
+The guard scans the complete raw diff, every chunk, and the synthesis input
+(the exact synthesis prompt, which carries the PR title and body, the file
+names and the model-authored chunk results). On the bounded path it scans the
+diff and the live state the reviewer saw (PR title, body, checks, file list),
+and an APPROVE over a diff CI cut at its size cap is withheld.
 Raw diff hashes identify the exact Git evidence. Prompt hashes identify the
 defanged bytes sent to the model. `CI_INJECT` markers in diff or model-authored
 chunk findings are defanged before prompt assembly.
@@ -324,11 +333,15 @@ The review job runs PR content only as data:
   `CODEX_OPENAI_API_KEY`, `CLAUDE_REVIEW_API_KEY`,
   `N8N_CODEX_RESULTS_WEBHOOK_URL` and `N8N_CODEX_RESULTS_HMAC_SECRET` into the
   environment and deletes the repository-level copies, and (3) rotates all
-  four. Step (1) is enforced: `status-pending` reads the environment through
-  the API and fails the run (failure status, no review) while it is missing or
-  open to every branch. Steps (2) and (3) cannot be checked from the workflow
-  (that would mean reading secrets outside the environment, and a modified copy
-  of the workflow would drop the check anyway), so they stay admin actions.
+  four. Step (1) is checked only partly: `status-pending` reads the
+  environment through the API and fails the run (failure status, no review)
+  while it is missing or open to every branch, but it does not yet check that
+  the only allowed branch is the dispatch ref (`staging`), so a rule that
+  allows other branches passes. Steps (2) and (3) cannot be checked from the
+  workflow (that would mean reading secrets outside the environment, and a
+  modified copy of the workflow would drop the check anyway), so they stay
+  admin actions. None of these checks helps until this workflow is on the
+  dispatch ref: a run uses the copy on the ref it was dispatched on.
 - Three jobs: `status-pending` posts the pending anchor, `codex-review` holds
   the environment and does the review, and `status-final` (`always()`)
   resolves deep-pass from the review job's result. The two status jobs hold no
