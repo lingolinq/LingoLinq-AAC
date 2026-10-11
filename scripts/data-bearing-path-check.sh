@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # data-bearing-path-check.sh - fails a pull request that adds or changes a
-# data-bearing path unless the PR carries a fresh synthetic-data label.
+# data-bearing path unless its head commit carries a reviewer's approval.
 #
 # WHY THIS EXISTS
 #   Real user data is kept out of commits, not caught at review time (Scot,
@@ -9,15 +9,15 @@
 #   sits"; brain issue #233). This repo is public, so a pushed branch is already
 #   published: this check is the merge gate that keeps real data out of develop,
 #   staging and main, and flags it when a PR is opened or updated. It cannot unpublish
-#   anything, anyone with write access can apply the label, and ruleset bypass actors
-#   can merge past a required check.
+#   anything, and ruleset bypass actors can merge past a required check.
 #
 #   A data-bearing path is not proof of real data: most fixtures, factories and schema
-#   migrations are synthetic. The label is the exemption: the approving reviewer looks
-#   at the data and applies `synthetic-data` only when none of it is real. The label
-#   counts only when it was applied AFTER the PR's current head arrived on GitHub
-#   (HEAD_ARRIVED_AT, a server time). The CI entry script also removes the label on a
-#   push, a reopen or a base change, so the reviewer re-applies it for each new head.
+#   migrations are synthetic. The approval is the exemption: a reviewer with write
+#   access looks at the data and adds the `synthetic-data` label only when none of it
+#   is real. scripts/data-bearing-path-check-ci.sh records that as a commit status on
+#   the PR's head commit, named for the PR and its base, and passes APPROVED=true to
+#   this script only when that status is present. A new push is a new commit with no
+#   approval, so nothing has to be reset.
 #
 #   What is checked:
 #   - PRs to develop: the net tree diff (base...head). develop is squash-only (ruleset
@@ -35,11 +35,13 @@
 #     develop's content again. This trusts develop's history: it was checked on its
 #     way into develop. Residual: content develop added and later reverted is still
 #     trusted, so a hotfix branch cut before the revert can carry it to main unflagged.
-#   - The CI entry script fails closed unless the PR's base sha is still on the live
-#     base branch, so a base force-pushed to scrub data cannot hide the scrubbed commit.
+#   - The CI entry script fetches the base branch live and fails closed unless the
+#     PR's base sha is still on it. That covers a run after a base force-push (to scrub
+#     data, say); a PR that went green before the force-push stays green until its
+#     check runs again.
 #   - Any change under .github/workflows/ and any change to the check's own files
-#     (CONTROL_FILES) also needs the label, so the control gets a reviewer's look and a
-#     PR cannot quietly add its own job named like this check.
+#     (CONTROL_FILES) also needs an approval, so the control and any new workflow get a
+#     reviewer's look before they merge.
 #
 #   The path patterns are not duplicated here. This script asks
 #   scripts/codex-review-path-classifier.sh, which holds the list vendored from the
@@ -49,21 +51,19 @@
 #   scripts/data-bearing-path-check.sh <base-sha> <head-sha>
 #
 # ENV
-#   PR_LABELS_JSON    JSON array of the PR's current label names (default: [])
-#   LABEL_APPLIED_AT  ISO-8601 time the synthetic-data label was last applied
-#   HEAD_ARRIVED_AT   ISO-8601 server time the head commit first reached GitHub
-#                     (both required for the label to count)
+#   APPROVED          true when the head commit carries an approval for this PR and
+#                     base, false when not (default: false; any other value is exit 3)
 #   PR_BASE_REF       the PR's base branch (default: develop)
 #   DEVELOP_SHA       develop's tip; required when PR_BASE_REF is not develop
 #   CLASSIFIER        path to the classifier (tests override it)
 #
 # EXIT CODES
-#   0  nothing data-bearing (or workflow or control file) changed, or a fresh label
+#   0  nothing data-bearing (or workflow or control file) changed, or an approval
 #      exempts it
-#   1  such a path changed and there is no fresh label
+#   1  such a path changed and there is no approval
 #   3  nothing could be decided (classifier failure, no verdict, bad input); fail
-#      closed. A label cannot clear exit 3. If a PR is stuck there (a git-quoted path,
-#      a missing commit), rename the file or rebuild the branch.
+#      closed. An approval cannot clear exit 3. If a PR is stuck there (a git-quoted
+#      path, a missing commit), rename the file or rebuild the branch.
 #
 set -uo pipefail
 
@@ -71,11 +71,8 @@ BASE_SHA="${1:?usage: $0 <base-sha> <head-sha>}"
 HEAD_SHA="${2:?usage: $0 <base-sha> <head-sha>}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLASSIFIER="${CLASSIFIER:-$REPO_ROOT/scripts/codex-review-path-classifier.sh}"
-LABELS_JSON="${PR_LABELS_JSON:-[]}"
-LABEL_APPLIED_AT="${LABEL_APPLIED_AT:-}"
-HEAD_ARRIVED_AT="${HEAD_ARRIVED_AT:-}"
+APPROVED="${APPROVED-false}"
 PR_BASE_REF="${PR_BASE_REF:-develop}"
-EXEMPT_LABEL="synthetic-data"
 CONTROL_FILES=(
   .github/workflows/data-bearing-paths.yml
   scripts/data-bearing-path-check.sh
@@ -89,9 +86,10 @@ WORKFLOW_DIR_RE='^\.github/workflows/'
 
 die3() { echo "data-bearing-path-check: ERROR: $*. Nothing was decided; failing closed." >&2; exit 3; }
 
-command -v jq >/dev/null 2>&1 || die3 "jq is not available"
-jq -e 'type == "array"' >/dev/null 2>&1 <<<"$LABELS_JSON" \
-  || die3 "PR_LABELS_JSON is not a JSON array"
+case "$APPROVED" in
+  true|false) ;;
+  *) die3 "APPROVED is '$APPROVED', not true or false" ;;
+esac
 
 OUT="$(mktemp)" || die3 "mktemp failed"
 LIST="$(mktemp)" || die3 "mktemp failed"
@@ -167,28 +165,17 @@ what="adds or changes a data-bearing path (a fixture, factory, seed, migration, 
 cassette, data rake task, data file, or db/language/)"
 [ "$verdict" = false ] && what="changes a workflow or this check's own files"
 
-if jq -e --arg l "$EXEMPT_LABEL" 'index($l) != null' >/dev/null 2>&1 <<<"$LABELS_JSON"; then
-  [ -n "$LABEL_APPLIED_AT" ] || die3 "the '$EXEMPT_LABEL' label is present but LABEL_APPLIED_AT is not set"
-  [ -n "$HEAD_ARRIVED_AT" ] || die3 "the '$EXEMPT_LABEL' label is present but HEAD_ARRIVED_AT is not set"
-  label_s="$(date -d "$LABEL_APPLIED_AT" +%s 2>/dev/null)" || die3 "cannot parse LABEL_APPLIED_AT '$LABEL_APPLIED_AT'"
-  head_s="$(date -d "$HEAD_ARRIVED_AT" +%s 2>/dev/null)" || die3 "cannot parse HEAD_ARRIVED_AT '$HEAD_ARRIVED_AT'"
-  if [ "$label_s" -gt "$head_s" ]; then
-    echo "data-bearing-path-check: this PR $what; exempted by the '$EXEMPT_LABEL' label, applied after the head arrived (the reviewer confirms the data is synthetic)."
-    exit 0
-  fi
-  cat >&2 <<EOF
-data-bearing-path-check: FAIL. This PR $what,
-and the '$EXEMPT_LABEL' label was applied before the current head arrived ($LABEL_APPLIED_AT is
-not after $HEAD_ARRIVED_AT). Re-check the data, then remove and re-add the label.
-EOF
-  exit 1
+if [ "$APPROVED" = true ]; then
+  echo "data-bearing-path-check: this PR $what; exempted by a reviewer's approval recorded on this head commit (the reviewer confirmed the data is synthetic)."
+  exit 0
 fi
 
 cat >&2 <<EOF
 data-bearing-path-check: FAIL. This PR $what.
 This repo is public, so real user data must never be committed here.
-If every changed data file is synthetic, a reviewer confirms that and adds the
-'$EXEMPT_LABEL' label; this check re-runs when the label is added.
-The path patterns are in scripts/codex-review-path-classifier.sh.
+If every changed data file is synthetic, a reviewer with write access confirms that and
+adds the 'synthetic-data' label. That records an approval for the current head commit
+only, so a later push needs the label added again. The label is removed once the
+approval is recorded. The path patterns are in scripts/codex-review-path-classifier.sh.
 EOF
 exit 1

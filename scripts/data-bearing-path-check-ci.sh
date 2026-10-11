@@ -1,26 +1,44 @@
 #!/usr/bin/env bash
 #
 # data-bearing-path-check-ci.sh - the GitHub Actions entry point for
-# scripts/data-bearing-path-check.sh. It reads the PR's current state from the API at
-# decision time and passes it to the check.
+# scripts/data-bearing-path-check.sh. It records a reviewer's approval and the check's
+# verdict as commit statuses on the PR's exact head commit.
 #
-# WHY A SEPARATE SCRIPT
-#   The decision depends on live state, not the event payload: a re-run reuses the
-#   original payload, so a label removed since would still count. Keeping this logic
-#   out of the workflow YAML lets scripts/tests/data-bearing-path-check-test.sh run it
-#   against a stubbed `gh`.
+# WHY COMMIT STATUSES
+#   An approval has to cover one PR, one base branch and one head commit, and nothing
+#   else. A commit status sits on exactly one commit, and its name (context) carries the
+#   PR number and base: data-bearing-approval/pr-<n>/<base>. A push makes a new head
+#   commit with no statuses, so nothing has to be reset, and no later event can carry an
+#   earlier approval forward to it. The verdict is a status on the same head,
+#   data-bearing-paths/<base>, and that context is the required check, one per base
+#   branch so a head shared by PRs to different bases cannot overwrite another base's
+#   verdict.
 #
-#   The synthetic-data label counts only when it was applied after the PR's current
-#   head ARRIVED on GitHub. Arrival is the creation time of the earliest check suite
-#   GitHub made for the head commit, which happens when the commit is pushed. The
-#   commit's own committer time is not used: it comes from the author's machine, and a
-#   commit made before review but pushed after it would carry an earlier time.
-#   Arrival is per commit, not per PR: a commit first pushed to another branch carries
-#   that earlier time. So a push (synchronize), a reopen, or a base change REMOVES the
-#   label before anything is read, and the reviewer re-applies it for the new head.
-#   The removal uses the workflow's token, and an event caused by that token starts no
-#   new workflow run, so it cannot cancel this one. The time check stays for the race
-#   between a push and its own run.
+#   The decision reads live state from the API, not the event payload (a re-run reuses
+#   the payload). It decides only for the PR's current head: a run whose event head has
+#   moved on posts nothing, because the run for the newer head decides.
+#
+# APPROVAL
+#   On a `labeled` event for the synthetic-data label, if the person who added it has
+#   write, maintain or admin access (the API reports write or admin) and the head has
+#   not moved, this script posts the approval status on the head and then removes the
+#   label. The label works as a button: adding it records an approval for the head
+#   current at that moment, and a later push needs it added again. A label added by a
+#   bot or by someone with read or triage access records nothing and is removed.
+#
+#   An approval status counts only when its latest entry is `success` and its creator is
+#   github-actions[bot]. That excludes a status a person posts with their own token. It
+#   does not exclude a workflow in a same-repo PR, whose token can also post statuses as
+#   github-actions[bot]: anyone with write access can get past this check, so it guards
+#   against mistakes and fork PRs, not against a collaborator set on bypassing it. Any
+#   change under .github/workflows/ needs an approval before it merges.
+#
+# BASE
+#   The base branch must be develop, staging or main. It is fetched live from origin
+#   just before the check (the checkout's own remote-tracking refs can point at the
+#   event's commit), and the PR's base sha must still be on it, so a run after a base
+#   force-push fails closed and replaces an earlier pass with an error. A PR that went
+#   green before such a force-push stays green until its check runs again.
 #
 #   The PR's commits must already be in the checkout (the workflow fetches
 #   refs/pull/<n>/head); a missing commit makes the check fail closed.
@@ -29,101 +47,138 @@
 #   REPO            owner/name
 #   PR_NUMBER       the pull request number
 #   EVENT_HEAD_SHA  the head SHA in the triggering event
-#   EVENT_ACTION    the pull_request_target activity type (opened, synchronize, ...)
-#   BASE_FROM       optional; the previous base ref when an edited event changed it
-#   GH_TOKEN        token for gh (pull-requests: write, to remove the label; issues and
-#                   checks: read)
+#   EVENT_ACTION    the pull_request_target activity type (opened, labeled, ...)
+#   RUN_URL         this workflow run's URL, linked from the statuses
+#   LABEL_NAME      on a labeled event, the label that was added (optional otherwise)
+#   SENDER_LOGIN    on a labeled event, who added it
+#   SENDER_TYPE     on a labeled event, User or Bot
+#   GH_TOKEN        token for gh (statuses: write; pull-requests: write, to remove the
+#                   label)
 #   CHECK           optional; path to data-bearing-path-check.sh (tests override it)
 #
 # EXIT CODES
-#   whatever the check returns (0, 1, 3); 3 from this script when any lookup fails or
-#   the head moved, before the check runs
+#   whatever the check returns (0, 1, 3); 0 when the event head has moved on (nothing
+#   decided or posted); 3 from this script when any lookup or post fails
 #
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="${CHECK:-$REPO_ROOT/scripts/data-bearing-path-check.sh}"
 EXEMPT_LABEL="synthetic-data"
+WORKFLOW_LOGIN="github-actions[bot]"
 
-fail3() { echo "data-bearing-path-check: $*; failing closed." >&2; exit 3; }
+head_sha=""
+VERDICT_CTX=""
 
-for v in REPO PR_NUMBER EVENT_HEAD_SHA EVENT_ACTION; do
+# post_status <sha> <context> <state> <description>
+post_status() {
+  gh api -X POST "repos/$REPO/statuses/$1" -f state="$3" -f context="$2" \
+    -f description="$4" -f target_url="$RUN_URL" --silent
+}
+
+# fail3: stop. Once the verdict context is known, replace any earlier verdict on the
+# head with an error, so a pass from before (a stale base, say) does not stand.
+fail3() {
+  echo "data-bearing-path-check: $*; failing closed." >&2
+  if [ -n "$VERDICT_CTX" ] && [ -n "$head_sha" ]; then
+    post_status "$head_sha" "$VERDICT_CTX" error "Could not decide; see the workflow run." \
+      || echo "data-bearing-path-check: could not post the error verdict either." >&2
+  fi
+  exit 3
+}
+
+remove_label() {
+  gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$EXEMPT_LABEL" --silent \
+    || echo "data-bearing-path-check: could not remove the '$EXEMPT_LABEL' label; remove it by hand before adding it again." >&2
+}
+
+for v in REPO PR_NUMBER EVENT_HEAD_SHA EVENT_ACTION RUN_URL; do
   [ -n "${!v:-}" ] || fail3 "$v is not set"
 done
+[[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || fail3 "PR_NUMBER '$PR_NUMBER' is not a number"
 
-# read_pr: read the PR's live state into pr, head_sha, base_sha, base_ref and labels,
-# and stop unless the head is still the event's head (the run for a newer head decides,
-# and a stale run must not touch a label applied for that newer head).
-read_pr() {
-  pr="$(gh api "repos/$REPO/pulls/$PR_NUMBER")" || fail3 "could not read PR $PR_NUMBER"
-  head_sha="$(jq -er '.head.sha' <<<"$pr")" || fail3 "no head sha"
-  base_sha="$(jq -er '.base.sha' <<<"$pr")" || fail3 "no base sha"
-  base_ref="$(jq -er '.base.ref' <<<"$pr")" || fail3 "no base ref"
-  [ "$head_sha" = "$EVENT_HEAD_SHA" ] \
-    || fail3 "the PR head moved to $head_sha; the run for that head decides"
-  labels="$(jq -c '[.labels[].name]' <<<"$pr")" || fail3 "could not read labels"
-}
+approval_event=false
+[ "$EVENT_ACTION" = labeled ] && [ "${LABEL_NAME:-}" = "$EXEMPT_LABEL" ] && approval_event=true
 
-# has_label: is the exemption label in $labels? jq exit 1 is "no"; anything else stops.
-has_label() {
-  local rc=0
-  jq -e --arg l "$EXEMPT_LABEL" 'index($l) != null' >/dev/null <<<"$labels" || rc=$?
-  case "$rc" in
-    0) return 0 ;;
-    1) return 1 ;;
-    *) fail3 "could not read labels (jq exit $rc)" ;;
-  esac
-}
+pr="$(gh api "repos/$REPO/pulls/$PR_NUMBER")" || fail3 "could not read PR $PR_NUMBER"
+live_head="$(jq -er '.head.sha' <<<"$pr")" || fail3 "no head sha"
+base_sha="$(jq -er '.base.sha' <<<"$pr")" || fail3 "no base sha"
+base_ref="$(jq -er '.base.ref' <<<"$pr")" || fail3 "no base ref"
 
-read_pr
-
-reset=false
-case "$EVENT_ACTION" in
-  synchronize|reopened) reset=true ;;
-  edited) [ -z "${BASE_FROM:-}" ] || reset=true ;;
-esac
-if [ "$reset" = true ] && has_label; then
-  gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$EXEMPT_LABEL" --silent \
-    || fail3 "could not remove the '$EXEMPT_LABEL' label after $EVENT_ACTION"
-  echo "data-bearing-path-check: removed the '$EXEMPT_LABEL' label ($EVENT_ACTION); a reviewer re-applies it for the new head." >&2
-  read_pr
+if [ "$live_head" != "$EVENT_HEAD_SHA" ]; then
+  echo "data-bearing-path-check: the PR head moved to $live_head; the run for that head decides. Nothing posted."
+  if [ "$approval_event" = true ]; then
+    echo "data-bearing-path-check: no approval recorded; add the '$EXEMPT_LABEL' label again for the new head." >&2
+    remove_label
+  fi
+  exit 0
 fi
+head_sha="$live_head"
 
-applied=""
-arrived=""
-if has_label; then
-  events="$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/events" \
-    --jq ".[] | select(.event == \"labeled\" and .label.name == \"$EXEMPT_LABEL\") | .created_at")" \
-    || fail3 "could not read label events"
-  # sed -n reads all of its input, so sort never meets a closed pipe (SIGPIPE).
-  applied="$(printf '%s\n' "$events" | sed '/^$/d' | sort | sed -n '$p')"
-  [ -n "$applied" ] || fail3 "the '$EXEMPT_LABEL' label is present but no labeled event was found"
-  suites="$(gh api --paginate "repos/$REPO/commits/$head_sha/check-suites" \
-    --jq '.check_suites[].created_at')" \
-    || fail3 "could not read check suites for $head_sha"
-  arrived="$(printf '%s\n' "$suites" | sed '/^$/d' | sort | sed -n '1p')"
-  [ -n "$arrived" ] || fail3 "no check suite found for $head_sha"
-fi
-
-# The API's base.sha is the base as of the PR's last update. If the base branch has
-# since been force-pushed (to scrub real data, say), that sha may no longer be on it,
-# and a range from it would hide the scrubbed commit. It must still be an ancestor of
-# the live base branch in this checkout.
 case "$base_ref" in
   develop|staging|main) ;;
   *) fail3 "unexpected base branch '$base_ref'" ;;
 esac
-live_base="$(git rev-parse --verify --quiet "refs/remotes/origin/$base_ref")" \
-  || fail3 "origin/$base_ref is not in the checkout"
+VERDICT_CTX="data-bearing-paths/$base_ref"
+APPROVAL_CTX="data-bearing-approval/pr-$PR_NUMBER/$base_ref"
+
+if [ "$approval_event" = true ]; then
+  [ -n "${SENDER_LOGIN:-}" ] || fail3 "SENDER_LOGIN is not set on a labeled event"
+  authorized=false
+  if [ "${SENDER_TYPE:-}" != User ]; then
+    echo "data-bearing-path-check: the label was added by a ${SENDER_TYPE:-non-user} account; no approval recorded." >&2
+  else
+    [[ "$SENDER_LOGIN" =~ ^[A-Za-z0-9-]+$ ]] || fail3 "unexpected login '$SENDER_LOGIN'"
+    perm="$(gh api "repos/$REPO/collaborators/$SENDER_LOGIN/permission" --jq '.permission')" \
+      || fail3 "could not read $SENDER_LOGIN's permission"
+    case "$perm" in
+      admin|write) authorized=true ;;
+      read|none) echo "data-bearing-path-check: $SENDER_LOGIN has $perm access; an approval needs write access. No approval recorded." >&2 ;;
+      *) fail3 "unexpected permission '$perm' for $SENDER_LOGIN" ;;
+    esac
+  fi
+  if [ "$authorized" = true ]; then
+    post_status "$head_sha" "$APPROVAL_CTX" success "Synthetic data confirmed by $SENDER_LOGIN" \
+      || fail3 "could not record the approval"
+    echo "data-bearing-path-check: recorded $SENDER_LOGIN's approval on $head_sha ($APPROVAL_CTX)."
+  fi
+  remove_label
+fi
+
+# live_ref <branch>: fetch the branch from origin now and print its tip.
+live_ref() {
+  git fetch --no-tags --quiet origin "+refs/heads/$1:refs/data-bearing/live/$1" \
+    || fail3 "could not fetch the live $1 branch"
+  git rev-parse --verify --quiet "refs/data-bearing/live/$1" || fail3 "the live $1 branch did not resolve"
+}
+
+live_base="$(live_ref "$base_ref")" || exit 3
 git merge-base --is-ancestor "$base_sha" "$live_base" \
   || fail3 "the PR's base $base_sha is not on the live $base_ref ($live_base); update the PR branch"
 
 develop_sha=""
 if [ "$base_ref" != develop ]; then
-  develop_sha="$(git rev-parse --verify --quiet refs/remotes/origin/develop)" \
-    || fail3 "origin/develop is not in the checkout"
+  develop_sha="$(live_ref develop)" || exit 3
 fi
 
-PR_LABELS_JSON="$labels" LABEL_APPLIED_AT="$applied" HEAD_ARRIVED_AT="$arrived" \
-  PR_BASE_REF="$base_ref" DEVELOP_SHA="$develop_sha" \
-  bash "$CHECK" "$base_sha" "$head_sha"
+# The latest status for the approval context comes first (the API lists newest
+# first). The context is built from a number and an allowlisted branch, so it is safe
+# inside the filter. sed -n reads all of its input, so gh never meets a closed pipe.
+found="$(gh api --paginate "repos/$REPO/commits/$head_sha/statuses?per_page=100" \
+  --jq ".[] | select(.context == \"$APPROVAL_CTX\") | \"\(.state) \(.creator.login // \"\")\"")" \
+  || fail3 "could not read the statuses on $head_sha"
+latest="$(printf '%s\n' "$found" | sed -n '1p')"
+approved=false
+[ "$latest" = "success $WORKFLOW_LOGIN" ] && approved=true
+
+rc=0
+APPROVED="$approved" PR_BASE_REF="$base_ref" DEVELOP_SHA="$develop_sha" \
+  bash "$CHECK" "$base_sha" "$head_sha" || rc=$?
+
+case "$rc" in
+  0) state=success; desc="No unapproved data-bearing change." ;;
+  1) state=failure; desc="Data-bearing change needs a synthetic-data approval on this commit." ;;
+  *) state=error; desc="Could not decide; see the workflow run." ;;
+esac
+post_status "$head_sha" "$VERDICT_CTX" "$state" "$desc" || fail3 "could not post the verdict"
+exit "$rc"

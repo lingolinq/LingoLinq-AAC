@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
 # data-bearing-path-check-test.sh - proves scripts/data-bearing-path-check.sh blocks a
-# PR that changes a data-bearing path unless it carries the synthetic-data label, and
-# fails closed when it cannot decide.
+# PR that changes a data-bearing path unless its head commit carries an approval, and
+# that scripts/data-bearing-path-check-ci.sh records approvals and verdicts as commit
+# statuses on the exact head commit and fails closed when it cannot decide.
 #
 # WHY THIS EXISTS
 #   This repo is public, so a PR's contents are published the moment its branch is
@@ -53,17 +54,17 @@ commit_change() {
   git -C "$REPO" rev-parse HEAD
 }
 
-# run_check <expect-exit> <label> <head> <labels-json|UNSET> [env assignments...]
-# UNSET runs the check with PR_LABELS_JSON removed from the environment. The PR base
-# is $BASE unless the caller sets CHECK_BASE for the call.
+# run_check <expect-exit> <label> <head> <approved|UNSET> [env assignments...]
+# The fourth argument is passed as APPROVED; UNSET runs the check with APPROVED removed
+# from the environment. The PR base is $BASE unless the caller sets CHECK_BASE.
 run_check() {
-  local expect="$1" label="$2" head="$3" labels="$4" rc=0
+  local expect="$1" label="$2" head="$3" approved="$4" rc=0
   shift 4
   total=$((total + 1))
-  if [ "$labels" = UNSET ]; then
-    (cd "$REPO" && env -u PR_LABELS_JSON "$@" bash "$CHECK" "$BASE" "$head") >/dev/null 2>&1 || rc=$?
+  if [ "$approved" = UNSET ]; then
+    (cd "$REPO" && env -u APPROVED "$@" bash "$CHECK" "${CHECK_BASE:-$BASE}" "$head") >/dev/null 2>&1 || rc=$?
   else
-    (cd "$REPO" && env PR_LABELS_JSON="$labels" "$@" bash "$CHECK" "${CHECK_BASE:-$BASE}" "$head") >/dev/null 2>&1 || rc=$?
+    (cd "$REPO" && env APPROVED="$approved" "$@" bash "$CHECK" "${CHECK_BASE:-$BASE}" "$head") >/dev/null 2>&1 || rc=$?
   fi
   if [ "$rc" = "$expect" ]; then
     printf '  ok   exit %s  %s\n' "$rc" "$label"
@@ -89,49 +90,41 @@ git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'multi 2: code'
 MULTI="$(git -C "$REPO" rev-parse HEAD)"
 
 echo "data-bearing-path-check:"
-run_check 0 'code-only change passes with no label'                 "$CODE" '[]'
-run_check 1 'new fixture with no label fails'                        "$FIX"  '[]'
-run_check 0 'new fixture with a fresh synthetic-data label passes'   "$FIX"  '["synthetic-data"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 0 'label found among several labels'                       "$FIX"  '["bug","synthetic-data","ui"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 1 'label applied before the head arrived does not exempt'   "$FIX"  '["synthetic-data"]' LABEL_APPLIED_AT=2000-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 1 'label at the same second as arrival does not exempt'    "$FIX"  '["synthetic-data"]' LABEL_APPLIED_AT=2026-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 0 'label one second after arrival exempts (offsets parsed)' "$FIX" '["synthetic-data"]' LABEL_APPLIED_AT=2025-12-31T17:00:01-07:00 HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 3 'label with no head arrival time fails closed'           "$FIX"  '["synthetic-data"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z
-run_check 3 'label with no applied time fails closed'                "$FIX"  '["synthetic-data"]'
-run_check 3 'label with an unparseable applied time fails closed'    "$FIX"  '["synthetic-data"]' LABEL_APPLIED_AT=yesterday-ish HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 1 'a different label does not exempt'                      "$FIX"  '["bug"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 1 'a label that only contains the name does not exempt'    "$FIX"  '["not-synthetic-data"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
-run_check 1 'edited existing fixture with no label fails'            "$EDIT" '[]'
-run_check 1 'fixture renamed out of spec/fixtures fails'             "$MOVE" '[]'
-run_check 1 'csv data file fails'                                    "$CSV"  '[]'
-run_check 1 'db/language file fails'                                 "$LANG_" '[]'
-run_check 1 'fixture in an earlier commit of the PR fails'           "$MULTI" '[]'
-run_check 0 'PR_LABELS_JSON unset is treated as no labels'           "$CODE" UNSET
-run_check 1 'PR_LABELS_JSON unset with a fixture fails'              "$FIX"  UNSET
-run_check 3 'malformed labels JSON fails closed'                     "$FIX"  'not json'
-run_check 3 'labels JSON that is not an array fails closed'          "$FIX"  '{"name":"synthetic-data"}'
+run_check 0 'code-only change passes with no approval'              "$CODE" false
+run_check 1 'new fixture with no approval fails'                     "$FIX"  false
+run_check 0 'new fixture with an approval passes'                    "$FIX"  true
+run_check 1 'edited existing fixture with no approval fails'         "$EDIT" false
+run_check 1 'fixture renamed out of spec/fixtures fails'             "$MOVE" false
+run_check 1 'csv data file fails'                                    "$CSV"  false
+run_check 1 'db/language file fails'                                 "$LANG_" false
+run_check 1 'fixture in an earlier commit of the PR fails'           "$MULTI" false
+run_check 0 'APPROVED unset is treated as not approved (code passes)' "$CODE" UNSET
+run_check 1 'APPROVED unset with a fixture fails'                    "$FIX"  UNSET
+run_check 3 'APPROVED that is not true or false fails closed'        "$FIX"  yes
+run_check 3 'APPROVED in another letter case fails closed'           "$FIX"  TRUE
+run_check 3 'APPROVED empty fails closed'                            "$FIX"  ''
 
 # A classifier that cannot decide must stop the check, label or not.
 STUB="$WORK/classifier-exit3.sh"
 printf '#!/usr/bin/env bash\nexit 3\n' > "$STUB"
-run_check 3 'classifier exit 3 fails closed'                         "$CODE" '[]' CLASSIFIER="$STUB"
-run_check 3 'classifier exit 3 fails closed even with the label'     "$FIX"  '["synthetic-data"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z CLASSIFIER="$STUB"
+run_check 3 'classifier exit 3 fails closed'                         "$CODE" false CLASSIFIER="$STUB"
+run_check 3 'classifier exit 3 fails closed even when approved'      "$FIX"  true CLASSIFIER="$STUB"
 # A classifier that exits 0 but writes no verdict is not a clean result.
 STUB0="$WORK/classifier-silent.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$STUB0"
-run_check 3 'classifier with no verdict fails closed'                "$CODE" '[]' CLASSIFIER="$STUB0"
+run_check 3 'classifier with no verdict fails closed'                "$CODE" false CLASSIFIER="$STUB0"
 # A verdict followed by a failing exit is still a failure: the exit code decides.
 STUBF="$WORK/classifier-verdict-then-exit3.sh"
 printf '#!/usr/bin/env bash\necho data_bearing=false >> "$GITHUB_OUTPUT"\nexit 3\n' > "$STUBF"
-run_check 3 'classifier verdict with a failing exit fails closed'    "$CODE" '[]' CLASSIFIER="$STUBF"
+run_check 3 'classifier verdict with a failing exit fails closed'    "$CODE" false CLASSIFIER="$STUBF"
 
 # An empty range has nothing to publish.
-run_check 0 'empty range passes'                                     "$BASE" '[]'
+run_check 0 'empty range passes'                                     "$BASE" false
 
-# Editing the check's own files needs the label, so the control gets a reviewer's look.
+# Editing the check's own files needs an approval, so the control gets a reviewer's look.
 CTRL="$(commit_change control bash -c 'mkdir -p scripts && printf "# edit\n" > scripts/data-bearing-path-check.sh')"
-run_check 1 "editing the check's own script needs the label"        "$CTRL" '[]'
-run_check 0 "editing the check's own script with a fresh label"      "$CTRL" '["synthetic-data"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
+run_check 1 "editing the check's own script needs an approval"     "$CTRL" false
+run_check 0 "editing the check's own script with an approval"      "$CTRL" true
 
 # PRs to staging or main: only changes that never went through develop count. Here
 # develop already holds the fixture commit ($FIX).
@@ -143,10 +136,10 @@ git -C "$REPO" checkout -q -B on-develop-fix "$FIX"
 printf 'name: direct\n' > "$REPO/spec/fixtures/direct.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'fixture not in develop'
 REL_FIX="$(git -C "$REPO" rev-parse HEAD)"
-run_check 0 'PR to main carrying only develop content passes'        "$FIX"      '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
-run_check 0 'PR to main: code beyond develop passes'                 "$REL_CODE" '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
-run_check 1 'PR to staging: fixture beyond develop fails'            "$REL_FIX"  '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX"
-run_check 3 'PR to main without DEVELOP_SHA fails closed'            "$REL_FIX"  '[]' PR_BASE_REF=main
+run_check 0 'PR to main carrying only develop content passes'        "$FIX"      false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 0 'PR to main: code beyond develop passes'                 "$REL_CODE" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 1 'PR to staging: fixture beyond develop fails'            "$REL_FIX"  false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+run_check 3 'PR to main without DEVELOP_SHA fails closed'            "$REL_FIX"  false PR_BASE_REF=main
 
 # Add then delete inside the PR: develop is squash-only, so only the net diff merges;
 # staging and main take merge commits, so every commit not in develop is checked.
@@ -157,16 +150,16 @@ git -C "$REPO" rm -q spec/fixtures/gone.yml
 mkdir -p "$REPO/app/models" && printf 'class D; end\n' > "$REPO/app/models/d.rb"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'delete it, add code'
 ADDDEL="$(git -C "$REPO" rev-parse HEAD)"
-run_check 1 'PR to staging: fixture added then deleted still fails'  "$ADDDEL" '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX"
-run_check 1 'PR to main: fixture added then deleted still fails'     "$ADDDEL" '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 1 'PR to staging: fixture added then deleted still fails'  "$ADDDEL" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+run_check 1 'PR to main: fixture added then deleted still fails'     "$ADDDEL" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
 # An empty commit in the range is skipped, not treated as an error.
 git -C "$REPO" checkout -q -B with-empty "$REL_CODE"
 git -C "$REPO" commit -q --allow-empty -m 'empty'
 WEMPTY="$(git -C "$REPO" rev-parse HEAD)"
-run_check 0 'PR to main: an empty commit in the range is skipped'    "$WEMPTY" '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 0 'PR to main: an empty commit in the range is skipped'    "$WEMPTY" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
 # A classifier failure inside the per-commit loop must stop the check.
-run_check 3 'per-commit classifier failure fails closed'             "$REL_FIX" '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX" CLASSIFIER="$STUB"
-run_check 3 'per-commit classifier with no verdict fails closed'     "$REL_FIX" '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX" CLASSIFIER="$STUB0"
+run_check 3 'per-commit classifier failure fails closed'             "$REL_FIX" false PR_BASE_REF=staging DEVELOP_SHA="$FIX" CLASSIFIER="$STUB"
+run_check 3 'per-commit classifier with no verdict fails closed'     "$REL_FIX" false PR_BASE_REF=staging DEVELOP_SHA="$FIX" CLASSIFIER="$STUB0"
 
 # Merge commits. A release PR (staging into main) carries merge commits whose
 # first-parent diff is a whole release of develop; only what a merge adds beyond ALL
@@ -193,11 +186,11 @@ printf 'name: side\n' > "$REPO/spec/fixtures/side.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'side: fixture'
 SIDE="$(git -C "$REPO" rev-parse HEAD)"
 SIDEMERGE="$(merge_into side-merge "$FIX" "$SIDE")"
-run_check 0 'PR to main: a release merge of develop passes'          "$RELMERGE"  '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
-run_check 1 'PR to main: a fixture added inside a merge commit fails' "$EVILFIX"  '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
-run_check 0 'PR to main: code added inside a merge commit passes'    "$EVILCODE"  '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
-run_check 1 'PR to staging: a fixture on a merged side branch fails' "$SIDEMERGE" '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX"
-run_check 3 'PR to main: classifier failure on a merge fails closed' "$EVILCODE"  '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX" CLASSIFIER="$STUB"
+run_check 0 'PR to main: a release merge of develop passes'          "$RELMERGE"  false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 1 'PR to main: a fixture added inside a merge commit fails' "$EVILFIX"  false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 0 'PR to main: code added inside a merge commit passes'    "$EVILCODE"  false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 1 'PR to staging: a fixture on a merged side branch fails' "$SIDEMERGE" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+run_check 3 'PR to main: classifier failure on a merge fails closed' "$EVILCODE"  false PR_BASE_REF=main DEVELOP_SHA="$FIX" CLASSIFIER="$STUB"
 # A parentless (orphan) commit merged in with --allow-unrelated-histories: its files
 # come from a root commit, which only --root lists.
 git -C "$REPO" checkout -q --orphan orphan-data
@@ -209,7 +202,7 @@ ORPHAN="$(git -C "$REPO" rev-parse HEAD)"
 git -C "$REPO" checkout -q -B orphan-merge "$FIX"
 git -C "$REPO" merge -q --no-edit --allow-unrelated-histories "$ORPHAN" -m 'merge an unrelated history'
 ORPHANMERGE="$(git -C "$REPO" rev-parse HEAD)"
-run_check 1 'PR to main: a fixture from a merged orphan branch fails' "$ORPHANMERGE" '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 1 'PR to main: a fixture from a merged orphan branch fails' "$ORPHANMERGE" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
 # Commits already on the base branch are not the PR's: a staging-only fixture (reviewed
 # when it landed on staging) does not trip a later PR to staging that contains it.
 git -C "$REPO" checkout -q -B staging-tip "$BASE"
@@ -219,81 +212,111 @@ STAGING_TIP="$(git -C "$REPO" rev-parse HEAD)"
 mkdir -p "$REPO/app/models" && printf 'class S; end\n' > "$REPO/app/models/s.rb"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'code on top of staging'
 ON_STAGING="$(git -C "$REPO" rev-parse HEAD)"
-CHECK_BASE="$STAGING_TIP" run_check 0 'PR to staging: a fixture already on staging does not count' "$ON_STAGING" '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+CHECK_BASE="$STAGING_TIP" run_check 0 'PR to staging: a fixture already on staging does not count' "$ON_STAGING" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
 
-# Any workflow change needs the label: a PR could add its own pull_request job with
-# this check's name and post a green result beside the real one.
+# Any workflow change needs an approval: a workflow in a same-repo PR runs with a token
+# that can post statuses, so it gets a reviewer's look before it merges.
 WF="$(commit_change workflow bash -c 'mkdir -p .github/workflows && printf "on: pull_request\n" > .github/workflows/shadow.yml')"
-run_check 1 'adding a workflow needs the label'                      "$WF" '[]'
-run_check 0 'adding a workflow with a fresh label passes'            "$WF" '["synthetic-data"]' LABEL_APPLIED_AT=2099-01-01T00:00:00Z HEAD_ARRIVED_AT=2026-01-01T00:00:00Z
+run_check 1 'adding a workflow needs an approval'                    "$WF" false
+run_check 0 'adding a workflow with an approval passes'              "$WF" true
 git -C "$REPO" checkout -q -B wf-add-del "$FIX"
 mkdir -p "$REPO/.github/workflows" && printf 'on: pull_request\n' > "$REPO/.github/workflows/shadow.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'add a workflow'
 git -C "$REPO" rm -q .github/workflows/shadow.yml && git -C "$REPO" commit -q -m 'remove it'
 WFADDDEL="$(git -C "$REPO" rev-parse HEAD)"
-run_check 1 'PR to staging: a workflow added then removed needs the label' "$WFADDDEL" '[]' PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+run_check 1 'PR to staging: a workflow added then removed needs an approval' "$WFADDDEL" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
 git -C "$REPO" checkout -q -B ctrl-beyond "$FIX"
 mkdir -p "$REPO/scripts" && printf '# edit\n' > "$REPO/scripts/data-bearing-path-check.sh"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'edit the check'
 CTRLREL="$(git -C "$REPO" rev-parse HEAD)"
-run_check 1 "PR to main: editing the check's script beyond develop needs the label" "$CTRLREL" '[]' PR_BASE_REF=main DEVELOP_SHA="$FIX"
+run_check 1 "PR to main: editing the check's script beyond develop needs an approval" "$CTRLREL" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
 
 # --- The CI entry script, against a stubbed gh. The stub applies the real --jq
-# filter to canned JSON, so the filters are tested too. ---
+# filter to canned JSON, so the filters are tested too. Statuses it is asked to post
+# are prepended to the canned list, newest first, as GitHub returns them. ---
 CI="${CI_SCRIPT:-$REPO_ROOT/scripts/data-bearing-path-check-ci.sh}"
 GHBIN="$WORK/ghbin"
 GH_STUB="$WORK/ghstub"
 mkdir -p "$GHBIN"
 cat > "$GHBIN/gh" <<'GHEOF'
 #!/usr/bin/env bash
-# gh api [--paginate] <url> [--jq <expr>]
+# gh api [--paginate] [-X METHOD] <url> [--jq <expr>] [-f key=value ...]
 shift
 url="" expr="" method=GET
+fields=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --paginate|--silent) shift ;;
     --jq) expr="$2"; shift 2 ;;
     -X|--method) method="$2"; shift 2 ;;
+    -f|--raw-field) fields+=("$2"); shift 2 ;;
     *) url="$1"; shift ;;
   esac
 done
-# DELETE on the label endpoint: record it and drop the label from the canned PR.
-if [ "$method" = DELETE ]; then
-  case "$url" in */issues/*/labels/*) ;; *) echo "gh stub: unexpected DELETE $url" >&2; exit 9 ;; esac
-  echo "$url" >> "$GH_STUB/deleted"
-  if [ -e "$GH_STUB/delete.fail" ]; then cat "$GH_STUB/delete.fail"; exit 1; fi
-  jq '.labels |= map(select(.name != "synthetic-data"))' "$GH_STUB/pr.json" > "$GH_STUB/pr.tmp" \
-    && mv "$GH_STUB/pr.tmp" "$GH_STUB/pr.json"
-  exit 0
-fi
-[ "$method" = GET ] || { echo "gh stub: unexpected method $method" >&2; exit 9; }
-case "$url" in
-  */pulls/*) f=pr ;;
-  */issues/*/events) f=events ;;
-  */check-suites) f=suites ;;
-  *) echo "gh stub: unexpected url $url" >&2; exit 9 ;;
+field() { local kv; for kv in "${fields[@]}"; do [ "${kv%%=*}" = "$1" ] && { printf '%s' "${kv#*=}"; return; }; done; }
+case "$method $url" in
+  "DELETE "*/issues/*/labels/*)
+    echo "$url" >> "$GH_STUB/deleted"
+    if [ -e "$GH_STUB/delete.fail" ]; then cat "$GH_STUB/delete.fail"; exit 1; fi
+    exit 0 ;;
+  "POST "*/statuses/*)
+    sha="${url##*/}"
+    ctx="$(field context)"
+    case "$ctx" in data-bearing-approval/*) f=approve ;; *) f=verdict ;; esac
+    if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
+    printf '%s %s %s\n' "$sha" "$ctx" "$(field state)" >> "$GH_STUB/posted"
+    jq --arg c "$ctx" --arg s "$(field state)" --arg sha "$sha" \
+      '[{sha:$sha, context:$c, state:$s, creator:{login:"github-actions[bot]"}}] + .' \
+      "$GH_STUB/statuses.json" > "$GH_STUB/statuses.tmp" && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
+    exit 0 ;;
+  "GET "*/pulls/*) f=pr ;;
+  "GET "*/collaborators/*/permission) f=perm ;;
+  "GET "*/commits/*/statuses*) f=statuses ;;
+  *) echo "gh stub: unexpected $method $url" >&2; exit 9 ;;
 esac
 if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
-if [ -n "$expr" ]; then jq -r "$expr" < "$GH_STUB/$f.json"; else cat "$GH_STUB/$f.json"; fi
+if [ "$f" = statuses ]; then
+  sha="${url#*/commits/}"; sha="${sha%%/*}"
+  jq --arg sha "$sha" '[.[] | select(.sha == $sha)]' "$GH_STUB/statuses.json" > "$GH_STUB/sel.json"
+  src="$GH_STUB/sel.json"
+else
+  src="$GH_STUB/$f.json"
+fi
+if [ -n "$expr" ]; then jq -r "$expr" < "$src"; else cat "$src"; fi
 GHEOF
 chmod +x "$GHBIN/gh"
 MARK="$WORK/check-ran"
 SPY="$WORK/check-spy.sh"
 printf '#!/usr/bin/env bash\ntouch "%s"\nexec bash "%s" "$@"\n' "$MARK" "$CHECK" > "$SPY"
-git -C "$REPO" update-ref refs/remotes/origin/develop "$FIX"
-git -C "$REPO" update-ref refs/remotes/origin/staging "$BASE"
-git -C "$REPO" update-ref refs/remotes/origin/main "$BASE"
 
-# stub_pr <head> <base-ref> <labels-json-array-of-names> [base-sha, default $BASE]
+# A real origin, so the live base is fetched as the workflow fetches it. The local
+# remote-tracking refs start out equal to it; some cases make them stale. A push to the
+# origin path also updates the matching local ref, so set_local runs after set_origin.
+ORIGIN="$WORK/origin.git"
+git init -q --bare "$ORIGIN"
+git -C "$REPO" remote add origin "$ORIGIN"
+set_origin() { git -C "$REPO" push -q -f "$ORIGIN" "$2:refs/heads/$1"; }
+unset_origin() { git -C "$REPO" push -q "$ORIGIN" ":refs/heads/$1"; }
+set_local() { git -C "$REPO" update-ref "refs/remotes/origin/$1" "$2"; }
+set_origin develop "$FIX"; set_origin staging "$BASE"; set_origin main "$BASE"
+set_local develop "$FIX"; set_local staging "$BASE"; set_local main "$BASE"
+
+APPROVAL_DEV="data-bearing-approval/pr-7/develop"
+
+# stub_pr <head> <base-ref> [base-sha, default $BASE]: a fresh PR, no statuses.
 stub_pr() {
   rm -rf "$GH_STUB"; mkdir -p "$GH_STUB"
-  jq -n --arg h "$1" --arg b "${4:-$BASE}" --arg r "$2" --argjson l "$3" \
-    '{head:{sha:$h}, base:{sha:$b, ref:$r}, labels:($l|map({name:.}))}' > "$GH_STUB/pr.json"
-  printf '[]\n' > "$GH_STUB/events.json"
-  printf '{"check_suites":[]}\n' > "$GH_STUB/suites.json"
+  jq -n --arg h "$1" --arg b "${3:-$BASE}" --arg r "$2" \
+    '{head:{sha:$h}, base:{sha:$b, ref:$r}}' > "$GH_STUB/pr.json"
+  printf '[]\n' > "$GH_STUB/statuses.json"
+  printf '{"permission":"write"}\n' > "$GH_STUB/perm.json"
 }
-labeled_at() { jq -n --args '[ $ARGS.positional[] | {event:"labeled", label:{name:"synthetic-data"}, created_at:.} ] + [{event:"labeled", label:{name:"bug"}, created_at:"2099-01-01T00:00:00Z"}]' "$@" > "$GH_STUB/events.json"; }
-suites_at() { jq -n --args '{check_suites: [ $ARGS.positional[] | {created_at:.} ]}' "$@" > "$GH_STUB/suites.json"; }
+# add_status <sha> <context> <state> [creator]: prepend a status (it becomes the latest).
+add_status() {
+  jq --arg sha "$1" --arg c "$2" --arg s "$3" --arg who "${4:-github-actions[bot]}" \
+    '[{sha:$sha, context:$c, state:$s, creator:{login:$who}}] + .' \
+    "$GH_STUB/statuses.json" > "$GH_STUB/statuses.tmp" && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
+}
 
 # run_ci <expect-exit> <expect-check-ran:yes|no> <label> <event-head> [env assignments...]
 # EVENT_ACTION defaults to opened; a later assignment overrides it.
@@ -302,7 +325,9 @@ run_ci() {
   shift 4
   total=$((total + 1))
   rm -f "$MARK"
-  (cd "$REPO" && env PATH="$GHBIN:$PATH" GH_STUB="$GH_STUB" REPO=o/r PR_NUMBER=7 EVENT_HEAD_SHA="$ehead" CHECK="$SPY" EVENT_ACTION=opened "$@" bash "$CI") >/dev/null 2>&1 || rc=$?
+  (cd "$REPO" && env PATH="$GHBIN:$PATH" GH_STUB="$GH_STUB" REPO=o/r PR_NUMBER=7 \
+    EVENT_HEAD_SHA="$ehead" CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= SENDER_LOGIN=reviewer \
+    SENDER_TYPE=User RUN_URL=https://example.invalid/run/1 "$@" bash "$CI") >/dev/null 2>&1 || rc=$?
   [ -e "$MARK" ] && did=yes
   if [ "$rc" = "$expect" ] && [ "$did" = "$ran" ]; then
     printf '  ok   exit %s  ci: %s\n' "$rc" "$label"
@@ -311,44 +336,19 @@ run_ci() {
     fails=$((fails + 1))
   fi
 }
-
-stub_pr "$FIX" develop '[]'
-run_ci 1 yes 'no label, fixture fails' "$FIX"
-stub_pr "$CODE" develop '[]'
-run_ci 0 yes 'no label, code only passes' "$CODE"
-stub_pr "$FIX" develop '["synthetic-data"]'; labeled_at 2026-05-02T00:00:00Z; suites_at 2026-05-01T00:00:00Z 2026-05-03T00:00:00Z
-run_ci 0 yes 'label after the earliest check suite passes' "$FIX"
-stub_pr "$FIX" develop '["synthetic-data"]'; labeled_at 2026-04-30T00:00:00Z; suites_at 2026-05-03T00:00:00Z 2026-05-01T00:00:00Z
-run_ci 1 yes 'label before the earliest check suite fails' "$FIX"
-stub_pr "$FIX" develop '["synthetic-data"]'; labeled_at 2026-04-01T00:00:00Z 2026-05-02T00:00:00Z; suites_at 2026-05-01T00:00:00Z
-run_ci 0 yes 'the latest labeled event is the one that counts' "$FIX"
-stub_pr "$FIX" develop '["synthetic-data"]'; suites_at 2026-05-01T00:00:00Z
-run_ci 3 no 'label present, no labeled event: fails closed before the check' "$FIX"
-stub_pr "$FIX" develop '["synthetic-data"]'; labeled_at 2026-05-02T00:00:00Z
-run_ci 3 no 'label present, no check suite: fails closed before the check' "$FIX"
-stub_pr "$FIX" develop '[]'
-run_ci 3 no 'head moved since the event: fails closed before the check' "$CODE"
-stub_pr "$FIX" develop '[]'; printf 'boom\n' > "$GH_STUB/pr.fail"
-run_ci 3 no 'PR lookup fails: fails closed before the check' "$FIX"
-stub_pr "$FIX" develop '["synthetic-data"]'; suites_at 2026-05-01T00:00:00Z; printf '2099-01-01T00:00:00Z\n' > "$GH_STUB/events.fail"
-run_ci 3 no 'events lookup fails after partial output: fails closed' "$FIX"
-stub_pr "$FIX" develop '["synthetic-data"]'; labeled_at 2026-05-02T00:00:00Z; printf 'boom\n' > "$GH_STUB/suites.fail"
-run_ci 3 no 'check-suite lookup fails: fails closed' "$FIX"
-stub_pr "$REL_FIX" staging '[]'
-run_ci 1 yes 'PR to staging uses origin/develop: fixture beyond develop fails' "$REL_FIX"
-stub_pr "$REL_CODE" main '[]'
-run_ci 0 yes 'PR to main uses origin/develop: code beyond develop passes' "$REL_CODE"
-stub_pr "$RELMERGE" main '[]'
-run_ci 0 yes 'PR to main: a release merge of develop passes' "$RELMERGE"
-
-# The earliest of many check suites. `sort | head -n 1` under pipefail could die of
-# SIGPIPE once sort's output outgrew the pipe buffer.
-stub_pr "$FIX" develop '["synthetic-data"]'; labeled_at 2026-05-02T00:00:00Z
-seq 1 10000 | sed 's/.*/2026-05-03T00:00:00Z/' | jq -R . | jq -s '{check_suites: map({created_at: .})} | .check_suites += [{created_at: "2026-05-01T00:00:00Z"}]' > "$GH_STUB/suites.json"
-run_ci 0 yes 'earliest of 10,001 check suites is found (no SIGPIPE)' "$FIX"
-
-# A push, a reopen or a new base resets the label: an earlier review does not cover
-# the new head, whatever time its commits carry.
+# posted_case <expected posted lines, "|"-separated, or NONE> <label>: the statuses the
+# last run posted, in order, as "<sha> <context> <state>".
+posted_case() {
+  local want="$1" label="$2" got=NONE
+  total=$((total + 1))
+  [ -s "$GH_STUB/posted" ] && got="$(paste -sd'|' "$GH_STUB/posted")"
+  if [ "$got" = "$want" ]; then
+    printf '  ok   posted  ci: %s\n' "$label"
+  else
+    printf '  FAIL posted [%s] (expected [%s])  ci: %s\n' "$got" "$want" "$label"
+    fails=$((fails + 1))
+  fi
+}
 # deleted_case <expect:yes|no> <label>: did the last run remove the label?
 deleted_case() {
   local want="$1" label="$2" got=no
@@ -361,47 +361,138 @@ deleted_case() {
     fails=$((fails + 1))
   fi
 }
-fresh() { labeled_at 2026-05-02T00:00:00Z; suites_at 2026-05-01T00:00:00Z; }
-stub_pr "$FIX" develop '["synthetic-data"]'; fresh
-run_ci 1 yes 'synchronize removes the label, then the fixture fails' "$FIX" EVENT_ACTION=synchronize
-deleted_case yes 'synchronize removed the synthetic-data label'
-stub_pr "$FIX" develop '["synthetic-data"]'; fresh
-run_ci 1 yes 'reopened removes the label' "$FIX" EVENT_ACTION=reopened
-deleted_case yes 'reopened removed the label'
-stub_pr "$FIX" develop '["synthetic-data"]'; fresh
-run_ci 1 yes 'edited with a base change removes the label' "$FIX" EVENT_ACTION=edited BASE_FROM=main
-deleted_case yes 'a base change removed the label'
-stub_pr "$FIX" develop '["synthetic-data"]'; fresh
-run_ci 0 yes 'edited without a base change keeps a fresh label' "$FIX" EVENT_ACTION=edited BASE_FROM=
-deleted_case no 'a title or body edit leaves the label'
-stub_pr "$FIX" develop '["synthetic-data"]'; fresh
-run_ci 0 yes 'labeled keeps a fresh label' "$FIX" EVENT_ACTION=labeled
-deleted_case no 'labeled leaves the label'
-stub_pr "$CODE" develop '[]'
-run_ci 0 yes 'synchronize with no label: nothing to remove, code passes' "$CODE" EVENT_ACTION=synchronize
-deleted_case no 'no label, no removal call'
-stub_pr "$FIX" develop '["synthetic-data"]'; fresh; printf 'boom\n' > "$GH_STUB/delete.fail"
-run_ci 3 no 'label removal fails: fails closed before the check' "$FIX" EVENT_ACTION=synchronize
-stub_pr "$FIX" develop '[]'
+
+# Verdicts: posted as a commit status on the exact head, one context per base branch.
+stub_pr "$FIX" develop
+run_ci 1 yes 'no approval, fixture fails' "$FIX"
+posted_case "$FIX data-bearing-paths/develop failure" 'the failure is posted as a status on the head'
+stub_pr "$CODE" develop
+run_ci 0 yes 'no approval, code only passes' "$CODE"
+posted_case "$CODE data-bearing-paths/develop success" 'the pass is posted as a status on the head'
+
+# Approvals: a success status from the workflow, for this PR and base, on this head.
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success
+run_ci 0 yes 'an approval for this PR, base and head passes' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success mallory
+run_ci 1 yes 'an approval status posted by a person, not the workflow, does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/pr-8/develop success
+run_ci 1 yes 'an approval for another PR on the same head does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/pr-7/main success
+run_ci 1 yes 'an approval for another base does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/pr-70/develop success
+run_ci 1 yes 'an approval for PR 70 does not count for PR 7' "$FIX"
+stub_pr "$FIX" develop; add_status "$EDIT" "$APPROVAL_DEV" success
+run_ci 1 yes 'an approval on an earlier head does not cover the new head' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success; add_status "$FIX" "$APPROVAL_DEV" failure
+run_ci 1 yes 'the latest status for the approval context is the one that counts' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" pending
+run_ci 1 yes 'a pending approval status does not count' "$FIX"
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/statuses.fail"
+run_ci 3 no 'status lookup fails: fails closed before the check' "$FIX"
+posted_case "$FIX data-bearing-paths/develop error" 'a lookup failure posts an error verdict'
+# The latest of many statuses. `sort | head -n 1` style pipes under pipefail could die
+# of SIGPIPE once the list outgrew the pipe buffer.
+stub_pr "$FIX" develop
+seq 1 5000 | jq -R --arg sha "$FIX" '{sha:$sha, context:("other/" + .), state:"success", creator:{login:"github-actions[bot]"}}' | jq -s . > "$GH_STUB/statuses.json"
+add_status "$FIX" "$APPROVAL_DEV" success
+add_status "$FIX" "$APPROVAL_DEV" success
+run_ci 0 yes 'approval found among 5,002 statuses (no SIGPIPE)' "$FIX"
+
+# Recording an approval: the synthetic-data label, added by someone with write access.
+stub_pr "$FIX" develop
+run_ci 0 yes 'labeled by a writer: approval recorded, then the fixture passes' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case "$FIX $APPROVAL_DEV success|$FIX data-bearing-paths/develop success" 'the approval is posted on the head, then the verdict'
+deleted_case yes 'the label is removed once the approval is recorded'
+stub_pr "$FIX" develop; printf '{"permission":"admin"}\n' > "$GH_STUB/perm.json"
+run_ci 0 yes 'labeled by an admin: approval recorded' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+stub_pr "$FIX" develop; printf '{"permission":"read"}\n' > "$GH_STUB/perm.json"
+run_ci 1 yes 'labeled by a read or triage user: no approval' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case "$FIX data-bearing-paths/develop failure" 'no approval status for a read or triage user'
+deleted_case yes 'the unauthorized label is removed'
+stub_pr "$FIX" develop
+run_ci 1 yes 'labeled by a bot: no approval' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data SENDER_TYPE=Bot
+posted_case "$FIX data-bearing-paths/develop failure" 'no approval status for a bot'
+stub_pr "$FIX" develop
+run_ci 1 yes 'another label: no approval' "$FIX" EVENT_ACTION=labeled LABEL_NAME=bug
+posted_case "$FIX data-bearing-paths/develop failure" 'no approval status for another label'
+deleted_case no 'another label is left alone'
+stub_pr "$FIX" develop
+run_ci 1 yes 'a label merely containing the name: no approval' "$FIX" EVENT_ACTION=labeled LABEL_NAME=not-synthetic-data
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/perm.fail"
+run_ci 3 no 'permission lookup fails: fails closed, no approval' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case "$FIX data-bearing-paths/develop error" 'only an error verdict when the permission lookup fails'
+stub_pr "$FIX" develop; printf '{"permission":"maybe"}\n' > "$GH_STUB/perm.json"
+run_ci 3 no 'an unexpected permission value fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+stub_pr "$FIX" develop
+run_ci 3 no 'SENDER_LOGIN unset on a labeled event fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data SENDER_LOGIN=
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/approve.fail"
+run_ci 3 no 'posting the approval fails: fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/delete.fail"
+run_ci 0 yes 'removing the label fails: the recorded approval still stands' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+
+# A push does not touch labels or approvals: the new head simply has none.
+stub_pr "$FIX" develop; add_status "$EDIT" "$APPROVAL_DEV" success
+run_ci 1 yes 'synchronize: the earlier head stays approved, the new head is not' "$FIX" EVENT_ACTION=synchronize
+deleted_case no 'synchronize removes no label'
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success
+run_ci 0 yes 'a re-run on an approved head (any event) still passes' "$FIX" EVENT_ACTION=edited
+deleted_case no 'an edit removes no label'
+
+# A stale run (the head moved on) decides nothing and posts nothing.
+stub_pr "$CODE" develop
+run_ci 0 no 'head moved since the event: skipped, nothing posted' "$FIX"
+posted_case NONE 'a stale run posts no status'
+stub_pr "$CODE" develop
+run_ci 0 no 'labeled for a head that has moved: no approval recorded' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case NONE 'a stale labeled run posts no approval'
+
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/pr.fail"
+run_ci 3 no 'PR lookup fails: fails closed before the check' "$FIX"
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/verdict.fail"
+run_ci 3 yes 'posting the verdict fails: fails closed' "$FIX"
+stub_pr "$FIX" develop
 run_ci 3 no 'EVENT_ACTION unset fails closed' "$FIX" EVENT_ACTION=
-# The API's base.sha is the base as of the PR's last update. If the base branch was
-# force-pushed (say, to scrub real data), that sha may no longer be on it, and a range
-# from it would hide the scrubbed commit. It must be an ancestor of the live branch.
-stub_pr "$FIX" develop '[]' "$CODE"
+stub_pr "$FIX" develop
+run_ci 3 no 'RUN_URL unset fails closed' "$FIX" RUN_URL=
+
+# PRs to staging and main are judged against the live develop.
+stub_pr "$REL_FIX" staging
+run_ci 1 yes 'PR to staging: fixture beyond develop fails' "$REL_FIX"
+posted_case "$REL_FIX data-bearing-paths/staging failure" 'a staging PR posts the staging context'
+stub_pr "$REL_CODE" main
+run_ci 0 yes 'PR to main: code beyond develop passes' "$REL_CODE"
+stub_pr "$RELMERGE" main
+run_ci 0 yes 'PR to main: a release merge of develop passes' "$RELMERGE"
+stub_pr "$REL_FIX" staging; add_status "$REL_FIX" data-bearing-approval/pr-7/staging success
+run_ci 0 yes 'PR to staging with an approval for staging passes' "$REL_FIX"
+stub_pr "$REL_FIX" staging; add_status "$REL_FIX" "$APPROVAL_DEV" success
+run_ci 1 yes 'PR retargeted to staging: the develop approval does not count' "$REL_FIX"
+
+# The base: allowlisted, fetched live, and base.sha still on it.
+stub_pr "$FIX" develop "$CODE"
 run_ci 3 no 'base.sha not on the live base branch fails closed' "$FIX"
-# The ref exists here, so only the allowlist can stop it.
-git -C "$REPO" update-ref refs/remotes/origin/release "$BASE"
-stub_pr "$CODE" release '[]'
+posted_case "$FIX data-bearing-paths/develop error" 'a stale base overwrites any earlier pass with an error'
+# The local remote-tracking ref still holds the old tip, but develop was force-pushed
+# (say, to scrub a fixture). Only an explicit fetch of the live branch catches it.
+# (A push to the origin path also moves the local ref, so set it back by hand.)
+set_origin develop "$CODE"; set_local develop "$FIX"
+stub_pr "$FIX" develop "$FIX"
+run_ci 3 no 'base force-pushed after the checkout: the live fetch catches it' "$FIX"
+set_origin develop "$FIX"; set_local develop "$FIX"
+# Live develop moved for a staging PR: the check uses the live tip, not the local ref.
+set_local develop "$BASE"
+stub_pr "$REL_CODE" main
+run_ci 0 yes 'PR to main uses the live develop, not a stale local ref' "$REL_CODE"
+set_local develop "$FIX"
+set_origin release "$BASE"; set_local release "$BASE"
+stub_pr "$CODE" release
 run_ci 3 no 'a base branch other than develop, staging or main fails closed' "$CODE"
-git -C "$REPO" update-ref -d refs/remotes/origin/release
-git -C "$REPO" update-ref -d refs/remotes/origin/main
-stub_pr "$REL_CODE" main '[]'
-run_ci 3 no 'live base branch missing from the checkout fails closed' "$REL_CODE"
-git -C "$REPO" update-ref refs/remotes/origin/main "$BASE"
-# A stale run (the head moved on) must not remove a label applied for the newer head.
-stub_pr "$CODE" develop '["synthetic-data"]'; fresh
-run_ci 3 no 'stale synchronize run fails closed before touching the label' "$FIX" EVENT_ACTION=synchronize
-deleted_case no 'a stale run leaves the label'
+posted_case NONE 'no status for a base outside the allowlist'
+unset_origin release; git -C "$REPO" update-ref -d refs/remotes/origin/release
+unset_origin main
+stub_pr "$REL_CODE" main
+run_ci 3 no 'live base branch missing on the remote fails closed' "$REL_CODE"
+set_origin main "$BASE"
 
 echo
 if [ "$fails" -eq 0 ]; then
