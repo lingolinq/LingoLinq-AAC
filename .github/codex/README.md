@@ -337,7 +337,12 @@ The review job runs PR content only as data:
   deployment-branch policies through the API and fails the run (failure status,
   no review) unless the environment exists, does not use protected-branches
   mode, and allows exactly one branch, named `staging` (the dispatch ref), with
-  no wildcard. Steps (2) and (3) cannot be checked from the
+  no wildcard. That proves the branch NAME only: the secrets are only as safe as
+  `staging` itself, which today needs no approving review to merge into, and any
+  workflow file merged there can declare `environment: codex-review`. Before
+  re-enabling, also protect `staging` (at least one approving review, approval of
+  the last push, and code-owner review of `.github/**` by a named owner) or
+  restrict who can push to it. Steps (2) and (3) cannot be checked from the
   workflow (that would mean reading secrets outside the environment, and a
   modified copy of the workflow would drop the check anyway), so they stay
   admin actions. None of these checks helps until this workflow is on the
