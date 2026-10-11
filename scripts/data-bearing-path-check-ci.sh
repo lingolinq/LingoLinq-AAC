@@ -5,14 +5,21 @@
 # verdict as commit statuses on the PR's exact head commit.
 #
 # WHY COMMIT STATUSES
-#   An approval has to cover one PR, one base branch and one head commit, and nothing
-#   else. A commit status sits on exactly one commit, and its name (context) carries the
-#   PR number and base: data-bearing-approval/pr-<n>/<base>. A push makes a new head
-#   commit with no statuses, so nothing has to be reset, and no later event can carry an
-#   earlier approval forward to it. The verdict is a status on the same head,
+#   An approval has to cover one base branch and one head commit, and nothing else. A
+#   commit status sits on exactly one commit, and its name (context) carries the base:
+#   data-bearing-approval/<base>. Two PRs with the same head and base merge identical
+#   content, so they share it (Scot, 2026-10-11). A push makes a new head commit with
+#   no statuses, so nothing has to be reset, and no later event can carry an earlier
+#   approval forward to it. The verdict is a status on the same head,
 #   data-bearing-paths/<base>, and that context is the required check, one per base
 #   branch so a head shared by PRs to different bases cannot overwrite another base's
 #   verdict.
+#
+#   Statuses are posted with a token from a dedicated GitHub App (STATUS_TOKEN), and
+#   the required check is pinned to that App. A workflow token, which any workflow in a
+#   same-repo PR can hold, posts as github-actions[bot] and cannot satisfy the check or
+#   forge an approval. The App's key lives in an environment limited to develop, which
+#   only this pull_request_target workflow (running from develop) can enter.
 #
 #   The decision reads live state from the API, not the event payload (a re-run reuses
 #   the payload). It decides only for the PR's current head: a run whose event head has
@@ -20,18 +27,19 @@
 #
 # APPROVAL
 #   On a `labeled` event for the synthetic-data label, if the person who added it has
-#   write, maintain or admin access (the API reports write or admin) and the head has
-#   not moved, this script posts the approval status on the head and then removes the
-#   label. The label works as a button: adding it records an approval for the head
+#   write, maintain or admin access (the API reports write or admin) and the PR's head
+#   and base are still the ones in the event, this script posts the approval status on
+#   the head and then removes the label. The label works as a button: adding it records an approval for the head
 #   current at that moment, and a later push needs it added again. A label added by a
 #   bot or by someone with read or triage access records nothing and is removed.
 #
 #   An approval status counts only when its latest entry is `success` and its creator is
-#   github-actions[bot]. That excludes a status a person posts with their own token. It
-#   does not exclude a workflow in a same-repo PR, whose token can also post statuses as
-#   github-actions[bot]: anyone with write access can get past this check, so it guards
-#   against mistakes and fork PRs, not against a collaborator set on bypassing it. Any
-#   change under .github/workflows/ needs an approval before it merges.
+#   the App (STATUS_LOGIN). Agents never add this label: they run under a person's
+#   account, and this check cannot tell the two apart. The author may approve their own
+#   PR. Anyone with write access can still get past the check deliberately (for example
+#   by adding the label without looking, or through a ruleset bypass); it guards against
+#   mistakes and fork PRs. Any change under .github/workflows/ needs an approval before
+#   it merges.
 #
 # BASE
 #   The base branch must be develop, staging or main. It is fetched live from origin
@@ -43,37 +51,48 @@
 #   The PR's commits must already be in the checkout (the workflow fetches
 #   refs/pull/<n>/head); a missing commit makes the check fail closed.
 #
+# USAGE
+#   scripts/data-bearing-path-check-ci.sh              decide, and record an approval
+#   scripts/data-bearing-path-check-ci.sh --mark pending|error
+#       post that state for data-bearing-paths/<EVENT_BASE_REF> on EVENT_HEAD_SHA. The
+#       workflow posts pending itself before its checkout (so it needs no script) and
+#       runs --mark error from its failure step, so an earlier pass cannot outlive a run
+#       that failed.
+#
 # ENV (required unless noted)
 #   REPO            owner/name
 #   PR_NUMBER       the pull request number
 #   EVENT_HEAD_SHA  the head SHA in the triggering event
+#   EVENT_BASE_REF  the base branch in the triggering event
 #   EVENT_ACTION    the pull_request_target activity type (opened, labeled, ...)
 #   RUN_URL         this workflow run's URL, linked from the statuses
 #   LABEL_NAME      on a labeled event, the label that was added (optional otherwise)
 #   SENDER_LOGIN    on a labeled event, who added it
 #   SENDER_TYPE     on a labeled event, User or Bot
-#   GH_TOKEN        token for gh (statuses: write; pull-requests: write, to remove the
-#                   label)
+#   GH_TOKEN        the workflow token, for every call except posting statuses
+#                   (pull-requests: write, to remove the label)
+#   STATUS_TOKEN    the App's installation token (statuses: write), used only to post
+#   STATUS_LOGIN    the App's login, <slug>[bot]; an approval must come from it
 #   CHECK           optional; path to data-bearing-path-check.sh (tests override it)
 #
 # EXIT CODES
 #   whatever the check returns (0, 1, 3); 0 when the event head has moved on (nothing
-#   decided or posted); 3 from this script when any lookup or post fails
+#   decided or posted); 3 from this script when any lookup or post fails. --mark: 0
+#   posted (or nothing to post for a base outside the allowlist), 3 otherwise.
 #
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="${CHECK:-$REPO_ROOT/scripts/data-bearing-path-check.sh}"
 EXEMPT_LABEL="synthetic-data"
-WORKFLOW_LOGIN="github-actions[bot]"
 
 head_sha=""
 VERDICT_CTX=""
 
-# post_status <sha> <context> <state> <description>
+# post_status <sha> <context> <state> <description>: with the App token only.
 post_status() {
-  gh api -X POST "repos/$REPO/statuses/$1" -f state="$3" -f context="$2" \
-    -f description="$4" -f target_url="$RUN_URL" --silent
+  GH_TOKEN="$STATUS_TOKEN" gh api -X POST "repos/$REPO/statuses/$1" -f state="$3" \
+    -f context="$2" -f description="$4" -f target_url="$RUN_URL" --silent
 }
 
 # fail3: stop. Once the verdict context is known, replace any earlier verdict on the
@@ -92,10 +111,30 @@ remove_label() {
     || echo "data-bearing-path-check: could not remove the '$EXEMPT_LABEL' label; remove it by hand before adding it again." >&2
 }
 
-for v in REPO PR_NUMBER EVENT_HEAD_SHA EVENT_ACTION RUN_URL; do
+if [ "${1:-}" = --mark ]; then
+  mark="${2:-}"
+  for v in REPO EVENT_HEAD_SHA EVENT_BASE_REF RUN_URL STATUS_TOKEN; do
+    [ -n "${!v:-}" ] || fail3 "$v is not set"
+  done
+  case "$mark" in
+    pending) desc="Checking data-bearing paths." ;;
+    error) desc="The check did not finish; see the workflow run." ;;
+    *) fail3 "--mark takes pending or error, not '$mark'" ;;
+  esac
+  case "$EVENT_BASE_REF" in
+    develop|staging|main) ;;
+    *) echo "data-bearing-path-check: base '$EVENT_BASE_REF' is not checked; nothing to mark."; exit 0 ;;
+  esac
+  post_status "$EVENT_HEAD_SHA" "data-bearing-paths/$EVENT_BASE_REF" "$mark" "$desc" \
+    || fail3 "could not post $mark"
+  exit 0
+fi
+
+for v in REPO PR_NUMBER EVENT_HEAD_SHA EVENT_BASE_REF EVENT_ACTION RUN_URL STATUS_TOKEN STATUS_LOGIN; do
   [ -n "${!v:-}" ] || fail3 "$v is not set"
 done
 [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || fail3 "PR_NUMBER '$PR_NUMBER' is not a number"
+[[ "$STATUS_LOGIN" =~ ^[a-z0-9-]+\[bot\]$ ]] || fail3 "STATUS_LOGIN '$STATUS_LOGIN' is not an App login"
 
 approval_event=false
 [ "$EVENT_ACTION" = labeled ] && [ "${LABEL_NAME:-}" = "$EXEMPT_LABEL" ] && approval_event=true
@@ -120,12 +159,14 @@ case "$base_ref" in
   *) fail3 "unexpected base branch '$base_ref'" ;;
 esac
 VERDICT_CTX="data-bearing-paths/$base_ref"
-APPROVAL_CTX="data-bearing-approval/pr-$PR_NUMBER/$base_ref"
+APPROVAL_CTX="data-bearing-approval/$base_ref"
 
 if [ "$approval_event" = true ]; then
   [ -n "${SENDER_LOGIN:-}" ] || fail3 "SENDER_LOGIN is not set on a labeled event"
   authorized=false
-  if [ "${SENDER_TYPE:-}" != User ]; then
+  if [ "$base_ref" != "$EVENT_BASE_REF" ]; then
+    echo "data-bearing-path-check: the label was added while the PR targeted $EVENT_BASE_REF; it now targets $base_ref. No approval recorded; add the label again." >&2
+  elif [ "${SENDER_TYPE:-}" != User ]; then
     echo "data-bearing-path-check: the label was added by a ${SENDER_TYPE:-non-user} account; no approval recorded." >&2
   else
     [[ "$SENDER_LOGIN" =~ ^[A-Za-z0-9-]+$ ]] || fail3 "unexpected login '$SENDER_LOGIN'"
@@ -162,14 +203,14 @@ if [ "$base_ref" != develop ]; then
 fi
 
 # The latest status for the approval context comes first (the API lists newest
-# first). The context is built from a number and an allowlisted branch, so it is safe
-# inside the filter. sed -n reads all of its input, so gh never meets a closed pipe.
+# first). The context is built from an allowlisted branch, so it is safe inside the
+# filter. sed -n reads all of its input, so the writer never meets a closed pipe.
 found="$(gh api --paginate "repos/$REPO/commits/$head_sha/statuses?per_page=100" \
   --jq ".[] | select(.context == \"$APPROVAL_CTX\") | \"\(.state) \(.creator.login // \"\")\"")" \
   || fail3 "could not read the statuses on $head_sha"
 latest="$(printf '%s\n' "$found" | sed -n '1p')"
 approved=false
-[ "$latest" = "success $WORKFLOW_LOGIN" ] && approved=true
+[ "$latest" = "success $STATUS_LOGIN" ] && approved=true
 
 rc=0
 APPROVED="$approved" PR_BASE_REF="$base_ref" DEVELOP_SHA="$develop_sha" \
@@ -181,4 +222,6 @@ case "$rc" in
   *) state=error; desc="Could not decide; see the workflow run." ;;
 esac
 post_status "$head_sha" "$VERDICT_CTX" "$state" "$desc" || fail3 "could not post the verdict"
+# The workflow's failure step marks error only when no verdict was posted.
+[ -z "${GITHUB_OUTPUT:-}" ] || echo "verdict_posted=true" >> "$GITHUB_OUTPUT"
 exit "$rc"

@@ -233,20 +233,24 @@ run_check 1 "PR to main: editing the check's script beyond develop needs an appr
 
 # --- The CI entry script, against a stubbed gh. The stub applies the real --jq
 # filter to canned JSON, so the filters are tested too. Statuses it is asked to post
-# are prepended to the canned list, newest first, as GitHub returns them. ---
+# are prepended to the canned list, newest first, as GitHub returns them, and the
+# statuses list is served in pages of 100 unless --paginate is given. Statuses must be
+# posted with the App token and every other call must use the workflow token. ---
 CI="${CI_SCRIPT:-$REPO_ROOT/scripts/data-bearing-path-check-ci.sh}"
 GHBIN="$WORK/ghbin"
 GH_STUB="$WORK/ghstub"
+APP_LOGIN='data-bearing-gate[bot]'
 mkdir -p "$GHBIN"
 cat > "$GHBIN/gh" <<'GHEOF'
 #!/usr/bin/env bash
 # gh api [--paginate] [-X METHOD] <url> [--jq <expr>] [-f key=value ...]
 shift
-url="" expr="" method=GET
+url="" expr="" method=GET paginate=no
 fields=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --paginate|--silent) shift ;;
+    --paginate) paginate=yes; shift ;;
+    --silent) shift ;;
     --jq) expr="$2"; shift 2 ;;
     -X|--method) method="$2"; shift 2 ;;
     -f|--raw-field) fields+=("$2"); shift 2 ;;
@@ -254,6 +258,12 @@ while [ $# -gt 0 ]; do
   esac
 done
 field() { local kv; for kv in "${fields[@]}"; do [ "${kv%%=*}" = "$1" ] && { printf '%s' "${kv#*=}"; return; }; done; }
+case "$method $url" in
+  "POST "*/statuses/*)
+    [ "${GH_TOKEN:-}" = app-token ] || { echo "gh stub: status posted without the App token" >&2; exit 9; } ;;
+  *)
+    [ "${GH_TOKEN:-}" = actions-token ] || { echo "gh stub: $method $url without the workflow token" >&2; exit 9; } ;;
+esac
 case "$method $url" in
   "DELETE "*/issues/*/labels/*)
     echo "$url" >> "$GH_STUB/deleted"
@@ -266,7 +276,7 @@ case "$method $url" in
     if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
     printf '%s %s %s\n' "$sha" "$ctx" "$(field state)" >> "$GH_STUB/posted"
     jq --arg c "$ctx" --arg s "$(field state)" --arg sha "$sha" \
-      '[{sha:$sha, context:$c, state:$s, creator:{login:"github-actions[bot]"}}] + .' \
+      '[{sha:$sha, context:$c, state:$s, creator:{login:"data-bearing-gate[bot]"}}] + .' \
       "$GH_STUB/statuses.json" > "$GH_STUB/statuses.tmp" && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
     exit 0 ;;
   "GET "*/pulls/*) f=pr ;;
@@ -277,7 +287,9 @@ esac
 if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
 if [ "$f" = statuses ]; then
   sha="${url#*/commits/}"; sha="${sha%%/*}"
-  jq --arg sha "$sha" '[.[] | select(.sha == $sha)]' "$GH_STUB/statuses.json" > "$GH_STUB/sel.json"
+  # Without --paginate, gh returns only the first page.
+  if [ "$paginate" = yes ]; then sel='[.[] | select(.sha == $sha)]'; else sel='[.[] | select(.sha == $sha)] | .[0:100]'; fi
+  jq --arg sha "$sha" "$sel" "$GH_STUB/statuses.json" > "$GH_STUB/sel.json"
   src="$GH_STUB/sel.json"
 else
   src="$GH_STUB/$f.json"
@@ -301,7 +313,7 @@ set_local() { git -C "$REPO" update-ref "refs/remotes/origin/$1" "$2"; }
 set_origin develop "$FIX"; set_origin staging "$BASE"; set_origin main "$BASE"
 set_local develop "$FIX"; set_local staging "$BASE"; set_local main "$BASE"
 
-APPROVAL_DEV="data-bearing-approval/pr-7/develop"
+APPROVAL_DEV="data-bearing-approval/develop"
 
 # stub_pr <head> <base-ref> [base-sha, default $BASE]: a fresh PR, no statuses.
 stub_pr() {
@@ -313,21 +325,26 @@ stub_pr() {
 }
 # add_status <sha> <context> <state> [creator]: prepend a status (it becomes the latest).
 add_status() {
-  jq --arg sha "$1" --arg c "$2" --arg s "$3" --arg who "${4:-github-actions[bot]}" \
+  jq --arg sha "$1" --arg c "$2" --arg s "$3" --arg who "${4:-$APP_LOGIN}" \
     '[{sha:$sha, context:$c, state:$s, creator:{login:$who}}] + .' \
     "$GH_STUB/statuses.json" > "$GH_STUB/statuses.tmp" && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
 }
 
 # run_ci <expect-exit> <expect-check-ran:yes|no> <label> <event-head> [env assignments...]
-# EVENT_ACTION defaults to opened; a later assignment overrides it.
+# EVENT_ACTION defaults to opened and EVENT_BASE_REF to develop; a later assignment
+# overrides them. A first argument of --mark-<state> runs the script's --mark mode.
 run_ci() {
+  local mode=()
+  case "$1" in --mark-*) mode=(--mark "${1#--mark-}"); shift ;; esac
   local expect="$1" ran="$2" label="$3" ehead="$4" rc=0 did=no
   shift 4
   total=$((total + 1))
-  rm -f "$MARK"
-  (cd "$REPO" && env PATH="$GHBIN:$PATH" GH_STUB="$GH_STUB" REPO=o/r PR_NUMBER=7 \
-    EVENT_HEAD_SHA="$ehead" CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= SENDER_LOGIN=reviewer \
-    SENDER_TYPE=User RUN_URL=https://example.invalid/run/1 "$@" bash "$CI") >/dev/null 2>&1 || rc=$?
+  rm -f "$MARK" "$GH_STUB/posted" "$GH_STUB/deleted"
+  (cd "$REPO" && env -u GITHUB_OUTPUT PATH="$GHBIN:$PATH" GH_STUB="$GH_STUB" REPO=o/r PR_NUMBER=7 \
+    EVENT_HEAD_SHA="$ehead" EVENT_BASE_REF=develop CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= \
+    SENDER_LOGIN=reviewer SENDER_TYPE=User RUN_URL=https://example.invalid/run/1 \
+    GH_TOKEN=actions-token STATUS_TOKEN=app-token STATUS_LOGIN="$APP_LOGIN" \
+    "$@" bash "$CI" "${mode[@]}") >/dev/null 2>&1 || rc=$?
   [ -e "$MARK" ] && did=yes
   if [ "$rc" = "$expect" ] && [ "$did" = "$ran" ]; then
     printf '  ok   exit %s  ci: %s\n' "$rc" "$label"
@@ -362,7 +379,8 @@ deleted_case() {
   fi
 }
 
-# Verdicts: posted as a commit status on the exact head, one context per base branch.
+# Verdicts: posted with the App token as a commit status on the exact head, one context
+# per base branch.
 stub_pr "$FIX" develop
 run_ci 1 yes 'no approval, fixture fails' "$FIX"
 posted_case "$FIX data-bearing-paths/develop failure" 'the failure is posted as a status on the head'
@@ -370,35 +388,54 @@ stub_pr "$CODE" develop
 run_ci 0 yes 'no approval, code only passes' "$CODE"
 posted_case "$CODE data-bearing-paths/develop success" 'the pass is posted as a status on the head'
 
-# Approvals: a success status from the workflow, for this PR and base, on this head.
+# Approvals: a success status from the App, for this base, on this exact head. Two PRs
+# with the same head and base merge identical content, so they share it.
 stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success
-run_ci 0 yes 'an approval for this PR, base and head passes' "$FIX"
+run_ci 0 yes 'an approval for this base and head passes' "$FIX"
 stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success mallory
-run_ci 1 yes 'an approval status posted by a person, not the workflow, does not count' "$FIX"
-stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/pr-8/develop success
-run_ci 1 yes 'an approval for another PR on the same head does not count' "$FIX"
-stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/pr-7/main success
+run_ci 1 yes 'an approval status posted by a person does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success 'github-actions[bot]'
+run_ci 1 yes 'an approval status posted with a workflow token does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/main success
 run_ci 1 yes 'an approval for another base does not count' "$FIX"
-stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/pr-70/develop success
-run_ci 1 yes 'an approval for PR 70 does not count for PR 7' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" data-bearing-approval/develop-old success
+run_ci 1 yes 'a context that only starts with the approval name does not count' "$FIX"
 stub_pr "$FIX" develop; add_status "$EDIT" "$APPROVAL_DEV" success
 run_ci 1 yes 'an approval on an earlier head does not cover the new head' "$FIX"
 stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success; add_status "$FIX" "$APPROVAL_DEV" failure
 run_ci 1 yes 'the latest status for the approval context is the one that counts' "$FIX"
 stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" pending
 run_ci 1 yes 'a pending approval status does not count' "$FIX"
+stub_pr "$FIX" develop
+run_ci 0 yes 'PR 7 records an approval on the shared head' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+run_ci 0 yes 'PR 8 with the same head and base shares it' "$FIX" PR_NUMBER=8
+posted_case "$FIX data-bearing-paths/develop success" 'PR 8 posts the shared pass'
+stub_pr "$FIX" develop
+run_ci 1 yes 'PR 8 unapproved, same head: fails' "$FIX" PR_NUMBER=8
+run_ci 1 yes 'PR 7 unapproved, same head: fails too' "$FIX"
 stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/statuses.fail"
 run_ci 3 no 'status lookup fails: fails closed before the check' "$FIX"
 posted_case "$FIX data-bearing-paths/develop error" 'a lookup failure posts an error verdict'
-# The latest of many statuses. `sort | head -n 1` style pipes under pipefail could die
-# of SIGPIPE once the list outgrew the pipe buffer.
-stub_pr "$FIX" develop
-seq 1 5000 | jq -R --arg sha "$FIX" '{sha:$sha, context:("other/" + .), state:"success", creator:{login:"github-actions[bot]"}}' | jq -s . > "$GH_STUB/statuses.json"
-add_status "$FIX" "$APPROVAL_DEV" success
-add_status "$FIX" "$APPROVAL_DEV" success
-run_ci 0 yes 'approval found among 5,002 statuses (no SIGPIPE)' "$FIX"
 
-# Recording an approval: the synthetic-data label, added by someone with write access.
+# Pagination: 250 older statuses on the head, the only approval the oldest, so it is on
+# page three and only a paginated read finds it.
+stub_pr "$FIX" develop
+add_status "$FIX" "$APPROVAL_DEV" success
+for i in $(seq 1 250); do printf '%s\n' "$i"; done \
+  | jq -R --arg sha "$FIX" '{sha:$sha, context:("other/" + .), state:"success", creator:{login:"x"}}' \
+  | jq -s --slurpfile old "$GH_STUB/statuses.json" '. + $old[0]' > "$GH_STUB/statuses.tmp" \
+  && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
+run_ci 0 yes 'an approval beyond the first page of statuses is found' "$FIX"
+# Many matching statuses: their filtered lines (about 230 KB) outgrow a pipe buffer, so a
+# reader that stops at the first line (head -n 1) under pipefail would kill the writer.
+stub_pr "$FIX" develop
+for i in $(seq 1 8000); do printf '%s\n' "$i"; done \
+  | jq -R --arg sha "$FIX" --arg who "$APP_LOGIN" '{sha:$sha, context:"data-bearing-approval/develop", state:"success", creator:{login:$who}}' \
+  | jq -s . > "$GH_STUB/statuses.json"
+run_ci 0 yes '8,000 matching statuses: the latest is read without SIGPIPE' "$FIX"
+
+# Recording an approval: the synthetic-data label, added by someone with write access,
+# while the PR's head and base are still the ones in the event.
 stub_pr "$FIX" develop
 run_ci 0 yes 'labeled by a writer: approval recorded, then the fixture passes' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
 posted_case "$FIX $APPROVAL_DEV success|$FIX data-bearing-paths/develop success" 'the approval is posted on the head, then the verdict'
@@ -425,10 +462,19 @@ stub_pr "$FIX" develop; printf '{"permission":"maybe"}\n' > "$GH_STUB/perm.json"
 run_ci 3 no 'an unexpected permission value fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
 stub_pr "$FIX" develop
 run_ci 3 no 'SENDER_LOGIN unset on a labeled event fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data SENDER_LOGIN=
+stub_pr "$FIX" develop
+run_ci 3 no 'a login with shell or path characters fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data 'SENDER_LOGIN=a/../b'
+posted_case "$FIX data-bearing-paths/develop error" 'no approval for a malformed login'
 stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/approve.fail"
 run_ci 3 no 'posting the approval fails: fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
 stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/delete.fail"
 run_ci 0 yes 'removing the label fails: the recorded approval still stands' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+# A label added while the PR targeted develop, processed (or re-run) after a retarget
+# to staging: the reviewer did not approve the staging range.
+stub_pr "$REL_FIX" staging
+run_ci 1 yes 'a label from before a retarget records no approval for the new base' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_REF=develop
+posted_case "$REL_FIX data-bearing-paths/staging failure" 'only the staging verdict is posted after a retarget'
+deleted_case yes 'the label from before the retarget is removed'
 
 # A push does not touch labels or approvals: the new head simply has none.
 stub_pr "$FIX" develop; add_status "$EDIT" "$APPROVAL_DEV" success
@@ -445,54 +491,72 @@ posted_case NONE 'a stale run posts no status'
 stub_pr "$CODE" develop
 run_ci 0 no 'labeled for a head that has moved: no approval recorded' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
 posted_case NONE 'a stale labeled run posts no approval'
+deleted_case yes 'a stale labeled run removes the label so it can be added again'
 
 stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/pr.fail"
 run_ci 3 no 'PR lookup fails: fails closed before the check' "$FIX"
 stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/verdict.fail"
 run_ci 3 yes 'posting the verdict fails: fails closed' "$FIX"
+for v in EVENT_ACTION RUN_URL STATUS_TOKEN STATUS_LOGIN EVENT_BASE_REF; do
+  stub_pr "$FIX" develop
+  run_ci 3 no "$v unset fails closed" "$FIX" "$v="
+done
 stub_pr "$FIX" develop
-run_ci 3 no 'EVENT_ACTION unset fails closed' "$FIX" EVENT_ACTION=
-stub_pr "$FIX" develop
-run_ci 3 no 'RUN_URL unset fails closed' "$FIX" RUN_URL=
+run_ci 3 no 'a STATUS_LOGIN that is not an App login fails closed' "$FIX" STATUS_LOGIN=reviewer
 
 # PRs to staging and main are judged against the live develop.
 stub_pr "$REL_FIX" staging
-run_ci 1 yes 'PR to staging: fixture beyond develop fails' "$REL_FIX"
+run_ci 1 yes 'PR to staging: fixture beyond develop fails' "$REL_FIX" EVENT_BASE_REF=staging
 posted_case "$REL_FIX data-bearing-paths/staging failure" 'a staging PR posts the staging context'
 stub_pr "$REL_CODE" main
-run_ci 0 yes 'PR to main: code beyond develop passes' "$REL_CODE"
+run_ci 0 yes 'PR to main: code beyond develop passes' "$REL_CODE" EVENT_BASE_REF=main
 stub_pr "$RELMERGE" main
-run_ci 0 yes 'PR to main: a release merge of develop passes' "$RELMERGE"
-stub_pr "$REL_FIX" staging; add_status "$REL_FIX" data-bearing-approval/pr-7/staging success
-run_ci 0 yes 'PR to staging with an approval for staging passes' "$REL_FIX"
+run_ci 0 yes 'PR to main: a release merge of develop passes' "$RELMERGE" EVENT_BASE_REF=main
+stub_pr "$REL_FIX" staging; add_status "$REL_FIX" data-bearing-approval/staging success
+run_ci 0 yes 'PR to staging with an approval for staging passes' "$REL_FIX" EVENT_BASE_REF=staging
 stub_pr "$REL_FIX" staging; add_status "$REL_FIX" "$APPROVAL_DEV" success
-run_ci 1 yes 'PR retargeted to staging: the develop approval does not count' "$REL_FIX"
+run_ci 1 yes 'PR retargeted to staging: the develop approval does not count' "$REL_FIX" EVENT_BASE_REF=staging
 
 # The base: allowlisted, fetched live, and base.sha still on it.
 stub_pr "$FIX" develop "$CODE"
 run_ci 3 no 'base.sha not on the live base branch fails closed' "$FIX"
 posted_case "$FIX data-bearing-paths/develop error" 'a stale base overwrites any earlier pass with an error'
-# The local remote-tracking ref still holds the old tip, but develop was force-pushed
-# (say, to scrub a fixture). Only an explicit fetch of the live branch catches it.
-# (A push to the origin path also moves the local ref, so set it back by hand.)
 set_origin develop "$CODE"; set_local develop "$FIX"
 stub_pr "$FIX" develop "$FIX"
 run_ci 3 no 'base force-pushed after the checkout: the live fetch catches it' "$FIX"
 set_origin develop "$FIX"; set_local develop "$FIX"
-# Live develop moved for a staging PR: the check uses the live tip, not the local ref.
 set_local develop "$BASE"
 stub_pr "$REL_CODE" main
-run_ci 0 yes 'PR to main uses the live develop, not a stale local ref' "$REL_CODE"
+run_ci 0 yes 'PR to main uses the live develop, not a stale local ref' "$REL_CODE" EVENT_BASE_REF=main
 set_local develop "$FIX"
 set_origin release "$BASE"; set_local release "$BASE"
 stub_pr "$CODE" release
-run_ci 3 no 'a base branch other than develop, staging or main fails closed' "$CODE"
+run_ci 3 no 'a base branch other than develop, staging or main fails closed' "$CODE" EVENT_BASE_REF=release
 posted_case NONE 'no status for a base outside the allowlist'
 unset_origin release; git -C "$REPO" update-ref -d refs/remotes/origin/release
 unset_origin main
 stub_pr "$REL_CODE" main
-run_ci 3 no 'live base branch missing on the remote fails closed' "$REL_CODE"
+run_ci 3 no 'live base branch missing on the remote fails closed' "$REL_CODE" EVENT_BASE_REF=main
 set_origin main "$BASE"
+
+# --mark: the workflow posts pending before any step that can fail, and error from a
+# failure step, on the event's head and base, so an earlier pass cannot stand.
+stub_pr "$FIX" develop
+run_ci --mark-pending 0 no 'mark pending posts pending on the event head' "$FIX"
+posted_case "$FIX data-bearing-paths/develop pending" 'pending is posted for the event base'
+stub_pr "$FIX" develop; add_status "$FIX" data-bearing-paths/develop success
+run_ci --mark-error 0 no 'mark error replaces an earlier pass' "$FIX"
+posted_case "$FIX data-bearing-paths/develop error" 'error is posted for the event base'
+stub_pr "$FIX" develop
+run_ci --mark-error 0 no 'mark for a base outside the allowlist posts nothing' "$FIX" EVENT_BASE_REF=release
+posted_case NONE 'no mark for a base outside the allowlist'
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/verdict.fail"
+run_ci --mark-pending 3 no 'a mark that cannot be posted fails' "$FIX"
+stub_pr "$FIX" develop
+run_ci --mark-success 3 no 'mark accepts only pending or error' "$FIX"
+posted_case NONE 'no status for a refused mark'
+stub_pr "$FIX" develop
+run_ci --mark-pending 3 no 'mark without the App token fails closed' "$FIX" STATUS_TOKEN=
 
 echo
 if [ "$fails" -eq 0 ]; then

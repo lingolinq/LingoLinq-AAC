@@ -5,37 +5,53 @@ name: Data-bearing paths
 # path, any file under .github/workflows/, or this check's own files fails until a
 # reviewer with write access confirms the data is synthetic and adds the
 # `synthetic-data` label. That records an approval as a commit status on the PR's
-# current head commit, named for the PR and its base
-# (data-bearing-approval/pr-<n>/<base>), and the label is removed. A later push is a
-# new commit with no approval, so the reviewer adds the label again for it.
+# current head commit for its base (data-bearing-approval/<base>), and the label is
+# removed. A later push is a new commit with no approval, so the reviewer adds the label
+# again for it; pushing a new commit is also how an approval is withdrawn. Agents never
+# add this label: they run under a person's account, and the check cannot tell them
+# apart.
 #
 # The verdict is posted as a commit status on the head, data-bearing-paths/<base>.
+# Both statuses are posted with a token from a dedicated GitHub App, never the workflow
+# token, so a workflow in a PR (which can post statuses as github-actions[bot]) can
+# neither forge an approval nor satisfy the required check.
 #
-# Rollout: require the data-bearing-paths/develop, /staging and /main status contexts
-# on their branches, with the source pinned to GitHub Actions, and run the canary
-# before relying on it (a code-only PR, a fixture PR approved by the label, a push
-# after approval, a label from a read-only account, and a PR adding its own workflow).
-# The canary also confirms this workflow's token can read a collaborator's permission.
+# Setup, before this merges to develop:
+#   1. A GitHub App owned by the org, with only Commit statuses: Read and write (plus
+#      the mandatory Metadata: Read), no webhook, installed on this repository only.
+#   2. An environment `data-bearing-status` whose deployment branches are limited to
+#      develop, holding the secret DATA_BEARING_APP_PRIVATE_KEY and the variable
+#      DATA_BEARING_APP_CLIENT_ID. For pull_request_target the environment rules are
+#      checked against the default branch, so this workflow can enter it; a PR's own
+#      pull_request workflow cannot.
+#   Until both exist, every run fails at the token step and posts nothing, which keeps
+#   the required check missing and the PR blocked.
+#
+# Rollout: require the data-bearing-paths/develop, /staging and /main contexts on their
+# branches with the source pinned to the App, then run the canary before relying on it:
+# a code-only PR; a fixture PR approved by the label; a push after approval; a label from
+# a read-only account; a PR adding its own workflow and a same-named job; a fork PR; a
+# pull_request job that names the environment (it must be refused); and confirming the
+# workflow token can read a collaborator's permission.
 #
 # What it does and does not do: it keeps real data out of develop, staging and main
 # and flags it when a PR is opened or updated. This repo is public, so a pushed branch
-# is already published; the check cannot unpublish it, and the author's own look
-# before pushing comes first. Ruleset bypass actors can merge past a required check.
-# A fork PR's token cannot post statuses, but a workflow in a same-repo PR can, as
-# github-actions[bot], so anyone with write access can get past this check: it guards
-# against mistakes and fork PRs, not against a collaborator set on bypassing it.
-# After force-pushing a base branch (to scrub data, say), re-run this check on every
-# open PR to that base: a PR that went green before the force-push stays green until
-# its check runs again.
+# is already published; the check cannot unpublish it, and the author's own look before
+# pushing comes first. The author may approve their own PR. Anyone with write access can
+# still get past it deliberately (adding the label without looking, or a ruleset
+# bypass): it guards against mistakes and fork PRs. After force-pushing a base branch
+# (to scrub data, say), re-run this check on every open PR to that base: a PR that went
+# green before the force-push stays green until its check runs again.
 #
 # WHY pull_request_target: it runs THIS file and the scripts from the repository's
 # default branch (develop), for PRs to staging and main too (GitHub, since
-# 2025-12-08), so a PR cannot edit the check that judges it; a change to the check
-# takes effect only after it merges to develop. It is safe here because nothing from
-# the PR is executed: the PR's commits are fetched as data and read with git diff,
-# git diff-tree and git rev-list. Do not add a step that checks out, builds or runs PR
-# code, and do not add secrets: this trigger runs for fork PRs with the base
-# repository's token, which here can post statuses and remove the label.
+# 2025-12-08), so a PR cannot edit the check that judges it; a change to the check takes
+# effect only after it merges to develop. It is safe here because nothing from the PR is
+# executed: the PR's commits are fetched as data and read with git diff, git diff-tree
+# and git rev-list. Do not add a step that checks out, builds or runs PR code. This
+# trigger runs for fork PRs with the base repository's token and this job's environment
+# secret: the App key is used only by the token step, and the App token can only post
+# statuses.
 # Bootstrap: this workflow runs only once it is on develop.
 
 on:
@@ -46,35 +62,54 @@ on:
 
 permissions:
   contents: read
-  # write: post the approval and verdict statuses on the head commit.
-  statuses: write
-  # write: remove the synthetic-data label once its approval is recorded.
+  # write: remove the synthetic-data label once it has been handled.
   pull-requests: write
 
 jobs:
   data-bearing-paths:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # One queue per PR, nothing cancelled or dropped (up to 100 pending), so runs post
-    # in the order they were queued. Each run decides only for the PR's current head.
+    # The App key is an environment secret; deployment: false uses the environment
+    # without recording a deployment on every PR.
+    environment:
+      name: data-bearing-status
+      deployment: false
+    # One queue per PR, so runs for a PR do not overlap. GitHub keeps up to 100 pending
+    # and drops the rest, and does not guarantee their order; that is safe because each
+    # run reads live state and decides only for the PR's current head, and an approval,
+    # once recorded on a head, is never removed.
     concurrency:
       group: data-bearing-paths-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     steps:
-      # A run whose head has already moved on skips the clone and the harness; the
-      # script makes the same comparison again and posts nothing for a moved head. A
-      # labeled run always continues, so its label is handled. A failed lookup
-      # continues too, and the script then fails closed.
-      - name: Skip a run whose head has moved on
+      # Statuses: write only, for this repository only.
+      - name: Get the status token (dedicated GitHub App)
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.DATA_BEARING_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DATA_BEARING_APP_PRIVATE_KEY }}
+          permission-statuses: write
+
+      # Before anything else can fail, mark the verdict pending on the event's head, so
+      # a pass from an earlier run cannot stand while this one decides; pending blocks
+      # the merge. A run whose head has already moved on skips the rest (the script
+      # makes the same comparison again and posts nothing for a moved head). A labeled
+      # run always continues, so its label is handled; a failed lookup continues too.
+      - name: Mark pending, or skip a run whose head has moved on
         id: live
         env:
           GH_TOKEN: ${{ github.token }}
+          STATUS_TOKEN: ${{ steps.app.outputs.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
           EVENT_ACTION: ${{ github.event.action }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          set -euo pipefail
           current=true
           if [ "$EVENT_ACTION" != labeled ]; then
             live="$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha' 2>/dev/null || true)"
@@ -84,9 +119,17 @@ jobs:
             fi
           fi
           echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$current" = true ]; then
+            case "$EVENT_BASE_REF" in
+              develop|staging|main)
+                GH_TOKEN="$STATUS_TOKEN" gh api -X POST "repos/$REPO/statuses/$EVENT_HEAD_SHA" \
+                  -f state=pending -f context="data-bearing-paths/$EVENT_BASE_REF" \
+                  -f description="Checking data-bearing paths." -f target_url="$RUN_URL" --silent ;;
+            esac
+          fi
 
-      # The default branch (pull_request_target's ref), with full history so the
-      # merge bases resolve. The script fetches the live base branches itself.
+      # The default branch (pull_request_target's ref), with full history so the merge
+      # bases resolve. The script fetches the live base branches itself.
       - name: Checkout the default branch (trusted scripts)
         if: steps.live.outputs.current == 'true'
         uses: actions/checkout@v6
@@ -112,15 +155,37 @@ jobs:
 
       # Event fields reach the script through env, never inline in run.
       - name: Data-bearing path check
+        id: check
         if: steps.live.outputs.current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          STATUS_TOKEN: ${{ steps.app.outputs.token }}
+          STATUS_LOGIN: ${{ steps.app.outputs.app-slug }}[bot]
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
           EVENT_ACTION: ${{ github.event.action }}
           LABEL_NAME: ${{ github.event.label.name }}
           SENDER_LOGIN: ${{ github.event.sender.login }}
           SENDER_TYPE: ${{ github.event.sender.type }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bash scripts/data-bearing-path-check-ci.sh
+
+      # A run that failed or was cancelled before posting a verdict replaces its pending
+      # status with an error. If the checkout itself failed, the pending status stays,
+      # which blocks the merge just the same.
+      - name: Mark error if no verdict was posted
+        if: (failure() || cancelled()) && steps.live.outputs.current == 'true' && steps.check.outputs.verdict_posted != 'true' && steps.app.outputs.token != ''
+        env:
+          STATUS_TOKEN: ${{ steps.app.outputs.token }}
+          REPO: ${{ github.repository }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -f scripts/data-bearing-path-check-ci.sh ]; then
+            bash scripts/data-bearing-path-check-ci.sh --mark error
+          else
+            echo "The checkout did not complete; the pending status stays and blocks the merge."
+          fi

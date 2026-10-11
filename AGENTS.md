@@ -39,6 +39,12 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   Secret Manager.
 - **Console access** in any deployed environment goes through `bin/audit_console`.
 - No em dashes in user-facing prose.
+- **Never add the `synthetic-data` label.** It is a person's statement that they read
+  every changed data file and none of it is real, and the `data-bearing-paths` check
+  cannot tell an agent from the person whose GitHub account it runs under. Never add it
+  (including `gh pr create --label` or `gh pr edit --add-label`), never post a
+  `data-bearing-approval/*` status, and never ask for either on your behalf. Say the PR
+  needs it and let the reviewer add it after reading the data.
 - **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
   the finding; report it. Without explicit human approval, never delete, rename or weaken
   an existing test, add `skip`/`xit`/`pending`/`this.skip()`, loosen an assertion, narrow
