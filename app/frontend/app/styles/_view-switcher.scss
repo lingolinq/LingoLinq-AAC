@@ -125,6 +125,11 @@
   // this menu had while each group held a single bare label) every description wrapped
   // to three or four lines and the two groups stopped reading as two short lists.
   min-width: 268px;
+  // 330px on a wide screen (2026-10-10, with the summarized menu): "Modern View" and its
+  // RECOMMENDED tag fit on one line, so that option is one line shorter (300px still wrapped it).
+  @media (min-width: 767px) {
+    min-width: 330px;
+  }
   // NARROW SCREENS (2026-10-01): just below the navbar row and across the screen, 12px in from each
   // edge, scrolling inside itself if it is taller than the space left (dvh tracks iOS Safari's
   // collapsing toolbar; vh is the fallback). No fixed positioning: the classic board header carries a
@@ -166,8 +171,9 @@
 .ll-viewswitch__intro {
   width: 0;
   min-width: 100%;
-  margin: 0 0 4px;
-  padding: 8px 12px 10px;
+  // Tighter with the one-line summary (2026-10-10): was 8px 12px 10px, 4px below.
+  margin: 0 0 2px;
+  padding: 6px 11px 7px;
   border-bottom: 1px solid rgba($la-navy, 0.1);
   font-size: 14px;
   font-weight: 400;
@@ -177,7 +183,7 @@
 }
 
 .ll-viewswitch__group {
-  padding: 6px 12px 2px;
+  padding: 5px 11px 1px; // 6px 12px 2px before the summarized menu (2026-10-10)
   font-size: 14px; // 10 -> 14px, the AAC text floor (2026-10-01); tracking eased below so it does not out-shout the 16px options
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -192,7 +198,7 @@
 
 .ll-viewswitch__sep {
   height: 1px;
-  margin: 4px 0;
+  margin: 3px 0;
   background: rgba($la-navy, 0.10);
 }
 
@@ -206,7 +212,7 @@
   grid-template-columns: 15px 1fr;
   column-gap: 9px;
   width: 100%;
-  padding: 9px 11px;
+  padding: 6px 11px; // 9px 11px before the summarized menu (2026-10-10)
   border: 0;
   border-radius: 9px;
   background: none;
@@ -277,28 +283,11 @@
 .ll-viewswitch__item-desc {
   grid-column: 2;
   grid-row: 2;
-  margin-top: 2px;
+  margin-top: 1px;
   font-size: 14px;
   font-weight: 400;
   line-height: 1.35;
   color: rgba($la-navy, 0.72);
-}
-
-// The Compressed View switch row: text on the left, the on/off switch on the right. It is a
-// checkbox, not a radio, so there is no tick gutter; its state is the switch
-// (`nb-toggle__switch`, app.scss) and `aria-checked` on the button.
-.ll-viewswitch__item--switch {
-  grid-template-columns: 1fr auto;
-  align-items: center;
-}
-
-.ll-viewswitch__item--switch::before {
-  content: none;
-}
-
-.ll-viewswitch__item-text {
-  display: grid;
-  row-gap: 2px;
 }
 
 .ll-viewswitch__item:hover,

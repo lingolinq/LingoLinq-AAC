@@ -1,5 +1,5 @@
-{{!-- The app-wide View menu: Layout and Style radio groups, plus the Compressed View switch
-     when its flag is on. Same disclosure contract as the modern pill-nav dropdown
+{{!-- The app-wide View menu: Layout and Style radio groups. (A Compressed View switch, in a
+     Density group, was removed with that feature on 2026-10-10.) Same disclosure contract as the modern pill-nav dropdown
      (button + aria-expanded + aria-haspopup over a role="menu" list, driven by
      component state) so it needs no Bootstrap JS and works in both the modern
      navbar and the legacy classic header. --}}
@@ -58,14 +58,11 @@
   <ul class="ll-viewswitch__menu" role="menu">
     {{!-- A short introduction to the choices below (requested 2026-09-30). `role="none"`, like the
          group headings, so it stays readable text in the accessibility tree without posing as a
-         menu item. It names only the groups this menu shows: Density appears with its flag. --}}
-    <li role="none" class="ll-viewswitch__intro">
-      {{#if this.compressedAvailable}}
-        {{t "There are several ways to experience LingoLinq. Choose the layout, style, and spacing that work best for you. Your choices are saved to your account." key="view_menu_intro_density"}}
-      {{else}}
-        {{t "There are several ways to experience LingoLinq. Choose the layout and style that work best for you. Your choices are saved to your account." key="view_menu_intro"}}
-      {{/if}}
-    </li>
+         menu item.
+         SUMMARIZED (requested 2026-10-10: "a lot of content to take in - make it more compact and
+         present a summarized form"). The intro and every option's description are the one-line
+         summaries; the fuller sentences that were here first were removed with their locale keys. --}}
+    <li role="none" class="ll-viewswitch__intro">{{t "Choose how LingoLinq looks. Saved to your account." key="view_menu_intro_short"}}</li>
     <li role="none" class="ll-viewswitch__group">{{t "Layout" key="view_group_layout"}}</li>
     <li role="none">
       <button type="button" role="menuitemradio"
@@ -73,7 +70,7 @@
               class="ll-viewswitch__item {{unless this.isClassic "is-selected"}}"
               {{on "click" (this.ctrlAction "select_view" "modern")}}>
         <span class="ll-viewswitch__item-label">{{t "Modern View" key="card_view"}}<span class="ll-viewswitch__item-tag">{{t "Recommended" key="view_recommended"}}</span></span>
-        <span class="ll-viewswitch__item-desc">{{t "Customize your home page and your boards with live-preview tools." key="view_desc_modern"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "Customizable, with live previews." key="view_desc_modern_short"}}</span>
       </button>
     </li>
     <li role="none">
@@ -82,7 +79,7 @@
               class="ll-viewswitch__item {{if this.isClassic "is-selected"}}"
               {{on "click" (this.ctrlAction "select_view" "classic")}}>
         <span class="ll-viewswitch__item-label">{{t "Basic View" key="classic_view"}}</span>
-        <span class="ll-viewswitch__item-desc">{{t "A simple side menu, with every tool in one fixed list." key="view_desc_basic"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "One simple side menu." key="view_desc_basic_short"}}</span>
       </button>
     </li>
     <li role="separator" class="ll-viewswitch__sep"></li>
@@ -98,7 +95,7 @@
               class="ll-viewswitch__item {{if this.isFocused "is-selected"}}"
               {{on "click" (this.ctrlAction "select_layout" "focused")}}>
         <span class="ll-viewswitch__item-label">{{t "Focused Style" key="view_style_focused"}}<span class="ll-viewswitch__item-tag">{{t "Default" key="view_default"}}</span></span>
-        <span class="ll-viewswitch__item-desc">{{t "Stronger contrast and bolder visual cues." key="view_desc_focused"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "Bolder contrast." key="view_desc_focused_short"}}</span>
       </button>
     </li>
     <li role="none">
@@ -107,29 +104,9 @@
               class="ll-viewswitch__item {{unless this.isFocused "is-selected"}}"
               {{on "click" (this.ctrlAction "select_layout" "gentle")}}>
         <span class="ll-viewswitch__item-label">{{t "Gentle Style" key="view_style_gentle"}}</span>
-        <span class="ll-viewswitch__item-desc">{{t "Softer colors and lighter emphasis." key="view_desc_gentle"}}</span>
+        <span class="ll-viewswitch__item-desc">{{t "Softer colors." key="view_desc_gentle_short"}}</span>
       </button>
     </li>
-    {{!-- COMPRESSED VIEW: an on/off setting, so a `menuitemcheckbox` rather than a radio, with
-         `aria-checked` carrying the state. The switch drawn beside the text reuses the app's
-         `nb-toggle__switch` visual and is `aria-hidden`: the menu item is the control. It is
-         independent of Layout and Style, so it gets its own group. --}}
-    {{#if this.compressedAvailable}}
-      <li role="separator" class="ll-viewswitch__sep"></li>
-      <li role="none" class="ll-viewswitch__group">{{t "Density" key="view_group_density"}}</li>
-      <li role="none">
-        <button type="button" role="menuitemcheckbox"
-                aria-checked={{if this.isCompressed "true" "false"}}
-                class="ll-viewswitch__item ll-viewswitch__item--switch"
-                {{on "click" (this.ctrlAction "toggle_compressed")}}>
-          <span class="ll-viewswitch__item-text">
-            <span class="ll-viewswitch__item-label">{{t "Compressed View" key="view_compressed"}}</span>
-            <span class="ll-viewswitch__item-desc">{{t "Tighter spacing so more fits on each screen." key="view_desc_compressed"}}</span>
-          </span>
-          <span class="nb-toggle__switch {{if this.isCompressed "nb-toggle__switch--on"}}" aria-hidden="true"><span class="nb-toggle__thumb"></span></span>
-        </button>
-      </li>
-    {{/if}}
   </ul>
 </div>
 {{/if}}
