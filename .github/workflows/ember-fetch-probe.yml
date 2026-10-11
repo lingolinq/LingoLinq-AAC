@@ -76,16 +76,16 @@ jobs:
           fi
           exit "$status"
 
-      # A separate step, so the list survives a failed or timed-out test step. The harness self-test that
-      # leaves a fetch queued on purpose (tests/unit/helpers/wait-for-queued-store-fetches-test.js) logs a
-      # line every run; it is not an offender.
+      # A separate step, so the list survives a failed or timed-out test step. The harness self-tests in
+      # Unit | Helper | waitForQueuedStoreFetches leave fetches queued on purpose and log lines every run;
+      # they are not offenders.
       - name: List tests that ended with a fetch still queued
         if: always()
         working-directory: app/frontend
         shell: bash
         run: |
           [ -f ember-test.log ] || { echo "No test log (the test step did not run)." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
-          hits=$(grep -oE '\[queued-fetch\] ([^"\\]|\\.)*' ember-test.log | grep -v 'a test that ends with a fetch still queued is failed by setupTest' | sort | uniq -c || true)
+          hits=$(grep -oE '\[queued-fetch\] ([^"\\]|\\.)*' ember-test.log | grep -v '\[queued-fetch\].*Unit | Helper | waitForQueuedStoreFetches:' | sort | uniq -c || true)
           if [ -n "$hits" ]; then
             { echo "### Tests that ended with an Ember Data fetch still queued"; echo '```'; printf '%s\n' "$hits"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           else

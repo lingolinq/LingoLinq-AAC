@@ -10,39 +10,16 @@ import './helpers/apply-parallel-pool';
 // Fails a test that leaves state behind for later tests, or uses state an earlier test left behind.
 import './helpers/leak-check';
 import { set_owner_gone_listener } from 'frontend/utils/live_service';
-import Store from 'ember-data/store';
 import { fetchProbeDelay } from './helpers/fetch-probe';
+import { installFetchTracking } from './helpers/fetch-tracking';
 
 QUnit.config.testTimeout = 15000;
 
-// Opt-in fetch probe: `?probeDelay=<ms>` (ember test --query "probeDelay=1500"; used by
-// .github/workflows/ember-fetch-probe.yml). Delays every Ember Data fetch flush by that long, longer than
-// the post-test settle, so a fetch queued near the end of a test is still pending when setupTest's
-// teardown check looks (tests/helpers/index.js), which then waits past the delay before teardown. In a normal run the flush is
-// usually done before the check runs, so such a test can pass unnoticed. Off by default. Patched on the
-// FetchManager prototype, reached through the store's lazily assigned _fetchManager, so every store is
-// covered. Commit 7b0848298 describes the investigation that needed it.
-const probeDelay = fetchProbeDelay();
-if (probeDelay > 0) {
-  Object.defineProperty(Store.prototype, '_fetchManager', {
-    configurable: true,
-    get() { return this.__fetchProbeManager; },
-    set(manager) {
-      const proto = manager && Object.getPrototypeOf(manager);
-      if (proto && !proto.__fetchProbeDelayed) {
-        const flush = proto.flushAllPendingFetches;
-        proto.flushAllPendingFetches = function() {
-          const self = this;
-          setTimeout(function() { flush.call(self); }, probeDelay);
-        };
-        proto.__fetchProbeDelayed = true;
-        // eslint-disable-next-line no-console
-        console.warn(`[fetch-probe] every Ember Data fetch flush is delayed by ${probeDelay} ms`);
-      }
-      this.__fetchProbeManager = manager;
-    }
-  });
-}
+// Records which test queued each Ember Data fetch (so setupTest fails only the test that queued one), and
+// the opt-in fetch probe `?probeDelay=<ms>` (ember test --query "probeDelay=1500"; used by
+// .github/workflows/ember-fetch-probe.yml), which delays every flush so a test that ends without
+// awaiting its fetch is always caught. See tests/helpers/fetch-tracking.js.
+installFetchTracking(fetchProbeDelay());
 
 // A deferred-work guard (owner_gone in app/utils/live_service.js) skips work whose app was torn down:
 // an earlier test scheduled it and did not wait. Skipping keeps it out of the current test, but it

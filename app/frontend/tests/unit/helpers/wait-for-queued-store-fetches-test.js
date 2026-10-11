@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest, waitForQueuedStoreFetches } from 'frontend/tests/helpers';
+import { markQueuedByAnotherTest } from 'frontend/tests/helpers/fetch-tracking';
 
 /*
  * A test that triggers an Ember Data fetch and ends at once could have its store destroyed before
@@ -51,5 +52,23 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
     adapter.findRecord = function() { return Promise.reject(new Error('not sent in this test')); };
     store.findRecord('board', 'queued-fetch-left-on-purpose').catch(function() {});
     assert.ok(true, 'a fetch is left queued');
+  });
+  // A fetch queued by an EARLIER test's late work (LingoLinq.store points at the current store) is
+  // reported, not charged to the one running; see tests/helpers/fetch-tracking.js. This one leaves one
+  // queued and marks it as another test's: setupTest must not fail it.
+  test('a fetch queued by another test is reported, not charged to this one', function(assert) {
+    assert.expect(1);
+    const push = assert.pushResult;
+    assert.pushResult = function(result) {
+      if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
+        return push.call(assert, { result: false, actual: 'charged to this test', expected: 'reported as late work', message: 'setupTest failed a test for a fetch another test queued' });
+      }
+      return push.call(assert, result);
+    };
+    const store = this.owner.lookup('service:store');
+    store.adapterFor('application').findRecord = function() { return Promise.reject(new Error('not sent in this test')); };
+    store.findRecord('board', 'queued-by-another-test').catch(function() {});
+    markQueuedByAnotherTest(store._fetchManager);
+    assert.ok(true, 'a fetch is left queued, attributed to another test');
   });
 });

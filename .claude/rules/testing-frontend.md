@@ -224,8 +224,10 @@ cancels it. Exemptions:
   teardown starts: an un-awaited fetch of a synchronous plain QUnit test (unless an async `afterEach`
   of its module runs first: hooks registered after `setupTest` run before its own, and an async hook
   lets the flush happen), and fetches queued after an async or jasmine-style test signalled it was
-  done. The fetch probe above finds the rest. The failure message says the fetch may be an earlier
-  test's late work and gives the probe command that reproduces it.
+  done. The fetch probe above finds the rest. The harness records which test queued each fetch
+  (`tests/helpers/fetch-tracking.js`): a fetch queued only by an earlier test's late work is logged as
+  `[queued-fetch] late work ...`, not charged to the running test. The failure message gives the probe
+  command that reproduces a hit deterministically.
 
 ### Test helpers that import app code
 
