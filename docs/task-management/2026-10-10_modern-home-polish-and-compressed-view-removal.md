@@ -88,7 +88,11 @@ day is logged in `2026-10-09_basic-view-refinements.md`.
 - Targeted Ember runs green (last: 234 tests across the affected areas); ESLint gate and template
   lint clean; user_spec.rb (430), feature_flags_spec.rb (50) and the task specs green.
 - Each new red test was run against the old code first and failed for the stated reason.
-- **The full Ember suite has not been run with all of today's changes together.**
+- Full Ember suite on the final tree (2026-10-10, 19:00 MDT): 3353 tests, 0 failed (37 skip,
+  5 todo).
+- Full RSpec (2026-10-10, 19:21-19:38 MDT, with `1d0f76e61`'s UTC pin and `/usr/bin` paths):
+  7840 examples, 0 failures, 51 pending. Without the pin, the same suite had failed 11 in the
+  evening in America/Denver (UTC date rollover, and macOS has no `/bin/false`).
 
 ## Open items
 - Run the backfill on staging and production after deploy, and record when and the counts.
