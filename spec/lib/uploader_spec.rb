@@ -2586,8 +2586,11 @@ describe Uploader do
       expect(Uploader).to receive(:remote_upload_params).and_return(upload_params: {}, upload_url: 'http://www.upload.com/', post_url: 'http://www.upload.com/')
       expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
       f = Tempfile.new('stash')
-      Uploader.remote_upload('bacon', f.path, 'text/plaintext')
-      f.unlink
+      begin
+        Uploader.remote_upload('bacon', f.path, 'text/plaintext')
+      ensure
+        f.close!
+      end
       expect(RemoteAction.where(action: 'delete_retry').count).to eq(0)
     end
 
@@ -2596,8 +2599,11 @@ describe Uploader do
       expect(Uploader).to receive(:remote_upload_params).and_return(upload_params: {}, upload_url: 'http://www.upload.com/', post_url: 'http://www.upload.com/')
       expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
       f = Tempfile.new('stash')
-      Uploader.remote_upload('/extras/abc/data-x.json', f.path, 'text/plaintext')
-      f.unlink
+      begin
+        Uploader.remote_upload('/extras/abc/data-x.json', f.path, 'text/plaintext')
+      ensure
+        f.close!
+      end
       expect(RemoteAction.where(action: 'delete_retry').count).to eq(0)
     end
 
