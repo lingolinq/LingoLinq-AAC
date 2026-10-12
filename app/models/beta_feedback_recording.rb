@@ -55,8 +55,11 @@ class BetaFeedbackRecording < ApplicationRecord
     end
   end
 
+  # Not Uploader.client_upload_params: when the direct S3 upload fails, the client falls back to
+  # the server upload endpoint (beta-feedback-form.js uploadViaServer), which stores the file
+  # locally without S3 (Api::BetaFeedbackRecordingsController#upload), so the form is still handed out.
   def remote_upload
-    Uploader.client_upload_params(upload_key, content_type, max_bytes: MAX_BYTES, private_upload: true)
+    Uploader.remote_upload_params(upload_key, content_type, max_bytes: MAX_BYTES, private_upload: true)
   end
 
   def confirm!
