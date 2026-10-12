@@ -368,7 +368,7 @@ module Supervising
     # A legacy link is never treated as room-made while an approved SupervisorRelationship for the
     # pair exists outside the deleted district (organization_id nil or another org): that access
     # was consented to by the family (SupervisorConsentService), not granted by the district.
-    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil)
+    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil, actor={})
       link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
       return false unless link
       listed = (link.data['state'] || {})['organization_unit_ids'] || []
@@ -378,10 +378,12 @@ module Supervising
           !consented_outside_org?(supervisor, user, org_id))
       # only a link that lists one of the deleted district's rooms is the district's to remove
       if remaining.empty? && (listed & unit_ids).any? && room_made
-        # Recorded (ids and permission flags only, no names or emails) so a wrongful removal can
-        # be found and restored. Note the unlink can also switch an auto-set supporter with no
-        # supervisees left back to the communicator role (unlink_supervisor_from_user).
         state = link.data['state'] || {}
+        unlink_supervisor_from_user(supervisor, user)
+        # Recorded after the unlink succeeded (ids and permission flags only, no names or emails)
+        # so a wrongful removal can be found and restored; deleted_by/deleted_as are who deleted
+        # the organization, when known. Note the unlink can also switch an auto-set supporter with
+        # no supervisees left back to the communicator role (unlink_supervisor_from_user).
         AuditEvent.log_command('system', {
           'type' => 'supervision_link_removed',
           'reason' => 'organization_deleted',
@@ -393,8 +395,7 @@ module Supervising
           'edit_permission' => !!state['edit_permission'],
           'modeling_only' => !!state['modeling_only'],
           'organization_unit_ids' => listed
-        })
-        unlink_supervisor_from_user(supervisor, user)
+        }.merge((actor || {}).slice('deleted_by', 'deleted_as')))
       elsif remaining != listed
         link.data['state']['organization_unit_ids'] = remaining
         link.save!

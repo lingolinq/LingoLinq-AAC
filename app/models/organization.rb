@@ -1727,7 +1727,10 @@ class Organization < ApplicationRecord
     # unknown-origin room links to remove (User.strip_rooms_from_supervision). Captured now, with
     # the cleanup row, so the job does not depend on the membership links still being there.
     RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now,
-      extra: Organization.staff_since_for(Webhook.get_record_code(self), staff_user_ids).to_json)
+      extra: {
+        'staff' => Organization.staff_since_for(Webhook.get_record_code(self), staff_user_ids),
+        'actor' => Organization.deleting_actor
+      }.to_json)
     ActiveRecord.after_all_transactions_commit do
       # default queue: everything it queues removes access (owner decision: revocations do not
       # wait behind the slow queue)
@@ -1757,12 +1760,28 @@ class Organization < ApplicationRecord
     res.transform_values{|at| at.utc.iso8601(6) }
   end
 
-  def self.destroyed_org_staff_since(org_id)
+  # Who is deleting the organization, as ids only, from the request's PaperTrail whodunnit
+  # ("user:<id>.<controller>.<action>", or "user:<id>:as:<id>" when acting as another user;
+  # application_controller.rb). Anything else (a job, a console, an unauthenticated IP) records
+  # nothing.
+  def self.deleting_actor
+    who = PaperTrail.request.whodunnit.to_s
+    by = who[/\Auser:(\d+_\d+)/, 1]
+    return {} unless by
+    as = who[/:as:(\d+_\d+)/, 1]
+    {'deleted_by' => by, 'deleted_as' => as}.compact
+  end
+
+  # [staff since (user id => Time), actor ids] for a destroyed organization's cleanup, from the
+  # copy captured on its cleanup row. Rows written before the actor was recorded hold the staff
+  # map alone.
+  def self.destroyed_org_cleanup_context(org_id)
     row = RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').where.not(extra: nil).first
-    staff = (JSON.parse(row.extra) rescue nil) if row
+    data = (JSON.parse(row.extra) rescue nil) if row
+    data = {'staff' => data} if data && !data.key?('staff')
     # the row is gone once a run completed; the membership links are not removed by the destroy
-    staff ||= staff_since_for("Organization:#{Organization.new(id: org_id).global_id}")
-    staff.transform_values{|at| Time.iso8601(at) }
+    staff = (data && data['staff']) || staff_since_for("Organization:#{Organization.new(id: org_id).global_id}")
+    [staff.transform_values{|at| Time.iso8601(at) }, (data && data['actor']) || {}]
   end
 
   def self.clean_up_destroyed(org_id, user_ids=[])
@@ -1774,13 +1793,13 @@ class Organization < ApplicationRecord
     # schedules the supervisor's refresh).
     units = OrganizationUnit.where(organization_id: org_id).to_a
     unit_ids = units.map(&:global_id)
-    staff_since = units.empty? ? {} : destroyed_org_staff_since(org_id)
+    staff_since, actor = units.empty? ? [{}, {}] : destroyed_org_cleanup_context(org_id)
     units.each do |unit|
       links = UserLink.links_for(unit)
       supervisors = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_supervisor' }.map{|l| l['user_id'] }.uniq)
       communicators = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq)
       supervisors.each do |sup|
-        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id) }
+        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor) }
       end
     end
     RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all

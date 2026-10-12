@@ -1360,8 +1360,15 @@ describe Organization, :type => :model do
         Worker.process_queues
         link_id = supervision_link(sup, comm).id
         before = AuditEvent.pluck(:id)
-
-        o.reload.destroy
+        admin = User.create
+        prior = PaperTrail.request.whodunnit
+        begin
+          # as the organizations controller sets it for the request that deletes the district
+          PaperTrail.request.whodunnit = "user:#{admin.global_id}.organizations.destroy"
+          o.reload.destroy
+        ensure
+          PaperTrail.request.whodunnit = prior
+        end
         Worker.process_queues
         Worker.process_queues
 
@@ -1379,13 +1386,29 @@ describe Organization, :type => :model do
           'origin' => 'room',
           'edit_permission' => true,
           'modeling_only' => false,
-          'organization_unit_ids' => [ou.global_id]
+          'organization_unit_ids' => [ou.global_id],
+          'deleted_by' => admin.global_id
         })
         text = data.to_json
         [sup, comm].each do |u|
           expect(text).not_to include(u.user_name)
           expect(text).not_to include(u.settings['email'].to_s) if u.settings['email'].present?
         end
+      end
+
+      it "records no removal when the unlink fails" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        before = AuditEvent.pluck(:id)
+        o.reload.destroy
+        allow(User).to receive(:unlink_supervisor_from_user).and_raise(ActiveRecord::StatementInvalid.new('unlink failed'))
+
+        expect { Organization.clean_up_destroyed(o.id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(AuditEvent.where.not(id: before).select{|e| e.data['type'] == 'supervision_link_removed' }).to eq([])
+        expect(supervision_link(sup, comm)).not_to eq(nil)
       end
 
       # Consents are created through the real flow (SupervisorConsentService#request_access), then
@@ -1517,12 +1540,25 @@ describe Organization, :type => :model do
         expect(sql).not_to be_empty
         expect(sql.all? { |q| q =~ /"user_links"\."user_id"/ }).to eq(true)
         captured = JSON.parse(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).first.extra)
-        expect(captured.keys).to eq([sup.id.to_s])
+        expect(captured['staff'].keys).to eq([sup.id.to_s])
       end
 
       it "uses the staff captured at the destroy when the membership links are gone" do
         o, sup, comm, legacy = legacy_room_link_of_staff
         o.reload.destroy
+        membership_links(sup, o).delete_all
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # A cleanup row written before the actor was recorded holds the staff map alone.
+      it "reads a cleanup row that holds only the staff map" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        o.reload.destroy
+        row = RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s)
+        row.update_all(extra: JSON.parse(row.first.extra)['staff'].to_json)
         membership_links(sup, o).delete_all
         Worker.process_queues
         Worker.process_queues
