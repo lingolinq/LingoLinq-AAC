@@ -1443,6 +1443,80 @@ describe Organization, :type => :model do
         expect(supervision_link(sup, comm)).not_to eq(nil)
       end
 
+      def membership_links(sup, o)
+        UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o))
+      end
+
+      def legacy_room_link_of_staff
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        [o, sup, comm, legacy_link!(sup, comm)]
+      end
+
+      def destroy_and_clean_up(o)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+      end
+
+      # Only the copy captured on the cleanup row at the destroy can decide here.
+      it "uses the staff captured at the destroy when the membership links are gone" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        o.reload.destroy
+        membership_links(sup, o).delete_all
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      it "counts a manager-only membership as district staff" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        membership_links(sup, o).delete_all
+        UserLink.generate(User.find(sup.id), o, 'org_manager').save!
+        UserLink.where(id: legacy.id).update_all(created_at: 1.minute.from_now)
+
+        destroy_and_clean_up(o)
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      it "measures from the earliest of two memberships" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        UserLink.generate(User.find(sup.id), o, 'org_manager').save!
+        manager = membership_links(sup, o).detect{|l| l.data['type'] == 'org_manager' }
+        supervisor = membership_links(sup, o).detect{|l| l.data['type'] == 'org_supervisor' }
+        UserLink.where(id: manager.id).update_all(created_at: 2.days.ago)
+        UserLink.where(id: legacy.id).update_all(created_at: 36.hours.ago)
+        UserLink.where(id: supervisor.id).update_all(created_at: 1.day.ago)
+
+        destroy_and_clean_up(o)
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      describe "the 5-second allowance" do
+        def link_made_seconds_before_membership(seconds)
+          o, sup, comm, legacy = legacy_room_link_of_staff
+          membership = membership_links(sup, o).detect{|l| l.data['type'] == 'org_supervisor' }
+          joined = Time.at(1_800_000_000, 250_000, :usec)
+          UserLink.where(id: membership.id).update_all(created_at: joined)
+          UserLink.where(id: legacy.id).update_all(created_at: joined - seconds)
+          destroy_and_clean_up(o)
+          supervision_link(sup, comm)
+        end
+
+        it "treats a link made 5 seconds before the membership as room-made" do
+          expect(link_made_seconds_before_membership(5)).to eq(nil)
+        end
+
+        it "keeps a link made 6 seconds before the membership" do
+          expect(link_made_seconds_before_membership(6)).not_to eq(nil)
+        end
+      end
+
       it "keeps a legacy link whose supervisor was not district staff at the deletion, without the room" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)
