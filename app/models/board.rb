@@ -996,6 +996,16 @@ class Board < ApplicationRecord
     if self.settings['name'] && self.settings['name'].match(/LAMP|WFL/)
       self.public = false
     end
+    # update_privacy's batch save is described here, after the rules above that keep a board
+    # private, so the note names the level saved (mapping as in lib/json_api/board.rb:137).
+    if @describe_batch_privacy
+      level = self.public ? (self.fully_listed? ? 'public' : 'unlisted') : 'private'
+      self.settings['edit_description'] = {
+        'timestamp' => Time.now.to_f,
+        'notes' => ["batch set to #{level}"]
+      }
+      @describe_batch_privacy = nil
+    end
     UserLink.invalidate_cache_for(self)
           
     self.settings['locale'] ||= 'en'
@@ -2803,13 +2813,9 @@ class Board < ApplicationRecord
       PaperTrail.request.whodunnit = "user:#{author.global_id}.board.update_privacy"
       update_board.public = (privacy_level == 'public'|| privacy_level == 'unlisted')
       update_board.settings['unlisted'] = (privacy_level == 'unlisted')
-      # Name the level applied, never the raw privacy_level param: any other level is private.
-      applied_level = update_board.settings['unlisted'] ? 'unlisted' : (update_board.public ? 'public' : 'private')
       update_board.instance_variable_set('@map_later', true)
-      update_board.instance_variable_set('@edit_description', {
-        'timestamp' => Time.now.to_f,
-        'notes' => ["batch set to #{applied_level}"]
-      })
+      # generate_defaults describes the level this save leaves, never the raw privacy_level param
+      update_board.instance_variable_set('@describe_batch_privacy', true)
       update_board.save 
       PaperTrail.request.whodunnit = whodunnit
     else

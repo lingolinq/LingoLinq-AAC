@@ -46,6 +46,23 @@ describe JsonApi::BoardVersion do
       expect(version['modifier']['user_name']).to eq(u.user_name)
     end
 
+    # Board#generate_defaults keeps LAMP/WFL-named and protected-vocabulary boards private
+    # (app/models/board.rb:984-997); the note names the level the save left, not the one asked for.
+    it "describes a batch change that the board's own rules keep private as private" do
+      u = User.create
+      lamp = Board.create(:user => u, :settings => {'name' => 'LAMP words'})
+      lamp.update_privacy('public', u, [lamp.global_id])
+      lamp.reload
+      expect(lamp.public).to eq(false)
+      expect(lamp.settings['edit_description']['notes']).to eq(['batch set to private'])
+
+      protected_board = Board.create(:user => u, :settings => {'protected' => {'vocabulary' => true}})
+      protected_board.update_privacy('unlisted', u, [protected_board.global_id])
+      protected_board.reload
+      expect(protected_board.public).to eq(false)
+      expect(protected_board.settings['edit_description']['notes']).to eq(['batch set to private'])
+    end
+
     # Versions already stored in production hold that description's notes as a single String.
     it "labels a version whose stored notes are a single String" do
       u = User.create
