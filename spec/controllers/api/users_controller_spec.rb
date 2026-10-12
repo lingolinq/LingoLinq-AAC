@@ -3334,6 +3334,7 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['revisions']).to eq({b1.global_id => b1.current_revision, b1.key => b1.current_revision})
       expect(json['revoked_ids']).to eq([b2.global_id])
+      expect(json['revocation_enabled']).to eq(true)
     end
 
     it "should keep a linked private board the user can view through a supervisor's model permission" do
@@ -3365,7 +3366,7 @@ describe Api::UsersController, :type => :controller do
         get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => check_ids}
         expect(response).to be_successful
         json = JSON.parse(response.body)
-        expect(json).to eq({'revisions' => {}, 'revoked_ids' => []})
+        expect(json).to eq({'revisions' => {}, 'revoked_ids' => [], 'revocation_enabled' => true})
       end
     end
 
@@ -3501,6 +3502,7 @@ describe Api::UsersController, :type => :controller do
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json['revoked_ids']).to eq([])
+        expect(json['revocation_enabled']).to eq(false)
         expect(json['revisions'][board.global_id]).to eq(nil)
         expect(json['revisions'].keys.length).to eq(2)
       end
