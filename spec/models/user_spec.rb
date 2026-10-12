@@ -846,6 +846,66 @@ describe User, :type => :model do
       expect(u.reload.settings['tracked_boards_at']).to eq(1_800_000_100)
     end
 
+    # The final save clears the changed flags. It used to save the copy loaded when the job
+    # started, writing the whole settings column back over anything saved during the run.
+    describe "clearing the changed flags" do
+      def user_with_new_home_board
+        u = User.create
+        b = Board.create(:user => u)
+        u.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
+        u.save
+        Worker.flush_queues
+        expect(u.settings['home_board_changed']).to eq(true)
+        [User.find(u.id), b]
+      end
+
+      # Runs the block once, inside the run's slow step, after the boards were walked.
+      def during_track(&block)
+        ran = false
+        allow(Board).to receive(:process_lumped_triggers).and_wrap_original do |original, *args|
+          unless ran
+            ran = true
+            block.call
+          end
+          original.call(*args)
+        end
+      end
+
+      it "keeps settings saved by another process while the boards were being tracked" do
+        u, b = user_with_new_home_board
+        during_track do
+          other = User.find(u.id)
+          other.settings['preferences']['spec_marker'] = 'normal save'
+          other.save
+          quiet = User.find(u.id)
+          quiet.settings['spec_quiet'] = 'touch false'
+          quiet.save(touch: false)
+        end
+
+        u.track_boards(true)
+
+        stored = User.find(u.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['home_board_changed']).to eq(nil)
+      end
+
+      it "keeps a flag set by a home board change made during the run" do
+        u, b = user_with_new_home_board
+        b2 = Board.create(:user => u)
+        during_track do
+          other = User.find(u.id)
+          other.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
+          other.save
+          expect(other.settings['home_board_changed']).to eq(true)
+        end
+
+        u.track_boards(true)
+
+        expect(User.find(u.id).settings['home_board_changed']).to eq(true)
+      end
+    end
+
     it "should delete orphan connections" do
       u = User.create
       b = Board.create(:user => u)

@@ -2369,10 +2369,18 @@ class User < ApplicationRecord
     # TODO: sharding
     board_ids_to_recalculate += Board.where(:id => orphan_board_ids).select('id').map(&:global_id)
     if self.settings['home_board_changed'] || self.settings['sidebar_changed']
-      self.settings.delete('home_board_changed')
-      self.settings.delete('sidebar_changed')
+      # Cleared on a locked fresh copy (update_settings_locked): this copy was loaded before the
+      # walk above, and saving it reverted settings saved meanwhile. A flag is cleared only while
+      # the boards it refers to are still the ones this run tracked; a change saved during the
+      # run sets it again for its own run.
+      tracked = (self.settings['preferences'] || {}).slice('home_board', 'sidebar_boards').to_json
       @do_track_boards = false
-      self.save
+      self.update_settings_locked do |fresh|
+        current = (fresh.settings['preferences'] || {}).slice('home_board', 'sidebar_boards')
+        next false unless current.to_json == tracked
+        fresh.settings.delete('home_board_changed')
+        fresh.settings.delete('sidebar_changed')
+      end
     end
     # to regenerates stats?
     if !RedisInit.any_queue_pressure?
