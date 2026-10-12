@@ -1208,6 +1208,11 @@ describe Organization, :type => :model do
     # supervision link alone gives the supervisor the communicator's private boards (board_caching.rb
     # supervisees), so the cleanup must unlink them.
     describe "supervision links when the organization is destroyed" do
+      # Removals write AuditEvent rows; delete the ones these examples made so other files' exact
+      # audit counts are not affected (CLAUDE.md, Testing).
+      before(:each) { @audit_ids_before = AuditEvent.pluck(:id) }
+      after(:each) { AuditEvent.where.not(id: @audit_ids_before).delete_all if @audit_ids_before }
+
       # A room supervisor and a communicator, both in the room; the room links them on its jobs.
       def room_with_members
         o = Organization.create
@@ -1351,6 +1356,43 @@ describe Organization, :type => :model do
 
       # Family-consented access (SupervisorRelationship approved through the consent flow) is not
       # the district's to remove: a district-staff parent keeps a consented link.
+      # Each removal is recorded (ids and permission flags only) so a wrongful one can be found and
+      # restored.
+      it "records an audit event without personal data for each supervision link it removes" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name, true)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        link_id = supervision_link(sup, comm).id
+        before = AuditEvent.pluck(:id)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        events = AuditEvent.where.not(id: before).select{|e| e.data['type'] == 'supervision_link_removed' }
+        expect(events.length).to eq(1)
+        data = events[0].data
+        expect(events[0].user_key).to eq('system')
+        expect(data).to eq({
+          'type' => 'supervision_link_removed',
+          'reason' => 'organization_deleted',
+          'organization_id' => o.global_id,
+          'supervisor_id' => sup.global_id,
+          'supervisee_id' => comm.global_id,
+          'user_link_id' => link_id,
+          'origin' => 'room',
+          'edit_permission' => true,
+          'modeling_only' => false,
+          'organization_unit_ids' => [ou.global_id]
+        })
+        text = data.to_json
+        [sup, comm].each do |u|
+          expect(text).not_to include(u.user_name)
+          expect(text).not_to include(u.settings['email'].to_s) if u.settings['email'].present?
+        end
+      end
+
       it "keeps a legacy link with an approved relationship outside the district, without the room" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)
@@ -1423,6 +1465,7 @@ describe Organization, :type => :model do
     end
 
     it "removes room supervision, and the boards it gave, when the organization is destroyed" do
+      audit_ids_before = AuditEvent.pluck(:id)
       o = Organization.create
       ou = OrganizationUnit.create(:organization => o)
       sup = User.create
@@ -1442,6 +1485,7 @@ describe Organization, :type => :model do
       o.reload.destroy
       Worker.process_queues
       Worker.process_queues
+      AuditEvent.where.not(id: audit_ids_before).delete_all
 
       expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
       expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)

@@ -377,6 +377,22 @@ module Supervising
         (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON &&
           !consented_outside_org?(supervisor, user, org_id))
       if remaining.empty? && room_made
+        # Recorded (ids and permission flags only, no names or emails) so a wrongful removal can
+        # be found and restored. Note the unlink can also switch an auto-set supporter with no
+        # supervisees left back to the communicator role (unlink_supervisor_from_user).
+        state = link.data['state'] || {}
+        AuditEvent.log_command('system', {
+          'type' => 'supervision_link_removed',
+          'reason' => 'organization_deleted',
+          'organization_id' => (org_id && Organization.new(id: org_id).global_id),
+          'supervisor_id' => supervisor.global_id,
+          'supervisee_id' => user.global_id,
+          'user_link_id' => link.id,
+          'origin' => link.data['origin'] || 'legacy',
+          'edit_permission' => !!state['edit_permission'],
+          'modeling_only' => !!state['modeling_only'],
+          'organization_unit_ids' => listed
+        })
         unlink_supervisor_from_user(supervisor, user)
       elsif remaining != listed
         link.data['state']['organization_unit_ids'] = remaining
