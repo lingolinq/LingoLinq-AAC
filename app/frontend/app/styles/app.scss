@@ -364,8 +364,14 @@
      - dark-text active states (active pillnav on dark bg) became
        dark-text-on-dark-bg when the forced color override applied
    The simplest fix that works for every element type is to leave colors
-   alone and let the ring be the sole focus indicator. WCAG 2.4.7 + 1.4.3. */
-#within_ember *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+   alone and let the ring be the sole focus indicator. WCAG 2.4.7 + 1.4.3.
+   NOT ON A DIALOG'S [data-autofocus] TITLE (2026-10-11). components/modal-dialog.js focuses that
+   non-interactive heading (tabindex -1, not in the Tab order) so a screen reader announces it first;
+   on a fresh page load the browser counts that scripted focus as keyboard focus, so the dialog
+   opened with its title boxed in navy. It is not a control, so 2.4.7 does not ask for a ring; the
+   controls Tab reaches next keep theirs. In the same `:not()` list, which keeps this rule's
+   specificity at (1,2,0) so every override below still wins exactly as before. */
+#within_ember *:focus-visible:not(.md-board-detail-edit-toolbar__search-input, [data-autofocus]) {
   outline: none !important;
   box-shadow: 0 0 0 3px $la-navy !important;
   border-radius: 6px;
@@ -39053,6 +39059,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   text-transform: uppercase;
   letter-spacing: $aac-letter-spacing-wide;
   color: $brand-honey-bronze;
+  /* A title, never a control. Two dialogs focus theirs on open so a screen reader announces it
+     first (`[data-autofocus]`, components/modal-dialog.js); the global focus ring skips it (see
+     `#within_ember *:focus-visible`), and this drops the browser's own outline too. */
+  outline: none;
 }
 
 // Opt-in eyebrow-weight override for ai-disclosure only (03-UI-SPEC.md 3, the
