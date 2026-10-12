@@ -2570,6 +2570,11 @@ describe Uploader do
         expect(Uploader.check_existing_upload('extras/x.json')).to eq({found: false})
       end
 
+      it "invalidate_cdn answers false without building a CloudFront client" do
+        expect(Aws::CloudFront::Client).to_not receive(:new)
+        expect(Uploader.invalidate_cdn('extras/x.json')).to eq(false)
+      end
+
       it "signed_internal_url hands back the URL unsigned without building an S3 client" do
         expect(Aws::S3::Client).to_not receive(:new)
         url = 'https://spec-uploads.s3.amazonaws.com/extras/x.json'

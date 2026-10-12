@@ -129,7 +129,10 @@ module Uploader
     end
   end
 
+  # No live callers (each call site is commented out). Without credentials the CloudFront SDK raises
+  # MissingCredentialsError, so answer "not invalidated" instead, like the S3 helpers in this file.
   def self.invalidate_cdn(remote_path)
+    return false unless remote_credentials?(remote_upload_config)
     remote_path = "/" + remote_path unless remote_path.match(/^\//)
     cred = aws_credentials
     client = Aws::CloudFront::Client.new(
