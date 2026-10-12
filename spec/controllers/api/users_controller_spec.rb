@@ -3380,16 +3380,18 @@ describe Api::UsersController, :type => :controller do
       end
     end
 
+    # Sets the tree directly: board_revisions reads root.downstream_board_ids, and building
+    # it through the tracking jobs made a second tree in one example come back empty about
+    # one run in six (a setup race in upstream_downstream.rb, outside this endpoint).
     def link_board_revisions_tree(user, boards)
       root = Board.create(:user => user)
-      root.settings['buttons'] = boards.each_with_index.map{|b, idx| {'id' => idx + 1, 'load_board' => {'id' => b.global_id}} }
-      root.instance_variable_set('@buttons_changed', true)
-      root.save
       user.settings['preferences']['home_board'] = {'id' => root.global_id, 'key' => root.key}
       user.save
       Worker.process_queues
-      Worker.process_queues
-      expect(root.reload.settings['downstream_board_ids'].sort).to eq(boards.map(&:global_id).sort)
+      root.reload
+      root.settings['downstream_board_ids'] = boards.map(&:global_id)
+      root.save
+      expect(root.reload.downstream_board_ids.sort).to eq(boards.map(&:global_id).sort)
       root
     end
 
@@ -3466,6 +3468,77 @@ describe Api::UsersController, :type => :controller do
       expect(json['revoked_ids']).to eq([board.global_id])
       expect(json['revisions'][board.global_id]).to eq(nil)
       expect(json['revisions'][board.key]).to eq(nil)
+    end
+
+    it "should not call a board revoked when it is shared with a supervisee's supervisee and the cache is stale" do
+      token_user
+      other = User.create
+      board = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [board])
+      supervisee = User.create
+      User.link_supervisor_to_user(@user.reload, supervisee)
+      sub_supervisee = User.create
+      User.link_supervisor_to_user(supervisee.reload, sub_supervisee)
+      expect(@user.reload.supervisees.map(&:supervised_user_ids)).to eq([[sub_supervisee.global_id]])
+      board.share_with(sub_supervisee)
+      make_private_board_cache_stale(@user)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([])
+      expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
+    end
+
+    env_wrap('BOARD_REVOCATION_DISABLED' => 'true') do
+      it "should list no revoked ids when BOARD_REVOCATION_DISABLED is set, and still leave the board out of the revisions" do
+        token_user
+        other = User.create
+        board = Board.create(:user => other, :public => false)
+        link_board_revisions_tree(@user, [board])
+        get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['revoked_ids']).to eq([])
+        expect(json['revisions'][board.global_id]).to eq(nil)
+        expect(json['revisions'].keys.length).to eq(2)
+      end
+    end
+
+    it "should check share access once per user, not once per revoked private board" do
+      token_user
+      supervisee = User.create
+      User.link_supervisor_to_user(@user, supervisee)
+      owner = User.create
+      # a share each, so each user's shared-board set has real work to rebuild
+      Board.create(:user => owner, :public => false).share_with(@user)
+      Board.create(:user => owner, :public => false).share_with(supervisee)
+      # one owner, so allows?'s per-owner permission check is the same for both sizes
+      other = User.create
+      few = (0..1).map{ Board.create(:user => other, :public => false) }
+      many = (0..5).map{ Board.create(:user => other, :public => false) }
+      counts = [few, many].map do |boards|
+        link_board_revisions_tree(@user, boards)
+        stale = lambda do
+          # the stale window: each user's cached shared-board set is out of date
+          [@user, supervisee].each{|u| User.where(id: u.id).update_all(boards_updated_at: Time.now + 5.seconds) }
+          make_private_board_cache_stale(@user)
+        end
+        # warm the token and permission caches, then reopen the stale window
+        stale.call
+        get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+        expect(JSON.parse(response.body)['revoked_ids'].sort).to eq(boards.map(&:global_id).sort)
+        stale.call
+        count = 0
+        callback = lambda{|*args| count += 1 unless args.last[:name] == 'SCHEMA' }
+        ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+          get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+        end
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['revoked_ids'].sort).to eq(boards.map(&:global_id).sort)
+        count
+      end
+      expect(counts[1]).to eq(counts[0])
     end
 
     it "should not add queries per public board" do

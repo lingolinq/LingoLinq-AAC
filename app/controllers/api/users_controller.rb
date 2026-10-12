@@ -799,6 +799,9 @@ class Api::UsersController < ApplicationController
     # Older clients read the flat id => revision map, so the revoked list is
     # only sent, in a wrapped shape, to clients that ask for it.
     if include_revoked
+      # Kill switch: with BOARD_REVOCATION_DISABLED set, clients never mark
+      # anything (the revisions stay permission-checked).
+      revoked_ids = [] if ENV['BOARD_REVOCATION_DISABLED'].present?
       render json: {revisions: res, revoked_ids: revoked_ids.uniq}
     else
       render json: res
@@ -809,12 +812,27 @@ class Api::UsersController < ApplicationController
   # and a 30-minute permission cache, both rebuilt lazily (minutes to hours
   # after a share change). Before a board is reported revoked, the owner and the
   # share links themselves are checked, so a stale cache never makes a client
-  # hide a board the user can use. A board shared with one of the user's
-  # supervisees is viewable to the user too (board_caching does the same).
+  # hide a board the user can use. Boards owned by or shared with the user's
+  # supervisees, and their supervisees, count too, as in
+  # board_caching#update_available_boards.
+  #
+  # Each user's shared-board set is computed once per request: a per-board
+  # shared_with? would rebuild (and save) that set once per board while it is
+  # stale, since the stamp check reads the in-memory user.
   def board_shared_now?(board, user)
-    return true if board.user_id == user.id || board.shared_with?(user)
-    @board_revisions_supervisees ||= user.supervisees
-    @board_revisions_supervisees.any?{|sup| board.user_id == sup.id || board.shared_with?(sup) }
+    @board_revisions_access ||= begin
+      users = [user]
+      user.supervisees.each do |sup|
+        users << sup
+        users += sup.supervisees
+      end
+      users = users.uniq(&:id)
+      {
+        owner_ids: users.map(&:id),
+        shared_ids: users.map{|u| Board.all_shared_board_ids_for(u) }.flatten.compact.to_set
+      }
+    end
+    @board_revisions_access[:owner_ids].include?(board.user_id) || @board_revisions_access[:shared_ids].include?(board.global_id)
   end
   private :board_shared_now?
 
