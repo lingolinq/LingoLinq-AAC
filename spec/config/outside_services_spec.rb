@@ -92,3 +92,21 @@ describe 'default hostname resolution' do
     expect(SafeHttp.get('https://www.example.com/pic.png').code).to eq(404)
   end
 end
+
+# The default resolver turns a plain `expect(Addrinfo).to receive(:getaddrinfo)` (exactly once) into
+# at-least-once, so an example that sets one without the own_resolver tag is failed after it runs.
+describe 'resolver expectations outside own_resolver groups', own_resolver: true do
+  it 'are refused with a pointer to the tag' do
+    expect(Addrinfo).to receive(:getaddrinfo).and_return([])
+    expect { OutsideServices.refuse_untagged_resolver_expectations!({}) }
+      .to raise_error(RuntimeError, /own_resolver: true/)
+    expect { OutsideServices.refuse_untagged_resolver_expectations!({own_resolver: true}) }.not_to raise_error
+    Addrinfo.getaddrinfo('lingolinq-spec.invalid', nil)
+  end
+
+  it 'leave plain stubs and untouched examples alone' do
+    expect { OutsideServices.refuse_untagged_resolver_expectations!({}) }.not_to raise_error
+    allow(Addrinfo).to receive(:getaddrinfo).and_return([])
+    expect { OutsideServices.refuse_untagged_resolver_expectations!({}) }.not_to raise_error
+  end
+end

@@ -61,6 +61,12 @@ RSpec.configure do |config|
       end
     end
   end
+
+  # Fails an untagged example that sets its own expectation on Addrinfo.getaddrinfo, which the
+  # default above would silently weaken. Runs before rspec-mocks verifies the example's mocks.
+  config.after(:each) do |example|
+    OutsideServices.refuse_untagged_resolver_expectations!(example.metadata)
+  end
 end
 
 module OutsideServices
@@ -89,6 +95,17 @@ module OutsideServices
     true
   rescue IPAddr::InvalidAddressError
     false
+  end
+
+  def self.refuse_untagged_resolver_expectations!(metadata)
+    return if metadata[:own_resolver]
+    return unless RSpec::Mocks.space.registered?(Addrinfo)
+    double = RSpec::Mocks.space.proxy_for(Addrinfo).method_double_if_exists_for_message(:getaddrinfo)
+    return unless double && double.expectations.any?
+
+    raise 'This example sets an expectation on Addrinfo.getaddrinfo but its group is not tagged ' \
+          'own_resolver: true, so the default resolver in spec/support/outside_services.rb would ' \
+          'answer any extra call and the expectation could not fail on it. Tag the group.'
   end
 
   # The fake lookup result, for the arguments after the host in Addrinfo.getaddrinfo(host, service,

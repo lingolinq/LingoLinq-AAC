@@ -33,8 +33,8 @@ setting to relax.
   Redis and database hosts named in the environment (`REDIS_URL`, `DATABASE_URL`, `DB_HOST`). Any
   other name, including an unknown single label, gets the documentation address. A spec that
   tests resolution tags its group `own_resolver: true` (as `spec/lib/safe_http_spec.rb` does) and
-  sets its own expectations on `Addrinfo`; untagged, a plain `expect(...).to receive` stops failing
-  on a second call.
+  sets its own expectations on `Addrinfo`; untagged, a plain `expect(...).to receive` would stop
+  failing on a second call, so an untagged example that sets one is failed after it runs.
 
 ## Credentials in the test environment
 
