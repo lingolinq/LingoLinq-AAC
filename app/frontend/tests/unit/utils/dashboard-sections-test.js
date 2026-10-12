@@ -95,18 +95,18 @@ module('Unit | Utility | dashboard sections layout engine', function() {
   test('focused layout puts the Speak hero on top, with Extras beside it', function(assert) {
     var vis = visFor(['speak', 'extras', 'boards', 'account']);
     var state = gridLayoutState(vis, null, 'focused');
-    // Changed 2026-10-10 (approved): Extras shows on Focused and stacks beside the Speak hero.
+    // Changed 2026-10-10 (approved): Extras beside the Speak hero; 2026-10-12 (approved): equal width, six columns.
     var hero = state.areas[0];
-    assert.strictEqual(hero, 'speak extras', 'speak hero on top, Extras to its right');
-    assert.strictEqual(state.areas[2], 'account account', 'the other action card keeps its row below Boards');
+    assert.strictEqual(hero, 'speak speak speak extras extras extras', 'speak hero on top, Extras to its right, half each');
+    assert.strictEqual(state.areas[2], 'account account account account account account', 'the other action card keeps its row below Boards');
   });
 
-  test('focused: Create a Board and Extras stack beside the Speak hero; no Edit Dashboard', function(assert) {
+  test('focused: Speak, Create a Board and Extras side by side at equal width; no Edit Dashboard', function(assert) {
     var state = gridLayoutState(visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras']), null, 'focused');
-    // Changed 2026-10-10 by request: above 1024px Speak fills column 1, the pair stacked to its right.
-    assert.deepEqual(state.areas.slice(0, 2), ['speak createboard', 'speak extras'], 'the pair stacks beside Speak');
-    assert.notStrictEqual(state.areas.indexOf('account reports'), -1, 'the other action cards keep a row of their own');
-    assert.strictEqual(state.columns, 'repeat(2, 1fr)', 'two columns: Speak, then the stack');
+    // Changed 2026-10-12 by request (approved): above 900px the three sit side by side, a third each of six columns.
+    assert.strictEqual(state.areas[0], 'speak speak createboard createboard extras extras', 'one row, a third each');
+    assert.notStrictEqual(state.areas.indexOf('account account account reports reports reports'), -1, 'the other action cards keep a row of their own, half each');
+    assert.strictEqual(state.columns, 'repeat(6, 1fr)', 'six columns, so a third and a half are both whole tracks');
   });
 
   test('focused columns track the visible utility-card count — remaining cards fill the row', function(assert) {
@@ -302,11 +302,12 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     // Regression lock: DEFAULT_ORDER and the retired FOCUSED_DEFAULT_ORDER filter to
     // the SAME list for a communicator (no caseload/rooms/attention/org), so this
     // change must be a no-op for them. If this fails, communicators were affected.
-    // Expected layout updated 2026-10-10 (approved): Create a Board + Extras beside Speak.
+    // Expected layout updated 2026-10-10 (approved): Create a Board + Extras beside Speak; and
+    // 2026-10-12 (approved): the three side by side at equal width on a six-column grid.
     var state = gridLayoutState(visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras']), null, 'focused');
-    assert.deepEqual(state.areas.slice(0, 4), ['speak createboard', 'speak extras', 'boards boards', 'account reports'],
-      'Speak with the pair beside it, then Boards, then the other utility cards');
-    assert.strictEqual(state.columns, 'repeat(2, 1fr)', 'two columns');
+    assert.deepEqual(state.areas.slice(0, 3), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards', 'account account account reports reports reports'],
+      'Speak, Create a Board and Extras in one row, then Boards, then the other utility cards');
+    assert.strictEqual(state.columns, 'repeat(6, 1fr)', 'six columns');
     assert.notOk(state.areasValue.includes('editdashboard'), 'Edit Dashboard is not on the Focused home');
   });
 });
@@ -508,7 +509,8 @@ module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero'
      and smaller (unless the user changes the layout on their Display design)"). */
   test('by default the small-screen order matches the wide layout: Speak, the pair, then Boards', function(assert) {
     var state = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras']), null, 'focused');
-    assert.deepEqual(state.areas.slice(0, 3), ['speak createboard', 'speak extras', 'boards boards']);
+    // Areas updated 2026-10-12 (approved): one row of three. The order indices are unchanged.
+    assert.deepEqual(state.areas.slice(0, 2), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards']);
     assert.deepEqual(state.orderIndices, { speak: 0, createboard: 1, extras: 2, boards: 3 },
       'the --ord-* values read Speak, Create a Board, Extras, Boards');
   });
@@ -521,10 +523,11 @@ module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero'
     assert.notStrictEqual(state.classes.indexOf('md-grid--speak-beside'), -1, 'wide screens still stack the pair beside Speak');
   });
 
-  test('one of the pair hidden: the other sits beside Speak on a single row', function(assert) {
+  test('one of the pair hidden: the other sits beside Speak, half each', function(assert) {
     var state = gridLayoutState(visFor(['speak', 'boards', 'extras']), null, 'focused');
-    assert.deepEqual(state.areas.slice(0, 2), ['speak extras', 'boards boards']);
-    assert.strictEqual(state.columns, 'repeat(2, 1fr)');
+    // Updated 2026-10-12 (approved): side by side at equal width, half each of six columns.
+    assert.deepEqual(state.areas.slice(0, 2), ['speak speak speak extras extras extras', 'boards boards boards boards boards boards']);
+    assert.strictEqual(state.columns, 'repeat(6, 1fr)');
   });
 
   test('both of the pair hidden: Speak keeps the full row, as before', function(assert) {
@@ -533,9 +536,10 @@ module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero'
     assert.strictEqual(state.areas.indexOf('account'), 2, 'Account keeps its own row after Boards');
   });
 
-  test('a lone other action card spans both columns below Boards', function(assert) {
+  test('a lone other action card spans the full row below Boards', function(assert) {
     var state = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras', 'reports']), null, 'focused');
-    assert.deepEqual(state.areas.slice(0, 4), ['speak createboard', 'speak extras', 'boards boards', 'reports reports']);
+    // Updated 2026-10-12 (approved): the row of three, then Boards, then Reports across all six columns.
+    assert.deepEqual(state.areas.slice(0, 3), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards', 'reports reports reports reports reports reports']);
   });
 
   test('caseload and org heroes are untouched: the utility cards still share one row', function(assert) {

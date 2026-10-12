@@ -628,21 +628,33 @@ function focusedLayout(vis, order, heroKey) {
      from that order, so small screens keep following it. */
   var beside = besideSpeak(keys, heroKey);
   if (beside.length) {
+    /* SIDE BY SIDE AT EQUAL WIDTH (2026-10-12, requested: "make the width of the buttons evenly split
+     over the area ... the buttons shouldn't stack, they should sit side by side and be the same
+     size", above 900px). Speak and the visible pair share ONE row, Speak first, a third each (or a
+     half each when one of the pair is hidden). SIX columns, so both a third and a half are whole
+     tracks; the other action cards (at most Account and Reports, as Edit Dashboard is not on the
+     Focused home) split their row the same way, and full-width cards span all six. */
+    var GRID_COLS = 6;
+    var spanRow = function(rowKeys) {
+      var each = GRID_COLS / rowKeys.length, cells = [];
+      rowKeys.forEach(function(k) { for (var i = 0; i < each; i++) { cells.push(a(k)); } });
+      return cells.join(' ');
+    };
     var others = actionKeys.filter(function(k) { return beside.indexOf(k) === -1; });
     var gridRows = [], othersEmitted = false;
     keys.forEach(function(k) {
       if (k === 'speak') {
-        beside.forEach(function(b) { gridRows.push(a('speak') + ' ' + a(b)); });
+        gridRows.push(spanRow(['speak'].concat(beside)));
       } else if (beside.indexOf(k) !== -1) {
         return;
       } else if (others.indexOf(k) !== -1) {
-        if (!othersEmitted) { gridRows.push(others.length === 1 ? (a(others[0]) + ' ' + a(others[0])) : others.map(a).join(' ')); othersEmitted = true; }
+        if (!othersEmitted) { gridRows.push(spanRow(others)); othersEmitted = true; }
       } else {
-        gridRows.push(a(k) + ' ' + a(k));
+        gridRows.push(spanRow([k]));
       }
     });
-    var besideBuilt = framedN(gridRows, 2);
-    besideBuilt.cols = 2;
+    var besideBuilt = framedN(gridRows, GRID_COLS);
+    besideBuilt.cols = GRID_COLS;
     besideBuilt.beside = true;
     if (order && order.length) { besideBuilt.flowAreas = framedN(rowsOut, cols).areas; }
     return besideBuilt;
