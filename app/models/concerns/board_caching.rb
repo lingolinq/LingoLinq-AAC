@@ -36,13 +36,7 @@ module BoardCaching
         return
       end
     end
-    self.settings ||= {}
-    self.settings['available_private_board_ids'] ||= {
-      'view' => [],
-      'edit' => []
-    }
-    self.settings['available_private_board_ids']['generated'] = Time.now.to_i
-    self.save(touch: false)
+    store_available_board_ids({'generated' => Time.now.to_i}, touch: false)
     authored = []
     # find all private boards authored by this user
     Board.where(:public => false, :user_id => self.id).select('id').find_in_batches(batch_size: 200) do |batch|
@@ -100,24 +94,19 @@ module BoardCaching
     end
     edit_ids = new_edit_ids.uniq.sort
     ab_json = self.settings['available_private_board_ids'].slice('view', 'edit').to_json
-    self.settings['available_private_board_ids']['view'] = view_ids
-    self.settings['available_private_board_ids']['edit'] = edit_ids
-    self.settings['available_private_board_ids']['generated'] = Time.now.to_i
-    # save those lists
-    @do_track_boards = false
-    self.boards_updated_at = Time.now
+    lists_changed = ab_json != {'view' => view_ids, 'edit' => edit_ids}.to_json
     Board.regenerate_shared_board_ids([self.global_id])
-    self.assert_current_record!
+    # save those lists
+    store_available_board_ids({'view' => view_ids, 'edit' => edit_ids, 'generated' => Time.now.to_i},
+      boards_updated_at: Time.now, stale_after: self.updated_at,
+      save_method: (lists_changed ? :save_with_sync : :save), save_args: (lists_changed ? ['board_list_changed'] : []))
     # if the lists changed, schedule this same update for all users
     # who would have been affected by a change (supervisors)
-    if ab_json != self.settings['available_private_board_ids'].slice('view', 'edit').to_json
-      self.save_with_sync('board_list_changed')
+    if lists_changed
       self.supervisors.each do |sup|
         ra_cnt = RemoteAction.where(path: sup.global_id, action: 'update_available_boards').count
         RemoteAction.create(path: sup.global_id, action: 'update_available_boards', act_at: 5.minutes.from_now) if ra_cnt == 0
       end
-    else
-      self.save
     end
     # Only rows that were already pending when this run STARTED are satisfied by
     # it. A row written while the recompute was in flight represents a change this
@@ -129,6 +118,22 @@ module BoardCaching
     self.schedule_once(:update_available_boards)
   end
   
+  # Writes only available_private_board_ids entries (and boards_updated_at) onto a locked fresh
+  # copy (User#update_settings_locked): settings is written whole, and this copy was loaded before
+  # the walk, so saving it reverted settings saved meanwhile, including touch: false writes that
+  # assert_current_record! cannot see. stale_after replaces assert_current_record! under the lock:
+  # a row updated since then may carry link changes (user_link.rb touch_connections) this run did
+  # not read, so it raises StaleObjectError and update_available_boards reschedules itself.
+  def store_available_board_ids(entries, boards_updated_at: nil, stale_after: nil, **save_opts)
+    self.update_settings_locked(**save_opts) do |fresh|
+      raise ActiveRecord::StaleObjectError if stale_after && fresh.updated_at.to_f > stale_after.to_f
+      fresh.settings['available_private_board_ids'] ||= {'view' => [], 'edit' => []}
+      fresh.settings['available_private_board_ids'].merge!(entries)
+      fresh.boards_updated_at = boards_updated_at if boards_updated_at
+      true
+    end
+  end
+
   def private_viewable_board_ids
     self.settings ||= {}
     ((self.settings['available_private_board_ids'] || {})['view'] || [])

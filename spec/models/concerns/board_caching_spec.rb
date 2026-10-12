@@ -609,6 +609,87 @@ describe BoardCaching, :type => :model do
       # })).to eq(true)
     end
 
+    # settings is written whole on save; the refresh must store only its own keys, so settings
+    # saved by another process before or during the refresh survive it.
+    describe "saving the refreshed lists" do
+      def shared_board_user
+        author = User.create
+        u = User.create
+        b = Board.create(:user => author)
+        b.share_with(u)
+        Worker.flush_queues
+        [User.find(u.id), b]
+      end
+
+      # Runs the block once, while the refresh walks the shared boards (before its saves).
+      def during_refresh(&block)
+        ran = false
+        allow(Board).to receive(:all_shared_board_ids_for).and_wrap_original do |original, *args|
+          unless ran
+            ran = true
+            block.call
+          end
+          original.call(*args)
+        end
+      end
+
+      it "keeps a touch: false write made while the lists were being built" do
+        u, b = shared_board_user
+        during_refresh do
+          quiet = User.find(u.id)
+          quiet.settings['spec_quiet'] = 'touch false'
+          quiet.save(touch: false)
+        end
+
+        u.update_available_boards
+
+        stored = User.find(u.id)
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.private_viewable_board_ids).to eq([b.global_id])
+      end
+
+      it "retries instead of saving over a normal save made while the lists were being built" do
+        u, b = shared_board_user
+        during_refresh do
+          other = User.find(u.id)
+          other.settings['preferences']['spec_marker'] = 'normal save'
+          other.save
+        end
+
+        u.update_available_boards
+
+        stored = User.find(u.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+        expect(Worker.scheduled_for?('default', User, :perform_action, {'id' => u.id, 'method' => 'update_available_boards', 'arguments' => []})).to eq(true)
+      end
+
+      it "keeps a write made after the caller loaded the user and before the refresh started" do
+        u, b = shared_board_user
+        quiet = User.find(u.id)
+        quiet.settings['spec_quiet'] = 'touch false'
+        quiet.save(touch: false)
+
+        u.update_available_boards
+
+        stored = User.find(u.id)
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.private_viewable_board_ids).to eq([b.global_id])
+      end
+
+      it "syncs devices when the lists change and keeps the generated stamp" do
+        u, b = shared_board_user
+        User.where(id: u.id).update_all(sync_stamp: 6.hours.ago)
+
+        u.reload.update_available_boards
+
+        stored = User.find(u.id)
+        expect(stored.sync_stamp).to be > 5.minutes.ago
+        expect(stored.settings['sync_stamp_reason']).to eq('board_list_changed')
+        expect(stored.settings['available_private_board_ids']['generated']).to be >= 1.minute.ago.to_i
+        expect(stored.boards_updated_at).to be > 5.minutes.ago
+      end
+    end
+
     # A district's private home boards reach its members through the shared-board list
     # (sharing.rb, Organization.attached_orgs). That list is cached on the user and served while
     # its stamp is >= boards_updated_at, which an org membership or home-board change does not
