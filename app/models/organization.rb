@@ -1714,7 +1714,7 @@ class Organization < ApplicationRecord
   # A destroyed organization keeps its user_links (no dependent: option) while attached_orgs
   # skips it, so its members lose its home boards only when their view access is recomputed.
   # The destroy only records that: one outbox row per member, written in bulk in the destroy's
-  # transaction (the durable fallback that hourly remote_remove_batch processes), and ONE slow job
+  # transaction (the durable fallback that hourly remote_remove_batch processes), and ONE job
   # enqueued after commit that does the per-member work (Organization.clean_up_destroyed). Doing
   # it inline loaded every member and enqueued one default-queue job each, inside the destroy.
   def schedule_destroyed_org_cleanup
@@ -1725,7 +1725,9 @@ class Organization < ApplicationRecord
     # (the job is idempotent); RemoteAction#process_action re-queues it if the job is lost
     RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now)
     ActiveRecord.after_all_transactions_commit do
-      Organization.schedule_for(:slow, :clean_up_destroyed, org_id, user_ids)
+      # default queue: everything it queues removes access (owner decision: revocations do not
+      # wait behind the slow queue)
+      Organization.schedule(:clean_up_destroyed, org_id, user_ids)
     end
     true
   end
@@ -1749,7 +1751,7 @@ class Organization < ApplicationRecord
     end
     RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all
     User.where(id: user_ids).find_each(batch_size: 100) do |user|
-      user.schedule_once_for(:slow, :update_available_boards)
+      user.schedule_once(:update_available_boards)
     end
     true
   end

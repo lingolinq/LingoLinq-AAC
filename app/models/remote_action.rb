@@ -31,7 +31,7 @@ class RemoteAction < ApplicationRecord
       user = User.find_by_path(ra.path)
       user.schedule_once_for(:slow, :update_available_boards) if user
     elsif ra.action == 'clean_up_destroyed_org'
-      Organization.schedule_for(:slow, :clean_up_destroyed, ra.path.to_i)
+      Organization.schedule(:clean_up_destroyed, ra.path.to_i)
     elsif ra.action == 'update_library_cache'
       cache = LibraryCache.find_by_global_id(ra.path)
       cache.schedule_for(:slow, :find_expired_words) if cache

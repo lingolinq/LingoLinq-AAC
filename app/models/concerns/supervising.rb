@@ -302,12 +302,11 @@ module Supervising
     # row forward defeated the debounce it exists to provide -- the batch would
     # fire it immediately, update_available_boards would see a <60-minute generated
     # stamp, and park a fresh row 30 minutes out again.
-    # queue: nil keeps the default queue; bulk callers (License.expire_stale_licenses!) pass :slow.
-    def schedule_board_cache_refresh(supervisor, revoked=false, queue=nil)
+    def schedule_board_cache_refresh(supervisor, revoked=false)
       return unless supervisor
       persist_board_cache_refresh(supervisor, revoked)
       ActiveRecord.after_all_transactions_commit do
-        queue ? supervisor.schedule_once_for(queue, :update_available_boards) : supervisor.schedule_once(:update_available_boards)
+        supervisor.schedule_once(:update_available_boards)
       rescue StandardError => e
         Rails.logger.warn("supervising: board-cache enqueue failed for #{supervisor.global_id}: #{e.class}: #{e.message}")
       end

@@ -1191,6 +1191,16 @@ describe Organization, :type => :model do
       members.each do |m|
         expect(RemoteAction.where(path: m.global_id, action: 'update_available_boards').where('act_at <= ?', Time.now).count).to eq(1)
       end
+
+      # these refreshes remove access, so the cleanup and the refreshes it queues use the
+      # default queue, not the slow one (owner decision)
+      expect(Worker.scheduled_actions('slow')).to eq([])
+      job = Worker.scheduled_actions('default')[0]
+      Worker.flush_queues
+      Organization.perform_action(job['args'][2])
+      refreshes = Worker.scheduled_actions('default').select{|j| j['args'][2]['method'] == 'update_available_boards' }
+      expect(refreshes.map{|j| j['args'][2]['id'] }.sort).to eq(members.map(&:id).sort)
+      expect(Worker.scheduled_actions('slow')).to eq([])
     end
 
     # A room (organization unit) links each of its supervisors to each of its communicators

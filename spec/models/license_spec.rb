@@ -162,9 +162,9 @@ describe License, :type => :model do
       expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
     end
 
-    # The nightly expiry can release thousands of seats at once; their refreshes go to the slow
-    # queue so they cannot push the default queue past its pressure threshold.
-    it "queues the view-access refresh on the slow queue when expiry releases the seat" do
+    # A seat expiry REMOVES access, so its refresh must not wait behind the slow queue (owner
+    # decision: revocations go to the default queue, even in the nightly bulk expiry).
+    it "queues the view-access refresh on the default queue when expiry releases the seat" do
       u = User.create
       district = Organization.create(:settings => {'total_licenses' => 1})
       license = License.create!(organization: district, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
@@ -178,8 +178,8 @@ describe License, :type => :model do
       refresh = lambda do |queue|
         Worker.scheduled_actions(queue).select{|j| j['args'][2]['method'] == 'update_available_boards' && j['args'][2]['id'] == u.id }
       end
-      expect(refresh.call('default')).to eq([])
-      expect(refresh.call('slow').length).to eq(1)
+      expect(refresh.call('slow')).to eq([])
+      expect(refresh.call('default').length).to eq(1)
       expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
     end
 
