@@ -3046,8 +3046,8 @@ describe Board, :type => :model do
       include ActiveSupport::Testing::TimeHelpers
 
       it "keeps the description of an edit made seconds after the previous described edit" do
-        u = User.create
-        b = Board.create(:user => u)
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u)] }
         travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
         expect(b.settings['edit_description']['notes']).to eq(['renamed the board'])
 

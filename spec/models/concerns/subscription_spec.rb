@@ -2226,7 +2226,7 @@ describe Subscription, :type => :model do
         k.save
         User.where(id: k.id).update_all(updated_at: 15.months.ago)
         sql = []
-        record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /FROM "users"/ && payload[:sql] =~ /ORDER BY|IN \(/ }
+        record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /FROM "users"/ }
         ids = nil
         ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
           ids = User.inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), 5)
@@ -2235,7 +2235,12 @@ describe Subscription, :type => :model do
         expect(ids).not_to include(k.id)
         expect(sql).not_to be_empty
         expect(sql.grep(/"users"\.\*|SELECT \*/)).to eq([])
-        expect(sql.grep(/settings/).all? { |q| q !~ /ORDER BY/ }).to eq(true)
+        # the exemption check's settings load ran (so the next line is not vacuous), and only it
+        # reads settings: the ordered paging query does not
+        settings_queries = sql.grep(/settings/)
+        expect(settings_queries.length).to be >= 1
+        expect(settings_queries.all? { |q| q !~ /ORDER BY/ }).to eq(true)
+        expect(sql.grep(/ORDER BY/)).not_to be_empty
       end
 
       it "resumes after the rows the last run read when exempt accounts exceed the scan limit" do
