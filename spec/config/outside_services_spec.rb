@@ -55,6 +55,23 @@ describe 'default hostname resolution' do
     expect(resolved_ips('127.0.0.1')).to eq(['127.0.0.1'])
   end
 
+  # The real resolver reads numeric shorthands without the network ('10.1' is 10.0.0.1), so a
+  # spec of SafeHttp's address blocking sees the private address it would see in production.
+  it 'leaves numeric shorthands and a trailing-dot localhost to the real resolver' do
+    expect(resolved_ips('10.1')).to eq(['10.0.0.1'])
+    expect(resolved_ips('192.168.1')).to eq(['192.168.0.1'])
+    expect(resolved_ips('0x7f.0.0.1')).to eq(['127.0.0.1'])
+    expect(resolved_ips('localhost.')).to all(satisfy { |ip| IPAddr.new(ip).loopback? })
+    expect(SafeHttp.get('http://10.1/pic.png').return_message).to eq('blocked or invalid URL')
+  end
+
+  it 'answers with the requested port and address family' do
+    v6 = Addrinfo.getaddrinfo('www.example.com', 443, Socket::AF_INET6, Socket::SOCK_STREAM)
+    expect(v6.map { |a| [a.ipv6?, a.ip_port] }).to eq([[true, 443]])
+    v4 = Addrinfo.getaddrinfo('www.example.com', 'https', Socket::AF_INET, Socket::SOCK_STREAM)
+    expect(v4.map { |a| [a.ip_address, a.ip_port] }).to eq([['203.0.113.10', 443]])
+  end
+
   it 'lets SafeHttp reach the WebMock default for a public hostname' do
     expect(SafeHttp.get('https://www.example.com/pic.png').code).to eq(404)
   end
