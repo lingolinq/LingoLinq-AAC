@@ -1770,7 +1770,7 @@ class Organization < ApplicationRecord
       supervisors = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_supervisor' }.map{|l| l['user_id'] }.uniq)
       communicators = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq)
       supervisors.each do |sup|
-        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s]) }
+        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id) }
       end
     end
     RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all

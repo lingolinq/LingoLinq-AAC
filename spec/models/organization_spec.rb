@@ -1349,6 +1349,41 @@ describe Organization, :type => :model do
         expect(supervision_link(sup, comm)).to eq(nil)
       end
 
+      # Family-consented access (SupervisorRelationship approved through the consent flow) is not
+      # the district's to remove: a district-staff parent keeps a consented link.
+      it "keeps a legacy link with an approved relationship outside the district, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'approved', organization_id: nil)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+
+      it "still removes a legacy room link when the only approved relationship is the district's own" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'approved', organization_id: o.id)
+        SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'revoked', organization_id: nil)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
       it "keeps a legacy link whose supervisor was not district staff at the deletion, without the room" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)

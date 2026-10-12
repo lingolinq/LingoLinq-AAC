@@ -364,13 +364,18 @@ module Supervising
     # after joining lose it.
     ROOM_LINK_EPSILON = 5.seconds
 
-    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil)
+    #
+    # A legacy link is never treated as room-made while an approved SupervisorRelationship for the
+    # pair exists outside the deleted district (organization_id nil or another org): that access
+    # was consented to by the family (SupervisorConsentService), not granted by the district.
+    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil)
       link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
       return false unless link
       listed = (link.data['state'] || {})['organization_unit_ids'] || []
       remaining = listed - unit_ids
       room_made = link.data['origin'] == 'room' ||
-        (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON)
+        (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON &&
+          !consented_outside_org?(supervisor, user, org_id))
       if remaining.empty? && room_made
         unlink_supervisor_from_user(supervisor, user)
       elsif remaining != listed
@@ -378,6 +383,12 @@ module Supervising
         link.save!
       end
       true
+    end
+
+    def consented_outside_org?(supervisor, user, org_id)
+      scope = SupervisorRelationship.approved.where(supervisor_user_id: supervisor.id, communicator_user_id: user.id)
+      scope = scope.where('organization_id IS NULL OR organization_id != ?', org_id) if org_id
+      scope.exists?
     end
 
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
