@@ -1731,14 +1731,17 @@ class Organization < ApplicationRecord
     # Rooms (organization units) and the supervision links they made outlive the organization,
     # and a supervision link alone gives the supervisor the communicator's private boards
     # (board_caching.rb supervisees). Remove_supervisor/remove_communicator need the
-    # organization, so the links are read from each unit and unlinked as removing a member does
-    # (organization_unit.rb assert_supervision); unlinking schedules the supervisor's refresh.
-    OrganizationUnit.where(organization_id: org_id).find_each do |unit|
+    # organization, so the links are read from each unit and the destroyed org's rooms are taken
+    # off them (User.strip_rooms_from_supervision: only room-only links are removed, which
+    # schedules the supervisor's refresh).
+    units = OrganizationUnit.where(organization_id: org_id).to_a
+    unit_ids = units.map(&:global_id)
+    units.each do |unit|
       links = UserLink.links_for(unit)
       supervisors = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_supervisor' }.map{|l| l['user_id'] }.uniq)
       communicators = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq)
       supervisors.each do |sup|
-        communicators.each{|comm| User.unlink_supervisor_from_user(sup, comm, unit.global_id) }
+        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids) }
       end
     end
     User.where(id: user_ids).find_each(batch_size: 100) do |user|

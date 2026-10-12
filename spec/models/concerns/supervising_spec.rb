@@ -337,6 +337,50 @@ describe Supervising, :type => :model do
     end
   end
 
+  # Recorded so an organization's deletion removes only links that rooms alone made
+  # (strip_rooms_from_supervision); kept outside 'state', so links_for output is unchanged.
+  describe "supervision link origin" do
+    def origin(sup, user)
+      UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }.data['origin']
+    end
+
+    it "records a room-made link as room, and a later direct link turns it direct" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, '1_5')
+      expect(origin(sup, user)).to eq('room')
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id))
+      expect(origin(sup, user)).to eq('direct')
+    end
+
+    it "keeps a direct origin when a room adds the link" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, '1_5')
+      expect(origin(sup, user)).to eq('direct')
+    end
+
+    it "treats an unrecorded link with no rooms as direct, and one with rooms as unknown" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user)
+      link = UserLink.where(user_id: user.id).detect{|l| l.data['type'] == 'supervisor' }
+      link.data.delete('origin')
+      link.save!
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, '1_5')
+      expect(origin(sup, user)).to eq('direct')
+
+      sup2 = User.create
+      User.link_supervisor_to_user(sup2, User.find(user.id), nil, true, '1_6')
+      link2 = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup2)).first
+      link2.data.delete('origin')
+      link2.save!
+      User.link_supervisor_to_user(User.find(sup2.id), User.find(user.id), nil, true, '1_7')
+      expect(origin(sup2, user)).to eq(nil)
+    end
+  end
+
   describe "adding and removing" do
     it "should allow adding a supervisor by key when editing" do
       u = User.create

@@ -1197,6 +1197,59 @@ describe Organization, :type => :model do
     # (organization_unit.rb assert_supervision). Units and those links outlive the destroy, and the
     # supervision link alone gives the supervisor the communicator's private boards (board_caching.rb
     # supervisees), so the cleanup must unlink them.
+    describe "supervision links when the organization is destroyed" do
+      # A room supervisor and a communicator, both in the room; the room links them on its jobs.
+      def room_with_members
+        o = Organization.create
+        ou = OrganizationUnit.create(:organization => o)
+        sup = User.create
+        comm = User.create
+        o.add_supervisor(sup.user_name, false)
+        o.add_user(comm.user_name, false, false)
+        [o, ou, sup, comm]
+      end
+
+      def supervision_link(sup, comm)
+        UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+      end
+
+      it "keeps a link that existed directly before the room added it, without the room" do
+        o, ou, sup, comm = room_with_members
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id])
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+        expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      end
+
+      it "keeps a link of unknown origin (made before origins were recorded), without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy = supervision_link(sup, comm)
+        legacy.data.delete('origin')
+        legacy.save!
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+    end
+
     it "removes room supervision, and the boards it gave, when the organization is destroyed" do
       o = Organization.create
       ou = OrganizationUnit.create(:organization => o)

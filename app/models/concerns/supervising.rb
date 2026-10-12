@@ -337,6 +337,37 @@ module Supervising
       RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now)
     end
 
+    # Why a supervision link exists, kept in the link's data (outside 'state', which links_for
+    # returns): 'direct' once it was ever made directly, 'room' when only rooms (organization
+    # units) made it. nil means unknown: links made before this was recorded that already listed
+    # rooms, since a room added to a direct link only appended its id (organization_unit_ids).
+    def supervision_link_origin(link, prior_unit_ids, organization_unit_id)
+      return 'direct' unless organization_unit_id
+      return 'room' unless link.id
+      return link.data['origin'] if link.data['origin']
+      # an existing unrecorded link that no room had added: it was made directly
+      prior_unit_ids.compact.empty? ? 'direct' : nil
+    end
+
+    # Takes the rooms of a destroyed organization off a supervision link (Organization.clean_up_destroyed).
+    # The link is removed only when it is known to exist because of rooms alone (origin 'room')
+    # and no other room still lists it; a direct link, or one of unknown origin, is kept without
+    # those rooms. Owner decision: keep ambiguous links rather than risk removing a family's
+    # direct supervision.
+    def strip_rooms_from_supervision(supervisor, user, unit_ids)
+      link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
+      return false unless link
+      listed = (link.data['state'] || {})['organization_unit_ids'] || []
+      remaining = listed - unit_ids
+      if remaining.empty? && link.data['origin'] == 'room'
+        unlink_supervisor_from_user(supervisor, user)
+      elsif remaining != listed
+        link.data['state']['organization_unit_ids'] = remaining
+        link.save!
+      end
+      true
+    end
+
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
       type = 'edit' if type == true
       type ||= 'read_only'
@@ -351,6 +382,7 @@ module Supervising
       org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
 
       link = UserLink.generate(user, supervisor, 'supervisor')
+      link.data['origin'] = supervision_link_origin(link, org_unit_ids, organization_unit_id)
       link.data['state']['edit_permission'] = true if type == 'edit'
       link.data['state']['modeling_only'] = true if type == 'modeling_only'
       link.data['state']['supervisee_user_name'] = user.user_name
