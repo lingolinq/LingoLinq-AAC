@@ -5158,6 +5158,17 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   .ch-grid--extras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+// ONE PER ROW at 500px and below (requested 2026-10-12), both the main Actions tiles and the
+// Extras (silver) tiles: two tracks left each tile about 167px wide on a 390px phone. Same
+// selectors as the two bands above, written after them, so the narrowest band wins on source
+// order at equal specificity.
+@media (max-width: 500px) {
+  .ch-grid:not(.ch-grid--extras),
+  .ch-grid--extras {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 // =============================================================================
 // AFFORDANCES — fewer arrows, and a different one on the Extras set
 // =============================================================================
