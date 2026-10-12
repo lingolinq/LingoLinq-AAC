@@ -109859,10 +109859,9 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
     0 6px 14px rgba($focus-shadow-ink, 0.34);
 }
 /* First (welcome) page of the Focused tour: 25% taller than the natural welcome
-   height so the tour-map image sits comfortably beside the body copy. (Width is
-   the shared intro 520px — the earlier 20%-wider experiment was reverted.) Make
-   the content a column so the extra height flows into the body (which holds the
-   image) and the footer stays pinned to the bottom. Scoped to focused welcome. */
+   height (it was sized for the tour-map image beside the body; the map is in the header since
+   2026-10-11, and the height is kept). Make the content a column so the extra height flows into
+   the body and the footer stays pinned to the bottom. Scoped to focused welcome. */
 .shepherd-element.md-tour__step--focused.md-tour__step--welcome .shepherd-content {
   min-height: 345px;
   display: flex;
@@ -109875,34 +109874,23 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
 .shepherd-element.md-tour__step--welcome.md-tour__step--bd-welcome .shepherd-content {
   min-height: 414px;
 }
-/* The tour-map image moves OUT of the top-right corner accent and BESIDE the
-   body copy (see the .shepherd-text rules below), so suppress the base intro
-   ::after graphic (speech bubbles + orb-glow shading) on the welcome page in
-   BOTH views — focused (map-dark) and gentle (map-light) both carry the map
-   inline instead. */
+/* The tour-map image replaces the top-right corner accent on the welcome page, so suppress the
+   base intro ::after graphic (speech bubbles + orb-glow shading) there in BOTH views; the map sits
+   in the HEADER, top left (see the .shepherd-header::before rules below). */
 .shepherd-element.md-tour__step--welcome::after {
   display: none;
 }
-/* Tour-map image to the LEFT of the welcome paragraph: a left-anchored
-   background + matching left padding pushes the copy to its right; the row is
-   vertically centred and left-aligned (overriding the intro's centered, narrow
-   body). flex:1 lets the body absorb the extra modal height so the image stays
-   centred. */
+/* The welcome body: its choices stack in a column, vertically centred and left-aligned (overriding
+   the intro's centered, narrow body); flex:1 lets the body absorb the extra modal height. The
+   tour-map image is no longer beside it (requested 2026-10-11: "move the image from the main
+   content into the header on the top left"), so the copy uses the full width with 24px insets. */
 .shepherd-element.md-tour__step--focused.md-tour__step--welcome .shepherd-text {
   flex: 1 1 auto;
-  /* Column so the lead line + checklist STACK to the right of the map (the body
-     is now a list, not a single paragraph); vertically centred beside the image. */
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  /* 24px left/right insets on the center content: the map is positioned 24px in
-     from the left edge, the copy is padded 24px from the right edge, and the
-     left padding (24 inset + 120 image + 20 gap = 164) keeps the text clear of
-     the image. */
-  background: url(../images/tour-map-dark.png) no-repeat 24px center / 120px 120px;
-  min-height: 120px;
-  padding-left: 164px;
+  padding-left: 24px;
   padding-right: 24px;
   text-align: left;
   max-width: none;
@@ -109926,35 +109914,32 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  min-height: 120px;
-  padding-left: 164px;
+  padding-left: 24px;
   padding-right: 24px;
   text-align: left;
   max-width: none;
   margin: 0;
 }
-/* Circular teal→blue gradient badge behind the light map. A linear gradient
-   can't be clipped to a circle as a background layer, so the disc is a ::before
-   (border-radius:50%, light teal → light blue) and the map is the ::after on top
-   — both pinned at the 24px-left, vertically-centred 120px spot. ::after is
-   declared last so it paints above the disc. (The welcome's CARD ::after is
-   hidden elsewhere; this is .shepherd-text::after, a separate element.) */
-.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::before,
-.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::after {
+/* THE TOUR-MAP IMAGE, IN THE HEADER, TOP LEFT (requested 2026-10-11, all guided tours: every
+   Modern tour's welcome step carries `md-tour__step--welcome`). It was a 120px image beside the
+   body copy. The header is a flex row, so its ::before is the first item, before the eyebrow and
+   heading; `align-self: flex-start` holds it at the top. (The header's ::after is its hairline.)
+   Gentle: the light map on a circular teal→blue disc, as one element (the map layer is drawn
+   over the gradient, and `border-radius` clips both). Focused: the dark map artwork. */
+.shepherd-element.md-tour__step--welcome .shepherd-header::before {
   content: '';
-  position: absolute;
-  left: 24px;
-  top: 50%;
-  width: 120px;
-  height: 120px;
-  transform: translateY(-50%);
-}
-.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::before {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  margin-right: 16px;
+  align-self: flex-start;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba($brand-verdigris, 0.26), rgba($brand-smart-blue, 0.26));
+  background:
+    url(../images/tour-map-light.png) no-repeat center / 56px 56px,
+    linear-gradient(135deg, rgba($brand-verdigris, 0.26), rgba($brand-smart-blue, 0.26));
 }
-.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::after {
-  background: url(../images/tour-map-light.png) no-repeat center / 120px 120px;
+.shepherd-element.md-tour__step--focused.md-tour__step--welcome .shepherd-header::before {
+  background: url(../images/tour-map-dark.png) no-repeat center / 56px 56px;
 }
 
 /* Cancel (X) — canonical light-modal close chip (matches
