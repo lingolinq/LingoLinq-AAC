@@ -50251,9 +50251,10 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      boundaries legible, not just the 44px hit areas.
      HEADROOM: the panel runs from 70px to the viewport bottom, so on the shortest viewport
      this page has been checked at (729px) it has ~659px. Nine 48.125px rows plus 34px of
-     panel padding is ~467px, which leaves ~192px for eight gaps -- a ~24px ceiling. 12px
-     spends half of that, so the panel still does not need to scroll. */
-  gap: var(--dn-rail-gap, 12px);
+     panel padding is ~467px, which leaves ~192px for eight gaps -- a ~24px ceiling.
+     8px on full-size screens (requested 2026-10-11: 12px -> 4px, then 4px more), 4px at 1200px
+     and below (the media rule below), so the panel does not need to scroll. */
+  gap: var(--dn-rail-gap, 8px);
   box-sizing: border-box;
   /* THE PANEL (requested 2026-09-14). The nav element IS the panel — no wrapper div was
      added, because a background, a border and padding are all it takes and the element was
@@ -50508,8 +50509,9 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      1200px and below, where the gap is 4px. The space is this row's 12px `margin-bottom` plus the
      nav's gap; the 2px line (rule + highlight) starts at half of it. `top` is measured from the
      padding box, which the row's 1px bottom border sits outside, so half the space is exact.
-     12 + 12 here; the 1200px-and-below value is in the media rule after this one. */
-  top: calc(100% + 12px);
+     12 + 8 = 20 on full-size screens, so the line starts at 10; at 1200px and below (a 4px gap) the
+     media rule after this one puts it at 8. */
+  top: calc(100% + 10px);
   /* 0.22 -> 0.38. At 0.22 the dash was barely separable from the panel's own gradient; this
      is still well short of the row borders, so the rule divides without competing with the
      buttons it sits between. */
@@ -50537,8 +50539,8 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
 }
 
 /* HOME BOARD mirrors Home Page at the far end: its divider faces UP, into the section rows,
-   so the eight of them sit between two dividers as one group. Same 32px of clear space (20px
-   margin + the nav's 12px gap), rule centred at 16px. */
+   so the eight of them sit between two dividers as one group. Same clear space as under Home
+   Page (12px margin + the nav's gap), rule centred in it. */
 .md-acct-rail__row--board:not(.is-active) {
   margin-top: 12px;
   /* TWO LINES here, unlike every other row, so the height cap that keeps the section rows
@@ -50553,10 +50555,10 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   left: -10px;
   right: -10px;
   /* CENTRED in the space above Home Board (requested 2026-10-10, with Home Page's): this row's 12px
-     `margin-top` plus the nav's 12px gap. Half of 24, plus the 2px line, measured from inside the
-     row's 1px top border. It was -12px: 13px below the row above, 9px above this one. The 1200px-
-     and-below value (a 4px gap) is in the media rule right after this one. */
-  top: -14px;
+     `margin-top` plus the nav's 8px gap: half of 20, plus the 2px line, measured from inside the
+     row's 1px top border. The 1200px-and-below value (a 4px gap) is in the media rule right after
+     this one. */
+  top: -12px;
   border-top: 1px solid rgba($la-navy, 0.38);
   /* Same groove as the rule under Home Page. */
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
@@ -50659,20 +50661,19 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     padding-top: var(--dn-rail-pad-top-tall, 40px);
     gap: var(--dn-rail-gap-tall, 18px);
   }
-  /* THE EXPANDED MENU NEVER SPACES ITS ROWS MORE THAN 12px (requested 2026-10-10: "no more than
-     12px grid gap on the expanded menu"). `min()` keeps a smaller density value, such as Compressed
-     View's 6px; the collapsed icon menu keeps the gap above. */
+  /* THE EXPANDED MENU NEVER SPACES ITS ROWS MORE THAN 8px (requested 2026-10-10: "no more than
+     12px grid gap on the expanded menu"; 2026-10-11: 8px less, then 4px more, on full-size screens).
+     `min()` keeps a smaller value; the collapsed icon menu keeps its own 4px. */
   .md-acct-rail:not(.md-acct-rail--collapsed) {
-    gap: min(var(--dn-rail-gap-tall, 18px), 12px);
+    gap: min(var(--dn-rail-gap-tall, 18px), 8px);
     /* Home Page 12px higher, the room its divider takes (see "THE DIVIDER ON THE HOME PAGE TOO"),
        so the rows under it stay where they were. Only here: elsewhere the top padding is 10px. */
     padding-top: calc(var(--dn-rail-pad-top-tall, 40px) - 12px);
   }
 }
-/* 8px TIGHTER AT 1200px AND BELOW (requested 2026-10-10: "on 1200px and smaller, the acct rail nav
-   grid gap should be 8px smaller"): 12px -> 4px. Only the fallback changes, so Compressed View keeps
-   its own `--dn-rail-gap` (already 4px, which cannot go 8 lower). Below 901px the rows are in the
-   dropdown panel, which sets its own 4px gap, so this governs the side panel from 901 to 1200. */
+/* 4px AT 1200px AND BELOW (requested 2026-10-10: "on 1200px and smaller, the acct rail nav grid gap
+   should be 8px smaller"; full-size screens are 8px since 2026-10-11). Below 901px the rows are in
+   the dropdown panel, which sets its own 4px gap, so this governs the side panel from 901 to 1200. */
 @media (max-width: 1200px) {
   .md-acct-rail {
     gap: var(--dn-rail-gap, 4px);
