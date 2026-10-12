@@ -4793,7 +4793,11 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
   // run continuously from the icon to the arrow.
   flex-direction: row;
   align-items: stretch;
-  min-height: clamp(76px, 10vh, 104px);
+  // 20% TALLER (requested 2026-10-12, "on 1500px and smaller ... about 20% taller"): every term
+  // of the old clamp(76px, 10vh, 104px) times 1.2. Only the four Actions cards are affected: the
+  // Extras drawer tiles also use this mixin but set their own `min-height` (`.ch-grid--extras
+  // .ch-tile--silver` below).
+  min-height: clamp(91px, 12vh, 125px);
   padding: 10px 12px;
   // 0 so the information panel and the action zone meet with no seam.
   gap: 0;
