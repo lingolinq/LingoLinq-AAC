@@ -4454,6 +4454,52 @@ describe Organization, :type => :model do
       expect(u.reload.managing_organization_id).to be_nil
     end
 
+    # A failed attach puts the org_user link back as it was. A refresh that ran while the attach's
+    # link was in place granted this organization's home boards, so the restore must refresh too.
+    describe "restoring the link after a failed attach" do
+      def student_and_org_with_private_home_board
+        u = User.create
+        manager = User.create
+        board = Board.create(:user => manager)
+        org = Organization.create(:settings => {'total_licenses' => 1})
+        org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+        org.save
+        License.create!(organization: org, seat_type: 'student', status: 'active')
+        Worker.process_queues
+        [u, org, board]
+      end
+
+      # Runs the real attach, then a refresh while its link is in place, then `after`.
+      def refresh_during_attach(u, board, &after)
+        allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+          res = orig.call(*args)
+          User.find(u.id).update_available_boards
+          expect(User.find(u.id).private_viewable_board_ids).to include(board.global_id)
+          after ? after.call : res
+        end
+      end
+
+      it "removes the access when the attach raised" do
+        u, org, board = student_and_org_with_private_home_board
+        refresh_during_attach(u, board) { raise "attach failed" }
+
+        expect { org.claim_user(u) }.to raise_error("attach failed")
+        Worker.process_queues
+
+        expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
+      end
+
+      it "schedules a refresh when the attach did not complete" do
+        u, org, board = student_and_org_with_private_home_board
+        allow(u).to receive(:assert_current_record!).and_raise(ActiveRecord::StaleObjectError)
+        refresh_during_attach(u, board)
+
+        expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+
+        expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').where('act_at <= ?', Time.now).count).to eq(1)
+      end
+    end
+
     it "refreshes the student's available boards" do
       u = User.create
       org = Organization.create(:settings => {'total_licenses' => 1})

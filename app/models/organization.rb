@@ -57,6 +57,9 @@ class Organization < ApplicationRecord
       link.data['state'] = prior['state']
       link.save!
     end
+    # A refresh that ran while the failed attach's link was in place granted this organization's
+    # home boards (attached_orgs), so view access is recomputed for the restored link.
+    User.schedule_board_cache_refresh(user, true)
   end
 
   def can_manage_user?(user)
