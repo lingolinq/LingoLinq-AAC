@@ -2143,6 +2143,60 @@ describe Subscription, :type => :model do
       expect(res[:upcoming_emailed]).to eq(0)
     end
     
+    # Accounts inactive for 12 months are scheduled for deletion in batches. The batch is loaded
+    # before each account's turn (mail is sent for the accounts ahead of it), so the deletion
+    # decision and the save must use the account as it is when scheduled.
+    describe "scheduling inactive accounts for deletion" do
+      def inactive_account_on_final_warning
+        u = User.create
+        u.settings['subscription'] ||= {}
+        u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+        u.settings['subscription']['last_deletion_attempts'] = 2
+        u.save
+        User.where(id: u.id).update_all(updated_at: 13.months.ago)
+        u
+      end
+
+      # Runs the block when the account deletion mail goes out for `first`, before `second`'s turn.
+      def after_deletion_mail_for(first, &block)
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          block.call if message == :account_deleted && id == first.global_id
+        end
+      end
+
+      it "does not schedule an account marked never-delete after the batch was loaded" do
+        first = inactive_account_on_final_warning
+        second = inactive_account_on_final_warning
+        after_deletion_mail_for(first) do
+          other = User.find(second.id)
+          other.settings['preferences']['never_delete'] = true
+          other.save(touch: false)
+        end
+
+        User.check_for_subscription_updates
+
+        expect(User.find(first.id).schedule_deletion_at).not_to eq(nil)
+        expect(User.find(second.id).schedule_deletion_at).to eq(nil)
+        expect(User.find(second.id).settings['preferences']['never_delete']).to eq(true)
+      end
+
+      it "keeps settings saved after the batch was loaded when scheduling the deletion" do
+        first = inactive_account_on_final_warning
+        second = inactive_account_on_final_warning
+        after_deletion_mail_for(first) do
+          other = User.find(second.id)
+          other.settings['spec_quiet'] = 'touch false'
+          other.save(touch: false)
+        end
+
+        User.check_for_subscription_updates
+
+        stored = User.find(second.id)
+        expect(stored.schedule_deletion_at).not_to eq(nil)
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+      end
+    end
+
     it "should notify recently-created inactive users" do
       u1 = User.create
       b = Board.create(:user => u1, :public => true)

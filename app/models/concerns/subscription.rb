@@ -1238,8 +1238,17 @@ module Subscription
               attempts = (user.settings['subscription']['last_deletion_attempts'] || 0) + 1
             end
             if attempts > 2
-              user.schedule_deletion_at = 36.hours.from_now
-              user.save(touch: false)
+              # Decided and saved on a locked fresh copy (User#update_settings_locked): `user` was
+              # loaded with its batch, before mail went out for the accounts ahead of it, so the
+              # guards above may have read a stale never_delete, and saving it reverted settings
+              # saved meanwhile. The guards are re-read here.
+              scheduled = user.update_settings_locked(touch: false) do |fresh|
+                prefs = fresh.settings['preferences'] || {}
+                next false if prefs['never_delete']
+                next false if prefs['allow_log_reports'] && fresh.updated_at > 36.months.ago
+                fresh.schedule_deletion_at = 36.hours.from_now
+              end
+              next unless scheduled
               SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
             else
               SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
