@@ -5,7 +5,7 @@
            child of `.la-main` so _classic-home.scss can turn this one page's main into a row;
            Modern renders exactly as before. --}}
       {{#if this.isBasicView}}
-        <Dashboard::ClassicRail />
+        <Dashboard::ClassicRail @menuLabel={{t "System Settings" key="system_settings_title"}} />
       {{/if}}
       <div class="md-workspace md-workspace--support">
         <section class="la-section la-system-settings__section" aria-labelledby="system-settings-heading">

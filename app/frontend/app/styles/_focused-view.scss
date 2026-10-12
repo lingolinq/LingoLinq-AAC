@@ -4836,7 +4836,10 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
      original panel — a contrast mismatch rather than a revert. All of it moves together. */
   body.ll-layout-focused & {
     // --- identity -------------------------------------------------------------
-    .ch-rail__identity {
+    // The <=900px dropdown trigger (Dashboard::ClassicRailDropdown) stands for the same person, so it
+    // takes the same fill and ink (2026-10-12).
+    .ch-rail__identity,
+    .ch-rail__menu-trigger {
       background: linear-gradient(150deg, $ch-focused-identity-start 0%, $ch-focused-identity-end 100%);
       // Dark rim: at this lightness the block reads only 1.39:1 against the rail pane, so its
       // edge is what separates the two rather than luminance.
@@ -4858,13 +4861,15 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
       }
     }
 
-    .ch-rail__username { color: $ch-focused-ink-on-tint; }
+    .ch-rail__username,
+    .ch-rail__menu-name { color: $ch-focused-ink-on-tint; }
 
     // Gentle sets these with `opacity` rather than an alpha colour, so the overlay has to set
     // BOTH — recolouring alone would leave the inherited opacity multiplying it. Near-black
     // now that the wash is a mid-tone: the sub measures 5.3:1 at 0.85 and the arrow 4.00:1 at
     // 0.70, against the 3:1 WCAG 1.4.11 asks of a non-text affordance.
-    .ch-rail__identity-sub { color: $ch-focused-ink-on-tint; opacity: 0.85; }
+    .ch-rail__identity-sub,
+    .ch-rail__menu-sub { color: $ch-focused-ink-on-tint; opacity: 0.85; }
     .ch-rail__arrow        { color: $ch-focused-ink-on-tint; opacity: 0.70; }
   }
 

@@ -1,0 +1,12 @@
+{{!-- See classic-rail-dropdown.js. The trigger only shows at 900px and below (_classic-home.scss). --}}
+<button type="button" id={{this.triggerId}} class="ch-rail__menu-trigger" aria-expanded={{if this.open "true" "false"}} aria-controls={{this.rowsId}} {{on "click" this.toggle}}>
+  <img src={{@user.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} {{image-fallback-to-rel}} alt="" class="ch-rail__menu-avatar">
+  <span class="ch-rail__menu-text">
+    <span class="ch-rail__menu-name">{{@user.user_name}}</span>
+    <span class="ch-rail__menu-sub">{{#if @pageLabel}}{{t "%{page} Menu" key="page_menu" page=@pageLabel}}{{else}}{{t "Menu" key="menu"}}{{/if}}</span>
+  </span>
+  <svg class="ch-rail__menu-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div id={{this.rowsId}} class="ch-rail__rows {{if this.open "is-open"}}">
+  {{yield}}
+</div>

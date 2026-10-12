@@ -2935,6 +2935,7 @@
   "organizations": "Organizations",
   "rooms": "Rooms",
   "menu": "Menu",
+  "page_menu": "%{page} Menu",
   "loading_more_users": "Loading More Users...",
   "error_loading_more_users": "Failed to Load More Users",
   "link_copied": "Link copied to the clipboard!",
