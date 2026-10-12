@@ -88,6 +88,13 @@ everything else in this file.
     goes green, and merging with `--admin`. Stop, name the test and the verified reason it
     fails, and wait. Rewriting a test is legitimate only when the specification it
     encodes actually changed and the approval you were given says so.
+15. **Agents never add the `synthetic-data` label.** That label is a person's
+    statement that they looked at every changed data file and none of it is real. Agents
+    run under a person's GitHub account, so the `data-bearing-paths` check cannot tell
+    an agent from that person: never add the label (including `gh pr create --label` or
+    `gh pr edit --add-label`), never post a `data-bearing-approval/*` status, and never
+    ask for either to be done on your behalf. When a PR needs it, say so and let the
+    reviewer add it after reading the data.
 
 ## Branching (mandatory before any code change)
 
@@ -213,6 +220,19 @@ wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
 Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
+A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
+or the check's own files fails the `data-bearing-paths/<base>` status until a reviewer with
+write access confirms every changed data file is synthetic (and has looked at any workflow
+change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
+approval as a commit status on the current head commit for that base, and the label is
+removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
+changes that never went through `develop`; a merge commit counts only for what it adds
+beyond its parents, so a release merge of `develop` does not trip again. The author may
+approve their own PR, and anyone with write access can get past the check deliberately (it
+guards against mistakes and fork PRs). This repo is public: never push real user data,
+since a pushed branch is published whether or not it merges.
 
 ## Audit and compliance system
 
