@@ -679,6 +679,20 @@ describe BoardCaching, :type => :model do
       # updated_at is both the inactivity sweep's activity signal (subscription.rb, 12 months) and
       # part of every cached permission key (permissable cache_key), so the refresh moves it only
       # when access actually changed.
+      # The refresh rebuilds the shared-board list (forced) and then moved boards_updated_at, the
+      # stamp that list is checked against, so the next plain read rebuilt it again (links walk,
+      # row lock, write). A refresh that changes nothing now leaves the stamp alone.
+      it "leaves a shared-board list that the next read uses without rebuilding" do
+        u, b = shared_board_user
+        u.update_available_boards
+        User.find(u.id).update_available_boards
+        expect(User.find(u.id).private_viewable_board_ids).to eq([b.global_id])
+
+        expect(UserLink).not_to receive(:links_for)
+        expect(Board.all_shared_board_ids_for(User.find(u.id))).to eq([b.global_id])
+        expect(Board.all_shared_board_ids_for(User.find(u.id), true)).to eq([])
+      end
+
       it "leaves updated_at alone when the lists did not change" do
         u, b = shared_board_user
         u.update_available_boards

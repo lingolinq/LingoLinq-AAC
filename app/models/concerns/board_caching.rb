@@ -98,7 +98,10 @@ module BoardCaching
     Board.regenerate_shared_board_ids([self.global_id])
     # save those lists
     store_available_board_ids({'view' => view_ids, 'edit' => edit_ids, 'generated' => Time.now.to_i},
-      boards_updated_at: Time.now, stale_after: self.updated_at,
+      # boards_updated_at is the stamp the shared-board lists are checked against (sharing.rb
+      # boards_updated_stamp). The forced rebuild above just stored them with the current stamp,
+      # so moving it when nothing changed made the very next read rebuild them again.
+      boards_updated_at: (lists_changed ? Time.now : nil), stale_after: self.updated_at,
       save_method: (lists_changed ? :save_with_sync : nil), save_args: (lists_changed ? ['board_list_changed'] : []),
       # updated_at moves only when access changed: it keys every cached permission (permissable
       # cache_key), which must not be reused after a change, and it is also the inactivity sweep's
