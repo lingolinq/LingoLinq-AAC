@@ -116,17 +116,17 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
    */
   test('Focused View lists sections in the order the page renders them', function(assert) {
     assert.expect(2);
-    // Edit Dashboard shares the utility row with Create a Board near the TOP of the page, so
-    // it comes before Attention and Rooms. Ranking by SUPERVISOR_DEFAULT_ORDER put it last.
+    // Updated 2026-10-12 (approved): Create a Board and Edit Dashboard are retired. Create a Board
+    // anchored the utility row near the top; now Extras alone does, at its own (last) order slot.
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'focused').map(function(s) { return s.key; }),
-      ['caseload', 'createboard', 'extras', 'attention', 'rooms'],
+      ['caseload', 'attention', 'rooms', 'extras'],
       'the collapsed utility row is listed at its rendered position'
     );
     // The org caseload+speak PAIR is emitted as the bottom row, after the utility row.
     assert.deepEqual(
       sectionsForLayout(SHAPES['an org manager who also supervises'], 'focused').map(function(s) { return s.key; }),
-      ['org', 'createboard', 'extras', 'caseload', 'speak'],
+      ['org', 'extras', 'caseload', 'speak'],
       'the bottom pair row is listed last'
     );
   });
@@ -138,17 +138,18 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
    * These expectations are updated to the NEW specification, not relaxed to accommodate the
    * change: they are still exact `deepEqual`s on the full reading order, and the supervisor
    * case still pins every other key's relative position. */
-  test('Gentle View reads in its default order, with Edit Dashboard beside Create a Board', function(assert) {
+  // Updated 2026-10-12 (approved): Create a Board and Edit Dashboard are retired from the home grid.
+  test('Gentle View reads in its default order', function(assert) {
     assert.expect(2);
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'gentle').map(function(s) { return s.key; }),
-      ['caseload', 'createboard', 'editdashboard', 'attention', 'rooms', 'speak', 'extras'],
-      'Gentle reads in its default order, Edit Dashboard now paired with Create a Board'
+      ['caseload', 'attention', 'rooms', 'speak', 'extras'],
+      'Gentle reads in its default order'
     );
     assert.deepEqual(
       sectionsForLayout(SHAPES['a communicator'], 'gentle').map(function(s) { return s.key; }),
       // `extras` moved up beside `speak` (extrasBesideSpeak, 2026-10-09 request).
-      ['speak', 'extras', 'boards', 'createboard', 'editdashboard'],
+      ['speak', 'extras', 'boards'],
       'and for a communicator'
     );
   });
@@ -158,7 +159,9 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
    * pair, a communicator with Account visible packed `account createboard` and then
    * `editdashboard reports`, and the two cards the request is about never shared a row.
    * This pins the row itself rather than the order, which is the thing that was asked for. */
-  test('Create a Board and Edit Dashboard share a row whatever else is visible', function(assert) {
+  // Rewritten 2026-10-12 (approved): the pair this pinned was retired, so it now pins that neither
+  // card is placed in any row, for the same three users.
+  test('Create a Board and Edit Dashboard are in no row, whatever else is visible', function(assert) {
     var cases = [
       ['a supervisor with rooms and attention', SHAPES['a supervisor with rooms and attention']],
       ['a communicator', SHAPES['a communicator']],
@@ -171,9 +174,8 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
       availableHomeSections(pair[1]).forEach(function(s) { vis[s.key] = true; });
       var state = gridLayoutState(vis, null, 'gentle');
       var areas = (state && state.areas) || [];
-      var row = areas.filter(function(r) { return r.indexOf('createboard') !== -1; })[0] || '';
-      assert.strictEqual(row, 'createboard editdashboard',
-        pair[0] + ': Create a Board shares its row with Edit Dashboard');
+      var placed = areas.filter(function(r) { return /\b(createboard|editdashboard)\b/.test(r); });
+      assert.deepEqual(placed, [], pair[0] + ': neither card is placed');
     });
   });
 

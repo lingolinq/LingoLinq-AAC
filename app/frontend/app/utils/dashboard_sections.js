@@ -60,9 +60,14 @@ var HOME_SECTIONS = [
   // and, for communicators, the far-right nav pill; Reports is in that same rail and in the
   // Extras card list (`extrasItems`, dashboard/authenticated-view.js).
   { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return false; } },
-  { key: 'createboard', cardClass: 'md-card--create-board', labelKey: 'create_a_board',   labelDefault: "Create a Board",   available: function() { return true; } },
+  // CREATE A BOARD AND EDIT DASHBOARD RETIRED 2026-10-12, the same way (requested: "remove create
+  // board button from the home page (not the one on the boards div), and remove edit dashboard ->
+  // these should also be removed from the possibilities for shown items on the display design").
+  // Creating a board stays one tap away on the Boards card's "+ Create"; Display Design stays on the
+  // navbar's Display Style button.
+  { key: 'createboard', cardClass: 'md-card--create-board', labelKey: 'create_a_board',   labelDefault: "Create a Board",   available: function() { return false; } },
   { key: 'reports',  cardClass: 'md-card--reports',        labelKey: 'reports',          labelDefault: "Reports",          available: function() { return false; } },
-  { key: 'editdashboard', cardClass: 'md-card--edit-dashboard', labelKey: 'edit_dashboard', labelDefault: "Edit Dashboard", available: function() { return true; } }
+  { key: 'editdashboard', cardClass: 'md-card--edit-dashboard', labelKey: 'edit_dashboard', labelDefault: "Edit Dashboard", available: function() { return false; } }
 ];
 
 // Toggleable home elements that are NOT placed by the grid engine — they render
@@ -586,13 +591,15 @@ function focusedLayout(vis, order, heroKey) {
   var keys = orderedVisible(rest, order, heroFirst(base, heroKey));
   var a = function(k) { return AREA[k]; };
   var actionKeys = keys.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
-  var cols = Math.max(1, actionKeys.length);
+  /* The pair needs an EVEN column count to split down the middle. With an odd count of visible
+     utility cards (since 2026-10-12, Extras alone: Create a Board and Edit Dashboard retired) the
+     grid DOUBLES its columns and each utility card spans two, so the pair still halves. It used to
+     be abandoned instead, which stacked Caseload and Speak as full-width rows. */
+  var utilityCount = Math.max(1, actionKeys.length);
+  var span = (orgPair && utilityCount % 2 !== 0) ? 2 : 1;
+  var cols = utilityCount * span;
   var fullN = function(name) { var r = []; for (var i = 0; i < cols; i++) { r.push(name); } return r.join(' '); };
-  /* The pair needs an EVEN column count to split down the middle. `cols` is the visible
-     utility-card count, so an odd number (1 or 3 hidden cards) cannot halve — in that case
-     the pair is abandoned and both cards keep their normal full-width rows rather than
-     emitting a lopsided or invalid areas string. */
-  var pairKeys = (orgPair && cols % 2 === 0) ? ['caseload', 'speak'] : null;
+  var pairKeys = orgPair ? ['caseload', 'speak'] : null;
   var halfRow = function() {
     var r = [], half = cols / 2, i;
     for (i = 0; i < half; i++) { r.push(a('caseload')); }
@@ -606,7 +613,7 @@ function focusedLayout(vis, order, heroKey) {
     if (pairKeys && pairKeys.indexOf(k) !== -1) { return; }
     if (FOCUSED_ACTION_KEYS.indexOf(k) !== -1) {
       // All utility cards collapse into ONE row, emitted where the first one sits.
-      if (!actionEmitted) { rowsOut.push(actionKeys.map(a).join(' ')); actionEmitted = true; }
+      if (!actionEmitted) { rowsOut.push(actionKeys.map(function(ak) { return span === 2 ? a(ak) + ' ' + a(ak) : a(ak); }).join(' ')); actionEmitted = true; }
     } else {
       // Full-width cards (Speak hero, Boards, Caseload/Org) — each at its order slot.
       rowsOut.push(fullN(a(k)));
