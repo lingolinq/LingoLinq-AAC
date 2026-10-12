@@ -210,4 +210,18 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.true(await boardRevocation.is_revoked('1_8'), 'local fallback (5xx, offline, 401, bad token): kept');
     assert.true(await boardRevocation.is_revoked('1_9'), 'a soft reload may be the local copy: kept');
   });
+
+  test('with the server switch off, a real denial keeps the local copy and a marked board is not blocked offline', async function(assert) {
+    storedBoard(this.db, '1_7');
+    await boardRevocation.apply_revocations(['1_7']);
+    boardRevocation.set_revocation_enabled(false);
+    var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
+    var route = boardRoute(this, '1_1', board);
+    assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'offline: the copy is shown');
+    LingoLinq.session = EmberObject.create({as_user_id: null});
+    var index = indexRoute(this, {supervisees: []});
+    var model = localModel();
+    assert.strictEqual(await index.local_reload_unless_denied(model, denied), model, 'online denial: the local copy is kept');
+    assert.deepEqual(model.reloads, [false]);
+  });
 });

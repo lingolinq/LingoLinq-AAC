@@ -231,6 +231,46 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.notOk(this.db.board['1_3'].raw.revoked);
   });
 
+  test('the server switch: revocation_enabled false makes marks inert and keeps the local fallback, until a response turns it back on', async function(assert) {
+    addBoard(this.db, '1_2');
+    addBoard(this.db, '1_3');
+    await boardRevocation.apply_revocations(['1_2']);
+    assert.true(await boardRevocation.is_revoked('1_2'), 'control: marked');
+    var denied = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', unauthorized: true, permission: 'view'}}};
+    var realSession = LingoLinq.session;
+    LingoLinq.session = EmberObject.create({as_user_id: null});
+    var appState = EmberObject.create({sessionUser: {supervisees: []}, currentBoardState: {id: '1_1'}});
+    var board = EmberObject.create({id: '1_2', key: 'owner/1_2'});
+    var switched = function(revisions, revoked, enabled) {
+      return function() { return RSVP.resolve({revisions: revisions, revoked_ids: revoked, revocation_enabled: enabled}); };
+    };
+    assert.true(boardRevocation.revocation_enabled(), 'enabled by default');
+    assert.true(boardRevocation.route_refuses_local(denied, appState), 'control: a real denial refuses the local copy');
+
+    var persist = persistFor('u1');
+    await boardRevocation.fetch_revisions(persist, user('u1'), switched({}, [], false));
+    assert.false(boardRevocation.revocation_enabled(), 'turned off by the server');
+    assert.false(boardRevocation.route_refuses_local(denied, appState), 'off: the local copy is kept on a denial');
+    assert.false(await boardRevocation.is_revoked('1_2'), 'off: the mark is ignored');
+    assert.false(boardRevocation.is_revoked_raw({revoked: true}), 'off: lists keep it');
+    assert.deepEqual(await boardRevocation.without_revoked(['1_2']), ['1_2']);
+    assert.false(await boardRevocation.blocks_route(board, appState, false), 'off: not blocked offline');
+    assert.strictEqual(boardRevocation.settled_revocations({revocation: {root: 'u1', expected: ['u1'], users: {u1: {revoked: ['1_3'], lookup: {'1_3': true}}}}}, 'u1', []), null, 'off: nothing settles');
+    persist.get('sync_progress').revocation.users.u1 = {revoked: ['1_3'], lookup: {'1_3': true}};
+    assert.false(boardRevocation.skip_board(persist, 'u1', {id: '1_3'}), 'off: the sync does not skip');
+    await boardRevocation.apply_revocations(['1_3']);
+    assert.notOk(this.db.board['1_3'].raw.revoked, 'off: no new marks');
+
+    await boardRevocation.fetch_revisions(persistFor('u1'), user('u1'), function() { return RSVP.resolve({'1_1': 'r'}); });
+    assert.false(boardRevocation.revocation_enabled(), 'a flat response from an older server leaves it off');
+
+    await boardRevocation.fetch_revisions(persistFor('u1'), user('u1'), switched({}, ['1_2'], true));
+    assert.true(boardRevocation.revocation_enabled(), 'turned back on');
+    assert.true(await boardRevocation.is_revoked('1_2'), 'the kept mark applies again');
+    assert.true(boardRevocation.route_refuses_local(denied, appState));
+    LingoLinq.session = realSession;
+  });
+
   test('real_denial recognises only a real view refusal', function(assert) {
     assert.expect(10);
     var body = {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400};

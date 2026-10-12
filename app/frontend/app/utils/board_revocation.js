@@ -52,6 +52,31 @@ function in_speak_mode() {
   }
 }
 
+// Server kill switch (BOARD_REVOCATION_DISABLED): a wrapped board_revisions
+// response carries revocation_enabled. While it is false, marks are ignored
+// (kept, not applied, not used to hide or block anything) and the board route
+// keeps its local-copy fallback on a denial. Persisted per device; on by
+// default; a flat response from an older server leaves it unchanged.
+var DISABLED_KEY = 'll_board_revocation_disabled';
+export function revocation_enabled() {
+  try {
+    return !(window.localStorage && window.localStorage.getItem(DISABLED_KEY) === '1');
+  } catch(e) {
+    return true;
+  }
+}
+
+export function set_revocation_enabled(enabled) {
+  try {
+    if(!window.localStorage) { return; }
+    if(enabled) {
+      window.localStorage.removeItem(DISABLED_KEY);
+    } else {
+      window.localStorage.setItem(DISABLED_KEY, '1');
+    }
+  } catch(e) { }
+}
+
 function global_board_id(id) {
   return !!(id && typeof id === 'string' && id.match(/^\d+_\d+/));
 }
@@ -60,9 +85,9 @@ function global_board_id(id) {
 // map. revoked_ids is null when the response did not carry a revoked list.
 export function parse_revisions_response(res) {
   if(res && typeof res === 'object' && res.revisions && typeof res.revisions === 'object' && Array.isArray(res.revoked_ids)) {
-    return {revisions: res.revisions, revoked_ids: res.revoked_ids.filter(global_board_id)};
+    return {revisions: res.revisions, revoked_ids: res.revoked_ids.filter(global_board_id), enabled: res.revocation_enabled !== false};
   }
-  return {revisions: res, revoked_ids: null};
+  return {revisions: res, revoked_ids: null, enabled: null};
 }
 
 // Storage calls can come back as a plain thenable (capabilities' mini_promise, as the
@@ -128,6 +153,7 @@ export function fetch_revisions(persist, user, request) {
   return prep.then(function(local) {
     return request({type: 'GET', data: {include_revoked: '1'}}).then(function(res) {
       var parsed = parse_revisions_response(res);
+      if(parsed.enabled !== null) { set_revocation_enabled(parsed.enabled); }
       // Only the wrapped response comes from a server that checks permissions, so
       // only it is evidence that a listed board is viewable.
       var cleared = (parsed.revoked_ids && local && local.list) ? clear_viewable(local.list, parsed.revisions) : RSVP.resolve(false);
@@ -163,7 +189,7 @@ var ROOT_SOURCES = {'home board': true, 'sidebar board': true};
 export function skip_board(persist, user_id, next) {
   var state = state_for(persist);
   var entry = state && state.users[user_id];
-  if(!entry || !next) { return false; }
+  if(!entry || !next || !revocation_enabled()) { return false; }
   if(ROOT_SOURCES[next.visit_source]) { return false; }
   return !!((next.id && entry.lookup[next.id]) || (next.key && entry.lookup[next.key]));
 }
@@ -178,6 +204,7 @@ export function note_failure(persist) {
 // qualify (anything short of a full, error-free sync of every synced user).
 export function settled_revocations(progress, root_user_id, errors) {
   var state = progress && progress.revocation;
+  if(!revocation_enabled()) { return null; }
   if(!state || state.failed || progress.canceled || (errors && errors.length > 0)) { return null; }
   if(!state.root || state.root != root_user_id || !state.expected || state.expected.length === 0) { return null; }
   var lists = [];
@@ -245,6 +272,7 @@ export function clear_mark(id) {
 // are marked (deferred while Speak Mode is on), every other marked board is
 // cleared.
 export function apply_revocations(revoked_ids) {
+  if(!revocation_enabled()) { return RSVP.resolve(null); }
   var lookup = {};
   (revoked_ids || []).forEach(function(id) { lookup[id] = true; });
   return RSVP.all([local_boards(), load_index()]).then(function(res) {
@@ -298,6 +326,7 @@ export function has_deferred() {
 
 // Applies marks held back while Speak Mode was on.
 export function flush_deferred() {
+  if(!revocation_enabled()) { deferred_marks = null; }
   if(!has_deferred() || in_speak_mode()) { return RSVP.resolve(false); }
   var ids = deferred_marks;
   deferred_marks = null;
@@ -317,13 +346,13 @@ export function flush_deferred() {
 }
 
 export function is_revoked_raw(raw) {
-  return !!(raw && raw.revoked);
+  return !!(raw && raw.revoked) && revocation_enabled();
 }
 
 // Whether a locally stored board carries the mark. The index keeps this cheap:
 // only a board listed there costs a record read.
 export function is_revoked(id) {
-  if(!global_board_id(id)) { return RSVP.resolve(false); }
+  if(!global_board_id(id) || !revocation_enabled()) { return RSVP.resolve(false); }
   return load_index().then(function(index) {
     if(!index[id]) { return false; }
     return stored(lingoLinqExtras.storage.find('board', id)).then(function(rec) {
@@ -411,7 +440,7 @@ export function real_denial(err) {
 // supervisees (a supervisee might still be able to view the board). Anything
 // less certain keeps today's fallback to the local copy.
 export function route_refuses_local(err, appState) {
-  if(!real_denial(err)) { return false; }
+  if(!revocation_enabled() || !real_denial(err)) { return false; }
   // Speak Mode keeps the local copy, as before: the communicator keeps a voice.
   if(appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
   var as_user = LingoLinq.session && typeof LingoLinq.session.get === 'function' && LingoLinq.session.get('as_user_id');
@@ -425,6 +454,7 @@ export function route_refuses_local(err, appState) {
 export function reset_for_tests() {
   deferred_marks = null;
   index_promise = null;
+  set_revocation_enabled(true);
 }
 
 export default {
@@ -438,6 +468,8 @@ export default {
   has_deferred: has_deferred,
   flush_deferred: flush_deferred,
   is_revoked_raw: is_revoked_raw,
+  revocation_enabled: revocation_enabled,
+  set_revocation_enabled: set_revocation_enabled,
   is_revoked: is_revoked,
   without_revoked: without_revoked,
   blocks_route: blocks_route,
