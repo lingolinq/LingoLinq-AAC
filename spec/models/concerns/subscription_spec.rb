@@ -2186,6 +2186,36 @@ describe Subscription, :type => :model do
         kept.each { |k| expect(User.find(k.id).schedule_deletion_at).to eq(nil) }
       end
 
+      # Expired trials are swept sooner (4 weeks inactive) from their own bounded window, which
+      # exempt accounts must not fill either.
+      it "reaches a deletable expired trial behind more never-delete expired trials than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_TRIAL_WINDOW', 2)
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 2)
+        expired_trial = lambda do |age, &setup|
+          u = User.create
+          u.settings['subscription'] ||= {}
+          setup.call(u) if setup
+          u.save
+          # not on the hour: the query skips rows truncated to the hour (accounts already set aside)
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: age.ago.change(min: 7, sec: 13))
+          expect(User.find(u.id).billing_state).to eq(:expired_communicator)
+          u
+        end
+        kept = 3.times.map do |i|
+          expired_trial.call((3 + i).months) { |u| u.settings['preferences']['never_delete'] = true }
+        end
+        target = expired_trial.call(2.months) do |u|
+          u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = 2
+        end
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        kept.each { |k| expect(User.find(k.id).schedule_deletion_at).to eq(nil) }
+      end
+
       it "does not schedule an account marked never-delete after the batch was loaded" do
         first = inactive_account_on_final_warning
         second = inactive_account_on_final_warning

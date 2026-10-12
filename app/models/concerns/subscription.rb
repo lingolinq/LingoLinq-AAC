@@ -1090,6 +1090,7 @@ module Subscription
   # How many inactive accounts one sweep acts on (check_for_subscription_updates), and how many
   # rows it may read to find them.
   INACTIVITY_SWEEP_WINDOW = 500
+  INACTIVITY_SWEEP_TRIAL_WINDOW = 200
   INACTIVITY_SWEEP_SCAN_LIMIT = 10_000
   INACTIVITY_SWEEP_PAGE = 100
 
@@ -1101,25 +1102,26 @@ module Subscription
   end
 
   module ClassMethods  
-    # Ids of up to INACTIVITY_SWEEP_WINDOW accounts inactive since cutoff, oldest first, leaving
-    # out exempt ones. A plain order(updated_at).limit(500) let 500 exempt accounts fill the window
-    # on every run, so nobody behind them was ever reached. Exempt rows are walked past by
-    # (updated_at, id) rather than restamped: updated_at keys cached permissions and is the
-    # 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows a run.
-    def inactive_deletion_candidate_ids(cutoff)
+    # Ids of up to `window` accounts in `scope`, oldest updated_at first, that the block (default:
+    # not exempt) accepts. A plain order(updated_at).limit(window) let accounts the sweep always
+    # skips fill the window on every run, so nobody behind them was ever reached. Skipped rows are
+    # walked past by (updated_at, id) rather than restamped: updated_at keys cached permissions
+    # and is the 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows.
+    def inactive_deletion_candidate_ids(scope, window, &accept)
+      accept ||= lambda{|u| !u.inactivity_deletion_exempt? }
       ids = []
       scanned = 0
       last = nil
-      while ids.length < INACTIVITY_SWEEP_WINDOW && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
-        scope = User.where(['updated_at < ?', cutoff]).order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
-        scope = scope.where('(updated_at, id) > (?, ?)', last.updated_at, last.id) if last
-        batch = scope.to_a
+      while ids.length < window && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
+        page = scope.order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
+        page = page.where('(updated_at, id) > (?, ?)', last.updated_at, last.id) if last
+        batch = page.to_a
         break if batch.empty?
-        batch.each{|u| ids << u.id unless u.inactivity_deletion_exempt? }
+        batch.each{|u| ids << u.id if accept.call(u) }
         scanned += batch.length
         last = batch[-1]
       end
-      ids.first(INACTIVITY_SWEEP_WINDOW)
+      ids.first(window)
     end
 
     def check_for_subscription_updates
@@ -1220,14 +1222,15 @@ module Subscription
 
       # send out a two and one-month warning when account is 
       # going to be deleted for inactivity (after 12 months of non-use)
-      to_be_deleted_ids = inactive_deletion_candidate_ids(12.months.ago)
+      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), INACTIVITY_SWEEP_WINDOW)
       non_expired_ids = []
       # if users are on an expired free trial, we can delete them much sooner
-      trial_to_be_deleted_ids = []
-      User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago]).order('updated_at ASC').limit(200).select do |u|
+      # Accounts that are not expired communicators are set aside (hour-truncated below, which the
+      # query excludes); exempt expired trials are walked past.
+      trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago])
+      trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW) do |u|
         if u.billing_state == :expired_communicator
-          trial_to_be_deleted_ids << u.id
-          true
+          !u.inactivity_deletion_exempt?
         else
           non_expired_ids << u.id
           false
