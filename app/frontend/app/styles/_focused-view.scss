@@ -3660,11 +3660,13 @@ body.ll-layout-focused .md-acct-rail__row:focus-visible {
 //
 // (0,2,1) against the base rule's (0,1,0), and the base carries NO `!important`, so specificity
 // alone decides — which it must, since @use emits this file far above app.scss.
+//
+// BRAND SLATE GRAY SINCE 2026-10-12 (requested: "modern focused side menu, make the bg behind the
+// menu our brand slate gray"), replacing the darkened translucent gradient described above. Solid,
+// so the menu reads as its own panel. Every row on it is a light card with its own dark ink, so no
+// text sits directly on the slate.
 body.ll-layout-focused .md-acct-rail {
-  background:
-    linear-gradient(160deg,
-      rgba(color.scale(rgb(255, 255, 255), $lightness: -10%), 0.55) 0%,
-      rgba(color.scale($la-navy, $lightness: -10%), 0.05) 100%);
+  background: $brand-slate-gray;
 }
 
 // SILVER RING ON THE ATTENTION AVATARS (requested 2026-09-20). Each communicator's avatar in
