@@ -1012,7 +1012,7 @@ export default Controller.extend({
           if(option == 'starting') {
             board = _this.stashes.get('root_board_state') || _this.get('board').get('model');
           }
-          var board_user_name = emberGet(board, 'key').split(/\//)[1];
+          var board_user_name = emberGet(board, 'key').split(/\//)[0]; // the OWNER is before the slash (was [1], the slug, 2018-2026)
           var preferred_symbols = user.get('preferences.preferred_symbols') || 'original';
           var needs_confirmation = user.get('supervisees') || preferred_symbols != 'original' || board_user_name != user.get('user_name');
           var done = function(sync) {
@@ -1032,7 +1032,7 @@ export default Controller.extend({
             } else {
               if(_this.get('setup_footer')) {
                 _this.send('setup_go', 'forward');
-              }          
+              } else if(sync) { modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true); } // saved; auto-sync off or offline: still say so
             }
           }
           if(needs_confirmation && !option) {
