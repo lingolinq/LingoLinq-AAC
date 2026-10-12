@@ -25,6 +25,13 @@ class SupervisorConsentService
     { relationship: relationship, communicator: communicator }
   end
 
+  # organization_id is an integer column, while callers and attached_orgs supply global ids
+  # ("1_123"); Rails cast those to 1123, a different (or no) organization. Store the database id.
+  def relationship_organization_id(org_global_id)
+    return nil if org_global_id.blank?
+    Organization.find_by_global_id(org_global_id.to_s)&.id
+  end
+
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
     # F1: Anti-timing side-channel.
     if lookup_key.blank?
@@ -65,7 +72,7 @@ class SupervisorConsentService
           initiated_by: 'supervisor',
           creation_method: 'request_access',
           lookup_method: lookup_key.include?('@') ? 'email' : 'username',
-          organization_id: organization_id || (comm_orgs & sup_orgs).first
+          organization_id: relationship_organization_id(organization_id || (comm_orgs & sup_orgs).first)
         )
 
         # F10: COPPA - Route to parent/guardian if under 13

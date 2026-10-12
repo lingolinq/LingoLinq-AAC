@@ -107,6 +107,29 @@ describe SupervisorConsentService, :type => :model do
       expect(SupervisorRelationship.count).to eq(0)
     end
 
+    # organization_id is an integer column; a global id ("1_123") was cast by Rails to 1123.
+    it "stores the shared organization's database id, not its global id" do
+      o = Organization.create
+      supervisor = User.create
+      communicator = User.create
+      o.add_supervisor(supervisor.user_name, false)
+      o.add_user(communicator.user_name, false, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name)
+      rel = SupervisorRelationship.last
+      expect(rel.organization_id).to eq(o.id)
+      expect(rel.organization).to eq(o)
+    end
+
+    it "stores the database id of an organization passed by global id" do
+      o = Organization.create
+      supervisor = User.create
+      communicator = User.create
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: supervisor, lookup_key: communicator.user_name, organization_id: o.global_id)
+      expect(SupervisorRelationship.last.organization_id).to eq(o.id)
+    end
+
     it "should not create duplicate pending relationship" do
       supervisor = User.create
       communicator = User.create
