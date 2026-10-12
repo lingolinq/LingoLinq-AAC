@@ -152,10 +152,11 @@ new); `lint:js:ci` 0 new findings; template lint clean; the live idle-session fl
 
 ### Kept as requested, with the trade-off recorded
 - **The force-logout dialog stays uncloseable** (requested 2026-10-09: up until the user acts). Its
-  exits now all work (sign in, Log Out, and the three links). Trade-off: a communicator who does not
-  know the password cannot get back to speak mode without an adult; "basic access" is hidden inside
-  the dialog (`{{#unless this.force_logout}}`, unchanged from `develop`). Recommendation for Scot:
-  show "basic access" in the dialog where the `emergency_boards` flag is on.
+  exits now all work (sign in, Log Out, the three links, and "basic access"). The trade-off was that
+  a communicator who does not know the password could not get back to speaking without an adult:
+  "basic access" was hidden in the dialog on `develop`. Decided 2026-10-11 (Traci): the dialog now
+  offers it where the `emergency_boards` flag is on (`login-form#showBasicAccess`; `offline_boards`
+  closes the dialog). Tests: login-form-basic-access-test (3), app_state-test +1; checked live.
 - **The rail's Up/Down pager stays removed** (requested 2026-10-10). Measured: the rail scrolls
   (`overflow-y: auto`); wheel and keyboard focus reach the last row at 1024x768, 1280x720 and
   1024x600. The collapsed rail overflows by 89px at 1024x768 and 257px at 1024x600, so a pointer
@@ -168,10 +169,12 @@ new); `lint:js:ci` 0 new findings; template lint clean; the live idle-session fl
   refactor with live measurement at every breakpoint; it belongs in its own PR.
 - The Reload marker (`utils/reload_intent.js`) is matched by URL and never consumed, so a later
   sign-in's `location.reload()` on the same URL is not treated as a launch (speak mode not opened).
-- ~~Two tabs on one account clearing each other's sign-in~~ fixed 2026-10-11 (second review, item 9).
+- Two tabs on one account: a dead tab's teardown no longer clears another tab's new sign-in
+  (second review, item 9), but its Log Out still does: `invalidate` flushes every stored login, as
+  on develop (logging out is device-wide). Not changed here.
 - No unit test drives the extras.js failure branch itself (400 with `invalid_token` ->
   `force_logout`, speak-mode guard, de-dupe); it is covered by the live probes only.
-- Rewritten tests marked "approved 2026-10-10" for Scot to confirm: dashboard-sections-test.js,
+- Tests rewritten with Traci's approval (2026-10-10), listed for the PR reviewer: dashboard-sections-test.js,
   dashboard-sections-layout-test.js, dashboard-grid-placement-test.js,
   account-rail-collapse-test.js, classic-view-extras-landing-test.js,
   tours-classic-home-tab-test.js, and spec/spec_helper.rb (TZ=UTC).
@@ -186,14 +189,14 @@ removal; home, rail and View menu; the four fix commits). Still a substitute: th
 | # | Finding | Severity | Status |
 |---|---|---|---|
 | 1 | The dialog's `login` exit never matches: `login` has a child route, so the real transition is `login.index` (router.js:66-68, routes/application.js:126-137). The test passed a synthetic `'login'`. | Medium, regression | **Fixed**: `/^login(\.|$)/`; app_state-test +2 (`login.index`, `login.device`) |
-| 2 | Making key-only tiles clickable (`opens_by_key`) also made their nested Preview buttons clickable; with no record, `board_preview(undefined)` throws at `board.preview_option` (board-icon.js:317). Full-size Boards card and the style-variant picker. | Medium, regression from 9ab036c05 | **Fixed**: the two Preview buttons render only with a record; rendering test board-icon-key-only-test.js (also pins the wrapper's real aria-label) |
+| 2 | Making key-only tiles clickable (`opens_by_key`) also made their nested Preview buttons clickable; with no record, `board_preview(undefined)` throws at `board.preview_option` (board-icon.js:318). Full-size Boards card and the style-variant picker. | Medium, regression from 9ab036c05 | **Fixed**: the two Preview buttons render only with a record; rendering test board-icon-key-only-test.js (also pins the wrapper's real aria-label) |
 | 3 | SPA logout path never clears `invalid_token`, so `logout_under_way()` stays true until sign-in and routes/user.js swallows `/:user` errors for the signed-out visitor. Only with `auth_spa_transition` on. | Low, regression | **Fixed**: routes/user.js holds errors back only while the force-logout dialog is open; user-error-action-test +1, and the existing case's dialog-open precondition made explicit (approved 2026-10-11) |
 | 4 | Crisis as a user's HOME board moves from first to last (preview-boards.js treats any list entry with the Crisis key as "own"). | Low, regression from 9ab036c05 | **Fixed**: as the home board, Crisis stays first, flagged; preview-boards-test +1 |
 | 5 | A stale `check_token` response still sets `invalid_token` on a freshly re-signed-in session: `_token_still_stored` gates only `force_logout`, not the flag writes above it. | Low, pre-existing (improved) | **Fixed**: a stale answer (token no longer this tab's) is ignored before any flag write (`_checked_token_is_current` in check_token's response guards); session-test +1 |
 | 6 | Backfill race: `find_each` then `save!` of the whole encrypted settings blob, no reload, no lock; a concurrent settings write by that user is undone. Fix: `user.with_lock`. | Low-Medium; recommended before the staging/production run | **Fixed**: `user.with_lock`, removing the key from the re-read settings; task spec +1 (a change saved after the batch load survives) |
 | 7 | Gentle: with Speak Mode hidden, Extras moves to the TOP (`extrasBesideSpeak` runs on the full default order before visibility filtering; its comment says "only when BOTH are visible"). | Low, regression from 2026-10-09 | **Fixed**: `extrasBesideSpeak` takes `vis` on the live grid; dashboard-sections-test +1 |
 | 8 | Rail dropdown trigger at <=900px is named after the current page ("Home Page" even on Boards), not "Account menu"; `aria-haspopup="true"` on a list of links. | Low | **Fixed**: `menuTriggerLabel` ("<visible label>, Account menu"); `aria-haspopup` dropped (a disclosure, not a menu); account-rail-trigger-label-test |
-| 9 | Boot-time `check_token` can skip the logout if another tab changes the stored login mid-check (also protects that tab's new sign-in). | Low | **Fixed**: staleness compares with this tab's in-memory token, so another tab's logout still logs this tab out; the teardown clears the stored login only when it is this tab's (or empty), so another tab's new sign-in survives (closes the two-tab follow-up); session-test +2 |
+| 9 | Boot-time `check_token` can skip the logout if another tab changes the stored login mid-check (also protects that tab's new sign-in). | Low | **Fixed**: staleness compares with this tab's in-memory token, so another tab's logout still logs this tab out; the teardown clears the stored login only when it is this tab's (or empty), so another tab's new sign-in survives (partial: Log Out still clears every stored login through `invalidate` -> `stashes.flush()`, as on develop; corrected in the third review); session-test +2 |
 | 10 | Dead `.ch-tile--extras-toggle` rules; stale "Focused never places Extras" comment (app.scss ~56327); stale `{id, key}` comment (authenticated-view.hbs:580); `.md-searchOverlay` unused. | Low, hygiene | **Fixed**: Extras-toggle CSS removed (compiled CSS: 47 lines out, none in); comments corrected; the never-opened search overlay removed (template, styles, 5 actions, 5 locale keys x 13 files) with an approved `.eslint-todo` shift (2 rows dropped with their code, 18 moved; 1562 -> 1560) |
 
 Verification after these fixes: full Ember suite 3376 tests, 0 failed (37 skip, 5 todo; 3366 + 10
@@ -204,3 +207,26 @@ Answered clean: no healthy-session logout path; `.eslint-todo` hides no new find
 the rest line shifts; 10 stale rows in dashboard-sections-test.js); `TZ=UTC` in spec_helper matches
 CI and the image; all 13 locales parse with no dangling keys; saved Dashboard Design orders produce
 valid grids for every role simulated; no focus trap in the rail dropdown; touch targets >= 24px.
+
+## Third review (2026-10-11, `/adversary-review-local`, at ab8b3d774)
+
+Four read-only `adversary-local` slices (session and routing; removals, backend and data; home,
+tiles, rail and View menu; the six round-two fix commits). Still the local substitute; the canonical
+pass is owed. Verified before listing; all fixed or resolved on 2026-10-11 (red test first where a
+test can show it; live measurement for the CSS and layout items).
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 1 | **Cross-tab identity mix (regression from 621f87c7b).** check_token sends the SHARED stored token, and every tab copies it into its requests every 2s (capabilities.js:290-321). When another tab signs in as someone else, this tab's checks of that token are now dropped as stale (`_checked_token_is_current` compares with this tab's in-memory token), so it never refreshes to the new user (session.js:325-329): it keeps showing the first user's screens while its requests run as the second user, until a reload. On develop the next check switched it. | High (wrong-identity writes on a shared device) | **Fixed**: a token is current if it is this tab's OR the one its requests carry (`capabilities.access_token`); session-test +1 (switches to the other tab's user, as on develop) |
+| 2 | On the home Boards card's full-size tiles, "Preview" and the info chip OPEN the board: `board_preview` hands `@onActionOverride` the key before `modal.board_preview` (board-icon.js:341). Name and effect disagree; two redundant tab stops per tile. | Medium, regression (new surface) | **Fixed**: `@previewOpensModal` on the home card's full-size tiles; their Preview buttons open the preview, the tile still opens the board; board-icon-pick-behavior-test +1 |
+| 3 | Dashboard Design drag seed disagrees with the live grid when Speak Mode is hidden: `defaultOrderFor` (dashboard_sections.js:387) still pairs Extras with the hidden Speak, so dragging ANY card saves an order with Extras ahead of Boards. | Medium, regression from c0cdd12ff | **Fixed**: `defaultOrderFor(user, layout, vis)`, and Dashboard Design passes `readVis()`; dashboard-sections-test +1 |
+| 4 | Item 9 of the second review overstated: the teardown no longer clears another tab's login, but Log Out (`invalidate` -> `stashes.flush()`, session.js:820) still clears every stored login, as on develop. | Low; doc correction | **Corrected** in the second-review row 9 and the follow-ups list |
+| 5 | No-modal-route logout (early boot, after an SPA logout): `/:user` errors during the teardown now bubble ("Failed to load") until invalidate's transition. | Low, regression from 621f87c7b | **Fixed**: force_logout's no-dialog branch marks `logout_without_dialog` (cleared when invalidate lands); routes/user.js holds errors back while the dialog is open OR that is set; user-error-action-test +1 |
+| 6 | Rail trigger reads "Account menu, Account menu" on a page with no rail row (`activeLabel` defaults to "Account menu", account-rail.js:252). | Low, regression from c0cdd12ff | **Fixed**: said once when the visible label is already "Account menu"; account-rail-trigger-label-test +1 |
+| 7 | Crisis as home board: 5 tiles at <=1024px, not 6 (`nth-child(n+6):not(--crisis)`, app.scss ~64008); preview-boards.js:5 and this log still say "always last". | Low | **Fixed**: the original <=1024px rule keeps the sixth tile when Crisis leads (`:not(.md-card--boards__item--crisis:first-child ~ :nth-child(6))`); live: 6 tiles with Crisis first, 5 + Crisis otherwise. Comments corrected |
+| 8 | At <=900px the rail dropdown comes before the pill nav in focus order but is drawn below it (CSS `order`, app.scss ~51058). | Low (WCAG 2.4.3) | **Fixed**: `<AccountRail>` renders inside `.ll-appshell__main` after the pill nav (two shell rules follow it). Live at 1280/1024/900/640/390, home and account pages, rail collapsed and expanded: every drawn box identical; focus order now nav, rail, content |
+| 9 | routes/user.js reads only `error.fakeXHR`, not the `_result.fakeXHR` wrapper `is_logout_worthy_auth_error` handles. | Low | **Fixed**: also unwraps `error._result.fakeXHR`; user-error-action-test +1 |
+| 10 | The backfill's error line prints `e.message`, which for malformed plain-JSON settings could quote settings text (same pattern as extras:clear_no_name_placeholder). | Low, pre-existing pattern | **Fixed**: prints the error class only; task spec +1. The same pattern in extras:clear_no_name_placeholder (develop) is a follow-up |
+| 11 | Dead CSS: `.md-card__view-all--head` (only Compressed View rendered it); always-true `:not(.ll-density-compressed)` qualifiers (kept on purpose for specificity). | Low, hygiene | **Fixed**: `.md-card__view-all--head` rules removed. The `:not(.ll-density-compressed)` qualifiers are KEPT on purpose: they always match, and removing them lowers those selectors' specificity, which can change which rules win |
+| 12 | Audit finding LL-35e6b7a3d6 (search overlay input unlabeled) describes code this branch removes. | Info | **Resolved (2026-10-11, Traci)**: the register is left unchanged, since its status and disposition are Scot-owned (CLAUDE.md, compliance-docs.md, `SCOT_OWNED_CLOSED` in scripts/audit-merge.rb); GitHub issue #1122 asks Scot to update it after merge |
+| 13 | Second-review table cites board-icon.js:317 for `board.preview_option`; it is :318. | Doc | **Fixed** |
