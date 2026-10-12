@@ -353,12 +353,25 @@ module Supervising
     # and no other room still lists it; a direct link, or one of unknown origin, is kept without
     # those rooms. Owner decision: keep ambiguous links rather than risk removing a family's
     # direct supervision.
-    def strip_rooms_from_supervision(supervisor, user, unit_ids)
+    #
+    # staff_since: when the supervisor joined the destroyed district as supervisor or manager
+    # (earliest such membership link, captured at the destroy), or nil if they never did. Owner
+    # decision for a link of unknown origin (nil) listing only the district's rooms: it was made
+    # by those rooms when its supervisor was district staff (room supervisors must be org
+    # supervisors, organization_unit.rb add_supervisor) and it is not older than that membership
+    # (ROOM_LINK_EPSILON allows both being made in the same request or job); it is removed then,
+    # and kept otherwise. Residual: district staff who also made a direct link to the student
+    # after joining lose it.
+    ROOM_LINK_EPSILON = 5.seconds
+
+    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil)
       link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
       return false unless link
       listed = (link.data['state'] || {})['organization_unit_ids'] || []
       remaining = listed - unit_ids
-      if remaining.empty? && link.data['origin'] == 'room'
+      room_made = link.data['origin'] == 'room' ||
+        (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON)
+      if remaining.empty? && room_made
         unlink_supervisor_from_user(supervisor, user)
       elsif remaining != listed
         link.data['state']['organization_unit_ids'] = remaining

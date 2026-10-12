@@ -1723,13 +1723,36 @@ class Organization < ApplicationRecord
     org_id = self.id
     # durable fallback for the room cleanup, released by clean_up_destroyed when it finishes
     # (the job is idempotent); RemoteAction#process_action re-queues it if the job is lost
-    RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now)
+    # The district's supervisors and managers, with when each joined, for deciding which
+    # unknown-origin room links to remove (User.strip_rooms_from_supervision). Captured now, with
+    # the cleanup row, so the job does not depend on the membership links still being there.
+    RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now,
+      extra: Organization.staff_since_for(Webhook.get_record_code(self)).to_json)
     ActiveRecord.after_all_transactions_commit do
       # default queue: everything it queues removes access (owner decision: revocations do not
       # wait behind the slow queue)
       Organization.schedule(:clean_up_destroyed, org_id, user_ids)
     end
     true
+  end
+
+  # {user id (string) => earliest org_supervisor/org_manager link created_at (iso8601 µs)}
+  def self.staff_since_for(record_code)
+    res = {}
+    UserLink.where(record_code: record_code).each do |link|
+      next unless ['org_supervisor', 'org_manager'].include?(link.data['type'])
+      key = link.user_id.to_s
+      res[key] = link.created_at if !res[key] || link.created_at < res[key]
+    end
+    res.transform_values{|at| at.utc.iso8601(6) }
+  end
+
+  def self.destroyed_org_staff_since(org_id)
+    row = RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').where.not(extra: nil).first
+    staff = (JSON.parse(row.extra) rescue nil) if row
+    # the row is gone once a run completed; the membership links are not removed by the destroy
+    staff ||= staff_since_for("Organization:#{Organization.new(id: org_id).global_id}")
+    staff.transform_values{|at| Time.iso8601(at) }
   end
 
   def self.clean_up_destroyed(org_id, user_ids=[])
@@ -1741,12 +1764,13 @@ class Organization < ApplicationRecord
     # schedules the supervisor's refresh).
     units = OrganizationUnit.where(organization_id: org_id).to_a
     unit_ids = units.map(&:global_id)
+    staff_since = units.empty? ? {} : destroyed_org_staff_since(org_id)
     units.each do |unit|
       links = UserLink.links_for(unit)
       supervisors = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_supervisor' }.map{|l| l['user_id'] }.uniq)
       communicators = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq)
       supervisors.each do |sup|
-        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids) }
+        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s]) }
       end
     end
     RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all

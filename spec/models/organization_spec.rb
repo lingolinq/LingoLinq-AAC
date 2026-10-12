@@ -1300,14 +1300,82 @@ describe Organization, :type => :model do
         expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
       end
 
-      it "keeps a link of unknown origin (made before origins were recorded), without the room" do
+      # Links made before origins were recorded have origin nil. Owner decision: such a link that
+      # lists the destroyed district's rooms was made by those rooms when its supervisor was
+      # district staff (room supervisors must be org supervisors, organization_unit.rb
+      # add_supervisor) and the link is not older than that membership; it is removed. Otherwise
+      # (never staff, or the link predates the membership) it is kept without the rooms.
+      def legacy_link!(sup, comm)
+        legacy = supervision_link(sup, comm)
+        legacy.data.delete('origin')
+        legacy.save!
+        legacy
+      end
+
+      it "removes a legacy room-made link of district staff, and the boards it gave" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        b = Board.create(:user => User.find(comm.id))
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        User.find(comm.id).update_available_boards
+        User.find(sup.id).update_available_boards
+        expect(User.find(sup.id).private_viewable_board_ids).to include(b.global_id)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)
+      end
+
+      # The membership links are not removed by the destroy (no dependent: option), so the job can
+      # still read them when the captured copy on the cleanup row is missing.
+      it "reads the district staff from the membership links when the cleanup row has no copy" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)
         ou.add_communicator(comm.user_name)
         Worker.process_queues
-        legacy = supervision_link(sup, comm)
-        legacy.data.delete('origin')
-        legacy.save!
+        legacy_link!(sup, comm)
+
+        o.reload.destroy
+        RemoteAction.where(action: 'clean_up_destroyed_org').update_all(extra: nil)
+        expect(UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o)).map{|l| l.data['type'] }).to include('org_supervisor')
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      it "keeps a legacy link whose supervisor was not district staff at the deletion, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        # e.g. a parent: no org_supervisor or org_manager link with this district
+        UserLink.remove(User.find(sup.id), o, 'org_supervisor')
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+
+      it "keeps a legacy link made before its supervisor joined the district, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy = legacy_link!(sup, comm)
+        UserLink.where(id: legacy.id).update_all(created_at: 2.days.ago)
+        membership = UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o)).detect{|l| l.data['type'] == 'org_supervisor' }
+        UserLink.where(id: membership.id).update_all(created_at: 1.day.ago)
 
         o.reload.destroy
         Worker.process_queues
