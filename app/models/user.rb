@@ -2185,6 +2185,17 @@ class User < ApplicationRecord
   # has no pending change of its own for. It never reloads: a synchronous caller can hold unsaved
   # changes on this object (Subscription#reset_eval -> copy_to_home_board -> Relinking#copy_for
   # -> update_available_boards), and a reload discarded them.
+  #
+  # Copy-back contract:
+  # - settings: only keys the BLOCK changed. Keys the save itself writes (save_with_sync's
+  #   sync_stamp_reason, generate_defaults' edit_key and the like) are stored but not copied
+  #   back, so this copy's values for them can be older than the row's.
+  # - columns: every column the save changed (sync_stamp, boards_updated_at, schedule_deletion_at,
+  #   and updated_at unless touch: false) is copied onto this object, except columns the caller
+  #   changed itself. updated_at therefore moves on this object: code that compares updated_at
+  #   before and after a call (Organization#claim_user's attempt_stamp around
+  #   update_subscription_organization) must not have this helper run inside that window
+  #   (guarded by a spec in organization_spec, claim_user).
   def update_settings_locked(**opts, &block)
     written_keys = []
     res = User.update_settings_locked(self.id, **opts) do |fresh|

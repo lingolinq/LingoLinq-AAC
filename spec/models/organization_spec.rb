@@ -4555,6 +4555,34 @@ describe Organization, :type => :model do
       expect(depth_during_attach).to eq(baseline)
     end
 
+    # claim_user detects that the attach's own save ran by comparing user.updated_at before and
+    # after update_subscription_organization (attempt_stamp). User#update_settings_locked moves
+    # updated_at on the object it is called on, so a call inside the attach would make a save
+    # that did not run look as if it had.
+    it "runs no settings lock helper inside the attach" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      inside = false
+      calls = []
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        inside = true
+        begin
+          orig.call(*args)
+        ensure
+          inside = false
+        end
+      end
+      allow(User).to receive(:update_settings_locked).and_wrap_original do |orig, *args, **opts, &blk|
+        calls << args if inside
+        orig.call(*args, **opts, &blk)
+      end
+
+      org.claim_user(u)
+
+      expect(calls).to eq([])
+    end
+
     it "refuses to report success when the attach did not complete" do
       # update_subscription_organization rescues ActiveRecord::StaleObjectError, saves only the
       # link, reschedules ITSELF and returns normally, so a half-applied attach used to look
