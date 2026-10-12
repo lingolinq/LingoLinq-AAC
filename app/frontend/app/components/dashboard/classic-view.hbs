@@ -696,7 +696,6 @@
                search box, and a create action belongs to the section, not to the filtering. --}}
           <div class="ch-boards__titlerow">
             <h2 class="ch-panel__title">{{t "Browse Boards" key="browse_boards"}}</h2>
-            <button type="button" class="ch-btn ch-btn--ghost ch-boards__create" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
           </div>
           {{!-- The subtab strip has its own row (2026-10-12); the boards filter and the home-board
                button are on the row below it. The filter stays a SIBLING of the tablist, never
@@ -709,6 +708,9 @@
             <button type="button" role="tab" aria-selected={{if this.popular_selected "true" "false"}} class="ch-subtab {{if this.popular_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "popular")}}>{{t "Community" key="community"}}</button>
             <button type="button" role="tab" aria-selected={{if this.recent_selected "true" "false"}} class="ch-subtab {{if this.recent_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "recent")}}>{{t "Recent" key="recent"}}</button>
           </div>
+          {{!-- On the subtab row, right-aligned (requested 2026-10-12); it drops to its own row when the
+               row is too narrow for both (`.ch-boards__create`'s `margin-left: auto` in a wrapping row). --}}
+          <button type="button" class="ch-btn ch-btn--ghost ch-boards__create" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
           </div>
           {{!-- Filter on the left, "Assign Home Board" / "Change Home Board" on the right
                (requested 2026-10-12). The button is a MODE, Basic's own (classic-view.js,

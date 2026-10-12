@@ -1340,14 +1340,8 @@ button.ch-row--sync:focus-visible {
   margin-bottom: 14px;
 }
 
-// Browse Boards title row: heading left, "Create a New Board" pushed right.
-//
-// `margin-left: auto` on the button rather than `justify-content: space-between` on the row —
-// the heading is the only other child, and auto-margin keeps the button right-aligned even if
-// a translated heading wraps to two lines, where space-between would centre it against the
-// wrapped block.
-//
-// `align-items: center` so the button sits on the heading's optical centre, not its baseline.
+// Browse Boards title row: the heading. ("Create a New Board" moved down to the subtab row,
+// `.ch-boards__head`, on 2026-10-12.)
 .ch-boards__titlerow {
   display: flex;
   flex-wrap: wrap;
@@ -1356,9 +1350,11 @@ button.ch-row--sync:focus-visible {
   margin-bottom: 12px;
 }
 
+// On the subtab row (`.ch-boards__head`). `margin-left: auto` keeps it on the right, also when the
+// row wraps and it drops to a line of its own.
 .ch-boards__create {
   margin-left: auto;
-  // Never squeezed by a long heading: the label is short and must not wrap to two lines.
+  // Never squeezed by the subtabs: the label is short and must not wrap to two lines.
   flex: 0 0 auto;
   white-space: nowrap;
 }
@@ -1369,8 +1365,9 @@ button.ch-row--sync:focus-visible {
   justify-content: flex-end;
 }
 
-// The Browse Boards subtab row. Since 2026-10-12 it holds only the subtab strip; the boards
-// filter moved to the toolbar row below it (filter left, home-board button right).
+// The Browse Boards subtab row: the subtab strip, and "Create a New Board" right-aligned (both
+// 2026-10-12). The boards filter moved to the toolbar row below it (filter left, home-board button
+// right). The row wraps, so on a narrow screen the button drops to its own line, still on the right.
 .ch-boards__head {
   display: flex;
   flex-wrap: wrap;
