@@ -17,10 +17,14 @@ import app_state from './app_state';
 // sync, or a sync that finished with board errors. While Speak Mode is on, new
 // marks wait until it is turned off, so the board in use is never pulled away.
 //
-// Marked boards are skipped by the sync traversal (they are not sync errors),
-// left out of find_recent and find_boards, and blocked by the board route.
+// Marked boards are skipped by the sync traversal (they are not sync errors)
+// and left out of find_recent and find_boards. The board route blocks one only
+// while offline and never in Speak Mode, nor a home or sidebar board of the
+// signed-in, referenced or synced users; online, it asks the server and a
+// successful load clears the mark. Any successful board_revisions response
+// that lists a marked board as viewable clears it too, whatever else the sync
+// ends with.
 
-var MAX_CHECK_IDS = 500;
 var INDEX_KEY = 'revokedBoards';
 var deferred_marks = null;
 var index_promise = null;
@@ -59,22 +63,6 @@ export function parse_revisions_response(res) {
     return {revisions: res.revisions, revoked_ids: res.revoked_ids.filter(global_board_id)};
   }
   return {revisions: res, revoked_ids: null};
-}
-
-// Local board ids sent as check_ids: boards already marked come first, so a
-// marked board is always re-checked and can be cleared.
-export function check_ids_for(local, marked_ids) {
-  var res = [];
-  var seen = {};
-  var add = function(id) {
-    if(global_board_id(id) && !seen[id] && res.length < MAX_CHECK_IDS) {
-      seen[id] = true;
-      res.push(id);
-    }
-  };
-  (marked_ids || []).forEach(add);
-  (local || []).forEach(function(rec) { add(rec.id); });
-  return res;
 }
 
 function local_boards() {
@@ -124,15 +112,19 @@ export function fetch_revisions(persist, user, request) {
   }
   var prep = RSVP.resolve(null);
   if(state) {
+    // The index is loaded here as before (clear_viewable reads it); dropping this read
+    // changed request timing and surfaced an unhandled rejection in the sync harness.
     state.local = state.local || RSVP.all([local_boards(), load_index()]).then(function(res) {
-      return {list: res[0], check_ids: check_ids_for(res[0], Object.keys(res[1] || {}))};
+      return {list: res[0]};
     });
     prep = state.local;
   }
   return prep.then(function(local) {
-    var check_ids = (local && local.check_ids) || [];
-    return request({type: 'GET', data: {include_revoked: '1', check_ids: check_ids.join(',')}}).then(function(res) {
+    return request({type: 'GET', data: {include_revoked: '1'}}).then(function(res) {
       var parsed = parse_revisions_response(res);
+      // Only the wrapped response comes from a server that checks permissions, so
+      // only it is evidence that a listed board is viewable.
+      var cleared = (parsed.revoked_ids && local && local.list) ? clear_viewable(local.list, parsed.revisions) : RSVP.resolve(false);
       if(state) {
         if(parsed.revoked_ids && local && local.list) {
           var lookup = {};
@@ -145,7 +137,7 @@ export function fetch_revisions(persist, user, request) {
           state.failed = true;
         }
       }
-      return parsed.revisions;
+      return cleared.then(function() { return parsed.revisions; }, function() { return parsed.revisions; });
     }, function(err) {
       if(state) { state.failed = true; }
       return RSVP.reject(err);
@@ -195,6 +187,45 @@ function write_mark(rec, revoked) {
   }
   var record = Object.assign({}, rec.data, {raw: raw});
   return lingoLinqExtras.storage.store('board', record).then(function() { return true; }, function() { return false; });
+}
+
+// A successful board_revisions response is evidence enough to clear: any
+// marked board it lists as viewable (by id or key) is unmarked straight away,
+// even when the rest of the sync fails.
+function clear_viewable(list, revisions) {
+  if(!revisions || typeof revisions !== 'object') { return RSVP.resolve(false); }
+  var clear = (list || []).filter(function(rec) {
+    return rec.revoked && ((rec.id && revisions[rec.id]) || (rec.key && revisions[rec.key]));
+  });
+  if(deferred_marks) {
+    deferred_marks = deferred_marks.filter(function(id) {
+      return !(revisions[id] || (list || []).some(function(rec) { return rec.id == id && rec.key && revisions[rec.key]; }));
+    });
+  }
+  if(clear.length === 0) { return RSVP.resolve(false); }
+  clear.forEach(function(rec) { rec.revoked = false; });
+  return load_index().then(function(index) {
+    var next = Object.assign({}, index);
+    return RSVP.all(clear.map(function(rec) {
+      delete next[rec.id];
+      return write_mark(rec, false);
+    })).then(function() { return save_index(next); }).then(function() { return true; });
+  }).then(null, function() { return false; });
+}
+
+// The board route loaded this board from the server: clear its mark, if any.
+export function clear_mark(id) {
+  if(!global_board_id(id)) { return RSVP.resolve(false); }
+  if(deferred_marks) {
+    deferred_marks = deferred_marks.filter(function(d) { return d != id; });
+  }
+  return load_index().then(function(index) {
+    if(!index[id]) { return false; }
+    return lingoLinqExtras.storage.find('board', id).then(function(rec) {
+      if(!rec || !rec.raw) { return false; }
+      return clear_viewable([{id: rec.raw.id || rec.id, key: rec.raw.key, revoked: !!rec.raw.revoked, data: rec}], {[id]: true});
+    }, function() { return false; });
+  }, function() { return false; });
 }
 
 // Brings the local marks in line with a settled decision: boards in revoked_ids
@@ -302,11 +333,41 @@ export function without_revoked(ids) {
   });
 }
 
-// Board route: a marked board is blocked, except the board already on screen.
-export function blocks_route(board, appState) {
+// Home and sidebar boards of the signed-in, current, referenced and Speak Mode
+// users, and the home boards of synced supervisees: never blocked, so a
+// communicator is never left without their own boards.
+export function protected_board_refs(appState) {
+  var refs = {};
+  if(!appState || typeof appState.get !== 'function') { return refs; }
+  var add = function(ref) {
+    if(ref && (typeof ref === 'string' || typeof ref === 'number')) { refs[ref] = true; }
+  };
+  ['sessionUser', 'currentUser', 'referenced_user', 'speakModeUser'].forEach(function(name) {
+    var home = appState.get(name + '.preferences.home_board');
+    if(home) { add(home.id); add(home.key); }
+    (appState.get(name + '.preferences.sidebar_boards') || []).forEach(function(b) {
+      if(b) { add(b.id); add(b.key); }
+    });
+    (appState.get(name + '.supervisees') || []).forEach(function(sup) {
+      if(sup) { add(sup.home_board_key); }
+    });
+  });
+  return refs;
+}
+
+// Board route: a marked board is blocked only while offline, never in Speak
+// Mode, never the board already on screen, and never a protected home or
+// sidebar board. Online, the route asks the server instead.
+export function blocks_route(board, appState, online) {
+  if(online) { return RSVP.resolve(false); }
   var id = board && typeof board.get === 'function' ? board.get('id') : null;
-  var current = appState && typeof appState.get === 'function' ? appState.get('currentBoardState.id') : null;
-  if(!id || (current && current == id)) { return RSVP.resolve(false); }
+  var key = board && typeof board.get === 'function' ? board.get('key') : null;
+  if(!id || !appState || typeof appState.get !== 'function') { return RSVP.resolve(false); }
+  if(appState.get('speak_mode')) { return RSVP.resolve(false); }
+  var current = appState.get('currentBoardState.id');
+  if(current && current == id) { return RSVP.resolve(false); }
+  var refs = protected_board_refs(appState);
+  if(refs[id] || (key && refs[key])) { return RSVP.resolve(false); }
   return is_revoked(id);
 }
 
@@ -338,6 +399,8 @@ export function real_denial(err) {
 // less certain keeps today's fallback to the local copy.
 export function route_refuses_local(err, appState) {
   if(!real_denial(err)) { return false; }
+  // Speak Mode keeps the local copy, as before: the communicator keeps a voice.
+  if(appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
   var as_user = LingoLinq.session && typeof LingoLinq.session.get === 'function' && LingoLinq.session.get('as_user_id');
   var session_user = appState && typeof appState.get === 'function' ? appState.get('sessionUser') : null;
   if(as_user || !session_user) { return false; }
@@ -353,7 +416,6 @@ export function reset_for_tests() {
 
 export default {
   parse_revisions_response: parse_revisions_response,
-  check_ids_for: check_ids_for,
   fetch_revisions: fetch_revisions,
   skip_board: skip_board,
   note_failure: note_failure,
@@ -366,6 +428,8 @@ export default {
   is_revoked: is_revoked,
   without_revoked: without_revoked,
   blocks_route: blocks_route,
+  protected_board_refs: protected_board_refs,
+  clear_mark: clear_mark,
   denial_body: denial_body,
   real_denial: real_denial,
   route_refuses_local: route_refuses_local,

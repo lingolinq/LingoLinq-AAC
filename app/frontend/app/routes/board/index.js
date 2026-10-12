@@ -167,7 +167,7 @@ export default Route.extend({
         var force_fetch = !_this.appState.get('speak_mode');
         if(_this.persistence && _this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
         _this.set('load_state', {remote_reload: true});
-        reload = model.reload(force_fetch).then(null, function(err) {
+        reload = model.reload(force_fetch).then(function(loaded) { return _this.loaded_remote(loaded, force_fetch); }, function(err) {
           _this.set('load_state', {remote_reload_local_reload: true});
           if(!force_fetch && controller.get('has_rendered_material')) {
             // If you think you're online but you're not really,
@@ -285,6 +285,15 @@ export default Route.extend({
   // refused this board to a user whose refusal speaks for every synced user
   // (utils/board_revocation.js#route_refuses_local). Offline, timeouts, server
   // errors and ambiguous refusals keep the fallback.
+  // A forced reload came from the server, so the board is viewable: clear any
+  // offline mark on it (utils/board_revocation.js).
+  loaded_remote: function(loaded, force_fetch) {
+    if(force_fetch && loaded && typeof loaded.get === 'function') {
+      var done = function() { return loaded; };
+      return boardRevocation.clear_mark(loaded.get('id')).then(done, done);
+    }
+    return loaded;
+  },
   local_reload_unless_denied: function(model, err) {
     if(boardRevocation.route_refuses_local(err, this.appState)) {
       return RSVP.reject(boardRevocation.denial_body(err));

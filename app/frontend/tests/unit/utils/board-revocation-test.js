@@ -6,7 +6,7 @@ import lingoLinqExtras from 'frontend/utils/extras';
 import boardRevocation from 'frontend/utils/board_revocation';
 
 /* Offline copies of boards a synced user can no longer view (utils/board_revocation.js).
- * Owner decision: such copies are MARKED and blocked, never deleted; never on network
+ * Owner decision: such copies are MARKED (hidden from lists, blocked only offline), never deleted; never on network
  * errors, timeouts, 5xx or token/scope/valet refusals; never while a board is in use in
  * Speak Mode; never while any synced user (root or supervisee) can still view or owns the
  * board; reversible when access returns.
@@ -84,16 +84,6 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.strictEqual(flat.revoked_ids, null);
   });
 
-  test('check_ids_for puts marked boards first and stops at 500', function(assert) {
-    var local = [];
-    for(var i = 0; i < 600; i++) { local.push({id: '1_' + i}); }
-    local.push({id: 'tmp_x'});
-    var ids = boardRevocation.check_ids_for(local, ['1_9999']);
-    assert.strictEqual(ids.length, 500);
-    assert.strictEqual(ids[0], '1_9999');
-    assert.notOk(ids.includes('tmp_x'));
-  });
-
   test('a revoked board is marked after a full sync of every synced user, and not deleted', async function(assert) {
     addBoard(this.db, '1_1');
     addBoard(this.db, '1_2');
@@ -101,7 +91,7 @@ module('Unit | Utility | board_revocation', function(hooks) {
     var revisions = await boardRevocation.fetch_revisions(persist, user('u1'), answer({'1_1': 'r1', 'owner/1_1': 'r1'}, ['1_2']));
     assert.deepEqual(revisions, {'1_1': 'r1', 'owner/1_1': 'r1'}, 'the sync code still gets the flat map');
     assert.strictEqual(answer.last_opts.data.include_revoked, '1');
-    assert.deepEqual(answer.last_opts.data.check_ids.split(',').sort(), ['1_1', '1_2']);
+    assert.deepEqual(Object.keys(answer.last_opts.data), ['include_revoked'], 'no client-supplied ids are sent');
     assert.true(boardRevocation.skip_board(persist, 'u1', {id: '1_2'}), 'traversal skips it by id');
     assert.true(boardRevocation.skip_board(persist, 'u1', {key: 'owner/1_2'}), 'and by its local key');
     assert.false(boardRevocation.skip_board(persist, 'u1', {id: '1_1'}));
@@ -190,14 +180,52 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.false(boardRevocation.has_deferred());
   });
 
-  test('without_revoked and blocks_route leave out marked boards, except the board on screen', async function(assert) {
+  test('without_revoked leaves out marked boards; blocks_route blocks one only offline, outside Speak Mode, and not a protected board', async function(assert) {
     addBoard(this.db, '1_1');
     addBoard(this.db, '1_2');
     await boardRevocation.apply_revocations(['1_2']);
     assert.deepEqual(await boardRevocation.without_revoked(['1_1', '1_2']), ['1_1']);
-    var board = EmberObject.create({id: '1_2'});
-    assert.true(await boardRevocation.blocks_route(board, EmberObject.create({currentBoardState: {id: '1_1'}})));
-    assert.false(await boardRevocation.blocks_route(board, EmberObject.create({currentBoardState: {id: '1_2'}})), 'board on screen');
+    var board = EmberObject.create({id: '1_2', key: 'owner/1_2'});
+    var state = function(attrs) { return EmberObject.create(Object.assign({currentBoardState: {id: '1_1'}}, attrs || {})); };
+    assert.true(await boardRevocation.blocks_route(board, state(), false), 'offline');
+    assert.false(await boardRevocation.blocks_route(board, state(), true), 'online: the server decides');
+    assert.false(await boardRevocation.blocks_route(board, state({currentBoardState: {id: '1_2'}}), false), 'board on screen');
+    assert.false(await boardRevocation.blocks_route(board, state({currentBoardState: null, speak_mode: true}), false), 'Speak Mode, even with nothing on screen');
+    assert.false(await boardRevocation.blocks_route(board, state({currentUser: {preferences: {home_board: {id: '1_2'}}}}), false), 'home board');
+    assert.false(await boardRevocation.blocks_route(board, state({referenced_user: {preferences: {sidebar_boards: [{key: 'owner/1_2'}]}}}), false), 'sidebar board');
+    assert.false(await boardRevocation.blocks_route(board, state({sessionUser: {supervisees: [{home_board_key: 'owner/1_2'}]}}), false), "supervisee's home board");
+  });
+
+  test('any permission-checked board_revisions response that lists a marked board as viewable clears it, even if the sync then fails', async function(assert) {
+    addBoard(this.db, '1_2');
+    addBoard(this.db, '1_3');
+    await boardRevocation.apply_revocations(['1_2', '1_3']);
+    var persist = persistFor('u1');
+    await boardRevocation.fetch_revisions(persist, user('u1', ['u2']), answer({'owner/1_2': 'r1'}, ['1_3']));
+    boardRevocation.note_failure(persist);
+    assert.strictEqual(boardRevocation.finish_sync(persist, 'u1', [{error: 'x'}]), null, 'the sync settles nothing');
+    assert.notOk(this.db.board['1_2'].raw.revoked, 'listed by key as viewable: cleared');
+    assert.false(await boardRevocation.is_revoked('1_2'));
+    assert.true(this.db.board['1_3'].raw.revoked, 'still revoked: kept');
+    var old = persistFor('u1');
+    await boardRevocation.fetch_revisions(old, user('u1'), function() { return RSVP.resolve({'1_3': 'r'}); });
+    assert.true(this.db.board['1_3'].raw.revoked, 'a flat response from an older server is no evidence');
+  });
+
+  test('clear_mark clears one board and drops it from held-back marks', async function(assert) {
+    addBoard(this.db, '1_2');
+    addBoard(this.db, '1_3');
+    await boardRevocation.apply_revocations(['1_2']);
+    LingoLinq.appState.set('speak_mode', true);
+    await boardRevocation.apply_revocations(['1_2', '1_3']);
+    assert.true(boardRevocation.has_deferred());
+    assert.true(await boardRevocation.clear_mark('1_2'));
+    assert.notOk(this.db.board['1_2'].raw.revoked);
+    await boardRevocation.clear_mark('1_3');
+    assert.false(boardRevocation.has_deferred(), 'the held-back mark for 1_3 is dropped');
+    LingoLinq.appState.set('speak_mode', false);
+    assert.false(await boardRevocation.flush_deferred());
+    assert.notOk(this.db.board['1_3'].raw.revoked);
   });
 
   test('real_denial recognises only a real view refusal', function(assert) {
@@ -217,7 +245,7 @@ module('Unit | Utility | board_revocation', function(hooks) {
   });
 
   test('route_refuses_local only when the refusal speaks for every synced user', function(assert) {
-    assert.expect(4);
+    assert.expect(5);
     var err = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', unauthorized: true, permission: 'view'}}};
     var realSession = LingoLinq.session;
     LingoLinq.session = EmberObject.create({as_user_id: null});
@@ -225,6 +253,7 @@ module('Unit | Utility | board_revocation', function(hooks) {
       assert.true(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: []}})));
       assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: [{id: 'u2'}]}})), 'a supervisee might view it');
       assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: null})), 'no session user loaded');
+      assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: []}, speak_mode: true})), 'Speak Mode keeps the local copy');
       LingoLinq.session = EmberObject.create({as_user_id: 'u9'});
       assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: []}})), 'acting as another user');
     } finally {

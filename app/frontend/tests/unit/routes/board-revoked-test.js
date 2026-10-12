@@ -10,14 +10,15 @@ import boardRevocation from 'frontend/utils/board_revocation';
 /* The board routes and offline copies of boards a synced user can no longer view
  * (utils/board_revocation.js).
  *
- * routes/board.js: a board whose local copy is marked resolves as the unavailable-board
- * record (templates/board.hbs), never as the stale copy; the board already on screen is
- * left alone.
+ * routes/board.js: offline, a board whose local copy is marked resolves as the
+ * unavailable-board record (templates/board.hbs), never as the stale copy. Never in Speak
+ * Mode, never the board on screen, never a home or sidebar board; online the route asks
+ * the server, and a forced reload that succeeds clears the mark.
  *
  * routes/board/index.js: online, a failed remote reload used to fall back to the local
  * copy on ANY error, so a board the server refuses kept rendering. A real "Not authorized"
  * for the view permission, from a user whose refusal speaks for every synced user, now
- * rejects instead; anything else keeps the fallback.
+ * rejects instead; anything else, and any refusal in Speak Mode, keeps the fallback.
  */
 module('Unit | Route | board revoked offline copies', function(hooks) {
   setupTest(hooks);
@@ -57,11 +58,16 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     boardRevocation.reset_for_tests();
   });
 
-  function boardRoute(context, currentBoardId, board) {
+  function boardRoute(context, currentBoardId, board, opts) {
+    opts = opts || {};
     context.owner.unregister('service:app-state');
     context.owner.register('service:app-state', Service.extend({
-      currentBoardState: currentBoardId ? {id: currentBoardId} : null
+      currentBoardState: currentBoardId ? {id: currentBoardId} : null,
+      speak_mode: !!opts.speak_mode,
+      sessionUser: opts.sessionUser || null
     }));
+    context.owner.unregister('service:persistence');
+    context.owner.register('service:persistence', Service.extend({ online: !!opts.online }));
     context.owner.unregister('service:stashes');
     context.owner.register('service:stashes', Service.extend({ get: function() { return null; } }));
     context.owner.unregister('service:store');
@@ -76,7 +82,7 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     db.board[id] = {id: id, key: 'owner/shared', raw: {id: id, key: 'owner/shared', name: 'Shared'}};
   }
 
-  test('a marked board resolves as the unavailable-board record, not the stale copy', async function(assert) {
+  test('offline, a marked board resolves as the unavailable-board record, not the stale copy', async function(assert) {
     storedBoard(this.db, '1_7');
     await boardRevocation.apply_revocations(['1_7']);
     var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
@@ -98,9 +104,35 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'board on screen is left alone');
   });
 
-  function indexRoute(context, sessionUser) {
+  test('a marked board is not blocked online, in Speak Mode, or as a home or sidebar board', async function(assert) {
+    storedBoard(this.db, '1_7');
+    await boardRevocation.apply_revocations(['1_7']);
+    var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
+    var cases = [
+      [{online: true}, 'online: the server decides'],
+      [{speak_mode: true}, 'Speak Mode (cold launch, nothing on screen yet)'],
+      [{sessionUser: {preferences: {home_board: {id: '1_7', key: 'owner/shared'}}}}, 'the home board'],
+      [{sessionUser: {preferences: {sidebar_boards: [{key: 'owner/shared'}]}}}, 'a sidebar board'],
+      [{sessionUser: {supervisees: [{id: 'u2', home_board_key: 'owner/shared'}]}}, "a synced supervisee's home board"]
+    ];
+    assert.expect(cases.length + 1);
+    // The route is a singleton holding the services it was created with, so each case
+    // changes those services rather than registering new ones.
+    var route = boardRoute(this, null, board);
+    var appState = this.owner.lookup('service:app-state');
+    var persistence = this.owner.lookup('service:persistence');
+    assert.notStrictEqual(await route.model({key: 'owner/shared'}), board, 'control: blocked offline');
+    for(var idx = 0; idx < cases.length; idx++) {
+      var opts = cases[idx][0];
+      persistence.set('online', !!opts.online);
+      appState.setProperties({speak_mode: !!opts.speak_mode, sessionUser: opts.sessionUser || null});
+      assert.strictEqual(await route.model({key: 'owner/shared'}), board, cases[idx][1]);
+    }
+  });
+
+  function indexRoute(context, sessionUser, speak_mode) {
     context.owner.unregister('service:app-state');
-    context.owner.register('service:app-state', Service.extend({ sessionUser: sessionUser }));
+    context.owner.register('service:app-state', Service.extend({ sessionUser: sessionUser, speak_mode: !!speak_mode }));
     return context.owner.lookup('route:board/index');
   }
 
@@ -142,5 +174,27 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
       assert.strictEqual(res, model, cases[idx][2] + ': resolves with the local copy');
       assert.deepEqual(model.reloads, [false], cases[idx][2] + ': local reload');
     }
+  });
+
+  test('in Speak Mode a real denial keeps the local copy', async function(assert) {
+    LingoLinq.session = EmberObject.create({as_user_id: null});
+    var route = indexRoute(this, {supervisees: []}, true);
+    var model = localModel();
+    var res = await route.local_reload_unless_denied(model, denied);
+    assert.strictEqual(res, model, 'resolves with the local copy');
+    assert.deepEqual(model.reloads, [false], 'local reload');
+  });
+
+  test('a forced reload from the server clears the mark; a soft one does not', async function(assert) {
+    storedBoard(this.db, '1_7');
+    storedBoard(this.db, '1_8');
+    await boardRevocation.apply_revocations(['1_7', '1_8']);
+    var route = indexRoute(this, {supervisees: []});
+    var soft = EmberObject.create({id: '1_8'});
+    assert.strictEqual(await route.loaded_remote(soft, false), soft);
+    var loaded = EmberObject.create({id: '1_7'});
+    assert.strictEqual(await route.loaded_remote(loaded, true), loaded);
+    assert.false(await boardRevocation.is_revoked('1_7'), 'cleared');
+    assert.true(await boardRevocation.is_revoked('1_8'), 'a soft reload may be the local copy, so the mark stays');
   });
 });

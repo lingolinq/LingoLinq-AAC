@@ -5397,7 +5397,7 @@ describe("persistence-sync", function() {
           expect(outcome.ran_utils).toEqual(true);
           expect(outcome.utils_traversal).toEqual(true);
           expect(outcome.revisions_opts.data.include_revoked).toEqual('1');
-          expect(outcome.revisions_opts.data.check_ids).toEqual('1_145,1_167,1_178');
+          expect(outcome.revisions_opts.data.check_ids).toEqual(undefined);
           expect(statuses.map(function(s) { return s.id; }).sort()).toEqual(['1_145', '1_167']);
           expect(outcome.fetched_revoked).toEqual(undefined);
           cancelSyncTailWork();

@@ -162,7 +162,7 @@ export default Route.extend({
               }
             }, 100);
           }
-          return boardRevocation.blocks_route(data, _this.appState).then(function(blocked) { return blocked ? _this.revoked_record(params.key) : data; });
+          return _this.revoked_or(data, params.key);
         }
         var obj = _this.store.findRecord('board', lookupKey);
         return obj.then(function(data) {
@@ -184,7 +184,7 @@ export default Route.extend({
               }, 100);
             }
           }
-          return boardRevocation.blocks_route(data, _this.appState).then(function(blocked) { return blocked ? _this.revoked_record(params.key) : data; });
+          return _this.revoked_or(data, params.key);
         }, function(err) {
           var error = err;
           if(err && err.errors) {
@@ -215,6 +215,17 @@ export default Route.extend({
   // A board whose offline copy is marked as no longer viewable by any synced
   // user (utils/board_revocation.js) renders as the standard unavailable-board
   // panel in templates/board.hbs instead of the stale copy.
+  // Resolves with the board, or with the unavailable-board record when its
+  // offline copy is marked and blocks_route says to block it (offline only).
+  revoked_or: function(data, key) {
+    var _this = this;
+    var owner = getOwner(this);
+    var persistence = owner && owner.lookup('service:persistence');
+    var online = !!(persistence && persistence.get('online'));
+    return boardRevocation.blocks_route(data, this.appState, online).then(function(blocked) {
+      return blocked ? _this.revoked_record(key) : data;
+    });
+  },
   revoked_record: function(key) {
     // No id: a second fixed 'bad' id in one session would collide in the store,
     // and an id-less record is already not a valid_id board.
@@ -235,3 +246,4 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
+import { getOwner } from '@ember/application';
