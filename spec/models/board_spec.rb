@@ -3088,6 +3088,21 @@ describe Board, :type => :model do
         expect(b.settings['edit_description']).to eq(nil)
       end
 
+      # The one-shot check compares String identity. process_button assigns its reason from a
+      # literal in app/models/board.rb; with @map_later the reason survives between the two saves.
+      # If that literal became frozen (one shared object), the second change would lose its label.
+      it "labels each of two changes that set the same reason in the same place" do
+        u = User.create
+        b = Board.create(:user => u, :settings => {'buttons' => [{'id' => '123'}, {'id' => '234'}]})
+        b.instance_variable_set('@map_later', true)
+        travel_to(Time.at(1_800_000_000)) { b.process_button({'id' => '234', 'sound_id' => '1_1'}) }
+        expect(b.settings['edit_description']['notes']).to eq(['button updated in-place'])
+
+        travel_to(Time.at(1_800_000_005)) { b.process_button({'id' => '234', 'sound_id' => '1_2'}) }
+        expect(b.settings['buttons'][1]['sound_id']).to eq('1_2')
+        expect(b.settings['edit_description']['notes']).to eq(['button updated in-place'])
+      end
+
       it "labels a rollback in the board's version history" do
         u = User.create
         PaperTrail.request.whodunnit = "user:#{u.global_id}"
