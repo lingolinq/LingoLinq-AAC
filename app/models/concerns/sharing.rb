@@ -320,6 +320,7 @@ module Sharing
       User.update_settings_locked(user_id, touch: false) do |fresh|
         fresh.settings['all_shared_board_ids'] ||= {}
         fresh.settings['all_shared_board_ids'][sub_key] = entry
+        true
       end
     end
   end

@@ -582,6 +582,7 @@ class WordData < ApplicationRecord
     user.update_settings_locked(touch: false) do |fresh|
       fresh.settings['target_words'] ||= {'generated' => Time.now.iso8601, 'list' => []}
       fresh.settings['target_words']['activities'] = result
+      true
     end
     
     activities_for(user, include_supervisees)

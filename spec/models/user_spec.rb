@@ -911,6 +911,22 @@ describe User, :type => :model do
         expect(stored.settings['home_board_changed']).to eq(nil)
       end
 
+      # The helper skips the save when its block returns false; a block ending in
+      # settings.delete returned the deleted value, so a stored false skipped the whole save.
+      it "clears the flags when sidebar_changed is stored as false" do
+        u, b = user_with_new_home_board
+        User.where(id: u.id).first.tap { |x| x.settings['sidebar_changed'] = false; x.save(touch: false) }
+        u = User.find(u.id)
+        expect(u.settings['home_board_changed']).to eq(true)
+        expect(u.settings['sidebar_changed']).to eq(false)
+
+        u.track_boards(true)
+
+        stored = User.find(u.id)
+        expect(stored.settings['home_board_changed']).to eq(nil)
+        expect(stored.settings.key?('sidebar_changed')).to eq(false)
+      end
+
       it "keeps a flag set by a home board change made during the run" do
         u, b = user_with_new_home_board
         b2 = Board.create(:user => u)

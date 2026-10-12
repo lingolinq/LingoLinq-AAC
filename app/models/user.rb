@@ -2180,6 +2180,9 @@ class User < ApplicationRecord
     end
   end
 
+  # Blocks must end explicitly with true (save) or false (skip): only an exact false skips, so a
+  # block ending in, say, settings.delete would skip the save whenever the deleted value is false.
+  #
   # update_settings_locked for this user, then copies onto this copy only what was written: the
   # top-level settings keys the block changed, and the columns the save changed that this copy
   # has no pending change of its own for. It never reloads: a synchronous caller can hold unsaved
@@ -2320,7 +2323,7 @@ class User < ApplicationRecord
     if ts && frd
       # Only this key, on a locked fresh copy (update_settings_locked): saving the worker's copy
       # wrote the whole settings column back over anything saved since it was loaded.
-      self.update_settings_locked { |fresh| fresh.settings['tracked_boards_at'] = Time.now.to_i }
+      self.update_settings_locked { |fresh| fresh.settings['tracked_boards_at'] = Time.now.to_i; true }
     end
 
     
@@ -2418,6 +2421,7 @@ class User < ApplicationRecord
         next false unless current.to_json == tracked
         fresh.settings.delete('home_board_changed')
         fresh.settings.delete('sidebar_changed')
+        true
       end
     end
     # to regenerates stats?

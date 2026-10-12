@@ -1314,6 +1314,7 @@ module Subscription
               scheduled = user.update_settings_locked(touch: false) do |fresh|
                 next false if fresh.inactivity_deletion_exempt?
                 fresh.schedule_deletion_at = 36.hours.from_now
+                true
               end
               next unless scheduled
               SubscriptionMailer.deliver_message(:account_deleted, user.global_id)

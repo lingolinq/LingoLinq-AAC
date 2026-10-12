@@ -163,6 +163,7 @@ class WeeklyStatsSummary < ApplicationRecord
               'list' => target_words[:watchwords][:suggestions]
             }
           end
+          true
         end
 
         WordData.schedule_once_for('slow', :update_activities_for, user.global_id, true)
