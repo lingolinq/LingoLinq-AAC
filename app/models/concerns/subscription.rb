@@ -1087,7 +1087,41 @@ module Subscription
     AuditEvent.where(event_type: 'subscription_event', record_id: self.record_code).order('id ASC').map{|e| e.data }
   end
       
+  # How many inactive accounts one sweep acts on (check_for_subscription_updates), and how many
+  # rows it may read to find them.
+  INACTIVITY_SWEEP_WINDOW = 500
+  INACTIVITY_SWEEP_SCAN_LIMIT = 10_000
+  INACTIVITY_SWEEP_PAGE = 100
+
+  # Accounts the inactivity sweep never deletes: marked never-delete, or allowing anonymized log
+  # reports and active within 36 months.
+  def inactivity_deletion_exempt?
+    prefs = (self.settings || {})['preferences'] || {}
+    !!prefs['never_delete'] || !!(prefs['allow_log_reports'] && self.updated_at > 36.months.ago)
+  end
+
   module ClassMethods  
+    # Ids of up to INACTIVITY_SWEEP_WINDOW accounts inactive since cutoff, oldest first, leaving
+    # out exempt ones. A plain order(updated_at).limit(500) let 500 exempt accounts fill the window
+    # on every run, so nobody behind them was ever reached. Exempt rows are walked past by
+    # (updated_at, id) rather than restamped: updated_at keys cached permissions and is the
+    # 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows a run.
+    def inactive_deletion_candidate_ids(cutoff)
+      ids = []
+      scanned = 0
+      last = nil
+      while ids.length < INACTIVITY_SWEEP_WINDOW && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
+        scope = User.where(['updated_at < ?', cutoff]).order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
+        scope = scope.where('(updated_at, id) > (?, ?)', last.updated_at, last.id) if last
+        batch = scope.to_a
+        break if batch.empty?
+        batch.each{|u| ids << u.id unless u.inactivity_deletion_exempt? }
+        scanned += batch.length
+        last = batch[-1]
+      end
+      ids.first(INACTIVITY_SWEEP_WINDOW)
+    end
+
     def check_for_subscription_updates
       alerts = {:approaching => 0, :approaching_emailed => 0, :upcoming => 0, :upcoming_emailed => 0, :expired => 0, :expired_emailed => 0, :expired_follow_up => 0, :recent_less_active => 0, :pending_deletes => 0}
       
@@ -1186,7 +1220,7 @@ module Subscription
 
       # send out a two and one-month warning when account is 
       # going to be deleted for inactivity (after 12 months of non-use)
-      to_be_deleted_ids = User.where(['updated_at < ?', 12.months.ago]).order('updated_at ASC').limit(500).map(&:id)
+      to_be_deleted_ids = inactive_deletion_candidate_ids(12.months.ago)
       non_expired_ids = []
       # if users are on an expired free trial, we can delete them much sooner
       trial_to_be_deleted_ids = []
@@ -1228,8 +1262,7 @@ module Subscription
           end
           # Don't delete communicators marked as never-delete or who allow
           # anonymized reports for tracking
-          next if user.settings['preferences']['allow_log_reports'] && user.updated_at > 36.months.ago
-          next if user.settings['preferences']['never_delete']
+          next if user.inactivity_deletion_exempt?
           user.settings['subscription'] ||= {}
           last_warning = Time.parse(user.settings['subscription']['last_deletion_warning']) rescue Time.at(0)
           if last_warning < 3.weeks.ago
@@ -1243,9 +1276,7 @@ module Subscription
               # guards above may have read a stale never_delete, and saving it reverted settings
               # saved meanwhile. The guards are re-read here.
               scheduled = user.update_settings_locked(touch: false) do |fresh|
-                prefs = fresh.settings['preferences'] || {}
-                next false if prefs['never_delete']
-                next false if prefs['allow_log_reports'] && fresh.updated_at > 36.months.ago
+                next false if fresh.inactivity_deletion_exempt?
                 fresh.schedule_deletion_at = 36.hours.from_now
               end
               next unless scheduled

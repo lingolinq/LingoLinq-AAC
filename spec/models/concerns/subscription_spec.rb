@@ -2164,6 +2164,28 @@ describe Subscription, :type => :model do
         end
       end
 
+      # The sweep reads a bounded window of the oldest inactive accounts. Accounts it always skips
+      # (never-delete) must not fill that window, or nobody behind them is ever reached.
+      it "reaches a deletable account behind more never-delete accounts than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 2)
+        # small pages, so the scan has to page past the never-delete accounts
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 2)
+        kept = 3.times.map do |i|
+          k = User.create
+          k.settings['preferences']['never_delete'] = true
+          k.save
+          User.where(id: k.id).update_all(updated_at: (15.months.ago + i.minutes))
+          k
+        end
+        target = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        kept.each { |k| expect(User.find(k.id).schedule_deletion_at).to eq(nil) }
+      end
+
       it "does not schedule an account marked never-delete after the batch was loaded" do
         first = inactive_account_on_final_warning
         second = inactive_account_on_final_warning
