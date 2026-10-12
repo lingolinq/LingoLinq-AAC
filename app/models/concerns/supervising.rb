@@ -402,9 +402,18 @@ module Supervising
       true
     end
 
+    # A relationship counts as scoped to the deleted district when its organization_id is the
+    # district's database id, or the district's global id as Rails cast it into that integer
+    # column ("1_123" -> 1123): SupervisorConsentService#request_access wrote global ids until it
+    # was fixed, and those rows were not migrated (owner decision). Ambiguity left by that cast:
+    # another organization's old row whose cast id happens to equal this district's real id, or
+    # this district's old row whose cast id equals another organization's id, is misread.
     def consented_outside_org?(supervisor, user, org_id)
       scope = SupervisorRelationship.approved.where(supervisor_user_id: supervisor.id, communicator_user_id: user.id)
-      scope = scope.where('organization_id IS NULL OR organization_id != ?', org_id) if org_id
+      if org_id
+        district_ids = [org_id, ActiveModel::Type::Integer.new.cast(Organization.new(id: org_id).global_id)].compact.uniq
+        scope = scope.where('organization_id IS NULL OR organization_id NOT IN (?)', district_ids)
+      end
       scope.exists?
     end
 

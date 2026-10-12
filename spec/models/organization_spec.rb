@@ -1393,7 +1393,35 @@ describe Organization, :type => :model do
         end
       end
 
-      it "keeps a legacy link with an approved relationship outside the district, without the room" do
+      # Consents are created through the real flow (SupervisorConsentService#request_access), then
+      # marked approved without re-linking, as consents approved before origins were recorded are.
+      def consent_through_request_access(sup, comm, organization_id: nil)
+        allow(SupervisorMailer).to receive(:schedule_delivery)
+        SupervisorConsentService.new.request_access(supervisor: User.find(sup.id), lookup_key: comm.user_name, organization_id: organization_id)
+        rel = SupervisorRelationship.where(supervisor_user_id: sup.id, communicator_user_id: comm.id).last
+        rel.update_columns(status: 'approved')
+        rel
+      end
+
+      it "keeps a legacy link with an approved consent scoped to another organization, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        other = Organization.create
+        expect(consent_through_request_access(sup, comm, organization_id: other.global_id).organization_id).to eq(other.id)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+
+      it "keeps a legacy link with an approved unscoped consent, without the room" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)
         ou.add_communicator(comm.user_name)
@@ -1405,19 +1433,36 @@ describe Organization, :type => :model do
         Worker.process_queues
         Worker.process_queues
 
-        link = supervision_link(sup, comm)
-        expect(link).not_to eq(nil)
-        expect(link.data['state']['organization_unit_ids']).to eq([])
+        expect(supervision_link(sup, comm)).not_to eq(nil)
       end
 
-      it "still removes a legacy room link when the only approved relationship is the district's own" do
+      it "still removes a legacy room link when the only approved consent is scoped to the district" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)
         ou.add_communicator(comm.user_name)
         Worker.process_queues
         legacy_link!(sup, comm)
-        SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'approved', organization_id: o.id)
+        # request_access scopes it to the organization both users share: this district
+        expect(consent_through_request_access(sup, comm).organization_id).to eq(o.id)
         SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'revoked', organization_id: nil)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # Rows written before the writer fix hold the global id as Rails cast it ("1_123" -> 1123).
+      it "still removes a legacy room link when the district's consent row holds the cast global id" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        rel = consent_through_request_access(sup, comm)
+        rel.update_columns(organization_id: ActiveModel::Type::Integer.new.cast(o.global_id))
+        expect(rel.reload.organization_id).not_to eq(o.id)
 
         o.reload.destroy
         Worker.process_queues
