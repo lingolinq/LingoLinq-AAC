@@ -167,7 +167,7 @@ export default Route.extend({
         var force_fetch = !_this.appState.get('speak_mode');
         if(_this.persistence && _this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
         _this.set('load_state', {remote_reload: true});
-        reload = model.reload(force_fetch).then(function(loaded) { return _this.loaded_remote(loaded, force_fetch); }, function(err) {
+        reload = _this.remote_reload(model, force_fetch).then(null, function(err) {
           _this.set('load_state', {remote_reload_local_reload: true});
           if(!force_fetch && controller.get('has_rendered_material')) {
             // If you think you're online but you're not really,
@@ -285,10 +285,22 @@ export default Route.extend({
   // refused this board to a user whose refusal speaks for every synced user
   // (utils/board_revocation.js#route_refuses_local). Offline, timeouts, server
   // errors and ambiguous refusals keep the fallback.
-  // A forced reload came from the server, so the board is viewable: clear any
-  // offline mark on it (utils/board_revocation.js).
-  loaded_remote: function(loaded, force_fetch) {
-    if(force_fetch && loaded && typeof loaded.get === 'function') {
+  // reload(force_fetch), then clear any offline mark on the board
+  // (utils/board_revocation.js) when the server itself answered.
+  remote_reload: function(model, force_fetch) {
+    var _this = this;
+    var started = (new Date()).getTime();
+    return model.reload(force_fetch).then(function(loaded) {
+      return _this.loaded_remote(loaded, force_fetch, started);
+    });
+  },
+  // reload(true) also resolves with the LOCAL copy on a 5xx, a dropped
+  // connection, a 401 or an invalid token (services/persistence.js, the find
+  // error handler). Only a genuine server response stamps `retrieved` with the
+  // time it arrived, so only a record retrieved after the reload started is
+  // evidence the board is viewable.
+  loaded_remote: function(loaded, force_fetch, started) {
+    if(force_fetch && started && loaded && typeof loaded.get === 'function' && loaded.get('retrieved') >= started) {
       var done = function() { return loaded; };
       return boardRevocation.clear_mark(loaded.get('id')).then(done, done);
     }

@@ -185,16 +185,29 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.deepEqual(model.reloads, [false], 'local reload');
   });
 
-  test('a forced reload from the server clears the mark; a soft one does not', async function(assert) {
+  test('only a forced reload the server answered clears the mark', async function(assert) {
     storedBoard(this.db, '1_7');
     storedBoard(this.db, '1_8');
-    await boardRevocation.apply_revocations(['1_7', '1_8']);
+    storedBoard(this.db, '1_9');
+    await boardRevocation.apply_revocations(['1_7', '1_8', '1_9']);
     var route = indexRoute(this, {supervisees: []});
-    var soft = EmberObject.create({id: '1_8'});
-    assert.strictEqual(await route.loaded_remote(soft, false), soft);
-    var loaded = EmberObject.create({id: '1_7'});
-    assert.strictEqual(await route.loaded_remote(loaded, true), loaded);
-    assert.false(await boardRevocation.is_revoked('1_7'), 'cleared');
-    assert.true(await boardRevocation.is_revoked('1_8'), 'a soft reload may be the local copy, so the mark stays');
+    var model = function(id, retrieved) {
+      var m = EmberObject.create({id: id, retrieved: retrieved});
+      m.reload = function(force) {
+        // a server answer is stamped on arrival; the local fallback keeps its old stamp
+        if(retrieved === 'now') { m.set('retrieved', (new Date()).getTime()); }
+        return RSVP.resolve(m);
+      };
+      return m;
+    };
+    var served = model('1_7', 'now');
+    assert.strictEqual(await route.remote_reload(served, true), served);
+    var fallback = model('1_8', 1000);
+    assert.strictEqual(await route.remote_reload(fallback, true), fallback, '502: the adapter resolves with the local copy');
+    var soft = model('1_9', 'now');
+    assert.strictEqual(await route.remote_reload(soft, false), soft);
+    assert.false(await boardRevocation.is_revoked('1_7'), 'server answer: cleared');
+    assert.true(await boardRevocation.is_revoked('1_8'), 'local fallback (5xx, offline, 401, bad token): kept');
+    assert.true(await boardRevocation.is_revoked('1_9'), 'a soft reload may be the local copy: kept');
   });
 });
