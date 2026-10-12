@@ -2261,6 +2261,56 @@ describe Subscription, :type => :model do
         expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
       end
 
+      # The deletion-warning branch records the warning on the batch-loaded copy too.
+      def inactive_account_to_warn
+        u = User.create
+        User.where(id: u.id).update_all(updated_at: 13.months.ago)
+        u
+      end
+
+      it "records a deletion warning without reverting settings saved after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          if message == :deletion_warning && id == first.global_id
+            other = User.find(second.id)
+            other.settings['spec_quiet'] = 'touch false'
+            other.save(touch: false)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        stored = User.find(second.id)
+        expect(warned).to include(second.global_id)
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+        expect(stored.settings['subscription']['last_deletion_warning']).not_to eq(nil)
+      end
+
+      it "does not warn an account marked never-delete after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          if message == :deletion_warning && id == first.global_id
+            other = User.find(second.id)
+            other.settings['preferences']['never_delete'] = true
+            other.save(touch: false)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        expect(warned).to eq([first.global_id])
+        stored = User.find(second.id)
+        expect(stored.settings['preferences']['never_delete']).to eq(true)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+      end
+
       it "does not schedule an account marked never-delete after the batch was loaded" do
         first = inactive_account_on_final_warning
         second = inactive_account_on_final_warning

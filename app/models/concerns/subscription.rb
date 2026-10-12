@@ -1319,14 +1319,19 @@ module Subscription
               next unless scheduled
               SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
             else
+              # Recorded on a locked fresh copy, like the scheduling above: update_setting saved the
+              # batch-loaded copy (whole settings column), reverting touch: false writes made since,
+              # and the warning went out before the exemption could be re-read.
+              warned = user.update_settings_locked(touch: false) do |fresh|
+                next false if fresh.inactivity_deletion_exempt?
+                fresh.settings['subscription'] ||= {}
+                fresh.settings['subscription']['last_deletion_warning'] = Time.now.iso8601
+                fresh.settings['subscription']['last_deletion_attempts'] = attempts
+                true
+              end
+              next unless warned
               SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
               alerts[:pending_deletes] += 1
-              user.update_setting({
-                'subscription' => {
-                  'last_deletion_warning' => Time.now.iso8601,
-                  'last_deletion_attempts' => attempts
-                }
-              })
             end
             User.where(id: user.id).update_all(updated_at: 12.months.ago + 3.weeks)
           end
