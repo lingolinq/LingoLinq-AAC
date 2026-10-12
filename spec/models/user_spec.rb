@@ -5044,6 +5044,71 @@ describe User, :type => :model do
     end
   end
 
+  describe "update_settings_locked" do
+    def users_sql
+      sql = []
+      record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
+      ActiveSupport::Notifications.subscribed(record, 'sql.active_record') { yield }
+      sql
+    end
+
+    it "changes only the keys the block sets, keeping a write made since this copy was loaded" do
+      u = User.create
+      stale = User.find(u.id)
+      other = User.find(u.id)
+      other.settings['preferences']['spec_marker'] = 'normal save'
+      other.save
+      quiet = User.find(u.id)
+      quiet.settings['spec_quiet'] = 'touch false'
+      quiet.save(touch: false)
+
+      stale.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['spec_owned']).to eq('mine')
+      # the caller's copy now carries what was saved
+      expect(stale.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stale.settings['spec_owned']).to eq('mine')
+    end
+
+    it "reads the copy it saves under a row lock" do
+      u = User.create
+      sql = users_sql { User.update_settings_locked(u.id) { |fresh| fresh.settings['spec_owned'] = 1 } }
+      locked = sql.index { |q| q =~ /FOR UPDATE/ }
+      updated = sql.index { |q| q.start_with?('UPDATE "users"') }
+      expect(locked).not_to be_nil
+      expect(updated).not_to be_nil
+      expect(locked).to be < updated
+    end
+
+    it "keeps updated_at with touch: false" do
+      u = User.create
+      User.where(id: u.id).update_all(updated_at: 2.days.ago)
+      before = User.find(u.id).updated_at
+      User.update_settings_locked(u.id, touch: false) { |fresh| fresh.settings['spec_owned'] = 1 }
+      expect(User.find(u.id).updated_at).to eq(before)
+      expect(User.find(u.id).settings['spec_owned']).to eq(1)
+    end
+
+    it "uses the given save method" do
+      u = User.create(sync_stamp: 6.hours.ago)
+      User.update_settings_locked(u.id, save_method: :save_with_sync, save_args: ['spec_reason']) { |fresh| fresh.settings['spec_owned'] = 1 }
+      stored = User.find(u.id)
+      expect(stored.sync_stamp).to be > 5.minutes.ago
+      expect(stored.settings['sync_stamp_reason']).to eq('spec_reason')
+    end
+
+    it "does not save when the block returns false, and returns nil for a missing user" do
+      u = User.create
+      sql = users_sql { expect(User.update_settings_locked(u.id) { |fresh| fresh.settings['spec_owned'] = 1; false }).to eq(false) }
+      expect(sql.none? { |q| q.start_with?('UPDATE "users"') }).to eq(true)
+      expect(User.find(u.id).settings['spec_owned']).to eq(nil)
+      expect(User.update_settings_locked(0) { |fresh| raise "not called" }).to eq(nil)
+    end
+  end
+
   describe "effective data policy preferences" do
     it "should return true when user enables logging and no org policy" do
       u = User.create

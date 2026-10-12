@@ -2161,6 +2161,32 @@ class User < ApplicationRecord
     self.settings['edit_key']
   end
 
+  # Read-modify-write of settings on a freshly read, row-locked copy of the user. settings is
+  # one serialized column written whole on save (secure_serialize, go_secure
+  # persist_secure_object), so saving a copy loaded before slow work reverts every settings
+  # change made since; assert_current_record! (processable.rb:95) compares updated_at and misses
+  # writes saved with touch: false. Yields the locked copy; the block changes only the keys it
+  # owns and returns false to skip the save. Saves with save_method (default save(touch:)).
+  # The lock is held through the save and its callbacks, so do slow work before calling.
+  # Returns the saved copy, false when the block declined, nil when the user no longer exists.
+  def self.update_settings_locked(user_id, touch: true, save_method: nil, save_args: [])
+    User.transaction do
+      fresh = User.lock.find_by(id: user_id)
+      next nil unless fresh
+      fresh.settings ||= {}
+      next false if yield(fresh) == false
+      save_method ? fresh.send(save_method, *save_args) : fresh.save(touch: touch)
+      fresh
+    end
+  end
+
+  # update_settings_locked for this user, then reloads this copy so it carries what was saved.
+  def update_settings_locked(**opts, &block)
+    res = User.update_settings_locked(self.id, **opts, &block)
+    self.reload if res
+    res
+  end
+
   def save_with_sync(reason)
     self.sync_stamp = Time.now
     self.settings ||= {}

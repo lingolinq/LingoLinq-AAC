@@ -317,14 +317,9 @@ module Sharing
     # touch: false keeps updated_at, which assert_current_record! (processable.rb:95) and the
     # links_for cache key (user_link.rb:97) compare.
     def store_shared_board_ids_entry(user_id, sub_key, entry)
-      User.transaction do
-        fresh = User.lock.find_by(id: user_id)
-        if fresh
-          fresh.settings ||= {}
-          fresh.settings['all_shared_board_ids'] ||= {}
-          fresh.settings['all_shared_board_ids'][sub_key] = entry
-          fresh.save(touch: false)
-        end
+      User.update_settings_locked(user_id, touch: false) do |fresh|
+        fresh.settings['all_shared_board_ids'] ||= {}
+        fresh.settings['all_shared_board_ids'][sub_key] = entry
       end
     end
   end
