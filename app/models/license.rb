@@ -116,6 +116,10 @@ class License < ApplicationRecord
 
     if locked_user
       locked_user.with_lock { perform_release!(locked_user, self.organization) }
+      # perform_release! removes the org_user link that gave the student this district's home
+      # boards (organization.rb attached_orgs), so view access must be recomputed. Enqueued after
+      # commit with a RemoteAction fallback (supervising.rb schedule_board_cache_refresh).
+      User.schedule_board_cache_refresh(locked_user, true)
     else
       License.transaction { perform_release!(nil, self.organization) }
     end

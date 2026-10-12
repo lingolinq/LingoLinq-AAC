@@ -8,6 +8,7 @@ class Organization < ApplicationRecord
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
+  after_destroy :refresh_attached_users_available_boards
   has_many :licenses
   include Replicate
 
@@ -300,6 +301,9 @@ class Organization < ApplicationRecord
         still_seated = self.licenses.where(user_id: user.id, status: 'active', seat_type: 'student').exists?
         UserLink.remove(user, self, 'org_user') unless still_seated
       end
+      # The removed link may have given the student this organization's home boards (an earlier
+      # invitation or unsponsored attach that a refresh had already turned into view access).
+      User.schedule_board_cache_refresh(user, true)
       if inactive_status
         raise "Seat #{license.global_id} is no longer active (#{inactive_status}); re-run the claim"
       end
@@ -731,6 +735,8 @@ class Organization < ApplicationRecord
       link.data['state']['pending'] = false
       link.save
       self.schedule(:org_assertions, user.global_id, 'supervisor')
+      # an approved supervisor now sees this org's home boards (attached_orgs, pending check)
+      User.schedule_board_cache_refresh(user)
     end
 #     if user.settings['supervisor_for'] && user.settings['supervisor_for'][self.global_id]
 #       self.add_supervisor(user.user_name, false)
@@ -748,6 +754,7 @@ class Organization < ApplicationRecord
     end
     UserLink.remove(user, self, 'org_supervisor')
     self.schedule(:org_assertions, user.global_id, 'supervisor')
+    User.schedule_board_cache_refresh(user, true)
 #     if user.settings['supervisor_for'] && user.settings['supervisor_for'][self.global_id]
 #       self.remove_supervisor(user.user_name)
 #       user.settings['supervisor_for'].delete(self.global_id)
@@ -1699,6 +1706,13 @@ class Organization < ApplicationRecord
         ue.process_profile(id, template && template.global_id, self)
       end
     end
+  end
+
+  # A destroyed organization keeps its user_links (no dependent: option) while attached_orgs
+  # skips it, so its members lose its home boards only when their view access is recomputed.
+  def refresh_attached_users_available_boards
+    self.attached_users('all').each{|u| User.schedule_board_cache_refresh(u, true) }
+    true
   end
 
   def update_user_available_boards

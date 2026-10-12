@@ -163,6 +163,45 @@ describe Organization, :type => :model do
       expect(u1.settings['subscription']['subscription_id']).to eq(nil)
     end
 
+    # A supervisor sees the org's private home boards only once approved (organization.rb:1392,
+    # attached_orgs), so approving and rejecting both change view access and must refresh it.
+    describe "supervisor approval and the org's private home boards" do
+      def org_with_private_home_board
+        manager = User.create
+        board = Board.create(:user => manager)
+        o = Organization.create
+        o.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+        o.save
+        [o, board]
+      end
+
+      it "grants view access after approving a pending supervisor" do
+        o, board = org_with_private_home_board
+        u1 = User.create
+        o.add_supervisor(u1.user_name, true)
+        Worker.process_queues
+        expect(User.find(u1.id).private_viewable_board_ids).not_to include(board.global_id)
+
+        o.approve_supervisor(User.find(u1.id))
+        Worker.process_queues
+
+        expect(User.find(u1.id).private_viewable_board_ids).to include(board.global_id)
+      end
+
+      it "removes view access after rejecting a supervisor" do
+        o, board = org_with_private_home_board
+        u1 = User.create
+        o.add_supervisor(u1.user_name, false)
+        Worker.process_queues
+        expect(User.find(u1.id).private_viewable_board_ids).to include(board.global_id)
+
+        o.reject_supervisor(User.find(u1.id))
+        Worker.process_queues
+
+        expect(User.find(u1.id).private_viewable_board_ids).not_to include(board.global_id)
+      end
+    end
+
     it "should error adding a null user as a supervisor" do
       o = Organization.create
       u = User.create
@@ -1111,6 +1150,25 @@ describe Organization, :type => :model do
       Worker.process_queues
       expect(RemoteAction.where(path: m.global_id, action: 'update_available_boards').count).to eq(1)
       RemoteAction.process_all
+      Worker.process_queues
+
+      expect(User.find(m.id).private_viewable_board_ids).not_to include(b.global_id)
+    end
+
+    # Destroying an org leaves its user_links in place (no dependent: option, organization.rb:11)
+    # and attached_orgs skips the missing org, so only a refresh drops its home boards.
+    it "drops members' access to its private home board after the organization is destroyed" do
+      u = User.create
+      b = Board.create(user: u)
+      m = User.create
+      o = Organization.create
+      o.settings['default_home_boards'] = [{'id' => b.global_id, 'key' => b.key}]
+      o.save
+      o.add_user(m.user_name, false, false)
+      Worker.process_queues
+      expect(User.find(m.id).private_viewable_board_ids).to include(b.global_id)
+
+      o.reload.destroy
       Worker.process_queues
 
       expect(User.find(m.id).private_viewable_board_ids).not_to include(b.global_id)
@@ -4540,6 +4598,32 @@ describe Organization, :type => :model do
 
       code = Webhook.get_record_code(org)
       expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
+    it "removes view access to the organization's private home board when a lost claim removes the link" do
+      # The student was already attached (unsponsored), so a refresh had granted the org's home
+      # board. The losing claim's cleanup removes that link and must refresh view access.
+      u = User.create
+      manager = User.create
+      board = Board.create(:user => manager)
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+      org.save
+      org.add_user(u.user_name, false, false)
+      Worker.process_queues
+      expect(User.find(u.id).private_viewable_board_ids).to include(board.global_id)
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+      u.reload
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{license.id}")
+        res
+      end
+
+      expect { org.reload.claim_user(u) }.to raise_error(/lost a concurrent race/)
+      Worker.process_queues
+
+      expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
     end
 
     it "re-checks the organization's seats and removes the link under one user lock" do

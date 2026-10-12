@@ -141,6 +141,27 @@ describe License, :type => :model do
       expect(a_license.reload.user_id).to be_nil
     end
 
+    # The released student's view access to the district's private home boards comes from the
+    # org_user link this removes (organization.rb attached_orgs), and nothing else refreshes it.
+    it "removes view access to the district's private home board once the seat is released" do
+      u = User.create
+      manager = User.create
+      board = Board.create(:user => manager)
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      district.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+      district.save
+      license = License.create!(organization: district, seat_type: 'student', status: 'active')
+      district.claim_user(u)
+      Worker.process_queues
+      expect(User.find(u.id).private_viewable_board_ids).to include(board.global_id)
+
+      license.reload.release_user!
+      expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
+      Worker.process_queues
+
+      expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
+    end
+
     it "hands the account back to the family when no other organization holds a seat" do
       u = User.create
       only_org = Organization.create(:settings => {'total_licenses' => 1})
