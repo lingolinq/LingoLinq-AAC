@@ -694,9 +694,10 @@
             <h2 class="ch-panel__title">{{t "Browse Boards" key="browse_boards"}}</h2>
             <button type="button" class="ch-btn ch-btn--ghost ch-boards__create" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
           </div>
-          {{!-- The subtab strip and the boards filter share one row. The filter is a SIBLING
-               of the tablist, never inside it: `role="tablist"` expects only tabs as
-               children, and a search box in there would be announced as one. --}}
+          {{!-- The subtab strip has its own row (2026-10-12); the boards filter and the home-board
+               button are on the row below it. The filter stays a SIBLING of the tablist, never
+               inside it: `role="tablist"` expects only tabs as children, and a search box in
+               there would be announced as one. --}}
           <div class="ch-boards__head">
           <div class="ch-subtabs" role="tablist" aria-label={{t "Browse Boards" key="browse_boards"}}>
             <button type="button" role="tab" aria-selected={{if this.suggested_selected "true" "false"}} class="ch-subtab {{if this.suggested_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "suggested")}}>{{t "Suggested" key="suggested"}}</button>
@@ -704,6 +705,14 @@
             <button type="button" role="tab" aria-selected={{if this.popular_selected "true" "false"}} class="ch-subtab {{if this.popular_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "popular")}}>{{t "Community" key="community"}}</button>
             <button type="button" role="tab" aria-selected={{if this.recent_selected "true" "false"}} class="ch-subtab {{if this.recent_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "recent")}}>{{t "Recent" key="recent"}}</button>
           </div>
+          </div>
+          {{!-- Filter on the left, "Assign Home Board" / "Change Home Board" on the right
+               (requested 2026-10-12). The button is a MODE, Basic's own (classic-view.js,
+               `basicAssigningHome`; utils/basic_home_assign.js), separate from Modern's Boards
+               page: while on, tiles take a house pointer and assign instead of opening, and the
+               tooltip under the button says what to do and carries Cancel. The tooltip reuses the
+               Modern tooltip's CLASSES for its look only; none of that page's wiring is used. --}}
+          <div class="ch-boards__toolbar">
             {{!-- Scope is named in BOTH the placeholder and the accessible name: the app
                  header's global "Search Boards" field looks similar, and a placeholder is
                  neither a label nor visible once the user has typed. Same reasoning as the
@@ -719,6 +728,18 @@
                 </button>
               {{/if}}
             </div>
+            <span class="ub-boards-page__set-home-wrap ch-boards__set-home-wrap">
+              <button type="button" class="ch-btn ch-btn--ghost ch-boards__set-home" aria-pressed={{if this.basicAssigningHome "true" "false"}} aria-describedby={{if this.basicAssigningHome "basic-set-home-tip"}} {{on "click" (this.ctrlAction "toggleBasicHomeAssign")}}>
+                <svg class="ch-boards__set-home-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg>
+                {{this.basicSetHomeLabel}}
+              </button>
+              {{#if this.basicAssigningHome}}
+                <span class="ub-boards-page__set-home-tip">
+                  <span id="basic-set-home-tip" role="status">{{this.basicSetHomeTip}}</span>
+                  <button type="button" class="ub-boards-page__set-home-tip-cancel" {{on "click" (this.ctrlAction "cancelBasicHomeAssign")}}>{{t "Cancel" key="cancel"}}</button>
+                </span>
+              {{/if}}
+            </span>
           </div>
           {{#if this.suggested_selected}}
             {{#unless this.app_state.currentUser.supporter_role}}
@@ -742,7 +763,7 @@
                       with no text, indistinguishable from a failed load. Mirrors the
                       supervisee filter's "No one matches that filter." above. --}}
                 {{#each this.filteredBoards as |board|}}
-                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} @onAction={{this.basicTileAction}} @pickCursor={{if this.basicAssigningHome this.basicHomeCursor}} /></div>{{/if}}
                 {{else}}
                   <p class="ch-empty">{{t "No boards match that filter." key="no_matching_boards"}}</p>
                 {{/each}}

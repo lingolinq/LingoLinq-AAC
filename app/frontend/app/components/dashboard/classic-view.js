@@ -9,6 +9,7 @@ import { pillForRoute } from '../../utils/primary_nav';
 import { showsAdminSlot } from '../../utils/admin_nav';
 import { has_caseload_access } from '../../utils/caseload_access';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
+import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } from '../../utils/basic_home_assign';
 
 /**
  * Classic home page.
@@ -55,6 +56,8 @@ export default AuthenticatedView.extend({
   init() {
     this._super(...arguments);
     var self = this;
+    // Bound once, so <BoardIcon @onAction> gets a stable function while the assign mode is on.
+    this.set('_basicAssignFromTile', function(board) { return self._basicAssign(board); });
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
@@ -327,6 +330,58 @@ export default AuthenticatedView.extend({
     return this.appState.get('currentUser.preferences.home_board.key');
   }),
 
+  /* BOARDS VIEW: "Assign Home Board" / "Change Home Board" (requested 2026-10-12). A mode, like
+     Modern's Boards page Set Home Board (components/available-boards-section.js), but Basic's own:
+     every name here is `basic...` so nothing is shared with that component, and the assign step is
+     utils/basic_home_assign.js. While on: tiles take the house pointer and assign instead of opening
+     (`basicTileAction` is passed to <BoardIcon @onAction> only then, so a normal click is untouched),
+     a tooltip under the button says what to do and carries Cancel. Escape, Cancel, the button again,
+     leaving the Boards view, or leaving the page ends it; switching subtabs keeps it. */
+  basicAssigningHome: false,
+  basicHomeCursor: BASIC_HOME_CURSOR,
+  basicSetHomeLabel: computed('homeBoardKey', function() {
+    return basic_home_button_label(!!this.get('homeBoardKey'));
+  }),
+  basicSetHomeTip: computed(function() {
+    return i18n.t('set_home_mode_tip', "Click any board to make it your home board");
+  }),
+  basicTileAction: computed('basicAssigningHome', '_basicAssignFromTile', function() {
+    return this.get('basicAssigningHome') ? this._basicAssignFromTile : null;
+  }),
+  _setBasicAssigning(on) {
+    var self = this;
+    if (self.isDestroyed || self.isDestroying) { return; }
+    self.set('basicAssigningHome', !!on);
+    if (on && !self._basicHomeKeydown) {
+      self._basicHomeKeydown = function(e) { if (e.key === 'Escape') { self._setBasicAssigning(false); } };
+      document.addEventListener('keydown', self._basicHomeKeydown);
+    } else if (!on && self._basicHomeKeydown) {
+      document.removeEventListener('keydown', self._basicHomeKeydown);
+      self._basicHomeKeydown = null;
+    }
+  },
+  // Another view of the home page (Actions, Communicators, Updates) ends it; Boards subtabs do not.
+  // Watches `index_nav_state`, which every view switch writes (authenticated-view.js#set_index_nav);
+  // synchronous, so the mode is off the moment the view changes rather than at the end of the run loop.
+  basicEndAssignOnLeave: observer({ dependentKeys: ['index_nav_state'], sync: true, fn: function() {
+    if (this.get('basicAssigningHome') && !(this.get('index_nav') || {}).boards) { this._setBasicAssigning(false); }
+  } }),
+  _basicAssign(board) {
+    var self = this;
+    var user = self.appState.get('currentUser');
+    return assign_home_board_basic(board, user, {
+      onAssigned: function() {
+        self._setBasicAssigning(false);
+        // A new copy is listed under Mine only after the list is fetched again.
+        if (!self.isDestroyed && !self.isDestroying) { self.update_selected(); }
+      },
+      openBoard: function(home) {
+        var key = home && (home.get ? home.get('key') : home.key);
+        if (key) { self.get('router').transitionTo('board', key); }
+      }
+    });
+  },
+
   homeBoardPending: computed('homeBoardKey', 'appState.currentUser.home_board_pending', function() {
     return !this.get('homeBoardKey') && !!this.appState.get('currentUser.home_board_pending');
   }),
@@ -392,6 +447,15 @@ export default AuthenticatedView.extend({
     //
     // Catches the <=550px `<select>` too — `handleTabSelect` (:71) sends this same action
     // rather than duplicating the logic.
+    toggleBasicHomeAssign: function() {
+      this._setBasicAssigning(!this.get('basicAssigningHome'));
+    },
+    // The tooltip's Cancel. Focus goes back to the button before the tooltip (and this Cancel) goes.
+    cancelBasicHomeAssign: function() {
+      var btn = document.querySelector('.ch-boards__set-home');
+      if (btn && btn.focus) { btn.focus(); }
+      this._setBasicAssigning(false);
+    },
     set_index_nav: function(nav) {
       this._super.apply(this, arguments);
       if(nav == 'boards') {
@@ -533,6 +597,7 @@ export default AuthenticatedView.extend({
   willDestroyElement() {
     this._super(...arguments);
     this.get('app_state').set('basic_home_place', null);
+    this._setBasicAssigning(false);
   },
 
   /* The communicator list arriving after a caseload landing (see _expand_supervisee_card). */

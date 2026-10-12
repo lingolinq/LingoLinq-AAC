@@ -1243,27 +1243,45 @@ button.ch-row--sync:focus-visible {
   justify-content: flex-end;
 }
 
-// The Browse Boards header row: subtab strip on the left, boards filter on the right. Same
-// shape as `.ch-panel__head` above, which pairs the Communicators title with its filter — the
-// two filter rows on this page should not be laid out two different ways.
-//
-// The wrapper existed in the markup with NO rule at all, so it was a plain block and the
-// filter fell to the line below the tabs. `.ch-filter` is already built for a flex row
-// (`flex: 0 1 260px; min-width: 180px`), so it only needed a flex parent to sit in.
-//
-// `margin-left: auto` as well as `space-between`: the strip is a flex child that can wrap its
-// own pills, and when it does, `space-between` alone would leave the filter hanging mid-row.
+// The Browse Boards subtab row. Since 2026-10-12 it holds only the subtab strip; the boards
+// filter moved to the toolbar row below it (filter left, home-board button right).
 .ch-boards__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px 16px;
   margin-bottom: 12px;
 }
 
-.ch-boards__head .ch-filter {
+// Filter on the LEFT, "Assign Home Board" / "Change Home Board" on the RIGHT (requested
+// 2026-10-12). `.ch-filter` is already built for a flex row (`flex: 0 1 260px; min-width:
+// 180px`). The button's wrapper takes `margin-left: auto`, so it stays right-aligned when the row
+// wraps on a narrow screen instead of hanging mid-row.
+.ch-boards__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.ch-boards__set-home-wrap {
   margin-left: auto;
+}
+
+// The button keeps `.ch-btn`'s 44px floor (WCAG 2.5.5, see `.ch-btn`): it is on the Basic home
+// page, which switch and eye-gaze users do reach. The house icon sits before the label.
+.ch-boards__set-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+// While the assign mode is on: a navy ring, so "on" is not shown by colour alone (the label
+// also has aria-pressed). The tooltip below it says what to do and carries Cancel.
+.ch-boards__set-home[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px $la-navy;
 }
 
 // Communicators filter. Deliberately quieter than a rail row: it is a tool for finding

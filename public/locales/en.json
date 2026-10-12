@@ -869,6 +869,7 @@
   "unlink": "unlink",
   "shared": "Shared with Me",
   "change_home_board": "Change Home Board",
+  "assign_home_board": "Assign Home Board",
   "set_home_board": "Set Home Board",
   "loading_board": "Loading board...",
   "confirmation_resent": "Confirmation email sent, please check your spam box if you can't find it!",
