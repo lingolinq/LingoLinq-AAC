@@ -868,19 +868,21 @@ class Board < ApplicationRecord
     self.settings['total_buttons'] = buttons.length + (self.settings['total_downstream_buttons'] || 0)
     self.settings['unlinked_buttons'] = buttons.select{|btn| !btn['load_board'] }.length + (self.settings['unlinked_downstream_buttons'] || 0)
 
-    # An @edit_description set for this save (process_params, update_privacy) describes this save
-    # and is always kept: comparing it with the previous save's stored description dropped it
-    # whenever the previous described edit was more than a second earlier, so version history
-    # showed "updated" for ordinary edits. A description derived from @buttons_changed keeps that
-    # one-second comparison, unchanged; its labels (rollback, translated, swapped images) can still
-    # be dropped the same way (follow-up, see docs/task-management/2026-10-07_rspec-speed.md).
-    if @buttons_changed.is_a?(String) && !@edit_description
-      derived = {
-        'timestamp' => Time.now.to_f,
-        'notes' => [@buttons_changed]
-      }
-      stored = self.settings['edit_description']
-      @edit_description = derived unless stored && stored['timestamp'] < derived['timestamp'] - 1
+    # An @edit_description set for this save (process_params, update_privacy) describes this save.
+    # Otherwise a String @buttons_changed (rollback, translated, swapped images) does, however long
+    # after the previous described edit it comes: comparing with the previous save's stored
+    # description dropped these labels, so version history showed "updated". Each buttons change
+    # describes one save only: map_images is the only reset (app/models/board.rb:1690), so
+    # @buttons_changed survives a save that skips it (@skip_post_process :1239, @map_later :1686).
+    # A new assignment is a new String object, so identity tells a new change from a described one.
+    if @buttons_changed.is_a?(String)
+      if !@edit_description && !@buttons_changed.equal?(@described_buttons_change)
+        @edit_description = {
+          'timestamp' => Time.now.to_f,
+          'notes' => [@buttons_changed]
+        }
+      end
+      @described_buttons_change = @buttons_changed
     end
     self.settings['edit_description'] = @edit_description
     @edit_description = nil

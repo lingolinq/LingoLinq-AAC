@@ -3056,6 +3056,54 @@ describe Board, :type => :model do
       end
     end
 
+    # A label derived from @buttons_changed (rollback, translated, swapped images) describes the
+    # save it was set for, however long after the previous described edit it comes, and only that
+    # save: @buttons_changed survives a save that skips map_images (app/models/board.rb:1237, :1684).
+    describe "with a label derived from a buttons change" do
+      include ActiveSupport::Testing::TimeHelpers
+
+      it "keeps a derived label set seconds after the previous described edit" do
+        u = User.create
+        b = Board.create(:user => u)
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_005)) do
+          b.instance_variable_set('@buttons_changed', 'translated')
+          b.save
+        end
+        expect(b.settings['edit_description']['notes']).to eq(['translated'])
+      end
+
+      it "describes only the save the derived label was set for" do
+        u = User.create
+        b = Board.create(:user => u)
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_005)) do
+          b.instance_variable_set('@buttons_changed', 'translated')
+          b.save_without_post_processing
+        end
+        expect(b.settings['edit_description']['notes']).to eq(['translated'])
+        expect(b.instance_variable_get('@buttons_changed')).to eq('translated')
+
+        travel_to(Time.at(1_800_000_010)) { b.save }
+        expect(b.settings['edit_description']).to eq(nil)
+      end
+
+      it "labels a rollback in the board's version history" do
+        u = User.create
+        PaperTrail.request.whodunnit = "user:#{u.global_id}"
+        b = travel_to(Time.at(1_799_999_990)) { Board.create(:user => u) }
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_005)) { b.process({'buttons' => [{'id' => 1, 'label' => 'hat'}]}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_010)) { b.rollback_to(Time.at(1_800_000_003)) }
+
+        b.reload
+        expect(b.settings['name']).to eq('good board')
+        expect(b.settings['edit_description']['notes']).to eq(['rollback'])
+        json = JsonApi::BoardVersion.paginate({}, Board.user_versions(b.global_id))
+        expect(json['boardversion'][0]['action']).to eq('rollback')
+      end
+    end
+
     it "should set edit description when buttons are changed" do
       u = User.create
       b = Board.create(:user => u)
