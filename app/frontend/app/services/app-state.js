@@ -71,7 +71,7 @@ export default Service.extend({
   showFooterGithubLinks: false,
 
   init() {
-    LingoLinq.appState = this;
+    LingoLinq.appState = this; frame_listener.set('appState', this); // integrations read it before any highlight (scanning, button search, modeling) runs frame_listener.setup (utils/frame_listener.js:16)
     // Expose globally for utilities
     window.appState = this;
     if (typeof window !== 'undefined') {

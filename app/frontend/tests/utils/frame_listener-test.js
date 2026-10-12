@@ -13,6 +13,8 @@ import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 import scanner from '../../utils/scanner';
 import frame_listener from '../../utils/frame_listener';
+import speecher from '../../utils/speecher';
+import utterance from '../../utils/utterance';
 import LingoLinq from '../../app';
 
 describe("frame_listener", function() {
@@ -747,5 +749,49 @@ describe("frame_listener", function() {
       });
 
     });
+  });
+});
+
+describe("frame_listener without a highlight", function() {
+  var testOwner, savedAppState;
+  beforeEach(function() {
+    testOwner = this.owner;
+    savedAppState = frame_listener.appState;
+  });
+  afterEach(function() {
+    frame_listener.appState = savedAppState;
+  });
+
+  // frame_listener.setup() (utils/frame_listener.js:16) runs only when a highlight opens (scanning,
+  // button search, modeling; utils/scanner.js:160 via controllers/highlight.js:50), so an integration
+  // that sent add_text before any highlight hit `this.appState.get` on undefined (frame_listener.js:115).
+  it("reaches this app's app-state for add_text when no highlight has opened", function() {
+    var appState = testOwner.lookup('service:app-state');
+    expect(frame_listener.appState === appState).toEqual(true);
+    var added = null, responded = null;
+    stub(appState, 'activate_button', function(button, obj) { added = obj; });
+    frame_listener.handle_action({action: 'add_text', text: 'hats', respond: function(d) { responded = d; }});
+    expect(added && added.label).toEqual('hats');
+    expect(responded).toEqual({added: true});
+  });
+  it("speaks an integration's speak_text aloud only in speak mode, through this app's app-state", function() {
+    var appState = testOwner.lookup('service:app-state');
+    var stashes = testOwner.lookup('service:stashes');
+    var savedMode = stashes.get('current_mode'), savedBoard = appState.get('currentBoardState');
+    var spoken = [], silent = [];
+    stub(speecher, 'speak_text', function(text) { spoken.push(text); });
+    stub(utterance, 'silent_speak_button', function(button) { silent.push(button.label); });
+    stashes.set('current_mode', 'speak');
+    appState.set('currentBoardState', {id: '1_1', key: 'example/one'});
+    var res = null;
+    frame_listener.handle_action({action: 'speak_text', text: 'hello', respond: function(d) { res = d; }});
+    expect(spoken).toEqual(['hello']);
+    expect(res).toEqual({spoken: true, vocalized: true});
+    stashes.set('current_mode', 'default');
+    frame_listener.handle_action({action: 'speak_text', text: 'quiet', respond: function(d) { res = d; }});
+    expect(silent).toEqual(['quiet']);
+    expect(res).toEqual({spoken: true, vocalized: false});
+    stashes.set('current_mode', savedMode);
+    appState.set('currentBoardState', savedBoard);
   });
 });

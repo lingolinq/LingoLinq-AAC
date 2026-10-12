@@ -129,3 +129,44 @@ Verdict: proposal sound, ship candidate 1 with conditions. Each finding checked 
   no previous-board words on either; auto-home on + presses at ~350/650 ms: only the selected word
   added, no previous-board selection (F4), and scanning resumes ~150 ms after selection (was ~1 s), so
   a quick press acts on the newly highlighted control; classic and axes unchanged.
+
+## Follow-up: frame_listener has no appState until a highlight opens (review F1 remainder)
+
+Fact sheet:
+- (a) READ: `utils/frame_listener.js:115,119` (`add_text`: `this.appState.get(...)`,
+  `this.appState.activate_button`), `:125` (`speak_text`: `this.get('appState.speak_mode')`), `:207`
+  (`size_targets` observer on `appState.speak_mode`). Messages arrive via
+  `window.addEventListener('message')` (`:283`) -> `handle_action` (`:18`). CONFIRMED.
+- (b) Shapes and writers: ONE writer, `frame_listener.setup` (`:16`), called only from `scanner.setup`
+  (`utils/scanner.js:160`), called only when a scanning highlight opens (`controllers/highlight.js:50`).
+  Highlights open for scanning, button search (`controllers/application.js:1603`) and modeling
+  (`utils/sync.js:599`). So `undefined` for any session that has not opened a highlight; the
+  app-state service after one (with commit a8219ca5d). CONFIRMED by grep.
+- (c) Before `3b80dc494` the module read the `app_state` singleton (always available). CONFIRMED.
+  `tests/utils/frame_listener-test.js:44-45` sets `frame_listener.appState` by hand in beforeEach,
+  hiding the gap. CONFIRMED.
+- Effect: an integration iframe's `add_text` throws (TypeError); `speak_text` in speak mode takes the
+  silent path instead of speaking (pre-`3b80dc494` it spoke). The `size_targets` observer was dead
+  BEFORE the migration too (it watched `app_state.speak_mode` on frame_listener, a property never set,
+  `3b80dc494^:utils/frame_listener.js:204`); with this fix it fires for the first time: NEW behaviour,
+  harmless (no-op without `#integration_overlay`; with one it resizes targets on speak-mode change).
+
+Candidates:
+1. (applied) app-state `init` registers itself: `frame_listener.set('appState', this)` on the existing
+   `LingoLinq.appState = this;` line (`services/app-state.js:74`; same line so the `.eslint-todo` rows
+   from 101 do not shift; app-state already imports frame_listener, `:45`). Covers all four readers
+   (and makes the observer live, see above). Each app boot (each test) replaces a dead owner's service.
+2. Readers fall back to `LingoLinq.appState`: leaves the observer dead; rejected.
+
+Red test: `tests/utils/frame_listener-test.js` "frame_listener without a highlight": asserts
+`frame_listener.appState` is this owner's app-state with no setup call, and that `add_text` reaches
+its `activate_button` and responds `{added: true}`. Mutation: remove the registration -> fails.
+Note: the fix was edited before this proposal was reviewed (process slip); review runs before any
+build or commit.
+
+Review (adversary, read-only): ship with conditions; no Critical/High. Checked and applied: the
+"scanning only" wording was too narrow (button search and modeling highlights also run setup), fixed in
+this log, the test comment and the app-state comment; the observer is new behaviour, not a restoration,
+corrected above; `speak_text` had no test, added ("speaks an integration's speak_text aloud only in
+speak mode"). Not adopted: an instance-initializer instead of the init line (optional; keeps the
+registration next to the existing `LingoLinq.appState = this` it mirrors).
