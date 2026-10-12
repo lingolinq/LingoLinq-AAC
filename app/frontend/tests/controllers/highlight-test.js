@@ -9,6 +9,9 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import modal from 'frontend/utils/modal';
+import scanner from 'frontend/utils/scanner';
+import frame_listener from 'frontend/utils/frame_listener';
 
 describe('HighlightController', 'controller:highlight', function() {
   it("should exist", function() {
@@ -64,3 +67,38 @@ describe('HighlightController', 'controller:highlight', function() {
 //     }
 //   }
 // });
+describe('HighlightController scanner hand-off', function() {
+  var testOwner, saved;
+  beforeEach(function() {
+    testOwner = this.owner;
+    saved = { appState: scanner.get('appState'), controller: scanner.controller, highlight: modal.highlight_controller,
+      last: modal.last_controller, settings: modal.settings_for['highlight'],
+      frameController: frame_listener.controller, frameAppState: frame_listener.appState };
+  });
+  afterEach(function() {
+    scanner.set('appState', saved.appState);
+    scanner.controller = saved.controller;
+    modal.highlight_controller = saved.highlight;
+    modal.last_controller = saved.last;
+    modal.settings_for['highlight'] = saved.settings;
+    frame_listener.controller = saved.frameController;
+    frame_listener.appState = saved.frameAppState;
+  });
+
+  // utils/scanner.js start() reads `this.get('appState.currentUser.preferences.device.scanning')`
+  // and stops when it is falsy; the highlight's opening() hands itself to scanner.setup(), which
+  // sets scanner.appState from the controller. Without an app-state on the controller every
+  // restart after a switch selection stopped scanning (modern view, auto-home off).
+  it("hands this app's app-state to the scanner when it opens", function() {
+    var appState = testOwner.lookup('service:app-state');
+    var controller = testOwner.lookup('controller:highlight');
+    scanner.set('appState', null);
+    // controllers/highlight.js actions.opening copies its model from settings_for['highlight'].
+    modal.settings_for['highlight'] = { left: 0, top: 0, width: 10, height: 10 };
+    controller.send('opening');
+    expect(scanner.controller).toEqual(controller);
+    expect(scanner.get('appState') === appState).toEqual(true);
+    controller.closing();
+  });
+});
+
