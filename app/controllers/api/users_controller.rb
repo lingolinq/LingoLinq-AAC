@@ -776,26 +776,25 @@ class Api::UsersController < ApplicationController
     end
     all_ids.uniq!
     include_revoked = params['include_revoked'] == '1' || params['include_revoked'] == 'true'
-    check_ids = include_revoked ? (params['check_ids'] || '').split(/,/).map(&:strip).reject(&:blank?).uniq : []
-    return api_error(400, {error: 'too many ids'}) if check_ids.length > 500
     # Only boards the synced user can still view get a revision (and key): a
-    # board that was unshared must not leak its key or revision. The check is
-    # the same one the batch /users/:id/boards endpoint applies.
+    # board that was unshared must not leak its key or revision. Only the synced
+    # tree is checked; ids the client sends (check_ids) are ignored, so this can
+    # not be used to probe which board ids exist or who owns them.
     res = {}
     revoked_ids = []
-    synced_boards = Board.find_all_by_global_id(all_ids)
-    checked_boards = Board.find_all_by_global_id(check_ids - all_ids)
-    ActiveRecord::Associations::Preloader.new(records: synced_boards + checked_boards, associations: :user).call
-    synced_boards.each do |brd|
-      if brd.allows?(user, 'view')
+    boards = Board.select('id, key, current_revision, public, user_id, updated_at').find_all_by_global_id(all_ids)
+    ActiveRecord::Associations::Preloader.new(records: boards.reject{|b| b.public }, associations: :user).call
+    boards.each do |brd|
+      shallow = !!brd.instance_variable_get('@sub_id')
+      viewable = (brd.public && !shallow) || brd.allows?(user, 'view') || (!shallow && board_shared_now?(brd, user))
+      if viewable
         res[brd.global_id] = brd.current_revision
         res[brd.key] = brd.current_revision
-      else
+      elsif !shallow
+        # A shallow clone's access also depends on its sub-user's cached list,
+        # so it is left out of the revisions without being called revoked.
         revoked_ids << brd.global_id
       end
-    end
-    checked_boards.each do |brd|
-      revoked_ids << brd.global_id unless brd.allows?(user, 'view')
     end
     # Older clients read the flat id => revision map, so the revoked list is
     # only sent, in a wrapped shape, to clients that ask for it.
@@ -805,6 +804,19 @@ class Api::UsersController < ApplicationController
       render json: res
     end
   end
+
+  # allows?(user, 'view') reads the user's cached available_private_board_ids
+  # and a 30-minute permission cache, both rebuilt lazily (minutes to hours
+  # after a share change). Before a board is reported revoked, the owner and the
+  # share links themselves are checked, so a stale cache never makes a client
+  # hide a board the user can use. A board shared with one of the user's
+  # supervisees is viewable to the user too (board_caching does the same).
+  def board_shared_now?(board, user)
+    return true if board.user_id == user.id || board.shared_with?(user)
+    @board_revisions_supervisees ||= user.supervisees
+    @board_revisions_supervisees.any?{|sup| board.user_id == sup.id || board.shared_with?(sup) }
+  end
+  private :board_shared_now?
 
   def boards
     user = User.find_by_path(params['user_id'])

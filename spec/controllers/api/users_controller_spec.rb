@@ -3367,25 +3367,126 @@ describe Api::UsersController, :type => :controller do
       expect(json['revoked_ids']).to eq([])
     end
 
-    it "should report client-supplied board ids that exist but are not viewable" do
+    it "should ignore client-supplied check_ids in either form" do
       token_user
       other = User.create
-      mine = Board.create(:user => @user)
       hidden = Board.create(:user => other, :public => false)
-      shown = Board.create(:user => other, :public => true)
-      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => [mine.global_id, hidden.global_id, shown.global_id, '1_99999999'].join(',')}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json['revoked_ids']).to eq([hidden.global_id])
-      expect(json['revisions']).to eq({})
+      sub_id = "#{hidden.global_id}-#{other.global_id}"
+      [hidden.global_id + ',' + sub_id + ',1_99999999', [hidden.global_id, sub_id], {'a' => hidden.global_id}].each do |check_ids|
+        get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => check_ids}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json).to eq({'revisions' => {}, 'revoked_ids' => []})
+      end
     end
 
-    it "should limit how many client-supplied ids it checks" do
+    def link_board_revisions_tree(user, boards)
+      root = Board.create(:user => user)
+      root.settings['buttons'] = boards.each_with_index.map{|b, idx| {'id' => idx + 1, 'load_board' => {'id' => b.global_id}} }
+      root.instance_variable_set('@buttons_changed', true)
+      root.save
+      user.settings['preferences']['home_board'] = {'id' => root.global_id, 'key' => root.key}
+      user.save
+      Worker.process_queues
+      Worker.process_queues
+      expect(root.reload.settings['downstream_board_ids'].sort).to eq(boards.map(&:global_id).sort)
+      root
+    end
+
+    def make_private_board_cache_stale(user)
+      user.reload
+      user.settings['available_private_board_ids'] = {'view' => [], 'edit' => [], 'generated' => Time.now.to_i}
+      user.save
+      user.reload
+    end
+
+    it "should not call a shared board revoked while the user's private board cache is stale" do
       token_user
-      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => (1..501).map{|i| "1_#{i}" }.join(',')}
-      expect(response).to_not be_successful
+      other = User.create
+      shared = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [shared])
+      shared.share_with(@user)
+      make_private_board_cache_stale(@user)
+      expect(@user.can_view?(shared)).to eq(false)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['error']).to eq('too many ids')
+      expect(json['revoked_ids']).to eq([])
+      expect(json['revisions'][shared.global_id]).to eq(shared.reload.current_revision)
+    end
+
+    it "should not call a board revoked when it goes private while still shared and the cache is stale" do
+      token_user
+      other = User.create
+      board = Board.create(:user => other, :public => true)
+      link_board_revisions_tree(@user, [board])
+      board.share_with(@user)
+      board.reload
+      board.public = false
+      board.save
+      make_private_board_cache_stale(@user)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([])
+      expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
+    end
+
+    it "should not call a board revoked when it is shared with one of the user's supervisees and the cache is stale" do
+      token_user
+      supervisee = User.create
+      User.link_supervisor_to_user(@user, supervisee)
+      other = User.create
+      board = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [board])
+      board.share_with(supervisee)
+      make_private_board_cache_stale(@user)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([])
+    end
+
+    it "should still call a board revoked once its share is removed" do
+      token_user
+      other = User.create
+      board = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [board])
+      board.share_with(@user)
+      board.reload.unshare_with(@user)
+      Worker.process_queues
+      make_private_board_cache_stale(@user)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([board.global_id])
+      expect(json['revisions'][board.global_id]).to eq(nil)
+      expect(json['revisions'][board.key]).to eq(nil)
+    end
+
+    it "should not add queries per public board" do
+      token_user
+      others = (1..6).map{ User.create }
+      few = (0..1).map{|idx| Board.create(:user => others[idx], :public => true) }
+      many = (0..5).map{|idx| Board.create(:user => others[idx], :public => true) }
+      counts = [few, many].map do |boards|
+        link_board_revisions_tree(@user, boards)
+        # warm the token and permission caches so only the request's own work is counted
+        get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+        count = 0
+        callback = lambda{|*args| count += 1 unless args.last[:name] == 'SCHEMA' }
+        ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+          get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+        end
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['revisions'].keys.length).to eq((boards.length + 1) * 2)
+        count
+      end
+      expect(counts[1]).to eq(counts[0])
     end
   end
   
