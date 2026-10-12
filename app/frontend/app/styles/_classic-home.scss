@@ -4167,41 +4167,11 @@ button.ch-tile--silver:focus-visible {
   .ch-tile--silver .ch-tile__label { font-size: 16px; }
 }
 
-// 901-1024px: the four Actions tiles stretch so the grid's bottom edge lands level with
-// the rail's (requested 2026-09-03).
-//
-// BOUNDED BELOW AT 901px ON PURPOSE. At <=900px the block right after this one turns
-// `.ch-page` into a column, so the rail sits ABOVE the panel and there is no shared
-// bottom edge to match -- stretching there would be meaningless, not merely harmless.
-//
-// Four links, all required; the chain breaks if any one is missing:
-//   1. `.ch-page` stretches rather than `align-items: flex-start`, so `.ch-panel` takes
-//      the rail's full height instead of its own content height.
-//   2. `.ch-tabpanel` grows to fill `.ch-panel`.
-//   3. `.ch-grid` grows to fill what is left under the intro card.
-//   4. `grid-auto-rows: 1fr` divides that leftover height EQUALLY. This is the link that
-//      keeps the four the same height -- without it the row still sizes to its tallest
-//      tile's content and the extra space just sits unused below the grid.
-//
-// `:not(.ch-grid--extras)` keeps the ten Extras drawer tiles out of it: when the drawer
-// is open both grids sit inside the same tabpanel, and letting the drawer grow too would
-// split the height between them instead of giving it to the four.
-//
-// SIDE EFFECT worth knowing: `align-items: stretch` cuts both ways. On a tab where the
-// PANEL is the taller of the two (Communicators with several cards), the rail's glass
-// column now stretches down to match it rather than stopping after its last row.
-@media (min-width: 901px) and (max-width: 1024px) {
-  .ch-page { align-items: stretch; }
-
-  // min-height: 0 so the panel can actually shrink to its flex basis; without it a flex
-  // item's automatic minimum size is its content, and the grid cannot claim the height.
-  .ch-tabpanel { flex: 1 1 auto; min-height: 0; }
-
-  .ch-grid:not(.ch-grid--extras) {
-    flex: 1 1 auto;
-    grid-auto-rows: 1fr;
-  }
-}
+// NO TILE STRETCH AT 901-1024px (2026-10-12). A block here made the main Actions tiles stretch
+// so the grid's bottom edge met the rail's (requested 2026-09-03, eb1d792ec): `.ch-page` stretched,
+// `.ch-tabpanel` and `.ch-grid` grew, and `grid-auto-rows: 1fr` split the height, so at 1024px
+// the tiles jumped from 90px to ~163px tall. Removed on request: the tiles keep the design they
+// have just above 1024px. Re-adding any one of those four links brings the jump back.
 
 // <=550px: four tabs no longer fit on one row even at the 767px block's reduced padding
 // and font size, so the strip is replaced by the dropdown (requested 2026-09-03). The
