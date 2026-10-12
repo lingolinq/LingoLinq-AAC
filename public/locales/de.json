@@ -7546,7 +7546,6 @@
   "board_collection_grid_size": "%{rows} mal %{columns} Raster [[ %{rows} by %{columns} grid",
   "coming_soon": "Demnächst verfügbar [[ Coming soon",
   "ready_to_communicate": "Kommunikationsbereit [[ Ready to communicate",
-  "focused_home_sub": "Mein Kommunikationsforum öffnen [[ Open My Communication Board",
   "manage_your_account": "Verwalten Sie Ihr Konto [[ Manage your account",
   "create_a_board_sub": "Erstelle dein eigenes Board [[ Create your own board",
   "display_style_trigger_aria": "Los geht's! [[ Get started",

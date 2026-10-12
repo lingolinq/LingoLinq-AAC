@@ -7547,7 +7547,6 @@
   "board_collection_grid_size": "Grade %{rows} por %{columns} [[ %{rows} by %{columns} grid",
   "coming_soon": "Em breve [[ Coming soon",
   "ready_to_communicate": "Pronto para se comunicar [[ Ready to communicate",
-  "focused_home_sub": "Abra meu quadro de comunicação [[ Open My Communication Board",
   "manage_your_account": "Gerencie sua conta [[ Manage your account",
   "create_a_board_sub": "Crie seu próprio quadro [[ Create your own board",
   "display_style_trigger_aria": "Comece agora [[ Get started",

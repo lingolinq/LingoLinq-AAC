@@ -7504,7 +7504,6 @@
   "board_collection_grid_size": "%{rows}×%{columns}グリッド [[ %{rows} by %{columns} grid",
   "coming_soon": "近日公開 [[ Coming soon",
   "ready_to_communicate": "コミュニケーションの準備はできています [[ Ready to communicate",
-  "focused_home_sub": "コミュニケーションボードを開く [[ Open My Communication Board",
   "manage_your_account": "アカウントを管理する [[ Manage your account",
   "create_a_board_sub": "自分だけのボードを作成する [[ Create your own board",
   "display_style_trigger_aria": "さあ始めましょう [[ Get started",

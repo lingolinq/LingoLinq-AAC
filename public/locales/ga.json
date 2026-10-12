@@ -7546,7 +7546,6 @@
   "board_collection_grid_size": "%{rows} le heangach %{columns} [[ %{rows} by %{columns} grid",
   "coming_soon": "Ag teacht go luath [[ Coming soon",
   "ready_to_communicate": "Réidh le cumarsáid a dhéanamh [[ Ready to communicate",
-  "focused_home_sub": "Oscail Mo Bhord Cumarsáide [[ Open My Communication Board",
   "manage_your_account": "Bainistigh do chuntas [[ Manage your account",
   "create_a_board_sub": "Cruthaigh do bhord féin [[ Create your own board",
   "display_style_trigger_aria": "Tosaigh [[ Get started",

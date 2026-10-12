@@ -7772,7 +7772,6 @@
   "board_collection_grid_size": "%{rows} 到 %{columns} 网格 [[ %{rows} by %{columns} grid",
   "coming_soon": "即将推出 [[ Coming soon",
   "ready_to_communicate": "随时准备沟通 [[ Ready to communicate",
-  "focused_home_sub": "打开我的交流板 [[ Open My Communication Board",
   "manage_your_account": "管理您的帐户 [[ Manage your account",
   "create_a_board": "创建看板 [[ Create a Board",
   "create_a_board_sub": "创建您自己的板块 [[ Create your own board",

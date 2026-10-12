@@ -7504,7 +7504,6 @@
   "board_collection_grid_size": "Grille %{rows} par %{columns} [[ %{rows} by %{columns} grid",
   "coming_soon": "À venir [[ Coming soon",
   "ready_to_communicate": "Prêt à communiquer [[ Ready to communicate",
-  "focused_home_sub": "Ouvrir mon tableau de communication [[ Open My Communication Board",
   "manage_your_account": "Gérez votre compte [[ Manage your account",
   "create_a_board_sub": "Créez votre propre tableau [[ Create your own board",
   "display_style_trigger_aria": "Commencer [[ Get started",
