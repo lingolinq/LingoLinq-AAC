@@ -1727,7 +1727,7 @@ class Organization < ApplicationRecord
     # unknown-origin room links to remove (User.strip_rooms_from_supervision). Captured now, with
     # the cleanup row, so the job does not depend on the membership links still being there.
     RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now,
-      extra: Organization.staff_since_for(Webhook.get_record_code(self)).to_json)
+      extra: Organization.staff_since_for(Webhook.get_record_code(self), staff_user_ids).to_json)
     ActiveRecord.after_all_transactions_commit do
       # default queue: everything it queues removes access (owner decision: revocations do not
       # wait behind the slow queue)
@@ -1736,10 +1736,20 @@ class Organization < ApplicationRecord
     true
   end
 
-  # {user id (string) => earliest org_supervisor/org_manager link created_at (iso8601 µs)}
-  def self.staff_since_for(record_code)
+  # Local ids of this organization's supervisors and managers, from the cached links that
+  # attached_users also reads, so the destroy decrypts only their membership links.
+  def staff_user_ids
+    links = UserLink.links_for(self).select{|l| ['org_supervisor', 'org_manager'].include?(l['type']) }
+    User.local_ids(links.map{|l| l['user_id'] }.uniq)
+  end
+
+  # {user id (string) => earliest org_supervisor/org_manager link created_at (iso8601 µs)}.
+  # user_ids limits the read to those users' links (nil reads every link of the organization).
+  def self.staff_since_for(record_code, user_ids=nil)
     res = {}
-    UserLink.where(record_code: record_code).each do |link|
+    scope = UserLink.where(record_code: record_code)
+    scope = scope.where(user_id: user_ids) if user_ids
+    scope.each do |link|
       next unless ['org_supervisor', 'org_manager'].include?(link.data['type'])
       key = link.user_id.to_s
       res[key] = link.created_at if !res[key] || link.created_at < res[key]

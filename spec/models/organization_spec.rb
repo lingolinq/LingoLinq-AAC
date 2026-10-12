@@ -1462,6 +1462,24 @@ describe Organization, :type => :model do
       end
 
       # Only the copy captured on the cleanup row at the destroy can decide here.
+      # The capture runs inside the destroy's transaction; it reads only the staff's membership
+      # links (ids from the cached links attached_users already uses), not every student's link.
+      it "captures the staff by reading only their membership links" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        students = 3.times.map { User.create }
+        students.each { |st| o.add_user(st.user_name, false, false) }
+        sql = []
+        record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /FROM "user_links"/ && payload[:sql] =~ /record_code/ }
+        org = o.reload
+        UserLink.links_for(org) # cached, as attached_users finds it; leaves only the capture's own reads
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') { org.destroy }
+
+        expect(sql).not_to be_empty
+        expect(sql.all? { |q| q =~ /"user_links"\."user_id"/ }).to eq(true)
+        captured = JSON.parse(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).first.extra)
+        expect(captured.keys).to eq([sup.id.to_s])
+      end
+
       it "uses the staff captured at the destroy when the membership links are gone" do
         o, sup, comm, legacy = legacy_room_link_of_staff
         o.reload.destroy
