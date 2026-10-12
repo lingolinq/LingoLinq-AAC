@@ -275,8 +275,8 @@ case "$method $url" in
     case "$ctx" in data-bearing-approval/*) f=approve ;; *) f=verdict ;; esac
     if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
     printf '%s %s %s\n' "$sha" "$ctx" "$(field state)" >> "$GH_STUB/posted"
-    jq --arg c "$ctx" --arg s "$(field state)" --arg sha "$sha" \
-      '[{sha:$sha, context:$c, state:$s, creator:{login:"data-bearing-gate[bot]"}}] + .' \
+    jq --arg c "$ctx" --arg s "$(field state)" --arg sha "$sha" --arg d "$(field description)" \
+      '[{sha:$sha, context:$c, state:$s, description:$d, creator:{login:"data-bearing-gate[bot]"}}] + .' \
       "$GH_STUB/statuses.json" > "$GH_STUB/statuses.tmp" && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
     exit 0 ;;
   "GET "*/pulls/*) f=pr ;;
@@ -315,24 +315,54 @@ set_local develop "$FIX"; set_local staging "$BASE"; set_local main "$BASE"
 
 APPROVAL_DEV="data-bearing-approval/develop"
 
-# stub_pr <head> <base-ref> [base-sha, default $BASE]: a fresh PR, no statuses.
+# stub_pr <head> <base-ref> [base-sha, default $BASE]: a fresh PR, no statuses, carrying
+# the synthetic-data label (as a labeled run finds it); stub_labels <json> replaces them.
 stub_pr() {
   rm -rf "$GH_STUB"; mkdir -p "$GH_STUB"
   jq -n --arg h "$1" --arg b "${3:-$BASE}" --arg r "$2" \
-    '{head:{sha:$h}, base:{sha:$b, ref:$r}}' > "$GH_STUB/pr.json"
+    '{head:{sha:$h}, base:{sha:$b, ref:$r}, labels:[{name:"synthetic-data"}]}' > "$GH_STUB/pr.json"
   printf '[]\n' > "$GH_STUB/statuses.json"
   printf '{"permission":"write"}\n' > "$GH_STUB/perm.json"
 }
-# add_status <sha> <context> <state> [creator]: prepend a status (it becomes the latest).
+# scope_of <base-ref> <base-sha> <head> [develop-sha]: the approval scope, computed here
+# independently of the CI script: sha256 (first 40 hex) of the base ref, then the raw
+# diff base...head (develop) or the sorted commits head ^develop ^base (staging, main).
+scope_of() {
+  local text
+  if [ "$1" = develop ]; then
+    text="$(printf '%s\n' "$1"; git -C "$REPO" diff --raw --no-abbrev --no-renames --no-relative "$2...$3")"
+  else
+    text="$(printf '%s\n' "$1"; git -C "$REPO" rev-list "$3" "^$4" "^$2" | sort)"
+  fi
+  printf '%s\n' "$text" | sha256sum | cut -c1-40
+}
+# approval_desc <head>: a valid approval description for that head against the stubbed
+# PR's base and the origin's develop, whatever context it is posted under, so the context
+# cases still fail on the context alone.
+approval_desc() {
+  local ref
+  ref="$(jq -r .base.ref "$GH_STUB/pr.json")"
+  printf 'Synthetic data confirmed by reviewer; scope %s' \
+    "$(scope_of "$ref" "$(jq -r .base.sha "$GH_STUB/pr.json")" "$1" "$(git -C "$ORIGIN" rev-parse refs/heads/develop)")"
+}
+stub_labels() {
+  jq --argjson l "$1" '.labels = $l' "$GH_STUB/pr.json" > "$GH_STUB/pr.tmp" && mv "$GH_STUB/pr.tmp" "$GH_STUB/pr.json"
+}
+# add_status <sha> <context> <state> [creator] [description]: prepend a status (it becomes
+# the latest). An approval context gets a valid scope for the stubbed PR by default.
 add_status() {
-  jq --arg sha "$1" --arg c "$2" --arg s "$3" --arg who "${4:-$APP_LOGIN}" \
-    '[{sha:$sha, context:$c, state:$s, creator:{login:$who}}] + .' \
+  local desc
+  if [ $# -ge 5 ]; then desc="$5"
+  else case "$2" in data-bearing-approval/*) desc="$(approval_desc "$1")" ;; *) desc="" ;; esac
+  fi
+  jq --arg sha "$1" --arg c "$2" --arg s "$3" --arg who "${4:-$APP_LOGIN}" --arg d "$desc" \
+    '[{sha:$sha, context:$c, state:$s, description:$d, creator:{login:$who}}] + .' \
     "$GH_STUB/statuses.json" > "$GH_STUB/statuses.tmp" && mv "$GH_STUB/statuses.tmp" "$GH_STUB/statuses.json"
 }
 
 # run_ci <expect-exit> <expect-check-ran:yes|no> <label> <event-head> [env assignments...]
-# EVENT_ACTION defaults to opened and EVENT_BASE_REF to develop; a later assignment
-# overrides them. A first argument of --mark-<state> runs the script's --mark mode.
+# EVENT_ACTION defaults to opened, EVENT_BASE_REF to develop and EVENT_BASE_SHA to the
+# stubbed PR's base.sha; a later assignment overrides them. A first argument of --mark-<state> runs the script's --mark mode.
 run_ci() {
   local mode=()
   case "$1" in --mark-*) mode=(--mark "${1#--mark-}"); shift ;; esac
@@ -340,8 +370,10 @@ run_ci() {
   shift 4
   total=$((total + 1))
   rm -f "$MARK" "$GH_STUB/posted" "$GH_STUB/deleted"
+  local ebase
+  ebase="$(jq -r .base.sha "$GH_STUB/pr.json")"
   (cd "$REPO" && env -u GITHUB_OUTPUT PATH="$GHBIN:$PATH" GH_STUB="$GH_STUB" REPO=o/r PR_NUMBER=7 \
-    EVENT_HEAD_SHA="$ehead" EVENT_BASE_REF=develop CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= \
+    EVENT_HEAD_SHA="$ehead" EVENT_BASE_REF=develop EVENT_BASE_SHA="$ebase" CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= \
     SENDER_LOGIN=reviewer SENDER_TYPE=User RUN_URL=https://example.invalid/run/1 \
     GH_TOKEN=actions-token STATUS_TOKEN=app-token STATUS_LOGIN="$APP_LOGIN" \
     "$@" bash "$CI" "${mode[@]}") >/dev/null 2>&1 || rc=$?
@@ -429,8 +461,9 @@ run_ci 0 yes 'an approval beyond the first page of statuses is found' "$FIX"
 # Many matching statuses: their filtered lines (about 230 KB) outgrow a pipe buffer, so a
 # reader that stops at the first line (head -n 1) under pipefail would kill the writer.
 stub_pr "$FIX" develop
+D8K="$(approval_desc "$FIX")"
 for i in $(seq 1 8000); do printf '%s\n' "$i"; done \
-  | jq -R --arg sha "$FIX" --arg who "$APP_LOGIN" '{sha:$sha, context:"data-bearing-approval/develop", state:"success", creator:{login:$who}}' \
+  | jq -R --arg sha "$FIX" --arg who "$APP_LOGIN" --arg d "$D8K" '{sha:$sha, context:"data-bearing-approval/develop", state:"success", description:$d, creator:{login:$who}}' \
   | jq -s . > "$GH_STUB/statuses.json"
 run_ci 0 yes '8,000 matching statuses: the latest is read without SIGPIPE' "$FIX"
 
@@ -538,6 +571,84 @@ unset_origin main
 stub_pr "$REL_CODE" main
 run_ci 3 no 'live base branch missing on the remote fails closed' "$REL_CODE" EVENT_BASE_REF=main
 set_origin main "$BASE"
+
+# The approval covers one change set: the scope recorded in it (the merge bases for
+# develop, the commits beyond develop and the base for staging and main) must equal the
+# scope now. A base rewrite with the same head changes the scope, so the old approval no
+# longer counts.
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" 'Synthetic data confirmed by reviewer'
+run_ci 1 yes 'an approval with no scope does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "Synthetic data confirmed by reviewer; scope $(scope_of develop "$FIX" "$FIX")"
+run_ci 1 yes 'an approval for another scope does not count' "$FIX"
+stub_pr "$FIX" develop; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" 'Synthetic data confirmed by reviewer; scope not-a-scope'
+run_ci 1 yes 'an approval with a malformed scope does not count' "$FIX"
+# develop rewritten: REL_FIX was approved against develop at $FIX (merge base $FIX);
+# develop is then reset to $BASE and the PR's base.sha refreshed, so $BASE...REL_FIX now
+# also carries $FIX's fixture, which the approval never covered.
+stub_pr "$REL_FIX" develop "$FIX"; add_status "$REL_FIX" "$APPROVAL_DEV" success
+set_origin develop "$BASE"
+jq --arg b "$BASE" '.base.sha = $b' "$GH_STUB/pr.json" > "$GH_STUB/pr.tmp" && mv "$GH_STUB/pr.tmp" "$GH_STUB/pr.json"
+run_ci 1 yes 'after a develop rewrite, the old approval does not cover the head' "$REL_FIX"
+set_origin develop "$FIX"
+# staging, develop rewritten: the commits beyond develop grow, so the scope changes.
+stub_pr "$REL_FIX" staging; add_status "$REL_FIX" data-bearing-approval/staging success
+set_origin develop "$BASE"
+run_ci 1 yes 'PR to staging: after a develop rewrite, the old approval does not count' "$REL_FIX" EVENT_BASE_REF=staging
+set_origin develop "$FIX"
+# Recording: the approval carries the scope of the change set it was given for.
+stub_pr "$REL_FIX" develop "$FIX"
+run_ci 0 yes 'labeled: approval recorded with its scope' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+total=$((total + 1))
+got_desc="$(jq -r --arg c "$APPROVAL_DEV" '[.[] | select(.context == $c)][0].description' "$GH_STUB/statuses.json")"
+want_desc="Synthetic data confirmed by reviewer; scope $(scope_of develop "$FIX" "$REL_FIX")"
+if [ "$got_desc" = "$want_desc" ]; then printf '  ok   description  ci: the recorded approval names its scope\n'
+else printf '  FAIL description [%s] (expected [%s])  ci: the recorded approval names its scope\n' "$got_desc" "$want_desc"; fails=$((fails + 1)); fi
+# A label event whose base had another scope (the base changed between the label and the
+# run, or a re-run after a rewrite) records nothing and removes the label.
+stub_pr "$REL_FIX" develop "$FIX"
+run_ci 1 yes 'labeled against another base scope: no approval recorded' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_SHA="$BASE"
+posted_case "$REL_FIX data-bearing-paths/develop failure" 'no approval when the event base scope differs'
+deleted_case yes 'the label is removed so it can be added again'
+stub_pr "$REL_FIX" develop "$FIX"
+run_ci 1 yes 'labeled with an event base not in the repo: no approval recorded' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_SHA=0123456789abcdef0123456789abcdef01234567
+posted_case "$REL_FIX data-bearing-paths/develop failure" 'no approval for an unknown event base'
+deleted_case yes 'the label is removed for an unknown event base'
+# An older event base with the same scope (develop moved on, same merge base) still records.
+git -C "$REPO" checkout -q -B dev-later "$FIX"
+mkdir -p "$REPO/app/models" && printf 'class L; end\n' > "$REPO/app/models/l.rb"
+git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'develop moves on'
+DEV_LATER="$(git -C "$REPO" rev-parse HEAD)"
+set_origin develop "$DEV_LATER"
+stub_pr "$REL_FIX" develop "$DEV_LATER"
+run_ci 0 yes 'labeled with an older event base of the same scope: approval recorded' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_SHA="$FIX"
+posted_case "$REL_FIX $APPROVAL_DEV success|$REL_FIX data-bearing-paths/develop success" 'the approval is recorded when the scopes match'
+set_origin develop "$FIX"
+stub_pr "$FIX" develop
+run_ci 3 no 'EVENT_BASE_SHA unset on a labeled event fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_SHA=
+posted_case "$FIX data-bearing-paths/develop error" 'only an error verdict without the event base'
+# A replayed labeled run (a re-run reuses the event) records nothing once the label is
+# gone: it was removed when the approval was first recorded.
+stub_pr "$REL_FIX" staging; stub_labels '[]'
+set_origin develop "$BASE"
+run_ci 1 yes 'PR to staging: a re-run of a labeled run after the label is gone records nothing' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_REF=staging
+posted_case "$REL_FIX data-bearing-paths/staging failure" 'no approval from a replayed labeled run (staging)'
+set_origin develop "$FIX"
+stub_pr "$FIX" develop; stub_labels '[{"name":"bug"}]'
+run_ci 1 yes 'a re-run of a labeled run after the label is gone records nothing (develop)' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case "$FIX data-bearing-paths/develop failure" 'no approval from a replayed labeled run (develop)'
+# A labeled run removes the label on every exit, including a failure.
+stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/perm.fail"
+run_ci 3 no 'labeled, permission lookup fails: fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+deleted_case yes 'the label is removed when a labeled run fails'
+# The base is checked before an approval is recorded.
+stub_pr "$FIX" develop "$CODE"
+run_ci 3 no 'labeled with base.sha not on the live base: no approval, fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case "$FIX data-bearing-paths/develop error" 'only an error verdict when the base check fails on a labeled run'
+deleted_case yes 'the label is removed when the base check fails'
+# A scope that cannot be computed (no merge base) fails closed and records nothing.
+stub_pr "$ORPHAN" develop
+run_ci 3 no 'labeled with no merge base: the scope fails, fails closed' "$ORPHAN" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+posted_case "$ORPHAN data-bearing-paths/develop error" 'only an error verdict when the scope cannot be computed'
 
 # --mark: the workflow posts pending before any step that can fail, and error from a
 # failure step, on the event's head and base, so an earlier pass cannot stand.

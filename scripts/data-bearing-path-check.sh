@@ -15,8 +15,9 @@
 #   migrations are synthetic. The approval is the exemption: a reviewer with write
 #   access looks at the data and adds the `synthetic-data` label only when none of it
 #   is real. scripts/data-bearing-path-check-ci.sh records that as a commit status on
-#   the PR's head commit, named for the PR and its base, and passes APPROVED=true to
-#   this script only when that status is present. A new push is a new commit with no
+#   the PR's head commit, named for the PR and its base, with the scope of the change
+#   set it covers, and passes APPROVED=true to this script only when that status is
+#   present and its scope matches the range below. A new push is a new commit with no
 #   approval, so nothing has to be reset.
 #
 #   What is checked:
@@ -38,7 +39,8 @@
 #   - The CI entry script fetches the base branch live and fails closed unless the
 #     PR's base sha is still on it. That covers a run after a base force-push (to scrub
 #     data, say); a PR that went green before the force-push stays green until its
-#     check runs again.
+#     check runs again. The CI entry script's scope_of hashes the two ranges below; if
+#     either range changes here, change scope_of to match.
 #   - Any change under .github/workflows/ and any change to the check's own files
 #     (CONTROL_FILES) also needs an approval, so the control and any new workflow get a
 #     reviewer's look before they merge.

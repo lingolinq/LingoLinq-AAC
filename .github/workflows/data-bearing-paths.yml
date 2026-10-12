@@ -5,9 +5,11 @@ name: Data-bearing paths
 # path, any file under .github/workflows/, or this check's own files fails until a
 # reviewer with write access confirms the data is synthetic and adds the
 # `synthetic-data` label. That records an approval as a commit status on the PR's
-# current head commit for its base (data-bearing-approval/<base>), and the label is
-# removed. A later push is a new commit with no approval, so the reviewer adds the label
-# again for it; pushing a new commit is also how an approval is withdrawn. Agents never
+# current head commit for its base (data-bearing-approval/<base>), naming the change set
+# it covers (its scope), and the label is removed. A later push is a new commit with no
+# approval, so the reviewer adds the label again for it; pushing a new commit is also how
+# an approval is withdrawn. An approval counts only while the change set is the one it
+# names, so a change to the base that changes it needs the label again. Agents never
 # add this label: they run under a person's account, and the check cannot tell them
 # apart.
 #
@@ -34,8 +36,9 @@ name: Data-bearing paths
 #
 # Rollout: require the data-bearing-paths/develop, /staging and /main contexts on their
 # branches with the source pinned to the App, then run the canary before relying on it:
-# a code-only PR; a fixture PR approved by the label; a push after approval; a label from
-# a read-only account; a PR adding its own workflow and a same-named job; a fork PR; a
+# a code-only PR; a fixture PR approved by the label; the same on a PR whose develop has
+# moved since its last push; a re-run of that labeled run after the label was removed
+# (it must record nothing); a push after approval; a label from a read-only account; a PR adding its own workflow and a same-named job; a fork PR; a
 # pull_request job that names the environment (it must be refused); and confirming the
 # workflow token can read a collaborator's permission.
 #
@@ -46,7 +49,10 @@ name: Data-bearing paths
 # still get past it deliberately (adding the label without looking, or a ruleset
 # bypass): it guards against mistakes and fork PRs. After force-pushing a base branch
 # (to scrub data, say), re-run this check on every open PR to that base: a PR that went
-# green before the force-push stays green until its check runs again.
+# green before the force-push stays green until its check runs again. The re-run judges
+# the rewritten change set, which an earlier approval does not name. Residual: for a PR
+# to staging or main, develop rewritten between the label and that label's own run is
+# not seen (the event carries no develop commit to compare).
 #
 # WHY pull_request_target: it runs THIS file and the scripts from the repository's
 # default branch (develop), for PRs to staging and main too (GitHub, since
@@ -170,6 +176,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EVENT_ACTION: ${{ github.event.action }}
           LABEL_NAME: ${{ github.event.label.name }}
           SENDER_LOGIN: ${{ github.event.sender.login }}
