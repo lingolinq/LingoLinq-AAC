@@ -3357,6 +3357,25 @@ describe Api::UsersController, :type => :controller do
       expect(json['revoked_ids']).to eq([])
     end
 
+    it "should list a private board shared with the user through allows? on the narrowed select" do
+      token_user
+      other = User.create
+      shared = Board.create(:user => other, :public => false)
+      shared.share_with(@user)
+      Worker.process_queues
+      link_board_revisions_tree(@user.reload, [shared])
+      expect(@user.reload.can_view?(shared)).to eq(true)
+      narrowed = Board.select('id, key, current_revision, public, user_id, updated_at').find_all_by_global_id([shared.global_id])[0]
+      expect(narrowed.allows?(@user, 'view')).to eq(true)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][shared.global_id]).to eq(shared.reload.current_revision)
+      expect(json['revisions'][shared.key]).to eq(shared.current_revision)
+      expect(json['revoked_ids']).to eq([])
+    end
+
     it "should ignore client-supplied check_ids in either form" do
       token_user
       other = User.create
