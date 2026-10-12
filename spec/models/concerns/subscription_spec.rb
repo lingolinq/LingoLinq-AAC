@@ -2216,6 +2216,31 @@ describe Subscription, :type => :model do
         kept.each { |k| expect(User.find(k.id).schedule_deletion_at).to eq(nil) }
       end
 
+      # Each run reads at most INACTIVITY_SWEEP_SCAN_LIMIT rows. When exempt accounts fill that
+      # many, the next run resumes where this one stopped instead of re-reading the same rows.
+      it "resumes after the rows the last run read when exempt accounts exceed the scan limit" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+        stub_const('Subscription::INACTIVITY_SWEEP_SCAN_LIMIT', 2)
+        3.times do |i|
+          k = User.create
+          k.settings['preferences']['never_delete'] = true
+          k.save
+          User.where(id: k.id).update_all(updated_at: (15.months.ago + i.minutes))
+        end
+        target = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+        expect(User.find(target.id).schedule_deletion_at).to eq(nil)
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).not_to eq(nil)
+
+        User.check_for_subscription_updates
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        # the window filled, so the next run starts from the oldest again
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
+      end
+
       it "does not schedule an account marked never-delete after the batch was loaded" do
         first = inactive_account_on_final_warning
         second = inactive_account_on_final_warning

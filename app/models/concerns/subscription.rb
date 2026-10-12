@@ -1107,21 +1107,42 @@ module Subscription
     # skips fill the window on every run, so nobody behind them was ever reached. Skipped rows are
     # walked past by (updated_at, id) rather than restamped: updated_at keys cached permissions
     # and is the 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows.
-    def inactive_deletion_candidate_ids(scope, window, &accept)
+    #
+    # cursor_key: a Redis key holding the (updated_at, id) a run stopped at when the scan limit
+    # cut it short, so the next run resumes there and more exempt accounts than the limit cannot
+    # starve the sweep. It is cleared when a run reaches the end or fills its window, so the next
+    # run starts from the oldest again.
+    def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, &accept)
       accept ||= lambda{|u| !u.inactivity_deletion_exempt? }
       ids = []
       scanned = 0
-      last = nil
+      last_at, last_id = inactivity_sweep_cursor(cursor_key)
       while ids.length < window && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
         page = scope.order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
-        page = page.where('(updated_at, id) > (?, ?)', last.updated_at, last.id) if last
+        page = page.where('(updated_at, id) > (?, ?)', last_at, last_id) if last_id
         batch = page.to_a
         break if batch.empty?
         batch.each{|u| ids << u.id if accept.call(u) }
         scanned += batch.length
-        last = batch[-1]
+        last_at, last_id = batch[-1].updated_at, batch[-1].id
+      end
+      if cursor_key
+        if ids.length < window && scanned >= INACTIVITY_SWEEP_SCAN_LIMIT && last_id
+          Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{last_at.utc.iso8601(6)}|#{last_id}")
+        else
+          RedisInit.default.del(cursor_key)
+        end
       end
       ids.first(window)
+    end
+
+    def inactivity_sweep_cursor(cursor_key)
+      raw = cursor_key && RedisInit.default.get(cursor_key)
+      at, id = raw.to_s.split('|', 2)
+      return [nil, nil] unless at && id
+      [Time.iso8601(at), id.to_i]
+    rescue ArgumentError
+      [nil, nil]
     end
 
     def check_for_subscription_updates
@@ -1222,13 +1243,13 @@ module Subscription
 
       # send out a two and one-month warning when account is 
       # going to be deleted for inactivity (after 12 months of non-use)
-      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), INACTIVITY_SWEEP_WINDOW)
+      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), INACTIVITY_SWEEP_WINDOW, 'inactivity_sweep_cursor/inactive')
       non_expired_ids = []
       # if users are on an expired free trial, we can delete them much sooner
       # Accounts that are not expired communicators are set aside (hour-truncated below, which the
       # query excludes); exempt expired trials are walked past.
       trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago])
-      trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW) do |u|
+      trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW, 'inactivity_sweep_cursor/trial') do |u|
         if u.billing_state == :expired_communicator
           !u.inactivity_deletion_exempt?
         else
