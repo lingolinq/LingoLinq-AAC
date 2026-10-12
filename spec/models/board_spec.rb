@@ -3063,8 +3063,8 @@ describe Board, :type => :model do
       include ActiveSupport::Testing::TimeHelpers
 
       it "keeps a derived label set seconds after the previous described edit" do
-        u = User.create
-        b = Board.create(:user => u)
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u)] }
         travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
         travel_to(Time.at(1_800_000_005)) do
           b.instance_variable_set('@buttons_changed', 'translated')
@@ -3074,8 +3074,8 @@ describe Board, :type => :model do
       end
 
       it "describes only the save the derived label was set for" do
-        u = User.create
-        b = Board.create(:user => u)
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u)] }
         travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
         travel_to(Time.at(1_800_000_005)) do
           b.instance_variable_set('@buttons_changed', 'translated')
@@ -3092,8 +3092,8 @@ describe Board, :type => :model do
       # literal in app/models/board.rb; with @map_later the reason survives between the two saves.
       # If that literal became frozen (one shared object), the second change would lose its label.
       it "labels each of two changes that set the same reason in the same place" do
-        u = User.create
-        b = Board.create(:user => u, :settings => {'buttons' => [{'id' => '123'}, {'id' => '234'}]})
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u, :settings => {'buttons' => [{'id' => '123'}, {'id' => '234'}]})] }
         b.instance_variable_set('@map_later', true)
         travel_to(Time.at(1_800_000_000)) { b.process_button({'id' => '234', 'sound_id' => '1_1'}) }
         expect(b.settings['edit_description']['notes']).to eq(['button updated in-place'])
