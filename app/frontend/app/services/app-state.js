@@ -5471,6 +5471,15 @@ export default Service.extend({
   compressed_view_active: computed('sessionUser', 'sessionUser.preferences.compressed_view', 'feature_flags.compressed_view', function() {
     return !!this.get('sessionUser') &&
            compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
+  }),
+
+  /* A sync that finds boards no synced user can view any more holds the marks back while
+     Speak Mode is on, so the board in use is never pulled away (utils/board_revocation.js).
+     They are applied once Speak Mode is off. */
+  apply_deferred_board_revocations: observer('speak_mode', function() {
+    if(!this.get('speak_mode') && boardRevocation.has_deferred()) {
+      boardRevocation.flush_deferred().then(null, function() { });
+    }
   })
 });
 
@@ -5488,3 +5497,4 @@ export const ScrollTopRoute = Route.extend({
 // Placed last for the same reason as sync_density_scope: an import at the top would shift
 // every line of the ESLint baseline. Imports are hoisted, so position does not matter at runtime.
 import { compressedViewActive } from '../utils/compressed_view_state';
+import boardRevocation from '../utils/board_revocation';

@@ -174,7 +174,7 @@ export default Route.extend({
             // then it'll barf on a failed lookup
             return RSVP.resolve(model)
           } else {
-            return model.reload(false);
+            return _this.local_reload_unless_denied(model, err);
           }
         });
         // if we're offline, then we should only reload if we absolutely have to (i.e. ordered_buttons isn't set)
@@ -281,9 +281,21 @@ export default Route.extend({
       this.appState.set('currentBoardState', null);
     },
   },
+  // After the remote reload failed: fall back to the local copy, unless the server
+  // refused this board to a user whose refusal speaks for every synced user
+  // (utils/board_revocation.js#route_refuses_local). Offline, timeouts, server
+  // errors and ambiguous refusals keep the fallback.
+  local_reload_unless_denied: function(model, err) {
+    if(boardRevocation.route_refuses_local(err, this.appState)) {
+      return RSVP.reject(boardRevocation.denial_body(err));
+    }
+    return model.reload(false);
+  },
   resetController: function(controller, isExiting) {
     if (isExiting && editManager.controller === controller) {
       editManager.controller = null;
     }
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../../utils/board_revocation';

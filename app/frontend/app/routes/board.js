@@ -162,7 +162,7 @@ export default Route.extend({
               }
             }, 100);
           }
-          return RSVP.resolve(data);
+          return boardRevocation.blocks_route(data, _this.appState).then(function(blocked) { return blocked ? _this.revoked_record(params.key) : data; });
         }
         var obj = _this.store.findRecord('board', lookupKey);
         return obj.then(function(data) {
@@ -184,7 +184,7 @@ export default Route.extend({
               }, 100);
             }
           }
-          return RSVP.resolve(data);
+          return boardRevocation.blocks_route(data, _this.appState).then(function(blocked) { return blocked ? _this.revoked_record(params.key) : data; });
         }, function(err) {
           var error = err;
           if(err && err.errors) {
@@ -212,6 +212,18 @@ export default Route.extend({
     var key = model && (typeof model.get === 'function' ? model.get('key') : model.key);
     return key != null ? { key: key } : {};
   },
+  // A board whose offline copy is marked as no longer viewable by any synced
+  // user (utils/board_revocation.js) renders as the standard unavailable-board
+  // panel in templates/board.hbs instead of the stale copy.
+  revoked_record: function(key) {
+    // No id: a second fixed 'bad' id in one session would collide in the store,
+    // and an id-less record is already not a valid_id board.
+    var res = LingoLinq.store.createRecord('board', {key: key});
+    res.set('lookup_key', key);
+    res.set('error', {error: 'Not authorized', unauthorized: true, revoked: true});
+    this.set('error_record', res);
+    return res;
+  },
   actions: {
     re_transition: function() {
       if(this.get('error_record')) {
@@ -221,3 +233,5 @@ export default Route.extend({
     },
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../utils/board_revocation';
