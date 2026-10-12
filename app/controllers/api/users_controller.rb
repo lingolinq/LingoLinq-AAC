@@ -775,12 +775,35 @@ class Api::UsersController < ApplicationController
       all_ids += root.downstream_board_ids
     end
     all_ids.uniq!
+    include_revoked = params['include_revoked'] == '1' || params['include_revoked'] == 'true'
+    check_ids = include_revoked ? (params['check_ids'] || '').split(/,/).map(&:strip).reject(&:blank?).uniq : []
+    return api_error(400, {error: 'too many ids'}) if check_ids.length > 500
+    # Only boards the synced user can still view get a revision (and key): a
+    # board that was unshared must not leak its key or revision. The check is
+    # the same one the batch /users/:id/boards endpoint applies.
     res = {}
-    Board.select('id, current_revision, key').find_all_by_global_id(all_ids).each do |brd|
-      res[brd.global_id] = brd.current_revision
-      res[brd.key] = brd.current_revision
+    revoked_ids = []
+    synced_boards = Board.find_all_by_global_id(all_ids)
+    checked_boards = Board.find_all_by_global_id(check_ids - all_ids)
+    ActiveRecord::Associations::Preloader.new(records: synced_boards + checked_boards, associations: :user).call
+    synced_boards.each do |brd|
+      if brd.allows?(user, 'view')
+        res[brd.global_id] = brd.current_revision
+        res[brd.key] = brd.current_revision
+      else
+        revoked_ids << brd.global_id
+      end
     end
-    render json: res
+    checked_boards.each do |brd|
+      revoked_ids << brd.global_id unless brd.allows?(user, 'view')
+    end
+    # Older clients read the flat id => revision map, so the revoked list is
+    # only sent, in a wrapped shape, to clients that ask for it.
+    if include_revoked
+      render json: {revisions: res, revoked_ids: revoked_ids.uniq}
+    else
+      render json: res
+    end
   end
 
   def boards

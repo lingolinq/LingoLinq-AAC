@@ -3315,6 +3315,78 @@ describe Api::UsersController, :type => :controller do
       hash[b5.key] = b5.current_revision
       expect(json).to eq(hash)
     end
+
+    it "should leave out a linked board the user can no longer view, and list it in revoked_ids only when asked" do
+      token_user
+      other = User.create
+      b1 = Board.create(:user => @user)
+      b2 = Board.create(:user => other, :public => false)
+      b1.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id}}]
+      b1.instance_variable_set('@buttons_changed', true)
+      b1.save
+      @user.settings['preferences']['home_board'] = {'id' => b1.global_id, 'key' => b1.key}
+      @user.save
+      Worker.process_queues
+      Worker.process_queues
+      expect(b1.reload.settings['downstream_board_ids']).to eq([b2.global_id])
+      expect(b2.reload.allows?(@user, 'view')).to eq(false)
+
+      get 'board_revisions', params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json).to eq({b1.global_id => b1.reload.current_revision, b1.key => b1.current_revision})
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions']).to eq({b1.global_id => b1.current_revision, b1.key => b1.current_revision})
+      expect(json['revoked_ids']).to eq([b2.global_id])
+    end
+
+    it "should keep a linked private board the user can view through a supervisor's model permission" do
+      token_user
+      supervisee = User.create
+      User.link_supervisor_to_user(@user, supervisee)
+      b1 = Board.create(:user => @user)
+      b2 = Board.create(:user => supervisee, :public => false)
+      b1.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id}}]
+      b1.instance_variable_set('@buttons_changed', true)
+      b1.save
+      @user.settings['preferences']['home_board'] = {'id' => b1.global_id, 'key' => b1.key}
+      @user.save
+      Worker.process_queues
+      Worker.process_queues
+      expect(@user.reload.private_viewable_board_ids).to_not include(b2.global_id)
+      expect(b2.reload.allows?(@user.reload, 'view')).to eq(true)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][b2.global_id]).to eq(b2.reload.current_revision)
+      expect(json['revisions'][b2.key]).to eq(b2.current_revision)
+      expect(json['revoked_ids']).to eq([])
+    end
+
+    it "should report client-supplied board ids that exist but are not viewable" do
+      token_user
+      other = User.create
+      mine = Board.create(:user => @user)
+      hidden = Board.create(:user => other, :public => false)
+      shown = Board.create(:user => other, :public => true)
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => [mine.global_id, hidden.global_id, shown.global_id, '1_99999999'].join(',')}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([hidden.global_id])
+      expect(json['revisions']).to eq({})
+    end
+
+    it "should limit how many client-supplied ids it checks" do
+      token_user
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => (1..501).map{|i| "1_#{i}" }.join(',')}
+      expect(response).to_not be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('too many ids')
+    end
   end
   
   describe "places" do
