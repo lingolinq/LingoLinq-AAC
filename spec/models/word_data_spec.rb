@@ -1018,8 +1018,8 @@ RSpec.describe WordData, :type => :model do
       }, {updater: u2.reload})
       expect(w.errored?).to eq(false)
       expect(w.data['types']).to eq(['verb', 'noun'])
-      expect(w.data['reviewer_ids'].sort).to eq([u.global_id, u2.global_id])
-      expect(w.data['reviews'].keys.sort).to eq([u.global_id, u2.global_id])
+      expect(w.data['reviewer_ids']).to match_array([u.global_id, u2.global_id])
+      expect(w.data['reviews'].keys).to match_array([u.global_id, u2.global_id])
     end
 
     it "should record data as specified" do

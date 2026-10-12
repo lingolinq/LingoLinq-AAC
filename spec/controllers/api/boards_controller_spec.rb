@@ -301,7 +301,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id, :tag => 'water'}
       json = assert_success_json
       expect(json['board'].length).to eq(4)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([b1.global_id, b4.global_id, b5.global_id, b6.global_id])
+      expect(json['board'].map{|b| b['id'] }).to match_array([b1.global_id, b4.global_id, b5.global_id, b6.global_id])
     end
     
     it "should always filter by public when user_id is not provided" do
@@ -526,7 +526,7 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['board'].length).to eq(3)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(json['board'].map{|b| b['id'] }).to match_array([b.global_id, b2.global_id, b3.global_id])
     end
     
     it "should not include boards downstream of shared boards in user-search results if by a different author" do
@@ -763,7 +763,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(3)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
     end
 
@@ -818,7 +818,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(5)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b4.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b3.global_id}-#{@user.global_id}"}
@@ -854,7 +854,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(2)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b2.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b2.global_id}-#{@user.global_id}"}
@@ -867,7 +867,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(2)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b2.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b2.global_id}-#{@user.global_id}"}
@@ -933,7 +933,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(5)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b3.global_id}-#{@user.global_id}")
       expect(json['board'][2]['id']).to eq("#{b4.global_id}-#{@user.global_id}")
@@ -996,7 +996,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(5)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b4.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b3.global_id}-#{@user.global_id}"}
@@ -1023,7 +1023,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(3)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b2.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
     end
   end

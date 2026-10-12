@@ -260,7 +260,7 @@ describe OrganizationUnit, :type => :model do
       u2 = User.create
       o.add_user(u2.global_id, false, false)
       expect(ou.add_communicator(u2.global_id)).to eq(true)
-      expect(ou.reload.all_user_ids.sort).to eq([u1.global_id, u2.global_id])
+      expect(ou.reload.all_user_ids).to match_array([u1.global_id, u2.global_id])
     end
   end
   
@@ -897,7 +897,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.active).to eq(true)
 
       ou.settings['goal_assertions']['removed_goal_id'] = g.global_id
@@ -930,7 +930,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.reload.active).to eq(true)
       expect(g.children_goals.length).to eq(2)
       expect(g.children_goals.sort_by(&:user_id)[0].active).to eq(true)
@@ -967,7 +967,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.reload.active).to eq(true)
       expect(g.children_goals.length).to eq(1)
       expect(g.children_goals.sort_by(&:user_id)[0].user).to eq(c2)
@@ -999,7 +999,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.reload.active).to eq(true)
       expect(g.children_goals.length).to eq(2)
       expect(g.children_goals.sort_by(&:user_id)[0].user).to eq(c1)

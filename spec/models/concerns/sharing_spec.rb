@@ -726,7 +726,7 @@ describe Sharing, :type => :model do
       b3 = Board.create(:user => u3)
       b.share_with(u3)
       b2.share_with(u3)
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b2.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b2.global_id])
     end
     
     it "should return downstream deep shares" do
@@ -748,7 +748,7 @@ describe Sharing, :type => :model do
       b.reload.share_with(u3, true)
       b4.reload.share_with(u3)
       
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b2.global_id, b3.global_id, b4.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b2.global_id, b3.global_id, b4.global_id])
     end
     
     it "should not return downstream deep shares by different authors than the original upstream shared boards" do
@@ -770,7 +770,7 @@ describe Sharing, :type => :model do
       b.reload.share_with(u3, true)
       b4.reload.share_with(u3)
       
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b3.global_id, b4.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b3.global_id, b4.global_id])
     end
     
     it "should not return duplicates" do
@@ -789,7 +789,7 @@ describe Sharing, :type => :model do
       b2.reload.share_with(u3, true)
       b3.reload.share_with(u3, true)
       
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b2.global_id, b3.global_id])
     end
     
     it "should not return a downstream deep share by a different author even if that author shared an unrelated board" do
@@ -868,7 +868,7 @@ describe Sharing, :type => :model do
       expect(Board.all_shared_board_ids_for(u2.reload, true).sort).to eq([b.global_id])
       b.reload.update_shares_for(u2, true)
       u2.reload
-      expect(Board.all_shared_board_ids_for(u2.reload, true).sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(Board.all_shared_board_ids_for(u2.reload, true)).to match_array([b.global_id, b2.global_id, b3.global_id])
     end
     # The cached list counts as fresh while its stamp is >= the user's boards_updated_at. Both used to
     # be rounded to hundredths of a second, so a sharing change within the same ~10 ms as the list
@@ -1125,7 +1125,7 @@ describe Sharing, :type => :model do
       u2 = User.create
       b = Board.create(:user => u)
       b.share_with(u2, false, true)
-      expect(b.author_ids.sort).to eq([u.global_id, u2.global_id])
+      expect(b.author_ids).to match_array([u.global_id, u2.global_id])
     end
     
     it "should return a list of approved downstream editing author ids" do
@@ -1136,7 +1136,7 @@ describe Sharing, :type => :model do
       b.share_with(u2, false, true)
       b.share_with(u3, true, true)
       b.update_shares_for(u3, true)
-      expect(b.reload.author_ids(true).sort).to eq([u.global_id, u3.global_id])
+      expect(b.reload.author_ids(true)).to match_array([u.global_id, u3.global_id])
     end
   end
   

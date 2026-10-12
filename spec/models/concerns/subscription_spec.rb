@@ -2164,7 +2164,7 @@ describe Subscription, :type => :model do
         ids << id if message == :usage_reminder
       }.at_least(1).times
       res = User.check_for_subscription_updates
-      expect(ids.sort).to eq([u1.global_id, u2.global_id, u3.global_id, u5.global_id, u6.global_id])
+      expect(ids).to match_array([u1.global_id, u2.global_id, u3.global_id, u5.global_id, u6.global_id])
       expect(res[:recent_less_active]).to eq(5)
     end
 

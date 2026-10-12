@@ -838,10 +838,10 @@ describe Board, :type => :model do
       b3.instance_variable_set('@buttons_changed', true)
       b3.save
       Worker.process_queues
-      expect(b1.reload.settings['downstream_board_ids'].sort).to eq([b3.global_id, b4.global_id])
-      expect(b2.reload.settings['downstream_board_ids'].sort).to eq([b3.global_id, b4.global_id])
+      expect(b1.reload.settings['downstream_board_ids']).to match_array([b3.global_id, b4.global_id])
+      expect(b2.reload.settings['downstream_board_ids']).to match_array([b3.global_id, b4.global_id])
       expect(b3.reload.settings['downstream_board_ids']).to eq([b4.global_id])
-      expect(b3.reload.settings['immediately_upstream_board_ids'].sort).to eq([b1.global_id, b2.global_id])
+      expect(b3.reload.settings['immediately_upstream_board_ids']).to match_array([b1.global_id, b2.global_id])
       expect(b4.reload.settings['immediately_upstream_board_ids'].sort).to eq([b3.global_id])
       rev = b4.current_revision
       hash1 = b1.reload.settings['full_set_revision']

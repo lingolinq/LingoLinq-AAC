@@ -536,7 +536,7 @@ describe Organization, :type => :model do
       
       Worker.process_queues
       Worker.process_queues
-      expect(u1.reload.supervisor_user_ids.sort).to eq([u1.global_id, u2.global_id])
+      expect(u1.reload.supervisor_user_ids).to match_array([u1.global_id, u2.global_id])
       expect(u1.reload.supervised_user_ids).to eq([u1.global_id])
       expect(u2.reload.supervisor_user_ids).to eq([])
       expect(u2.reload.supervised_user_ids).to eq([u1.global_id])
@@ -3317,7 +3317,7 @@ describe Organization, :type => :model do
         o.reload
         expect(o.user?(u)).to eq(true)
         u.reload
-        expect(u.supervisor_user_ids.sort).to eq([s1.global_id, s2.global_id])
+        expect(u.supervisor_user_ids).to match_array([s1.global_id, s2.global_id])
       end
 
       it "should update user with start code settings" do

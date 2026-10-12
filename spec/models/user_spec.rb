@@ -2476,7 +2476,7 @@ describe User, :type => :model do
 
       u.settings['preferences'] = {'home_board' => {'id' => b.global_id, 'key' => b.key}}
       u.save
-      expect(u.reload.board_set_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u.reload.board_set_ids).to match_array([b.global_id, b2.global_id])
     end
     
     it "should include supervisee board ids if specified" do
@@ -2498,7 +2498,7 @@ describe User, :type => :model do
       u.save
       u2.settings['preferences'] = {'home_board' => {'id' => b4.global_id, 'key' => b4.key}}
       u2.save
-      expect(u.reload.board_set_ids(:include_supervisees => true).sort).to eq([b.global_id, b2.global_id, b4.global_id])
+      expect(u.reload.board_set_ids(:include_supervisees => true)).to match_array([b.global_id, b2.global_id, b4.global_id])
     end
     
     it "should include starred board ids if specified" do
@@ -2543,7 +2543,7 @@ describe User, :type => :model do
       u.save
       u2.settings['preferences'] = {'home_board' => {'id' => b4.global_id, 'key' => b4.key}}
       u2.save
-      expect(u.reload.board_set_ids(false).sort).to eq([b.global_id, b2.global_id])
+      expect(u.reload.board_set_ids(false)).to match_array([b.global_id, b2.global_id])
     end
     
   end
