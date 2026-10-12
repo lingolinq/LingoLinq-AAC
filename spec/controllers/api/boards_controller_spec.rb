@@ -1026,6 +1026,83 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
     end
+
+    # The shared list comes from Board.all_shared_board_ids_for, which caches it on the user
+    # (app/models/concerns/sharing.rb). An unshare, or any other settings change, that commits
+    # while a request is rebuilding that list must not survive the rebuild.
+    describe "with shared boards changing while the list is rebuilt" do
+      include SharedBoardRebuildHelpers
+
+      def board_shared_with_user
+        u = User.create
+        b = Board.create(:user => u)
+        b.share_with(@user)
+        Worker.process_queues
+        b
+      end
+
+      def index_ids(params)
+        get :index, params: {:user_id => @user.global_id}.merge(params)
+        json = assert_success_json
+        json['board'].map { |r| r['id'] }
+      end
+
+      it "lists a shared board until it is unshared" do
+        token_user
+        b = board_shared_with_user
+        expect(index_ids(:shared => 1)).to eq([b.global_id])
+
+        b.reload.unshare_with(User.find(@user.id))
+        Worker.process_queues
+
+        expect(index_ids(:shared => 1)).to eq([])
+      end
+
+      it "does not list or show a board unshared during the request's rebuild" do
+        token_user
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        Worker.process_queues
+
+        expect(index_ids(:shared => 1)).to eq([])
+        get :show, params: {:id => b.global_id}
+        assert_unauthorized
+      end
+
+      it "keeps the user's own boards and drops a board unshared during an include_shared rebuild" do
+        token_user
+        ub = Board.create(:user => @user)
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :include_shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        Worker.process_queues
+
+        expect(index_ids(:include_shared => 1)).to eq([ub.global_id])
+        get :show, params: {:id => b.global_id}
+        assert_unauthorized
+      end
+
+      it "keeps a preference saved during the request's rebuild" do
+        token_user
+        b = board_shared_with_user
+        ran = false
+        during_rebuild do
+          ran = true
+          other = User.find(@user.id)
+          other.settings['preferences'] ||= {}
+          other.settings['preferences']['spec_marker'] = 'changed elsewhere'
+          other.save
+        end
+
+        expect(index_ids(:shared => 1)).to eq([b.global_id])
+
+        expect(ran).to eq(true)
+        expect(User.find(@user.id).settings['preferences']['spec_marker']).to eq('changed elsewhere')
+      end
+    end
   end
 
   describe "show" do

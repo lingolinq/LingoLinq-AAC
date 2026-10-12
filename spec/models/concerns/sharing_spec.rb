@@ -704,18 +704,7 @@ describe Sharing, :type => :model do
   end
   
   describe "all_shared_board_ids" do
-    # Runs the block once, inside the next rebuild, after links_for and before the save
-    # (Organization.attached_orgs runs there on the !plus_editing branch of all_shared_board_ids_for).
-    def during_rebuild(&block)
-      ran = false
-      allow(Organization).to receive(:attached_orgs).and_wrap_original do |original, *args|
-        unless ran
-          ran = true
-          block.call
-        end
-        original.call(*args)
-      end
-    end
+    include SharedBoardRebuildHelpers
 
     it "should return all shallow shares" do
       u = User.create
@@ -929,27 +918,6 @@ describe Sharing, :type => :model do
     # stamps and saves the list. An unshare that commits during the walk must not be hidden by
     # that stamp: the next read, and the background jobs the unshare queues, must drop the board.
     describe "an unshare that commits while the list is being rebuilt" do
-      # Unshares `board` from `user` the first time the rebuild reaches Organization.attached_orgs,
-      # which runs after links_for and before the save (sharing.rb, !plus_editing branch). With
-      # run_jobs, the jobs the unshare queues also finish there, before the rebuild saves.
-      def unshare_mid_rebuild(board, user, run_jobs: false)
-        @unshared_mid_rebuild = false
-        during_rebuild do
-          @unshared_mid_rebuild = true
-          board.reload.unshare_with(User.find(user.id))
-          Worker.process_queues if run_jobs
-        end
-      end
-
-      def shared_board_setup
-        u = User.create
-        u2 = User.create
-        b = Board.create(:user => u)
-        b.share_with(u2)
-        Worker.process_queues
-        [b, u2]
-      end
-
       it "is not served afterwards as a fresh list" do
         b, u2 = shared_board_setup
         unshare_mid_rebuild(b, u2)
