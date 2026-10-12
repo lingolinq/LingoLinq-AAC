@@ -1174,6 +1174,25 @@ describe Organization, :type => :model do
       expect(User.find(m.id).private_viewable_board_ids).not_to include(b.global_id)
     end
 
+    # The destroy itself only records the refreshes (one outbox row per member) and queues one
+    # slow job; the per-member work happens in that job, never inside the destroy.
+    it "queues one cleanup job instead of a refresh per member when the organization is destroyed" do
+      o = Organization.create
+      members = 3.times.map { User.create }
+      members.each { |m| o.add_user(m.user_name, false, false) }
+      Worker.process_queues
+      Worker.flush_queues
+
+      o.reload.destroy
+
+      jobs = Worker.scheduled_actions('slow') + Worker.scheduled_actions('default')
+      methods = jobs.map { |j| j['args'][1] == 'perform_action' ? j['args'][2]['method'] : j['args'][1] }
+      expect(methods).to eq(['clean_up_destroyed'])
+      members.each do |m|
+        expect(RemoteAction.where(path: m.global_id, action: 'update_available_boards').where('act_at <= ?', Time.now).count).to eq(1)
+      end
+    end
+
     it "should parse hosting settings" do
       u = User.create
       o = Organization.create

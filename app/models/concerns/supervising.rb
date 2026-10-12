@@ -312,6 +312,18 @@ module Supervising
       end
     end
 
+    # persist_board_cache_refresh(user, true) for many users in two statements: rows already
+    # queued are pulled forward, the rest are inserted.
+    def persist_board_cache_refreshes(user_ids, now=Time.now)
+      paths = User.where(id: user_ids).select(:id).map(&:global_id)
+      return if paths.empty?
+      scope = RemoteAction.where(path: paths, action: 'update_available_boards')
+      scope.update_all(act_at: now)
+      existing = scope.pluck(:path)
+      rows = (paths - existing).uniq.map{|path| {path: path, action: 'update_available_boards', act_at: now, created_at: now, updated_at: now} }
+      RemoteAction.insert_all(rows) if rows.length > 0
+    end
+
     def persist_board_cache_refresh(supervisor, revoked=false)
       path = supervisor.global_id
       return unless path

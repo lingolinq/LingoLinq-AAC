@@ -8,7 +8,7 @@ class Organization < ApplicationRecord
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
-  after_destroy :refresh_attached_users_available_boards
+  after_destroy :schedule_destroyed_org_cleanup
   has_many :licenses
   include Replicate
 
@@ -1713,8 +1713,24 @@ class Organization < ApplicationRecord
 
   # A destroyed organization keeps its user_links (no dependent: option) while attached_orgs
   # skips it, so its members lose its home boards only when their view access is recomputed.
-  def refresh_attached_users_available_boards
-    self.attached_users('all').each{|u| User.schedule_board_cache_refresh(u, true) }
+  # The destroy only records that: one outbox row per member, written in bulk in the destroy's
+  # transaction (the durable fallback that hourly remote_remove_batch processes), and ONE slow job
+  # enqueued after commit that does the per-member work (Organization.clean_up_destroyed). Doing
+  # it inline loaded every member and enqueued one default-queue job each, inside the destroy.
+  def schedule_destroyed_org_cleanup
+    user_ids = self.attached_users('all').pluck(:id)
+    User.persist_board_cache_refreshes(user_ids)
+    org_id = self.id
+    ActiveRecord.after_all_transactions_commit do
+      Organization.schedule_for(:slow, :clean_up_destroyed, org_id, user_ids)
+    end
+    true
+  end
+
+  def self.clean_up_destroyed(org_id, user_ids)
+    User.where(id: user_ids).find_each(batch_size: 100) do |user|
+      user.schedule_once_for(:slow, :update_available_boards)
+    end
     true
   end
 
