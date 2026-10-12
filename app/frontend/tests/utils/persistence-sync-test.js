@@ -5215,9 +5215,9 @@ describe("persistence-sync", function() {
   // board_revisions (include_revoked=1) lists them as revoked_ids and leaves them out of the
   // revisions map. The sync must pass over such a board (it is not a sync error), and mark the
   // local copy once the whole sync succeeded; a failed revisions request marks nothing.
-  // Both persistence implementations are live. 'service' syncs through
-  // services/persistence.js; 'utils' hides the service's sync() so the utils/persistence.js
-  // proxy runs its own sync and sync_boards (state still lives on the service, as in the app).
+  // In the app the sync runs on services/persistence.js (the utils/persistence.js export forwards
+  // to window.persistence). The 'utils' case hides the service's sync() so the utils copy's
+  // sync and sync_boards run, keeping the hooks there covered too (state stays on the service).
   describe("revoked boards", function() {
     function utilsSyncWindow(service) {
       return new Proxy(service, {

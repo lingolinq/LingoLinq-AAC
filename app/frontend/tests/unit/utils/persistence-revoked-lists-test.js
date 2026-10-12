@@ -8,9 +8,11 @@ import utilPersistence from 'frontend/utils/persistence';
 import PersistenceService from 'frontend/services/persistence';
 import boardRevocation from 'frontend/utils/board_revocation';
 
-/* Both persistence implementations are live (utils/persistence.js runs when the service is
- * not on window.persistence; services/persistence.js otherwise), so each hook for offline
- * copies of boards no synced user can view (utils/board_revocation.js) is checked in both:
+/* In the app, sync and these lookups run on services/persistence.js: the utils/persistence.js
+ * export is a Proxy that forwards any property window.persistence (the service) has
+ * (utils/persistence.js, persistenceProxy). The utils copies run only when the service is not on
+ * window.persistence (early boot, teardown), so each hook for offline copies of boards no synced
+ * user can view (utils/board_revocation.js) is still checked in both:
  * find_recent and find_boards leave marked boards out, and a failed supervisee sync is
  * recorded so the sync cannot mark anything.
  */
