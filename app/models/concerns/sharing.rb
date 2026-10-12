@@ -216,13 +216,17 @@ module Sharing
       updated ? updated.to_i * 1_000_000 + updated.usec : 0
     end
 
-    def all_shared_board_ids_for(user, plus_editing=false)
+    # force: rebuild even when the cached list looks current. The stamp only moves with
+    # boards_updated_at, and some inputs change without moving it (an organization's home boards,
+    # organization.rb home_board_keys), so update_available_boards, which turns this list into
+    # view access (board_caching.rb), always rebuilds.
+    def all_shared_board_ids_for(user, plus_editing=false, force=false)
       return [] unless user
       ts = Time.now.to_i
       sub_key = plus_editing ? 'editing' : 'viewing'
       # read only: the caller's copy of the user is never changed (see store_shared_board_ids_entry)
       cached = (user.settings || {}).dig('all_shared_board_ids', sub_key)
-      if cached && cached['stamp_us'] && cached['stamp_us'] >= boards_updated_stamp(user)
+      if !force && cached && cached['stamp_us'] && cached['stamp_us'] >= boards_updated_stamp(user)
         return cached['list']
       end
       all_links = UserLink.links_for(user)

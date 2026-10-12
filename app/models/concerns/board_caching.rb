@@ -55,10 +55,11 @@ module BoardCaching
     # find all private boards where this user is a co-author
     # find all private boards downstream of boards shared with this user
     # find all private boards downstream of boards edit-shared with this user
-    self.clear_cached("all_shared_board_ids/true")
-    self.clear_cached("all_shared_board_ids/false")
-    view_shared = Board.all_shared_board_ids_for(self, false)
-    edit_shared = Board.all_shared_board_ids_for(self, true)
+    # Rebuilt, never read from the cache: its stamp does not move when an organization's home
+    # boards or a membership change (sharing.rb all_shared_board_ids_for), so a cached list kept a
+    # former district's private boards viewable.
+    view_shared = Board.all_shared_board_ids_for(self, false, true)
+    edit_shared = Board.all_shared_board_ids_for(self, true, true)
 
 
     # find all private boards available to this user's supervisees

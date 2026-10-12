@@ -608,5 +608,46 @@ describe BoardCaching, :type => :model do
       #   'arguments' => []
       # })).to eq(true)
     end
+
+    # A district's private home boards reach its members through the shared-board list
+    # (sharing.rb, Organization.attached_orgs). That list is cached on the user and served while
+    # its stamp is >= boards_updated_at, which an org membership or home-board change does not
+    # move, so the refresh rebuilt from the cached list and the member kept the district's board.
+    describe "a former organization's private home board" do
+      def org_member_with_private_home_board
+        manager = User.create
+        member = User.create
+        board = Board.create(:user => manager)
+        org = Organization.create
+        org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+        org.save
+        org.add_user(member.user_name, false, false)
+        member.reload.update_available_boards
+        expect(member.reload.private_viewable_board_ids).to include(board.global_id)
+        # a later read (a board listing, the regenerate job) stamps the cached list with the
+        # current boards_updated_at, as happens between a refresh and a detach in production
+        expect(Board.all_shared_board_ids_for(User.find(member.id))).to include(board.global_id)
+        [org, member, board]
+      end
+
+      it "removes view access to a former org's private home board after one refresh" do
+        org, member, board = org_member_with_private_home_board
+
+        org.detach_user(User.find(member.id), 'user')
+        User.find(member.id).update_available_boards
+
+        expect(User.find(member.id).private_viewable_board_ids).not_to include(board.global_id)
+      end
+
+      it "removes view access once the org drops the board as a home board" do
+        org, member, board = org_member_with_private_home_board
+
+        org.reload.settings.delete('default_home_boards')
+        org.save
+        User.find(member.id).update_available_boards
+
+        expect(User.find(member.id).private_viewable_board_ids).not_to include(board.global_id)
+      end
+    end
   end
 end

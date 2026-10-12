@@ -1090,6 +1090,32 @@ describe Organization, :type => :model do
       expect(o.settings['default_home_boards']).to eq([{'key' => b.key, 'id' => b.global_id}])
     end
 
+    # Members see a private home board through the shared-board list cached on each member, whose
+    # stamp a change to the org's settings does not move (sharing.rb all_shared_board_ids_for).
+    it "drops members' access to a private home board after one refresh once it is removed" do
+      u = User.create
+      b = Board.create(user: u)
+      m = User.create
+      o = Organization.create
+      o.add_manager(u.user_name, true)
+      o.add_user(m.user_name, false, false)
+      o.reload.process({:home_board_keys => [b.key]}, {updater: u})
+      Worker.process_queues
+      RemoteAction.process_all
+      Worker.process_queues
+      expect(User.find(m.id).private_viewable_board_ids).to include(b.global_id)
+      expect(Board.all_shared_board_ids_for(User.find(m.id))).to include(b.global_id)
+
+      o.reload.process({:home_board_keys => []}, {updater: u})
+      expect(o.settings['default_home_boards']).to eq(nil)
+      Worker.process_queues
+      expect(RemoteAction.where(path: m.global_id, action: 'update_available_boards').count).to eq(1)
+      RemoteAction.process_all
+      Worker.process_queues
+
+      expect(User.find(m.id).private_viewable_board_ids).not_to include(b.global_id)
+    end
+
     it "should parse hosting settings" do
       u = User.create
       o = Organization.create
