@@ -5215,7 +5215,21 @@ describe("persistence-sync", function() {
   // board_revisions (include_revoked=1) lists them as revoked_ids and leaves them out of the
   // revisions map. The sync must pass over such a board (it is not a sync error), and mark the
   // local copy once the whole sync succeeded; a failed revisions request marks nothing.
+  // Both persistence implementations are live. 'service' syncs through
+  // services/persistence.js; 'utils' hides the service's sync() so the utils/persistence.js
+  // proxy runs its own sync and sync_boards (state still lives on the service, as in the app).
   describe("revoked boards", function() {
+    function utilsSyncWindow(service) {
+      return new Proxy(service, {
+        has: function(target, prop) { return prop === 'sync' ? false : (prop in target); },
+        get: function(target, prop) {
+          if(prop === 'sync') { return undefined; }
+          var val = target[prop];
+          return typeof val === 'function' ? val.bind(target) : val;
+        }
+      });
+    }
+
     var denied_body = {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400};
 
     function revokedBoards() {
@@ -5230,7 +5244,7 @@ describe("persistence-sync", function() {
       ];
     }
 
-    function runRevokedSync(revisionsAnswer, outcome) {
+    function runRevokedSync(revisionsAnswer, outcome, impl) {
       var tailDone = false;
       primeBoardRevisionsSyncHarness(function() { tailDone = true; });
       boardRevocation.reset_for_tests();
@@ -5285,7 +5299,20 @@ describe("persistence-sync", function() {
           cancelSyncTailWork();
           persistence.set('sync_status', null);
           persistence.set('sync_progress', null);
-          persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+          var service = window.persistence;
+          if(impl === 'utils') {
+            window.persistence = utilsSyncWindow(service);
+            // The harness points sync_boards at the service's traversal on both objects;
+            // put the utils traversal back so this case runs utils/persistence.js end to end.
+            var utilsSyncBoards = Object.getPrototypeOf(persistence).sync_boards;
+            stub(persistence, 'sync_boards', function() {
+              outcome.utils_traversal = true;
+              return utilsSyncBoards.apply(this, arguments).then(function(res) { tailDone = true; return res; });
+            });
+          }
+          var restore = function() { window.persistence = service; done = true; };
+          outcome.ran_utils = (impl === 'utils' && !('sync' in window.persistence));
+          persistence.sync(1340).then(restore, restore);
         }, 50);
       });
       waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
@@ -5318,7 +5345,7 @@ describe("persistence-sync", function() {
         var outcome = {};
         runRevokedSync(function() {
           return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current'}, revoked_ids: ['1_178']});
-        }, outcome);
+        }, outcome, 'service');
         runs(function() {
           expect(outcome.revisions_opts.data.include_revoked).toEqual('1');
           expect(outcome.fetched_revoked).toEqual(undefined);
@@ -5342,11 +5369,37 @@ describe("persistence-sync", function() {
           var rej = RSVP.reject({fakeXHR: {status: 500}, message: 'error', result: 'Internal Server Error'});
           rej.then(null, function() { });
           return rej;
-        }, outcome);
+        }, outcome, 'service');
         runs(function() {
           expect(outcome.revoked_raw && outcome.revoked_raw.key).toEqual('other/shared');
           expect(outcome.revoked_raw && outcome.revoked_raw.revoked).toEqual(undefined);
           expect(outcome.own_raw && outcome.own_raw.revoked).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+
+    // utils/persistence.js: its own sync, request and sync_boards traversal. Its sync cannot
+    // complete under LingoLinq.sync_testing (spread_out runs the step synchronously, before the
+    // promise it names is assigned: a pre-existing test-mode defect), so this case covers the
+    // request and the traversal hook; marking at completion is covered by the service case.
+    it("utils implementation: requests the revoked list and passes over a revoked board", function() {
+      db_wait(function() {
+        var outcome = {};
+        runRevokedSync(function() {
+          return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current'}, revoked_ids: ['1_178']});
+        }, outcome, 'utils');
+        runs(function() {
+          var statuses = (outcome.last_log && outcome.last_log.statuses) || [];
+          expect(outcome.ran_utils).toEqual(true);
+          expect(outcome.utils_traversal).toEqual(true);
+          expect(outcome.revisions_opts.data.include_revoked).toEqual('1');
+          expect(outcome.revisions_opts.data.check_ids).toEqual('1_145,1_167,1_178');
+          expect(statuses.map(function(s) { return s.id; }).sort()).toEqual(['1_145', '1_167']);
+          expect(outcome.fetched_revoked).toEqual(undefined);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;
