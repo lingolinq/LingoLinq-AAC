@@ -162,6 +162,27 @@ describe License, :type => :model do
       expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
     end
 
+    # The nightly expiry can release thousands of seats at once; their refreshes go to the slow
+    # queue so they cannot push the default queue past its pressure threshold.
+    it "queues the view-access refresh on the slow queue when expiry releases the seat" do
+      u = User.create
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: district, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      district.claim_user(u)
+      Worker.process_queues
+      Worker.flush_queues
+      License.where(id: license.id).update_all(expires_at: 1.day.ago)
+
+      License.expire_stale_licenses!
+
+      refresh = lambda do |queue|
+        Worker.scheduled_actions(queue).select{|j| j['args'][2]['method'] == 'update_available_boards' && j['args'][2]['id'] == u.id }
+      end
+      expect(refresh.call('default')).to eq([])
+      expect(refresh.call('slow').length).to eq(1)
+      expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
+    end
+
     it "hands the account back to the family when no other organization holds a seat" do
       u = User.create
       only_org = Organization.create(:settings => {'total_licenses' => 1})

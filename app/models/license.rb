@@ -47,7 +47,8 @@ class License < ApplicationRecord
       old_org = license.organization
       license.update!(status: 'expired')
       if license.user_id
-        license.release_user!
+        # one release per expired seat, possibly thousands a night: refresh on the slow queue
+        license.release_user!(refresh_queue: :slow)
         # Not a hand-back to the family while ANOTHER organization still holds an active seat
         # for this student: skip offboarding entirely and leave school_authorization as it is.
         # The last such seat to go runs it. See License.active_seat_elsewhere?, which is
@@ -92,7 +93,7 @@ class License < ApplicationRecord
            .where.not(organization_id: org&.id).exists?
   end
 
-  def release_user!
+  def release_user!(refresh_queue: nil)
     return unless user_id
 
     # Read these BEFORE opening the transaction so the user row can be locked first.
@@ -119,7 +120,7 @@ class License < ApplicationRecord
       # perform_release! removes the org_user link that gave the student this district's home
       # boards (organization.rb attached_orgs), so view access must be recomputed. Enqueued after
       # commit with a RemoteAction fallback (supervising.rb schedule_board_cache_refresh).
-      User.schedule_board_cache_refresh(locked_user, true)
+      User.schedule_board_cache_refresh(locked_user, true, refresh_queue)
     else
       License.transaction { perform_release!(nil, self.organization) }
     end
