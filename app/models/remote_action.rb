@@ -5,6 +5,9 @@ class RemoteAction < ApplicationRecord
       if ra.path && ra.extra
         Worker.schedule_for(:slow, Uploader, :remote_remove, ra.path, ra.extra)
       end
+    elsif Uploader::REMOTE_DELETE_RETRY_ACTIONS.include?(ra.action)
+      # deletes deferred for missing S3 credentials (Uploader.record_remote_delete_retry); extra may be nil
+      Worker.schedule_for(:slow, Uploader, :retry_remote_delete, ra.action, ra.path, ra.extra, ra.created_at.to_i) if ra.path
     elsif ra.action == 'notify_unassigned'
       user_id, org_id = ra.path.split(/::/, 2)
       UserMailer.schedule_delivery(:organization_unassigned, user_id, org_id)

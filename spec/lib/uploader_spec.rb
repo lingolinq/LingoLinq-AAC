@@ -2552,6 +2552,46 @@ describe Uploader do
     end
   end
 
+  describe "retry_remote_delete" do
+    let(:uploads_bucket) { 'spec-uploads-for-delete-retry' }
+    let(:key) { 'images/abcdefg/asdf-asdf.asdf' }
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return({
+        upload_url: "https://#{uploads_bucket}.s3.amazonaws.com/", access_key: 'test_key', secret: 'test_secret',
+        bucket_name: uploads_bucket, static_bucket_name: 'spec-static'
+      })
+    end
+
+    it "deletes the path once credentials exist, and leaves no pending retry" do
+      RemoteAction.create!(action: 'delete_retry', path: key, act_at: 1.hour.ago)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: key).and_return(true)
+      expect(Uploader.remote_remove_batch).to eq(1)
+      Worker.process_queues
+      expect(RemoteAction.count).to eq(0)
+    end
+
+    it "re-runs a thumbnail family removal with its owner once credentials exist" do
+      stem = 'videos/1/2/3/1_5-familyv1723500000.mp4'
+      expect(Uploader).to receive(:remote_remove_thumbnail_family).with(stem, 'UserVideo', '1_5')
+      Uploader.retry_remote_delete('delete_thumbnail_family_retry', stem, 'UserVideo::1_5', 2.days.ago.to_i)
+      expect(RemoteAction.count).to eq(0)
+    end
+
+    it "is cancelled when the same path is uploaded again" do
+      RemoteAction.create!(action: 'delete_retry', path: 'bacon', act_at: 1.hour.ago)
+      expect(Uploader).to receive(:remote_upload_params).and_return(upload_params: {}, upload_url: 'http://www.upload.com/', post_url: 'http://www.upload.com/')
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
+      f = Tempfile.new('stash')
+      Uploader.remote_upload('bacon', f.path, 'text/plaintext')
+      f.unlink
+      expect(RemoteAction.where(action: 'delete_retry').count).to eq(0)
+    end
+  end
+
   # With no AWS credentials set, the "configured?" checks must see them as missing. The key helpers
   # return '' when unset, and '' is truthy, so the checks used to pass and the S3 SDK raised
   # MissingCredentialsError instead of the method's "not configured" answer.
@@ -2582,12 +2622,40 @@ describe Uploader do
       end
 
       # deleting user data is required (retention, erasure requests): when it cannot happen, it must
-      # not be skipped in silence
-      it "remote_remove logs that the delete was skipped, without building an S3 client" do
+      # not be skipped in silence, and it must not be lost (callers have already dropped the pointer)
+      it "remote_remove logs, records exactly one pending retry for the path, and raises, without building an S3 client" do
         allow(Rails.logger).to receive(:error)
         expect(Aws::S3::Client).to_not receive(:new)
-        expect(Uploader.remote_remove('extras/x.json', 'checksum')).to eq(nil)
+        expect { Uploader.remote_remove('extras/x.json', 'checksum') }.to raise_error(Uploader::RemoteCredentialsMissing)
         expect(Rails.logger).to have_received(:error).with(/remote_remove: S3 credentials or bucket not configured/)
+        expect { Uploader.remote_remove('extras/x.json', 'checksum') }.to raise_error(Uploader::RemoteCredentialsMissing)
+        retries = RemoteAction.where(action: 'delete_retry', path: 'extras/x.json')
+        expect(retries.count).to eq(1)
+        expect(retries.first.extra).to eq('checksum')
+        expect(retries.first.act_at).to be > 23.hours.from_now
+      end
+
+      it "remote_remove_thumbnail_family records one pending retry for the stem and raises, without building an S3 client" do
+        allow(Rails.logger).to receive(:error)
+        expect(Aws::S3::Client).to_not receive(:new)
+        stem = 'videos/1/2/3/1_5-familyv1723500000.mp4'
+        2.times do
+          expect { Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5') }.to raise_error(Uploader::RemoteCredentialsMissing)
+        end
+        retries = RemoteAction.where(action: 'delete_thumbnail_family_retry', path: stem)
+        expect(retries.count).to eq(1)
+        expect(retries.first.extra).to eq('UserVideo::1_5')
+        expect(RemoteAction.where(action: 'delete_retry').count).to eq(0)
+      end
+
+      it "retry_remote_delete keeps the retry pending under its first request time, without raising" do
+        allow(Rails.logger).to receive(:error)
+        expect(Aws::S3::Client).to_not receive(:new)
+        first_requested_at = 2.days.ago.to_i
+        expect(Uploader.retry_remote_delete('delete_retry', 'extras/x.json', nil, first_requested_at)).to eq(nil)
+        ra = RemoteAction.find_by(action: 'delete_retry', path: 'extras/x.json')
+        expect(ra.created_at.to_i).to eq(first_requested_at)
+        expect(ra.act_at).to be > 23.hours.from_now
       end
 
       it "remote_remove_upload_path logs that the delete was skipped, without building an S3 client" do
