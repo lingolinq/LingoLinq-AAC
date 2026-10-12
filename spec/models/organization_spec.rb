@@ -1208,11 +1208,6 @@ describe Organization, :type => :model do
     # supervision link alone gives the supervisor the communicator's private boards (board_caching.rb
     # supervisees), so the cleanup must unlink them.
     describe "supervision links when the organization is destroyed" do
-      # Removals write AuditEvent rows; delete the ones these examples made so other files' exact
-      # audit counts are not affected (CLAUDE.md, Testing).
-      before(:each) { @audit_ids_before = AuditEvent.pluck(:id) }
-      after(:each) { AuditEvent.where.not(id: @audit_ids_before).delete_all if @audit_ids_before }
-
       # A room supervisor and a communicator, both in the room; the room links them on its jobs.
       def room_with_members
         o = Organization.create
@@ -1619,7 +1614,6 @@ describe Organization, :type => :model do
     end
 
     it "removes room supervision, and the boards it gave, when the organization is destroyed" do
-      audit_ids_before = AuditEvent.pluck(:id)
       o = Organization.create
       ou = OrganizationUnit.create(:organization => o)
       sup = User.create
@@ -1639,7 +1633,6 @@ describe Organization, :type => :model do
       o.reload.destroy
       Worker.process_queues
       Worker.process_queues
-      AuditEvent.where.not(id: audit_ids_before).delete_all
 
       expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
       expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)
