@@ -54922,6 +54922,17 @@ a.md-goal-nav-action:hover,
      `margin-left: auto` stays: that is not a nudge, it is how a `fit-content` block
      right-aligns itself. */
   margin: 0 0 0 auto;
+  /* COMPRESSED (requested 2026-10-12): 26px tall, 10px sides, 13px text, through the shared
+     option rule's variables (_board_picker.scss `.bp-segmented__option`); the board picker keeps
+     its 32px / 16px / 14px. `-narrow` is the same padding at 640px and below, where the shared
+     rule sets its own.
+     NOT SIZED FOR AAC USERS, deliberately (Traci, 2026-10-12): this control is on the Boards
+     page, a management page that most AAC users will not use, so it is not held to the larger
+     targets the communication surfaces use. 26px still clears WCAG 2.2 AA's 24px minimum. */
+  --bp-seg-h: 26px;
+  --bp-seg-px: 10px;
+  --bp-seg-px-narrow: 10px;
+  --bp-seg-fs: 13px;
 }
 
 /* ==========================================================================

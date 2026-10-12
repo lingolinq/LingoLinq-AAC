@@ -574,13 +574,16 @@ $bp-target: 44px;
      search field beside it, so the toolbar reads as two heights rather than one. 32px
      still clears the WCAG 2.2 AA 24px minimum target size — it is the AAA 44px guidance
      that is given up. Restore `min-height: $bp-target` to undo. */
-  min-height: 32px;
-  padding: 0 16px;
+  /* Height, side padding and text size read from variables so a page can size its copy of the
+     control without an override block; the defaults are this control's own values. The Boards
+     page sets them smaller (app.scss, `.bp-segmented.ub-boards-page__density`). */
+  min-height: var(--bp-seg-h, 32px);
+  padding: 0 var(--bp-seg-px, 16px);
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: rgba(75, 78, 92, 0.85);
-  font-size: 14px;
+  font-size: var(--bp-seg-fs, 14px);
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
@@ -867,7 +870,7 @@ $bp-target: 44px;
   /* Each control takes a full row rather than shrinking below a usable size. */
   .bp-search { flex: 1 1 100%; width: 100%; }
   .bp-segmented { flex: 1 1 100%; width: 100%; }
-  .bp-segmented__option { flex: 1 1 50%; padding: 0 $bp-space-md; }
+  .bp-segmented__option { flex: 1 1 50%; padding: 0 var(--bp-seg-px-narrow, #{$bp-space-md}); }
   .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon img {
     width: 50px !important;
     height: 50px !important;
