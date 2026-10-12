@@ -146,21 +146,24 @@ class WeeklyStatsSummary < ApplicationRecord
     
     if current_weekyear == self.weekyear
       if (target_words[:watchwords][:suggestions] || []).length > 0
-        user.reload
-        if user.settings['target_words'] && user.settings['target_words']['list'] && user.settings['target_words']['list'].map{|s| s['word'] }.sort == target_words[:watchwords][:suggestions].map{|s| s['word'] }.sort
-          user.settings['target_words'] = {
-            'generated' => user.settings['target_words']['generated'] || Time.now.iso8601,
-            'weekyear' => current_weekyear,
-            'list' => target_words[:watchwords][:suggestions]
-          }
-        else
-          user.settings['target_words'] = {
-            'generated' => Time.now.iso8601,
-            'weekyear' => current_weekyear,
-            'list' => target_words[:watchwords][:suggestions]
-          }
+        # Decided and written on a locked fresh copy (User#update_settings_locked): saving the
+        # reloaded copy wrote the whole settings column, reverting a save that landed between the
+        # reload and this save. Only target_words is written.
+        user.update_settings_locked(touch: false) do |fresh|
+          if fresh.settings['target_words'] && fresh.settings['target_words']['list'] && fresh.settings['target_words']['list'].map{|s| s['word'] }.sort == target_words[:watchwords][:suggestions].map{|s| s['word'] }.sort
+            fresh.settings['target_words'] = {
+              'generated' => fresh.settings['target_words']['generated'] || Time.now.iso8601,
+              'weekyear' => current_weekyear,
+              'list' => target_words[:watchwords][:suggestions]
+            }
+          else
+            fresh.settings['target_words'] = {
+              'generated' => Time.now.iso8601,
+              'weekyear' => current_weekyear,
+              'list' => target_words[:watchwords][:suggestions]
+            }
+          end
         end
-        user.save(touch: false)
 
         WordData.schedule_once_for('slow', :update_activities_for, user.global_id, true)
       end
