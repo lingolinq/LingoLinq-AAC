@@ -41,11 +41,19 @@ unless Rails.env.production?
   # requests to S3, OpenSymbols, Bedrock, ... with a placeholder credential, in CI too. Drop them;
   # the values boot requires (config/environment.rb, ExternalNonce) get test stand-ins when nothing
   # real supplied them. CI passes real ones in the environment, which win.
+  #
+  # This runs as a `before_configuration` hook, not right here: outside rspec, Bundler.require
+  # (above) installs dotenv's Rails hook, which loads .env.test.local, .env.test and .env in its own
+  # `before_configuration` hook (dotenv-3.1.8 lib/dotenv/rails.rb:107) when the Application class
+  # below is defined, and would put back a reference dropped here. Hooks run in the order they were
+  # registered, so this one runs after dotenv's. Registered only in the test environment.
   if Rails.env.test?
-    ENV.keys.each { |key| ENV.delete(key) if ENV[key].to_s.start_with?('op://') }
-    ENV['DEFAULT_EMAIL_FROM'] ||= 'noreply@example.com'
-    ENV['SYSTEM_ERROR_EMAIL'] ||= 'errors@example.com'
-    ENV['SECURE_NONCE_KEY'] ||= SecureRandom.hex(32)
+    ActiveSupport.on_load(:before_configuration) do
+      ENV.keys.each { |key| ENV.delete(key) if ENV[key].to_s.start_with?('op://') }
+      ENV['DEFAULT_EMAIL_FROM'] ||= 'noreply@example.com'
+      ENV['SYSTEM_ERROR_EMAIL'] ||= 'errors@example.com'
+      ENV['SECURE_NONCE_KEY'] ||= SecureRandom.hex(32)
+    end
   end
 end
 

@@ -14,4 +14,31 @@ describe 'test environment settings' do
       expect(ENV[key]).to be_present, "#{key} is missing"
     end
   end
+
+  # Outside rspec (a `rails` command in the test environment), dotenv's Rails hook loads
+  # .env.test.local, .env.test and .env during `before_configuration`
+  # (dotenv-3.1.8 lib/dotenv/rails.rb:107), which runs when config/application.rb defines the
+  # Application class. A reference it adds there must still be dropped. The subprocess only loads
+  # config/application.rb: no initializers, no database.
+  it 'drops a 1Password reference that dotenv\'s Rails hook adds at boot' do
+    require 'open3'
+    require 'tempfile'
+    Tempfile.create(['spec-probe', '.env']) do |file|
+      file.write("SPEC_PROBE=op://vault/item/field\n")
+      file.flush
+      script = <<~RUBY
+        require 'bundler/setup'
+        require 'rails'
+        require 'dotenv'
+        require 'dotenv/rails'
+        Dotenv::Rails.files = [#{file.path.inspect}]
+        require #{Rails.root.join('config', 'application').to_s.inspect}
+        print ENV['SPEC_PROBE'].inspect
+      RUBY
+      out, err, status = Open3.capture3({ 'RAILS_ENV' => 'test', 'SPEC_PROBE' => nil }, RbConfig.ruby, '-e', script,
+                                        chdir: Rails.root.to_s)
+      expect(status).to be_success, err
+      expect(out).to eq('nil')
+    end
+  end
 end
