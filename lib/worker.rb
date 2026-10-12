@@ -9,6 +9,17 @@ module Worker
     super
   ensure
     clear_request_thread_caches
+    clear_scheduled_stamp(args)
+  end
+
+  # BoyBand sets the job class's last_scheduled_stamp from the job's 'scheduled' value and never
+  # clears it (boy_band.rb:155). Resque forks a process per job, so production never sees it after
+  # the job; clear it so in-process runs (Worker.process_queues) and a non-forking worker match.
+  # Readers that would otherwise act on a stale stamp: upstream_downstream.rb:8 and :382-386.
+  def self.clear_scheduled_stamp(args)
+    klass_string = args.find { |a| a.is_a?(String) && !a.start_with?('domain::') }
+    klass = klass_string && Object.const_get(klass_string) rescue nil
+    klass.last_scheduled_stamp = nil if klass.respond_to?(:last_scheduled_stamp=)
   end
 
   # Single source of truth for the request/job-scoped Thread.current caches
