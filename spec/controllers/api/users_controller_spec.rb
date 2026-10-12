@@ -3384,6 +3384,18 @@ describe Api::UsersController, :type => :controller do
       root
     end
 
+    it "should answer the user's own private boards without a per-board permission lookup" do
+      token_user
+      own = 3.times.map{ Board.create(:user => @user, :public => false) }
+      link_board_revisions_tree(@user, own)
+      expect_any_instance_of(Board).not_to receive(:allows?)
+      get :board_revisions, params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      own.each{|b| expect(json['revisions'][b.global_id]).to eq(b.reload.current_revision) }
+      expect(json['revoked_ids']).to eq([])
+    end
+
     def make_private_board_cache_stale(user)
       user.reload
       user.settings['available_private_board_ids'] = {'view' => [], 'edit' => [], 'generated' => Time.now.to_i}

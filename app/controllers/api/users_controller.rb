@@ -786,7 +786,10 @@ class Api::UsersController < ApplicationController
     ActiveRecord::Associations::Preloader.new(records: boards.reject{|b| b.public }, associations: :user).call
     boards.each do |brd|
       shallow = !!brd.instance_variable_get('@sub_id')
-      viewable = (brd.public && !shallow) || brd.allows?(user, 'view') || (!shallow && board_shared_now?(brd, user))
+      # Cheap checks first: most private boards in a synced tree are the user's own copies, which
+      # the owner can always view (Board#permissions, board.rb:84-100); allows? costs a
+      # permission-cache read per board.
+      viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || brd.allows?(user, 'view') || (!shallow && board_shared_now?(brd, user))
       if viewable
         res[brd.global_id] = brd.current_revision
         res[brd.key] = brd.current_revision
