@@ -33,5 +33,30 @@ RSpec.configure do |config|
         .to_return(status: 403, body: '<Error><Code>AccessDenied</Code></Error>',
                    headers: {'Content-Type' => 'application/xml'})
     end
+
+    # SafeHttp resolves the hostname itself (Addrinfo.getaddrinfo in resolve_addresses,
+    # lib/safe_http.rb:67) before the request reaches WebMock, so without this a spec asks real DNS.
+    # A public name gets a TEST-NET-3 documentation address, which SafeHttp's blocked_ipaddr?
+    # (lib/safe_http.rb:125) allows, so the request goes on to the stubs above. Local names (Redis
+    # and database hosts such as localhost, or a single-label service name) and IP literals keep
+    # the real resolver. A spec that tests resolution declares its own expectation on Addrinfo.
+    allow(Addrinfo).to receive(:getaddrinfo).and_wrap_original do |original, host, *args, **opts|
+      if OutsideServices.local_name?(host)
+        original.call(host, *args, **opts)
+      else
+        [Addrinfo.tcp('203.0.113.10', 80)]
+      end
+    end
+  end
+end
+
+module OutsideServices
+  def self.local_name?(host)
+    name = host.to_s
+    return true if name.empty? || !name.include?('.') || name == 'localhost' || name.end_with?('.localhost')
+    IPAddr.new(name.delete_prefix('[').delete_suffix(']'))
+    true
+  rescue IPAddr::InvalidAddressError
+    false
   end
 end

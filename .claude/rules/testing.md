@@ -25,8 +25,10 @@ setting to relax.
   service answers to that request. Add one there only for a side effect that many specs trigger.
   A spec that tests the call itself declares its own `stub_request`: WebMock uses the most
   recently declared matching stub.
-- **Known gap:** `SafeHttp` resolves a hostname (`Addrinfo.getaddrinfo`) before it sends the
-  request. WebMock does not intercept DNS, so a spec can still trigger a real DNS lookup.
+- **DNS:** `SafeHttp` resolves a hostname (`Addrinfo.getaddrinfo`) before it sends the request,
+  and WebMock does not intercept DNS. `spec/support/outside_services.rb` answers public hostnames
+  with a documentation address (203.0.113.10) and leaves local names and IP literals to the real
+  resolver; a spec that tests resolution sets its own expectation on `Addrinfo`.
 
 ## Credentials in the test environment
 
