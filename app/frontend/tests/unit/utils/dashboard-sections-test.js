@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, layoutPresentation, HOME_SECTIONS, AREA } from 'frontend/utils/dashboard_sections';
+import { gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, layoutPresentation, HOME_SECTIONS, AREA, defaultOrderFor } from 'frontend/utils/dashboard_sections';
 
 // Regression lock for the dashboard LAYOUT ENGINE (utils/dashboard_sections.js).
 // The engine is an ORDERED-LIST reorder model: the visible sections are packed in
@@ -568,5 +568,18 @@ module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero'
     var extrasRow = areas.findIndex(function(a) { return a.split(' ').indexOf('extras') !== -1; });
     var reportsRow = areas.findIndex(function(a) { return a.split(' ').indexOf('reports') !== -1; });
     assert.true(extrasRow >= reportsRow, 'Extras comes after Reports, at the end');
+  });
+
+  // The Dashboard Design editor seeds every drag from defaultOrderFor (display-style.js
+  // getDefaultOrder -> reorderInsert). With Speak Mode hidden it must place Extras where the live
+  // grid does, or dragging ANY card saves Extras ahead of Boards.
+  test('the editor\'s drag seed agrees with the live grid when Speak Mode is hidden', function(assert) {
+    var vis = visFor(['account', 'extras', 'boards', 'createboard', 'reports', 'editdashboard']);
+    var seed = defaultOrderFor(null, 'gentle', vis);
+    assert.true(seed.indexOf('extras') > seed.indexOf('boards'), 'Extras is not pulled up beside the hidden Speak');
+    var dragged = reorderInsert(null, 'reports', 'account', false, seed);
+    assert.true(dragged.indexOf('extras') > dragged.indexOf('boards'), 'moving Reports does not move Extras');
+    var full = defaultOrderFor(null, 'gentle');
+    assert.strictEqual(full[full.indexOf('speak') + 1], 'extras', 'without vis (every card) Extras still pairs with Speak');
   });
 });

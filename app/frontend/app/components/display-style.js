@@ -1371,7 +1371,7 @@ function _onDisplayShow(component) {
       // divides by it to keep the ghost 1:1 under the cursor.
       var previewZoom = 1;
       try { previewZoom = parseFloat(window.getComputedStyle(liveEl).getPropertyValue('--md-ds-preview-zoom')) || 1; } catch (e) { previewZoom = 1; }
-      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return defaultOrderFor(previewUser, currentLayout()); }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-ds-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
+      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return defaultOrderFor(previewUser, currentLayout(), readVis()); }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-ds-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
     };
     wireDrag();
   } catch (e) { /* preview + gating are decorative — never block the step */ }

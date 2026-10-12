@@ -338,7 +338,7 @@ export default Component.extend({
       } else {
         board.preview_remove = null;
       }
-      if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {
+      if(_this.onActionOverride && typeof _this.onActionOverride === 'function' && !_this.get('previewOpensModal')) {
         _this.onActionOverride(this.get('board_record.key'));
       } else if(_this.get('action_override')) {
         _this.triggerExternalAction('action_override', this.get('board_record.key'));

@@ -122,3 +122,39 @@ module('Unit | Component | board-icon (compactRow vs pickOpensPreview)', functio
     assert.ok(String(plain.comp.get('cursor_style')).includes('pointer-events: none'), 'any other not-ready tile stays inert');
   });
 });
+
+/* The Modern home Boards card opens boards through @onActionOverride, and board_preview handed every
+ * Preview click to that override too, so its "Preview" pill and info chip OPENED the board. With
+ * @previewOpensModal the Preview buttons open the preview; the tile itself still opens by key. */
+module('Unit | Component | board-icon (previewOpensModal)', function(hooks) {
+  setupTest(hooks);
+
+  hooks.beforeEach(function() {
+    this.owner.register('service:app-state', Service.extend({}));
+    this.owner.register('service:router', Service.extend({}));
+  });
+
+  test('Preview opens the preview modal, not the override', function(assert) {
+    assert.expect(2);
+    var opened = [];
+    var previewed = [];
+    var original = modal.board_preview;
+    modal.board_preview = function(board) { previewed.push(board); };
+    try {
+      var record = EmberObject.create({ key: 'someone/my-board', id: '1_1' });
+      var comp = this.owner.factoryFor('component:board-icon').create({
+        board_record: record, previewOpensModal: true,
+        onActionOverride: function(key) { opened.push(key); }
+      });
+      comp.actions.board_preview.call(comp, record);
+      assert.deepEqual(opened, [], 'the board was not opened');
+      assert.strictEqual(previewed.length, 1, 'the preview opened');
+      comp.destroy();
+    } finally {
+      modal.board_preview = original;
+    }
+  });
+});
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import modal from 'frontend/utils/modal';

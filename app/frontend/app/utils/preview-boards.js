@@ -2,9 +2,9 @@
 // components/dashboard/authenticated-view.js#previewBoards).
 //
 // UP TO 12, CRISIS VOCABULARY INCLUDED (requested 2026-10-10: "on full sized screens, show up to 12
-// boards by default"). Crisis is always last and takes one of the 12, so a long library shows 11 of
-// the user's boards and then Crisis. 1024px and below show up to 6: app.scss hides the boards past
-// the fifth there and keeps Crisis (`.md-card--boards__item--crisis`).
+// boards by default"). Crisis takes one of the 12 and comes last (first when it is the home board),
+// so a long library shows 11 of the user's boards and Crisis. 1024px and below show up to 6: app.scss
+// hides the boards past the fifth there and keeps Crisis (`.md-card--boards__item--crisis`).
 var PREVIEW_BOARDS_MAX = 12;
 
 // When Crisis is also in the list (the user's home board, or a board the user owns), that entry is

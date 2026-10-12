@@ -376,15 +376,16 @@ function gentleDefaultOrder(user) {
 // resolve their default from, so they can never disagree on a supervisor's order.
 // BOTH layouts now start from the same role-aware order; Focused View only pulls its
 // role hero to the front so that card packs as the top full-width showcase.
-function defaultOrderFor(user, layout) {
+function defaultOrderFor(user, layout, vis) {
   var base = gentleDefaultOrder(user);
-  // The drag preview + live grid both resolve their default here so they agree.
+  // The drag preview + live grid both resolve their default here so they agree. `vis` (the editor's
+  // visible cards) keeps the drag seed placing Extras as the live grid does when Speak is hidden.
   if (layout === 'focused') { return heroFirst(base, focusedHeroKey(user)); }
   /* GENTLE ONLY. `gentleDefaultOrder` is the shared base BOTH layouts start from -- Focused
      takes it above and only promotes its hero -- so the Edit-Dashboard-beside-Create-a-Board
      move has to happen on this side of that branch, not inside it. Putting it in the shared
      function reordered Focused's utility row too, which the request did not ask for. */
-  return extrasBesideSpeak(editBesideCreate(base));
+  return extrasBesideSpeak(editBesideCreate(base), vis);
 }
 
 // The visible section keys in display order: start from the saved order (or the

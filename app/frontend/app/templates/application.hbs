@@ -1608,7 +1608,6 @@
          the nav's own `{{#if}}` below, so the clearance and the thing it clears can never
          disagree -- see `--ll-nav-clearance` in app.scss. --}}
     <div class="ll-appshell {{unless this.showPillNav "ll-appshell--no-nav"}}">
-      <AccountRail @user={{this.globalChromeUser}} />
       <div class="ll-appshell__main">
         {{!-- THE PILL NAV IS THE HOME SECTION'S, NOT THE APP'S (requested 2026-09-21). The rail
              above renders on all 22 chrome routes because it genuinely belongs on them; this
@@ -1623,6 +1622,10 @@
             <UserPillNav @active={{this.globalNavActive}} @userName={{this.globalChromeUser.user_name}} />
           </div>
         {{/if}}
+        {{!-- THE RAIL SITS BETWEEN THE NAV AND THE PAGE (2026-10-11) so keyboard and screen-reader
+             order match what is drawn: at 900px and below the rail is a dropdown drawn below the
+             pill nav. Above 900px it is a fixed panel, so where it sits here does not move it. --}}
+        <AccountRail @user={{this.globalChromeUser}} />
         <div class="ll-appshell__content">
           {{ outlet }}
         </div>

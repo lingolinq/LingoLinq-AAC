@@ -587,7 +587,8 @@
              preview-first flow. --}}
         {{!-- FULL-SIZE CARDS FOR 5 OR FEWER, ABOVE 1024px (requested 2026-10-10): the Boards page's detailed
              cards and its card grid (`ub-boards-page__board-grid`) instead of the compact rows; same
-             component, without `@compactRow`. `previewBoardsFull` is
+             component, without `@compactRow`. `@previewOpensModal`: their Preview buttons preview,
+             while the card itself opens the board (board-icon.js#board_preview). `previewBoardsFull` is
              utils/preview-boards.js#previewUsesFullCards. At 1024px and below the compact rows stay as
              they were (requested the same day), so for 5 or fewer BOTH lists render and app.scss shows
              one by width (`md-card--boards__compact-grid--narrow-only`).
@@ -596,7 +597,7 @@
         <div class="md-card--boards__compact-grid md-card--boards__full-grid ub-boards-page__board-grid" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards key="key" as |preview|}}
             <div class="simple_board_holder {{if preview.isHome "md-card--boards__compact-item--home"}} {{if preview.isEmergency "md-card--boards__item--crisis"}}" role="listitem">
-              <BoardIcon @board={{or preview.board (hash id=preview.key key=preview.key name=preview.name)}} @flag_home={{preview.isHome}} @onActionOverride={{this.onGoToBoard}} />
+              <BoardIcon @board={{or preview.board (hash id=preview.key key=preview.key name=preview.name)}} @flag_home={{preview.isHome}} @onActionOverride={{this.onGoToBoard}} @previewOpensModal={{true}} />
             </div>
           {{/each}}
         </div>

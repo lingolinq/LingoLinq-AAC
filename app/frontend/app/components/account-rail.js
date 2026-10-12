@@ -315,8 +315,11 @@ export default Component.extend({
   ),
 
   // The dropdown trigger's accessible name (account-rail.hbs, <=900px): the visible label first
-  // (WCAG 2.5.3, label in name), then what the button opens.
+  // (WCAG 2.5.3, label in name), then what the button opens. On a page with no rail row the visible
+  // label already IS "Account menu" (activeLabel's default), so it is said once.
   menuTriggerLabel: computed('activeLabel', function() {
-    return this.get('activeLabel') + ', ' + i18n.t('account_menu', "Account menu");
+    var menu = i18n.t('account_menu', "Account menu");
+    var label = this.get('activeLabel');
+    return label === menu ? menu : label + ', ' + menu;
   })
 });

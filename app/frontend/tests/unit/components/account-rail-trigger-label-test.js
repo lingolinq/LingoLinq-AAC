@@ -26,4 +26,11 @@ module('Unit | Component | account-rail menu trigger name', function(hooks) {
     assert.ok(visible, 'the visible label is set');
     assert.strictEqual(component.get('menuTriggerLabel'), visible + ', ' + i18n.t('account_menu', "Account menu"));
   });
+
+  test('on a page with no rail row the name is not doubled', function(assert) {
+    var component = rail(this, 'some.route.without.a.row');
+    var menu = i18n.t('account_menu', "Account menu");
+    assert.strictEqual(component.get('activeLabel'), menu, 'the visible label is the menu name itself');
+    assert.strictEqual(component.get('menuTriggerLabel'), menu, 'said once');
+  });
 });

@@ -49124,11 +49124,6 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   .md-card--attention .md-attention__all {
     margin-right: auto;
   }
-  /* Compressed View's slim header link (`.md-card__view-all--head`, `margin-left: auto`) would
-     sit at the right edge under the centred title; centre it the same way. */
-  .md-card--attention .md-card--attention__head .md-card__view-all--head {
-    margin-right: auto;
-  }
 }
 /* Rooms header stacks earlier — at ≤640px — icon on top, title + subtitle centered
    below (same treatment as the Communicators Need Attention header, just at a wider
@@ -49240,17 +49235,6 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   border-color: rgba(27, 54, 93, 0.24);
   text-decoration: none;
 }
-/* In a card's HEADER instead (Compressed View, requested 2026-09-30): the header rows are flex
-   rows, so it centres on the title's line and is pushed to the right edge rather than taking the
-   column's bottom-right `align-self: flex-end`.
-   28px, NOT THE 44px AAC TAP TARGET, IS DELIBERATE (decided 2026-10-01): Compressed View is a dense
-   layout for supervisors and staff, not a view intended for AAC users, so the 44px target the
-   communicator-facing views keep does not apply here. Do not raise it to 44px as an audit fix. */
-.md-card__view-all--head {
-  align-self: center;
-  margin-left: auto;
-}
-
 .md-attention__list {
   display: flex;
   flex-direction: column;
@@ -50779,7 +50763,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   /* `:has()` so the rail's own class drives the shell: one piece of state, no second reader in
      controllers/application.js. (0,2,0), so it beats the base `.ll-appshell` value on
      specificity rather than source order -- the same arrangement as `--ll-nav-clearance`. */
-  .ll-appshell:has(> .md-acct-rail--collapsed) {
+  .ll-appshell:has(> .ll-appshell__main > .md-acct-rail--collapsed) {
     --ll-rail-width: 124px;
   }
 
@@ -51047,10 +51031,10 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     cursor: pointer;
   }
   /* BELOW THE PILL NAV, NOT ABOVE IT (requested 2026-10-10: "actually position it below the pill
-     nav menu instead"). In the DOM the rail comes first and the pill nav sits inside
-     `.ll-appshell__main`, so on pages that have the pill nav the shell becomes a flex column and
-     `__main` steps out of the box tree (`display: contents`) to let `order` put the nav, then this
-     dropdown, then the page. Pages with no pill nav (the account pages) keep the dropdown where it
+     nav menu instead"). In the DOM the pill nav and then the rail sit inside `.ll-appshell__main`,
+     in the order they are drawn (for keyboard users). On pages that have the pill nav the shell
+     becomes a flex column and `__main` steps out of the box tree (`display: contents`) so `order`
+     can lay out the nav, then this dropdown, then the page. Pages with no pill nav (the account pages) keep the dropdown where it
      is, just below the navbar. The nav bar's `margin-bottom: -48px` (it floats over the page's
      wash) is dropped in this arrangement: with it, the next item started 52px INSIDE the bar and
      the trigger overlapped the pills (measured at 860 / 600 / 390). Without it the dropdown simply
@@ -51070,7 +51054,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
     margin-top: var(--ll-navbar-sticky-top);
     margin-bottom: 0 !important;
   }
-  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .md-acct-rail { order: 2; margin-top: 8px; }
+  .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .ll-appshell__main > .md-acct-rail { order: 2; margin-top: 8px; }
   .ll-appshell:has(> .ll-appshell__main > .ll-appshell__navbar) > .ll-appshell__main > .ll-appshell__content { order: 3; }
   .md-acct-rail__menu-chevron { flex: 0 0 auto; transition: transform 0.18s ease; }
   .md-acct-rail__menu-trigger[aria-expanded="true"] .md-acct-rail__menu-chevron { transform: rotate(180deg); }
@@ -64001,11 +63985,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 }
 /* UP TO 6 BOARDS AT 1024px AND BELOW (requested 2026-10-10: up to 12 on full-size screens, 6 on
    smaller ones, Crisis Vocabulary counted). The list is built for 12 (utils/preview-boards.js, Crisis
-   last); here the boards past the fifth are hidden and Crisis is kept, so it is 5 + Crisis = 6. A
-   list of 5 or fewer is unaffected, so the full-size cards (`md-card--boards__full-grid`) never
-   lose one. */
+   last); here the boards past the fifth are hidden and Crisis is kept, so it is 5 + Crisis = 6. When
+   Crisis is the HOME board it leads the list instead, so the sixth tile is kept too (the last
+   `:not()`), still 6. A list of 5 or fewer is unaffected, so the full-size cards
+   (`md-card--boards__full-grid`) never lose one. */
 @media (max-width: 1024px) {
-  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid > .simple_board_holder:nth-child(n+6):not(.md-card--boards__item--crisis) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid > .simple_board_holder:nth-child(n+6):not(.md-card--boards__item--crisis):not(.md-card--boards__item--crisis:first-child ~ :nth-child(6)) {
     display: none;
   }
 }
