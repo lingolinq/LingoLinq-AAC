@@ -123,6 +123,9 @@ RSpec.configure do |config|
         post_url: 'https://example.com/',
         upload_params: {}
       )
+      # the same fake configuration for the guard in front of client-facing upload forms
+      # (Uploader.client_upload_params); specs of the guard itself call the original
+      allow(Uploader).to receive(:client_uploads_configured?).and_return(true)
     end
     RemoteAction.delete_all
     RedisInit.reset_queue_pressure_cache!

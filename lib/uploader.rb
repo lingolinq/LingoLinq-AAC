@@ -611,7 +611,25 @@ module Uploader
       :upload_params => post.fields
     }
   end
-  
+
+  # remote_upload_params signs a form even with empty credentials or bucket (Aws::S3::PresignedPost
+  # does not check), and the browser upload then 403s. Callers that hand the form to a client go
+  # through client_upload_params; URL-only callers (button_sound.rb:138, media_object.rb:62) and
+  # server-side posts keep calling remote_upload_params.
+  def self.client_uploads_configured?
+    config = remote_upload_config
+    remote_credentials?(config) && config[:bucket_name].present?
+  end
+
+  def self.ensure_client_uploads_configured!
+    raise RemoteCredentialsMissing, 'S3 credentials or bucket not configured; upload form not issued' unless client_uploads_configured?
+  end
+
+  def self.client_upload_params(remote_path, content_type, **opts)
+    ensure_client_uploads_configured!
+    remote_upload_params(remote_path, content_type, **opts)
+  end
+
   def self.remote_upload_config
     @remote_upload_config ||= {
       :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET'].to_s.strip}.s3.amazonaws.com/",

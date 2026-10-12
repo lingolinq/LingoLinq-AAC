@@ -33,7 +33,7 @@ module JsonApi::Sound
   def self.meta(sound)
     json = {}
     if sound.pending_upload? && !sound.destroyed?
-      params = sound.remote_upload_params
+      params = sound.client_upload_params
       json = {'remote_upload' => params}
     end
     json

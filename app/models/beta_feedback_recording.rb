@@ -56,7 +56,7 @@ class BetaFeedbackRecording < ApplicationRecord
   end
 
   def remote_upload
-    Uploader.remote_upload_params(upload_key, content_type, max_bytes: MAX_BYTES, private_upload: true)
+    Uploader.client_upload_params(upload_key, content_type, max_bytes: MAX_BYTES, private_upload: true)
   end
 
   def confirm!

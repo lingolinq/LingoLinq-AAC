@@ -98,7 +98,7 @@ module JsonApi::Image
   def self.meta(image)
     json = {}
     if image.pending_upload?
-      params = image.remote_upload_params
+      params = image.client_upload_params
       json = {'remote_upload' => params}
     end
     json

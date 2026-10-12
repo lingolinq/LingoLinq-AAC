@@ -232,9 +232,16 @@ module Uploadable
     fn = rasterize ? "#{self.full_filename}.raster.png" : self.full_filename
     res = Uploader.remote_upload_params(fn, rasterize ? 'image/png' : self.content_type)
     res[:success_url] = "#{JsonApi::Json.current_host}/api/v1/#{self.file_type}/#{self.global_id}/upload_success?confirmation=#{self.confirmation_key}"
-    res  
+    res
   end
-  
+
+  # remote_upload_params for a form returned to a client (JsonApi image/sound/video meta); raises
+  # Uploader::RemoteCredentialsMissing when S3 is not configured (Uploader.client_upload_params).
+  def client_upload_params(rasterize=false)
+    Uploader.ensure_client_uploads_configured!
+    remote_upload_params(rasterize)
+  end
+
   def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
     self.settings['pending_url'] = nil

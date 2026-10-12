@@ -22,7 +22,7 @@ module JsonApi::Video
   def self.meta(video)
     json = {}
     if video.pending_upload?
-      params = video.remote_upload_params
+      params = video.client_upload_params
       json = {'remote_upload' => params}
     end
     json

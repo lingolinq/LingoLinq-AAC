@@ -2615,6 +2615,18 @@ describe Uploader do
         expect(Uploader.invalidate_cdn('extras/x.json')).to eq(false)
       end
 
+      # the browser upload would 403 later; say so before handing out the form
+      it "client_upload_params raises instead of signing a form the client cannot use" do
+        allow(Uploader).to receive(:client_uploads_configured?).and_call_original
+        allow(Uploader).to receive(:remote_upload_params).and_call_original
+        expect { Uploader.client_upload_params('imports/sounds/1_1/upload-x.zip', 'application/zip') }.to raise_error(Uploader::RemoteCredentialsMissing)
+      end
+
+      it "remote_upload_params still answers for URL-only callers" do
+        allow(Uploader).to receive(:remote_upload_params).and_call_original
+        expect(Uploader.remote_upload_params('sounds/1/2/a-b.mp3', 'audio/mpeg')[:upload_url]).to eq('https://spec-uploads.s3.amazonaws.com/')
+      end
+
       it "signed_internal_url hands back the URL unsigned without building an S3 client" do
         expect(Aws::S3::Client).to_not receive(:new)
         url = 'https://spec-uploads.s3.amazonaws.com/extras/x.json'

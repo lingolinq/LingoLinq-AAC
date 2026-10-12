@@ -9,6 +9,14 @@ class ApplicationController < ActionController::Base
   after_action :log_api_call
   before_action :set_sentry_user
   around_action :with_request_caching
+  rescue_from Uploader::RemoteCredentialsMissing, with: :remote_uploads_unavailable
+
+  # Uploader.client_upload_params refuses to sign an upload form the client could not use. Generic
+  # message: nothing about the configuration reaches the client.
+  def remote_uploads_unavailable(error)
+    Rails.logger.error("#{self.class.name}##{action_name}: #{error.message}")
+    api_error 400, {error: "File uploads are not available right now"}
+  end
 
   # Clears request-scoped Thread.current caches after each request to prevent
   # data leaking between requests on the same Puma thread.

@@ -307,5 +307,16 @@ describe Api::SoundsController, :type => :controller do
       expect(json['remote_upload']).to_not eq(nil)
       expect(json['remote_upload']['upload_url']).to_not eq(nil)
     end
+
+    it "should answer 400 instead of an unusable upload form when S3 is not configured" do
+      token_user
+      allow(Uploader).to receive(:client_uploads_configured?).and_call_original
+      allow(Uploader).to receive(:remote_upload_config).and_return({
+        upload_url: 'https://.s3.amazonaws.com/', access_key: '', secret: '', bucket_name: '', static_bucket_name: ''
+      })
+      post :import, params: {:type => 'zip'}
+      assert_error('File uploads are not available right now', 400)
+      expect(response.body).to_not match(/remote_upload/)
+    end
   end
 end

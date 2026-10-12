@@ -44,7 +44,7 @@ class Api::SoundsController < ApplicationController
     else
       remote_path = "imports/sounds/#{@api_user.global_id}/upload-#{GoSecure.nonce('filename')}.zip"
       content_type = "application/zip"
-      params = Uploader.remote_upload_params(remote_path, content_type)
+      params = Uploader.client_upload_params(remote_path, content_type)
       url = params[:upload_url] + remote_path
       params[:success_url] = "/api/v1/sounds/imports?url=#{CGI.escape(url)}"
       render json: {'remote_upload' => params}.to_json
