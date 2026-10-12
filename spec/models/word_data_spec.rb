@@ -872,6 +872,34 @@ RSpec.describe WordData, :type => :model do
       WordData.update_activities_for(u.global_id, true)
     end
 
+    # The workshop lookups take seconds per word; the result must be stored without writing the
+    # copy of the user loaded before them back over settings saved meanwhile.
+    it 'keeps settings saved by another process while the activities were being fetched' do
+      u = User.create
+      u.settings['target_words'] = {'generated' => 3.hours.ago.iso8601, 'list' => [{'word' => 'about', 'locale' => 'en'}]}
+      u.save!
+      allow(WordData).to receive(:core_and_fringe_for).and_return({:reachable_for_user => ['about'], :reachable_fringe_for_user => []})
+      allow(Typhoeus).to receive(:get) do
+        other = User.find(u.id)
+        other.settings['preferences']['spec_marker'] = 'normal save'
+        other.settings['target_words']['list'] << {'word' => 'more', 'locale' => 'en'}
+        other.save
+        quiet = User.find(u.id)
+        quiet.settings['spec_quiet'] = 'touch false'
+        quiet.save(touch: false)
+        OpenStruct.new(body: {'word' => {'word' => 'about', 'locale' => 'en', 'activity_ideas' => [{'id' => 'ai1', 'description' => 'about it'}]}}.to_json)
+      end
+
+      res = WordData.update_activities_for(u.global_id, false)
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['target_words']['list'].map{|w| w['word'] }).to eq(['about', 'more'])
+      expect(stored.settings['target_words']['activities']['list'].map{|a| a['id'] }).to eq(['ai1'])
+      expect(res['list'].map{|a| a['id'] }).to eq(['ai1'])
+    end
+
     it 'should generate a result' do
       u = User.create
       u.settings['subscription'] = {'never_expires' => true}

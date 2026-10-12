@@ -571,12 +571,18 @@ class WordData < ApplicationRecord
     # add the activities to the user object for quick retrieval
     # TODO: store these somewhere other than on the user record and
     # bump the result list to 50, that's way too much data for that model
-    user.settings['target_words']['activities'] = {
+    result = {
       'generated' => Time.now.iso8601,
       'words' => found_words,
       'list' => activities.sort_by{|a| [a['score'] || 0, WordData.rand] }.reverse[0, 25]
     }
-    user.save(touch: false)
+    # Only target_words.activities is written, on a locked fresh copy (User#update_settings_locked):
+    # `user` was loaded before the workshop lookups above, and saving it reverted settings saved
+    # meanwhile (touch: false, so assert_current_record! could not have caught it either).
+    user.update_settings_locked(touch: false) do |fresh|
+      fresh.settings['target_words'] ||= {'generated' => Time.now.iso8601, 'list' => []}
+      fresh.settings['target_words']['activities'] = result
+    end
     
     activities_for(user, include_supervisees)
   end
