@@ -496,3 +496,37 @@ is no longer a symptom; the access list still is.
   2479/2501/2546, organization_spec 539/3320, subscription_spec 2167, lesson_spec 451,
   word_data_spec 1022, organization_unit_spec 263, renaming_spec 331, sharing_spec 1107/1118.
   Each can fail the same way when its ids cross 999/1000 or 9999/10000. Fix one at a time if seen.
+
+## 2026-10-12: the "Not covered" list fixed (owner: "fix all of it")
+
+Diagnosed by five read-only agents, implemented as seven units in separate worktrees (each: fact
+sheet, red spec first, falsification by mutation, its own adversary review, landed by cherry-pick
+only after review), then a final whole-PR adversary review. Owner decisions recorded inline.
+
+| Unit | What | Review outcome |
+|---|---|---|
+| U1 tests | row-lock spec asserts lock and save share one savepoint; 37 `.sort).to eq` id lists to `match_array` (owner-approved rewrite); WebMock S3/example.com defaults only GET/HEAD/POST; default DNS answer for public hosts (`own_resolver: true` keeps SafeHttp specs strict); controller specs for mid-rebuild unshares; tmp dir spec | ship; Medium (DNS default weakened 9 SafeHttp expectations) fixed |
+| U2 dotenv | test-only `op://` scrub runs after dotenv's Rails hook; subprocess spec with positive control and timeout | ship |
+| U3 S3 | `remote_remove` without credentials logs, records one durable `delete_retry` row, raises `Uploader::RemoteCredentialsMissing` (blank bucket keeps develop's nil); retry re-checks reuse and checksum; batch race closed; `client_upload_params` guard + 400; `invalidate_cdn` guard; one owner-approved `spec_helper` stub | ship; 3 Medium fixed |
+| U4 history | derived version labels kept, one-shot; batch privacy note from the saved level | ship |
+| U5 access | `update_available_boards` rebuilds shared lists (force); refresh scheduled on every org membership path; org links bump `boards_updated_at`; org destroy strips rooms from supervision (owner: keep ambiguous legacy links), link origin recorded, durable cleanup row | blocked once (Critical in U6), fixed; ship |
+| U6 settings | `User#update_settings_locked` (row lock, fresh copy, copy back only own keys, never discards caller state) on track_boards, update_available_boards, WordData, weekly stats, inactivity and trial sweeps; sweeps page by keyset with a Redis cursor, exemption in one method | Critical (helper reload reverted eval reset) fixed and re-reviewed |
+| U7 offline | `board_revisions` lists only viewable boards (+ owner pre-check), opt-in `revoked_ids` only after a direct owner/share re-check, kill switch `BOARD_REVOCATION_DISABLED` (server and client); client marks (never deletes) only after a clean sync, offline-only blocking, never Speak Mode/home/sidebar | blocked once (3 High), fixed; ship |
+| Harness | Worker/SlowWorker clear the job class's `last_scheduled_stamp` (owner-approved) | n/a |
+
+Verification: full suite TZ=UTC at 499b0594d 7971/0 (one earlier intermittent `board_spec:4934`,
+green 5/5 alone and 3/3 full file); baseline 4b5c7eac0 7869/3 under the same conditions. Final
+head results are in the PR body.
+
+Process lessons: the shared flock lock first lived in the session scratchpad, which was wiped
+mid-session, so agents' spec runs could overlap and clear each other's Redis; locks moved to
+`~/.cache/lingolinq-locks/`. An orphan AuditEvent row in the local test DB failed 12 audit-count
+specs on every branch; cleared before full runs.
+
+Still open (follow-ups): users activity column (migration) for the COPPA sweep signal; index on
+users(updated_at, id); hourly RemoteAction `update_available_boards` fallback still on the slow
+queue; board_revisions per-board permission cost for non-owned private boards; test-harness
+storage stubs return mini_promise (can hide unhandled rejections); utils persistence
+`spread_out` rejects every sync in test mode; `swap_images` saves a copy when `@sub_id` is set;
+history actions render untranslated; persistence `record.important` should read
+`record.raw.important` (existing test encodes the bug, needs approval).
