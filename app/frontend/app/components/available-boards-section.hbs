@@ -64,7 +64,7 @@
              modal" flow. Inner folder tags and the strip drop zone
              have their own handlers and call stopPropagation so they
              win when the drop lands on them specifically. --}}
-        <div class="ub-boards-page__folders-section {{if this.foldersExpanded 'ub-boards-page__folders-section--open'}}"
+        <div class="ub-boards-page__folders-section {{if this.foldersOpen 'ub-boards-page__folders-section--open'}}"
           {{on "dragover" (this.selfEventAction "emptyFolderDragOver")}}
           {{on "drop" (this.selfEventAction "emptyFolderDrop")}}>
           {{!-- Header row: split into three click targets so the action
@@ -79,7 +79,7 @@
             <button
               type="button"
               class="ub-boards-page__folders-toggle"
-              aria-expanded={{if this.foldersExpanded "true" "false"}}
+              aria-expanded={{unless this.foldersLayout.sideBySide (if this.foldersOpen "true" "false")}}
               aria-controls="ub-boards-page__folders-body"
               {{on "click" (this.sendAction "toggleFoldersExpanded")}}
             >
@@ -96,7 +96,7 @@
                    strip. --}}
               <span class="ub-boards-page__folders-subtitle">{{t "Organize your boards" key="mine_folders_multi_tag_hint_v3_short"}}</span>
             </button>
-            {{#if this.foldersExpanded}}
+            {{#if this.foldersOpen}}
               {{#if this.boardsCtrl.model.permissions.model}}
                 <div class="ub-boards-page__folders-actions ub-boards-page__folders-actions--header">
                   <button type="button" class="ub-boards-page__folders-action-btn" {{on "click" (this.ctrlActionNoBubble "openNewBoardFolderModal")}}>
@@ -113,7 +113,7 @@
             <button
               type="button"
               class="ub-boards-page__folders-chevron-btn"
-              aria-label={{if this.foldersExpanded (t "Collapse folders" key="folders_collapse") (t "Expand folders" key="folders_expand")}}
+              aria-label={{if this.foldersOpen (t "Collapse folders" key="folders_collapse") (t "Expand folders" key="folders_expand")}}
               {{on "click" (this.sendAction "toggleFoldersExpanded")}}
             >
               <svg class="ub-boards-page__folders-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -121,7 +121,7 @@
               </svg>
             </button>
           </div>
-          {{#if this.foldersExpanded}}
+          {{#if this.foldersOpen}}
           <div id="ub-boards-page__folders-body" class="ub-boards-page__folders-body">
             {{!-- Single toolbar row: Folders Filter pinned left, action
                  buttons pinned right via flex space-between. Filter +
@@ -533,7 +533,7 @@
            by pressing Back onto a restored `?folder=` while another tab is selected
            (mineFoldersEnabled false), or by collapsing folders while drilled in.
            The invariant is: exactly one board grid always renders. --}}
-      {{#unless (and this.boardsCtrl.mineTagFolderDrillIn this.boardsCtrl.mineFoldersEnabled this.foldersExpanded)}}
+      {{#unless (and this.boardsCtrl.mineTagFolderDrillIn this.boardsCtrl.mineFoldersEnabled this.foldersOpen)}}
       <div class="ub-boards-page__boards-summary-section">
         <div class="ub-boards-page__boards-summary-header">
           <span class="ub-boards-page__boards-summary-title">

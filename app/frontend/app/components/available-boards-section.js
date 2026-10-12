@@ -412,7 +412,7 @@ var AvailableBoardsSection = Component.extend({
     setCompactBoards(compact) {
       this.set('compactBoards', !!compact);
     },
-    toggleFoldersExpanded() {
+    toggleFoldersExpanded() { if (this.get('foldersLayout.sideBySide')) { return; } // side-by-side is always open: utils/folders_panel_state.js
       /* Collapsing while drilled into a folder would hide the drilled-in grid (it lives
          inside the foldersExpanded block) while the main grid is still suppressed by
          `{{#unless mineTagFolderDrillIn}}` — an empty page. Leaving the folder on collapse
@@ -870,6 +870,15 @@ var BOARD_GRID = '.ub-boards-page__board-grid';
 var HOME_CURSOR = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24'%3E%3Cpath d='M12 3L2 12h3v8h6v-6h2v6h6v-8h3z' fill='%231B365D' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E\") 14 14, copy";
 
 AvailableBoardsSection.reopen({
+  // Is the folders panel showing? Always in side-by-side; otherwise the user's stored choice.
+  foldersLayout: foldersLayout,
+  foldersOpen: computed('foldersExpanded', 'foldersLayout.sideBySide', function() {
+    return !!(this.get('foldersLayout.sideBySide') || this.get('foldersExpanded'));
+  }),
+  /* The controller holds foldered boards out of the main grid while the panel shows them; it
+     reads the same flag itself (controllers/user/index.js, mineFoldersPanelOpen), so this only
+     has to carry the user's toggle, as before. */
+
   assigningHome: false,
   homeCursor: HOME_CURSOR,
   copyAsHome: copy_or_reuse_as_home,
@@ -990,3 +999,4 @@ import { copy_or_reuse_as_home } from '../utils/board-copy';
 import backend_user_id from '../utils/backend_user_id';
 import { snapshotTiles, playHomeMove, whenTile } from '../utils/home-move';
 import boardsPageListCache from '../utils/boards_page_list_cache';
+import { foldersLayout } from '../utils/folders_panel_state';
