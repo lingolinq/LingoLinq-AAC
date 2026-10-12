@@ -2590,6 +2590,34 @@ describe Uploader do
       f.unlink
       expect(RemoteAction.where(action: 'delete_retry').count).to eq(0)
     end
+
+    it "is cancelled when the same key is uploaded again under its leading-slash spelling" do
+      RemoteAction.create!(action: 'delete_retry', path: 'extras/abc/data-x.json', act_at: 1.hour.ago)
+      expect(Uploader).to receive(:remote_upload_params).and_return(upload_params: {}, upload_url: 'http://www.upload.com/', post_url: 'http://www.upload.com/')
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
+      f = Tempfile.new('stash')
+      Uploader.remote_upload('/extras/abc/data-x.json', f.path, 'text/plaintext')
+      f.unlink
+      expect(RemoteAction.where(action: 'delete_retry').count).to eq(0)
+    end
+
+    it "forwards the stored checksum, so a mismatched object is not deleted" do
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      head = Aws::S3::Types::HeadObjectOutput.new(etag: 'remote_checksum', expiration: "expiry-date=\"#{7.days.from_now.iso8601}\"")
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(head)
+      expect(s3_client).to_not receive(:delete_object)
+      expect(Uploader.retry_remote_delete('delete_retry', key, 'stored_checksum', 2.days.ago.to_i)).to eq(false)
+    end
+
+    it "drops the retry without deleting when a record uses the object again" do
+      ButtonImage.create!(url: "https://#{uploads_bucket}.s3.amazonaws.com/#{key}")
+      allow(Rails.logger).to receive(:warn)
+      expect(Aws::S3::Client).to_not receive(:new)
+      expect(Uploader.retry_remote_delete('delete_retry', key, nil, 2.days.ago.to_i)).to eq(false)
+      expect(RemoteAction.count).to eq(0)
+      expect(Rails.logger).to have_received(:warn).with(/in use again/)
+    end
   end
 
   # With no AWS credentials set, the "configured?" checks must see them as missing. The key helpers
@@ -2670,11 +2698,63 @@ describe Uploader do
         expect(ra.act_at).to be > 23.hours.from_now
       end
 
+      # the retry job can run before remote_remove_batch deletes the rows it processed
+      it "a retry run inline by the batch stays pending under its first request time" do
+        allow(Rails.logger).to receive(:error)
+        first_requested_at = 2.days.ago.change(usec: 0)
+        RemoteAction.create!(action: 'delete_retry', path: 'extras/x.json', act_at: 1.hour.ago, created_at: first_requested_at)
+        allow(Worker).to receive(:schedule_for) { |_queue, klass, method_name, *args| klass.send(method_name, *args) }
+        expect(Uploader.remote_remove_batch).to eq(1)
+        rows = RemoteAction.where(action: 'delete_retry', path: 'extras/x.json')
+        expect(rows.count).to eq(1)
+        expect(rows.first.created_at.to_i).to eq(first_requested_at.to_i)
+        expect(rows.first.act_at).to be > 23.hours.from_now
+      end
+
+      it "a retry run after the batch deleted its row is recorded again under its first request time" do
+        allow(Rails.logger).to receive(:error)
+        first_requested_at = 2.days.ago.change(usec: 0)
+        RemoteAction.create!(action: 'delete_retry', path: 'extras/x.json', act_at: 1.hour.ago, created_at: first_requested_at)
+        expect(Uploader.remote_remove_batch).to eq(1)
+        expect(RemoteAction.count).to eq(0)
+        Worker.process_queues
+        rows = RemoteAction.where(action: 'delete_retry', path: 'extras/x.json')
+        expect(rows.count).to eq(1)
+        expect(rows.first.created_at.to_i).to eq(first_requested_at.to_i)
+      end
+
+      it "the 3-month purge reports dropped delete retries by count, without paths" do
+        allow(Rails.logger).to receive(:error)
+        RemoteAction.create!(action: 'delete_retry', path: 'extras/x.json', act_at: 1.day.from_now, created_at: 4.months.ago)
+        RemoteAction.create!(action: 'delete_thumbnail_family_retry', path: 'videos/1/2/3/a-b.mp4', act_at: 1.day.from_now, created_at: 4.months.ago)
+        expect(AuditEvent).to receive(:log_command).with('system', hash_including('type' => 'remote_delete_retries_purged', 'counts' => {'delete_retry' => 1, 'delete_thumbnail_family_retry' => 1}))
+        Uploader.remote_remove_batch
+        expect(RemoteAction.count).to eq(0)
+        expect(Rails.logger).to have_received(:error).with(/purging 2 delete retries/)
+        expect(Rails.logger).to_not have_received(:error).with(/extras\/x\.json/)
+      end
+
       it "remote_remove_upload_path logs that the delete was skipped, without building an S3 client" do
         allow(Rails.logger).to receive(:error)
         expect(Aws::S3::Client).to_not receive(:new)
         expect(Uploader.remote_remove_upload_path('beta_feedback_recordings/2026/10/09/abc.webm')).to eq(nil)
         expect(Rails.logger).to have_received(:error).with(/remote_remove_upload_path: S3 credentials or bucket not configured/)
+      end
+    end
+  end
+
+  # No bucket means S3 is not set up at all (local, CI): as on develop, answer nil and record nothing.
+  describe "with no uploads bucket" do
+    env_wrap('AWS_KEY' => nil, 'AWS_SECRET' => nil, 'AWS_ACCESS_KEY_ID' => nil, 'AWS_SECRET_ACCESS_KEY' => nil, 'UPLOADS_S3_BUCKET' => nil) do
+      before(:each) { Uploader.instance_variable_set('@remote_upload_config', nil) }
+      after(:each) { Uploader.instance_variable_set('@remote_upload_config', nil) }
+
+      it "remote_remove logs and answers nil without recording a retry" do
+        allow(Rails.logger).to receive(:error)
+        expect(Uploader.remote_remove('extras/x.json', 'checksum')).to eq(nil)
+        expect(Uploader.remote_remove_thumbnail_family('videos/1/2/3/1_5-familyv1723500000.mp4', 'UserVideo', '1_5')).to eq(nil)
+        expect(RemoteAction.count).to eq(0)
+        expect(Rails.logger).to have_received(:error).with(/remote_remove: S3 credentials or bucket not configured/)
       end
     end
   end

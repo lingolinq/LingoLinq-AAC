@@ -1,6 +1,14 @@
 require 'spec_helper'
 
 describe RemoteAction, :type => :model do
+  describe "process_action with an unknown action" do
+    it "logs the action type instead of dropping the row silently" do
+      allow(Rails.logger).to receive(:error)
+      RemoteAction.new(action: 'not_a_known_action', path: 'x').process_action
+      expect(Rails.logger).to have_received(:error).with(/unknown action not_a_known_action/)
+    end
+  end
+
   # def process_action
   #   ra = self
   #   puts ra.action

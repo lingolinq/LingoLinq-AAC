@@ -57,7 +57,16 @@ module Uploader
     ra
   end
 
-  def self.defer_remote_delete!(method_name, action, path, extra)
+  # Whether a remote delete can run now. A blank bucket means S3 is not set up at all (local, CI):
+  # log and answer false, as develop did, so nothing piles up there. A bucket without credentials
+  # records a retry and raises RemoteCredentialsMissing.
+  def self.remote_delete_ready?(method_name, action, path, extra)
+    config = remote_upload_config
+    if config[:bucket_name].blank?
+      log_skipped_remote_delete(method_name)
+      return false
+    end
+    return true if remote_credentials?(config)
     log_skipped_remote_delete(method_name)
     record_remote_delete_retry(action, path, extra)
     raise RemoteCredentialsMissing, "Uploader.#{method_name}: S3 credentials or bucket not configured; delete deferred for retry"
@@ -75,11 +84,27 @@ module Uploader
       return nil
     end
     if action == 'delete_retry'
+      # Uploadable#schedule_remote_removal_if_unique (uploadable.rb:137) checked the URL was unused
+      # at destroy time; a retry can run months later, after a record reuses the URL.
+      if remote_path_in_use?(path)
+        Rails.logger.warn("Uploader.retry_remote_delete: object in use again; deferred delete dropped")
+        return false
+      end
       remote_remove(path, extra.presence)
     else
       owner_class_name, owner_global_id = extra.to_s.split('::', 2)
       remote_remove_thumbnail_family(path, owner_class_name, owner_global_id)
     end
+  end
+
+  # Exact-match lookups on the URL forms records store for an uploads-bucket key (indexed on
+  # button_images.url and button_sounds.url).
+  def self.remote_path_in_use?(remote_path)
+    bucket = remote_upload_config[:bucket_name]
+    key = remote_path.to_s.sub(/\A\//, '')
+    urls = ["https://#{bucket}.s3.amazonaws.com/#{key}", "https://s3.amazonaws.com/#{bucket}/#{key}"]
+    urls << "#{ENV['UPLOADS_S3_CDN']}/#{key}" if ENV['UPLOADS_S3_CDN'].present?
+    [ButtonImage, ButtonSound, UserVideo].any? { |klass| klass.where(url: urls).exists? }
   end
 
   # A new upload to a path cancels any delete still pending for it (remote_remove_later rows and
@@ -273,18 +298,32 @@ module Uploader
 
   def self.remote_remove_batch
     total = 0
-    RemoteAction.where(['act_at < ?', Time.now]).find_in_batches(batch_size: 100) do |batch|
+    started_at = Time.now
+    RemoteAction.where(['act_at < ?', started_at]).find_in_batches(batch_size: 100) do |batch|
       updated_ids = []
       puts "#{batch[0].id}..."
       batch.each do |ra|
         updated_ids << ra.id
         ra.process_action
       end
-      RemoteAction.where(id: updated_ids).delete_all
+      # A job scheduled above can run before this line and re-record its row with a later act_at
+      # (retry_remote_delete without credentials); only rows still due are removed.
+      RemoteAction.where(id: updated_ids).where(['act_at < ?', started_at]).delete_all
       total += updated_ids.length
     end
-    RemoteAction.where(['created_at < ?', 3.months.ago]).delete_all
+    purge_before = 3.months.ago
+    report_purged_remote_delete_retries(purge_before)
+    RemoteAction.where(['created_at < ?', purge_before]).delete_all
     total
+  end
+
+  # Deferred deletes dropped by the 3-month purge are user data left in S3: report the counts (no
+  # paths, they can identify a user's file) at error level and as a system AuditEvent.
+  def self.report_purged_remote_delete_retries(purge_before)
+    counts = RemoteAction.where(action: REMOTE_DELETE_RETRY_ACTIONS).where(['created_at < ?', purge_before]).group(:action).count
+    return if counts.empty?
+    Rails.logger.error("Uploader.remote_remove_batch: purging #{counts.values.sum} delete retries older than 3 months without S3 credentials: #{counts.to_json}")
+    AuditEvent.log_command('system', {'type' => 'remote_delete_retries_purged', 'counts' => counts})
   end
 
   # Transcoder thumbnails are <video_key>.mp4.<count>.<fmt>: five digits
@@ -382,12 +421,9 @@ module Uploader
   end
 
   def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)
-    config = remote_upload_config
-    unless remote_credentials?(config) && config[:bucket_name].present?
-      # One retry for the whole family. Without this guard the guessed fallback below would defer
-      # every guessed key separately through remote_remove.
-      defer_remote_delete!('remote_remove_thumbnail_family', 'delete_thumbnail_family_retry', stem, "#{owner_class_name}::#{owner_global_id}")
-    end
+    # One retry for the whole family. Without this guard the guessed fallback below would defer
+    # every guessed key separately through remote_remove.
+    return nil unless remote_delete_ready?('remote_remove_thumbnail_family', 'delete_thumbnail_family_retry', stem, "#{owner_class_name}::#{owner_global_id}")
     owner = "#{owner_class_name}:#{owner_global_id}"
     found = list_remote_keys_with_prefix("#{stem}.")
     if found.nil?
@@ -454,13 +490,12 @@ module Uploader
       raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
     end
 
+    # Most callers have already dropped their pointer to this object (uploadable.rb:140,
+    # media_object.rb:179, extra_data.rb:301-305), so a retry is recorded before the job fails.
+    # board_downstream_button_set.rb:415 drops its remote_paths entry only after this returns,
+    # so a raise keeps that pointer as well.
+    return nil unless remote_delete_ready?('remote_remove', 'delete_retry', remote_path, checksum)
     config = remote_upload_config
-    unless remote_credentials?(config) && config[:bucket_name].present?
-      # Callers have already dropped their pointer to this object (uploadable.rb:140,
-      # media_object.rb:179, extra_data.rb:307, board_downstream_button_set.rb:415), so record a
-      # retry before failing the job.
-      defer_remote_delete!('remote_remove', 'delete_retry', remote_path, checksum)
-    end
 
     do_remove = true
     if checksum

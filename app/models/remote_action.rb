@@ -49,6 +49,10 @@ class RemoteAction < ApplicationRecord
     elsif ra.action == 'audit_protected_sources'
       user = User.find_by_path(ra.path)
       user.schedule(:audit_protected_sources) if user
+    else
+      # an action this code does not know (e.g. written by a newer release) would otherwise be
+      # dropped in silence when remote_remove_batch deletes the row; no path, it can identify a user
+      Rails.logger.error("RemoteAction#process_action: unknown action #{ra.action}, row #{ra.id} dropped")
     end
   end
 
