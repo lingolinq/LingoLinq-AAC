@@ -1051,7 +1051,23 @@ describe Sharing, :type => :model do
         b = Board.create(:user => u)
         b.share_with(u2)
         user_sql = []
-        record = ->(*, payload) { user_sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
+        # The example's fixture transaction is not joinable, so the lock's User.transaction runs as a
+        # SAVEPOINT, and so would a bare save. Number each savepoint as it opens and record which one
+        # was open for each users query: the locked read and the UPDATE must share one savepoint.
+        savepoints = []
+        opened = 0
+        tx_of = {}
+        record = lambda do |*, payload|
+          sql = payload[:sql]
+          if sql =~ /\ASAVEPOINT /
+            savepoints.push(opened += 1)
+          elsif sql =~ /\A(RELEASE|ROLLBACK TO) SAVEPOINT /
+            savepoints.pop
+          elsif sql =~ /\bFROM "users"|\AUPDATE "users"/
+            tx_of[user_sql.length] = savepoints.last
+            user_sql << sql
+          end
+        end
         ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
           Board.all_shared_board_ids_for(User.find(u2.id), false)
         end
@@ -1061,6 +1077,10 @@ describe Sharing, :type => :model do
         expect(locked).not_to be_nil
         expect(updated).not_to be_nil
         expect(locked).to be < updated
+        lock_tx = tx_of[locked]
+        update_tx = tx_of[updated]
+        expect(lock_tx).to be_an(Integer)
+        expect(update_tx).to eq(lock_tx)
       end
     end
   end
