@@ -71,3 +71,27 @@ ring, rail spacing, tour, home Boards card) are logged in
 - Not tested in the browser: a supervisor assigning a communicator's home board (no such pair
   locally).
 - Translations: 21 new en.json keys; other locales fall back to English until translated.
+
+## 2026-10-12: Basic "Set as Home" (047d89c76, be6d7de95)
+
+Asked: how Basic assigns a home board; then make desktop match the phone; then fix what testing
+found; then always confirm.
+
+- **Correction recorded:** I first said desktop lacked the option. It did not: the desktop More menu
+  and the phone hamburger open the same menu with "Set as Home". The real difference was the desktop
+  header's standalone button, shown only with no home board (2026-10-01 rule, e97290245).
+- **Header button** (047d89c76): now the phone menu's condition (`current_board_not_home_or_supervising`
+  and not a Try for someone else). Phone header unchanged (the button is hidden there by CSS).
+- **Three defects on that path** (be6d7de95), each with a red test:
+  1. controllers/application.js#setAsHome read the owner as `key.split('/')[1]` (the slug) since
+     2018 (890b76db1, upstream), so the dialog always opened. Now `[0]`: your own board is set
+     directly.
+  2. components/set-as-home.js#owned_by_user compared an empty selection with the nonexistent
+     `sessionUser.user_id`; `==` hid it until the 2026-02-06 conversion (cc8a0c5b5) made it `===`, so
+     Basic (which passes `null`) said "not owned" for every board.
+  3. The "Great! This is now the user's home board!" message showed only with auto-sync on; now
+     whenever the save happened.
+- **Visible change:** on Basic your own board no longer opens a dialog; supervisors, non-default
+  symbols and other people's boards still do.
+- Verified live (Basic, desktop and 390px) and by 7 new unit tests; lint gate clean. Full suite not
+  run.
