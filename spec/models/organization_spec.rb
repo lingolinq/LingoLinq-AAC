@@ -1426,6 +1426,23 @@ describe Organization, :type => :model do
         expect(supervision_link(sup, comm)).to eq(nil)
       end
 
+      # Only a link that lists one of the deleted district's rooms is the district's to remove.
+      it "keeps a legacy link of district staff that lists none of the district's rooms" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy = legacy_link!(sup, comm)
+        legacy.data['state']['organization_unit_ids'] = []
+        legacy.save!
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+      end
+
       it "keeps a legacy link whose supervisor was not district staff at the deletion, without the room" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)

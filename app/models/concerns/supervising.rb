@@ -376,7 +376,8 @@ module Supervising
       room_made = link.data['origin'] == 'room' ||
         (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON &&
           !consented_outside_org?(supervisor, user, org_id))
-      if remaining.empty? && room_made
+      # only a link that lists one of the deleted district's rooms is the district's to remove
+      if remaining.empty? && (listed & unit_ids).any? && room_made
         # Recorded (ids and permission flags only, no names or emails) so a wrongful removal can
         # be found and restored. Note the unlink can also switch an auto-set supporter with no
         # supervisees left back to the communicator role (unlink_supervisor_from_user).
