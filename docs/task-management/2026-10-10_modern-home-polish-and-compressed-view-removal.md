@@ -230,3 +230,26 @@ test can show it; live measurement for the CSS and layout items).
 | 11 | Dead CSS: `.md-card__view-all--head` (only Compressed View rendered it); always-true `:not(.ll-density-compressed)` qualifiers (kept on purpose for specificity). | Low, hygiene | **Fixed**: `.md-card__view-all--head` rules removed. The `:not(.ll-density-compressed)` qualifiers are KEPT on purpose: they always match, and removing them lowers those selectors' specificity, which can change which rules win |
 | 12 | Audit finding LL-35e6b7a3d6 (search overlay input unlabeled) describes code this branch removes. | Info | **Resolved (2026-10-11, Traci)**: the register is left unchanged, since its status and disposition are Scot-owned (CLAUDE.md, compliance-docs.md, `SCOT_OWNED_CLOSED` in scripts/audit-merge.rb); GitHub issue #1122 asks Scot to update it after merge |
 | 13 | Second-review table cites board-icon.js:317 for `board.preview_option`; it is :318. | Doc | **Fixed** |
+
+## 2026-10-11 follow-ups
+
+Requested after the third review; committed 2026-10-11 and pushed 2026-10-12. The Boards page Set
+Home Board mode and the folders fix have their own log: `2026-10-11_boards-set-home-mode.md`.
+
+| Commit | Change | Checked |
+|---|---|---|
+| 3068b0ce3 | Registration dialog title: no keyboard ring after login. The global focus-visible rule skips `[data-autofocus]`; `.la-modal-header-label` gets `outline: none` (the browser's own outline showed once the ring was gone). Keyboard order unchanged | Live: no ring on the title, Tab order intact |
+| 204911f23 | Modern left menu: 12px -> 8px gap at full size (asked as -8px, then +4px); 4px at <=1200px kept; the two dividers re-centred | Live: 8px and 4px measured, dividers centred |
+| e6fc8ea8a | Modern home tour cut to 4 steps (welcome, cards, navigation, done); 90 `home_tour_*` keys removed from all 13 locales (none referenced in app/); the tour-map image moved into the step header (56px, top left) | 3 new unit tests; live: 4 dots, image in the header, both views |
+| e9ffc5417 | Home Boards card: the 400px cap and inner scroll only at 901-1024px; twelve with no scroll above 1024px; three compact tiles, no scroll, at <=900px (Crisis kept and counted) | Live at each width, including Crisis first |
+
+Tests changed with approval (Rule #14), 2026-10-11:
+- tests/integration/available-boards-folders-test.js: setup pins `foldersLayout.sideBySide = false`
+  and restores it after each test (the test browser is 1440px, now side-by-side, where the panel is
+  always open). No assertion changed.
+- Within this session's own new tests (not yet committed when changed): the set-home "owned board"
+  tests stub `modal.open`, because owned boards now open the dialog, as requested; the cancel tests
+  were rewritten when the cancel design moved into copy_board's `skip_home`.
+
+Not run: the full Ember suite (the dev server was running); CI runs it on the PR. No local adversary
+review has been run on these six commits yet.
