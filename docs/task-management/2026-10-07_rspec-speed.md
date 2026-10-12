@@ -495,7 +495,7 @@ is no longer a symptom; the access list still is.
   729/751/773/792/870, boards_controller_spec 304/529/766/821/936/999/1026, user_spec
   2479/2501/2546, organization_spec 539/3320, subscription_spec 2167, lesson_spec 451,
   word_data_spec 1022, organization_unit_spec 263, renaming_spec 331, sharing_spec 1107/1118.
-  Each can fail the same way when its ids cross 999/1000 or 9999/10000. Fix one at a time if seen.
+  Each can fail the same way when its ids cross 999/1000 or 9999/10000. Fix one at a time if seen. (Superseded 2026-10-12: all 37 rewritten to match_array in U1, see the section below.)
 
 ## 2026-10-12: the "Not covered" list fixed (owner: "fix all of it")
 
