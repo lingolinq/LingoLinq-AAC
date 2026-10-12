@@ -27,9 +27,11 @@ setting to relax.
   recently declared matching stub.
 - **DNS:** `SafeHttp` resolves a hostname (`Addrinfo.getaddrinfo`) before it sends the request,
   and WebMock does not intercept DNS. `spec/support/outside_services.rb` answers public hostnames
-  with a documentation address (203.0.113.10, or 2001:db8::10 for IPv6) on the requested port, and
-  leaves to the real resolver the names it answers without the network: localhost (also with a
-  trailing dot), single-label names, IP literals and numeric shorthands such as `10.1`. A spec that
+  with a documentation address (203.0.113.10, or 2001:db8::10 for IPv6) on the requested port. Only
+  an allowlist reaches the real resolver: localhost and `*.localhost` (also with a trailing dot), IP
+  literals and numeric shorthands such as `10.1`, which it answers without the network, and the
+  Redis and database hosts named in the environment (`REDIS_URL`, `DATABASE_URL`, `DB_HOST`). Any
+  other name, including an unknown single label, gets the documentation address. A spec that
   tests resolution tags its group `own_resolver: true` (as `spec/lib/safe_http_spec.rb` does) and
   sets its own expectations on `Addrinfo`; untagged, a plain `expect(...).to receive` stops failing
   on a second call.

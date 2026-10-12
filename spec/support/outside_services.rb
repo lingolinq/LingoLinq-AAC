@@ -39,10 +39,12 @@ RSpec.configure do |config|
   # lib/safe_http.rb:67) before the request reaches WebMock, so without this a spec asks real DNS.
   # A public name gets a TEST-NET-3 documentation address, which SafeHttp's blocked_ipaddr?
   # (lib/safe_http.rb:125) allows, so the request goes on to the stubs above; it carries the
-  # requested port and address family. Names the real resolver answers without the network keep
-  # it: localhost (with or without a trailing dot), a single-label service name (Redis and
-  # database hosts), IP literals and numeric shorthands such as '10.1' (10.0.0.1), so SafeHttp's
-  # address blocking sees what it would see in production.
+  # requested port and address family. Only an allowlist keeps the real resolver: localhost and
+  # *.localhost (with or without a trailing dot), IP literals and numeric shorthands such as '10.1'
+  # (10.0.0.1), which it answers without the network, so SafeHttp's address blocking sees what it
+  # would see in production; and the Redis and database hosts named in the environment, which the
+  # test run connects to. Any other name, including an unknown single label (which can still go
+  # out through search domains, LLMNR or mDNS), gets the documentation address.
   #
   # A spec that tests resolution itself tags its group `own_resolver: true` and sets its own
   # expectations on Addrinfo. It must not get this default: once a plain
@@ -65,10 +67,24 @@ module OutsideServices
   # One dotted part of a numeric IPv4 shorthand: decimal, octal or hex ('10.1', '0x7f.0.0.1').
   NUMERIC_HOST = /\A(0x\h+|\d+)(\.(0x\h+|\d+)){0,3}\z/i
 
-  def self.local_name?(host)
-    name = host.to_s.chomp('.')
-    return true if name.empty? || !name.include?('.') || name == 'localhost' || name.end_with?('.localhost')
+  # Where the test run finds Redis (config/initializers/resque.rb:5) and the database
+  # (config/database.yml; CI sets DATABASE_URL in .github/workflows/ci.yml).
+  SERVICE_URL_KEYS = %w[REDISCLOUD_URL OPENREDIS_URL REDISGREEN_URL REDISTOGO_URL REDIS_URL DATABASE_URL].freeze
+
+  def self.service_hosts(env = ENV)
+    hosts = SERVICE_URL_KEYS.map do |key|
+      URI.parse(env[key].to_s).host
+    rescue URI::InvalidURIError
+      nil
+    end
+    (hosts + [env['DB_HOST']]).compact.map { |h| h.downcase.chomp('.') }.reject(&:empty?)
+  end
+
+  def self.local_name?(host, env = ENV)
+    name = host.to_s.downcase.chomp('.')
+    return true if name.empty? || name == 'localhost' || name.end_with?('.localhost')
     return true if name.match?(NUMERIC_HOST)
+    return true if service_hosts(env).include?(name)
     IPAddr.new(name.delete_prefix('[').delete_suffix(']'))
     true
   rescue IPAddr::InvalidAddressError

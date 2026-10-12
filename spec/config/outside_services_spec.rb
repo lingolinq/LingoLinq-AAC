@@ -55,6 +55,22 @@ describe 'default hostname resolution' do
     expect(resolved_ips('127.0.0.1')).to eq(['127.0.0.1'])
   end
 
+  # A single label that is not a configured service host can still leave the machine (search
+  # domains, LLMNR, mDNS), so it gets the default answer like any public name.
+  it 'answers an unknown single-label name without the real resolver' do
+    expect(resolved_ips('qwer')).to eq(['203.0.113.10'])
+    expect(resolved_ips('lingolinq-spec-unknown-host')).to eq(['203.0.113.10'])
+  end
+
+  it 'leaves the Redis and database hosts from the environment to the real resolver' do
+    env = {'REDIS_URL' => 'redis://redis-svc:6379/0', 'DATABASE_URL' => 'postgres://u:p@db-svc:5432/x',
+           'DB_HOST' => 'pg-host'}
+    %w[redis-svc db-svc pg-host].each do |host|
+      expect(OutsideServices.local_name?(host, env)).to eq(true)
+    end
+    expect(OutsideServices.local_name?('qwer', env)).to eq(false)
+  end
+
   # The real resolver reads numeric shorthands without the network ('10.1' is 10.0.0.1), so a
   # spec of SafeHttp's address blocking sees the private address it would see in production.
   it 'leaves numeric shorthands and a trailing-dot localhost to the real resolver' do
