@@ -1244,6 +1244,30 @@ describe Organization, :type => :model do
         expect(RemoteAction.where(action: 'clean_up_destroyed_org').count).to eq(0)
       end
 
+      # The hourly batch (Uploader.remote_remove_batch) deletes each row it processes, so the
+      # cleanup row has to outlive a processing whose job is then lost, until the job finishes.
+      it "keeps the cleanup row through the hourly batch until the cleanup job completes" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        o.reload.destroy
+        Worker.flush_queues
+        row = RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s)
+        row.update_all(act_at: 1.minute.ago)
+
+        Uploader.remote_remove_batch
+        expect(row.count).to eq(1)
+        Worker.flush_queues
+        row.update_all(act_at: 1.minute.ago)
+        Uploader.remote_remove_batch
+        expect(row.count).to eq(1)
+        Worker.process_queues
+
+        expect(row.count).to eq(0)
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
       it "does not link room members from a queued room job once the organization is gone" do
         o, ou, sup, comm = room_with_members
         ou.add_supervisor(sup.user_name)

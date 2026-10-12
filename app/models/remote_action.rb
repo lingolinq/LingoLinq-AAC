@@ -32,6 +32,10 @@ class RemoteAction < ApplicationRecord
       user.schedule_once_for(:slow, :update_available_boards) if user
     elsif ra.action == 'clean_up_destroyed_org'
       Organization.schedule(:clean_up_destroyed, ra.path.to_i)
+      # Kept until Organization.clean_up_destroyed deletes it on completion: retried an hour
+      # later if the job is lost (rows older than 3 months are dropped by the batch).
+      ra.update_column(:act_at, 1.hour.from_now)
+      return :keep
     elsif ra.action == 'update_library_cache'
       cache = LibraryCache.find_by_global_id(ra.path)
       cache.schedule_for(:slow, :find_expired_words) if cache
@@ -58,7 +62,8 @@ class RemoteAction < ApplicationRecord
     end
   end
 
+  # process_action returns :keep for a row that its job deletes when it completes.
   def self.process_all
-    RemoteAction.all.each{|ra| ra.process_action; ra.destroy }
+    RemoteAction.all.each{|ra| ra.destroy unless ra.process_action == :keep }
   end
 end
