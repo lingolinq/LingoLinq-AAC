@@ -676,6 +676,36 @@ describe BoardCaching, :type => :model do
         expect(stored.private_viewable_board_ids).to eq([b.global_id])
       end
 
+      # updated_at is both the inactivity sweep's activity signal (subscription.rb, 12 months) and
+      # part of every cached permission key (permissable cache_key), so the refresh moves it only
+      # when access actually changed.
+      it "leaves updated_at alone when the lists did not change" do
+        u, b = shared_board_user
+        u.update_available_boards
+        User.where(id: u.id).update_all(updated_at: 13.months.ago)
+        before = User.find(u.id).updated_at
+
+        User.find(u.id).update_available_boards
+
+        stored = User.find(u.id)
+        expect(stored.updated_at).to eq(before)
+        expect(stored.private_viewable_board_ids).to eq([b.global_id])
+        expect(stored.boards_updated_at).to be > 5.minutes.ago
+      end
+
+      it "moves updated_at when the lists changed, so cached permissions are not reused" do
+        u, b = shared_board_user
+        u.update_available_boards
+        b.reload.unshare_with(User.find(u.id))
+        User.where(id: u.id).update_all(updated_at: 13.months.ago)
+
+        User.find(u.id).update_available_boards
+
+        stored = User.find(u.id)
+        expect(stored.private_viewable_board_ids).to eq([])
+        expect(stored.updated_at).to be > 5.minutes.ago
+      end
+
       it "syncs devices when the lists change and keeps the generated stamp" do
         u, b = shared_board_user
         User.where(id: u.id).update_all(sync_stamp: 6.hours.ago)

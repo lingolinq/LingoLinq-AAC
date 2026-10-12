@@ -99,7 +99,11 @@ module BoardCaching
     # save those lists
     store_available_board_ids({'view' => view_ids, 'edit' => edit_ids, 'generated' => Time.now.to_i},
       boards_updated_at: Time.now, stale_after: self.updated_at,
-      save_method: (lists_changed ? :save_with_sync : :save), save_args: (lists_changed ? ['board_list_changed'] : []))
+      save_method: (lists_changed ? :save_with_sync : nil), save_args: (lists_changed ? ['board_list_changed'] : []),
+      # updated_at moves only when access changed: it keys every cached permission (permissable
+      # cache_key), which must not be reused after a change, and it is also the inactivity sweep's
+      # activity signal (subscription.rb), which a no-op refresh must not reset
+      touch: lists_changed)
     # if the lists changed, schedule this same update for all users
     # who would have been affected by a change (supervisors)
     if lists_changed
