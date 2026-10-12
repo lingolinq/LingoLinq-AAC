@@ -287,6 +287,9 @@ class OrganizationUnit < ApplicationRecord
   end
   
   def assert_supervision(opts={})
+    # A job queued before the organization was destroyed must not link (or unlink) its rooms'
+    # members afterwards; Organization.clean_up_destroyed handles the rooms of a destroyed org.
+    return false unless self.organization
     ref_user = User.find_by_path(opts['user_id'])
     return false unless ref_user
 

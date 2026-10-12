@@ -1721,13 +1721,16 @@ class Organization < ApplicationRecord
     user_ids = self.attached_users('all').pluck(:id)
     User.persist_board_cache_refreshes(user_ids)
     org_id = self.id
+    # durable fallback for the room cleanup, released by clean_up_destroyed when it finishes
+    # (the job is idempotent); RemoteAction#process_action re-queues it if the job is lost
+    RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now)
     ActiveRecord.after_all_transactions_commit do
       Organization.schedule_for(:slow, :clean_up_destroyed, org_id, user_ids)
     end
     true
   end
 
-  def self.clean_up_destroyed(org_id, user_ids)
+  def self.clean_up_destroyed(org_id, user_ids=[])
     # Rooms (organization units) and the supervision links they made outlive the organization,
     # and a supervision link alone gives the supervisor the communicator's private boards
     # (board_caching.rb supervisees). Remove_supervisor/remove_communicator need the
@@ -1744,6 +1747,7 @@ class Organization < ApplicationRecord
         communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids) }
       end
     end
+    RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all
     User.where(id: user_ids).find_each(batch_size: 100) do |user|
       user.schedule_once_for(:slow, :update_available_boards)
     end

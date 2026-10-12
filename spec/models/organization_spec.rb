@@ -1213,6 +1213,41 @@ describe Organization, :type => :model do
         UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
       end
 
+      # The cleanup job is the only thing that takes rooms off supervision links, so a lost job
+      # must be retried from a durable row, like the refresh outbox (supervising.rb).
+      it "retries the room cleanup from its outbox row when the job is lost" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        o.reload.destroy
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+        Worker.flush_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org').count).to eq(0)
+      end
+
+      it "does not link room members from a queued room job once the organization is gone" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.flush_queues
+        o.reload.destroy
+        Worker.flush_queues
+        RemoteAction.delete_all
+
+        OrganizationUnit.find(ou.id).assert_supervision('user_id' => comm.global_id, 'add_communicator' => comm.user_name)
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
       it "keeps a link that existed directly before the room added it, without the room" do
         o, ou, sup, comm = room_with_members
         User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
