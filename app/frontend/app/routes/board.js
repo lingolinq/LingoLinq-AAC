@@ -228,8 +228,16 @@ export default Route.extend({
   },
   revoked_record: function(key) {
     // No id: a second fixed 'bad' id in one session would collide in the store,
-    // and an id-less record is already not a valid_id board.
-    var res = LingoLinq.store.createRecord('board', {key: key});
+    // and an id-less record is already not a valid_id board. One record is
+    // reused for every blocked visit, so repeated visits do not pile up records.
+    var res = this.get('revoked_placeholder');
+    if(!res || res.get('isDestroyed') || res.get('isDestroying')) {
+      res = LingoLinq.store.createRecord('board', {key: key});
+      this.set('revoked_placeholder', res);
+    } else {
+      res.set('key', key);
+      res.set('retrying', undefined);
+    }
     res.set('lookup_key', key);
     res.set('error', {error: 'Not authorized', unauthorized: true, revoked: true});
     this.set('error_record', res);

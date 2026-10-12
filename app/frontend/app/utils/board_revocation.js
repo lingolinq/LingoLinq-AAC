@@ -218,15 +218,22 @@ export function settled_revocations(progress, root_user_id, errors) {
   });
 }
 
+// Sets or clears the mark on the CURRENT stored record. rec may be a snapshot
+// taken earlier in the sync (state.local is read once and reused across
+// supervisees), so the record is re-read here and only raw.revoked changes:
+// writing the snapshot back would undo a board downloaded in the meantime.
 function write_mark(rec, revoked) {
-  var raw = Object.assign({}, rec.data.raw);
-  if(revoked) {
-    raw.revoked = true;
-  } else {
-    delete raw.revoked;
-  }
-  var record = Object.assign({}, rec.data, {raw: raw});
-  return stored(lingoLinqExtras.storage.store('board', record)).then(function() { return true; }, function() { return false; });
+  return stored(lingoLinqExtras.storage.find('board', rec.id)).then(function(current) {
+    if(!current || !current.raw) { return false; }
+    var raw = Object.assign({}, current.raw);
+    if(revoked) {
+      raw.revoked = true;
+    } else {
+      delete raw.revoked;
+    }
+    var record = Object.assign({}, current, {raw: raw});
+    return stored(lingoLinqExtras.storage.store('board', record)).then(function() { return true; }, function() { return false; });
+  }, function() { return false; });
 }
 
 // A successful board_revisions response is evidence enough to clear: any
@@ -439,8 +446,13 @@ export function real_denial(err) {
 // every synced user: the signed-in user is acting as themselves and syncs no
 // supervisees (a supervisee might still be able to view the board). Anything
 // less certain keeps today's fallback to the local copy.
-export function route_refuses_local(err, appState) {
+export function route_refuses_local(err, appState, board) {
   if(!revocation_enabled() || !real_denial(err)) { return false; }
+  // A home or sidebar board keeps its local copy, as blocks_route spares it.
+  var id = board && typeof board.get === 'function' ? board.get('id') : null;
+  var key = board && typeof board.get === 'function' ? board.get('key') : null;
+  var refs = protected_board_refs(appState);
+  if((id && refs[id]) || (key && refs[key])) { return false; }
   // Speak Mode keeps the local copy, as before: the communicator keeps a voice.
   if(appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
   var as_user = LingoLinq.session && typeof LingoLinq.session.get === 'function' && LingoLinq.session.get('as_user_id');

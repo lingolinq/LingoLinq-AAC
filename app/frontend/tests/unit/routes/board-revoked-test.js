@@ -224,4 +224,38 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.strictEqual(await index.local_reload_unless_denied(model, denied), model, 'online denial: the local copy is kept');
     assert.deepEqual(model.reloads, [false]);
   });
+
+  test('an online denial for the home or sidebar board keeps the local copy', async function(assert) {
+    LingoLinq.session = EmberObject.create({as_user_id: null});
+    var route = indexRoute(this, {supervisees: [], preferences: {home_board: {id: '1_7', key: 'owner/shared'}}});
+    var model = localModel();
+    model.get = function(attr) { return {id: '1_7', key: 'owner/shared'}[attr]; };
+    assert.strictEqual(await route.local_reload_unless_denied(model, denied), model, 'resolves with the local copy');
+    assert.deepEqual(model.reloads, [false]);
+  });
+
+  test('repeated blocked visits reuse one unavailable-board record', async function(assert) {
+    storedBoard(this.db, '1_7');
+    storedBoard(this.db, '1_8');
+    this.db.board['1_8'].key = 'owner/other';
+    this.db.board['1_8'].raw.key = 'owner/other';
+    await boardRevocation.apply_revocations(['1_7', '1_8']);
+    var created = 0;
+    var realCreate = LingoLinq.store.createRecord;
+    LingoLinq.store.createRecord = function(type, attrs) { created++; return realCreate(type, attrs); };
+    var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
+    var route = boardRoute(this, '1_1', board);
+    var first = await route.model({key: 'owner/shared'});
+    var second = await route.model({key: 'owner/shared'});
+    assert.strictEqual(second, first, 'same record');
+    var otherBoard = EmberObject.create({id: '1_8', key: 'owner/other'});
+    var store = this.owner.lookup('service:store');
+    store.peekAll = function() { return [otherBoard]; };
+    store.findRecord = function() { return RSVP.resolve(otherBoard); };
+    var third = await route.model({key: 'owner/other'});
+    assert.strictEqual(third, first, 'still the same record');
+    assert.strictEqual(third.get('key'), 'owner/other');
+    assert.true(third.get('error.unauthorized'));
+    assert.strictEqual(created, 1, 'one record created for three visits');
+  });
 });

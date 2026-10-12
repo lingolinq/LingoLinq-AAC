@@ -307,7 +307,7 @@ export default Route.extend({
     return loaded;
   },
   local_reload_unless_denied: function(model, err) {
-    if(boardRevocation.route_refuses_local(err, this.appState)) {
+    if(boardRevocation.route_refuses_local(err, this.appState, model)) {
       return RSVP.reject(boardRevocation.denial_body(err));
     }
     return model.reload(false);

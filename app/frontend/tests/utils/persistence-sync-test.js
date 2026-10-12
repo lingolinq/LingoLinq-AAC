@@ -5371,6 +5371,8 @@ describe("persistence-sync", function() {
           return rej;
         }, outcome, 'service');
         runs(function() {
+          expect(outcome.revisions_opts && outcome.revisions_opts.data.include_revoked).toEqual('1');
+          expect(!!(outcome.last_log && outcome.last_log.finished)).toEqual(true);
           expect(outcome.revoked_raw && outcome.revoked_raw.key).toEqual('other/shared');
           expect(outcome.revoked_raw && outcome.revoked_raw.revoked).toEqual(undefined);
           expect(outcome.own_raw && outcome.own_raw.revoked).toEqual(undefined);
