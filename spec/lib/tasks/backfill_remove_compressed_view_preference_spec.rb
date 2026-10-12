@@ -92,6 +92,17 @@ describe 'extras:backfill_remove_compressed_view_preference rake task' do
     expect(prefs).not_to have_key('compressed_view')
   end
 
+  # An error's message can quote the record (a JSON parse error on malformed plain-JSON settings
+  # quotes the text), and this output goes to the deploy logs: print the error class only.
+  it "should not print an error's message, which can quote the user's settings" do
+    ENV['FRD'] = '1'
+    u = user_with('compressed_view' => true)
+    allow_any_instance_of(User).to receive(:save!).and_raise(JSON::ParserError.new("unexpected token at '{\"preferences\":{\"secret\"'"))
+    out = run_task
+    expect(out).to match(/ERROR on #{u.global_id}: JSON::ParserError/)
+    expect(out).not_to include('secret')
+  end
+
   it "should keep going when one record raises" do
     ENV['FRD'] = '1'
     bad = user_with('compressed_view' => true)

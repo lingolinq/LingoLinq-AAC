@@ -51,7 +51,8 @@ task "extras:backfill_remove_compressed_view_preference" => :environment do
       end
     rescue => e
       errors += 1
-      puts "\n  ERROR on #{user.global_id}: #{e.class}: #{e.message}"
+      # The class only: a message can quote the record (a JSON parse error quotes the text).
+      puts "\n  ERROR on #{user.global_id}: #{e.class}"
     end
   end
 
