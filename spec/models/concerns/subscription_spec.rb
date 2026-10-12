@@ -3077,6 +3077,36 @@ describe Subscription, :type => :model do
       expect(brd.user).to eq(u)
     end
 
+    # The home board copy runs synchronously inside the reset and ends in
+    # update_available_boards (relinking.rb copy_for). It must not discard the reset's
+    # unsaved changes: the previous family's email, password and preferences would survive.
+    it "keeps the reset's new email, password and cleared preferences through the home board copy" do
+      o = Organization.create(settings: {'total_eval_licenses' => 1})
+      u = User.create
+      o.add_user(u.user_name, false, true, true)
+      u.reload
+      u2 = User.create
+      d = Device.create(user: u)
+      b2 = Board.create(user: u2, public: true)
+      u.settings['subscription'] = {'eval_account' => true}
+      u.settings['email'] = 'previous-family@example.com'
+      u.settings['preferences']['spec_previous_child'] = 'previous child'
+      u.generate_password('previous123')
+      u.save
+      u.reload
+
+      u.reset_eval(d.global_id, {'home_board_key' => b2.key, 'email' => 'new-family@example.com', 'password' => 'newfamily123'})
+
+      stored = User.find(u.id)
+      expect(stored.valid_password?('newfamily123')).to eq(true)
+      expect(stored.valid_password?('previous123')).to eq(false)
+      expect(stored.settings['email']).to eq('new-family@example.com')
+      expect(stored.settings['preferences']['spec_previous_child']).to eq(nil)
+      brd = Board.find_by_path(stored.settings['preferences']['home_board']['id'])
+      expect(brd.parent_board).to eq(b2)
+      expect(brd.user).to eq(stored)
+    end
+
     it "should not create a copy if home board set to 'none'" do
       o = Organization.create(settings: {'total_eval_licenses' => 1})
       u = User.create

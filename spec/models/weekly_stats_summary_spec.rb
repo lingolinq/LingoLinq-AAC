@@ -420,20 +420,20 @@ describe WeeklyStatsSummary, :type => :model do
       loaded = User.find(u.id)
       allow(User).to receive(:find_by).and_call_original
       allow(User).to receive(:find_by).with(id: u.id).and_return(loaded)
-      # the write lands right after update! reads the user it will save
-      allow(loaded).to receive(:reload).and_wrap_original do |original, *args|
-        res = original.call(*args)
-        unless wrote
-          wrote = true
-          other = User.find(u.id)
-          other.settings['preferences']['spec_marker'] = 'normal save'
-          other.save
-          quiet = User.find(u.id)
-          quiet.settings['spec_quiet'] = 'touch false'
-          quiet.save(touch: false)
-        end
-        res
+      inject = lambda do
+        next if wrote
+        wrote = true
+        other = User.find(u.id)
+        other.settings['preferences']['spec_marker'] = 'normal save'
+        other.save
+        quiet = User.find(u.id)
+        quiet.settings['spec_quiet'] = 'touch false'
+        quiet.save(touch: false)
       end
+      # the write lands after update! has read the copy it decides from: right after the reload
+      # (a whole-copy save) or just before the locked read (update_settings_locked)
+      allow(loaded).to receive(:reload).and_wrap_original { |original, *args| res = original.call(*args); inject.call; res }
+      allow(User).to receive(:update_settings_locked).and_wrap_original { |original, *args, **opts, &blk| inject.call; original.call(*args, **opts, &blk) }
 
       summary.update!
 

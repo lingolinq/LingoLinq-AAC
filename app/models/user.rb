@@ -2180,12 +2180,38 @@ class User < ApplicationRecord
     end
   end
 
-  # update_settings_locked for this user, then reloads this copy so it carries what was saved.
+  # update_settings_locked for this user, then copies onto this copy only what was written: the
+  # top-level settings keys the block changed, and the columns the save changed that this copy
+  # has no pending change of its own for. It never reloads: a synchronous caller can hold unsaved
+  # changes on this object (Subscription#reset_eval -> copy_to_home_board -> Relinking#copy_for
+  # -> update_available_boards), and a reload discarded them.
   def update_settings_locked(**opts, &block)
-    res = User.update_settings_locked(self.id, **opts, &block)
-    self.reload if res
+    written_keys = []
+    res = User.update_settings_locked(self.id, **opts) do |fresh|
+      before = fresh.settings.deep_dup
+      out = block.call(fresh)
+      written_keys = (before.keys | fresh.settings.keys).select{|k| before[k] != fresh.settings[k] }
+      out
+    end
+    copy_locked_write(res, written_keys) if res
     res
   end
+
+  def copy_locked_write(fresh, written_keys)
+    pending_columns = self.changed - ['settings']
+    self.settings ||= {}
+    written_keys.each do |key|
+      if fresh.settings.key?(key)
+        self.settings[key] = fresh.settings[key].deep_dup
+      else
+        self.settings.delete(key)
+      end
+    end
+    columns = fresh.saved_changes.keys - ['id', 'settings'] - pending_columns
+    columns.each{|col| self[col] = fresh[col] }
+    clear_attribute_changes(columns)
+  end
+  private :copy_locked_write
 
   def save_with_sync(reason)
     self.sync_stamp = Time.now
@@ -2282,8 +2308,7 @@ class User < ApplicationRecord
     end
     if ts && frd
       # Only this key, on a locked fresh copy (update_settings_locked): saving the worker's copy
-      # wrote the whole settings column back over anything saved since it was loaded. The reload
-      # also means the walk below reads the current home board and sidebar.
+      # wrote the whole settings column back over anything saved since it was loaded.
       self.update_settings_locked { |fresh| fresh.settings['tracked_boards_at'] = Time.now.to_i }
     end
 

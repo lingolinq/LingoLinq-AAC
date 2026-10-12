@@ -4892,6 +4892,22 @@ describe User, :type => :model do
       u1.process_home_board({'id' => b.global_id, 'copy' => true}, {'updater' => u2})
     end
 
+    # users#update copies the home board synchronously inside process_params (no 'async'), and the
+    # copy ends in update_available_boards (relinking.rb copy_for). The other edits in the same
+    # request are still unsaved on the user then and must be saved with it.
+    it "keeps the other edits of the same update when the home board is copied synchronously" do
+      u1 = User.create
+      u2 = User.create
+      b = Board.create(user: u2, public: true)
+      res = u1.process({'name' => 'Spec Renamed', 'preferences' => {'home_board' => {'id' => b.global_id, 'key' => b.key, 'copy' => true}}}, {'updater' => u2})
+      expect(res).to eq(true)
+
+      stored = User.find(u1.id)
+      expect(stored.settings['name']).to eq('Spec Renamed')
+      home = Board.find_by_path(stored.settings['preferences']['home_board']['id'])
+      expect(home.parent_board).to eq(b)
+    end
+
     it "should schedule copying if async" do
       u1 = User.create
       u2 = User.create
@@ -5149,9 +5165,38 @@ describe User, :type => :model do
       expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
       expect(stored.settings['spec_quiet']).to eq('touch false')
       expect(stored.settings['spec_owned']).to eq('mine')
-      # the caller's copy now carries what was saved
-      expect(stale.settings['preferences']['spec_marker']).to eq('normal save')
+      # the caller's copy gets only what the block wrote (it is not reloaded)
       expect(stale.settings['spec_owned']).to eq('mine')
+      expect(stale.settings['spec_quiet']).to eq(nil)
+    end
+
+    # A synchronous caller can hold unsaved changes on the object (reset_eval's settings wipe
+    # before the home board copy calls update_available_boards); they must survive the helper.
+    it "keeps the caller's unsaved changes and copies back only what it wrote" do
+      u = User.create
+      User.where(id: u.id).update_all(sync_stamp: 6.hours.ago)
+      caller_copy = User.find(u.id)
+      caller_copy.settings['email'] = 'pending@example.com'
+      caller_copy.settings['preferences'] = nil
+      caller_copy.boards_updated_at = 1.day.ago
+
+      caller_copy.update_settings_locked(save_method: :save_with_sync, save_args: ['spec_reason']) do |fresh|
+        fresh.settings['spec_owned'] = 'mine'
+        fresh.boards_updated_at = Time.now
+        fresh.schedule_deletion_at = 2.days.from_now
+      end
+
+      expect(caller_copy.settings['email']).to eq('pending@example.com')
+      expect(caller_copy.settings['preferences']).to eq(nil)
+      expect(caller_copy.settings['spec_owned']).to eq('mine')
+      # a column the caller changed itself stays as the caller set it; the others follow the save
+      expect(caller_copy.boards_updated_at).to be < 1.hour.ago
+      expect(caller_copy.schedule_deletion_at).to be > 1.day.from_now
+      expect(caller_copy.sync_stamp).to be > 5.minutes.ago
+      expect(caller_copy.updated_at).to be_within(0.001).of(User.find(u.id).updated_at)
+      expect(caller_copy.changed).to include('boards_updated_at')
+      expect(caller_copy.changed).not_to include('schedule_deletion_at')
+      expect(User.find(u.id).settings['email']).not_to eq('pending@example.com')
     end
 
     it "reads the copy it saves under a row lock" do
