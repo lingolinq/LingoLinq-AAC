@@ -903,6 +903,40 @@ describe Sharing, :type => :model do
       expect(entry['stamp_us']).to eq(Board.boards_updated_stamp(u2))
     end
 
+    # An org link brings that org's home boards into the list (Organization.attached_orgs), so
+    # adding or removing one must move the stamp the cached list is compared with.
+    it "drops a former org's private home board after detach" do
+      manager = User.create
+      u2 = User.create
+      b = Board.create(:user => manager)
+      o = Organization.create
+      o.settings['default_home_boards'] = [{'id' => b.global_id, 'key' => b.key}]
+      o.save
+      o.add_user(u2.user_name, false, false)
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to include(b.global_id)
+
+      UserLink.remove(User.find(u2.id), o, 'org_user')
+
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).not_to include(b.global_id)
+    end
+
+    it "includes a new org's private home board after attach" do
+      manager = User.create
+      u2 = User.create
+      b = Board.create(:user => manager)
+      b2 = Board.create(:user => manager)
+      b2.share_with(u2)
+      o = Organization.create
+      o.settings['default_home_boards'] = [{'id' => b.global_id, 'key' => b.key}]
+      o.save
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([b2.global_id])
+
+      link = UserLink.generate(User.find(u2.id), o, 'org_supervisor', {'pending' => false})
+      link.save
+
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to include(b.global_id)
+    end
+
     it "rebuilds a cached list that has no microsecond stamp, however large its 'timestamp'" do
       u = User.create
       u2 = User.create
