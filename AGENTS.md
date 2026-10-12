@@ -113,6 +113,11 @@ the required set on `develop`, `staging` or `main`, no run dispatched since 2026
 Nothing re-verifies that stamp, so confirm it against branch protection before relying on
 it. A green CI run is not the dual review.
 
+The Codex GitHub connector is set to review every PR automatically. That review skips the
+PII pre-flight and is neither pass; confirm a PR actually got it rather than assuming. A
+`@codex review` comment requests one and posts under your GitHub account, so ask before
+posting. No repository rule requests Copilot code review.
+
 ## Where things are
 
 Path-scoped rules that Claude loads by file path and Codex does not: before editing
