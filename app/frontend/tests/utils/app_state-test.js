@@ -3167,6 +3167,11 @@ describe('app_state', function() {
 
     // The dialog's own links (components/login-form.hbs: "need help?", "forgot password", "sign
     // up"): kept open over them, the user could not reach the page they asked for.
+    // Basic access (decided 2026-10-11): the dialog offers the public boards, so that route is an exit too.
+    it("closes on the way to basic access (offline_boards)", function() {
+      expect(transitionWith('force-logout', true, false, 'offline_boards')).toEqual(true);
+    });
+
     ['forgot_login', 'forgot_password', 'register'].forEach(function(route) {
       it("closes when the user follows the dialog's own link to " + route, function() {
         expect(transitionWith('force-logout', true, false, route)).toEqual(true);
