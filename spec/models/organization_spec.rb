@@ -1193,6 +1193,35 @@ describe Organization, :type => :model do
       end
     end
 
+    # A room (organization unit) links each of its supervisors to each of its communicators
+    # (organization_unit.rb assert_supervision). Units and those links outlive the destroy, and the
+    # supervision link alone gives the supervisor the communicator's private boards (board_caching.rb
+    # supervisees), so the cleanup must unlink them.
+    it "removes room supervision, and the boards it gave, when the organization is destroyed" do
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      expect(ou.add_supervisor(sup.user_name)).to eq(true)
+      expect(ou.add_communicator(comm.user_name)).to eq(true)
+      b = Board.create(:user => User.find(comm.id))
+      Worker.process_queues
+      Worker.process_queues
+      User.find(comm.id).update_available_boards
+      User.find(sup.id).update_available_boards
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      expect(User.find(sup.id).private_viewable_board_ids).to include(b.global_id)
+
+      o.reload.destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)
+    end
+
     it "should parse hosting settings" do
       u = User.create
       o = Organization.create
