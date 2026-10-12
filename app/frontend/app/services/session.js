@@ -726,16 +726,20 @@ export default Service.extend({
     }
   },
 
-  // Is the token a check_token request was sent with still THIS TAB's token? If not, its answer is
-  // stale and is ignored (check_token's response guards): this tab already tore the session down
+  // Is the token a check_token request was sent with still one this tab is using? If not, its answer
+  // is stale and is ignored (check_token's response guards): this tab already tore the session down
   // (another failure landed while the request was in flight), or signed in again with a new token.
-  // Compared with this tab's in-memory token, not the stored login, which every tab shares: when
-  // ANOTHER tab logs out or signs in, this tab's dead token still has to log this tab out. Before
-  // restore() has set the in-memory token, the stored login is the reference. No token: not stale.
+  // "Using" is either this tab's own token OR the one its requests carry: capabilities.access_token
+  // follows the stored login, which every tab shares (capabilities.sync_access_token), so after
+  // another tab signs in this tab is already sending that token, and the answer for it must be taken,
+  // as on develop, so this tab switches to that user instead of showing the old one while acting as
+  // the new one. Neither set yet (before restore(), or after a teardown): the stored login decides.
+  // No token: not stale.
   _checked_token_is_current: function(token) {
     if(!token || token === 'none') { return true; }
-    var current = this.get('access_token');
-    if(current) { return current === token; }
+    var mine = this.get('access_token');
+    var sending = capabilities && capabilities.access_token;
+    if(mine || (sending && sending !== 'none')) { return token === mine || token === sending; }
     var stored = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     return stored.access_token === token;
   },
@@ -748,7 +752,11 @@ export default Service.extend({
            tear down FIRST, synchronously, so logout_under_way() is already true when the next
            concurrent failure reaches the ajax layer's de-dupe (utils/extras.js). invalidate
            clears isAuthenticated only after stashes.flush and a runloop delay, and window.alert
-           blocks in between, so without this every failure raised its own alert and invalidate. */
+           blocks in between, so without this every failure raised its own alert and invalidate.
+           `logout_without_dialog`: routes/user.js holds error pages back while a logout is landing,
+           and here there is no force-logout dialog to key that on. invalidate's SPA landing clears
+           it; a reload drops it. */
+        this.set('logout_without_dialog', true);
         this._tear_down_dead_session();
         this.alert(message);
         this.invalidate(true);
@@ -861,6 +869,7 @@ export default Service.extend({
                     // Transition complete — dashboard route is unmounted.
                     // NOW it is safe to null user records and per-user appState.
                     // SPEC R5 cleanup happens here, not before transition.
+                    _this.set('logout_without_dialog', false);
                     try {
                       if(_this.appState && typeof _this.appState.clear_user_state === 'function') {
                         _this.appState.clear_user_state();

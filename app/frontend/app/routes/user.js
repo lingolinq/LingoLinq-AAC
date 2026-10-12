@@ -84,9 +84,10 @@ export default Route.extend({
          token, so requests still in flight answer 400 "Not authorized" as anonymous; bubbling those
          would render "Failed to load" in place of the sign-in prompt. Only while that dialog is OPEN:
          after an in-app logout it is closed but logout_under_way() stays true until the next sign-in,
-         and a signed-out visitor still needs the error page. The dead-session response itself is held
+         and a signed-out visitor still needs the error page. (With no modal route there is no dialog:
+         session#force_logout marks that logout `logout_without_dialog` until it lands.) The dead-session response itself is held
          back too, for speak mode, where utils/extras.js deliberately does not log out mid-sentence. */
-      if((this.session.logout_under_way() && modal.is_open('force-logout')) || this.session.dead_session_response(error && error.fakeXHR)) {
+      if((this.session.logout_under_way() && (modal.is_open('force-logout') || this.session.get('logout_without_dialog'))) || this.session.dead_session_response(error && (error.fakeXHR || (error._result && error._result.fakeXHR)))) {
         return false;
       }
       /* 404, and 400/403 (this API's PERMISSION DENIED: application_controller#allowed? answers

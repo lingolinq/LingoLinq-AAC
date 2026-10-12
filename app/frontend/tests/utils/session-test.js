@@ -805,6 +805,33 @@ describe('session', function() {
       });
     });
 
+    // Another tab signed in as someone else: this tab's requests already carry that token
+    // (capabilities.sync_access_token copies the stored login every 2s), so the answer for it is
+    // NOT stale. It must be accepted, as on develop, so this tab switches to the new user instead of
+    // showing the old user's screens while acting as the new one.
+    it('accepts the answer for the token this tab is sending after another tab signed in', function() {
+      var stored = {access_token: 'b_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      session.set('access_token', 'a_token');
+      var refreshed = false;
+      stub(app_state, 'refresh_session_user', function() { refreshed = true; });
+      var original_caps_token = capabilities.access_token;
+      capabilities.access_token = 'b_token';
+      var settled = false;
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        return RSVP.resolve({authenticated: true, user_name: 'b_user', user_id: '1_2', meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(false).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled && refreshed; });
+      runs(function() {
+        capabilities.access_token = original_caps_token;
+        expect(session.get('user_name')).toEqual('b_user');
+        expect(refreshed).toEqual(true);
+      });
+    });
+
     // Tearing down this tab's dead session must not erase a login another tab has just saved.
     it("the teardown leaves another tab's newer stored login alone", function() {
       var persisted = [];
@@ -939,3 +966,6 @@ describe('session', function() {
     });
   });
 });
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import capabilities from '../../utils/capabilities';

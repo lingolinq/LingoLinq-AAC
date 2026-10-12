@@ -30,6 +30,7 @@ module('Unit | routes/user error action', function(hooks) {
     var session = context.owner.lookup('service:session');
     session.set('invalid_token', !!flags.invalid_token);
     session.set('isAuthenticated', flags.isAuthenticated !== false);
+    session.set('logout_without_dialog', !!flags.logout_without_dialog);
     var route = context.owner.lookup('route:user');
     var transitions = [];
     route.router = { transitionTo: function(name) { transitions.push(name); } };
@@ -68,6 +69,13 @@ module('Unit | routes/user error action', function(hooks) {
     assert.deepEqual(res.transitions, []);
   });
 
+  // No modal route (early boot, or after an SPA logout reset the modals): force_logout tears down,
+  // alerts and invalidates without a dialog, and the page must not flash "Failed to load" meanwhile.
+  test('a logout with no dialog to show still holds errors back until it lands', function(assert) {
+    var res = errorAction(this, { invalid_token: true, isAuthenticated: false, dialog_open: false, logout_without_dialog: true })(denial);
+    assert.false(res.bubbled);
+  });
+
   test('after an in-app logout (dialog closed, flag still set) errors reach the error page again', function(assert) {
     var res = errorAction(this, { invalid_token: true, isAuthenticated: false, dialog_open: false })({ fakeXHR: { status: 404 }, result: 'Not found' });
     assert.true(res.bubbled);
@@ -76,6 +84,14 @@ module('Unit | routes/user error action', function(hooks) {
   test('a dead-session response itself does not render the error page', function(assert) {
     var res = errorAction(this, {})({ fakeXHR: { status: 400, responseJSON: { error: 'Token needs refresh', invalid_token: true } },
                                       result: 'Token needs refresh' });
+    assert.false(res.bubbled);
+  });
+
+  // The same dead-session answer can arrive wrapped as `_result` (the form app/app.js and
+  // session#is_logout_worthy_auth_error already unwrap); it must be held back the same way.
+  test('a dead-session response wrapped as _result is held back too', function(assert) {
+    var res = errorAction(this, {})({ _result: { fakeXHR: { status: 400, responseJSON: { error: 'Token needs refresh', invalid_token: true } },
+                                                 result: 'Token needs refresh' } });
     assert.false(res.bubbled);
   });
 
