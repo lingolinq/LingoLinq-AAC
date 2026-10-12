@@ -54432,10 +54432,11 @@ a.md-goal-nav-action:hover,
      row now, so the floor only padded a short list with empty space (measured: 400px for two
      boards at 1024 and up, in both Gentle accounts checked). */
   min-height: 0;
-  /* ...AND NEVER TALLER THAN 400px (requested 2026-10-10: "make the max-height of the boards-div
-     400px so it can't grow beyond that"). A list longer than that scrolls inside the card
-     (`.md-card--boards__compact-grid`) rather than being cut off. */
-  max-height: 400px !important;
+  /* ...AND NO TALLER THAN 400px AT 1024px AND BELOW (requested 2026-10-10: "make the max-height of
+     the boards-div 400px so it can't grow beyond that"), in the media rule after this one. ABOVE
+     1024px IT GROWS TO FIT (requested 2026-10-11: "when 12 boards are showing on the home page,
+     expand the div inside the boards div so they all show, there should never be scrolling there"):
+     up to 12 boards, four rows of three, all on screen. */
 
   padding-right: calc(18px + 0.25rem) !important;
 
@@ -54444,6 +54445,13 @@ a.md-goal-nav-action:hover,
   flex-direction: column !important;
 
   padding-bottom: 18px; /* same as extras card */
+}
+/* 901 to 1024px only: at 900px and below the card shows three boards and never scrolls
+   (requested 2026-10-11), so it needs no cap there. */
+@media (min-width: 901px) and (max-width: 1024px) {
+  .md-card--boards {
+    max-height: 400px !important;
+  }
 }
 /* Elegant separator under the Boards header: a thin brand-denim line that fades to
    transparent at both ends, with a soft glow for presence. */
@@ -63927,11 +63935,11 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   margin-top: 0 !important;
   padding: 8px 0 !important;
 
-  /* The scrolling part of the 400px-capped card: takes the space left under the header and scrolls
-     its rows when they need more. `min-height: 0` lets a flex child shrink below its content. */
+  /* Takes the space left under the header. At 1024px and below the card is capped at 400px and this
+     list scrolls its rows when they need more (the media rule after this one); above 1024px the card
+     grows to fit and nothing scrolls. `min-height: 0` lets a flex child shrink below its content. */
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  overflow-y: auto !important;
 
   /* 8px BETWEEN THE BOARDS; TWO COLUMNS ABOVE 900px, THREE ABOVE 1024px (requested 2026-10-10).
      The Boards page's own compact list (_board_picker.scss, `.ll-boards-grid--compact`) stays
@@ -63944,6 +63952,11 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      `display: block`, rows touching). */
   display: grid;
   gap: 8px;
+}
+@media (min-width: 901px) and (max-width: 1024px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid {
+    overflow-y: auto !important;
+  }
 }
 @media (min-width: 901px) {
   .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid {
@@ -64002,6 +64015,15 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    (`md-card--boards__full-grid`) never lose one. */
 @media (max-width: 1024px) {
   .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid > .simple_board_holder:nth-child(n+6):not(.md-card--boards__item--crisis):not(.md-card--boards__item--crisis:first-child ~ :nth-child(6)) {
+    display: none;
+  }
+}
+/* THREE AT 900px AND BELOW (requested 2026-10-11: "only show 3 compact board cards on the home page
+   (and don't allow scrolling in the boards div for the boards)"). Same counting as the rule above:
+   Crisis is kept and counts, so it is two boards and Crisis, or the first three when Crisis is the
+   home board and leads. The card has no height cap here and the list does not scroll. */
+@media (max-width: 900px) {
+  .md-grid--dashboard .md-card--boards .md-card--boards__compact-grid > .simple_board_holder:nth-child(n+3):not(.md-card--boards__item--crisis):not(.md-card--boards__item--crisis:first-child ~ :nth-child(3)) {
     display: none;
   }
 }
