@@ -846,6 +846,27 @@ describe User, :type => :model do
       expect(u.reload.settings['tracked_boards_at']).to eq(1_800_000_100)
     end
 
+    # The job stamps tracked_boards_at as it starts, on the copy the worker loaded. Saving that copy
+    # wrote the whole settings column back over anything saved since it was loaded.
+    it "stamps tracked_boards_at without reverting settings saved after the user was loaded" do
+      u = User.create
+      Worker.flush_queues
+      loaded = User.find(u.id)
+      other = User.find(u.id)
+      other.settings['preferences']['spec_marker'] = 'normal save'
+      other.save
+      quiet = User.find(u.id)
+      quiet.settings['spec_quiet'] = 'touch false'
+      quiet.save(touch: false)
+
+      loaded.track_boards(true, Time.now.to_i)
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['tracked_boards_at']).to be >= 1.minute.ago.to_i
+    end
+
     # The final save clears the changed flags. It used to save the copy loaded when the job
     # started, writing the whole settings column back over anything saved during the run.
     describe "clearing the changed flags" do

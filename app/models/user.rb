@@ -2281,8 +2281,10 @@ class User < ApplicationRecord
       return false
     end
     if ts && frd
-      self.settings['tracked_boards_at'] = Time.now.to_i
-      self.save
+      # Only this key, on a locked fresh copy (update_settings_locked): saving the worker's copy
+      # wrote the whole settings column back over anything saved since it was loaded. The reload
+      # also means the walk below reads the current home board and sidebar.
+      self.update_settings_locked { |fresh| fresh.settings['tracked_boards_at'] = Time.now.to_i }
     end
 
     
