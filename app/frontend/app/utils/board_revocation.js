@@ -65,8 +65,16 @@ export function parse_revisions_response(res) {
   return {revisions: res, revoked_ids: null};
 }
 
+// Storage calls can come back as a plain thenable (capabilities' mini_promise, as the
+// sync test harness's storage stubs return) rather than an RSVP promise. A mini_promise
+// does not adopt a promise returned from its callback, so a rejection chained on it went
+// unhandled; RSVP.resolve adopts any thenable.
+function stored(result) {
+  return RSVP.resolve(result);
+}
+
 function local_boards() {
-  return lingoLinqExtras.storage.find_all('board').then(function(list) {
+  return stored(lingoLinqExtras.storage.find_all('board')).then(function(list) {
     var res = [];
     (list || []).forEach(function(item) {
       var data = item && item.data;
@@ -82,7 +90,7 @@ function local_boards() {
 
 function load_index() {
   if(!index_promise) {
-    index_promise = lingoLinqExtras.storage.find('settings', INDEX_KEY).then(function(rec) {
+    index_promise = stored(lingoLinqExtras.storage.find('settings', INDEX_KEY)).then(function(rec) {
       var ids = {};
       ((rec && rec.raw && rec.raw.ids) || []).forEach(function(id) { ids[id] = true; });
       return ids;
@@ -96,7 +104,7 @@ function load_index() {
 function save_index(ids) {
   var list = Object.keys(ids);
   index_promise = RSVP.resolve(ids);
-  return lingoLinqExtras.storage.store('settings', {raw: {ids: list}, storageId: INDEX_KEY, id: INDEX_KEY}).then(null, function() { });
+  return stored(lingoLinqExtras.storage.store('settings', {raw: {ids: list}, storageId: INDEX_KEY, id: INDEX_KEY})).then(null, function() { });
 }
 
 // Fetches board_revisions for one synced user and records what it says about
@@ -112,10 +120,8 @@ export function fetch_revisions(persist, user, request) {
   }
   var prep = RSVP.resolve(null);
   if(state) {
-    // The index is loaded here as before (clear_viewable reads it); dropping this read
-    // changed request timing and surfaced an unhandled rejection in the sync harness.
-    state.local = state.local || RSVP.all([local_boards(), load_index()]).then(function(res) {
-      return {list: res[0]};
+    state.local = state.local || local_boards().then(function(list) {
+      return {list: list};
     });
     prep = state.local;
   }
@@ -148,10 +154,17 @@ export function fetch_revisions(persist, user, request) {
 // True when the sync traversal should pass over this board for this user: the
 // server already said the user cannot view it, so looking it up would only
 // produce a "Not authorized" sync error.
+//
+// A home or sidebar board is never skipped: the board route keeps showing it (see
+// protected_board_refs), so the sync still tries it and, if it loads, its subtree.
+// Skipping any other board only skips what is reachable through it alone; a child
+// that another path reaches is visited from that path.
+var ROOT_SOURCES = {'home board': true, 'sidebar board': true};
 export function skip_board(persist, user_id, next) {
   var state = state_for(persist);
   var entry = state && state.users[user_id];
   if(!entry || !next) { return false; }
+  if(ROOT_SOURCES[next.visit_source]) { return false; }
   return !!((next.id && entry.lookup[next.id]) || (next.key && entry.lookup[next.key]));
 }
 
@@ -186,7 +199,7 @@ function write_mark(rec, revoked) {
     delete raw.revoked;
   }
   var record = Object.assign({}, rec.data, {raw: raw});
-  return lingoLinqExtras.storage.store('board', record).then(function() { return true; }, function() { return false; });
+  return stored(lingoLinqExtras.storage.store('board', record)).then(function() { return true; }, function() { return false; });
 }
 
 // A successful board_revisions response is evidence enough to clear: any
@@ -221,7 +234,7 @@ export function clear_mark(id) {
   }
   return load_index().then(function(index) {
     if(!index[id]) { return false; }
-    return lingoLinqExtras.storage.find('board', id).then(function(rec) {
+    return stored(lingoLinqExtras.storage.find('board', id)).then(function(rec) {
       if(!rec || !rec.raw) { return false; }
       return clear_viewable([{id: rec.raw.id || rec.id, key: rec.raw.key, revoked: !!rec.raw.revoked, data: rec}], {[id]: true});
     }, function() { return false; });
@@ -313,7 +326,7 @@ export function is_revoked(id) {
   if(!global_board_id(id)) { return RSVP.resolve(false); }
   return load_index().then(function(index) {
     if(!index[id]) { return false; }
-    return lingoLinqExtras.storage.find('board', id).then(function(rec) {
+    return stored(lingoLinqExtras.storage.find('board', id)).then(function(rec) {
       return is_revoked_raw(rec && rec.raw);
     }, function() {
       return false;

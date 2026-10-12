@@ -95,6 +95,9 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.true(boardRevocation.skip_board(persist, 'u1', {id: '1_2'}), 'traversal skips it by id');
     assert.true(boardRevocation.skip_board(persist, 'u1', {key: 'owner/1_2'}), 'and by its local key');
     assert.false(boardRevocation.skip_board(persist, 'u1', {id: '1_1'}));
+    assert.false(boardRevocation.skip_board(persist, 'u1', {id: '1_2', depth: 0, visit_source: 'home board'}), 'a revoked home board is still synced');
+    assert.false(boardRevocation.skip_board(persist, 'u1', {key: 'owner/1_2', depth: 1, visit_source: 'sidebar board'}), 'a revoked sidebar board is still synced');
+    assert.true(boardRevocation.skip_board(persist, 'u1', {id: '1_2', depth: 0, visit_source: 'starred board'}), 'other roots are skipped');
     assert.deepEqual(boardRevocation.settled_revocations(persist.get('sync_progress'), 'u1', []), ['1_2']);
     await boardRevocation.apply_revocations(['1_2']);
     assert.true(this.db.board['1_2'].raw.revoked, 'marked on the local record');
