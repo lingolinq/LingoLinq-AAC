@@ -418,16 +418,19 @@
            the two shows from that class ("ONE EXTRAS CARD PER LAYOUT"). Both carry `md-card--extras`,
            so its grid area, visibility toggle and order apply to whichever is shown. The icon is the
            four-tile grid the Extras page header uses. --}}
-      <button type="button" class="md-card md-card--extras md-card--extras-focused md-card--badge-action md-card--as-button" style={{this.cardHideStyle.extras}} aria-label={{t "Extras" key="extras"}} {{on "click" (fn this.onGoTab "extras")}}>
-        <div class="md-card__head">
-          <div class="md-card__icon md-card__icon--extras-focused" aria-hidden="true">
-            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-          </div>
-          <div class="md-card__titles">
-            <div class="md-card__title">{{t "Extras" key="extras"}} <span aria-hidden="true">→</span></div>
-            <div class="md-card__sub">{{t "Tools & Resources" key="tools_and_resources"}}</div>
-          </div>
-        </div>
+      <button type="button" class="md-card md-card--extras md-card--extras-focused md-card--as-button" style={{this.cardHideStyle.extras}} aria-label={{t "Extras" key="extras"}} {{on "click" (fn this.onGoTab "extras")}}>
+        {{!-- Built like the Speak Mode card above (requested 2026-10-12: "make the modern focused Extras
+             styles match the modern focused speak mode button styles (all but the bg color)", with the
+             Extras illustration Gentle uses). Its own `__` classes join the Speak card's rules in
+             app.scss; the background is brand slate gray. --}}
+        <span class="md-card--extras-focused__icon" aria-hidden="true">
+          <img src={{path "images/extras-circle.png"}} class="md-card--extras-focused__img" alt="" decoding="async">
+        </span>
+        <span class="md-card--extras-focused__text">
+          <span class="md-card--extras-focused__title">{{t "Extras" key="extras"}}</span>
+          <span class="md-card--extras-focused__divider" aria-hidden="true"></span>
+          <span class="md-card--extras-focused__sub">{{t "Tools & Resources" key="tools_and_resources"}} <span class="md-card--extras-focused__arrow" aria-hidden="true">→</span></span>
+        </span>
       </button>
 
       {{#if this.sectionAvailable.org}}
