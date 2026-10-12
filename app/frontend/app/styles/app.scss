@@ -57746,17 +57746,11 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      the sub never run underneath it. */
   padding-right: 32px !important;
 }
-/* CREATE A BOARD AND EXTRAS: 20px, AT EVERY WIDTH (requested 2026-10-12: the two cards' icon-to-text
-   spacing differed -- Extras took the Gentle Extras card's 28 / 14 / 12px from the width rules
-   below, which matched it by `md-card--extras`, while Create a Board stayed 12px -- "make them a
-   20px gap ... on all screen sizes"). Those width rules now skip the Focused Extras card
-   (`:where(:not(.md-card--extras-focused))`, and the <=460px badge-action line skips Focused
-   grids), so nothing later in the file overrides this. Same (0,5,0) as the rule above, after it;
-   the other Focused action cards keep that rule's 12px. */
-.md-grid--layout-focused .md-card.md-card--create-board.md-card--as-button .md-card__head,
-.md-grid--layout-focused .md-card.md-card--extras-focused.md-card--as-button .md-card__head {
-  gap: 20px !important;
-}
+/* (A 20px icon gap for Create a Board and the Focused Extras card stood here for part of
+   2026-10-12. It went the same day: Create a Board was retired from the home grid and the Focused
+   Extras card was rebuilt like the Speak card, with no `.md-card__head`, so it matched nothing.
+   The `:where(:not(.md-card--extras-focused))` exclusions in the Gentle Extras width rules below
+   stay: they keep those rules off the Focused card.) */
 /* TITLE ARROW RIGHT-ALIGNED AND VERTICALLY CENTRED ON THE BUTTON (requested 2026-10-05).
    The arrow is the title's bare <span> (the base "→ affordance" rule, same (0,5,1) selector,
    earlier in source). It positions against the HEAD, which is `position: relative` (the
