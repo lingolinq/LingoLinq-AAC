@@ -170,3 +170,21 @@ this log, the test comment and the app-state comment; the observer is new behavi
 corrected above; `speak_text` had no test, added ("speaks an integration's speak_text aloud only in
 speak mode"). Not adopted: an instance-initializer instead of the init line (optional; keeps the
 registration next to the existing `LingoLinq.appState = this` it mirrors).
+
+## Remaining review findings (2026-10-11, closing pass)
+
+- Fixed: the observer behaviour was untested. `frame_listener-test.js` "resizes integration targets
+  when speak mode changes" pins it (fails with the registration removed).
+- Fixed: the first review's F2 (test pinned the wiring, not the symptom). `highlight-test.js` "lets
+  start()'s preference guard see the scanning preference after it opens" evaluates the exact read at
+  `utils/scanner.js:189` (fails with the highlight's `appState` removed).
+- Test hygiene: the speak-mode tests restore state in afterEach, so a failure cannot leak speak mode,
+  the board or the overlay into later tests.
+- Not changed, with reason: a destroyed service left in `scanner.appState` between tests (test-only;
+  production never destroys app-state; the only test that opens a real highlight restores it; #1118
+  rewrites the same `check_scanning` line with `live_service`, so changing it here would conflict).
+  The instance-initializer alternative (style preference). Double vocalization if an integration sends
+  both add_text and speak_text (PLAUSIBLE; integration client code is not in this repo).
+- Verification: one build; fixed bundle frame_listener 49/49, HighlightController 3/3; mutant without
+  the registration fails exactly the 3 new frame_listener tests; mutant without the highlight
+  `appState` fails exactly the 2 highlight hand-off tests. lint:js:ci new=0.

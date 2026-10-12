@@ -12,6 +12,7 @@ import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import modal from 'frontend/utils/modal';
 import scanner from 'frontend/utils/scanner';
 import frame_listener from 'frontend/utils/frame_listener';
+import EmberObject from '@ember/object';
 
 describe('HighlightController', 'controller:highlight', function() {
   it("should exist", function() {
@@ -99,6 +100,21 @@ describe('HighlightController scanner hand-off', function() {
     expect(scanner.controller).toEqual(controller);
     expect(scanner.get('appState') === appState).toEqual(true);
     controller.closing();
+  });
+
+  // The symptom, through the exact read: start()'s guard (utils/scanner.js:189) evaluates
+  // `this.get('appState.currentUser.preferences.device.scanning')` and stops scanning when it is falsy.
+  it("lets start()'s preference guard see the scanning preference after it opens", function() {
+    var appState = testOwner.lookup('service:app-state');
+    var controller = testOwner.lookup('controller:highlight');
+    var savedUser = appState.get('currentUser');
+    appState.set('currentUser', EmberObject.create({preferences: {device: {scanning: true}}}));
+    scanner.set('appState', null);
+    modal.settings_for['highlight'] = { left: 0, top: 0, width: 10, height: 10 };
+    controller.send('opening');
+    expect(scanner.get('appState.currentUser.preferences.device.scanning')).toEqual(true);
+    controller.closing();
+    appState.set('currentUser', savedUser);
   });
 });
 

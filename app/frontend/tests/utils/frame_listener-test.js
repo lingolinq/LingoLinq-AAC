@@ -753,12 +753,14 @@ describe("frame_listener", function() {
 });
 
 describe("frame_listener without a highlight", function() {
-  var testOwner, savedAppState;
+  var testOwner, savedAppState, cleanup;
   beforeEach(function() {
     testOwner = this.owner;
     savedAppState = frame_listener.appState;
+    cleanup = null;
   });
   afterEach(function() {
+    if(cleanup) { cleanup(); }
     frame_listener.appState = savedAppState;
   });
 
@@ -774,10 +776,43 @@ describe("frame_listener without a highlight", function() {
     expect(added && added.label).toEqual('hats');
     expect(responded).toEqual({added: true});
   });
+  // New with the registration in services/app-state.js init: the size_targets observer
+  // (utils/frame_listener.js:207) watches appState.speak_mode, which was never set before.
+  it("resizes integration targets when speak mode changes", function() {
+    var appState = testOwner.lookup('service:app-state');
+    var stashes = testOwner.lookup('service:stashes');
+    var savedMode = stashes.get('current_mode'), savedBoard = appState.get('currentBoardState');
+    var savedTargets = frame_listener.get('targets');
+    var overlay = document.createElement('div');
+    overlay.id = 'integration_overlay';
+    overlay.style.cssText = 'position: absolute; left: 0; top: 0; width: 200px; height: 100px;';
+    document.body.appendChild(overlay);
+    var dom = document.createElement('div');
+    cleanup = function() {
+      if(overlay.parentNode) { overlay.parentNode.removeChild(overlay); }
+      frame_listener.set('targets', savedTargets);
+      stashes.set('current_mode', savedMode);
+      appState.set('currentBoardState', savedBoard);
+    };
+    frame_listener.set('targets', [{dom: dom, target: {width_percent: 0.5, height_percent: 0.5, left_percent: 0.25, top_percent: 0.1}}]);
+    appState.set('currentBoardState', {id: '1_1', key: 'example/one'});
+    stashes.set('current_mode', 'speak');
+    waitsFor(function() { return dom.style.width === '100px'; });
+    runs(function() {
+      expect(dom.style.height).toEqual('50px');
+      expect(dom.style.left).toEqual('50px');
+      expect(dom.style.top).toEqual('10px');
+    });
+  });
+
   it("speaks an integration's speak_text aloud only in speak mode, through this app's app-state", function() {
     var appState = testOwner.lookup('service:app-state');
     var stashes = testOwner.lookup('service:stashes');
     var savedMode = stashes.get('current_mode'), savedBoard = appState.get('currentBoardState');
+    cleanup = function() {
+      stashes.set('current_mode', savedMode);
+      appState.set('currentBoardState', savedBoard);
+    };
     var spoken = [], silent = [];
     stub(speecher, 'speak_text', function(text) { spoken.push(text); });
     stub(utterance, 'silent_speak_button', function(button) { silent.push(button.label); });
@@ -791,7 +826,5 @@ describe("frame_listener without a highlight", function() {
     frame_listener.handle_action({action: 'speak_text', text: 'quiet', respond: function(d) { res = d; }});
     expect(silent).toEqual(['quiet']);
     expect(res).toEqual({spoken: true, vocalized: false});
-    stashes.set('current_mode', savedMode);
-    appState.set('currentBoardState', savedBoard);
   });
 });
