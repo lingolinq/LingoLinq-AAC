@@ -3319,15 +3319,8 @@ describe Api::UsersController, :type => :controller do
     it "should leave out a linked board the user can no longer view, and list it in revoked_ids only when asked" do
       token_user
       other = User.create
-      b1 = Board.create(:user => @user)
       b2 = Board.create(:user => other, :public => false)
-      b1.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id}}]
-      b1.instance_variable_set('@buttons_changed', true)
-      b1.save
-      @user.settings['preferences']['home_board'] = {'id' => b1.global_id, 'key' => b1.key}
-      @user.save
-      Worker.process_queues
-      Worker.process_queues
+      b1 = link_board_revisions_tree(@user, [b2])
       expect(b1.reload.settings['downstream_board_ids']).to eq([b2.global_id])
       expect(b2.reload.allows?(@user, 'view')).to eq(false)
 
@@ -3347,15 +3340,11 @@ describe Api::UsersController, :type => :controller do
       token_user
       supervisee = User.create
       User.link_supervisor_to_user(@user, supervisee)
-      b1 = Board.create(:user => @user)
       b2 = Board.create(:user => supervisee, :public => false)
-      b1.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id}}]
-      b1.instance_variable_set('@buttons_changed', true)
-      b1.save
-      @user.settings['preferences']['home_board'] = {'id' => b1.global_id, 'key' => b1.key}
-      @user.save
+      link_board_revisions_tree(@user.reload, [b2])
       Worker.process_queues
-      Worker.process_queues
+      # the cached list leaves b2 out, so only the live model permission grants it
+      make_private_board_cache_stale(@user)
       expect(@user.reload.private_viewable_board_ids).to_not include(b2.global_id)
       expect(b2.reload.allows?(@user.reload, 'view')).to eq(true)
 
