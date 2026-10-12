@@ -1112,7 +1112,13 @@ module Subscription
     # cut it short, so the next run resumes there and more exempt accounts than the limit cannot
     # starve the sweep. It is cleared when a run reaches the end or fills its window, so the next
     # run starts from the oldest again.
+    #
+    # Each page is found by its keyset columns alone; the rows are then loaded only with the
+    # columns the check needs: id, updated_at and settings for the default exemption check
+    # (inactivity_deletion_exempt?), and full rows for a custom accept block (billing_state reads
+    # several columns and may save).
     def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, &accept)
+      columns = accept ? nil : [:id, :updated_at, :settings]
       accept ||= lambda{|u| !u.inactivity_deletion_exempt? }
       ids = []
       scanned = 0
@@ -1120,11 +1126,17 @@ module Subscription
       while ids.length < window && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
         page = scope.order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
         page = page.where('(updated_at, id) > (?, ?)', last_at, last_id) if last_id
-        batch = page.to_a
-        break if batch.empty?
-        batch.each{|u| ids << u.id if accept.call(u) }
-        scanned += batch.length
-        last_at, last_id = batch[-1].updated_at, batch[-1].id
+        keys = page.pluck(:id, :updated_at)
+        break if keys.empty?
+        rows = User.where(id: keys.map(&:first))
+        rows = rows.select(*columns) if columns
+        by_id = rows.index_by(&:id)
+        keys.each do |id, _|
+          u = by_id[id]
+          ids << id if u && accept.call(u)
+        end
+        scanned += keys.length
+        last_id, last_at = keys[-1]
       end
       if cursor_key
         if ids.length < window && scanned >= INACTIVITY_SWEEP_SCAN_LIMIT && last_id

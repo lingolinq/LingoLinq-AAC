@@ -2218,6 +2218,26 @@ describe Subscription, :type => :model do
 
       # Each run reads at most INACTIVITY_SWEEP_SCAN_LIMIT rows. When exempt accounts fill that
       # many, the next run resumes where this one stopped instead of re-reading the same rows.
+      # Up to INACTIVITY_SWEEP_SCAN_LIMIT rows a run: the paging query reads only the keyset
+      # columns, and the exemption check loads only the columns it needs (not every column).
+      it "pages by id and updated_at, and loads only id, updated_at and settings for the exemption check" do
+        k = User.create
+        k.settings['preferences']['never_delete'] = true
+        k.save
+        User.where(id: k.id).update_all(updated_at: 15.months.ago)
+        sql = []
+        record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /FROM "users"/ && payload[:sql] =~ /ORDER BY|IN \(/ }
+        ids = nil
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          ids = User.inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), 5)
+        end
+
+        expect(ids).not_to include(k.id)
+        expect(sql).not_to be_empty
+        expect(sql.grep(/"users"\.\*|SELECT \*/)).to eq([])
+        expect(sql.grep(/settings/).all? { |q| q !~ /ORDER BY/ }).to eq(true)
+      end
+
       it "resumes after the rows the last run read when exempt accounts exceed the scan limit" do
         stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
         stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
