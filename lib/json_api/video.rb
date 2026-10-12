@@ -21,8 +21,9 @@ module JsonApi::Video
   
   def self.meta(video)
     json = {}
-    if video.pending_upload?
-      params = video.client_upload_params
+    # no upload form when S3 is not configured (see JsonApi::Image.meta)
+    if video.pending_upload? && Uploader.client_uploads_configured?
+      params = video.remote_upload_params
       json = {'remote_upload' => params}
     end
     json

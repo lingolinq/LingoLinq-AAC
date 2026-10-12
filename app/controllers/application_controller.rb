@@ -11,11 +11,12 @@ class ApplicationController < ActionController::Base
   around_action :with_request_caching
   rescue_from Uploader::RemoteCredentialsMissing, with: :remote_uploads_unavailable
 
-  # Uploader.client_upload_params refuses to sign an upload form the client could not use. Generic
-  # message: nothing about the configuration reaches the client.
+  # Uploader.client_upload_params refuses to sign an upload form the client could not use. 503: a
+  # server configuration fault, not a bad request. Generic message: nothing about the configuration
+  # reaches the client.
   def remote_uploads_unavailable(error)
     Rails.logger.error("#{self.class.name}##{action_name}: #{error.message}")
-    api_error 400, {error: "File uploads are not available right now"}
+    api_error 503, {error: "File uploads are not available right now"}
   end
 
   # Clears request-scoped Thread.current caches after each request to prevent

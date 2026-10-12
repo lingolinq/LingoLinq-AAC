@@ -33,6 +33,7 @@ class Api::SoundsController < ApplicationController
     if !sound || sound.errored?
       api_error(400, {error: "sound creation failed", errors: sound && sound.processing_errors})
     else
+      ensure_upload_form_available!(sound)
       render json: JsonApi::Sound.as_json(sound, :wrapper => true, :permissions => @api_user).to_json
     end
   end

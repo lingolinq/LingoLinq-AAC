@@ -235,13 +235,6 @@ module Uploadable
     res
   end
 
-  # remote_upload_params for a form returned to a client (JsonApi image/sound/video meta); raises
-  # Uploader::RemoteCredentialsMissing when S3 is not configured (Uploader.client_upload_params).
-  def client_upload_params(rasterize=false)
-    Uploader.ensure_client_uploads_configured!
-    remote_upload_params(rasterize)
-  end
-
   def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
     self.settings['pending_url'] = nil

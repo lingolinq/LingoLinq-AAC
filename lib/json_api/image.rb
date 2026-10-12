@@ -97,8 +97,10 @@ module JsonApi::Image
   
   def self.meta(image)
     json = {}
-    if image.pending_upload?
-      params = image.client_upload_params
+    # no upload form when S3 is not configured (Uploader.client_uploads_configured?); a create that
+    # needs one answers 503 instead (RemoteUploader#ensure_upload_form_available!)
+    if image.pending_upload? && Uploader.client_uploads_configured?
+      params = image.remote_upload_params
       json = {'remote_upload' => params}
     end
     json
