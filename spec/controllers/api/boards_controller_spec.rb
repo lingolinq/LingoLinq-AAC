@@ -1058,12 +1058,37 @@ describe Api::BoardsController, :type => :controller do
         expect(index_ids(:shared => 1)).to eq([])
       end
 
-      it "does not list or show a board unshared during the request's rebuild" do
+      it "does not list a board unshared during the request's rebuild on the next read" do
         token_user
         b = board_shared_with_user
         unshare_mid_rebuild(b, @user)
         get :index, params: {:user_id => @user.global_id, :shared => 1}
         expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+
+        # read before the unshare's jobs run: the rebuilt list must not be served as fresh
+        expect(index_ids(:shared => 1)).to eq([])
+      end
+
+      it "drops an include_shared board unshared during the request's rebuild on the next read" do
+        token_user
+        ub = Board.create(:user => @user)
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :include_shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+
+        expect(index_ids(:include_shared => 1)).to eq([ub.global_id])
+      end
+
+      it "does not list or show a board unshared during the request's rebuild once the unshare's jobs have run" do
+        token_user
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
         Worker.process_queues
 
         expect(index_ids(:shared => 1)).to eq([])
@@ -1071,13 +1096,14 @@ describe Api::BoardsController, :type => :controller do
         assert_unauthorized
       end
 
-      it "keeps the user's own boards and drops a board unshared during an include_shared rebuild" do
+      it "keeps the user's own boards and drops a board unshared during an include_shared rebuild once the unshare's jobs have run" do
         token_user
         ub = Board.create(:user => @user)
         b = board_shared_with_user
         unshare_mid_rebuild(b, @user)
         get :index, params: {:user_id => @user.global_id, :include_shared => 1}
         expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
         Worker.process_queues
 
         expect(index_ids(:include_shared => 1)).to eq([ub.global_id])
@@ -1100,6 +1126,7 @@ describe Api::BoardsController, :type => :controller do
         expect(index_ids(:shared => 1)).to eq([b.global_id])
 
         expect(ran).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
         expect(User.find(@user.id).settings['preferences']['spec_marker']).to eq('changed elsewhere')
       end
     end

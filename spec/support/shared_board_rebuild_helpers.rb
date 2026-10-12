@@ -6,11 +6,16 @@
 module SharedBoardRebuildHelpers
   # Runs the block once, inside the next rebuild, after links_for and before the save
   # (Organization.attached_orgs runs there on the !plus_editing branch of all_shared_board_ids_for).
+  # attached_orgs has other callers, so @ran_inside_rebuild records whether that first call really
+  # came from all_shared_board_ids_for; a spec asserts it, since a failed expectation raised here
+  # could be rescued by the code under test.
   def during_rebuild(&block)
     ran = false
+    @ran_inside_rebuild = false
     allow(Organization).to receive(:attached_orgs).and_wrap_original do |original, *args|
       unless ran
         ran = true
+        @ran_inside_rebuild = caller_locations.any? { |loc| loc.label.to_s.end_with?('all_shared_board_ids_for') }
         block.call
       end
       original.call(*args)
