@@ -2800,13 +2800,15 @@ class Board < ApplicationRecord
     if (board_ids.blank? || board_ids.include?(self.global_id))
       updated_board_ids << self.global_id
       whodunnit = PaperTrail.request.whodunnit
-      PaperTrail.request.whodunnit = "user:#{author.global_id}.board.swap_images"
+      PaperTrail.request.whodunnit = "user:#{author.global_id}.board.update_privacy"
       update_board.public = (privacy_level == 'public'|| privacy_level == 'unlisted')
       update_board.settings['unlisted'] = (privacy_level == 'unlisted')
+      # Name the level applied, never the raw privacy_level param: any other level is private.
+      applied_level = update_board.settings['unlisted'] ? 'unlisted' : (update_board.public ? 'public' : 'private')
       update_board.instance_variable_set('@map_later', true)
       update_board.instance_variable_set('@edit_description', {
         'timestamp' => Time.now.to_f,
-        'notes' => ['batch set to public']
+        'notes' => ["batch set to #{applied_level}"]
       })
       update_board.save 
       PaperTrail.request.whodunnit = whodunnit

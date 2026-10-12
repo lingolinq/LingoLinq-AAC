@@ -20,6 +20,32 @@ describe JsonApi::BoardVersion do
       expect(json['boardversion'].map { |v| v['action'] }).to include('batch set to public')
     end
 
+    # Board#update_privacy makes any level other than public or unlisted private.
+    it "describes a batch change to private as private" do
+      u = User.create
+      b = Board.create(:user => u, :public => true)
+      b.update_privacy('private', u, [b.global_id])
+      b.reload
+      expect(b.public).to eq(false)
+      expect(b.settings['edit_description']['notes']).to eq(['batch set to private'])
+
+      b.update_privacy('anything else', u, [b.global_id])
+      expect(b.reload.settings['edit_description']['notes']).to eq(['batch set to private'])
+    end
+
+    it "describes a batch change to unlisted as unlisted" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.update_privacy('unlisted', u, [b.global_id])
+      b.reload
+      expect(b.settings['unlisted']).to eq(true)
+      expect(b.settings['edit_description']['notes']).to eq(['batch set to unlisted'])
+
+      json = JsonApi::BoardVersion.paginate({}, Board.user_versions(b.global_id))
+      version = json['boardversion'].detect { |v| v['action'] == 'batch set to unlisted' }
+      expect(version['modifier']['user_name']).to eq(u.user_name)
+    end
+
     # Versions already stored in production hold that description's notes as a single String.
     it "labels a version whose stored notes are a single String" do
       u = User.create
