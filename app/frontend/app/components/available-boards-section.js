@@ -11,7 +11,7 @@ import { readFoldersExpanded, writeFoldersExpanded } from '../utils/folders_pane
  * Available Boards grid (Mine folders, filter, DnD) — used on user/boards and dashboard.
  * Pass boardsCtrl (controller:user/index) and optional filterInputId for duplicate IDs.
  */
-export default Component.extend({
+var AvailableBoardsSection = Component.extend({
   tagName: '',
 
   /* Board-card density for the Boards page, mirroring the picker's own control
@@ -210,7 +210,7 @@ export default Component.extend({
     };
     this.onOpenBoardInUserView = function(board) {
       var ctrl = self.get('boardsCtrl');
-      if (ctrl) { ctrl.send('open_board_in_user_view', board); }
+      if (self.get('assigningHome')) { self._assignHomeBoard(board); } else if (ctrl) { ctrl.send('open_board_in_user_view', board); }
     };
     this.onLoadChildren = function() {
       var ctrl = self.get('boardsCtrl');
@@ -855,3 +855,138 @@ export default Component.extend({
     this._super(...arguments);
   }
 });
+
+/* "SET HOME BOARD" IS A MODE ON THIS PAGE, NOT A TRIP TO THE BOARD PICKER (requested 2026-10-11).
+   The button turns it on: the tiles take a home-assignment pointer (BoardIcon @pickCursor) and a
+   tooltip says to click any board to make it the page user's home board. It stays on across the
+   tabs (this component stays mounted while they switch) and ends on a second press of the button,
+   Escape, an assignment, or leaving the page.
+   A board the page's user OWNS becomes home at once. Anyone else's board opens
+   confirm-home-board-copy, which says so and offers to copy it; on Yes it copies the board and sets
+   the copy as home with a progress message (no copy-board modal), then offers to open it. Both go
+   through utils/board-copy.js#copy_or_reuse_as_home, as the picker's "Pick this Board" does.
+   Defined here, after the class, so the `.eslint-todo` rows in it keep their lines. */
+var BOARD_GRID = '.ub-boards-page__board-grid';
+var HOME_CURSOR = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24'%3E%3Cpath d='M12 3L2 12h3v8h6v-6h2v6h6v-8h3z' fill='%231B365D' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E\") 14 14, copy";
+
+AvailableBoardsSection.reopen({
+  assigningHome: false,
+  homeCursor: HOME_CURSOR,
+  copyAsHome: copy_or_reuse_as_home,
+
+  // Whose home board: "your" on your own page, the person's name on a communicator's page. Ids go
+  // through backend_user_id: the session user is keyed 'self' (utils/backend_user_id.js), the page's.
+  setHomeTip: computed('boardsCtrl.model.id', 'appState.currentUser.id', 'boardsCtrl.model.user_name', function() {
+    var model = this.get('boardsCtrl.model');
+    var me = backend_user_id(this.get('appState.currentUser'));
+    if (model && me && backend_user_id(model) !== me) {
+      return i18n.t('set_home_mode_tip_other', "Click any board to make it %{user_name}'s home board", { user_name: model.get('user_name') });
+    }
+    return i18n.t('set_home_mode_tip', "Click any board to make it your home board");
+  }),
+
+  _setAssigningHome: function(on) {
+    var self = this;
+    if (self.isDestroyed || self.isDestroying) { return; }
+    self.set('assigningHome', !!on);
+    if (on && !self._setHomeKeydown) {
+      self._setHomeKeydown = function(e) { if (e.key === 'Escape') { self._setAssigningHome(false); } };
+      document.addEventListener('keydown', self._setHomeKeydown);
+    } else if (!on && self._setHomeKeydown) {
+      document.removeEventListener('keydown', self._setHomeKeydown);
+      self._setHomeKeydown = null;
+    }
+  },
+
+  _assignHomeBoard: function(obj) {
+    var self = this;
+    var board = (obj && obj.board) || obj;
+    // On your own page, save on the session user (as the picker does,
+    // board-preview-overlay.js#pick_for_home) so the app sees the new home at once.
+    var pageUser = self.get('boardsCtrl.model');
+    var user = pageUser;
+    var me = self.get('appState.currentUser');
+    if (user && me && backend_user_id(user) === backend_user_id(me)) { user = me; }
+    var key = board && (board.get ? board.get('key') : board.key);
+    if (!key || !user) { return; }
+    var owned = key.indexOf(user.get('user_name') + '/') === 0;
+    var ctrl = self.get('boardsCtrl');
+    // Where every tile is now, so Not now can replay the re-sort as movement (utils/home-move.js).
+    self._homeMoveSnapshot = snapshotTiles(document.querySelector(BOARD_GRID));
+    var dialog = {
+      board: board,
+      user: user,
+      copyAsHome: self.get('copyAsHome'),
+      onDone: function() {
+        self._setAssigningHome(false);
+        // copy_board reloads only the record it was given (utils/edit_manager.js, copy_board_links);
+        // the page lists and sorts My Boards from its own record, so reload that one too.
+        if (pageUser && pageUser !== user && pageUser.reload) { pageUser.reload(); }
+      },
+      onOpenBoard: function(home) { if (ctrl) { ctrl.send('open_board_in_user_view', home); } },
+      onNotNow: function(home) {
+        var homeKey = home && (home.get ? home.get('key') : home.key);
+        if (!homeKey) { return; }
+        if (ctrl && dialog.copied !== false) {
+          // A new copy: My Boards was loaded before it existed. Drop the cached list and re-query,
+          // as removing a board does (controllers/user/index.js#remove_board, refreshMine).
+          boardsPageListCache.clear(ctrl.get('model.id'));
+          if (ctrl.get('mine_selected')) {
+            ctrl.send('retry_board_list');
+          } else {
+            // Copied from another tab: go to My Boards and show it arrive there.
+            self._homeMoveSnapshot = {};
+            ctrl.send('set_selected', 'mine');
+          }
+        }
+        self._followHomeMove(homeKey);
+      }
+    };
+    if (owned) {
+      // Theirs already: set it, then ask whether to open it (the dialog starts at its last step).
+      return self.get('copyAsHome')(board, user).then(function(home) {
+        self._setAssigningHome(false);
+        modal.open('confirm-home-board-copy', Object.assign(dialog, { stage: 'done', copied: false, home: home || board }));
+      }, function(err) {
+        try { modal.error(typeof err === 'string' ? err : i18n.t('set_as_home_failed', "Home board update failed unexpectedly")); } catch (e) { /* no flash outlet */ }
+      });
+    }
+    return modal.open('confirm-home-board-copy', dialog);
+  },
+
+  _followHomeMove: function(homeKey) {
+    var self = this;
+    // Wait until the tile is marked home, i.e. the list has re-sorted with it first.
+    whenTile(BOARD_GRID, homeKey, 8000, function(el) { return el.classList.contains('ub-boards-page__board-item--home'); }, function(grid) {
+      if (grid) { playHomeMove(grid, self._homeMoveSnapshot || {}, homeKey); }
+      self._homeMoveSnapshot = null;
+    });
+  },
+
+  willDestroyElement: function() {
+    this._setAssigningHome(false);
+    this._super(...arguments);
+  },
+
+  actions: {
+    toggleSetHomeMode: function() {
+      this._setAssigningHome(!this.get('assigningHome'));
+    },
+    // The tooltip's Cancel. The tooltip (and the focused Cancel in it) goes away, so focus moves to
+    // the Set Home Board button first rather than dropping to the page.
+    cancelSetHomeMode: function() {
+      var btn = document.querySelector('.ub-boards-page__set-home-btn--active');
+      if (btn && btn.focus) { btn.focus(); }
+      this._setAssigningHome(false);
+    }
+  }
+});
+
+export default AvailableBoardsSection;
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import modal from '../utils/modal';
+import { copy_or_reuse_as_home } from '../utils/board-copy';
+import backend_user_id from '../utils/backend_user_id';
+import { snapshotTiles, playHomeMove, whenTile } from '../utils/home-move';
+import boardsPageListCache from '../utils/boards_page_list_cache';

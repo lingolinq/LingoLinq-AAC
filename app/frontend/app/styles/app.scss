@@ -71326,7 +71326,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      (the ≤768px rule) has nothing to push against. The two have to agree — a
      centred `align-self` here would win over the right-pinned margin above and the
      button would sit centred on this tier only. */
-  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__set-home-btn {
+  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__set-home-wrap {
     align-self: flex-end !important;
   }
   /* Hairline ::before was a row-separator between title and stats
@@ -73753,9 +73753,64 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      Board button lives in the boards-summary section header (vs.
      the filter row, where flex-grow on the filter form already
      pushes it right). margin-left:auto pins it to the far right
-     of the header so it sits opposite the BOARDS title. */
+     of the header so it sits opposite the BOARDS title. Carried by the button's wrapper
+     (`__set-home-wrap`) since 2026-10-11, which also anchors the set-home tooltip. */
   &__set-home-btn--in-header {
     margin-left: auto;
+  }
+  /* THE SET-HOME MODE (requested 2026-10-11; available-boards-section.js): while it is on the
+     button shows `--active` (the filled state above), and this tooltip hangs under it,
+     right-aligned, saying to click any board, with a Cancel that ends the mode. The tiles take the
+     assignment pointer through BoardIcon's @pickCursor. */
+  &__set-home-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  &__set-home-tip {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 20;
+    width: max-content;
+    max-width: min(340px, 75vw);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 8px 8px 12px;
+    border-radius: 10px;
+    background: $la-navy;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+    box-shadow: 0 6px 18px rgba($brand-blue-black, 0.22);
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      right: 22px;
+      border: 6px solid transparent;
+      border-bottom-color: $la-navy;
+    }
+  }
+  &__set-home-tip-cancel {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border: 1px solid rgba(#fff, 0.7);
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+    &:hover {
+      background: rgba(#fff, 0.16);
+    }
+    &:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
   }
   /* ≤768px — the button stays RIGHT-ALIGNED, same as the base rule.
      It used to be re-centred here with symmetric auto margins (and `align-self:
@@ -75391,6 +75446,36 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
         0 0 0 4px rgba($brand-verdigris, 0.12),
         0 8px 24px rgba($brand-verdigris, 0.18),
         0 2px 12px rgba(0, 0, 0, 0.06) !important;
+    }
+  }
+
+  /* FOLLOWING A NEW HOME BOARD TO THE TOP (utils/home-move.js, 2026-10-11). After "Not now" the
+     tiles glide into their re-sorted places (inline transforms) and the home tile gets a fading
+     verdigris ring (`--home-moved`); a new copy that wasn't listed before also fades and grows in
+     (`--home-arrived`). The ring is an ::after layer because the card's own border and shadow are
+     owned by the board-card-modern mixin. Reduced motion keeps a steady ring, no growing. */
+  &__board-item--home-moved,
+  &__board-item--home-arrived {
+    position: relative;
+    z-index: 2; /* glides over the tiles it passes, not under them */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border: 3px solid $brand-verdigris;
+      border-radius: 18px;
+      pointer-events: none;
+      animation: ub-home-ring 2.2s ease-out forwards;
+    }
+  }
+  &__board-item--home-arrived {
+    animation: ub-home-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &__board-item--home-moved::after,
+    &__board-item--home-arrived::after,
+    &__board-item--home-arrived {
+      animation: none;
     }
   }
 
@@ -94337,6 +94422,23 @@ span.md-board-detail-modeling-btn--badge {
   line-height: 1.5;
   margin: 0 0 8px;
 }
+/* A small progress spinner for a message that is waiting on work (first used by the Boards
+   page's copy-and-set-home dialog, components/confirm-home-board-copy.hbs). Still under reduced
+   motion: the message beside it carries the meaning. */
+.md-modal-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  vertical-align: -3px;
+  border: 2.5px solid rgba($la-navy, 0.2);
+  border-top-color: $la-navy;
+  border-radius: 50%;
+  animation: md-modal-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-modal-spinner { animation: none; }
+}
 /* WARNING CALLOUT -- the whole message on the Save Board completeness dialogs, not a token
    inside it. This is the sentence standing between someone and an empty or half-built board,
    so it is given the weight of a warning rather than reading as ordinary body copy.
@@ -94637,6 +94739,16 @@ span.md-board-detail-modeling-btn--badge {
 }
 @keyframes md-modal-spin {
   to { transform: rotate(360deg); }
+}
+@keyframes ub-home-ring {
+  0% { opacity: 0; transform: scale(1.06); }
+  20% { opacity: 1; transform: scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes ub-home-arrive {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
 }
 /* Indeterminate progress bar — slim track pinned across the footer
    while the save promise is pending. Two-bar gradient animates left-

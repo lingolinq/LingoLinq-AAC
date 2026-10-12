@@ -225,9 +225,9 @@ export default Component.extend({
     var hasId = typeof board_record.get === 'function' ? board_record.get('id') : board_record.id;
     return hasKey != null || hasId != null;
   }),
-  cursor_style: computed('isReady', 'opens_by_key', function() {
+  cursor_style: computed('isReady', 'opens_by_key', 'pickCursor', function() {
     if(this.get('isReady') || this.get('opens_by_key')) {
-      return htmlSafe('cursor: pointer;');
+      return htmlSafe('cursor: ' + (this.get('pickCursor') || 'pointer') + ';');
     } else {
       return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
     }

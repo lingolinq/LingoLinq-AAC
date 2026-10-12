@@ -90,22 +90,45 @@ export default findExistingUserCopy;
    (`links_copy_as_home`). Resolves with the home board; rejects with a display string.
    The symbol library for a copy is the user's preferred set, gated by extras access (mirrors
    set-as-home.js#updateSelectedUser); it falls back to 'original'. */
-export function copy_or_reuse_as_home(board, user, locale) {
+export function copy_or_reuse_as_home(board, user, locale, opts) {
+  var isCancelled = opts && typeof opts.isCancelled === 'function' ? opts.isCancelled : null;
+  if (isCancelled && !can_cancel_home_copy(board, user)) { isCancelled = null; }
   var lib = user.get('preferences.preferred_symbols') || 'original';
   if (['pcs', 'symbolstix', 'lessonpix'].indexOf(lib) !== -1) {
     if (!user.get('extras_enabled') && !user.get('subscription.extras_enabled')) {
       lib = 'original';
     }
   }
+  var copyFailed = function(err) {
+    // copy_board rejects with an already-localized string or an internal-code object; only a
+    // string is shown as it is.
+    return RSVP.reject((typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again."));
+  };
   var copy = function() {
-    return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(null, function(err) {
-      // copy_board rejects with an already-localized string or an internal-code object; only a
-      // string is shown as it is.
-      return RSVP.reject((typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again."));
-    });
+    if (!isCancelled) {
+      return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(null, copyFailed);
+    }
+    /* CANCELLABLE (the Boards page's Set Home Board dialog, 2026-10-11). The same call, plus a
+       `skip_home` check that copy_board makes at the moment it would save the home board
+       (edit_manager.js, the `as_home` branch of done_callback), so the save keeps its original
+       timing. That timing matters: copy_board also reloads the user ~100ms after the job ends, and
+       a home save made any later can be overwritten by that reload. The server job never sets the
+       home board (User#copy_board_links), so skipping that one save keeps it unchanged. `skipped`
+       records what copy_board actually decided, so a Cancel pressed after the save never deletes
+       a board that is already the home board. */
+    var skipped = false;
+    var skipHome = function() { if (isCancelled()) { skipped = true; } return skipped; };
+    return editManager.copy_board(board, 'links_copy_as_home', user, false, lib, undefined, undefined, { skip_home: skipHome }).then(function(made) {
+      if (skipped) {
+        return RSVP.reject({ cancelled: true, board: made, new_board_ids: (made && made.get('new_board_ids')) || (made ? [made.get('id')] : []) });
+      }
+      return made;
+    }, copyFailed);
   };
   return findExistingUserCopy(board, user).then(function(existing) {
     if (!existing) { return copy(); }
+    // Theirs already: a cancel here changes nothing and deletes nothing.
+    if (isCancelled && isCancelled()) { return RSVP.reject({ cancelled: true }); }
     return saveHomeBoard(user, existing, locale).then(function() { return existing; }, function() {
       return RSVP.reject(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
     });
@@ -113,4 +136,49 @@ export function copy_or_reuse_as_home(board, user, locale) {
     // The lookup itself failed: copy, so the user is never blocked (a duplicate beats a dead end).
     return copy();
   });
+}
+
+/* Whether a home-board copy can be cancelled. Not for an organization's home board: copy_board
+   sets that one on the SERVER in a single user save (edit_manager.js, the org branch of
+   `links_copy_as_home`), so there is no later step a cancel could skip. */
+export function can_cancel_home_copy(board, user) {
+  var keys = (user && user.get && user.get('org_board_keys')) || [];
+  var key = board && board.get && board.get('key');
+  return !(key && keys.indexOf(key) !== -1);
+}
+
+/* REMOVE WHAT A CANCELLED COPY MADE (the choice made 2026-10-11: delete it rather than leave a
+   half-wanted copy in My Boards). Deletes, one at a time, only boards that are ALL of: listed in the
+   copy job's `new_board_ids`, owned by this user, created after the copy started (one minute of
+   leeway for clock skew between this device and the server), and not their home board. Anything
+   that fails a check, or cannot be loaded, is left alone. Deleting follows
+   components/confirm-delete-board.js: load the record, deleteRecord, save. Resolves either way.
+   It also FOLLOWS LINKS from each board it deletes, under the same checks: the job reports
+   `new_board_ids` from the source's stored downstream list (User#copy_board_links), which can be
+   stale, while the copy itself follows the real links. Seen 2026-10-11: one copied board was missing
+   from the report and was left behind until this walked the links to it. */
+export function discard_cancelled_copy(ids, user, startedAt) {
+  var userName = user && user.get && user.get('user_name');
+  var homeKey = user && user.get && user.get('preferences.home_board.key');
+  var since = startedAt ? new Date(startedAt).getTime() - 60000 : null;
+  var queue = (ids || []).slice();
+  var seen = {};
+  queue.forEach(function(id) { seen[id] = true; });
+  var next = function() {
+    var id = queue.shift();
+    if (!id) { return RSVP.resolve(); }
+    return LingoLinq.store.findRecord('board', id).then(function(b) {
+      var created = b && b.get('created');
+      var ours = b && userName && b.get('user_name') === userName && b.get('key') !== homeKey &&
+                 since !== null && created && new Date(created).getTime() >= since;
+      if (!ours) { return null; }
+      (b.get('buttons') || []).forEach(function(btn) {
+        var link = btn && (btn.load_board || (btn.get && btn.get('load_board')));
+        if (link && link.id && !seen[link.id]) { seen[link.id] = true; queue.push(link.id); }
+      });
+      b.deleteRecord();
+      return b.save();
+    }).then(next, next);
+  };
+  return next();
 }
