@@ -660,7 +660,29 @@ describe BoardCaching, :type => :model do
 
         stored = User.find(u.id)
         expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
-        expect(Worker.scheduled_for?('default', User, :perform_action, {'id' => u.id, 'method' => 'update_available_boards', 'arguments' => []})).to eq(true)
+        # rescheduled with its retry count (bounded, STALE_REFRESH_RETRIES)
+        expect(Worker.scheduled_for?('default', User, :perform_action, {'id' => u.id, 'method' => 'update_available_boards', 'arguments' => [1]})).to eq(true)
+      end
+
+      # A run whose user row moved meanwhile reschedules itself (stale_after), so a user whose row
+      # moves during every run never got a revocation stored; retries are now bounded.
+      it "stores a revocation within a few runs even when the user row moves during every run" do
+        u, b = shared_board_user
+        u.update_available_boards
+        expect(User.find(u.id).private_viewable_board_ids).to eq([b.global_id])
+        UserLink.remove(User.find(u.id), b, 'board_share')
+        Worker.flush_queues
+        allow(Board).to receive(:regenerate_shared_board_ids).and_wrap_original do |original, *args|
+          busy = User.find(u.id)
+          busy.settings['preferences']['spec_busy'] = rand(1000000)
+          busy.save
+          original.call(*args)
+        end
+
+        User.find(u.id).update_available_boards
+        5.times { Worker.process_queues }
+
+        expect(User.find(u.id).private_viewable_board_ids).to eq([])
       end
 
       it "keeps a write made after the caller loaded the user and before the refresh started" do

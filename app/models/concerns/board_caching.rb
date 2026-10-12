@@ -15,7 +15,11 @@ module BoardCaching
   # the user should have edit and sharing access if a parent board is edit-shared including downstream with them
   # the user should have view access if the board is shared with any of their supervisees
 
-  def update_available_boards
+  # How many times a run that found its user row moved (stale_after) is rescheduled before the
+  # next run stores its result without that check.
+  STALE_REFRESH_RETRIES = 3
+
+  def update_available_boards(stale_retries=0)
     # TODO: sharding
     # Outbox release point. RemoteAction rows requesting this refresh are cleared
     # when the work is DONE, not when a job was accepted onto the queue --
@@ -101,7 +105,12 @@ module BoardCaching
       # boards_updated_at is the stamp the shared-board lists are checked against (sharing.rb
       # boards_updated_stamp). The forced rebuild above just stored them with the current stamp,
       # so moving it when nothing changed made the very next read rebuild them again.
-      boards_updated_at: (lists_changed ? Time.now : nil), stale_after: self.updated_at,
+      # After STALE_REFRESH_RETRIES rescheduled runs the result is stored anyway: a user whose
+      # row moves during every run otherwise never got a revocation stored. It was computed from
+      # links read at this run's start, newer than what is stored; a change it missed left its own
+      # outbox row (act_at after started_at), which survives below and triggers another run.
+      boards_updated_at: (lists_changed ? Time.now : nil),
+      stale_after: (stale_retries < STALE_REFRESH_RETRIES ? self.updated_at : nil),
       save_method: (lists_changed ? :save_with_sync : nil), save_args: (lists_changed ? ['board_list_changed'] : []),
       # updated_at moves only when access changed: it keys every cached permission (permissable
       # cache_key), which must not be reused after a change, and it is also the inactivity sweep's
@@ -122,7 +131,7 @@ module BoardCaching
       .where('act_at <= ?', started_at).delete_all
   rescue ActiveRecord::StaleObjectError
     # Failed run: the row stays, so the fallback still fires.
-    self.schedule_once(:update_available_boards)
+    self.schedule_once(:update_available_boards, stale_retries + 1)
   end
   
   # Writes only available_private_board_ids entries (and boards_updated_at) onto a locked fresh
