@@ -33,13 +33,22 @@ RSpec.configure do |config|
         .to_return(status: 403, body: '<Error><Code>AccessDenied</Code></Error>',
                    headers: {'Content-Type' => 'application/xml'})
     end
+  end
 
-    # SafeHttp resolves the hostname itself (Addrinfo.getaddrinfo in resolve_addresses,
-    # lib/safe_http.rb:67) before the request reaches WebMock, so without this a spec asks real DNS.
-    # A public name gets a TEST-NET-3 documentation address, which SafeHttp's blocked_ipaddr?
-    # (lib/safe_http.rb:125) allows, so the request goes on to the stubs above. Local names (Redis
-    # and database hosts such as localhost, or a single-label service name) and IP literals keep
-    # the real resolver. A spec that tests resolution declares its own expectation on Addrinfo.
+  # SafeHttp resolves the hostname itself (Addrinfo.getaddrinfo in resolve_addresses,
+  # lib/safe_http.rb:67) before the request reaches WebMock, so without this a spec asks real DNS.
+  # A public name gets a TEST-NET-3 documentation address, which SafeHttp's blocked_ipaddr?
+  # (lib/safe_http.rb:125) allows, so the request goes on to the stubs above. Local names (Redis
+  # and database hosts such as localhost, or a single-label service name) and IP literals keep
+  # the real resolver.
+  #
+  # A spec that tests resolution itself tags its group `own_resolver: true` and sets its own
+  # expectations on Addrinfo. It must not get this default: once a plain
+  # `expect(...).to receive` (exactly once) has been satisfied, rspec-mocks hands further calls to
+  # an `allow` stub instead of failing, so a second lookup (DNS rebinding) would go unnoticed.
+  config.before(:each) do |example|
+    next if example.metadata[:own_resolver]
+
     allow(Addrinfo).to receive(:getaddrinfo).and_wrap_original do |original, host, *args, **opts|
       if OutsideServices.local_name?(host)
         original.call(host, *args, **opts)
