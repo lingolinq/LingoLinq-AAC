@@ -361,8 +361,8 @@ add_status() {
 }
 
 # run_ci <expect-exit> <expect-check-ran:yes|no> <label> <event-head> [env assignments...]
-# EVENT_ACTION defaults to opened, EVENT_BASE_REF to develop and EVENT_BASE_SHA to the
-# stubbed PR's base.sha; a later assignment overrides them. A first argument of --mark-<state> runs the script's --mark mode.
+# EVENT_ACTION defaults to opened, EVENT_BASE_REF to develop, EVENT_BASE_SHA to the
+# stubbed PR's base.sha and GITHUB_RUN_ATTEMPT to 1; a later assignment overrides them. A first argument of --mark-<state> runs the script's --mark mode.
 run_ci() {
   local mode=()
   case "$1" in --mark-*) mode=(--mark "${1#--mark-}"); shift ;; esac
@@ -373,7 +373,7 @@ run_ci() {
   local ebase
   ebase="$(jq -r .base.sha "$GH_STUB/pr.json")"
   (cd "$REPO" && env -u GITHUB_OUTPUT PATH="$GHBIN:$PATH" GH_STUB="$GH_STUB" REPO=o/r PR_NUMBER=7 \
-    EVENT_HEAD_SHA="$ehead" EVENT_BASE_REF=develop EVENT_BASE_SHA="$ebase" CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= \
+    EVENT_HEAD_SHA="$ehead" EVENT_BASE_REF=develop EVENT_BASE_SHA="$ebase" GITHUB_RUN_ATTEMPT=1 CHECK="$SPY" EVENT_ACTION=opened LABEL_NAME= \
     SENDER_LOGIN=reviewer SENDER_TYPE=User RUN_URL=https://example.invalid/run/1 \
     GH_TOKEN=actions-token STATUS_TOKEN=app-token STATUS_LOGIN="$APP_LOGIN" \
     "$@" bash "$CI" "${mode[@]}") >/dev/null 2>&1 || rc=$?
@@ -636,6 +636,17 @@ set_origin develop "$FIX"
 stub_pr "$FIX" develop; stub_labels '[{"name":"bug"}]'
 run_ci 1 yes 'a re-run of a labeled run after the label is gone records nothing (develop)' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
 posted_case "$FIX data-bearing-paths/develop failure" 'no approval from a replayed labeled run (develop)'
+# Only a run's first attempt records an approval: a re-run replays the labeled event,
+# and the label may still be on if its removal failed.
+stub_pr "$REL_FIX" staging
+set_origin develop "$BASE"
+run_ci 1 yes 'PR to staging: a re-run (attempt 2) with the label still on records nothing' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_REF=staging GITHUB_RUN_ATTEMPT=2
+posted_case "$REL_FIX data-bearing-paths/staging failure" 'no approval from a re-run attempt'
+deleted_case yes 'a re-run attempt removes the label so it can be added again'
+set_origin develop "$FIX"
+stub_pr "$FIX" develop
+run_ci 3 no 'GITHUB_RUN_ATTEMPT unset on a labeled event fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data GITHUB_RUN_ATTEMPT=
+posted_case "$FIX data-bearing-paths/develop error" 'only an error verdict without the run attempt'
 # A labeled run removes the label on every exit, including a failure.
 stub_pr "$FIX" develop; printf 'boom\n' > "$GH_STUB/perm.fail"
 run_ci 3 no 'labeled, permission lookup fails: fails closed' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data

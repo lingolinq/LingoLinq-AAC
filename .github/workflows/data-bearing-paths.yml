@@ -50,9 +50,10 @@ name: Data-bearing paths
 # bypass): it guards against mistakes and fork PRs. After force-pushing a base branch
 # (to scrub data, say), re-run this check on every open PR to that base: a PR that went
 # green before the force-push stays green until its check runs again. The re-run judges
-# the rewritten change set, which an earlier approval does not name. Residual: for a PR
-# to staging or main, develop rewritten between the label and that label's own run is
-# not seen (the event carries no develop commit to compare).
+# the rewritten change set, which an earlier approval does not name. Only a run's first
+# attempt records an approval; a re-run never does. Residual (accepted by Scot,
+# 2026-10-12): for a PR to staging or main, develop force-pushed while that label's
+# first run is still queued is not seen (the event carries no develop commit).
 #
 # WHY pull_request_target: it runs THIS file and the scripts from the repository's
 # default branch (develop), for PRs to staging and main too (GitHub, since

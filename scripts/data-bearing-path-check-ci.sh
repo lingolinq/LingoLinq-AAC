@@ -26,15 +26,17 @@
 #   moved on posts nothing, because the run for the newer head decides.
 #
 # APPROVAL
-#   On a `labeled` event for the synthetic-data label, if the label is still on the PR,
-#   the person who added it has write, maintain or admin access (the API reports write
+#   On a `labeled` event for the synthetic-data label, if this is the run's first
+#   attempt (GITHUB_RUN_ATTEMPT, set by GitHub), the label is still on the PR, the
+#   person who added it has write, maintain or admin access (the API reports write
 #   or admin), and the PR's head, base branch and change set are still the ones in the
 #   event, this script posts the approval status on the head and then removes the label.
 #   The label works as a button: adding it records an approval for the head current at
 #   that moment, and a later push needs it added again. A label added by a bot or by
-#   someone with read or triage access records nothing and is removed. A labeled run
-#   removes the label on every exit, so a re-run of it (GitHub replays the same event)
-#   finds the label gone and records nothing.
+#   someone with read or triage access records nothing and is removed. A re-run
+#   replays the same event, so it never records an approval, even when the label is
+#   still on (its removal is best effort); a labeled run removes the label on every
+#   exit it reaches.
 #
 #   The approval's description names its scope (scope_of below): the change set the
 #   check examines for that base and head. It counts only while the scope computed now
@@ -72,6 +74,7 @@
 #   EVENT_HEAD_SHA  the head SHA in the triggering event
 #   EVENT_BASE_REF  the base branch in the triggering event
 #   EVENT_BASE_SHA  on a labeled event, the PR's base sha in the event
+#   GITHUB_RUN_ATTEMPT  set by GitHub; on a labeled event only attempt 1 records
 #   EVENT_ACTION    the pull_request_target activity type (opened, labeled, ...)
 #   RUN_URL         this workflow run's URL, linked from the statuses
 #   LABEL_NAME      on a labeled event, the label that was added (optional otherwise)
@@ -112,8 +115,7 @@ fail3() {
     post_status "$head_sha" "$VERDICT_CTX" error "Could not decide; see the workflow run." \
       || echo "data-bearing-path-check: could not post the error verdict either." >&2
   fi
-  # A labeled run removes the label on every exit, so a later re-run of it (which
-  # replays the same event) finds the label gone and records nothing.
+  # A labeled run removes the label on every exit it reaches, so it can be added again.
   [ "$approval_event" != true ] || remove_label
   exit 3
 }
@@ -219,8 +221,11 @@ scope_now="$(scope_of "$base_ref" "$base_sha" "$head_sha" "$develop_sha")" \
 if [ "$approval_event" = true ]; then
   [ -n "${SENDER_LOGIN:-}" ] || fail3 "SENDER_LOGIN is not set on a labeled event"
   [ -n "${EVENT_BASE_SHA:-}" ] || fail3 "EVENT_BASE_SHA is not set on a labeled event"
+  [ -n "${GITHUB_RUN_ATTEMPT:-}" ] || fail3 "GITHUB_RUN_ATTEMPT is not set on a labeled event"
   authorized=false
-  if [ "$base_ref" != "$EVENT_BASE_REF" ]; then
+  if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then
+    echo "data-bearing-path-check: this is attempt $GITHUB_RUN_ATTEMPT of the run; only a first attempt records an approval. No approval recorded; add the label again." >&2
+  elif [ "$base_ref" != "$EVENT_BASE_REF" ]; then
     echo "data-bearing-path-check: the label was added while the PR targeted $EVENT_BASE_REF; it now targets $base_ref. No approval recorded; add the label again." >&2
   elif [ "$label_on" != true ]; then
     echo "data-bearing-path-check: the '$EXEMPT_LABEL' label is no longer on the PR (a re-run of an earlier labeled run). No approval recorded; add the label again." >&2

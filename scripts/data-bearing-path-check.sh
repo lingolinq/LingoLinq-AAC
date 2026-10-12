@@ -15,7 +15,7 @@
 #   migrations are synthetic. The approval is the exemption: a reviewer with write
 #   access looks at the data and adds the `synthetic-data` label only when none of it
 #   is real. scripts/data-bearing-path-check-ci.sh records that as a commit status on
-#   the PR's head commit, named for the PR and its base, with the scope of the change
+#   the PR's head commit, named for its base, with the scope of the change
 #   set it covers, and passes APPROVED=true to this script only when that status is
 #   present and its scope matches the range below. A new push is a new commit with no
 #   approval, so nothing has to be reset.
