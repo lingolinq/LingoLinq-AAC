@@ -1,0 +1,37 @@
+# Canary for the data-bearing path check (rollout, 2026-10-12). Never merge; the PR is
+# closed once the canary is read. It checks two things:
+#   1. A status posted by a PR's own workflow under the workflow token, with the
+#      required context's name, must not satisfy the required check (pinned to the App).
+#   2. A pull_request job that names the check's environment must be refused.
+# It reads no secrets.
+name: Data-bearing paths
+
+on:
+  pull_request:
+    branches: [ develop ]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  data-bearing-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post a forged verdict (canary)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" -f state=success \
+            -f context=data-bearing-paths/develop \
+            -f description="Canary: forged by the workflow token." --silent
+
+  environment-probe:
+    runs-on: ubuntu-latest
+    environment:
+      name: data-bearing-status
+      deployment: false
+    steps:
+      - run: echo "Canary FAIL - this job entered the environment; it should have been refused."
