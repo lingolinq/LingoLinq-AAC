@@ -24,7 +24,8 @@ describe 'test environment settings' do
     require 'open3'
     require 'tempfile'
     Tempfile.create(['spec-probe', '.env']) do |file|
-      file.write("SPEC_PROBE=op://vault/item/field\n")
+      # SPEC_PLAIN shows the hook really read this file; without it a nil SPEC_PROBE proves nothing.
+      file.write("SPEC_PLAIN=plain\nSPEC_PROBE=op://vault/item/field\n")
       file.flush
       script = <<~RUBY
         require 'bundler/setup'
@@ -33,12 +34,21 @@ describe 'test environment settings' do
         require 'dotenv/rails'
         Dotenv::Rails.files = [#{file.path.inspect}]
         require #{Rails.root.join('config', 'application').to_s.inspect}
-        print ENV['SPEC_PROBE'].inspect
+        print [ENV['SPEC_PLAIN'], ENV['SPEC_PROBE']].inspect
       RUBY
-      out, err, status = Open3.capture3({ 'RAILS_ENV' => 'test', 'SPEC_PROBE' => nil }, RbConfig.ruby, '-e', script,
-                                        chdir: Rails.root.to_s)
-      expect(status).to be_success, err
-      expect(out).to eq('nil')
+      env = { 'RAILS_ENV' => 'test', 'SPEC_PLAIN' => nil, 'SPEC_PROBE' => nil }
+      Open3.popen3(env, RbConfig.ruby, '-e', script, chdir: Rails.root.to_s) do |stdin, stdout, stderr, wait|
+        stdin.close
+        out = Thread.new { stdout.read }
+        err = Thread.new { stderr.read }
+        unless wait.join(60)
+          Process.kill('KILL', wait.pid)
+          wait.join
+          raise 'booting config/application.rb took longer than 60 seconds'
+        end
+        expect(wait.value).to be_success, err.value
+        expect(out.value).to eq('["plain", nil]')
+      end
     end
   end
 end
