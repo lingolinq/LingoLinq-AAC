@@ -2367,6 +2367,24 @@ describe Api::UsersController, :type => :controller do
       expect(ev.user_key).to eq(@user.global_id)
       expect(ev.data['user_id']).to eq(@user.global_id)
     end
+
+    # Use of the account cancels only a deletion the inactivity sweep scheduled, not one the
+    # user requested here.
+    describe "after the deletion was requested" do
+      include ActiveSupport::Testing::TimeHelpers
+
+      it "still flushes the account when its token is used" do
+        token_user
+        post :flush_user, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+        expect(response).to be_successful
+        User.where(id: @user.id).update_all(updated_at: Time.now)
+        travel(37.hours) do
+          Flusher.flush_deleted_users
+          Worker.process_queues
+        end
+        expect(User.find_by(id: @user.id)).to eq(nil)
+      end
+    end
   end
 
   describe "daily_stats" do

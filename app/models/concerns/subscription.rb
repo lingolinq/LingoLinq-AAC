@@ -1318,14 +1318,17 @@ module Subscription
             next false unless inactivity_candidate_still_due?(fresh, inactive_id_set.include?(fresh.id), trial_id_set.include?(fresh.id))
             attempts = inactivity_deletion_attempt(fresh)
             next false unless attempts
+            retry_point = 12.months.ago + 3.weeks
+            fresh.settings['subscription'] ||= {}
             if attempts > 2
               fresh.schedule_deletion_at = 36.hours.from_now
+              # Marks this schedule as the sweep's, so use of the account cancels it (Flusher).
+              fresh.settings['subscription']['inactivity_deletion'] = inactivity_deletion_record(fresh.schedule_deletion_at, retry_point)
             else
-              fresh.settings['subscription'] ||= {}
               fresh.settings['subscription']['last_deletion_warning'] = Time.now.iso8601
               fresh.settings['subscription']['last_deletion_attempts'] = attempts
             end
-            fresh.updated_at = 12.months.ago + 3.weeks
+            fresh.updated_at = retry_point
             true
           end
           next unless taken
@@ -1360,6 +1363,46 @@ module Subscription
       return nil unless last_warning < 3.weeks.ago
       return 1 unless last_warning > 20.weeks.ago
       (sub['last_deletion_attempts'] || 0) + 1
+    end
+
+    # Recorded under settings['subscription']['inactivity_deletion'] when the inactivity sweep
+    # schedules a deletion: the schedule it set and the activity time (updated_at) it set.
+    def inactivity_deletion_record(scheduled_for, activity_at)
+      {'scheduled_for' => scheduled_for.utc.iso8601(6), 'activity_at' => activity_at.utc.iso8601(6)}
+    end
+
+    # Whether the scheduled deletion of the account with this id may go ahead now. Checked by
+    # Flusher when it enqueues the flush and again when the flush runs.
+    #
+    # A deletion the inactivity sweep scheduled (its record is present and schedule_deletion_at is
+    # still the time it recorded) is cancelled under a row lock when the account was used since
+    # (updated_at moved past the time the sweep set it to: token, SSO or password use), as the
+    # "Account Deleted" mail promises; the cancellation is audited. With the record present the
+    # flush also needs a schedule that is still set and due, since a password sign-in clears it.
+    # Deletions without the record, or rescheduled since (requested by the user or a supervisor,
+    # COPPA declines and offboarding), and accounts COPPA consent blocks from use, go ahead.
+    def scheduled_deletion_proceeds?(user_id)
+      cancelled = nil
+      proceeds = User.transaction do
+        user = User.lock.find_by(id: user_id)
+        next false unless user
+        record = ((user.settings || {})['subscription'] || {})['inactivity_deletion']
+        next true unless record.is_a?(Hash)
+        at = user.schedule_deletion_at
+        next false unless at && at <= Time.now
+        # exact to the microsecond: any later schedule (another path's) is a different time
+        next true unless at.utc.iso8601(6) == record['scheduled_for']
+        activity_at = Time.iso8601(record['activity_at'].to_s) rescue nil
+        next true if user.coppa_parental_consent_blocks_access?
+        next true unless activity_at && user.updated_at > activity_at + 1.second
+        user.schedule_deletion_at = nil
+        user.settings['subscription'].delete('inactivity_deletion')
+        user.save(touch: false)
+        cancelled = user.global_id
+        false
+      end
+      AuditEvent.log_command('system', {'type' => 'inactivity_deletion_cancelled', 'user_id' => cancelled}) if cancelled
+      proceeds
     end
 
     def default_eval_duration
