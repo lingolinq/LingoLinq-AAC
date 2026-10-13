@@ -786,10 +786,10 @@ class Api::UsersController < ApplicationController
     ActiveRecord::Associations::Preloader.new(records: boards.reject{|b| b.public }, associations: :user).call
     boards.each do |brd|
       shallow = !!brd.instance_variable_get('@sub_id')
-      # Cheap checks first: most private boards in a synced tree are the user's own copies, which
-      # the owner can always view (Board#permissions, board.rb:84-100); allows? costs a
-      # permission-cache read per board.
-      viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || brd.allows?(user, 'view') || (!shallow && board_shared_now?(brd, user))
+      # Own boards first (the owner always views them, board.rb:84-100). Another user's private
+      # board is decided by its current shares and owner, not allows?, whose cached list lags an
+      # unshare. A shallow clone's access also depends on its sub-user, so it keeps allows?.
+      viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || (shallow ? brd.allows?(user, 'view') : board_viewable_now?(brd, user))
       if viewable
         res[brd.global_id] = brd.current_revision
         res[brd.key] = brd.current_revision
@@ -814,18 +814,17 @@ class Api::UsersController < ApplicationController
     end
   end
 
-  # allows?(user, 'view') reads the user's cached available_private_board_ids
-  # and a 30-minute permission cache, both rebuilt lazily (minutes to hours
-  # after a share change). Before a board is reported revoked, the owner and the
-  # share links themselves are checked, so a stale cache never makes a client
-  # hide a board the user can use. Boards owned by or shared with the user's
-  # supervisees, and their supervisees, count too, as in
-  # board_caching#update_available_boards.
+  # allows?(user, 'view') reads the user's cached available_private_board_ids and a 30-minute
+  # permission cache, both rebuilt lazily (minutes to hours after a share change), so a board just
+  # shared reads as hidden and one just unshared as viewable. Another user's private board is
+  # decided here instead: owned by or shared with the user, their supervisees or their supervisees'
+  # supervisees (as in board_caching#update_available_boards), or its owner grants the user model
+  # or edit permission (board.rb add_permissions). Stale caches never decide either way.
   #
   # Each user's shared-board set is computed once per request: a per-board
   # shared_with? would rebuild (and save) that set once per board while it is
   # stale, since the stamp check reads the in-memory user.
-  def board_shared_now?(board, user)
+  def board_viewable_now?(board, user)
     @board_revisions_access ||= begin
       users = [user]
       user.supervisees.each do |sup|
@@ -838,9 +837,10 @@ class Api::UsersController < ApplicationController
         shared_ids: users.map{|u| Board.all_shared_board_ids_for(u) }.flatten.compact.to_set
       }
     end
-    @board_revisions_access[:owner_ids].include?(board.user_id) || @board_revisions_access[:shared_ids].include?(board.global_id)
+    return true if @board_revisions_access[:owner_ids].include?(board.user_id) || @board_revisions_access[:shared_ids].include?(board.global_id)
+    !!(board.user && (board.user.allows?(user, 'model') || board.user.allows?(user, 'edit')))
   end
-  private :board_shared_now?
+  private :board_viewable_now?
 
   def boards
     user = User.find_by_path(params['user_id'])

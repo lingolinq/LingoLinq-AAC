@@ -3491,6 +3491,26 @@ describe Api::UsersController, :type => :controller do
       expect(json['revisions'][board.key]).to eq(nil)
     end
 
+    it "should call a board revoked right after its share is removed, before the private board cache is rebuilt" do
+      token_user
+      other = User.create
+      board = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [board])
+      board.share_with(@user)
+      Worker.process_queues
+      expect(@user.reload.private_viewable_board_ids).to include(board.global_id)
+      # the queued update_available_boards job is not run, so the cached list still grants the board
+      board.reload.unshare_with(@user)
+      expect(@user.reload.private_viewable_board_ids).to include(board.global_id)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][board.global_id]).to eq(nil)
+      expect(json['revisions'][board.key]).to eq(nil)
+      expect(json['revoked_ids']).to eq([board.global_id])
+    end
+
     it "should not call a board revoked when it is shared with a supervisee's supervisee and the cache is stale" do
       token_user
       other = User.create
