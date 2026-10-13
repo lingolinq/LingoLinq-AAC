@@ -596,7 +596,7 @@ export default Service.extend({
             } else {
               error = i18n.t('session_expired', "This session has expired, please log back in");
             }
-            if(_this.session && typeof _this.session.force_logout === 'function') {
+            if(_this.session && typeof _this.session.force_logout === 'function' && !logout_already_under_way(_this.session)) { // the ajax layer may have started it for this same failure (2026-10-13)
               _this.session.force_logout(error);
             }
           } else if(is_timeout && !last_try) {
@@ -2192,7 +2192,7 @@ export default Service.extend({
        a previous account's record surviving a logout is exactly what this method
        exists to prevent. */
     this.set('page_user', null);
-    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null }); // Basic Try marker + home-page handoffs: per-user, must not reach the next account (2026-10-01)
+    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null, board_picker_recent: null, board_picker_return: null, board_picker_category: null, board_picker_restore: false, home_copy_pending: null, board_alt_tour_pending: null, tour_offer_visible: false, tour_offer_user: null }); // Basic Try marker + home-page handoffs (2026-10-01), and the trial, picker and tour-offer state (2026-10-13): per-user, must not reach the next account
 
     // Per-user route memory (next route transition would overwrite anyway,
     // but clearing here removes stale "previous user" context from any
@@ -5484,3 +5484,11 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+
+/* A DEAD SESSION AT BOOT LOGS OUT ONCE (final review, 2026-10-13). The ajax layer (utils/extras.js) calls
+   force_logout for the failed user lookup, and the same rejection then reaches find_user's handler above; a
+   second force_logout reopened the dialog and re-ran the teardown, which then cleared the shared stored login
+   whoever owned it. Skipped when the session says a logout is already under way (services/session.js). */
+export function logout_already_under_way(session) {
+  return !!(session && typeof session.logout_under_way === 'function' && session.logout_under_way());
+}
