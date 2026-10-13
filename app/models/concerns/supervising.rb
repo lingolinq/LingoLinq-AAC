@@ -214,46 +214,50 @@ module Supervising
   module ClassMethods  
     def unlink_supervisor_from_user(supervisor, user, organization_unit_id=nil)
       supervisor = user if supervisor.global_id == user.global_id
-      sup = (user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id }
-      org_unit_ids = (sup || {})['organization_unit_ids'] || []
-      org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['user_id'] == user.global_id && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
-      org_unit_ids.uniq!
+      # the supervisee's lock, as link_supervisor_to_user and the room strip take it (supervisee,
+      # then supervisor): the read-decide-write of the link below is not interleaved with theirs
+      with_supervision_lock(user) do
+        sup = (user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id }
+        org_unit_ids = (sup || {})['organization_unit_ids'] || []
+        org_unit_ids += UserLink.links_for(user, true).select{|l| l['type'] == 'supervisor' && l['user_id'] == user.global_id && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
+        org_unit_ids.uniq!
       
-      user.settings['supervisors'] = (user.settings['supervisors'] || []).select{|s| s['user_id'] != supervisor.global_id }
-      do_unlink = true
-      # a room taking itself off a link that was made directly only drops its id: the direct
-      # supervision stays (supervision_link_origin)
-      direct = organization_unit_id && UserLink.generate(user, supervisor, 'supervisor').data['origin'] == 'direct'
-      if organization_unit_id && ((org_unit_ids - [organization_unit_id]).length > 0 || direct)
-        org_unit_ids -= [organization_unit_id]
-        link = UserLink.generate(user, supervisor, 'supervisor')
-        link.data['state']['organization_unit_ids'] = org_unit_ids
-        link.save!
-        do_unlink = false
-      else
-        UserLink.remove(user, supervisor, 'supervisor')
-      end
-      user.update_setting({
-        'supervisors' => user.settings['supervisors']
-      })
-      ApplicationRecord.using(:master) do
-        user.reload
-      end
-      if do_unlink
-        ApplicationRecord.using(:master) do
-          supervisor.reload
+        user.settings['supervisors'] = (user.settings['supervisors'] || []).select{|s| s['user_id'] != supervisor.global_id }
+        do_unlink = true
+        # a room taking itself off a link that was made directly only drops its id: the direct
+        # supervision stays (supervision_link_origin)
+        direct = organization_unit_id && UserLink.generate(user, supervisor, 'supervisor').data['origin'] == 'direct'
+        if organization_unit_id && ((org_unit_ids - [organization_unit_id]).length > 0 || direct)
+          org_unit_ids -= [organization_unit_id]
+          link = UserLink.generate(user, supervisor, 'supervisor')
+          link.data['state']['organization_unit_ids'] = org_unit_ids
+          link.save!
+          do_unlink = false
+        else
+          UserLink.remove(user, supervisor, 'supervisor')
         end
-        supervisor.settings['supervisees'] = (supervisor.settings['supervisees'] || []).select{|s| s['user_id'] != user.global_id }
-        # If a user was auto-subscribed for being added as a supervisor, un-subscribe them when removed
-        if supervisor.settings['supervisees'].empty? && supervisor.settings['supporter_role_auto_set']
-          supervisor.settings.delete('supporter_role_auto_set')
-          supervisor.settings['preferences']['role'] = 'communicator'
-          supervisor.save_with_sync('un-supervisor')
-        end
-        schedule_board_cache_refresh(supervisor, true)
-        supervisor.update_setting({
-          'supervisees' => supervisor.settings['supervisees']
+        user.update_setting({
+          'supervisors' => user.settings['supervisors']
         })
+        ApplicationRecord.using(:master) do
+          user.reload
+        end
+        if do_unlink
+          ApplicationRecord.using(:master) do
+            supervisor.reload
+          end
+          supervisor.settings['supervisees'] = (supervisor.settings['supervisees'] || []).select{|s| s['user_id'] != user.global_id }
+          # If a user was auto-subscribed for being added as a supervisor, un-subscribe them when removed
+          if supervisor.settings['supervisees'].empty? && supervisor.settings['supporter_role_auto_set']
+            supervisor.settings.delete('supporter_role_auto_set')
+            supervisor.settings['preferences']['role'] = 'communicator'
+            supervisor.save_with_sync('un-supervisor')
+          end
+          schedule_board_cache_refresh(supervisor, true)
+          supervisor.update_setting({
+            'supervisees' => supervisor.settings['supervisees']
+          })
+        end
       end
     end
     
@@ -461,7 +465,8 @@ module Supervising
       end
       with_supervision_lock(user) do
         org_unit_ids = ((user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id } || {})['organization_unit_ids'] || []
-        org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
+        # read fresh under the lock: links_for caches per copy of the user (keyed on its updated_at)
+        org_unit_ids += UserLink.links_for(user, true).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
 
         link = UserLink.generate(user, supervisor, 'supervisor')
         link.data['origin'] = supervision_link_origin(link, org_unit_ids, organization_unit_id)

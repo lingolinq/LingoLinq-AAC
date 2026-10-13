@@ -378,6 +378,43 @@ describe Supervising, :type => :model do
       expect(User.find(user.id).supervisor_user_ids).to eq([sup.global_id])
     end
 
+    # Links are cached per copy of the user (UserLink.links_for keys on updated_at); a caller's
+    # older copy must not hide a room that was added to the link since.
+    def room_ids(sup, user)
+      UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }.data['state']['organization_unit_ids']
+    end
+
+    it "keeps a room added since the caller loaded the supervisee when another room links" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, 'room_a')
+      stale = User.find(user.id)
+      UserLink.links_for(stale)
+      # another link change (UserLink#touch_connections) moves the row on from the caller's copy
+      User.where(id: user.id).update_all(updated_at: 1.second.from_now)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, 'room_b')
+
+      User.link_supervisor_to_user(User.find(sup.id), stale, nil, true, 'room_c')
+
+      expect(room_ids(sup, user)).to eq(['room_a', 'room_b', 'room_c'])
+    end
+
+    it "keeps a room added since the caller loaded the supervisee when another room unlinks" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, 'room_a')
+      stale = User.find(user.id)
+      UserLink.links_for(stale)
+      # another link change (UserLink#touch_connections) moves the row on from the caller's copy
+      User.where(id: user.id).update_all(updated_at: 1.second.from_now)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, 'room_b')
+
+      User.unlink_supervisor_from_user(User.find(sup.id), stale, 'room_a')
+
+      expect(User.find(user.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(room_ids(sup, user)).to eq(['room_b'])
+    end
+
     it "removes a room-made link when the last room listing it is taken off" do
       sup = User.create
       user = User.create
