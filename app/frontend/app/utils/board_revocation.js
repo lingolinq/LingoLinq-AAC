@@ -2,6 +2,7 @@ import RSVP from 'rsvp';
 import LingoLinq from '../app';
 import lingoLinqExtras from './extras';
 import app_state from './app_state';
+import { get as emberGet } from '@ember/object';
 
 // Offline copies of boards a synced user can no longer view.
 //
@@ -170,7 +171,7 @@ export function fetch_revisions(persist, user, request) {
         });
         var viewable = {};
         Object.keys(parsed.revisions).forEach(function(ref) { viewable[ref] = true; });
-        state.users[user_id] = {revoked: parsed.revoked_ids, lookup: lookup, keys: keys, viewable: viewable};
+        state.users[user_id] = {revoked: parsed.revoked_ids, lookup: lookup, keys: keys, viewable: viewable, protected: user_board_refs(user)};
       } else {
         state.failed = true;
       }
@@ -232,7 +233,11 @@ export function settled_decision(progress, root_user_id, errors) {
   var root = state.users[state.root];
   var ids = root.revoked.filter(function(id) {
     var key = root.keys[id];
-    return !entries.some(function(e) { return e.viewable[id] || (key && e.viewable[key]); });
+    // A synced user's own home and sidebar boards are never settled: their records
+    // name them even before the session user has loaded (protected_board_refs).
+    return !entries.some(function(e) {
+      return e.viewable[id] || (key && e.viewable[key]) || e.protected[id] || (key && e.protected[key]);
+    });
   });
   return {ids: ids, at: state.decided_at, local: state.local};
 }
@@ -455,18 +460,27 @@ export function without_revoked(ids) {
 export function protected_board_refs(appState) {
   var refs = {};
   if(!appState || typeof appState.get !== 'function') { return refs; }
+  ['sessionUser', 'currentUser', 'referenced_user', 'speakModeUser'].forEach(function(name) {
+    user_board_refs(appState.get(name), refs);
+  });
+  return refs;
+}
+
+// One user's home and sidebar boards, and their supervisees' home boards, by id
+// and key, added to refs (a new map when none is given).
+function user_board_refs(user, refs) {
+  refs = refs || {};
+  if(!user) { return refs; }
   var add = function(ref) {
     if(ref && (typeof ref === 'string' || typeof ref === 'number')) { refs[ref] = true; }
   };
-  ['sessionUser', 'currentUser', 'referenced_user', 'speakModeUser'].forEach(function(name) {
-    var home = appState.get(name + '.preferences.home_board');
-    if(home) { add(home.id); add(home.key); }
-    (appState.get(name + '.preferences.sidebar_boards') || []).forEach(function(b) {
-      if(b) { add(b.id); add(b.key); }
-    });
-    (appState.get(name + '.supervisees') || []).forEach(function(sup) {
-      if(sup) { add(sup.home_board_key); }
-    });
+  var home = emberGet(user, 'preferences.home_board');
+  if(home) { add(home.id); add(home.key); }
+  (emberGet(user, 'preferences.sidebar_boards') || []).forEach(function(b) {
+    if(b) { add(b.id); add(b.key); }
+  });
+  (emberGet(user, 'supervisees') || []).forEach(function(sup) {
+    if(sup) { add(sup.home_board_key); }
   });
   return refs;
 }

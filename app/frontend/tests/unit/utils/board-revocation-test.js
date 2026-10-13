@@ -437,4 +437,19 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.notOk(this.db.board['1_2'].raw.revoked, 'downloaded since: not marked');
     assert.true(this.db.board['1_3'].raw.revoked, 'control: marked');
   });
+
+  // The synced users' own records name their home and sidebar boards, so a sync that settles
+  // before the session user has loaded still never marks them.
+  test("a synced user's home and sidebar boards, and a supervisee's home board, are never settled as revoked", async function(assert) {
+    ['1_2', '1_3', '1_4', '1_6'].forEach(function(id) { addBoard(this.db, id); }, this);
+    this.db.board['1_5'] = {id: '1_5', key: 'kid/home', raw: {id: '1_5', key: 'kid/home', current_revision: 'r1'}};
+    var persist = persistFor('u1');
+    var root = EmberObject.create({id: 'u1', supervisees: [{id: 'u2', home_board_key: 'kid/home'}],
+      preferences: {home_board: {id: '1_2', key: 'owner/1_2'}, sidebar_boards: [{key: 'owner/1_3'}]}});
+    var kid = EmberObject.create({id: 'u2', preferences: {sidebar_boards: [{id: '1_6'}]}});
+    await boardRevocation.fetch_revisions(persist, root, answer({}, ['1_2', '1_3', '1_4', '1_5', '1_6']));
+    await boardRevocation.fetch_revisions(persist, kid, answer({}, []));
+    var progress = persist.get('sync_progress');
+    assert.deepEqual(boardRevocation.settled_revocations(progress, 'u1', []), ['1_4']);
+  });
 });
