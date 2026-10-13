@@ -662,7 +662,7 @@ modal.ModalController = Controller.extend({
         service.cancelAutoClose();
       }
       
-      if(settings && settings.inactivity_timeout) { var close_for = live_service(service); // the live modal service this auto-close belongs to, if any
+      if(settings && settings.inactivity_timeout) { var close_for = service; // the modal service this auto-close belongs to, if any
         modal.auto_close_callback = function() {
           if(owner_gone(close_for)) { return; } if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
             modal.close();
@@ -718,4 +718,4 @@ window.modal = modal;
 
 export default modal;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service, owner_gone } from './live_service';
+import { owner_gone } from './live_service';

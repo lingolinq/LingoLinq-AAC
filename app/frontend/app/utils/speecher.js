@@ -1077,7 +1077,7 @@ var speecher = EmberObject.extend({
     audio.pause();
     if(audio.media) { audio.media.pause(); }
     audio.currentTime = 0;
-    var _this = this; var play_for = live_service(speecher.get_app_state()); // the live app this playback belongs to, if any
+    var _this = this; var play_for = speecher.get_app_state(); // the app this playback belongs to, if any
     var speak_id = ref.speak_id;
     cleanup_audio(audio);
     var audio_status = {init: (new Date()).getTime()};

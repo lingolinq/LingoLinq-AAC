@@ -313,7 +313,7 @@ var utterance = EmberObject.extend({
       utterance.set('last_spoken_button', last_spoken_button);
       stashesService.persist('working_vocalization', buttonList);
       if(!utterance.suggestion_refresh_scheduled) {
-        utterance.suggestion_refresh_scheduled = true; var refresh_for = live_service(LingoLinq.appState); // the live app this refresh belongs to (none captured: it still runs, see owner_gone)
+        utterance.suggestion_refresh_scheduled = true; var refresh_for = LingoLinq.appState; // the app this refresh belongs to (destroyed: skipped; none captured: it still runs, see owner_gone)
         runLater(function() {
           utterance.suggestion_refresh_scheduled = false;
           if(owner_gone(refresh_for)) { return; } app_state.refresh_suggestions(); // its app is gone: do not refresh another
@@ -584,7 +584,7 @@ var utterance = EmberObject.extend({
         // if one is found
         var last_word = app_state.get('button_list')[app_state.get('button_list').length - 1];
         if(last_word && last_word.label) {
-          var lookup_ids = word_suggestions.lookup_board_ids(app_state, stashes, [app_state.get('currentBoardState.id')]); var add_for = live_service(LingoLinq.appState);
+          var lookup_ids = word_suggestions.lookup_board_ids(app_state, stashes, [app_state.get('currentBoardState.id')]); var add_for = LingoLinq.appState;
           word_suggestions.attach_image_for_label(last_word.label, lookup_ids, function(url) {
             emberSet(b, 'suggestion_image', url);
             runLater(function() {
@@ -1213,7 +1213,7 @@ var utterance = EmberObject.extend({
       appState.set('clearable_history', 0);
     }
     if((do_update || new_list.length != prior_list.length) && allow_clear) {
-      new_list = [].concat(new_list); var clear_for = live_service(LingoLinq.appState);
+      new_list = [].concat(new_list); var clear_for = LingoLinq.appState;
       if(new_list.length != prior_list.length) {
         this.remember_utterance(prior_list);
       }

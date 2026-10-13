@@ -2227,7 +2227,7 @@ Button.load_actions = function() {
         var seconds = match ? parseInt(match[1], 10) : 30;
         var duration = templateHelpers.seconds_ago(seconds);
         modal.success(i18n.t('timer_started', "Timer Started:") + " " + duration, true);
-        var start = (new Date()).getTime(); var timer_for = live_service(LingoLinq.appState); // the live app whose button started it, if any
+        var start = (new Date()).getTime(); var timer_for = LingoLinq.appState; // the app whose button started it, if any (destroyed already: the timer does nothing)
         var tick = function() {
           if(owner_gone(timer_for)) { return; } if(app_state.get('speak_mode')) { // its app is gone: stop
             var now = (new Date()).getTime();
@@ -2267,4 +2267,4 @@ window.button_broken_image = Button.broken_image;
 
 export default Button;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service, owner_gone } from './live_service';
+import { owner_gone } from './live_service';

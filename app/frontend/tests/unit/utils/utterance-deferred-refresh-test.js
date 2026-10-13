@@ -67,4 +67,28 @@ module('Unit | Utility | utterance deferred suggestions refresh', function(hooks
     assert.strictEqual(next.get('refreshed'), 0, 'the next app is not refreshed by the old one\'s timer');
     assert.false(utterance.suggestion_refresh_scheduled, 'the scheduling flag is cleared either way');
   });
+
+  // Scheduled by late work after its app was already torn down: the owner captured is that destroyed
+  // app, so the refresh is skipped (capturing live_service(app) turned it into "no owner" and ran it).
+  test('a refresh scheduled after its app is already gone does not refresh the next one', async function(assert) {
+    assert.expect(2);
+    const gone = this.standIns.appState;
+    const savedSlot = utterance._appState_service;
+    const next = fakeAppState();
+    const skips = recordOwnerGoneSkips(gone);
+    try {
+      utterance.appState = fakeAppState(); // utterance builds the sentence on its own live service
+      gone.destroy();
+      utterance.set('rawButtonList', []); // schedules the refresh while the current app is the destroyed one
+      utterance.set_button_list();
+      LingoLinq.appState = next; // the stand-in hooks put the original back afterwards
+      if (window.LingoLinq) { window.LingoLinq.appState = next; }
+      await wait(150);
+      assert.strictEqual(skips.count, 1, 'the guard skipped');
+    } finally {
+      skips.restore();
+      utterance._appState_service = savedSlot;
+    }
+    assert.strictEqual(next.get('refreshed'), 0, 'the next app is not refreshed by late work from a torn-down one');
+  });
 });

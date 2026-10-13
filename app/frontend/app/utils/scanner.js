@@ -890,7 +890,7 @@ var scanner = EmberObject.extend({
     scanner.element_index = null;
     scanner.scanning_distances = {x: 0, y: 0};
 
-    var cutoff = reset_now ? 0 : Math.max(scanner.options.interval, 500); var restart_for = live_service(scanner.get('appState'));
+    var cutoff = reset_now ? 0 : Math.max(scanner.options.interval, 500); var restart_for = scanner.get('appState');
     runLater(scanner_restart_for(restart_for), cutoff);
     // scanner_restart_for (end of this file): skips the restart once the app that scanned is gone.
 
@@ -1209,7 +1209,7 @@ var scanner = EmberObject.extend({
       // simulate selection event at the current location
       var target = document.elementFromPoint(x, y);
       scanner.pick_elem(new JShim(target));
-      runLater(scanner_reset_for(live_service(scanner.get('appState'))));
+      runLater(scanner_reset_for(scanner.get('appState')));
     }
   },
   load_children: function(elem, elements, index) {
@@ -1534,4 +1534,4 @@ export function scanner_restart_for(owner) {
   };
 }
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service, owner_gone } from './live_service';
+import { owner_gone } from './live_service';

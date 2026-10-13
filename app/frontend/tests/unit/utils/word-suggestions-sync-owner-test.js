@@ -43,6 +43,23 @@ module('Unit | Utility | word_suggestions sync flush after its app is gone', fun
     assert.strictEqual(this.flushes, 0, 'not flushed');
   });
 
+  // Scheduled by late work after its app was already torn down: the owner captured is that destroyed
+  // app, so the flush is skipped (capturing live_service(app) turned it into "no owner" and ran it).
+  test('a flush scheduled after its app is already gone does not run', async function(assert) {
+    assert.expect(3);
+    assert.false(word_suggestions.sync_flush_scheduled(), 'no earlier flush is pending');
+    const skips = recordOwnerGoneSkips(this.standIns.appState);
+    try {
+      this.standIns.appState.destroy(); // sets isDestroying at once
+      word_suggestions.schedule_sync_flush();
+      await wait(60);
+      assert.strictEqual(skips.count, 1, 'the guard skipped');
+    } finally {
+      skips.restore();
+    }
+    assert.strictEqual(this.flushes, 0, 'no post through another app');
+  });
+
   test('the flush does not run once its app is gone', async function(assert) {
     assert.expect(3);
     assert.false(word_suggestions.sync_flush_scheduled(), 'no earlier flush is pending');
