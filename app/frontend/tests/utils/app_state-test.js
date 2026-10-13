@@ -3128,6 +3128,41 @@ describe('app_state', function() {
   describe("teardown", function() {
     // jump_to_board polls for the new board (runLater, every 200 ms) and holds the module-level
     // buttonTracker.transitioning flag; neither may outlive the app-state that started them.
+    // The shared state these cases change is put back here, so a failed wait cannot leave it behind.
+    var savedScannerAppState, savedScanning, savedTransitioning;
+    beforeEach(function() {
+      savedScannerAppState = scanner.get('appState');
+      savedScanning = scanner.scanning;
+      savedTransitioning = teardownButtonTracker.transitioning;
+    });
+    afterEach(function() {
+      scanner.set('appState', savedScannerAppState);
+      scanner.scanning = savedScanning;
+      teardownButtonTracker.transitioning = savedTransitioning;
+    });
+
+    // Positive control for the next case: the reads it counts do happen while the service is alive.
+    it("polls for a board change while the service is alive", function() {
+      var svc = LingoLinq.appState;
+      // No router answers here, so the board-load overlay would paint after 200 ms and stay; it is not
+      // what this case checks.
+      stub(svc, '_debounceBoardLoadOverlay', function() {});
+      app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
+      var reads = 0;
+      var realGet = svc.get;
+      svc.get = function(key) {
+        if (key === 'currentBoardState.key') { reads++; }
+        return realGet.apply(this, arguments);
+      };
+      app_state.jump_to_board({key: 'yodel', id: '1_1'});
+      waitsFor(function() { return reads > 0; });
+      runs(function() {
+        svc.get = realGet;
+        app_state.set('currentBoardState', {key: 'yodel', id: '1_1'}); // the poll finds it and stops
+        expect(reads > 0).toEqual(true);
+      });
+    });
+
     it("stops polling for a board change once the service is destroyed", function() {
       var svc = LingoLinq.appState;
       app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
@@ -3149,19 +3184,13 @@ describe('app_state', function() {
 
     it("detaches the scanner it drives when destroyed", function() {
       var svc = LingoLinq.appState;
-      var savedAppState = scanner.get('appState');
-      var savedScanning = scanner.scanning;
       scanner.set('appState', svc);
       scanner.scanning = true;
       svc.destroy();
       waitsFor(function() { return svc.isDestroyed; });
       runs(function() {
-        var detached = scanner.get('appState');
-        var scanning = scanner.scanning;
-        scanner.set('appState', savedAppState);
-        scanner.scanning = savedScanning;
-        expect(detached).toEqual(null);
-        expect(scanning).toEqual(false);
+        expect(scanner.get('appState')).toEqual(null);
+        expect(scanner.scanning).toEqual(false);
       });
     });
 

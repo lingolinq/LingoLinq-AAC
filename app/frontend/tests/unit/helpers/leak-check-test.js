@@ -1,3 +1,4 @@
+import * as QUnit from 'qunit';
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import modal from 'frontend/utils/modal';
@@ -91,7 +92,8 @@ module('Unit | Helper | leak check', function() {
     assert.expect(2);
     const push = assert.pushResult;
     assert.pushResult = function(result) {
-      if (result && /^leak check: .*modal\.close was replaced and not restored/.test(result.message)) {
+      // Only a report of exactly this one finding: any other finding in the same flush stays a failure.
+      if (result && /^leak check: modal\.close was replaced and not restored \(a stub left on a shared singleton\)$/.test(result.message)) {
         return push.call(assert, result.result === false
           ? { result: true, actual: result.message, expected: result.message, message: 'the leak check failed the test that left a stub' }
           : { result: false, actual: 'reported as a pass', expected: 'a failure', message: 'the leak check reported the stub but did not fail the test' });
@@ -110,6 +112,52 @@ module('Unit | Helper | leak check', function() {
       if (hadOwn) { modal.close = original; } else { delete modal.close; }
     }
     assert.ok(true, 'a stub was left and put back; its finding stays recorded for this test');
+  });
+
+  // A read on a destroyed service fails the test only in a timing-strict run (tests/helpers/fetch-probe.js
+  // timingStrict); otherwise it is logged as a [late-read] line. Each case forces its mode, plants the
+  // read, takes ONLY its own finding and reports that into a recording assert.
+  function reportPlantedRead(strict) {
+    const saved = window.appState;
+    const dead = EmberObject.create({ speak_mode: true });
+    const pushed = [];
+    const warned = [];
+    const warn = console.warn;
+    QUnit.config.current.timingStrict = strict;
+    try {
+      dead.destroy();
+      window.appState = dead;
+      leakCheckTesting.watchDestroyed();
+      window.appState.get('speak_mode');
+      window.appState = saved;
+      const mine = leakCheckTesting.take(/window\.appState\.get on a destroyed service/);
+      console.warn = function(message) { if (/^\[late-read\] /.test(message)) { warned.push(message); } else { warn.apply(console, arguments); } };
+      leakCheckTesting.report(mine, { pushResult(result) { pushed.push(result); } });
+    } finally {
+      console.warn = warn;
+      window.appState = saved;
+      leakCheckTesting.take(/window\.appState/);
+      delete QUnit.config.current.timingStrict;
+    }
+    return { pushed, warned };
+  }
+
+  test('in a timing-strict run a read on a destroyed service fails the test', function(assert) {
+    assert.expect(4);
+    const { pushed, warned } = reportPlantedRead(true);
+    const [result = {}] = pushed;
+    assert.strictEqual(pushed.length, 1, 'one result was reported');
+    assert.false(result.result, 'it is a failure');
+    assert.true(/read window\.appState\.get on a destroyed service/.test(result.message), `naming the read: ${result.message}`);
+    assert.deepEqual(warned, [], 'and it is not logged as a [late-read] line instead');
+  });
+
+  test('outside a timing-strict run a read on a destroyed service is logged, not failed', function(assert) {
+    assert.expect(3);
+    const { pushed, warned } = reportPlantedRead(false);
+    assert.deepEqual(pushed, [], 'nothing was pushed into the test');
+    assert.strictEqual(warned.length, 1, 'one [late-read] line was logged');
+    assert.true(/read window\.appState\.get on a destroyed service/.test(warned.join(' | ')), `naming the read: ${warned.join(' | ')}`);
   });
 
   test('only reads and writes on a destroyed service count as timing-dependent findings', function(assert) {

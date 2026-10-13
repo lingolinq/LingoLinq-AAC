@@ -17,7 +17,9 @@ module('Unit | Utility | persistence online pollers', function(hooks) {
     const service = this.owner.lookup('service:persistence');
     const savedWindowPersistence = window.persistence;
     const savedOnline = service.get('online');
-    assert.expect(4);
+    const realClearInterval = window.clearInterval;
+    const cleared = [];
+    assert.expect(5);
     try {
       window.persistence = service;
       service._setupOnlineListeners();
@@ -26,11 +28,16 @@ module('Unit | Utility | persistence online pollers', function(hooks) {
       // The harness registers this exact function as a global beforeEach hook. Only it is run here:
       // running every global hook would also drain the leak check's findings for this test.
       assert.true((QUnit.config.globalHooks.beforeEach || []).includes(stopOnlinePollers), 'registered as a global beforeEach hook');
+      const handle = service._online_check_interval;
+      window.clearInterval = function(id) { cleared.push(id); return realClearInterval.apply(this, arguments); };
       stopOnlinePollers();
+      window.clearInterval = realClearInterval;
 
-      assert.strictEqual(service._online_check_interval, null, 'the service poller is stopped');
+      assert.true(cleared.includes(handle), 'the service poller timer itself is stopped');
+      assert.strictEqual(service._online_check_interval, null, 'the service poller handle is cleared');
       assert.false(isUtilOnlineCheckRunning(), 'the module-level poller in utils/persistence is stopped');
     } finally {
+      window.clearInterval = realClearInterval;
       if (service._online_check_interval) { clearInterval(service._online_check_interval); }
       service._online_check_interval = null;
       service.set('online', savedOnline);

@@ -14,20 +14,26 @@ module('Unit | Controller | application full_screen after teardown', function(ho
   hooks.beforeEach(function() {
     this.warnings = 0;
     this.saved = [[capabilities, 'fullscreen'], [modal, 'warning']].map(([obj, k]) => [obj, k, Object.getOwnPropertyDescriptor(obj, k)]);
-    capabilities.fullscreen = () => new RSVP.Promise((resolve, reject) => { setTimeout(reject, 20); });
+    this.attempt = null;
+    capabilities.fullscreen = () => { this.attempt = new RSVP.Promise((resolve, reject) => { setTimeout(reject, 20); }); return this.attempt; };
     modal.warning = () => { this.warnings++; };
   });
   hooks.afterEach(function() {
     this.saved.forEach(([obj, k, d]) => { if (d) { Object.defineProperty(obj, k, d); } else { delete obj[k]; } });
   });
 
-  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // Waits for the fullscreen attempt to fail, then one more tick so the action's failure handler has run:
+  // the negative case asserts after the warning WOULD have been raised, not merely after a fixed delay.
+  async function attemptAnswered(context) {
+    await context.attempt.then(null, () => {});
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 
   test('a failed fullscreen warns while the controller is alive (positive control)', async function(assert) {
     assert.expect(1);
     const controller = this.owner.lookup('controller:application');
     controller.actions.full_screen.call(controller);
-    await wait(60);
+    await attemptAnswered(this);
     assert.strictEqual(this.warnings, 1, 'warned once');
   });
 
@@ -36,7 +42,7 @@ module('Unit | Controller | application full_screen after teardown', function(ho
     const controller = this.owner.lookup('controller:application');
     controller.actions.full_screen.call(controller);
     controller.destroy(); // sets isDestroying at once
-    await wait(60);
+    await attemptAnswered(this);
     assert.strictEqual(this.warnings, 0, 'no warning raised into another app');
   });
 });

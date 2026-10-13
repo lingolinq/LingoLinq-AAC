@@ -8,9 +8,11 @@
  *     (window.appState, LingoLinq.appState, window.persistence, window.stashes, LingoLinq.store) and
  *     into fields of the shared util singletons below; tearing the instance down leaves them pointing
  *     at DESTROYED services until the next instance boots. After each test, every such destroyed
- *     value is swapped for a pass-through proxy that behaves the same but records each access. Any
- *     access fails the test that made it (or, between tests, the next test): that test was reading
- *     a dead app's state instead of its own.
+ *     value is swapped for a pass-through proxy that behaves the same but records each access: that
+ *     test was reading a dead app's state instead of its own. Whether the access lands in the test
+ *     that caused it or a later one depends on timing, so it fails the test only in a timing-strict
+ *     run (the Ember shard jobs; tests/helpers/fetch-probe.js timingStrict) and is logged as a
+ *     `[late-read]` line otherwise (the required build-and-test run).
  *  2. Stubs left on singletons. A function on a util singleton that differs after the test from
  *     before it, unless it is the inherited method itself (restoreStubs puts originals back as own
  *     properties).
@@ -278,6 +280,10 @@ function flush(assert) {
     pendingForNextTest = pendingForNextTest.concat(list.map((m) => `${m} (from todo test "${current.testName}")`));
     return;
   }
+  report(list, assert);
+}
+
+function report(list, assert) {
   if (MODE !== 'fail' || !list.length || !assert) { return; }
   // A read or write on a destroyed service is late work landing now; whether it lands in this test or
   // the next depends on timing, so outside a timing-strict run it is reported, not failed
@@ -299,6 +305,7 @@ function flush(assert) {
 export const leakCheckTesting = {
   watchDestroyed,
   isTimingFinding,
+  report,
   take(pattern) {
     const mine = (m) => pattern.test(m);
     const list = findings.concat(pendingForNextTest).filter(mine);

@@ -21,7 +21,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ember-fetch-probe
+  # Per branch: a new run replaces the one on the same branch, never another branch's run.
+  group: ember-fetch-probe-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

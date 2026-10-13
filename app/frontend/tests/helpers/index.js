@@ -51,8 +51,9 @@ function setupRenderingTest(hooks, options) {
 // assert.async, then a setTimeout), a fetch queued during the body is normally flushed already, so
 // only a fetch queued after the test signalled it was done is seen. It therefore does not find every
 // test that skips waiting; the opt-in fetch probe does (`?probeDelay=`, tests/test-helper.js; it found
-// and fixed 9, commit 7b0848298). setupTest fails the test on a hit (owner decision, PR #1118); the
-// wait still runs first, so the late flush does not reach a destroyed store in the next test.
+// and fixed 9, commit 7b0848298). setupTest fails the test on a hit in a timing-strict run (owner
+// decision, PR #1118; tests/helpers/fetch-probe.js timingStrict) and reports it otherwise; the wait
+// still runs first, so the late flush does not reach a destroyed store in the next test.
 // The owner's store's FetchManager, or null when there is no live store.
 function storeFetchManager(owner) {
   if (!owner || owner.isDestroyed || owner.isDestroying) { return null; }
@@ -73,8 +74,8 @@ export async function waitForQueuedStoreFetches(owner, maxWaitMs = 500) {
   return wasPending;
 }
 
-// Tests that ended with an Ember Data fetch still queued: setupTest fails each one and logs it here as
-// well, during its own test, so testem prints the line with that test's result and the Ember shard jobs
+// Tests that ended with an Ember Data fetch still queued: setupTest logs each one here during its own
+// test (and fails it in a timing-strict run), so testem prints the line with that test's result and the Ember shard jobs
 // copy it into the job summary (.github/workflows/ci.yml). The QUnit.done list is only visible in a
 // browser console run: testem prints console output with the next test result, and after the last one
 // there is none.

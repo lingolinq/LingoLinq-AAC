@@ -82,7 +82,9 @@ teardown) and FAILS the test that:
 
 - reads or writes a **destroyed** service (an earlier test's torn-down app) through the globals
   (`window.appState`, `LingoLinq.appState`, `window.persistence`, `window.stashes`,
-  `LingoLinq.store`) or through a util singleton's field;
+  `LingoLinq.store`) or through a util singleton's field. This one is timing-dependent (the late
+  work may belong to an earlier test), so it fails only in timing-strict runs (the Ember shard
+  jobs) and is logged as `[late-read]` in the required build-and-test run (see the exemptions below);
 - leaves a **replaced function** on one of the shared util singletons, or replaces an existing
   function on `window`, `i18n`, `LingoLinq` or its model classes;
 - leaves a **node under `<body>`**.
@@ -219,8 +221,8 @@ cancels it. Exemptions:
 - persistence-sync's retry-path pause for a known race (issue #589).
 - `setupTest`'s bounded wait for queued Ember Data fetches (`waitForQueuedStoreFetches`,
   `tests/helpers/index.js`), so a late flush does not hit a destroyed store in the next test. It is
-  not a pass either: a test that ends with a fetch still queued is never silently passed, but it is
-  never charged to an unrelated test: it is logged as `[queued-fetch]` (Ember shard job summary) and
+  not a pass either: a test that ends with a fetch still queued is never silently passed, and the
+  required run never charges it to an unrelated test: it is logged as `[queued-fetch]` (Ember shard job summary) and
   FAILS the test only in timing-strict runs (the Ember shard jobs, `?timingStrict=1`, and the fetch
   probe), never in the required build-and-test run. The harness records which test was current when
   each fetch was queued (`tests/helpers/fetch-tracking.js`), but an earlier test's late callback that
@@ -231,6 +233,10 @@ cancels it. Exemptions:
   The fetch probe above finds the rest; the failure message gives the command that reproduces a hit.
   The leak check follows the same rule for a read or write on a destroyed service (logged as
   `[late-read]`, failing only in timing-strict runs); a stub or DOM node left behind always fails.
+  The one timing-dependent finding that fails in every run is a late assertion (an `expect()` after
+  its test ended), which fails the next test and names the file it came from. That is deliberate:
+  without the harness the same late call throws and fails whichever test is running, so reporting it
+  only would hide a defect develop already surfaces.
 
 ### Test helpers that import app code
 
@@ -255,7 +261,8 @@ loading the test page in a browser, where the load error is visible.
 - **Order matters for isolation bugs.** A leak only shows when the right tests run in sequence:
   separate local batches (unit / integration / acceptance) can pass while the full run fails. To
   verify isolation work, use a full-order run (CI's `build-and-test`) or reproduce a shard exactly:
-  `npx ember test --query pool=include` / `pool=exclude`. A leak-related change is not verified
+  `npx ember test --query "pool=include&timingStrict=1"` / `pool=exclude` (the shards are
+  timing-strict; without it a timing finding is only logged). A leak-related change is not verified
   until a full-order run is green.
 - A red run is not a regression until the run COMPLETED and you compared it with a baseline
   (Rule 0.11). Check `# skip` and the total first: a short total means a truncated run.

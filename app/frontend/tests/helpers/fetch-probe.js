@@ -1,3 +1,5 @@
+import * as QUnit from 'qunit';
+
 // The opt-in fetch probe's delay: `?probeDelay=<ms>` (ember test --query "probeDelay=1500"), 0 when off.
 // tests/test-helper.js delays every Ember Data fetch flush by it; tests/helpers/index.js waits past it at
 // teardown, so a delayed flush still runs before the store is destroyed.
@@ -17,8 +19,12 @@ export function fetchProbeDelay() {
 // probe implies it, so those non-required runs fail on them. Covers: an Ember Data fetch still queued
 // at teardown (tests/helpers/index.js) and a read or write on a destroyed service
 // (tests/helpers/leak-check.js). Stubs and DOM left behind are deterministic and always fail.
+// A test can force either mode for itself with `QUnit.config.current.timingStrict = true` (or false);
+// the harness self-tests do. It is read from the running test, so it never reaches the next one.
 let strictCached = null;
 export function timingStrict() {
+  const current = QUnit.config && QUnit.config.current;
+  if (current && typeof current.timingStrict === 'boolean') { return current.timingStrict; }
   if (strictCached === null) {
     const search = (typeof window !== 'undefined' && window.location && window.location.search) || '';
     strictCached = /[?&]timingStrict=1(&|$)/.test(search) || fetchProbeDelay() > 0;

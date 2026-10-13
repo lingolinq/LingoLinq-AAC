@@ -33,6 +33,7 @@ describe('recommended_home_board setup_user lifetime', function() {
   var previewOpen = false;
   var previewed = null;
   var ownerGoneSkips = null; // restored in afterEach too, so a failed wait cannot leave it installed
+  var savedAppState = null; // likewise: a case that swaps LingoLinq.appState gets it back after a failed wait
   var previewChecks = 0;
 
   // The watch loop (claim_setup_user in utils/recommended_home_board.js) checks board_preview_open every
@@ -55,6 +56,7 @@ describe('recommended_home_board setup_user lifetime', function() {
   var communicator = EmberObject.create({ id: '1_33', user_name: 'hannah_lee' });
 
   beforeEach(function() {
+    savedAppState = LingoLinq.appState;
     previewOpen = false;
     previewed = null;
     previewChecks = 0;
@@ -69,6 +71,7 @@ describe('recommended_home_board setup_user lifetime', function() {
   afterEach(function() {
     app_state.set('setup_user', null);
     if (ownerGoneSkips) { ownerGoneSkips.restore(); ownerGoneSkips = null; }
+    LingoLinq.appState = savedAppState;
   });
 
   it('maps a recommended grid to a published Vocal Flair set', function() {

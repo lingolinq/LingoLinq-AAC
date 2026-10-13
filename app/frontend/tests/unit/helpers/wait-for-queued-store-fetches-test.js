@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { setupTest, waitForQueuedStoreFetches } from 'frontend/tests/helpers';
+import { setupTest, waitForQueuedStoreFetches, queuedFetchReport } from 'frontend/tests/helpers';
 import { markQueuedByAnotherTest } from 'frontend/tests/helpers/fetch-tracking';
 
 /*
@@ -8,6 +8,14 @@ import { markQueuedByAnotherTest } from 'frontend/tests/helpers/fetch-tracking';
  * queued fetches before teardown; this checks that wait actually waits.
  */
 module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
+  // Registered before setupTest, so it runs AFTER setupTest's teardown check (QUnit runs afterEach hooks
+  // in reverse order of registration): a test that sets this.__expectReported checks it was reported.
+  hooks.afterEach(function(assert) {
+    if (this.__expectReported) {
+      const name = this.__expectReported;
+      assert.true(queuedFetchReport.some((entry) => entry.endsWith(`: ${name}`)), `the queued fetch was reported for "${name}"`);
+    }
+  });
   setupTest(hooks);
 
   test('resolves only once no Ember Data fetch is still queued', async function(assert) {
@@ -58,7 +66,9 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   // reported, not charged to the one running; see tests/helpers/fetch-tracking.js. This one leaves one
   // queued and marks it as another test's: setupTest must not fail it.
   test('a fetch queued by another test is reported, not charged to this one', function(assert) {
-    assert.expect(1);
+    assert.expect(2);
+    this.__strictQueuedFetch = true; // the mode that WOULD fail it, so only the attribution can save it
+    this.__expectReported = 'a fetch queued by another test is reported, not charged to this one';
     const push = assert.pushResult;
     assert.pushResult = function(result) {
       if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
@@ -75,8 +85,9 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   // Outside a timing-strict run (the required build-and-test) a queued fetch is reported, not failed:
   // it may be an earlier test's late callback, which the harness cannot tell apart.
   test('outside a timing-strict run a queued fetch is reported, not failed', function(assert) {
-    assert.expect(1);
+    assert.expect(2);
     this.__strictQueuedFetch = false;
+    this.__expectReported = 'outside a timing-strict run a queued fetch is reported, not failed';
     const push = assert.pushResult;
     assert.pushResult = function(result) {
       if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {

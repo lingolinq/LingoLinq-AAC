@@ -271,7 +271,9 @@ jobs:
   # original order, including every new module. tests/helpers/parallel-pool-filter.js turns
   # ?pool=include|exclude into exact, complementary QUnit filters (not `--filter`: ember-cli
   # lowercases it and the full list overflows the URL).
-  # Reproduce a shard locally: npx ember test --query pool=include (or pool=exclude).
+  # Reproduce a shard locally: npx ember test --query "pool=include&timingStrict=1" (or
+  # pool=exclude). The shards run timing-strict (tests/helpers/fetch-probe.js timingStrict), so
+  # without timingStrict=1 a [queued-fetch] or [late-read] failure is only logged.
   # ---------------------------------------------------------------------------------------
   ember-shard-scope:
     runs-on: ubuntu-latest
@@ -421,6 +423,10 @@ jobs:
   # same registered total, their selections add up to it, and no test ran in more than one shard.
   # This is the check that must become required when build-and-test stops running the suite
   # itself (a shard only checks itself, so two shards mis-wired to the same half each pass).
+  # Before it does: it is skipped when ember-shard-scope fails (the output is empty), and a skipped
+  # required check counts as passing, so make it fail unless scope succeeded and said run=false.
+  # Decide then too whether the required shards stay timing-strict: if they do, a timing finding
+  # from an earlier test can fail an unrelated PR (testing-frontend.md section 5).
   ember-shard-coverage:
     needs: [ember-shard-scope, ember-shard]
     if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
@@ -452,7 +458,9 @@ jobs:
 
   # Shadow-mode evidence: the shard totals must add up to build-and-test's total and the same
   # tests must fail in both. A test that fails in only one of them depends on what ran before
-  # it. Not required; read with scripts/ci-shard-compare.py.
+  # it, with one exception: the shards are timing-strict and build-and-test is not, so a failure
+  # whose message is a [queued-fetch] or leak-check "on a destroyed service" finding is the mode
+  # difference, not order. Not required; read with scripts/ci-shard-compare.py.
   ember-shard-compare:
     needs: [build-and-test, ember-shard-scope, ember-shard]
     if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
