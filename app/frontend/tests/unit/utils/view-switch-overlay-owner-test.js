@@ -17,6 +17,8 @@ function fakeRouter() {
 }
 const overlays = () => Array.prototype.slice.call(document.querySelectorAll('#ll-pre-reload-overlay'));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Two animation frames and a tick: a dismissal removes its node two frames after it runs.
+const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0))));
 async function waitUntil(condition, limitMs) {
   const deadline = Date.now() + limitMs;
   while (!condition() && Date.now() < deadline) { await wait(20); }
@@ -36,7 +38,7 @@ module('Unit | Utility | view switch overlay dismissal', function() {
       assert.ok(secondNode, 'the second overlay is up');
       first.fire(); // the first overlay's route change arrives late
       assert.true(await waitUntil(() => first.listening() === 0, 2000), 'the first overlay\'s dismissal ran (it stopped listening)');
-      await wait(250);
+      await frames(); // past the point where that dismissal removes a node
       assert.true(document.body.contains(secondNode), 'the second overlay is still up');
       second.fire(); // positive control: its own route change does remove it
       assert.true(await waitUntil(() => !document.body.contains(secondNode), 2000), 'the second overlay\'s own dismissal removed it');

@@ -295,7 +295,8 @@ function report(list, assert) {
   });
   if (!failing.length) { return; }
   const unique = Array.from(new Set(failing));
-  if (unique.some((m) => !isTimingFinding(m))) {
+  const current = QUnit.config.current;
+  if (unique.some((m) => !isTimingFinding(m)) && !(current && current.leakFindingPlanted)) {
     // A stub or node is charged to the test running when it is found; late work from an earlier test can
     // leave one too. Say how to tell, next to the failure.
     // eslint-disable-next-line no-console

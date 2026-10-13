@@ -115,11 +115,11 @@ function setupTest(hooks, options) {
     // Read before the wait (the flush clears it): a fetch queued while no test, or another test, was
     // current (between tests) is never this test's. One queued DURING this test may still be an earlier
     // test's late callback; the harness cannot tell, so outside a timing-strict run a hit is reported, not
-    // failed (tests/helpers/fetch-probe.js timingStrict). A test can set this.__strictQueuedFetch
+    // failed (tests/helpers/fetch-probe.js timingStrict). A test can set QUnit.config.current.timingStrict
     // (true/false) to force either mode; the harness self-tests do.
     const current = QUnit.config.current;
     const lateWork = queuedOnlyByOtherTests(storeFetchManager(this.owner), current && current.testId);
-    const strict = typeof this.__strictQueuedFetch === 'boolean' ? this.__strictQueuedFetch : timingStrict();
+    const strict = timingStrict();
     // Under the opt-in fetch probe every flush is delayed, so wait past that delay too: the flush must
     // still run before teardown (the hit is decided at entry either way).
     if (await waitForQueuedStoreFetches(this.owner, 500 + fetchProbeDelay())) {

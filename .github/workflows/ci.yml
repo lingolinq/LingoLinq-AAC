@@ -427,11 +427,11 @@ jobs:
           # test's late work), so this non-required shard is where those fail. Make that hard to miss: an
           # annotation on the PR's checks and a banner in the job summary. Owner decision, 2026-10-12.
           if [ "$status" -ne 0 ] && grep -qE 'leak check: .*on a destroyed service|an Ember Data fetch was still queued when this test ended' ember-test.log; then
-            echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). build-and-test only logs these, so this shard is where they fail: fix it before merging. Reproduce: npx ember test --query \"${SHARD_QUERY}\" --filter \"<test>\""
+            echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). build-and-test only logs these, so this shard is where they fail: fix it before merging. Reproduce one test: npx ember test --query timingStrict=1 --filter \"<test>\" (a pool= query would replace the filter)"
             {
               echo '> [!WARNING]'
               echo '> **Timing finding:** a test left late work behind. The required build-and-test only logs these, so fix it before merging (.claude/rules/testing-frontend.md section 5). Failing tests:'
-              grep -E '^not ok' ember-test.log | head -20 | sed 's/^/> /'
+              grep -m 20 -E '^not ok' ember-test.log | sed 's/^/> /'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           exit "$status"

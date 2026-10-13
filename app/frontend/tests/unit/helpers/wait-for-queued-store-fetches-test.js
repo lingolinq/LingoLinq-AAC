@@ -1,3 +1,4 @@
+import * as QUnit from 'qunit';
 import { module, test } from 'qunit';
 import { setupTest, waitForQueuedStoreFetches, queuedFetchReport } from 'frontend/tests/helpers';
 import { markQueuedByAnotherTest } from 'frontend/tests/helpers/fetch-tracking';
@@ -43,7 +44,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   // short of its assert.expect(2). Synchronous on purpose: QUnit reaches the hooks before the flush.
   test('a test that ends with a fetch still queued is failed by setupTest', function(assert) {
     assert.expect(2);
-    this.__strictQueuedFetch = true; // the failing mode, whatever this run's timingStrict is
+    QUnit.config.current.timingStrict = true; // the failing mode, whatever this run's is (read through timingStrict)
     const push = assert.pushResult;
     assert.pushResult = function(result) {
       if (result && /Ember Data fetch was still queued when this test ended/.test(result.message)) {
@@ -67,7 +68,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   // queued and marks it as another test's: setupTest must not fail it.
   test('a fetch queued by another test is reported, not charged to this one', function(assert) {
     assert.expect(2);
-    this.__strictQueuedFetch = true; // the mode that WOULD fail it, so only the attribution can save it
+    QUnit.config.current.timingStrict = true; // the mode that WOULD fail it, so only the attribution can save it
     this.__expectReported = 'a fetch queued by another test is reported, not charged to this one';
     const push = assert.pushResult;
     assert.pushResult = function(result) {
@@ -86,7 +87,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
   // it may be an earlier test's late callback, which the harness cannot tell apart.
   test('outside a timing-strict run a queued fetch is reported, not failed', function(assert) {
     assert.expect(2);
-    this.__strictQueuedFetch = false;
+    QUnit.config.current.timingStrict = false;
     this.__expectReported = 'outside a timing-strict run a queued fetch is reported, not failed';
     const push = assert.pushResult;
     assert.pushResult = function(result) {

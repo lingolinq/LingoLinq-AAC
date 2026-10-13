@@ -102,6 +102,7 @@ module('Unit | Helper | leak check', function() {
     };
     const original = modal.close;
     const hadOwn = Object.prototype.hasOwnProperty.call(modal, 'close');
+    QUnit.config.current.leakFindingPlanted = true; // no "[leak-check] charged to" hint for a planted finding
     try {
       leakCheckTesting.isolated(() => {
         leakCheckTesting.snapshotFunctions();
