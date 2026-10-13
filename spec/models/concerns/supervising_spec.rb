@@ -1345,4 +1345,103 @@ describe Supervising, :type => :model do
       expect(ra.reload.act_at).to be <= Time.now + 1
     end
   end
+
+  # Organization.clean_up_destroyed reads a supervision link, decides, then unlinks or saves it.
+  # Unlocked, two district cleanups each wrote back the other's room, and a cleanup could remove a
+  # direct grant made while it ran. Deterministic: another transaction holds the supervisee's row
+  # lock while it changes the link, and the cleanup must read the link only after that commits
+  # (the pattern of supervisor_consent_service_spec "re-read committed state").
+  describe "room cleanup under concurrent link changes" do
+    self.use_transactional_tests = false
+
+    before(:each) do
+      @pre_user_ids = User.pluck(:id)
+      @pre_link_ids = UserLink.pluck(:id)
+      @pre_ra_ids = RemoteAction.pluck(:id)
+      @pre_audit_ids = AuditEvent.pluck(:id)
+    end
+
+    after(:each) do
+      return unless @pre_user_ids && @pre_link_ids && @pre_ra_ids && @pre_audit_ids
+      UserLink.where.not(id: @pre_link_ids).delete_all
+      RemoteAction.where.not(id: @pre_ra_ids).delete_all
+      AuditEvent.where.not(id: @pre_audit_ids).delete_all
+      User.where.not(id: @pre_user_ids).delete_all
+      Worker.flush_queues
+    end
+
+    def supervision_link(sup, comm)
+      UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+    end
+
+    # Runs the block in a transaction on its own connection that first locks the supervisee's
+    # row, and returns once the block has run; the transaction commits ~1.5s later.
+    def change_under_lock(comm, &block)
+      held = Queue.new
+      thread = Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          User.transaction do
+            User.lock.find(comm.id)
+            block.call
+            held << :held
+            sleep 1.5
+          end
+        end
+      end
+      held.pop
+      thread
+    end
+
+    it "removes a room-made link when two district cleanups each take their own room off it" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, true, 'room_a')
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id), nil, true, 'room_b')
+      expect(supervision_link(sup, comm).data['origin']).to eq('room')
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq(['room_a', 'room_b'])
+
+      other = change_under_lock(comm) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_b'])
+      end
+      User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      other.join(20)
+
+      expect(supervision_link(sup, comm)).to eq(nil)
+    end
+
+    it "keeps a direct grant made while a district cleanup runs" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, true, 'room_a')
+      expect(supervision_link(sup, comm).data['origin']).to eq('room')
+
+      other = change_under_lock(comm) do
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      end
+      User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      other.join(20)
+
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['origin']).to eq('direct')
+    end
+
+    # the other order: the grant must read the link after the cleanup's removal commits, or it
+    # saves onto the deleted row and the grant is lost
+    it "keeps a direct grant that waits on a district cleanup" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, true, 'room_a')
+
+      other = change_under_lock(comm) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      end
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      other.join(20)
+
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['origin']).to eq('direct')
+    end
+  end
 end

@@ -369,6 +369,25 @@ module Supervising
     # pair exists outside the deleted district (organization_id nil or another org): that access
     # was consented to by the family (SupervisorConsentService), not granted by the district.
     def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil, actor={})
+      with_supervision_lock(user) do
+        strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor)
+      end
+    end
+
+    # The supervisee's row lock, taken by every read-decide-write of its supervision links
+    # (strip_rooms_from_supervision, link_supervisor_to_user): unlocked, two district cleanups each
+    # wrote back the other's room, and a cleanup could remove a direct grant made while it ran.
+    # Locks the row without reloading the caller's copy (with_lock refuses a copy with unsaved
+    # changes). Joins a caller's transaction; lock order is supervisee, then supervisor (the
+    # unlink and link saves that follow).
+    def with_supervision_lock(user)
+      User.transaction do
+        User.lock.where(id: user.id).pluck(:id)
+        yield
+      end
+    end
+
+    def strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor)
       link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
       return false unless link
       listed = (link.data['state'] || {})['organization_unit_ids'] || []
@@ -428,18 +447,20 @@ module Supervising
         grant_premium = true
         organization_unit_id = nil
       end
-      org_unit_ids = ((user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id } || {})['organization_unit_ids'] || []
-      org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
+      with_supervision_lock(user) do
+        org_unit_ids = ((user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id } || {})['organization_unit_ids'] || []
+        org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
 
-      link = UserLink.generate(user, supervisor, 'supervisor')
-      link.data['origin'] = supervision_link_origin(link, org_unit_ids, organization_unit_id)
-      link.data['state']['edit_permission'] = true if type == 'edit'
-      link.data['state']['modeling_only'] = true if type == 'modeling_only'
-      link.data['state']['supervisee_user_name'] = user.user_name
-      link.data['state']['supervisor_user_name'] = supervisor.user_name
-      link.data['state']['organization_unit_ids'] = ((org_unit_ids || []) + ([organization_unit_id].compact)).uniq
-      link.secondary_user_id = supervisor.id
-      link.save!
+        link = UserLink.generate(user, supervisor, 'supervisor')
+        link.data['origin'] = supervision_link_origin(link, org_unit_ids, organization_unit_id)
+        link.data['state']['edit_permission'] = true if type == 'edit'
+        link.data['state']['modeling_only'] = true if type == 'modeling_only'
+        link.data['state']['supervisee_user_name'] = user.user_name
+        link.data['state']['supervisor_user_name'] = supervisor.user_name
+        link.data['state']['organization_unit_ids'] = ((org_unit_ids || []) + ([organization_unit_id].compact)).uniq
+        link.secondary_user_id = supervisor.id
+        link.save!
+      end
 
       ApplicationRecord.using(:master) do
         supervisor.reload
