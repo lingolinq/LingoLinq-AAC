@@ -64,4 +64,20 @@ module('Unit | Component | dashboard speak card board image', function(hooks) {
     var t = setup(this, {});
     assert.strictEqual(t.comp.get('speakBoardImage'), null);
   });
+
+  /* The Basic home page (dashboard/classic-view) shares this class but has no Speak card picture, so it must
+     not fetch the board: the request was wasted on every Basic home load, and in unit tests it finished after
+     teardown and failed whichever test ran next: classic-view-home-assign-test.js, 2026-10-13. */
+  test('the Basic home page fetches nothing for the Speak picture', async function(assert) {
+    var t = setup(this, { home: { id: '1_6', key: 'lingolinq/keyboard' }, loads: { 'lingolinq/keyboard': board('1_6', 'lingolinq/keyboard', '/img/keyboard.png') } });
+    t.comp.destroy();
+    t.fetched.length = 0;
+    this.owner.unregister('service:persistence');
+    this.owner.register('service:persistence', Service.extend({ online: false }));
+    var model = EmberObject.create({ id: '1_1', supporter_role: false, load_word_activities: function() {} });
+    var basic = this.owner.factoryFor('component:dashboard/classic-view').create({ model: model });
+    await new Promise(function(r) { setTimeout(r, 0); });
+    assert.deepEqual(t.fetched, [], 'no board request');
+    basic.destroy();
+  });
 });

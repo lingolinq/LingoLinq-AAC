@@ -607,4 +607,8 @@ export default AuthenticatedView.extend({
       this._expand_supervisee_card(this._awaiting_supervisee);
     }
   }),
+
+  /* The Speak card's board picture (authenticated-view.js#speakBoardImage) is a Modern home page card;
+     classic-view.hbs never shows it, so the Basic home page does not fetch that board (2026-10-13). */
+  _loadSpeakBoard() {},
 });
