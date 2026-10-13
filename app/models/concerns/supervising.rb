@@ -399,11 +399,17 @@ module Supervising
       if remaining.empty? && (listed & unit_ids).any? && room_made
         state = link.data['state'] || {}
         unlink_supervisor_from_user(supervisor, user)
-        # Recorded after the unlink succeeded (ids and permission flags only, no names or emails)
-        # so a wrongful removal can be found and restored; deleted_by/deleted_as are who deleted
-        # the organization, when known. Note the unlink can also switch an auto-set supporter with
-        # no supervisees left back to the communicator role (unlink_supervisor_from_user).
-        AuditEvent.log_command('system', {
+        # Recorded after the unlink, in its transaction (with_supervision_lock), and fail-closed:
+        # a failed insert rolls the unlink back and raises, so Organization.clean_up_destroyed
+        # keeps its row and retries rather than committing a removal with no record. Ids and
+        # permission flags only, no names or emails, so a wrongful removal can be found and
+        # restored; deleted_by/deleted_as are who deleted the organization, when known. The
+        # unlink's work outside the database before commit is idempotent (Redis cache
+        # invalidation, Board.regenerate_shared_board_ids from UserLink#touch_connections); the
+        # board-cache refresh is enqueued after commit (schedule_board_cache_refresh). Note the
+        # unlink can also switch an auto-set supporter with no supervisees left back to the
+        # communicator role (unlink_supervisor_from_user).
+        AuditEvent.create!(user_key: 'system', data: {
           'type' => 'supervision_link_removed',
           'reason' => 'organization_deleted',
           'organization_id' => (org_id && Organization.new(id: org_id).global_id),

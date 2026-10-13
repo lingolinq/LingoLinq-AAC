@@ -1411,6 +1411,25 @@ describe Organization, :type => :model do
         expect(supervision_link(sup, comm)).not_to eq(nil)
       end
 
+      # The removal and its record are one transaction: a removal whose audit insert failed was
+      # committed with no record, and the cleanup row was deleted, so nothing retried it.
+      it "keeps the link and the cleanup row when the removal's audit event cannot be written" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        o.reload.destroy
+        Worker.flush_queues
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+        allow(Rails.logger).to receive(:error)
+        allow_any_instance_of(AuditEvent).to receive(:save!).and_raise(ActiveRecord::StatementInvalid.new('audit insert failed'))
+
+        expect { Organization.clean_up_destroyed(o.id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+      end
+
       # Consents are created through the real flow (SupervisorConsentService#request_access), then
       # marked approved without re-linking, as consents approved before origins were recorded are.
       def consent_through_request_access(sup, comm, organization_id: nil)
