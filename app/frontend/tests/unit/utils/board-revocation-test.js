@@ -354,4 +354,31 @@ module('Unit | Utility | board_revocation', function(hooks) {
       LingoLinq.session = realSession;
     }
   });
+
+  // A marked board drops out of the offline recent list (persistence find_recent). A home or
+  // sidebar board is never blocked, so it is never marked either: it stays in that list.
+  test('a home or sidebar board is never marked, and a mark it already carries is cleared', async function(assert) {
+    addBoard(this.db, '1_1');
+    addBoard(this.db, '1_2');
+    addBoard(this.db, '1_3');
+    await boardRevocation.apply_revocations(['1_1']);
+    assert.true(this.db.board['1_1'].raw.revoked, 'marked while it was not a home board');
+    LingoLinq.appState.set('sessionUser', {preferences: {home_board: {id: '1_1', key: 'owner/1_1'}, sidebar_boards: [{key: 'owner/1_2'}]}});
+    await boardRevocation.apply_revocations(['1_1', '1_2', '1_3']);
+    assert.notOk(this.db.board['1_1'].raw.revoked, 'home board: mark cleared');
+    assert.notOk(this.db.board['1_2'].raw.revoked, 'sidebar board: not marked');
+    assert.true(this.db.board['1_3'].raw.revoked, 'control: any other board is marked');
+    assert.false(await boardRevocation.is_revoked('1_1'), 'home board: not listed as revoked');
+  });
+
+  test('marks held back in Speak Mode skip a board that has since become a home or sidebar board', async function(assert) {
+    addBoard(this.db, '1_1');
+    addBoard(this.db, '1_3');
+    LingoLinq.appState.set('speak_mode', true);
+    await boardRevocation.apply_revocations(['1_1', '1_3']);
+    LingoLinq.appState.setProperties({speak_mode: false, referenced_user: {preferences: {sidebar_boards: [{id: '1_1'}]}}});
+    assert.true(await boardRevocation.flush_deferred());
+    assert.notOk(this.db.board['1_1'].raw.revoked, 'sidebar board: not marked');
+    assert.true(this.db.board['1_3'].raw.revoked, 'control: any other board is marked');
+  });
 });

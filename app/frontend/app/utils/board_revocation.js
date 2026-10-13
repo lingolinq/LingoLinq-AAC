@@ -18,7 +18,8 @@ import app_state from './app_state';
 // marks wait until it is turned off, so the board in use is never pulled away.
 //
 // Marked boards are skipped by the sync traversal (they are not sync errors)
-// and left out of find_recent and find_boards. The board routes (routes/board.js, and the Basic and Modern views under
+// and left out of find_recent and find_boards; a home or sidebar board is never
+// marked. The board routes (routes/board.js, and the Basic and Modern views under
 // routes/user/) block one only while offline and never in Speak Mode, nor a home
 // or sidebar board of the signed-in, referenced or synced users; online, they ask
 // the server, and a forced reload the server answered (legacy and Basic board
@@ -261,9 +262,15 @@ export function clear_mark(id) {
   }, function() { return false; });
 }
 
+// A home or sidebar board (protected_board_refs) is never blocked, so it is
+// never marked either: a mark would only drop it from find_recent.
+function spared(refs, rec) {
+  return !!(refs[rec.id] || (rec.key && refs[rec.key]));
+}
+
 // Brings the local marks in line with a settled decision: boards in revoked_ids
-// are marked (deferred while Speak Mode is on), every other marked board is
-// cleared.
+// are marked (deferred while Speak Mode is on), every other marked board, and
+// any home or sidebar board, is cleared.
 export function apply_revocations(revoked_ids) {
   var lookup = {};
   (revoked_ids || []).forEach(function(id) { lookup[id] = true; });
@@ -271,13 +278,15 @@ export function apply_revocations(revoked_ids) {
     var list = res[0];
     var index = Object.assign({}, res[1]);
     if(!list) { return null; }
+    var refs = protected_board_refs(app_state);
     var writes = [];
     var to_mark = [];
     list.forEach(function(rec) {
-      if(rec.revoked && !lookup[rec.id]) {
+      var revoke = lookup[rec.id] && !spared(refs, rec);
+      if(rec.revoked && !revoke) {
         writes.push(write_mark(rec, false));
         delete index[rec.id];
-      } else if(!rec.revoked && lookup[rec.id]) {
+      } else if(!rec.revoked && revoke) {
         to_mark.push(rec.id);
       } else if(rec.revoked) {
         index[rec.id] = true;
@@ -324,9 +333,10 @@ export function flush_deferred() {
   return RSVP.all([local_boards(), load_index()]).then(function(res) {
     var list = res[0] || [];
     var index = Object.assign({}, res[1]);
+    var refs = protected_board_refs(app_state);
     var writes = [];
     list.forEach(function(rec) {
-      if(!rec.revoked && ids.indexOf(rec.id) !== -1) {
+      if(!rec.revoked && ids.indexOf(rec.id) !== -1 && !spared(refs, rec)) {
         writes.push(write_mark(rec, true).then(function(ok) {
           if(ok) { index[rec.id] = true; }
         }));
