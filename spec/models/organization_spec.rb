@@ -1428,6 +1428,7 @@ describe Organization, :type => :model do
         Worker.process_queues
         legacy_link!(sup, comm)
         other = Organization.create
+        other.add_supervisor(sup.user_name, false)
         expect(consent_through_request_access(sup, comm, organization_id: other.global_id).organization_id).to eq(other.id)
 
         o.reload.destroy

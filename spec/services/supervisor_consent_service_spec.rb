@@ -125,9 +125,44 @@ describe SupervisorConsentService, :type => :model do
       o = Organization.create
       supervisor = User.create
       communicator = User.create
+      o.add_supervisor(supervisor.user_name, false)
       allow(SupervisorMailer).to receive(:schedule_delivery)
-      service.request_access(supervisor: supervisor, lookup_key: communicator.user_name, organization_id: o.global_id)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: o.global_id)
       expect(SupervisorRelationship.last.organization_id).to eq(o.id)
+    end
+
+    # The request names an organization only when it is one of the supervisor's own.
+    it "does not store or name an organization the supervisor is not part of" do
+      own = Organization.create(settings: {'name' => 'Own District'})
+      other = Organization.create(settings: {'name' => 'Other District'})
+      supervisor = User.create
+      communicator = User.create
+      communicator.settings['email'] = 'comm@example.com'
+      communicator.save
+      own.add_supervisor(supervisor.user_name, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: other.global_id)
+      rel = SupervisorRelationship.last
+      expect(rel.communicator_user).to eq(communicator)
+      expect(rel.organization_id).not_to eq(other.id)
+      mail = SupervisorMailer.consent_request(rel.global_id)
+      expect(mail.html_part.body.to_s).not_to include('Other District')
+      expect(mail.text_part.body.to_s).not_to include('Other District')
+    end
+
+    it "keeps the supervisor's own organization when it is passed" do
+      own = Organization.create(settings: {'name' => 'Own District'})
+      supervisor = User.create
+      communicator = User.create
+      communicator.settings['email'] = 'comm@example.com'
+      communicator.save
+      own.add_supervisor(supervisor.user_name, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: own.global_id)
+      rel = SupervisorRelationship.last
+      expect(rel.organization_id).to eq(own.id)
+      mail = SupervisorMailer.consent_request(rel.global_id)
+      expect(mail.html_part.body.to_s).to include('Own District')
     end
 
     it "should not create duplicate pending relationship" do

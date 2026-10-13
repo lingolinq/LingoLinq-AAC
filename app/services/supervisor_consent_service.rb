@@ -72,7 +72,8 @@ class SupervisorConsentService
           initiated_by: 'supervisor',
           creation_method: 'request_access',
           lookup_method: lookup_key.include?('@') ? 'email' : 'username',
-          organization_id: relationship_organization_id(organization_id || (comm_orgs & sup_orgs).first)
+          # A supplied organization is used only when it is one of the supervisor's own.
+          organization_id: relationship_organization_id((sup_orgs.include?(organization_id.to_s) ? organization_id.to_s : nil) || (comm_orgs & sup_orgs).first)
         )
 
         # F10: COPPA - Route to parent/guardian if under 13
