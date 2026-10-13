@@ -94132,6 +94132,17 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 }
 /* Check disc — a soft accent circle holding a check glyph (the svg's stroke is
    currentColor; padding + radius + bg make the disc). */
+.shepherd-text .md-tour__li-check {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 4px;
+  border-radius: 50%;
+  background: rgba(42, 157, 143, 0.14);
+  color: #2A9D8F;
+  box-sizing: border-box;
+}
+.shepherd-text .md-tour__li-text { flex: 1 1 auto; }
 /* "OR" divider between checklist items (board-picker tour) — reads the three
    options as mutually-exclusive. Stretches full width of the inline-flex list
    (align-items:stretch), an uppercase tracked label flanked by thin rules.
@@ -94174,6 +94185,10 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 }
 /* Focused View — check disc in the Focused accent (matches the rest of the
    Focused skin). */
+.shepherd-element.md-tour__step--focused .shepherd-text .md-tour__li-check {
+  background: rgba($focus-accent, 0.16);
+  color: $focus-accent;
+}
 /* Centered intro/outro copy. The body is now a checklist (welcome + outro), so
    the old 33ch cap squeezed it into the centre with big ~130px side margins and
    wrapped the bullet lines — let it use the popover width instead (just the 28px

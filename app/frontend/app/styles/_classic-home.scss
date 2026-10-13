@@ -4463,14 +4463,64 @@ button.ch-tile--silver:focus-visible {
 }
 
 // ── Eyebrow (centred intro/outro steps) ──────────────────────────────────────
+.ch-tour__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba($brand-dusty-denim, 0.12);
+  border: 1px solid rgba($brand-cool-steel, 0.28);
+  color: $brand-dusty-denim-aa;
+  font-size: 14px; // 11 -> 14px, the AAC text floor; matches the Modern tour eyebrow (2026-10-01)
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
+.ch-tour__eyebrow-icon { flex: 0 0 auto; }
 
+.ch-tour__heading { display: block; }
 
 // ── Checklist body ───────────────────────────────────────────────────────────
+.ch-tour__lead {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #374151;
+}
 
+.ch-tour__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
+.ch-tour__li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 5px 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: $la-navy;
+}
 
+.ch-tour__li-check {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  color: $brand-verdigris-aa;
+}
 
+.ch-tour__foot {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #374151;
+}
 
 // ── Footer buttons ───────────────────────────────────────────────────────────
 // (0,3,0), so these beat the unscoped `.shepherd-element .shepherd-button` base at

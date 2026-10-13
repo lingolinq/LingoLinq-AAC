@@ -20,6 +20,21 @@ Scope: the app's own stylesheets (`app/frontend/app/styles`, compiled to `fronte
 - 7 are Bootstrap size modifiers (`btn-xs`, `input-group-sm`, ...): defined by Bootstrap's own stylesheet, used by no markup in this app; the app's overrides of them are dead (marked ‡).
 - `board-picker-page__context` is named only in a QA script (`app/frontend/scripts/p1-board-picker-qa.mjs`), not in anything the app runs (marked §).
 
+## Correction (2026-10-12, later the same day): 10 names were in use
+
+The method's runtime-built check (step 3) covered a literal PREFIX before a variable (`'md-grid--hero-' + key`)
+but missed a variable followed by a literal SUFFIX that starts with a separator: `p + '-tour__list'` in
+`app/frontend/app/utils/tours/shared.js` (lines 45-75), where `p` is `'md'` or `'ch'`. These 10 names were
+listed as unused, removed in 3fc054bdd, and are in use by every guided tour's checklist and eyebrow:
+`.ch-tour__eyebrow`, `.ch-tour__eyebrow-icon`, `.ch-tour__heading`, `.ch-tour__lead`, `.ch-tour__list`,
+`.ch-tour__li`, `.ch-tour__li-check`, `.ch-tour__foot`, `.md-tour__li-check`, `.md-tour__li-text`.
+Seen live: Basic's tour checklist showed browser bullets beside its check marks. Their 12 rules were restored
+verbatim from 3fc054bdd^ (`_classic-home.scss`, `app.scss`).
+
+Re-check of all 1,221 removed names for a separator-led suffix or separator-ended prefix glued to a
+concatenation or interpolation (`+ '-x'`, `}}-x`, `x-' +`, `x-{{`, `x-${`, `x-#{`): 62 matches; the other 52 are
+false positives (`lib/exporter.rb:140` "board-#{id}.obf" file names, `utils/tts_voices.js:38` "-sample.mp3" URLs).
+
 ## Totals
 
 | | Classes | IDs |
