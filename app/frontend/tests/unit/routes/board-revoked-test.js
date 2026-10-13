@@ -86,7 +86,7 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     storedBoard(this.db, '1_7');
     await boardRevocation.apply_revocations(['1_7']);
     var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
-    var route = boardRoute(this, '1_1', board);
+    var route = boardRoute(this, '1_1', board, {sessionUser: {supervisees: []}});
     var model = await route.model({key: 'owner/shared'});
     assert.notStrictEqual(model, board, 'not the local copy');
     assert.notOk(model.get('id'), 'not a valid board id');
@@ -118,7 +118,7 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.expect(cases.length + 1);
     // The route is a singleton holding the services it was created with, so each case
     // changes those services rather than registering new ones.
-    var route = boardRoute(this, null, board);
+    var route = boardRoute(this, null, board, {sessionUser: {supervisees: []}});
     var appState = this.owner.lookup('service:app-state');
     var persistence = this.owner.lookup('service:persistence');
     assert.notStrictEqual(await route.model({key: 'owner/shared'}), board, 'control: blocked offline');
@@ -253,7 +253,7 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     var realCreate = LingoLinq.store.createRecord;
     LingoLinq.store.createRecord = function(type, attrs) { created++; return realCreate(type, attrs); };
     var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
-    var route = boardRoute(this, '1_1', board);
+    var route = boardRoute(this, '1_1', board, {sessionUser: {supervisees: []}});
     var first = await route.model({key: 'owner/shared'});
     var second = await route.model({key: 'owner/shared'});
     assert.strictEqual(second, first, 'same record');
@@ -266,5 +266,38 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.strictEqual(third.get('key'), 'owner/other');
     assert.true(third.get('error.unauthorized'));
     assert.strictEqual(created, 1, 'one record created for three visits');
+  });
+  // The legacy board page uses the same gate as the Basic and Modern views
+  // (utils/board_revocation.js#blocks_view_route).
+  test('with the session user loaded, a marked board on screen, online or in Speak Mode still opens; before it loads, or acting as another user, nothing is blocked', async function(assert) {
+    assert.expect(6);
+    storedBoard(this.db, '1_7');
+    await boardRevocation.apply_revocations(['1_7']);
+    var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
+    var signed_in = {supervisees: []};
+    var route = boardRoute(this, '1_1', board, {sessionUser: signed_in});
+    var appState = this.owner.lookup('service:app-state');
+    var persistence = this.owner.lookup('service:persistence');
+    var realSession = LingoLinq.session;
+    LingoLinq.session = EmberObject.create({as_user_id: null});
+    try {
+      assert.notStrictEqual(await route.model({key: 'owner/shared'}), board, 'control: blocked offline');
+      appState.set('currentBoardState', {id: '1_7'});
+      assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'the board on screen');
+      appState.set('currentBoardState', {id: '1_1'});
+      persistence.set('online', true);
+      assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'online: the server decides');
+      persistence.set('online', false);
+      appState.set('speak_mode', true);
+      assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'Speak Mode');
+      appState.set('speak_mode', false);
+      appState.set('sessionUser', null);
+      assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'the session user has not loaded');
+      appState.set('sessionUser', signed_in);
+      LingoLinq.session = EmberObject.create({as_user_id: 'u9'});
+      assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'acting as another user');
+    } finally {
+      LingoLinq.session = realSession;
+    }
   });
 });

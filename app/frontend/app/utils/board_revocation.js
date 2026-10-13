@@ -398,9 +398,10 @@ export function protected_board_refs(appState) {
   return refs;
 }
 
-// Board route: a marked board is blocked only while offline, never in Speak
-// Mode, never the board already on screen, and never a protected home or
-// sidebar board. Online, the route asks the server instead.
+// Whether a marked board is blocked: only while offline, never in Speak Mode,
+// never the board already on screen, and never a protected home or sidebar
+// board. Online, the route asks the server instead. The board routes call it
+// through blocks_view_route, which adds the session guards.
 export function blocks_route(board, appState, online) {
   if(online) { return RSVP.resolve(false); }
   var id = board && typeof board.get === 'function' ? board.get('id') : null;
@@ -462,9 +463,9 @@ function acting_as_self(appState) {
   return !(as_user || !session_user);
 }
 
-// blocks_route for the Basic and Modern board views (routes/user/), with the
-// guards route_refuses_local applies: never while acting as another user, and
-// never before the session user is loaded.
+// blocks_route for every board route (routes/board.js and the Basic and Modern
+// views under routes/user/), with the guards route_refuses_local applies: never
+// while acting as another user, and never before the session user is loaded.
 export function blocks_view_route(board, appState, online) {
   if(online || !acting_as_self(appState)) { return RSVP.resolve(false); }
   return blocks_route(board, appState, online);

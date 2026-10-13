@@ -216,13 +216,14 @@ export default Route.extend({
   // user (utils/board_revocation.js) renders as the standard unavailable-board
   // panel in templates/board.hbs instead of the stale copy.
   // Resolves with the board, or with the unavailable-board record when its
-  // offline copy is marked and blocks_route says to block it (offline only).
+  // offline copy is marked and blocks_view_route says to block it (offline only,
+  // never before the session user loads or while acting as another user).
   revoked_or: function(data, key) {
     var _this = this;
     var owner = getOwner(this);
     var persistence = owner && owner.lookup('service:persistence');
     var online = !!(persistence && persistence.get('online'));
-    return boardRevocation.blocks_route(data, this.appState, online).then(function(blocked) {
+    return boardRevocation.blocks_view_route(data, this.appState, online).then(function(blocked) {
       return blocked ? _this.revoked_record(key) : data;
     });
   },
