@@ -24,7 +24,7 @@ module('Unit | Component | trial-bar', function(hooks) {
 
   function setup(context, opts) {
     var o = opts || {};
-    var calls = { copy: [], findRecord: [], transitions: [], speak: [] };
+    var calls = { copy: [], findRecord: [], transitions: [], speak: [], saved: [], discarded: [], stash: {} };
     var me = EmberObject.create({ id: '1_3', user_name: 'example', preferences: { board_view_style: o.classic ? 'classic' : 'modern' } });
     var aiden = EmberObject.create({ id: '1_7', user_name: 'aiden_parker' });
     var forOther = o.forOther;
@@ -57,13 +57,25 @@ module('Unit | Component | trial-bar', function(hooks) {
       // Modern passes the controller's marker for THIS board (try_origin_board); Basic finds its own.
       mark: o.classic ? undefined : appState.get('board_detail_try_origin'),
       preloadImages: function() { return Promise.resolve(); },
+      // The tried board is saved as the home board FIRST (final review, 2026-10-13), so the message is true.
+      saveHome: o.saveFails ? function() { return Promise.reject('Save failed'); } :
+        function(user, b) { calls.saved.push([user.get('user_name'), b.get('key')]); return Promise.resolve(user); },
+      discardCopy: function(ids) { calls.discarded.push(ids); return Promise.resolve(); },
+      stashes: { get: function(k) { return calls.stash[k]; }, persist: function(k, v) { calls.stash[k] = v; } },
       copyAsHome: o.copyFails ?
         function() { return Promise.reject('Copy failed'); } :
-        function(b, user, locale) {
-          calls.copy.push({ board: b, user: user, locale: locale });
+        function(b, user, locale, copyOpts) {
+          calls.copy.push({ board: b, user: user, locale: locale, opts: copyOpts });
           var made = EmberObject.create({ id: '1_99', key: user.get('user_name') + '/core-60' });
           // `copyPending`: the copy finishes only when the test says so, as a long copy does.
-          if (o.copyPending) { return new Promise(function(resolve) { o.copyPending(function() { resolve(made); }); }); }
+          if (o.copyPending) {
+            return new Promise(function(resolve, reject) {
+              o.copyPending(function() {
+                // As copy_or_reuse_as_home does when its cancel check says yes at the home-save moment.
+                if (copyOpts && copyOpts.isCancelled && copyOpts.isCancelled()) { reject({ cancelled: true, board: made, new_board_ids: ['1_99'] }); } else { resolve(made); }
+              });
+            });
+          }
           return Promise.resolve(made);
         }
     });
@@ -102,6 +114,7 @@ module('Unit | Component | trial-bar', function(hooks) {
     var t = setup(this, { copyPending: function(f) { finish = f; } });
     var using = t.component.use();
     await new Promise(function(r) { setTimeout(r, 0); });
+    assert.deepEqual(t.calls.saved, [['example', 'lingolinq/core-60']], 'the tried board is saved as the home board first, so the message is true');
     assert.strictEqual(t.calls.speak.length, 1, 'Speak Mode opens before the copy finishes');
     assert.strictEqual(t.calls.speak[0].user, t.me, 'as you');
     assert.deepEqual(t.calls.speak[0].force_board_state, { id: '1_60', key: 'lingolinq/core-60' }, 'on the board they tried');
@@ -135,12 +148,12 @@ module('Unit | Component | trial-bar', function(hooks) {
     assert.deepEqual(m.calls.transitions, [['user.boards', 'aiden_parker']], 'Modern: their boards list');
   });
 
-  test('a copy that fails after Speak Mode opened says so, and the home board is unchanged', async function(assert) {
+  test('a copy that fails after Speak Mode opened says so; the tried board stays the home board', async function(assert) {
     var t = setup(this, { copyFails: true });
     await t.component.use();
     assert.strictEqual(t.calls.speak.length, 1, 'Speak Mode had already opened');
-    assert.deepEqual(messages[messages.length - 1], ['error', "We couldn't finish making Core 60 your home board. Your home board wasn't changed."], 'the error is shown');
-    assert.notOk(t.appState.get('home_copy_pending'), 'Home goes back to their own home board');
+    assert.deepEqual(messages[messages.length - 1], ['error', "Core 60 is your home board, but your own copy of it couldn't be made. You can copy it later from Boards."], 'the error is shown, and true');
+    assert.notOk(t.appState.get('home_copy_pending'), 'nothing left pending');
   });
 
   test('Exit ends the trial and returns to the board picker', function(assert) {
@@ -195,5 +208,41 @@ module('Unit | Component | trial-bar', function(hooks) {
     t.component.close();
     assert.deepEqual(used, [true], 'its PIN-checked Exit Boards');
     assert.deepEqual(t.calls.transitions, [], 'no second navigation');
+  });
+
+  /* FINAL REVIEW (2026-10-13), High: "is now your home board" was said ~30s before anything was saved (the copy
+     saves the home board when it finishes), so closing the app meanwhile left the old home board; and two quick
+     Uses raced. Now the tried board is saved as home first; the copy replaces it only if it is still the latest
+     choice, and a superseded copy is removed. When the copy lands, this Speak Mode session's home follows it. */
+  test('if the home board cannot be saved, nothing claims it was', async function(assert) {
+    var t = setup(this, { saveFails: true });
+    await t.component.use();
+    assert.deepEqual(messages, [['error', 'Save failed']], 'the error');
+    assert.strictEqual(t.calls.speak.length, 0, 'no Speak Mode');
+    assert.strictEqual(t.calls.copy.length, 0, 'no copy');
+    assert.ok(t.appState.get('board_detail_try_origin'), 'still trying it');
+  });
+
+  test('a newer choice wins: a superseded copy does not become home and is removed', async function(assert) {
+    var finish;
+    var t = setup(this, { copyPending: function(f) { finish = f; } });
+    var using = t.component.use();
+    await new Promise(function(r) { setTimeout(r, 0); });
+    t.appState.set('home_copy_pending', { id: '1_70', key: 'lingolinq/other' }); // they chose another board meanwhile
+    finish();
+    await using;
+    assert.deepEqual(t.calls.discarded, [['1_99']], 'the superseded copy is removed');
+    assert.deepEqual(t.appState.get('home_copy_pending'), { id: '1_70', key: 'lingolinq/other' }, 'the newer choice is left alone');
+  });
+
+  test('when the copy lands, this Speak Mode session\'s home follows it', async function(assert) {
+    var finish;
+    var t = setup(this, { copyPending: function(f) { finish = f; } });
+    var using = t.component.use();
+    await new Promise(function(r) { setTimeout(r, 0); });
+    t.calls.stash.root_board_state = { id: '1_60', key: 'lingolinq/core-60' }; // Speak Mode entered on the tried board
+    finish();
+    await using;
+    assert.deepEqual(t.calls.stash.root_board_state, { id: '1_99', key: 'example/core-60' }, 'their own copy');
   });
 });

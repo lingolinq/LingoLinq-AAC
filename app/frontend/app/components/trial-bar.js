@@ -4,7 +4,8 @@ import { computed, action } from '@ember/object';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { copy_or_reuse_as_home } from '../utils/board-copy';
+import { copy_or_reuse_as_home, discard_cancelled_copy } from '../utils/board-copy';
+import { saveHomeBoard } from '../utils/home_board';
 import { basic_try_for, clear_basic_try, after_pick_for_other } from '../utils/board_picker_landing';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
@@ -33,6 +34,7 @@ export default Component.extend({
   store: service('store'),
   router: service('router'),
   persistence: service('persistence'),
+  stashes: service('stashes'),
   board: null,
   view: 'modern',
   mark: null,
@@ -40,6 +42,8 @@ export default Component.extend({
   // Injectable so a test can observe the calls; the real ones in the app.
   copyAsHome: copy_or_reuse_as_home,
   preloadImages: preload_board_images,
+  saveHome: saveHomeBoard,
+  discardCopy: discard_cancelled_copy,
 
   trial: computed('view', 'mark', 'appState.basic_try_home', 'appState.currentBoardState.key', function() {
     if(this.get('view') === 'basic') {
@@ -106,22 +110,39 @@ export default Component.extend({
           after_pick_for_other(_this.get('router'), home.get('key'), target.get('user_name'), appState.get('effective_view_user'));
         });
       }
-      /* For yourself, RIGHT AWAY (requested 2026-10-13): Speak Mode opens on the board they tried and says it is
-         now their home board; their own copy is made in the background and becomes the home board when done
-         (copy_or_reuse_as_home saves it). Until then Home goes to the tried board (`home_copy_pending`,
-         controllers/user/board-detail.js#_trial_home). If the copy fails, they are told the home board did not
-         change. */
+      /* For yourself, RIGHT AWAY (requested 2026-10-13), and TRUE when said (final review, 2026-10-13): the tried
+         board is SAVED as the home board first (utils/home_board.js#saveHomeBoard, confirmed against what the
+         server stored), then the message shows and Speak Mode opens on it. Their own copy is made in the
+         background and replaces it when done (copy_or_reuse_as_home saves the copy); if the app is closed
+         meanwhile, the tried board is still their home board, as they were told.
+         A NEWER CHOICE WINS: the copy runs with `isCancelled`, which says yes once `home_copy_pending` names
+         another board (another Use in the meantime), so a superseded copy skips its home save and the boards it
+         made are removed (utils/board-copy.js#discard_cancelled_copy). (An organization's home board cannot be
+         cancelled, utils/board-copy.js#can_cancel_home_copy, so that rare case keeps the old behaviour.)
+         When the copy lands, this Speak Mode session's home (`root_board_state`, which Speak Mode entry set to
+         the tried board) follows it. */
       var name = (b && b.get && (b.get('name') || b.get('key'))) || '';
       var spot = { id: b.get('id'), key: b.get('key') };
-      _this._endTrial();
-      appState.set('home_copy_pending', spot);
-      modal.success(i18n.t('trial_bar_now_home', "%{board} is now your home board.", { board: name }));
-      appState.home_in_speak_mode({ user: me, force_board_state: spot });
-      return _this.copyAsHome(b, me, locale).then(finishPick).then(function() {
-        appState.set('home_copy_pending', null);
-      }, function() {
-        appState.set('home_copy_pending', null);
-        modal.error(i18n.t('trial_bar_copy_failed', "We couldn't finish making %{board} your home board. Your home board wasn't changed.", { board: name }));
+      return RSVP.resolve(_this.saveHome(me, b, locale)).then(function() {
+        _this._endTrial();
+        appState.set('home_copy_pending', spot);
+        modal.success(i18n.t('trial_bar_now_home', "%{board} is now your home board.", { board: name }));
+        appState.home_in_speak_mode({ user: me, force_board_state: spot });
+        var startedAt = new Date();
+        var superseded = function() { var p = appState.get('home_copy_pending'); return !p || p.key !== spot.key; };
+        return _this.copyAsHome(b, me, locale, { isCancelled: superseded }).then(finishPick).then(function(home) {
+          if(!superseded()) { appState.set('home_copy_pending', null); }
+          var stashes = _this.get('stashes');
+          var root = stashes && stashes.get('root_board_state');
+          if(home && root && root.key === spot.key) { stashes.persist('root_board_state', { id: home.get('id'), key: home.get('key') }); }
+        }, function(err) {
+          if(err && err.cancelled) {
+            var ids = err.new_board_ids || [];
+            return ids.length ? RSVP.resolve(_this.discardCopy(ids, me, startedAt, err.board)).then(null, function() {}) : null;
+          }
+          if(!superseded()) { appState.set('home_copy_pending', null); }
+          modal.error(i18n.t('trial_bar_copy_failed', "%{board} is your home board, but your own copy of it couldn't be made. You can copy it later from Boards.", { board: name }));
+        });
       });
     }).then(null, function(err) {
       modal.error((typeof err === 'string' && err) ? err : i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));

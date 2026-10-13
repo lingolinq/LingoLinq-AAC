@@ -8809,6 +8809,6 @@
   "board_picker_recently_tried": "Recently tried",
   "board_picker_recent_failed": "That board couldn't be opened. Please try again.",
   "trial_bar_now_home": "%{board} is now your home board.",
-  "trial_bar_copy_failed": "We couldn't finish making %{board} your home board. Your home board wasn't changed.",
+  "trial_bar_copy_failed": "%{board} is your home board, but your own copy of it couldn't be made. You can copy it later from Boards.",
   "display_design": "Display Design"
 }
