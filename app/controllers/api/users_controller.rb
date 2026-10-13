@@ -817,28 +817,28 @@ class Api::UsersController < ApplicationController
   # allows?(user, 'view') reads the user's cached available_private_board_ids and a 30-minute
   # permission cache, both rebuilt lazily (minutes to hours after a share change), so a board just
   # shared reads as hidden and one just unshared as viewable. Another user's private board is
-  # decided here instead: owned by or shared with the user, their supervisees or their supervisees'
-  # supervisees (as in board_caching#update_available_boards), or its owner grants the user model
-  # or edit permission (board.rb add_permissions). Stale caches never decide either way.
+  # decided instead by BoardRevisionsAccess (app/services/board_revisions_access.rb): owned by or
+  # shared with the user or their supervisees (as in board_caching#update_available_boards), or
+  # its owner grants the user model or edit permission (board.rb add_permissions).
   #
-  # Each user's shared-board set is computed once per request: a per-board
-  # shared_with? would rebuild (and save) that set once per board while it is
-  # stale, since the stamp check reads the in-memory user.
+  # It is read-only. This is a sync GET that every device calls on every sync, so it takes no
+  # row lock and writes no settings version for the user or anyone in their caseload: a stale
+  # shared-board set is rebuilt in memory and left for the regenerate job the link change queued
+  # (user_link.rb touch_connections) to store.
+  #
+  # One instance per request: each user's shared-board set is computed once (a per-board
+  # shared_with? would rebuild it once per board while it is stale), and the owner fallback is
+  # checked once per owner, however many boards of the tree that owner has.
+  #
+  # The fallback is the only per-board permission lookup left, and it runs only for boards that
+  # neither the caseload owns nor a share covers. Shallow clones never reach this method:
+  # board_revisions keeps allows? for them, since their sub-user's cached list also decides.
+  #
+  # This method and its comment keep the lines the inline version held, so the line numbers
+  # cited below this point (the compliance memos and the findings register) do not move.
+  # Called only from board_revisions.
   def board_viewable_now?(board, user)
-    @board_revisions_access ||= begin
-      users = [user]
-      user.supervisees.each do |sup|
-        users << sup
-        users += sup.supervisees
-      end
-      users = users.uniq(&:id)
-      {
-        owner_ids: users.map(&:id),
-        shared_ids: users.map{|u| Board.all_shared_board_ids_for(u) }.flatten.compact.to_set
-      }
-    end
-    return true if @board_revisions_access[:owner_ids].include?(board.user_id) || @board_revisions_access[:shared_ids].include?(board.global_id)
-    !!(board.user && (board.user.allows?(user, 'model') || board.user.allows?(user, 'edit')))
+    (@board_revisions_access ||= BoardRevisionsAccess.new(user)).viewable?(board)
   end
   private :board_viewable_now?
 

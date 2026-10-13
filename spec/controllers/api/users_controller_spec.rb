@@ -3606,6 +3606,55 @@ describe Api::UsersController, :type => :controller do
       expect(counts[1]).to eq(counts[0])
     end
 
+    # A sync GET must not write: rebuilding each stale shared-board set used to store it with a
+    # row-locked, versioned settings save per user in the caseload.
+    it "should not lock or version any user while checking stale shared-board sets" do
+      token_user
+      owner = User.create
+      supervisees = 3.times.map do
+        sup = User.create
+        User.link_supervisor_to_user(@user, sup)
+        Board.create(:user => owner, :public => false).share_with(sup)
+        sup
+      end
+      other = User.create
+      boards = (0..1).map{ Board.create(:user => other, :public => false) }
+      link_board_revisions_tree(@user, boards)
+      Worker.process_queues
+      # every shared-board set in the caseload is out of date
+      ([@user] + supervisees).each{|u| User.where(id: u.id).update_all(boards_updated_at: Time.now + 5.seconds) }
+      make_private_board_cache_stale(@user)
+      versions = PaperTrail::Version.where(item_type: 'User').count
+      locks = []
+      callback = lambda{|*args| locks << args.last[:sql] if args.last[:sql].to_s.match?(/FOR UPDATE/i) }
+      ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+        get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      end
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['revoked_ids'].sort).to eq(boards.map(&:global_id).sort)
+      expect(locks).to eq([])
+      expect(PaperTrail::Version.where(item_type: 'User').count).to eq(versions)
+    end
+
+    # The owner-permission fallback depends only on the owner, so many boards of one owner check it once.
+    it "should check the owner's permission once per owner, not once per board" do
+      token_user
+      other = User.create
+      boards = (0..2).map{ Board.create(:user => other, :public => false) }
+      link_board_revisions_tree(@user, boards)
+      make_private_board_cache_stale(@user)
+      checked = []
+      allow_any_instance_of(User).to receive(:allows?).and_wrap_original do |original, *args|
+        checked << original.receiver.id if original.receiver.id == other.id
+        original.call(*args)
+      end
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['revoked_ids'].sort).to eq(boards.map(&:global_id).sort)
+      # model, then edit: once each for the owner
+      expect(checked.length).to eq(2)
+    end
+
     it "should not add queries per public board" do
       token_user
       others = (1..6).map{ User.create }

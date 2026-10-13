@@ -220,7 +220,9 @@ module Sharing
     # boards_updated_at, and some inputs change without moving it (an organization's home boards,
     # organization.rb home_board_keys), so update_available_boards, which turns this list into
     # view access (board_caching.rb), always rebuilds.
-    def all_shared_board_ids_for(user, plus_editing=false, force=false)
+    # store: false leaves a rebuilt list unsaved, for read-only callers (a sync GET,
+    # BoardRevisionsAccess) that must not take the user's row lock or write a settings version.
+    def all_shared_board_ids_for(user, plus_editing=false, force=false, store: true)
       return [] unless user
       ts = Time.now.to_i
       sub_key = plus_editing ? 'editing' : 'viewing'
@@ -305,7 +307,7 @@ module Sharing
         # hundredths of a second: keep writing it in that format so it never looks newer to them
         'timestamp' => user.boards_updated_at.to_f.round(2),
         'list' => all_board_ids
-      })
+      }) if store
 
       all_board_ids
     end
