@@ -5158,6 +5158,8 @@ describe User, :type => :model do
   end
 
   describe "update_settings_locked" do
+    include ActiveSupport::Testing::TimeHelpers
+
     def users_sql
       sql = []
       record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
@@ -5213,6 +5215,34 @@ describe User, :type => :model do
       expect(caller_copy.changed).to include('boards_updated_at')
       expect(caller_copy.changed).not_to include('schedule_deletion_at')
       expect(User.find(u.id).settings['email']).not_to eq('pending@example.com')
+    end
+
+    # Copying the saved updated_at onto a copy loaded before another save made that stale copy look
+    # current to assert_current_record! (processable.rb) and to board_caching's stale_after.
+    it "leaves a stale copy's updated_at, so it still reads as stale" do
+      u = User.create
+      stale = User.find(u.id)
+      travel(1.minute) do
+        other = User.find(u.id)
+        other.settings['spec_other'] = 'saved since'
+        other.save
+      end
+      travel(2.minutes) do
+        stale.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+      end
+      expect(stale.settings['spec_owned']).to eq('mine')
+      expect { stale.assert_current_record! }.to raise_error(ActiveRecord::StaleObjectError)
+    end
+
+    it "gives a current copy the saved updated_at" do
+      u = User.create
+      current = User.find(u.id)
+      travel(2.minutes) do
+        current.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+      end
+      expect(current.updated_at).to be_within(0.001).of(User.find(u.id).updated_at)
+      expect(current.updated_at).to be > u.updated_at + 1.minute
+      expect { current.assert_current_record! }.not_to raise_error
     end
 
     it "reads the copy it saves under a row lock" do

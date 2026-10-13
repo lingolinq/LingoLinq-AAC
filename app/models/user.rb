@@ -2194,11 +2194,10 @@ class User < ApplicationRecord
   #   sync_stamp_reason, generate_defaults' edit_key and the like) are stored but not copied
   #   back, so this copy's values for them can be older than the row's.
   # - columns: every column the save changed (sync_stamp, boards_updated_at, schedule_deletion_at,
-  #   and updated_at unless touch: false) is copied onto this object, except columns the caller
-  #   changed itself. updated_at therefore moves on this object: code that compares updated_at
-  #   before and after a call (Organization#claim_user's attempt_stamp around
-  #   update_subscription_organization) must not have this helper run inside that window
-  #   (guarded by a spec in organization_spec, claim_user).
+  #   updated_at) is copied onto this object, except columns the caller changed itself, and
+  #   updated_at unless this copy was current: a stale copy keeps it, so assert_current_record!
+  #   still raises. updated_at can move on this object: code comparing it around a call (claim_user's
+  #   attempt_stamp) must not run this helper inside that window (spec in organization_spec, claim_user).
   def update_settings_locked(**opts, &block)
     written_keys = []
     res = User.update_settings_locked(self.id, **opts) do |fresh|
@@ -2222,6 +2221,7 @@ class User < ApplicationRecord
       end
     end
     columns = fresh.saved_changes.keys - ['id', 'settings'] - pending_columns
+    columns -= ['updated_at'] unless self.updated_at&.floor(6) == fresh.attribute_before_last_save('updated_at')&.floor(6)
     columns.each{|col| self[col] = fresh[col] }
     clear_attribute_changes(columns)
   end
