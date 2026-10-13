@@ -7,8 +7,9 @@
  * (utils/board-copy.js), so an existing copy is reused rather than duplicated. Then Speak Mode opens on it
  * through app-state#home_in_speak_mode, which opens the board page for the user's view (Basic or Modern).
  *
- * `withTour` ("Take a quick tour (1 min)") also arms the communicator board tour for that board: Modern's
- * board-detail speak tour flag, or Basic's board-alt flag, both read by components/guided-tour.js.
+ * `withTour` ("Take a quick tour (1 min)") also arms the communicator board tour for that board
+ * (tour_offer.js#arm_board_tour: Modern's board-detail speak flags, or Basic's board-alt flag, both read by
+ * components/guided-tour.js), and counts as the one-time tour offer.
  *
  * Every collaborator is injectable, so tests can observe each step.
  */
@@ -16,7 +17,7 @@ import RSVP from 'rsvp';
 import i18n from '../i18n';
 import modal from '../modal';
 import { copy_or_reuse_as_home } from '../board-copy';
-import { is_classic } from '../view_style';
+import { arm_board_tour, mark_tour_offered } from './tour_offer';
 
 export const STARTER_BOARD_KEY = 'lingolinq/vocal-flair-60';
 
@@ -35,13 +36,9 @@ export function start_talking_now(opts) {
     var key = home.get ? home.get('key') : home.key;
     var id = home.get ? home.get('id') : home.id;
     if (opts.withTour) {
-      if (is_classic(appState.get('effective_view_user') || user)) {
-        appState.set('board_alt_tour_pending', key);
-      } else {
-        // MANUAL: the person asked for it, so it runs even if a board tour auto-opened for them before.
-        appState.set('board_detail_tour_speak_manual', true);
-        appState.set('board_detail_tour_pending_speak', key);
-      }
+      arm_board_tour(appState, user, key);
+      // They chose the tour, so the offer after their first message (tour_offer.js) is not needed.
+      mark_tour_offered(user);
     }
     hide();
     appState.home_in_speak_mode({ user: user, force_board_state: { id: id, key: key } });

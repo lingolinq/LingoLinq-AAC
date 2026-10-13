@@ -8758,5 +8758,8 @@
   "tour_welcome_choose_board": "Choose a different board",
   "tour_welcome_quick_tour": "Take a quick tour (1 min)",
   "tour_welcome_start_talking": "Start talking now",
-  "tour_welcome_start_talking_note": "We'll set up Vocal Flair 60. You can change it anytime."
+  "tour_welcome_start_talking_note": "We'll set up Vocal Flair 60. You can change it anytime.",
+  "tour_offer_question": "Take a quick tour (1 min)?",
+  "tour_offer_not_now": "Not now",
+  "tour_offer_start": "Start"
 }

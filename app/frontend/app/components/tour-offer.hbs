@@ -1,0 +1,7 @@
+{{#if this.appState.tour_offer_visible}}{{#if this.appState.speak_mode}}
+  <div class="ll-tour-offer" role="status" aria-live="polite">
+    <span class="ll-tour-offer__text">{{t "Take a quick tour (1 min)?" key="tour_offer_question"}}</span>
+    <button type="button" class="ll-tour-offer__btn ll-tour-offer__btn--ghost" {{on "click" this.notNow}}>{{t "Not now" key="tour_offer_not_now"}}</button>
+    <button type="button" class="ll-tour-offer__btn ll-tour-offer__btn--primary" {{on "click" this.start}}>{{t "Start" key="tour_offer_start"}}</button>
+  </div>
+{{/if}}{{/if}}

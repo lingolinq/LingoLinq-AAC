@@ -86041,6 +86041,51 @@ span.md-board-detail-modeling-btn--badge {
   }
 }
 
+/* ── Tour offer (components/tour-offer) ──────────────────
+   The one-time "Take a quick tour (1 min)?" after a communicator's first
+   spoken message. Same card as .ll-toast; it waits for a choice. */
+.ll-tour-offer {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 12px 12px 18px;
+  background: #fff;
+  border-radius: 14px;
+  border-left: 4px solid $brand-verdigris;
+  box-shadow: 0 10px 28px rgba($la-navy, 0.18), 0 2px 6px rgba($la-navy, 0.08);
+  color: $la-navy;
+  font-size: 15px;
+  font-weight: 600;
+  z-index: 10000;
+}
+.ll-tour-offer__text { margin-right: 4px; }
+.ll-tour-offer__btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.2);
+  background: #fff;
+  color: $la-navy;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ll-tour-offer__btn--primary {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(180deg, color.adjust($brand-verdigris-aa, $lightness: 4%), $brand-verdigris-aa);
+}
+.ll-tour-offer__btn:focus-visible {
+  outline: 3px solid $brand-verdigris-aa;
+  outline-offset: 2px;
+}
+
 /* ── Background board-copy drawer ──────────────────────
    Bottom-RIGHT companion to .ll-toast: when a copy is sent to the background
    (click outside the "Copying Board" modal), it minimizes to this drawer, and

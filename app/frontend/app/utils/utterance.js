@@ -1267,6 +1267,7 @@ var utterance = EmberObject.extend({
     speecher.speak_collection(items, collection_id, {override_volume: volume});
     $("#hidden_input").val("");
     this.set('list_vocalized', true);
+    maybe_offer_tour(appState); // a communicator's first message: offer the tour once (utils/tours/tour_offer.js)
   },
   set_ghost_utterance: observer('list_vocalized', 'clear_on_vocalize', function() {
     stashes.persist('ghost_utterance', !!(this.get('list_vocalized') && this.get('clear_on_vocalize')));
@@ -1314,3 +1315,6 @@ utterance.get_stashes = function() {
 window.utterance = utterance;
 
 export default utterance;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { maybe_offer_tour } from './tours/tour_offer';

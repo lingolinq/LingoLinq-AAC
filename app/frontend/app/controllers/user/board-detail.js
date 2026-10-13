@@ -1858,7 +1858,7 @@ export default Controller.extend(prefClasses, {
       var fallback = this.get('sentence_speak_text');
       if(!fallback) { return; }
       speecher.stop('text');
-      speecher.speak_text(fallback);
+      speecher.speak_text(fallback); maybe_offer_tour(this.get('app_state')); // vocalize_list makes the offer on the path above (utils/tours/tour_offer.js)
     }
     var text = this.get('sentence_speak_text');
     if(text) {
@@ -10423,3 +10423,6 @@ export default Controller.extend(prefClasses, {
     }
   }
 });
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { maybe_offer_tour } from '../../utils/tours/tour_offer';
