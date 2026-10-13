@@ -779,3 +779,50 @@ Proposal (one commit each):
   stopped here instead of pushing.
 - Remaining: a review pass on `8c0320ed5..` (this round), push, PR description update, CI, the
   `synthetic-data` label (Traci), the click-test (Traci), merge after #1117.
+
+## 2026-10-13: final review of 68cdcf13a
+
+- PII preflight exit 0:
+  `REVIEWED=range origin/develop (212018190f673be24aede55c53c8eaa84d3a567e) ... origin/traci/chore/ci-review-hardening-and-ember-shards (68cdcf13a2b270a51d40b954ac5b7c034f59b2eb) in /home/tracid/LingoLinq-AAC-combined`.
+- CI at 68cdcf13a: every check green except `data-bearing-paths/develop` (label pending). build-and-test
+  3,400 tests, 0 fail; shards 1,700 + 1,700, 0 fail; every `[queued-fetch]` line is a self-test; 0
+  `[leak-check]` failures on the first full run of the M4 removal direction.
+- Four reviewers in parallel. Each had a ledger of decided, fixed and accepted items and a strict bar
+  (a Medium only if new and it changes production behaviour or a required check). Results: the
+  senior-dev pass on the diff only was approve with comments; the unreviewed delta
+  `88d50e7be..68cdcf13a` was ship; production frontend was ship; CI/workflows/scripts was ship with
+  notes. No Critical, High or qualifying Medium.
+- Verified by two reviewers, by simulation: the required test step (`shell: bash`, pipefail, `tee`)
+  exits with ember test's status (0, 1 and 137 pass through unchanged); the summary step cannot fail
+  the job. Every owner a guard captures is a service that a live session never destroys. The
+  component guards (`big-button`, `icon-select`) fire in production, but they skip only a `set` on a
+  destroyed component, which Ember 5.12 already ignores. Correction to the earlier reasoning: logout
+  does not always reload (the `auth_spa_transition` SPA path), but services survive it.
+- Traci approved, under Rule 14 (2026-10-13): (1) the CI changes (the build-and-test test step's
+  `shell: bash` plus `tee`, and the report-only late-work summary step); (2) the three stricter harness
+  behaviours in the required run (leak check fails on a stub or DOM left behind; a late `expect()` fails
+  the next test; a test waits for its own async work, with full cleanup on timeout), and the
+  emergency route (a one-line PR setting `leak-check.js mode()` to `report`); (3) the test edits made
+  on inferred approvals (`11c5a8091`, `2ab4b0c93`, `7b0848298`, `ed9b5ae56`). She approved on the
+  condition that they cause no regressions and fix real issues. Evidence given: 10 of 11 completed CI
+  runs on this branch green (the red one, `721ac33f0`, was a real icon-select race fixed at the source),
+  against 4 of develop's last 11 red, each a single flaky test; the leak check's real findings
+  (session 4b); every removed test line in the four commits replaced by a stronger wait or a stub that
+  actually applies.
+- Fixed: the `ember-shard-compare` comment claimed an exemption the script lacks (it now says the
+  mode difference shows as a mismatch, to handle before promotion); `.github/copilot-instructions.md`
+  said the leak check fails on destroyed-service reads (the required run only logs them, D1).
+- Not changed, deliberately: `board_prefetch_planner`'s `RSVP.allSettled` waits for the slowest list
+  before rejecting (bounded by the ajax timeouts), and its second failure no longer reaches error
+  tracking. Both are the intended fix for the unhandled rejection. The overlay now removes only its
+  own node, which is an improvement. Maintainability costs: the `leak-check.js` allowlists, the
+  `fetch-tracking.js` patch of Ember Data private internals, and the line packing kept to protect the
+  `.eslint-todo` anchors.
+- Known, not fixed (2026-10-13): three self-tests force `QUnit.config.current.timingStrict = true` for
+  the whole test (`wait-for-queued-store-fetches-test.js:47,71`, `leak-check-test.js:187`), and the
+  leak check reads the same flag, so an earlier test's `[late-read]` landing during one of them would fail
+  the required run (contrary to D1). It is a narrow window, and HEAD had 0 `[late-read]`. Fixing it needs
+  a second mode flag, which would undo the pin that the check reads its mode only through `timingStrict()`.
+  The other below-the-bar items were checked and need no change: they are non-required jobs, inputs the
+  PR author controls, or intended behaviour.
+- Why the rounds kept producing findings: see `learnings-archive/2026-10.md`, "Review churn".

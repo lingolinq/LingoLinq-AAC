@@ -481,10 +481,12 @@ jobs:
           python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
 
   # Shadow-mode evidence: the shard totals must add up to build-and-test's total and the same
-  # tests must fail in both. A test that fails in only one of them depends on what ran before
-  # it, with one exception: the shards are timing-strict and build-and-test is not, so a failure
-  # whose message is a [queued-fetch] or leak-check "on a destroyed service" finding is the mode
-  # difference, not order. Not required; read with scripts/ci-shard-compare.py.
+  # tests must fail in both. A test that fails in only one of them usually depends on what ran
+  # before it. The script does not exempt the mode difference: the shards are timing-strict and
+  # build-and-test is not, so a shard failure whose message is a [queued-fetch] or leak-check
+  # "on a destroyed service" finding is reported here as a mismatch although it is the mode, not
+  # order (handle before the shards become required). Not required; read with
+  # scripts/ci-shard-compare.py.
   ember-shard-compare:
     needs: [build-and-test, ember-shard-scope, ember-shard]
     if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
