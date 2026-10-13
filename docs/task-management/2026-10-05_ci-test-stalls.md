@@ -704,3 +704,48 @@ pattern that appears in the killing command itself; it killed the shell twice.
   self-test suppresses the attribution hint (mutant without the suppression: one hint line); the
   overlay test waits two animation frames. Left: a queued fetch in a todo test is absorbed
   (deferring it would charge an innocent test).
+
+## 2026-10-13: Scot's review of 6e35856d (no Critical or High); proposal for all findings
+
+Checked against `c7bd4310a` before acting. Facts (CONFIRMED unless marked):
+- M6: six deferred-work sites capture `live_service(...)`, which turns an owner that is ALREADY
+  destroyed at capture into `null`, and `owner_gone(null)` lets the work run:
+  `word_suggestions.js:1272`, `utterance.js:316,587,1216`, `scanner.js:893,1212`. Production never
+  destroys app-state, so test-only. `owner_gone` reads only `isDestroyed`/`isDestroying`, which the
+  leak proxy exempts (`leak-check.js:134`).
+- M2: `scanner-deferred-test.js` stubs `scanner.reset`/`start`; nothing runs the real `reset()` with
+  `scanner.appState` unset (production: `controllers/highlight.js` has no appState).
+- M3: `buttonTracker.handle_direction` (`raw_events.js:2121`), `buttonTracker.gamepadupdate`
+  (`components/dwell-tracker.js:265`) and `modal.auto_close_callback` (`utils/modal.js:666`) are
+  app-written functions on watched singletons, absent from `APP_OWNED_FUNCTIONS` (`leak-check.js:78`).
+- M4: `checkFunctions` (`leak-check.js:242`) iterates the functions present AFTER the test, so a
+  function deleted or set to null is never compared.
+- M7: `coverage` (`scripts/ci-shard-compare.py:118`) builds a set of names per shard, so a test run
+  twice in one shard plus one never run passes (counts still match).
+- M1: `build-and-test` runs `npx ember test --path dist-test` with no saved log, so nothing can
+  summarise `[queued-fetch]`/`[late-read]` lines.
+
+Proposal (one commit each):
+1. M6: capture the owner itself (`LingoLinq.appState`, `scanner.get('appState')`) instead of
+   `live_service(...)`; `owner_gone` already treats undefined/null as "run" and destroyed as "skip".
+   Alternative rejected: make `owner_gone` also skip on null (breaks the switch-scanning fix: unset
+   appState must run). Tests: schedule while the app is already gone -> no flush/refresh, skip counted.
+   Mutant: restore `live_service(...)` at the site.
+2. M2: real `scanner.reset()` through `scanner_reset_for(scanner.get('appState'))` with appState unset:
+   interval cleared, start and listen called (DOM-touching parts stubbed). Mutant: the old
+   `if(!live_service(owner)) return;` guard.
+3. M3: add the three keys to `APP_OWNED_FUNCTIONS`, with a self-test that an app-owned replacement is
+   not recorded. Mutant: drop a key.
+4. M4: also record a function present before the test and missing or non-function after (on util
+   singletons; on extra holders only where it existed before), self-test with a deleted and a nulled
+   function. Risk: may surface real leaks across the suite; the full suite runs in CI.
+5. M7: count names per shard; a name more than once in one shard is a problem. Verify first that
+   real shard logs have no duplicate names. Mutant: back to a set.
+6. M1 (Scot asked): `build-and-test` step `shell: bash` (pipefail) + `| tee ember-test.log`, then an
+   `if: always()` report-only step listing `[queued-fetch]`/`[late-read]`/`[owner-gone]` counts in the
+   job summary. Exit status unchanged; simulated against fake logs before pushing.
+7. M5: not fixed, noted: a late `expect()` that fires during the next jasmine-style test sees that
+   test's live `assert`; nothing identifies the test it came from (develop behaves the same).
+8. Lows: add `data-bearing-paths/<base>` to the required-check list in testing-frontend.md; note the
+   testing.md citation resolves when #1117 merges first; test hooks in the bundle and shard CI cost
+   stay as recorded trade-offs.
