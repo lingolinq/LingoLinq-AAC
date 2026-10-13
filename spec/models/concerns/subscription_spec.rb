@@ -2505,6 +2505,58 @@ describe Subscription, :type => :model do
         expect(stored.updated_at).to be > 1.hour.ago
         expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
       end
+
+      # The warning or deletion record is saved before the mail goes out. When the mail fails,
+      # the step is undone (only if nothing changed the account since) and the run goes on.
+      def failing_mail_for(target, &before_raise)
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          if id == target.global_id
+            before_raise.call if before_raise
+            raise RuntimeError, 'mail delivery failed'
+          end
+        end
+      end
+
+      it "undoes the warning of an account whose warning mail failed, and goes on to the next" do
+        failed = inactive_account_to_warn
+        other = inactive_account_to_warn
+        before_at = User.find(failed.id).updated_at
+        failing_mail_for(failed)
+
+        expect { User.check_for_subscription_updates }.not_to raise_error
+
+        stored = User.find(failed.id)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+        expect((stored.settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+        expect(stored.updated_at.utc.iso8601(6)).to eq(before_at.utc.iso8601(6))
+        expect(User.find(other.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+      end
+
+      it "undoes the schedule of an account whose deletion mail failed, and goes on to the next" do
+        failed = inactive_account_on_final_warning
+        other = inactive_account_on_final_warning
+        before = User.find(failed.id)
+        failing_mail_for(failed)
+
+        expect { User.check_for_subscription_updates }.not_to raise_error
+
+        stored = User.find(failed.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.settings['subscription']['inactivity_deletion']).to eq(nil)
+        expect(stored.settings['subscription']['last_deletion_attempts']).to eq(2)
+        expect(stored.settings['subscription']['last_deletion_warning']).to eq(before.settings['subscription']['last_deletion_warning'])
+        expect(stored.updated_at.utc.iso8601(6)).to eq(before.updated_at.utc.iso8601(6))
+        expect(User.find(other.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      it "keeps the activity time of an account used before its warning mail failed" do
+        failed = inactive_account_to_warn
+        failing_mail_for(failed) { User.where(id: failed.id).update_all(updated_at: Time.now) }
+
+        expect { User.check_for_subscription_updates }.not_to raise_error
+
+        expect(User.find(failed.id).updated_at).to be > 1.hour.ago
+      end
     end
 
     it "should notify recently-created inactive users" do

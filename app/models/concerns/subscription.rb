@@ -1313,6 +1313,7 @@ module Subscription
           # batch loaded matches its batch copy: the candidate list's own rule is re-applied to the
           # fresh row as well.
           attempts = nil
+          step = nil
           taken = user.update_settings_locked(touch: false) do |fresh|
             next false if fresh.updated_at != user.updated_at || fresh.inactivity_deletion_exempt?
             next false unless inactivity_candidate_still_due?(fresh, inactive_id_set.include?(fresh.id), trial_id_set.include?(fresh.id))
@@ -1320,6 +1321,7 @@ module Subscription
             next false unless attempts
             retry_point = 12.months.ago + 3.weeks
             fresh.settings['subscription'] ||= {}
+            previous = inactivity_step_fields(fresh)
             if attempts > 2
               fresh.schedule_deletion_at = 36.hours.from_now
               # Marks this schedule as the sweep's, so use of the account cancels it (Flusher).
@@ -1329,15 +1331,25 @@ module Subscription
               fresh.settings['subscription']['last_deletion_attempts'] = attempts
             end
             fresh.updated_at = retry_point
+            step = [previous, inactivity_step_fields(fresh)]
             true
           end
           next unless taken
-          if attempts > 2
-            SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
-          else
-            SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
-            alerts[:pending_deletes] += 1
+          # The step is saved before its mail goes out. When the mail fails (production raises
+          # delivery errors), the step is undone so the account is not counted as warned or left
+          # scheduled without being told, and the run goes on to the next account.
+          begin
+            if attempts > 2
+              SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
+            else
+              SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
+            end
+          rescue StandardError => e
+            undone = undo_inactivity_step(user.id, *step)
+            Rails.logger.error("[inactivity sweep] #{attempts > 2 ? 'account_deleted' : 'deletion_warning'} mail failed (#{e.class}); step #{undone ? 'undone' : 'kept, account changed since'}")
+            next
           end
+          alerts[:pending_deletes] += 1 unless attempts > 2
         end
       end
       alerts
@@ -1363,6 +1375,35 @@ module Subscription
       return nil unless last_warning < 3.weeks.ago
       return 1 unless last_warning > 20.weeks.ago
       (sub['last_deletion_attempts'] || 0) + 1
+    end
+
+    # The fields an inactivity step writes, as stored (times to the microsecond), so a step can be
+    # compared with the row and undone.
+    def inactivity_step_fields(user)
+      sub = (user.settings || {})['subscription'] || {}
+      {
+        'last_deletion_warning' => sub['last_deletion_warning'],
+        'last_deletion_attempts' => sub['last_deletion_attempts'],
+        'inactivity_deletion' => sub['inactivity_deletion'],
+        'schedule_deletion_at' => user.schedule_deletion_at&.utc&.iso8601(6),
+        'updated_at' => user.updated_at&.utc&.iso8601(6)
+      }
+    end
+
+    # Puts back the fields an inactivity step changed, under a row lock, only while the row still
+    # holds what the step wrote (an account used or changed since keeps its newer state).
+    def undo_inactivity_step(user_id, previous, written)
+      res = User.update_settings_locked(user_id, touch: false) do |fresh|
+        next false unless inactivity_step_fields(fresh) == written
+        sub = fresh.settings['subscription'] ||= {}
+        %w(last_deletion_warning last_deletion_attempts inactivity_deletion).each do |key|
+          previous[key].nil? ? sub.delete(key) : sub[key] = previous[key]
+        end
+        fresh.schedule_deletion_at = previous['schedule_deletion_at'] && Time.iso8601(previous['schedule_deletion_at'])
+        fresh.updated_at = Time.iso8601(previous['updated_at'])
+        true
+      end
+      !!res
     end
 
     # Recorded under settings['subscription']['inactivity_deletion'] when the inactivity sweep
