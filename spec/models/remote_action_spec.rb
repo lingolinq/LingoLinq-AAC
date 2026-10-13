@@ -137,6 +137,22 @@ describe RemoteAction, :type => :model do
   
 
 
+  # A row whose action this build does not know was written by a NEWER build (rolled back since,
+  # or deploying alongside). Dropping it would lose that build's queued work, so it is kept until
+  # a build that knows it processes it; the hourly batch's 3-month purge still bounds it.
+  describe "unknown actions" do
+    it "keeps a row whose action this code does not know" do
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      expect(ra.process_action).to eq(:keep)
+    end
+
+    it "is not destroyed by process_all" do
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      RemoteAction.process_all
+      expect(RemoteAction.find_by(id: ra.id)).not_to eq(nil)
+    end
+  end
+
   describe "process_all" do
     it "should process all remote requests" do
       a = OpenStruct.new

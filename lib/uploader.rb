@@ -205,8 +205,8 @@ module Uploader
       updated_ids = []
       puts "#{batch[0].id}..."
       batch.each do |ra|
-        updated_ids << ra.id
-        ra.process_action
+        # a row whose action this build does not know is kept (RemoteAction#process_action)
+        updated_ids << ra.id unless ra.process_action == :keep
       end
       RemoteAction.where(id: updated_ids).delete_all
       total += updated_ids.length
