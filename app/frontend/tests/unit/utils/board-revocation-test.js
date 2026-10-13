@@ -323,7 +323,7 @@ module('Unit | Utility | board_revocation', function(hooks) {
     LingoLinq.session = EmberObject.create({as_user_id: null});
     try {
       assert.true(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: []}})));
-      assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: [{id: 'u2'}]}})), 'a supervisee might view it');
+      assert.true(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: [{id: 'u2'}]}})), 'the denial already counts supervisee access');
       assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: null})), 'no session user loaded');
       assert.false(boardRevocation.route_refuses_local(err, EmberObject.create({sessionUser: {supervisees: []}, speak_mode: true})), 'Speak Mode keeps the local copy');
       LingoLinq.session = EmberObject.create({as_user_id: 'u9'});

@@ -426,10 +426,10 @@ export function real_denial(err) {
   return !(body.valet_blocked || body.device_scopes_none || body.scope_limited || body.invalid_token);
 }
 
-// The board route may refuse its local copy only when the denial speaks for
-// every synced user: the signed-in user is acting as themselves and syncs no
-// supervisees (a supervisee might still be able to view the board). Anything
-// less certain keeps today's fallback to the local copy.
+// The board route may refuse its local copy only when the signed-in user is
+// acting as themselves: the server's denial for that user already counts
+// supervisee access (board_caching update_available_boards). Anything less
+// certain keeps today's fallback to the local copy.
 export function route_refuses_local(err, appState, board) {
   if(!real_denial(err)) { return false; }
   // A home or sidebar board keeps its local copy, as blocks_route spares it.
@@ -441,9 +441,7 @@ export function route_refuses_local(err, appState, board) {
   if(appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
   var as_user = LingoLinq.session && typeof LingoLinq.session.get === 'function' && LingoLinq.session.get('as_user_id');
   var session_user = appState && typeof appState.get === 'function' ? appState.get('sessionUser') : null;
-  if(as_user || !session_user) { return false; }
-  var supervisees = appState.get('sessionUser.supervisees');
-  return !(supervisees && supervisees.length > 0);
+  return !(as_user || !session_user);
 }
 
 // Test hook: forget module state between tests.

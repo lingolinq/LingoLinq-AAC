@@ -153,13 +153,20 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.deepEqual(model.reloads, [], 'no local reload');
     assert.ok(rejected, 'rejects');
     assert.true(rejected.unauthorized, 'with the server refusal');
+    // the denial is computed for the signed-in user and already counts supervisee access
+    this.owner.lookup('service:app-state').set('sessionUser', {supervisees: [{id: 'u2'}]});
+    var sup_model = localModel();
+    var sup_rejected = null;
+    await route.local_reload_unless_denied(sup_model, denied).then(function() { }, function(err) { sup_rejected = err; });
+    assert.deepEqual(sup_model.reloads, [], 'a synced supervisee: no local reload');
+    assert.ok(sup_rejected, 'a synced supervisee: rejects');
+    assert.true(sup_rejected.unauthorized, 'a synced supervisee: with the server refusal');
   });
 
   test('ambiguous or transient failures keep the local fallback', async function(assert) {
-    assert.expect(12);
+    assert.expect(10);
     LingoLinq.session = EmberObject.create({as_user_id: null});
     var cases = [
-      [{supervisees: [{id: 'u2'}]}, denied, 'a synced supervisee might view it'],
       [{supervisees: []}, {fakeXHR: {status: 400, responseJSON: Object.assign({}, denied.fakeXHR.responseJSON, {valet_blocked: true})}}, 'valet'],
       [{supervisees: []}, {fakeXHR: {status: 400, responseJSON: Object.assign({}, denied.fakeXHR.responseJSON, {device_scopes_none: true})}}, 'device scopes'],
       [{supervisees: []}, {fakeXHR: {status: 400, responseJSON: Object.assign({}, denied.fakeXHR.responseJSON, {scope_limited: true})}}, 'scope limited'],
