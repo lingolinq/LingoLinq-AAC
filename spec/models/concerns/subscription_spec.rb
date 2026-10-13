@@ -2421,6 +2421,90 @@ describe Subscription, :type => :model do
         expect(stored.schedule_deletion_at).not_to eq(nil)
         expect(stored.settings['spec_quiet']).to eq('touch false')
       end
+
+      # Batches load lazily, after both candidate scans, the hour-truncation of set-aside trials
+      # and the mail for earlier batches. An account used after its candidate scan but before its
+      # batch loaded matches its batch copy, so the locked step re-applies the candidate list's own
+      # inactivity rule to the fresh row.
+      def after_trial_scan(&block)
+        allow(User).to receive(:inactive_deletion_candidate_ids).and_wrap_original do |orig, scope, window, cursor_key = nil, &accept|
+          res = orig.call(scope, window, cursor_key, &accept)
+          block.call if cursor_key == 'inactivity_sweep_cursor/trial'
+          res
+        end
+      end
+
+      it "does not schedule an account used after the candidate scan, before its batch loaded" do
+        target = inactive_account_on_final_warning
+        control = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        after_trial_scan { User.where(id: target.id).update_all(updated_at: Time.now) }
+
+        User.check_for_subscription_updates
+
+        stored = User.find(target.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, target.global_id)
+        expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      it "does not warn an account used after the candidate scan, before its batch loaded" do
+        target = inactive_account_to_warn
+        control = inactive_account_to_warn
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        after_trial_scan { User.where(id: target.id).update_all(updated_at: Time.now) }
+
+        User.check_for_subscription_updates
+
+        stored = User.find(target.id)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:deletion_warning, target.global_id, anything)
+        expect(User.find(control.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+      end
+
+      it "does not schedule an expired trial used after the candidate scan, before its batch loaded" do
+        expired_trial = lambda do
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = 2
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: 2.months.ago.change(min: 7, sec: 13))
+          u
+        end
+        target = expired_trial.call
+        control = expired_trial.call
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        after_trial_scan { User.where(id: target.id).update_all(updated_at: Time.now.change(sec: 13)) }
+
+        User.check_for_subscription_updates
+
+        stored = User.find(target.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      it "does not schedule an account in a later batch used while an earlier batch was mailed" do
+        batch_one = 25.times.map { inactive_account_to_warn }
+        target = inactive_account_on_final_warning
+        control = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          if message == :deletion_warning && id == batch_one[0].global_id
+            User.where(id: target.id).update_all(updated_at: Time.now)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        expect(SubscriptionMailer).to have_received(:deliver_message).with(:deletion_warning, batch_one[0].global_id, 1)
+        stored = User.find(target.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
+      end
     end
 
     it "should notify recently-created inactive users" do

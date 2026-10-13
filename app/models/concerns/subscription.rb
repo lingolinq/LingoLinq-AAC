@@ -1289,6 +1289,9 @@ module Subscription
       # end;
 
       User.where(id: non_expired_ids).update_all("updated_at = DATE_TRUNC('hour', updated_at)")
+      # Which candidate list each id came from, so the locked step can re-apply that list's rule.
+      inactive_id_set = to_be_deleted_ids.to_set
+      trial_id_set = trial_to_be_deleted_ids.to_set
       to_be_deleted = User.where(id: (to_be_deleted_ids + trial_to_be_deleted_ids).uniq)
       to_be_deleted.find_in_batches(batch_size: 25) do |batch|
         batch.each do |user|
@@ -1306,9 +1309,13 @@ module Subscription
           # settings saved meanwhile. An account whose updated_at moved since the batch loaded it
           # was used and is left for the next run; the rest is re-read from the fresh copy. The
           # activity time moves to the retry point in the same save, only when the step is taken.
+          # Batches load after both scans and earlier batches' mail, so an account used before its
+          # batch loaded matches its batch copy: the candidate list's own rule is re-applied to the
+          # fresh row as well.
           attempts = nil
           taken = user.update_settings_locked(touch: false) do |fresh|
             next false if fresh.updated_at != user.updated_at || fresh.inactivity_deletion_exempt?
+            next false unless inactivity_candidate_still_due?(fresh, inactive_id_set.include?(fresh.id), trial_id_set.include?(fresh.id))
             attempts = inactivity_deletion_attempt(fresh)
             next false unless attempts
             if attempts > 2
@@ -1331,6 +1338,17 @@ module Subscription
         end
       end
       alerts
+    end
+
+    # Whether `fresh` (a locked, freshly read row) still matches the rule of a candidate list it
+    # came from: the 12-month inactivity list, or the expired-trial list (the trial scope in
+    # check_for_subscription_updates plus its expired-communicator check).
+    def inactivity_candidate_still_due?(fresh, from_inactive, from_trial)
+      at = fresh.updated_at
+      return true if from_inactive && at < 12.months.ago
+      return false unless from_trial
+      !!(fresh.expires_at && fresh.expires_at < 1.week.ago && at < 4.weeks.ago &&
+        at != at.beginning_of_hour && fresh.billing_state == :expired_communicator)
     end
 
     # The inactivity deletion step due for `user` now: nil while its last warning is under
