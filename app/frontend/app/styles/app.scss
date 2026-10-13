@@ -84546,6 +84546,9 @@ span.md-board-detail-modeling-btn--badge {
 }
 
 /* Google Charts tooltip: prevent hover flicker on bar charts */
+.google-visualization-tooltip {
+  pointer-events: none !important;
+}
 
 /* ═══════════════ Start Codes Modal ═══════════════ */
 .md-sc-list {
