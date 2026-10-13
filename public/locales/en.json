@@ -8725,5 +8725,9 @@
   "trial_bar_aria": "Trying a board",
   "trial_bar_trying": "Trying:",
   "trial_bar_use": "Use this board",
-  "trial_bar_use_for": "Use this board for %{user_name}"
+  "trial_bar_use_for": "Use this board for %{user_name}",
+  "board_detail_speak_tour_bar_title": "Your message bar",
+  "board_detail_speak_tour_bar_fix": "Backspace or clear to fix your message",
+  "board_detail_speak_tour_bar_more": "Home takes you back; the menu has more options",
+  "board_detail_tour_session_panels": "Board tools and styles are in the side panels"
 }
