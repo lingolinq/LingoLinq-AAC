@@ -2569,8 +2569,10 @@ describe Uploader do
       expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
       expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
       expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: key).and_return(true)
-      expect(Uploader.remote_remove_batch).to eq(1)
-      Worker.process_queues
+      expect(Uploader.remote_remove_batch).to eq(0)
+      # the queued job alone: Worker.process_queues also re-processes the kept row (RemoteAction.process_all ignores act_at)
+      job = Resque.pop('slow')
+      SlowWorker.perform(*job['args'])
       expect(RemoteAction.count).to eq(0)
     end
 
@@ -2623,6 +2625,41 @@ describe Uploader do
       expect(Uploader.retry_remote_delete('delete_retry', key, nil, 2.days.ago.to_i)).to eq(false)
       expect(RemoteAction.count).to eq(0)
       expect(Rails.logger).to have_received(:warn).with(/in use again/)
+    end
+
+    # The row is the only record of the deferred delete: removed at enqueue, a lost job or a failed
+    # S3 call lost the delete. It is kept (pushed out a day) until the retry completes.
+    it "keeps a due retry row through the hourly batch until the retry deletes the object" do
+      ra = RemoteAction.create!(action: 'delete_retry', path: key, act_at: 1.hour.ago)
+      Uploader.remote_remove_batch
+      expect(RemoteAction.where(id: ra.id).count).to eq(1)
+      expect(ra.reload.act_at).to be > 23.hours.from_now
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: key).and_return(true)
+      expect(Uploader.retry_remote_delete('delete_retry', key, nil, ra.created_at.to_i)).to eq(true)
+      expect(RemoteAction.where(id: ra.id).count).to eq(0)
+    end
+
+    it "keeps a due thumbnail family retry row through the hourly batch until the family removal completes" do
+      stem = 'videos/1/2/3/1_5-familyv1723500000.mp4'
+      ra = RemoteAction.create!(action: 'delete_thumbnail_family_retry', path: stem, extra: 'UserVideo::1_5', act_at: 1.hour.ago)
+      Uploader.remote_remove_batch
+      expect(RemoteAction.where(id: ra.id).count).to eq(1)
+      expect(Uploader).to receive(:remote_remove_thumbnail_family).with(stem, 'UserVideo', '1_5')
+      Uploader.retry_remote_delete('delete_thumbnail_family_retry', stem, 'UserVideo::1_5', ra.created_at.to_i)
+      expect(RemoteAction.where(id: ra.id).count).to eq(0)
+    end
+
+    it "keeps the retry row when the S3 delete raises" do
+      ra = RemoteAction.create!(action: 'delete_retry', path: key, act_at: 1.hour.ago)
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      allow(s3_client).to receive(:delete_object).and_raise(Aws::S3::Errors::ServiceError.new(nil, 'denied'))
+      expect { Uploader.retry_remote_delete('delete_retry', key, nil, ra.created_at.to_i) }.to raise_error(Aws::S3::Errors::ServiceError)
+      expect(RemoteAction.where(id: ra.id).count).to eq(1)
     end
   end
 
@@ -2710,7 +2747,7 @@ describe Uploader do
         first_requested_at = 2.days.ago.change(usec: 0)
         RemoteAction.create!(action: 'delete_retry', path: 'extras/x.json', act_at: 1.hour.ago, created_at: first_requested_at)
         allow(Worker).to receive(:schedule_for) { |_queue, klass, method_name, *args| klass.send(method_name, *args) }
-        expect(Uploader.remote_remove_batch).to eq(1)
+        expect(Uploader.remote_remove_batch).to eq(0)
         rows = RemoteAction.where(action: 'delete_retry', path: 'extras/x.json')
         expect(rows.count).to eq(1)
         expect(rows.first.created_at.to_i).to eq(first_requested_at.to_i)
@@ -2721,8 +2758,8 @@ describe Uploader do
         allow(Rails.logger).to receive(:error)
         first_requested_at = 2.days.ago.change(usec: 0)
         RemoteAction.create!(action: 'delete_retry', path: 'extras/x.json', act_at: 1.hour.ago, created_at: first_requested_at)
-        expect(Uploader.remote_remove_batch).to eq(1)
-        expect(RemoteAction.count).to eq(0)
+        expect(Uploader.remote_remove_batch).to eq(0)
+        expect(RemoteAction.count).to eq(1)
         Worker.process_queues
         rows = RemoteAction.where(action: 'delete_retry', path: 'extras/x.json')
         expect(rows.count).to eq(1)

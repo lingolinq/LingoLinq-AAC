@@ -73,8 +73,8 @@ module Uploader
   end
 
   # Worker entry point for a deferred delete. While credentials are still missing it re-records the
-  # row and returns nil: the original job already failed visibly, so a daily retry does not add
-  # another failed job.
+  # row and returns nil (no extra failed job: the original already failed visibly). An attempt that
+  # completes deletes the row RemoteAction#process_action kept; one that raises leaves it for retry.
   def self.retry_remote_delete(action, path, extra=nil, first_requested_at=nil)
     raise ArgumentError, "unknown remote delete retry action: #{action}" unless REMOTE_DELETE_RETRY_ACTIONS.include?(action)
     config = remote_upload_config
@@ -86,15 +86,15 @@ module Uploader
     if action == 'delete_retry'
       # Uploadable#schedule_remote_removal_if_unique (uploadable.rb:137) checked the URL was unused
       # at destroy time; a retry can run months later, after a record reuses the URL.
-      if remote_path_in_use?(path)
-        Rails.logger.warn("Uploader.retry_remote_delete: object in use again; deferred delete dropped")
-        return false
-      end
-      remote_remove(path, extra.presence)
+      in_use = remote_path_in_use?(path)
+      Rails.logger.warn("Uploader.retry_remote_delete: object in use again; deferred delete dropped") if in_use
+      res = in_use ? false : remote_remove(path, extra.presence)
     else
       owner_class_name, owner_global_id = extra.to_s.split('::', 2)
-      remote_remove_thumbnail_family(path, owner_class_name, owner_global_id)
+      res = remote_remove_thumbnail_family(path, owner_class_name, owner_global_id)
     end
+    RemoteAction.where(action: action, path: path).delete_all
+    res
   end
 
   # Exact-match lookups on the URL forms records store for an uploads-bucket key (indexed on
