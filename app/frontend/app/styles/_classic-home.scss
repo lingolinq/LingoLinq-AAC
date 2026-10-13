@@ -3628,6 +3628,14 @@ button.ch-tile--silver:focus-visible {
   display: flex;
 }
 
+// THE HOME BOARD'S MARK, DARK (2026-10-12, requested: "on basic view home board -> add our modern home
+// icon (dark) to the board that is the user's saved home board"). The same solid house Modern draws
+// before the name (BoardIcon `@flag_home`, `.board-icon__home-glyph` in app.scss), passed here from
+// classic-view.hbs. Modern colours it verdigris; Basic's is the navy ink of its card titles.
+.ch-boards__cell .board-icon__home-glyph {
+  color: $la-navy;
+}
+
 .ch-boards__actions {
   display: flex;
   flex-wrap: wrap;

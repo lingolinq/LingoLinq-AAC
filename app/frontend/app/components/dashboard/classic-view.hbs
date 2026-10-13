@@ -681,7 +681,7 @@
             <div class="ch-boards__grid">
               {{#if this.recentOfflineBoards}}
                 {{#each this.recentOfflineBoards as |board|}}
-                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} @flag_home={{is_equal board.key this.homeBoardKey}} /></div>{{/if}}
                 {{/each}}
               {{else}}
                 <p class="ch-empty">{{t "None found" key="none_found"}}</p>
@@ -769,7 +769,7 @@
                       with no text, indistinguishable from a failed load. Mirrors the
                       supervisee filter's "No one matches that filter." above. --}}
                 {{#each this.filteredBoards as |board|}}
-                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} @onAction={{this.basicTileAction}} @pickCursor={{if this.basicAssigningHome this.basicHomeCursor}} /></div>{{/if}}
+                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} @flag_home={{is_equal board.key this.homeBoardKey}} @onAction={{this.basicTileAction}} @pickCursor={{if this.basicAssigningHome this.basicHomeCursor}} /></div>{{/if}}
                 {{else}}
                   <p class="ch-empty">{{t "No boards match that filter." key="no_matching_boards"}}</p>
                 {{/each}}

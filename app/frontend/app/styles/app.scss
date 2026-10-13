@@ -1635,6 +1635,13 @@ header #normal_mode {
   overflow: visible !important;
   text-overflow: clip !important;
   margin-top: 8px !important;
+  /* The home-board icon (a dark symbol image) is LIGHT here, on the dark board header (2026-10-12,
+     requested: "on basic view, the home board icon is dark, but on board-alt pages it needs to be
+     light"). Same white as the header's text (rgba(255,255,255,0.9)). */
+  .board-id__home-icon {
+    filter: brightness(0) invert(1);
+    opacity: 0.9;
+  }
 }
 #within_ember.board-alt-view .nav-header__board-bar,
 #within_ember.board-alt-view .nav-header__board-bar-right {
@@ -59191,8 +59198,6 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     margin-top: 0 !important;
   }
 
-  // Help button: white icon/text in nav mode
-  #inner_header:has(#nav_header) .ll-bento-help-btn,
   /* PLACED LAST IN THIS BLOCK ON PURPOSE. Every selector here ties with the rule that
      defines the control's own `box-shadow`, and both carry `!important`, so SOURCE ORDER is
      the only tiebreak. Sitting earlier in the block -- where this was first written -- the
@@ -59221,6 +59226,29 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   #inner_header:has(#nav_header) .nav-header__board-bar .btn-default,
   #inner_header:has(#nav_header) .nav-header__board-bar .board-view-modern-btn {
     @include control-glass;
+  }
+
+  /* SUPPORT: a LIGHT, ROUND button with a DARK icon (2026-10-12, requested: "on basic view board-alt,
+     make the support icon light and its bg transparent", then "actually make its bg light and its icon
+     dark and make its bg round"). It was one of the glass controls listed above (a dark translucent
+     square with a dark icon on the dark bar), so it left that list. 36px: the 25px icon with room around
+     it, a comfortable target in the header row. */
+  #inner_header:has(#nav_header) .ll-bento-help-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22) !important;
+    color: $la-navy !important;
+    .ll-bento-help-btn__icon,
+    .ll-bento-help-btn__support-icon {
+      color: $la-navy !important;
+      width: 22px !important;
+      height: 22px !important;
+    }
   }
 
 }
