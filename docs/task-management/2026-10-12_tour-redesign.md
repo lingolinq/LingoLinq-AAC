@@ -167,3 +167,29 @@ Each red first, falsified by reverting the fix, then restored.
 - Live: the example user's home board picture in Gentle and Focused, an SLP's Vocal Flair 112 in Gentle; 0 page errors.
 - Full suite: two runs did not complete because `ember serve` was running (frontend CLAUDE.md: do not run the full
   suite then). The slow failures named different tests each time, and each passes alone.
+
+## Final adversary review (local), 2026-10-13: whole branch vs develop at 7137fc56a
+Local substitute (`/adversary-review-local`, five read-only reviewers, key findings checked by hand); the
+canonical `/review-pr` and `/adversary-review` did not run here. Every prior finding (three 2026-10-10/11
+passes, and this morning's) was re-checked: all fixed items are still fixed; #7 (`!important` blocks), #8
+(offer flag), #9 (whole-preferences save) and #13 (36px Support button) remain open as decisions.
+
+| Sev | Finding | Label | Evidence |
+|---|---|---|---|
+| High | "Use this board" says "is now your home board" before the home board is saved; the save is client-side after the ~30s copy job, so closing the app, reloading or logging out meanwhile leaves the old home board (and a full copied set in My Boards). Two Uses in the window race: the last copy to finish wins and clears the other's pending state. | CONFIRMED | `components/trial-bar.js` use; `utils/edit_manager.js:2761`; `User#copy_board_links` never sets home |
+| Medium | After the copy, the Speak Mode session's home stays the CATALOG board (`root_board_state`), so Basic/app-state Home and auto-home return to it for the session | CONFIRMED | `app-state.js:1358-1359`, Speak Mode entered with `force_board_state` = tried board |
+| Medium | A sidebar jump during a trial pushes the trail, so the trial bar (and Home -> tried board) appears on the user's own sidebar board; the trail is capped at 20 | CONFIRMED | `controllers/user/board-detail.js:9464`, `:6569` |
+| Medium | Basic bar keyup (Enter/Space) has no scanning/dwell guard: a scanning or dwell-key user whose bar holds focus can have the sentence spoken by a scan key, twice with Enter | CONFIRMED (code) | `utils/raw_events.js:730-733` vs the keydown guard |
+| Medium | The tour offer card cannot be reached by switch scanning or eye-gaze (not a scanner target, not in any dwell region) and covers bottom-row buttons; no scanning/dwell/eye-gaze check before offering | CONFIRMED (code) | `utils/tours/tour_offer.js`, `scanner.js` rows, `tour-offer.hbs` |
+| Low | New per-user state not reset on SPA logout (`board_picker_recent/return/category/restore`, `home_copy_pending`, `board_alt_tour_pending`): with `auth_spa_transition` on, the next user sees "Recently tried" chips | CONFIRMED (code) | `app-state.js:2195` reset list |
+| Low | Boot-time dead session: `find_user` calls `force_logout` again (no `logout_under_way` guard); the second teardown clears the shared stored login | CONFIRMED (code) | `app-state.js:599` |
+| Low | Focused Speak card board picture ~22px at <=1024px (fixed 12px padding + 5px ring inside a 55.93px slot) | CONFIRMED | `app.scss` `.md-card--speak-focused__img--board` + 1024px clamp |
+| Low | Phone drawer still says "Display Style" (View menu: "Display Design"); its comment about the disc is stale | CONFIRMED | `app-navbar-authenticated-inner.hbs:251-258` |
+| Low | Basic-access dialog path: rail pages fail with no sign-in prompt | PLAUSIBLE | `controllers/application.js:28`, `routes/user.js:90` |
+| Low | Offer not suppressed in eval mode | PLAUSIBLE | `tour_offer.js` (no `eval_mode` check) |
+| Low | Speak card picture: no recompute on `root_board_state`/late `currentUser`, no retry after an offline failure; `obf/` keys fetched | PLAUSIBLE | `authenticated-view.js` speakBoardImage |
+| Low | "Try another" leaves Speak Mode without the PIN (as the old Back did) | PRE-EXISTING | `board-detail.js` try_back_to_picker |
+| Low | Owned-board double tap in Set Home mode; dropdown not closed on focusout; View menu height at 200% text; SLP tour leaves Communicators tab open; boardAltHost runs home watchers; stale skip_handoff filter | NOT FIXED (prior Lows) | |
+| Process | `classic-view-extras-scroll-test.js` deleted (e076292dc) with no recorded approval (its code was removed too); `.eslint-todo` regenerated in bef644b00: checked, no (file, rule, hash) count rose (rows 1604 -> 1560), so no finding was grandfathered; `boards-set-home-mode-test` restores a stub outside `finally`; `preferences_lower` key reused with a different default (pre-existing pattern) | CONFIRMED | |
+
+Blocking: the High (CONFIRMED regression) blocks a PR per root CLAUDE.md.
