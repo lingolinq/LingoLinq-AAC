@@ -49,12 +49,16 @@ export function maybe_offer_tour(appState) {
   if (!appState || !appState.get) { return false; }
   var user = appState.get('currentUser');
   if (!user || !user.get || user.get('supporter_role')) { return false; }
+  // Speaking as someone else: in Speak Mode `currentUser` is the Speak Mode user, not the person signed in.
+  var session = appState.get('sessionUser');
+  if (session && session !== user && (session.get ? session.get('id') : session.id) !== user.get('id')) { return false; }
   if (!appState.get('speak_mode') || !appState.get('currentBoardState.key')) { return false; }
   var progress = user.get('preferences.progress') || {};
   if ((progress.guided_tours_autoshown || {})[OFFER_KEY]) { return false; }
   var finished = Object.keys(progress.guided_tours_completed || {}).some(function(k) { return BOARD_TOUR_KEY.test(k); });
   if (finished) { return false; }
   mark_tour_offered(user);
+  appState.set('tour_offer_user', user.get('id'));
   appState.set('tour_offer_visible', true);
   return true;
 }
@@ -67,4 +71,12 @@ export function accept_tour_offer(appState) {
 
 export function dismiss_tour_offer(appState) {
   appState.set('tour_offer_visible', false);
+}
+
+// They left Speak Mode: the offer ends (it is shown once), and a Basic board tour that never started is
+// dropped, so it cannot hold back the Speak Mode intro or start later, unasked (services/app-state.js).
+export function end_speak_mode_tour_state(appState) {
+  appState.set('tour_offer_visible', false);
+  appState.set('tour_offer_user', null);
+  appState.set('board_alt_tour_pending', null);
 }

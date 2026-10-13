@@ -1537,7 +1537,7 @@ GuidedTour.reopen({
     var pending = this.get('appState.board_alt_tour_pending');
     if (!pending || this.get('appState.currentBoardState.key') !== pending) { return; }
     if (this.get('tourKey') !== 'board_alt_speak' || !document.querySelector('.board')) {
-      if (attempt < 30) { window.setTimeout(function() { _this._consumeBoardAltTour(attempt + 1); }, 200); }
+      if (attempt < 30) { window.setTimeout(function() { _this._consumeBoardAltTour(attempt + 1); }, 200); } else { this.set('appState.board_alt_tour_pending', null); } // gave up: drop it (adversary review, 2026-10-13)
       return;
     }
     this.set('appState.board_alt_tour_pending', null);
