@@ -749,3 +749,33 @@ Proposal (one commit each):
 8. Lows: add `data-bearing-paths/<base>` to the required-check list in testing-frontend.md; note the
    testing.md citation resolves when #1117 merges first; test hooks in the bundle and shard CI cost
    stay as recorded trade-offs.
+
+### Outcome (2026-10-13), after the proposal review (approve with changes)
+
+- M7 `8c0320ed5`, `078dcff99`: coverage counts names per shard. The suite registers two names twice
+  (they differ only by a trailing space, which TAP drops), so the shard harness logs
+  `[SHARD-DUP] <count> <name>` and a name may repeat up to that count. Verified in a pool run.
+- M6 `4d94b75e9`: TWELVE sites (the review found 11; `board_detail_cache.js:926` has a different
+  declaration). Tests for the flush and the refresh; the other ten keep their existing owner tests.
+- M2 `c7147ad9a`: real `scanner.reset` with appState unset. The real `start()` then stops first and
+  resumes through `check_scanning`, as on develop (recorded in the PR; the click-test covers it).
+- M3/M4 `8c240ee06`: deleted, nulled or hidden singleton functions are recorded; app-owned keys
+  (`handle_direction`, `auto_close_callback`, `storing_urls`) are allowed in both directions.
+  NOT allowed: `buttonTracker.gamepadupdate`, a real leak on develop (`components/dwell-tracker.js:332`
+  installs a no-op its teardown at :386-388 never clears, keeping the `handle_direction` loop alive):
+  for Scot.
+- M1 `bcf933d21`: build-and-test saves its output (`shell: bash`, pipefail, `tee`) and a report-only
+  step counts the late-work lines in the job summary; shared script with the shard step.
+- M5, not fixed: a late `expect()` that fires during the next jasmine-style test sees that test's
+  live `assert`; nothing identifies where it came from (develop behaves the same).
+- Lows: the required-check list now names `data-bearing-paths/<base>`; the `testing.md` citation
+  resolves when #1117 merges first; test hooks in the bundle and the shard CI cost stay as recorded.
+- Verified: targeted Ember groups green (Unit | Utility 566, Unit | Helper 50, Button 345, persistence
+  174, editManager 120, modal 81, scanner 79, utterance 77, speecher 50, others); six mutants in one
+  build each failed their test; Python 30 tests and two mutants; workflow steps simulated.
+- Own slips: (1) the new scanner test first used a runloop timer (lint caught it). (2) A mutant restore
+  ran `git checkout --` on files holding uncommitted M6 fixes, which wiped them; reapplied by the same
+  deterministic substitution, checked by diff, grep and a green build before committing. Rule 13:
+  stopped here instead of pushing.
+- Remaining: a review pass on `8c0320ed5..` (this round), push, PR description update, CI, the
+  `synthetic-data` label (Traci), the click-test (Traci), merge after #1117.
