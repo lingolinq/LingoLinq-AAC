@@ -2611,6 +2611,49 @@ describe Subscription, :type => :model do
           expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, u.global_id)
         end
       end
+
+      # Accounts warned less than 3 weeks ago have no step due; they must not fill the window
+      # ahead of accounts that do.
+      it "reaches a due expired trial behind more recently warned expired trials than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_TRIAL_WINDOW', 2)
+        trial = lambda do |age, warned_at, attempts|
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['last_deletion_warning'] = warned_at.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = attempts
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: age.ago.change(min: 7, sec: 13))
+          u
+        end
+        waiting = 3.times.map { |i| trial.call((3 + i).months, 1.day.ago, 1) }
+        target = trial.call(2.months, 4.weeks.ago, 2)
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        waiting.each { |w| expect(User.find(w.id).settings['subscription']['last_deletion_attempts']).to eq(1) }
+      end
+
+      it "reaches a due inactive account behind more recently warned accounts than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 2)
+        waiting = 3.times.map do |i|
+          w = User.create
+          w.settings['subscription'] ||= {}
+          w.settings['subscription']['last_deletion_warning'] = 1.day.ago.iso8601
+          w.settings['subscription']['last_deletion_attempts'] = 1
+          w.save
+          User.where(id: w.id).update_all(updated_at: 15.months.ago + i.minutes)
+          w
+        end
+        target = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        waiting.each { |w| expect(User.find(w.id).settings['subscription']['last_deletion_attempts']).to eq(1) }
+      end
     end
 
     it "should notify recently-created inactive users" do

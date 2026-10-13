@@ -1103,7 +1103,7 @@ module Subscription
 
   module ClassMethods  
     # Ids of up to `window` accounts in `scope`, oldest updated_at first, that the block (default:
-    # not exempt) accepts. A plain order(updated_at).limit(window) let accounts the sweep always
+    # not exempt and an inactivity step due, so recently warned accounts do not fill it) accepts. A plain order(updated_at).limit(window) let accounts the sweep always
     # skips fill the window on every run, so nobody behind them was ever reached. Skipped rows are
     # walked past by (updated_at, id) rather than restamped: updated_at keys cached permissions
     # and is the 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows.
@@ -1119,7 +1119,7 @@ module Subscription
     # several columns and may save).
     def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, &accept)
       columns = accept ? nil : [:id, :updated_at, :settings]
-      accept ||= lambda{|u| !u.inactivity_deletion_exempt? }
+      accept ||= lambda{|u| !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil? }
       ids = []
       scanned = 0
       last_at, last_id = inactivity_sweep_cursor(cursor_key)
@@ -1264,7 +1264,7 @@ module Subscription
       trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago]).where(schedule_deletion_at: nil)
       trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW, 'inactivity_sweep_cursor/trial') do |u|
         if u.billing_state == :expired_communicator
-          !u.inactivity_deletion_exempt?
+          !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil?
         else
           non_expired_ids << u.id
           false
