@@ -552,7 +552,7 @@ $(document).on('mousedown touchstart', function(event) {
     event.preventDefault();
     if(focusedExtraBtn.id !== 'button_list') { focusedExtraBtn.click(); }
     return;
-  }
+  } else if(focusedExtraBtn && focusedExtraBtn.id === 'button_list' && bar_keys_belong_to_scanner(event) && (event.key === 'Enter' || event.keyCode === 13)) { event.preventDefault(); } // no click on the bar from a scan key (2026-10-13)
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open() && !typing_into_a_field(event.target)) {
     // add letter to the sentence box
     var key = "+" + event.key;
@@ -728,7 +728,7 @@ $(document).on('mousedown touchstart', function(event) {
     $(this).trigger('click');
   }
 }).on('keyup', '#button_list', function(event) {
-  if(event.keyCode == 13 || event.keyCode == 32 || event.code == 'Enter' || event.code == 'Space') {
+  if((event.keyCode == 13 || event.keyCode == 32 || event.code == 'Enter' || event.code == 'Space') && !bar_keys_belong_to_scanner(event)) { // scanning/dwell keep their keys (2026-10-13)
     fire_select(this); // native, so {{on "select"}} hears it (utils/select_event.js)
   }
 }).on('drop', '.button,.board_drop', function(event) {
@@ -3413,3 +3413,13 @@ export default buttonTracker;
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { fire_select } from './select_event';
+
+/* SCANNING AND DWELL-KEY USERS KEEP THEIR KEYS AT THE SENTENCE BAR (final review, 2026-10-13). Space and Enter
+   are the scanner's (or the dwell select key's) keys; when the bar held focus, its keyup handler spoke the
+   whole sentence on top of the scan action, and Enter's native click on the <a> spoke it again. The same test
+   the bar's keydown guard uses (scanning_enabled, or dwell with button selection on the select key). */
+function bar_keys_belong_to_scanner(event) {
+  if(buttonTracker.check('scanning_enabled')) { return true; }
+  var select_code = buttonTracker.check('select_keycode') || -1;
+  return !!(buttonTracker.check('dwell_enabled') && (event.keyCode == select_code || event.code == select_code) && buttonTracker.check('dwell_selection') == 'button');
+}

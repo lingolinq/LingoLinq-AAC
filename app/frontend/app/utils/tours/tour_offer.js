@@ -49,6 +49,9 @@ export function maybe_offer_tour(appState) {
   if (!appState || !appState.get) { return false; }
   var user = appState.get('currentUser');
   if (!user || !user.get || user.get('supporter_role')) { return false; }
+  // Switch-scanning and eye-gaze/dwell users cannot reach the card (it is no scanner target and in no dwell
+  // region) and it would cover bottom-row buttons, so it is not offered to them (final review, 2026-10-13).
+  if (user.get('preferences.device.scanning') || user.get('preferences.device.dwell')) { return false; }
   // Speaking as someone else: in Speak Mode `currentUser` is the Speak Mode user, not the person signed in.
   var session = appState.get('sessionUser');
   if (session && session !== user && (session.get ? session.get('id') : session.id) !== user.get('id')) { return false; }

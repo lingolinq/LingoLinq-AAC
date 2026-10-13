@@ -101,4 +101,26 @@ module('Unit | Utility | the sentence bar hears select', function(hooks) {
     scanner.pick_elem(scanner.find_elem(bar));
     assert.strictEqual(heard, 1);
   });
+
+  /* FINAL REVIEW (2026-10-13), Medium: for a SCANNING or dwell-key user, Space/Enter are the scanner's keys. When
+     the bar held focus, the keyup handler spoke the whole sentence on top of the scan action, and Enter's native
+     click on the <a> spoke it a second time. The scanner keeps those keys; the bar does not speak from them. */
+  test('scanning: Enter and Space on the focused bar do not speak it, and Enter makes no click', function(assert) {
+    assert.expect(4);
+    var restore = listening([]);
+    buttonTracker.scanning_enabled = true;
+    try {
+      bar.focus();
+      var down = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true });
+      bar.dispatchEvent(down);
+      bar.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+      assert.strictEqual(heard, 0, 'Enter did not speak it');
+      assert.true(down.defaultPrevented, 'no click from Enter on the bar');
+      bar.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', keyCode: 32, bubbles: true }));
+      assert.strictEqual(heard, 0, 'Space did not speak it');
+      buttonTracker.scanning_enabled = false;
+      bar.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+      assert.strictEqual(heard, 1, 'CONTROL: without scanning it speaks');
+    } finally { restore(); }
+  });
 });

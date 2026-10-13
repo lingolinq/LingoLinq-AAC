@@ -191,4 +191,15 @@ module('Unit | Utility | tours | tour offer', function(hooks) {
     assert.notOk(appStateService.get('board_alt_tour_pending'), 'cleared after the last attempt');
     comp.destroy();
   });
+
+  /* FINAL REVIEW (2026-10-13), Medium: the offer card is not a scanner target and sits in no dwell region, so a
+     switch-scanning or eye-gaze/dwell user could neither press Start nor Not now, and it covered bottom-row
+     buttons. Those users are not offered it. */
+  test('no offer for switch-scanning or eye-gaze/dwell users', function(assert) {
+    var scanner = user(); scanner.set('preferences.device', { scanning: true });
+    assert.false(maybe_offer_tour(appState(scanner)), 'switch scanning');
+    var gaze = user(); gaze.set('preferences.device', { dwell: true, dwell_type: 'eyegaze' });
+    assert.false(maybe_offer_tour(appState(gaze)), 'eye gaze / dwell');
+    assert.strictEqual(scanner.saves.length + gaze.saves.length, 0, 'not marked as offered either');
+  });
 });
