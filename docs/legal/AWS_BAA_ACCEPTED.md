@@ -97,10 +97,7 @@ Places, OpenSymbols). Those are governed separately and are not in scope for thi
 - **Amazon Bedrock is a HIPAA-eligible AWS service** (verified against AWS's HIPAA-eligible-services
   reference, 2026-07-24), **excluding the Fable and Mythos models**. The runtime inventory (Claude
   Haiku 4.5, Claude Opus 4.7) is on the eligible side of that exclusion; Fable/Mythos remain barred
-  by policy and by the runtime model allowlist. On 2026-10-13 the runtime model moved from Claude
-  Haiku 4.5 to Claude Haiku 5.5 (`us.anthropic.claude-haiku-5-5`), which is also outside the
-  Fable/Mythos exclusion; its retention setting and a live invoke in this account are to be
-  confirmed before runtime credentials are restored (LingoLinq-AAC issue 1127).
+  by policy and by the runtime model allowlist.
 - **Amazon Bedrock is the designated runtime AI path under this BAA**, and is covered by it once in
   use. It is **not in use for PHI today** (see the correction below); the HIPAA-eligible services
   actually processing data remain S3, RDS, and the rest of the existing inventory.
