@@ -68,13 +68,17 @@ class RemoteAction < ApplicationRecord
       user = User.find_by_path(ra.path)
       user.schedule(:audit_protected_sources) if user
     else
-      # an action this code does not know (e.g. written by a newer release) would otherwise be
-      # dropped in silence when remote_remove_batch deletes the row; no path, it can identify a user
-      Rails.logger.error("RemoteAction#process_action: unknown action #{ra.action}, row #{ra.id} dropped")
+      # An action this build does not know was written by a NEWER build (rolled back since, or
+      # deploying alongside). Deleting the row would lose that build's queued work, so it is kept
+      # (:keep) for a build that knows it; Uploader.remote_remove_batch still purges every row
+      # older than 3 months. Logged without the path, which can identify a user.
+      Rails.logger.error("RemoteAction#process_action: unknown action #{ra.action}, row #{ra.id} kept")
+      return :keep
     end
   end
 
-  # process_action returns :keep for a row that its job deletes when it completes.
+  # process_action returns :keep for a row that its job deletes when it completes, and for a row
+  # whose action this build does not know.
   def self.process_all
     RemoteAction.all.each{|ra| ra.destroy unless ra.process_action == :keep }
   end

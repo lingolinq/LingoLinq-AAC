@@ -2522,6 +2522,22 @@ describe Uploader do
     end
 
     describe "remote_remove_batch" do
+      it "should keep a due row whose action this code does not know, and still clear the rest" do
+        unknown = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+        Uploader.remote_remove_later("file/1/pic.png", "chk1")
+        RemoteAction.update_all(act_at: 6.hours.ago)
+        expect(Uploader.remote_remove_batch).to eq(1)
+        expect(RemoteAction.find_by(id: unknown.id)).not_to eq(nil)
+        expect(RemoteAction.count).to eq(1)
+      end
+
+      it "should still purge a row older than three months, whatever its action" do
+        old = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+        old.update_column(:created_at, 4.months.ago)
+        Uploader.remote_remove_batch
+        expect(RemoteAction.find_by(id: old.id)).to eq(nil)
+      end
+
       it "should schedule remove actions" do
         10.times do |i|
           Uploader.remote_remove_later("file/#{i}/pic.png", "chk#{i}")

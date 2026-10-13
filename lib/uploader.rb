@@ -303,7 +303,7 @@ module Uploader
       updated_ids = []
       puts "#{batch[0].id}..."
       batch.each do |ra|
-        # a row its job deletes on completion is kept (RemoteAction#process_action returns :keep)
+        # kept: a row its job deletes on completion, or one whose action this build does not know
         updated_ids << ra.id unless ra.process_action == :keep
       end
       # A job scheduled above can run before this line and re-record its row with a later act_at

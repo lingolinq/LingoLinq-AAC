@@ -7,6 +7,29 @@ describe RemoteAction, :type => :model do
       RemoteAction.new(action: 'not_a_known_action', path: 'x').process_action
       expect(Rails.logger).to have_received(:error).with(/unknown action not_a_known_action/)
     end
+
+    # A row whose action this build does not know was written by a NEWER build (rolled back since,
+    # or deploying alongside). Dropping it would lose that build's queued work, so it is kept until
+    # a build that knows it processes it; the hourly batch's 3-month purge still bounds it.
+    it "keeps a row whose action this code does not know" do
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      expect(ra.process_action).to eq(:keep)
+    end
+
+    it "logs the unknown action and the row, never the path" do
+      allow(Rails.logger).to receive(:error)
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'someuser::1_2', act_at: 1.hour.ago)
+      ra.process_action
+      expect(Rails.logger).to have_received(:error).with("RemoteAction#process_action: unknown action action_from_a_newer_build, row #{ra.id} kept")
+    end
+
+    it "is not destroyed by process_all, while a known row beside it still is" do
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      known = RemoteAction.create!(action: 'delete', path: 'file/1/pic.png', extra: 'chk1', act_at: 1.hour.ago)
+      RemoteAction.process_all
+      expect(RemoteAction.find_by(id: ra.id)).not_to eq(nil)
+      expect(RemoteAction.find_by(id: known.id)).to eq(nil)
+    end
   end
 
   # def process_action
