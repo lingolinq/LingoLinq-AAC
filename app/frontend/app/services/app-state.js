@@ -5485,8 +5485,8 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+// Below the baselined lint rows so they keep their line numbers (.eslint-todo).
+import { live_service } from '../utils/live_service';
 // Placed last for the same reason as sync_density_scope: an import at the top would shift
 // every line of the ESLint baseline. Imports are hoisted, so position does not matter at runtime.
 import { compressedViewActive } from '../utils/compressed_view_state';
-// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from '../utils/live_service';
