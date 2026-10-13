@@ -287,11 +287,11 @@ class OrganizationUnit < ApplicationRecord
   end
   
   def assert_supervision(opts={})
-    # A job queued before the organization was destroyed must not link (or unlink) its rooms'
-    # members afterwards; Organization.clean_up_destroyed handles the rooms of a destroyed org.
-    return false unless self.organization
     ref_user = User.find_by_path(opts['user_id'])
     return false unless ref_user
+    # A job queued before the organization was destroyed must not link its rooms' members
+    # afterwards; a removal still applies (strip_destroyed_org_supervision).
+    return strip_destroyed_org_supervision(ref_user, opts) unless self.organization
 
     links = UserLink.links_for(self)
     communicator_ids = links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq
@@ -321,5 +321,31 @@ class OrganizationUnit < ApplicationRecord
         User.link_supervisor_to_user(user, ref_user, nil, edit_permission, self.global_id)
       end
     end
+  end
+
+  # A member taken out of a room leaves the room's links at once (remove_supervisor,
+  # remove_communicator) and is unlinked by a queued job. When the organization was destroyed in
+  # between, Organization.clean_up_destroyed reads the rooms' current members and cannot see that
+  # member, so the job takes the destroyed organization's rooms off the member's supervision links
+  # itself, the same way the cleanup does (User.strip_rooms_from_supervision: only a link known to
+  # be room-made is removed; a direct one is kept without the rooms). Pairs come from the member's
+  # own supervision links, not from the room's members.
+  def strip_destroyed_org_supervision(ref_user, opts)
+    return false unless opts['remove_supervisor'] || opts['remove_communicator']
+    org_id = self.organization_id
+    unit_ids = OrganizationUnit.where(organization_id: org_id).map(&:global_id)
+    if opts['remove_supervisor']
+      links = ref_user.supervisee_links.select{|l| ((l['state'] || {})['organization_unit_ids'] || []).intersect?(unit_ids) }
+      pairs = User.find_all_by_global_id(links.map{|l| l['user_id'] }.uniq).map{|comm| [ref_user, comm] }
+    else
+      links = ref_user.supervisor_links.select{|l| ((l['state'] || {})['organization_unit_ids'] || []).intersect?(unit_ids) }
+      pairs = User.find_all_by_global_id(links.map{|l| l['record_code'].split(/:/)[1] }.uniq).map{|sup| [sup, ref_user] }
+    end
+    return true if pairs.empty?
+    staff_since, actor = Organization.destroyed_org_cleanup_context(org_id)
+    pairs.each do |sup, comm|
+      User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor)
+    end
+    true
   end
 end

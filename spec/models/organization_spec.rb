@@ -1282,6 +1282,60 @@ describe Organization, :type => :model do
         expect(supervision_link(sup, comm)).to eq(nil)
       end
 
+      # A member taken out of a room leaves the room's links at once, and the job that unlinks the
+      # pair runs later; when the organization is destroyed in between, the cleanup (which reads
+      # the rooms' current members) no longer sees the pair, so the queued job must remove it.
+      it "removes the room supervision of a supervisor taken out of a room just before the organization is destroyed" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name, true)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(User.find(sup.id).supervisor_for?(User.find(comm.id))).to eq(false)
+      end
+
+      it "removes the room supervision of a communicator taken out of a room just before the organization is destroyed" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(User.find(sup.id).supervisor_for?(User.find(comm.id))).to eq(false)
+      end
+
+      it "keeps a direct link, without the room, for a member taken out of a room just before the organization is destroyed" do
+        o, ou, sup, comm = room_with_members
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id])
+
+        OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+        expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      end
+
       it "keeps a link that existed directly before the room added it, without the room" do
         o, ou, sup, comm = room_with_members
         User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
