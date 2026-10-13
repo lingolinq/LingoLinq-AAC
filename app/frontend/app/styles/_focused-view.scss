@@ -4955,46 +4955,14 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
 
   // The group container (supervisors / rooms / orgs) is the seventh elevated surface in the
   // rail and flattens with the rest, or it would be the only card left among the rows.
-  .ch-group {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.28);
-    box-shadow: none;
-  }
 
   // --- chips, group labels, footer -------------------------------------------
   // Near-black at 0.85 (4.65:1). Navy fails on this pane at every opacity — see the token note.
-  .ch-group__label { color: $ch-focused-ink-on-tint; opacity: 0.85; }
 
   // Org chips are rail buttons too, so they take the same silver glass as the rows — same
   // ramp, same raking glimmer, scaled down for a 32px pill. Their navy label is full-strength
   // and measures 7.36:1 even on the deepest stop of the ramp, so it needs no adjustment.
-  .ch-chip {
-    background:
-      linear-gradient(168deg,
-        rgba(255, 255, 255, 0.85) 0%,
-        rgba(255, 255, 255, 0.30) 30%,
-        rgba(255, 255, 255, 0) 62%),
-      linear-gradient(155deg,
-        rgba($ch-focused-silver-hi, 0.95) 0%,
-        rgba($ch-focused-silver-lo, 0.92) 100%);
-    border-color: rgba(255, 255, 255, 0.70);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.98),
-      0 2px 6px rgba($focus-shadow-ink, 0.12);
-  }
 
-  .ch-chip:hover,
-  .ch-chip:focus-visible {
-    background:
-      linear-gradient(168deg,
-        rgba(255, 255, 255, 0.95) 0%,
-        rgba(255, 255, 255, 0.38) 30%,
-        rgba(255, 255, 255, 0) 62%),
-      linear-gradient(155deg,
-        rgba(255, 255, 255, 0.97) 0%,
-        rgba($ch-focused-silver-hi, 0.95) 100%);
-    border-color: rgba(255, 255, 255, 0.92);
-  }
 
   .ch-rail__footer { border-top-color: rgba($ch-focused-ink-on-tint, 0.18); }
 
@@ -5740,8 +5708,6 @@ body.ll-layout-focused {
     color: $la-navy;
   }
 
-  .ch-menu__item--note { color: $la-navy; opacity: 0.80; }
-  .ch-menu__item--note:hover { background: none; }
 }
 
 // =============================================================================
@@ -5918,10 +5884,6 @@ body.ll-layout-focused .md-rooms__count {
 
 // "View all" (app.scss `.md-card__view-all`: communicators, and rooms in Compressed View) takes the LIGHT stop of the row
 // gradient above (#F2F3F5 -> #D2D9E4), so it reads as part of the same list.
-body.ll-layout-focused .md-card__view-all {
-  background: #F2F3F5;
-  border-color: rgba($brand-dusty-denim, 0.38);
-}
 
 // Arrows. Slate was asked for and slate is what these were — but the arrow is pinned to the
 // far RIGHT of the row (`margin-left: auto`, app.scss:48583), which is exactly where the

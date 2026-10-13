@@ -1140,27 +1140,7 @@ button.ch-row--sync:focus-visible {
 
 // A rail item that hosts a GROUP (supervisees, rooms, orgs) rather than a single
 // row — it needs the tile's own padding, since its children are not .ch-row.
-.ch-rail__item--wide .ch-group {
-  position: relative;
-  overflow: hidden;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.68) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 4px 14px rgba($brand-blue-black, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
 
-.ch-group__label {
-  margin: 0 0 8px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.7;
-}
 
 // -----------------------------------------------------------------------------
 // Dropdown menu — the supervisee action list
@@ -1182,9 +1162,6 @@ button.ch-row--sync:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
-.ch-sup.is-open .ch-menu {
-  display: block;
-}
 
 .ch-menu__item {
   display: flex;
@@ -1220,62 +1197,16 @@ button.ch-row--sync:focus-visible {
   text-decoration: none;
 }
 
-.ch-menu__icon {
-  flex: 0 0 auto;
-}
 
 // A stated condition, not a control — it explains why Model/Speak are absent.
-.ch-menu__item--note {
-  cursor: default;
-  font-weight: 500;
-  font-style: italic;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.8;
-}
 
-.ch-menu__item--note:hover {
-  background: none;
-}
 
 // -----------------------------------------------------------------------------
 // Chips — rooms and org lists
 // -----------------------------------------------------------------------------
 
-.ch-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
 
-.ch-chip {
-  display: inline-flex;
-  align-items: center;
-  // Each chip is a real LinkTo into an organization, and they sit 6px apart — 5px padding
-  // on a 14px label computed to ~32px, so adjacent targets were both small AND close.
-  min-height: 44px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba($la-navy, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  color: $la-navy;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  text-decoration: none;
-  appearance: none;
-  cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease;
-}
 
-.ch-chip:hover,
-.ch-chip:focus-visible {
-  background: #fff;
-  border-color: rgba($brand-dusty-denim, 0.5);
-  color: $la-navy;
-  text-decoration: none;
-}
 
 // -----------------------------------------------------------------------------
 // Rail footer + checkbox
@@ -2085,24 +2016,7 @@ body.ll-view-basic .md-hero--org:not(.md-hero--org-rooms) .md-hero__sub--meta {
    would read as a choice between equals, and one of them is where you already are. The back
    tab is an <a>, so it needs the anchor colour and underline neutralised to match the buttons
    beside it, which `.ch-tab` alone does not do. */
-.ch-tabs--breadcrumb {
-  justify-content: flex-start;
-}
-.ch-tabs--breadcrumb .ch-tab {
-  flex: 0 0 auto;
-}
-.ch-tab--back,
-.ch-tab--back:hover,
-.ch-tab--back:focus {
-  text-decoration: none;
-}
 
-.ch-organizations-tabs .ch-tab__meta {
-  font-size: 14px; // 13 -> 14px, the AAC text floor (2026-10-01)
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
 
 .ch-tab.is-active {
   background: linear-gradient(160deg, #fff 0%, rgba(255, 255, 255, 0.86) 100%);
@@ -2778,8 +2692,6 @@ $ch-gentle-speak-blue: #4D8DC5;
 // renders only `__icon` and `__label`.
 .ch-tile--speak { @include ch-tile-tint($ch-gentle-speak-blue, 0.52, 0.26); }
 .ch-tile--create  { @include ch-tile-tint($brand-verdigris); }
-.ch-tile--search  { @include ch-tile-tint($brand-dusty-denim); }
-.ch-tile--sup     { @include ch-tile-tint($brand-dusty-denim); }
 // Reports and Learn and Setup are deliberately IDENTICAL (2026-09-02, requested):
 // same colour, same recipe. Matching only the alphas was not enough — peach is light
 // and warm, stormy teal is dark and desaturated, so at the same 0.30 they rendered
@@ -2808,8 +2720,6 @@ $ch-gentle-speak-blue: #4D8DC5;
 // tile colour, and raising that would clear every tile at once.
 $ch-gentle-ideas-fawn: #A79A80;
 .ch-tile--ideas   { @include ch-tile-tint($ch-gentle-ideas-fawn, 0.54, 0.26); }
-.ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
-.ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
 // GLASSY SILVER ICON CHIPS on the four main Actions tiles (requested 2026-09-03).
 // Speak, Reports, Modeling Ideas and Extras now share one silver chip instead of each
@@ -4545,64 +4455,14 @@ button.ch-tile--silver:focus-visible {
 }
 
 // ── Eyebrow (centred intro/outro steps) ──────────────────────────────────────
-.ch-tour__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba($brand-dusty-denim, 0.12);
-  border: 1px solid rgba($brand-cool-steel, 0.28);
-  color: $brand-dusty-denim-aa;
-  font-size: 14px; // 11 -> 14px, the AAC text floor; matches the Modern tour eyebrow (2026-10-01)
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
 
-.ch-tour__eyebrow-icon { flex: 0 0 auto; }
 
-.ch-tour__heading { display: block; }
 
 // ── Checklist body ───────────────────────────────────────────────────────────
-.ch-tour__lead {
-  margin: 0 0 10px;
-  font-size: 15px;
-  line-height: 1.5;
-  color: #374151;
-}
 
-.ch-tour__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
 
-.ch-tour__li {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 5px 0;
-  font-size: 15px;
-  line-height: 1.4;
-  color: $la-navy;
-}
 
-.ch-tour__li-check {
-  flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  margin-top: 2px;
-  color: $brand-verdigris-aa;
-}
 
-.ch-tour__foot {
-  margin: 10px 0 0;
-  font-size: 14px;
-  line-height: 1.45;
-  color: #374151;
-}
 
 // ── Footer buttons ───────────────────────────────────────────────────────────
 // (0,3,0), so these beat the unscoped `.shepherd-element .shepherd-button` base at

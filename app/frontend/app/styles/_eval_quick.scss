@@ -815,103 +815,10 @@ body.evq-gaze-mode { cursor: crosshair; }
   }
 }
 
-.evq-runner__item-card {
-  background: rgba(255, 255, 255, 0.65);
-  border: 1.5px dashed $evq-border-strong;
-  border-radius: $evq-radius;
-  padding: clamp(24px, calc(16px + 2vw), 48px);
-  text-align: center;
-  min-height: 240px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
 
-.evq-runner__item-id {
-  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: $evq-text-muted;
-  background: #ffffff;
-  border-radius: $evq-radius-pill;
-  padding: 4px 12px;
-  border: 1px solid $evq-border;
-}
 
-.evq-runner__item-prompt {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-  color: $la-navy;
-  max-width: 520px;
-  line-height: 1.4;
-}
 
-.evq-runner__score-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
-  align-items: stretch;
 
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.evq-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 20px;
-  border-radius: $evq-radius-sm;
-  border: 1.5px solid $evq-border;
-  background: #ffffff;
-  font-weight: 700;
-  font-size: 14px;
-  color: $la-navy;
-  cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 160ms ease;
-
-  &:hover, &:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: $evq-shadow;
-    outline: none;
-  }
-
-  &--correct {
-    color: $evq-accent;
-    border-color: rgba(42, 157, 143, 0.35);
-
-    &:hover, &:focus-visible {
-      background: $evq-accent-soft;
-      border-color: $evq-accent;
-    }
-  }
-
-  &--incorrect {
-    color: $evq-danger;
-    border-color: rgba(192, 57, 43, 0.35);
-
-    &:hover, &:focus-visible {
-      background: rgba(192, 57, 43, 0.06);
-      border-color: $evq-danger;
-    }
-  }
-
-  &--skip {
-    color: $evq-text-muted;
-
-    &:hover, &:focus-visible {
-      color: $la-navy;
-      border-color: $evq-border-strong;
-    }
-  }
-}
 
 .evq-runner__actions {
   display: flex;
@@ -2534,7 +2441,6 @@ body.evq-gaze-mode { cursor: crosshair; }
   gap: 10px;
   padding: 18px 14px 16px;
 }
-.evq-item__choice-symbol,
 .evq-symbol {
   pointer-events: none;
   max-width: clamp(64px, 22vw, 110px);
@@ -2686,13 +2592,6 @@ body.evq-gaze-mode { cursor: crosshair; }
 
 // Legacy tag class — unused by the new 3-way layout but left for
 // any old templates that still reference it.
-.evq-item__library-tag {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: $evq-text-muted;
-  font-weight: 700;
-}
 
 // ── Sequence (syntax / sequencing) ────────────────────────────────
 .evq-item__sequence-status {

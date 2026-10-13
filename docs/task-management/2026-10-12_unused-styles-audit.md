@@ -1,0 +1,1464 @@
+# Unused styles audit, 2026-10-12
+
+Scope: the app's own stylesheets (`app/frontend/app/styles`, compiled to `frontend.css`; the Rails `application.css` only bundles that build). Third-party CSS (Bootstrap, vendor) is out of scope.
+
+## Method
+
+1. Every class and ID used in a selector of the compiled `frontend.css` (6,767 classes, 120 IDs), so Sass nesting (`&__x`, `&--y`) is resolved.
+2. A name is USED if it appears anywhere a class can be applied from: Ember templates and JS (`app/frontend/app`, `lib`, `config`, `public`, `vendor`, `bower_components`), `index.html`, Rails views, helpers, controllers, models, mailers, `lib`, `config`, `db`, `app/assets`, `public`, locale JSON, and the source, JS and CSS of every installed package (transitive ones included, 46,843 files), since libraries add classes too (that is how the 7 Shepherd tour classes were confirmed used).
+3. Anything that could be assembled at runtime is NOT called unused: a name starting with a concatenated prefix (`'md-grid--hero-' + key`, `` `x-${y}` ``, `"pre-{{x}}"`, `(concat "pre-" ...)`, Ruby `"pre-#{x}"`) or ending with a concatenated suffix, and every `classNameBindings` class. Those are listed separately below.
+4. Independent re-check: an exact-name regex (a hyphen counts as part of the name) over all 3,176 git-tracked text files outside the styles, with a positive control (two known-used classes were found). It agreed: the only hit was one QA script, noted below.
+5. Every name mapped to its SCSS file and line through the build's source map; 10 random mappings plus one known case checked by hand.
+
+## What "unused" means here, and its limits
+
+- No template, script, view, locale, library or package anywhere in the repo contains the name, so nothing on the page can carry it. A rule that REQUIRES the name can never match.
+- Inside `:not(...)` it is the reverse: `:not(.unused)` always matches, so those rules still apply and only the exclusion is redundant. 3 names appear ONLY inside `:not()` (marked ◊: their rules are live, delete just the `:not()` part), and 9 appear both ways (marked ¶: the `:not()` occurrences are live rules).
+- Not covered: class names stored as DATA (in the database or coming from an external service) and inserted into the page at runtime. None of the names below look like data, but that cannot be ruled out statically.
+- A name listed here may sit in a selector LIST beside used selectors. Removing it means removing that selector, not necessarily the whole block.
+- `app/assets/javascripts/frontend.js` is a git-ignored local Ember build from 2026-08-23. 70 of these names appear only there: they were used by that older build and are gone from current source (marked †).
+- 7 are Bootstrap size modifiers (`btn-xs`, `input-group-sm`, ...): defined by Bootstrap's own stylesheet, used by no markup in this app; the app's overrides of them are dead (marked ‡).
+- `board-picker-page__context` is named only in a QA script (`app/frontend/scripts/p1-board-picker-qa.mjs`), not in anything the app runs (marked §).
+
+## Totals
+
+| | Classes | IDs |
+|---|---|---|
+| Unused | 1208 | 13 |
+| Possibly built at runtime (not counted as unused) | 164 | 2 |
+| Named only in tests | 0 | 1 |
+
+## Unused, by file (first rule's line; more lines in brackets)
+
+### `app.scss` (1148)
+
+- 156: `.md-user-summary__available-boards` [174, 187, 208, 219, 234, 240, ...]
+- 156: `.ub-search-page__board-grid` [174, 187, 208, 219, 234, 240, ...]
+- 374: `.md-board-detail-edit-toolbar__search-input` ¶ [396, 453, 88410, 88427, 88430, 93760, ...]
+- 396: `.md-board-detail-board-actions` [81226, 81299, 92511, 92525, 93560]
+- 396: `.md-board-detail-board-actions__btn` [81312, 81337, 81344, 81347, 81352, 81359, ...]
+- 948: `.ll-bento-app-shell` [1274, 21023, 21073, 21078, 24788, 24797, ...]
+- 948: `.ll-bento-device-frame` [959, 1274, 1281, 1299, 1308, 21171, ...]
+- 1030: `.bento-page-main` [1037, 1040]
+- 1205: `.search-page` [1218, 44952, 65487, 65505]
+- 1831: `.board-view-modern-btn` † [1838, 1844, 70326, 70336, 70360]
+- 2209: `.user-name`
+- 2347: `.faded_back`
+- 2352: `.full_back` [2361, 2365, 2369]
+- 2361: `.icon_column` [2365, 2369]
+- 2365: `.big_icon`
+- 2369: `.icon_under`
+- 2381: `#secondary_title` [20206]
+- 2692: `.header-search-wrap` † [22388, 34529, 43836]
+- 2697: `.header-search-input` † [22396, 43832]
+- 2701: `.header-search-btn` † [2719, 2725, 22402, 22436, 22448, 23037, ...]
+- 2722: `.header-search-icon` † [2725, 22442, 22448, 23037, 23044, 43787]
+- 2869: `.board-picker-btn--open` ¶ [70943, 70948]
+- 3699: `.ll-bento-upgrade-btn--nav` [23006, 23012, 23715, 23723, 23728, 23738, ...]
+- 3837: `.nav-header__app-name` [3923, 3928, 3940, 3945, 3993, 22537, ...]
+- 3879: `.nav-header__logo` [3891, 3936, 3977, 4026, 4041, 22499, ...]
+- 3949: `.nav-header__app-name-link` [3962, 3971, 22479, 22492, 22532, 22804, ...]
+- 4090: `.getting-started-modal__stage`
+- 4294: `.subscription_table` [4311, 4318, 17895, 17905, 17909, 17914, ...]
+- 4486: `.page-footer-link-with-icon` [4491]
+- 4634: `.skinny_bio` [4636, 4646, 4650, 20232, 20234]
+- 4670: `.wide_bio` [20238]
+- 5927: `.board-picker__home-badge` ◊
+- 6027: `.md-home-boards-picker__search--inline` [6367]
+- 6202: `.md-home-boards-picker__keyboard-tag` †
+- 6216: `.md-home-boards-picker__keyboard-preview` †
+- 6230: `.md-home-boards-picker__keyboard-preview--qwerty`
+- 6233: `.md-home-boards-picker__keyboard-row` †
+- 6238: `.md-home-boards-picker__keyboard-key` †
+- 6343: `.md-home-boards-picker__coming-soon`
+- 6348: `.md-home-boards-picker__coming-soon-btn`
+- 6403: `.md-home-boards-picker__search-clear` [6418]
+- 6433: `.md-home-boards-picker__fallback-note`
+- 6830: `.board-picker-page__context` §
+- 7402: `.setup-core-callout`
+- 7410: `.setup-core-callout__label`
+- 7423: `.setup-core-callout__p` [7429]
+- 7433: `.setup-core-callout__p--tip`
+- 7533: `.setup-symbols-subheader`
+- 7796: `.setup-symbols-rows` [8128]
+- 7802: `.setup-symbols-row` [8111]
+- 7809: `.setup-symbols-row__label` [8122]
+- 7819: `.setup-symbols-row__icon`
+- 7825: `.setup-symbols-dropdown` [7962, 7980, 8001, 8116]
+- 7831: `.setup-symbols-options-group` [8116]
+- 7839: `.setup-symbols-pills` [8116]
+- 7845: `.setup-symbols-pill` [7861, 7870, 7876, 7882]
+- 7885: `.setup-symbols-pill__text`
+- 7889: `.setup-symbols-pill__img` [7923]
+- 7899: `.setup-symbols-pill__subnote`
+- 7906: `.setup-symbols-pill--expand` [7911]
+- 7916: `.setup-symbols-pill--optional` [7923, 7927, 7932]
+- 7936: `.setup-symbols-dropdown__trigger` [7956, 7962]
+- 7971: `.setup-symbols-dropdown__chevron` [7980]
+- 7983: `.setup-symbols-dropdown__list` [8001]
+- 8006: `.setup-symbols-dropdown__option` [8266, 8270, 8275]
+- 8022: `.setup-symbols-dropdown__option-text`
+- 8026: `.setup-symbols-skin-swatch`
+- 8033: `.setup-symbols-skin-swatch--mix` [8040]
+- 8046: `.setup-symbols-preference-card` [8063, 8077, 8082, 8111, 8116, 8128, ...]
+- 8055: `.setup-symbols-card-row` [8063]
+- 8068: `.setup-symbols-card-sample` [8077, 8082, 8086]
+- 8077: `.setup-symbols-card-row--skin-tone`
+- 8082: `.setup-symbols-card-row--picture-display`
+- 8086: `.setup-symbols-preview` [8131, 8135, 8140, 8145, 8151, 8156]
+- 8086: `.setup-symbols-preview-section` [8131, 8135, 8156, 8170, 8217]
+- 8091: `.setup-symbols-card__body`
+- 8098: `.setup-symbols-card__left` [8122]
+- 8105: `.setup-symbols-card__right` [8135]
+- 8162: `.setup-symbols-preview-bg` [8167, 8230, 8257]
+- 8173: `.setup-symbols-sample-pill`
+- 8185: `.setup-symbols-utterance-sample`
+- 8190: `.setup-symbols-utterance-sample__box`
+- 8203: `.setup-symbols-utterance-sample__text`
+- 8208: `.setup-symbols-utterance-sample__chip`
+- 8212: `.setup-symbols-utterance-sample__label`
+- 8224: `.setup-symbols-preview-section__label`
+- 8241: `.setup-symbols-preview-bg--white`
+- 8244: `.setup-symbols-preview-bg--black` [8251]
+- 8247: `.setup-symbols-preview-bg__text` [8251]
+- 8254: `.setup-symbols-preview-bg__text--high-contrast`
+- 8263: `.setup-symbols-preview-bg--high-contrast`
+- 8278: `.setup-symbols-dropdown__subnote`
+- 8285: `.setup-symbols-dropdown__option--expand`
+- 8375: `.app-logo` †
+- 8540: `.setup-intro__actions` [8602]
+- 8585: `.setup-intro__skip-pill` [8595]
+- 8919: `.signup_links` [20245]
+- 9377: `.listed_badge` [9380, 9385, 9388]
+- 9385: `.badge_image`
+- 9546: `.dim_glyph_until_hover` [9549]
+- 9660: `.extra_color_preview`
+- 9760: `.md-level-paint-pulse`
+- 10135: `#intro_header`
+- 10164: `.middle_column` [20337]
+- 10692: `.label_dropdown`
+- 10880: `.thin_select`
+- 10956: `#new_left` [10963]
+- 10970: `.secondary_button` [10973]
+- 10977: `.lesser_button` [10980]
+- 10984: `.emergency_button` [10987]
+- 10991: `.modeling_button` [10993]
+- 10997: `.alternate_button` [11000]
+- 11004: `.attention_button` [11006]
+- 11010: `#new_right` [11023, 11028, 11031, 11034, 11041, 11046, ...]
+- 11034: `#nav_primary`
+- 11041: `#nav_secondary`
+- 11046: `#nav_tertiary` [11050, 11054]
+- 11059: `#nav_extras`
+- 11066: `#bento-main`
+- 11070: `.new_pills` [11072, 11081, 11087, 20349, 20352]
+- 11457: `.md-copying-board-header`
+- 11474: `.md-copying-board-header__title`
+- 11478: `.md-copying-board-header__copy-all`
+- 11485: `.md-copying-board-header__close`
+- 11518: `.big_button_holder` [26449, 27204, 54319, 54383]
+- 11570: `.button_row_wrap` [11572, 11899, 11902, 11922, 11925, 11944, ...]
+- 11578: `.button_row_extras` [11580, 11909, 11912, 11931, 11934, 11953, ...]
+- 11965: `.button_row_mini_wrap`
+- 11983: `.left_links` [11988, 11993, 11996, 12002, 12005, 12009, ...]
+- 13300: `.md-bs-status__label`
+- 13616: `.md-bs-choose__explain`
+- 13749: `.md-bs-status__hint`
+- 13757: `.md-bs-group` [13842]
+- 13766: `.md-bs-dest__results`
+- 13771: `.md-bs-dest__search-row`
+- 13776: `.md-bs-dest__search-field`
+- 13780: `.md-bs-dest__search-input`
+- 13783: `.md-bs-dest__search-btn`
+- 13788: `.md-bs-btn`
+- 13801: `.md-bs-btn--primary` [13806]
+- 13809: `.md-bs-btn--secondary` [13814]
+- 13819: `.md-bs-btn--outline` [13824, 13828]
+- 14111: `.md-bs-picture__head` [14115]
+- 14118: `.md-bs-picture__subtitle`
+- 14708: `.la-board-details-section--actions`
+- 14746: `.la-board-details-delete-btn` [14750]
+- 14756: `.md-board-details-edit-btn-wrap`
+- 14762: `.md-board-details-edit-btn` [14777, 14782]
+- 15209: `.la-board-actions-item--static` † [15213, 15217]
+- 15221: `.la-board-actions-view-style__toggle` †
+- 16415: `.la-tag-board-error`
+- 16587: `.la-translate-board-empty`
+- 16597: `.la-translate-board-error-card`
+- 16744: `.la-translate-board-alt-btn` [16755]
+- 17523: `#button_results` [17526, 17533, 17538, 17543, 17551, 17558, ...]
+- 17566: `.link_list`
+- 17628: `.supervisee_list` [17631, 17633]
+- 17631: `.supervisee_nav` [17633, 17641, 17643, 17651, 17656]
+- 17736: `.sub_note` [17740]
+- 17844: `.sponsor_1` [17882]
+- 17847: `.sponsor_2` [17885]
+- 17850: `.sponsor_3` [17888]
+- 17853: `.sponsor_4` [17891]
+- 17984: `.subscription-table__lifetime-purchase`
+- 18047: `.subscription-table__communicator-header`
+- 18055: `.subscription-table__supporter-header`
+- 18062: `.subscription-table__eval-header`
+- 18965: `.subscription-table__cloud-extras-right`
+- 20211: `#index_boards_toggle` [20313]
+- 20478: `.not_pretty_skinny` [23176, 23179]
+- 20715: `#nav_updates` [20721]
+- 21093: `.ll-bento-bg-orbs` [21100, 21105, 21114, 21123, 26035, 26038, ...]
+- 21100: `.ll-bento-orb`
+- 21105: `.ll-bento-orb--a` [26038, 26627]
+- 21114: `.ll-bento-orb--b` [26043, 26632]
+- 21123: `.ll-bento-orb--c` [26048, 26637]
+- 21136: `.nav-header-welcome__celebration-icon` [21151]
+- 21176: `.ll-bento-device-frame--wide`
+- 21196: `.ll-bento-main-content` [21201]
+- 21209: `.ll-bento-bar` [22662, 22665, 22669, 26061, 26070, 26075, ...]
+- 21232: `.ll-bento-bar__section`
+- 21240: `.ll-bento-bar__brand`
+- 21249: `.ll-bento-brand-link` [21262, 21266, 26070, 26247, 26256, 26463, ...]
+- 21272: `.ll-bento-bar__brand-sep` [26070]
+- 21280: `.ll-bento-bar__brand-home` [26075, 26676]
+- 22210: `.app-navbar__create-board-new-link--full` [22235, 22240, 22287]
+- 22249: `.app-navbar__create-board-new-link--circular` [22269]
+- 22585: `.ll-bento-bar__welcome`
+- 22595: `.ll-bento-bar-welcome` [26079, 26659]
+- 22605: `.ll-bento-bar-welcome__label` [26082, 26662]
+- 22621: `.ll-bento-bar-welcome__badge` [26085, 26665, 27344]
+- 22626: `.ll-bento-bar-welcome__celebration-icon` [22631, 26092, 26672]
+- 22635: `.ll-bento-bar__search`
+- 22641: `.ll-bento-bar__actions`
+- 22648: `.ll-bento-bar__nav-link` [22656]
+- 22662: `.ll-bento-icon-btn` [22665, 24486, 24509, 24513, 24519, 26132, ...]
+- 22669: `.ll-bento-icon-btn--refresh` [24524]
+- 23184: `.la-topbar` [31587, 43640, 44105]
+- 23428: `.nav-header-welcome`
+- 23453: `.nav-header-welcome__label`
+- 23476: `.nav-header-welcome__badge`
+- 23628: `.md-iconbtn__icon--help`
+- 23749: `.ll-bento-app-shell--dark` [23761, 26602, 26624, 26627, 26632, 26637, ...]
+- 23749: `.ll-bento-app-shell--default` [23761, 27276, 27287, 27297, 27315, 27321, ...]
+- 23749: `.ll-bento-app-shell--midday` [23761, 26016, 26035, 26038, 26043, 26048, ...]
+- 23814: `.ll-bento-demo-toggle__circle`
+- 23819: `.ll-bento-demo-toggle__svg` [23824]
+- 23824: `.ll-bento-demo-toggle`
+- 23882: `.ll-bento-theme-picker--in-drawer`
+- 23977: `.ll-bento-theme-picker__swatch-bar`
+- 23988: `.ll-bento-theme-picker__swatch`
+- 23992: `.ll-bento-theme-picker__swatch--light`
+- 23996: `.ll-bento-theme-picker__swatch--midday`
+- 24000: `.ll-bento-theme-picker__swatch--dark`
+- 24018: `.ll-bento-brand__name` [26070, 27729]
+- 24025: `.ll-bento-brand__logo-wrap`
+- 24035: `.ll-bento-logo`
+- 24046: `.ll-bento-top-actions`
+- 24052: `.ll-bento-welcome`
+- 24058: `.ll-bento-welcome__label` [26096, 26680]
+- 24071: `.ll-bento-welcome__badge` [24077, 26100, 26106, 26684, 26690]
+- 24094: `.ll-bento-getting-started` [24187, 24192, 24198, 24203, 24209, 27246]
+- 24113: `.ll-bento-getting-started--main` ¶ [24129, 24139, 24145, 24160, 24187, 24192, ...]
+- 24154: `.ll-bento-getting-started__image` [24160]
+- 24167: `.ll-bento-getting-started__body`
+- 24175: `.ll-bento-getting-started__header`
+- 24182: `.ll-bento-getting-started__divider`
+- 24216: `.ll-bento-getting-started__stage` [24225, 24256, 26300, 27094]
+- 24230: `.ll-bento-getting-started__title` [24234, 26409, 27023, 27729]
+- 24243: `.ll-bento-getting-started__hint` [24247, 26409, 26425, 27033, 27738]
+- 24261: `.ll-bento-getting-started__btn` [24280, 24286, 26156, 26928, 26933, 27246, ...]
+- 24295: `.ll-bento-home-board-card` [24307, 24312, 24329, 24339, 24345, 24398, ...]
+- 24307: `.ll-bento-boards-home-board-wrap` [24312, 24863, 25013]
+- 24312: `.ll-bento-home-board-card__btn` [24379, 24398, 24404, 26150, 26918, 26923, ...]
+- 24352: `.ll-bento-home-board-card__image`
+- 24359: `.ll-bento-home-board-card__content`
+- 24364: `.ll-bento-home-board-card__title` [26398, 26409, 27023]
+- 24372: `.ll-bento-home-board-card__subtitle` [26409, 26425, 26435, 27023, 27033]
+- 24412: `.ll-bento-progress` [26239, 27040]
+- 24419: `.ll-bento-progress__fill` [26243, 27044]
+- 24427: `.ll-bento-search` [24446, 24450, 24456, 26111, 26259, 26695, ...]
+- 24461: `.ll-bento-search__icon`
+- 24468: `.ll-bento-search__input` [24476, 24480, 26124, 26128, 26703]
+- 24559: `.ll-bento-avatar`
+- 24702: `.ll-bento-span`
+- 24706: `.ll-bento-tabs` [26233, 26891, 27692]
+- 24720: `.ll-bento-tab` [24745, 24765, 24771, 26138, 26264, 26901, ...]
+- 24745: `.ll-bento-tab--active` ¶ [24753, 26138, 26144, 26264, 26907, 26912, ...]
+- 24777: `.ll-bento-tab--link`
+- 24855: `.ll-bento-content`
+- 24869: `.ll-bento-browse-boards` [24875, 24886, 24894, 25013, 25345, 26181, ...]
+- 24901: `.ll-bento-browse-boards__header`
+- 24908: `.ll-bento-browse-boards__search`
+- 24913: `.ll-bento-browse-boards__icon` [24926, 24933, 26189, 26981, 27507]
+- 24926: `.ll-bento-browse-boards__icon-img`
+- 24939: `.ll-bento-browse-boards__title`
+- 24947: `.ll-bento-browse-boards__filter-group`
+- 24951: `.ll-bento-browse-boards__pills` [24960, 24963, 24980, 24990, 24999, 26987, ...]
+- 25007: `.ll-bento-boards-page` [25013]
+- 25013: `.ll-bento-boards-toolbar` [25042, 26162, 26954]
+- 25021: `.ll-bento-boards-page__header`
+- 25025: `.ll-bento-boards-page__title`
+- 25034: `.ll-bento-boards-page__subtitle`
+- 25061: `.ll-bento-boards-toolbar__search`
+- 25066: `.ll-bento-filter-pills`
+- 25075: `.ll-bento-filter-pill` [25089, 25094, 26166, 26171, 26958, 26963]
+- 25101: `.ll-bento-filter-pill--active` [25107, 25111, 26175, 26967]
+- 25118: `.ll-bento-current-home`
+- 25130: `.ll-bento-current-home__icon`
+- 25143: `.ll-bento-current-home__body`
+- 25150: `.ll-bento-current-home__label`
+- 25172: `.ll-bento-board-grid` [25187, 25204, 25211, 25221, 25233, 25246]
+- 25179: `.ll-bento-board-grid__item`
+- 25265: `.ll-bento-board-grid__empty`
+- 25265: `.ll-bento-board-grid__error`
+- 25265: `.ll-bento-board-grid__loading`
+- 25277: `.ll-bento-boards-page__footer-cta`
+- 25277: `.ll-bento-boards-page__home-cta`
+- 25282: `.ll-bento-boards-page__home-link` [25297]
+- 25282: `.ll-bento-boards-page__see-all` [25297, 25306]
+- 25312: `.ll-bento-section-group` [25328, 25345, 26304, 26310, 27098, 27108, ...]
+- 25328: `.ll-bento-app-shell--light`
+- 25328: `.ll-bento-extras-expanded` [25365, 25475, 26224, 26314, 27112, 27419, ...]
+- 25351: `.ll-bento-filter-cards`
+- 25358: `.ll-bento-action-card--filter-active`
+- 25370: `.ll-bento-actions` [27452, 27470]
+- 25376: `.ll-bento-hero-card` [25391, 25399, 26224, 26273, 26409, 26425, ...]
+- 25404: `.ll-bento-hero-card__icon`
+- 25415: `.ll-bento-hero-card__icon--speak`
+- 25421: `.ll-bento-hero-card__img`
+- 25427: `.ll-bento-hero-card__content`
+- 25432: `.ll-bento-hero-card__title` [26398, 26409, 27023, 27729]
+- 25440: `.ll-bento-hero-card__subtitle` [26409, 26425, 26435, 27023, 27033, 27738]
+- 25447: `.ll-bento-hero-card__btn` [25461, 27246, 27650]
+- 25468: `.ll-bento-actions-grid`
+- 25492: `.ll-bento-action-card--extras-expanded` [25496, 26319, 27121, 27570]
+- 25502: `.ll-bento-extras-expanded-grid`
+- 25508: `.ll-bento-action-card` [25522, 25530, 26224, 26273, 26409, 26425, ...]
+- 25535: `.ll-bento-action-card__icon` [27126, 27586]
+- 25546: `.ll-bento-action-card__icon--speak` [26324, 27134, 27591]
+- 25552: `.ll-bento-action-card__icon--reports` [26329, 27139, 27597]
+- 25557: `.ll-bento-action-card__icon--ideas` [26334, 27144, 27602]
+- 25562: `.ll-bento-action-card__icon--modeling` [26334, 27144, 27602]
+- 25567: `.ll-bento-action-card__icon--extras` [26340, 27150, 27608]
+- 25573: `.ll-bento-action-card__icon--green-yellow` [26345, 27155, 27614]
+- 25578: `.ll-bento-action-card__icon--account` [26350, 27160, 27619]
+- 25584: `.ll-bento-action-card__icon--suggested` [26355]
+- 25588: `.ll-bento-action-card__icon--mine` [26359]
+- 25592: `.ll-bento-action-card__icon--community` [26363]
+- 25596: `.ll-bento-action-card__icon--recent` [26367]
+- 25602: `.ll-bento-action-card__img`
+- 25608: `.ll-bento-action-card__glyph` [26398, 27188]
+- 25613: `.ll-bento-action-card__body`
+- 25618: `.ll-bento-action-card__title` [26398, 26409, 27023, 27729]
+- 25626: `.ll-bento-action-card__sub` [26409, 26425, 26435, 27023, 27033, 27738]
+- 25633: `.ll-bento-action-card__meta` [26409, 26425, 26435, 27194, 27738]
+- 25639: `.ll-bento-action-card--with-btn`
+- 25643: `.ll-bento-action-card__action-btn` [25665, 26738, 26744, 26749, 27166, 27182, ...]
+- 25672: `.ll-bento-action-card--emergency`
+- 25679: `.ll-bento-card` [26224, 26409, 26425, 27089]
+- 25691: `.ll-bento-card__row`
+- 25699: `.ll-bento-card__title` [26398, 26409, 27188]
+- 25705: `.ll-bento-card__subtitle` [26409, 26425, 26435, 27194]
+- 25711: `.ll-bento-card--hero`
+- 25719: `.ll-bento-card--feature`
+- 25725: `.ll-bento-btn` [27246]
+- 25737: `.ll-bento-btn--primary` [25744, 27657, 27749]
+- 25752: `.ll-bento-grid` [27750]
+- 25758: `.ll-bento-feature`
+- 25764: `.ll-bento-feature__icon`
+- 25771: `.ll-bento-feature__icon--reports`
+- 25775: `.ll-bento-feature__icon--ideas`
+- 25779: `.ll-bento-feature__icon--modeling`
+- 25783: `.ll-bento-feature__icon--extras`
+- 25788: `.ll-bento-feature__title` [26398, 26409, 27188]
+- 25794: `.ll-bento-feature__sub` [26409, 26425, 26435, 27194]
+- 25800: `.ll-bento-feature__meta`
+- 25808: `.ll-bento-dock` [26282, 27048, 27677]
+- 25837: `.ll-bento-dock__item` [25853, 26291, 27246]
+- 25853: `.ll-bento-dock__label` [25864, 25875, 25901, 26386, 26394, 27081]
+- 25860: `.ll-bento-dock__item--active` ¶ [25864, 26291, 26295, 26394, 27057]
+- 25870: `.ll-bento-dock__supervisor` [25875, 25879, 25884, 25892, 25901]
+- 25884: `.ll-bento-dock__logging` [25892, 25901, 25910]
+- 25919: `.ll-bento-dock__logging-btn` [25935, 27246]
+- 25940: `.ll-bento-dock__logging-sep` [26386, 27081]
+- 25947: `.ll-bento-dock__logging-last` [26386, 27081]
+- 25961: `.ll-bento-dock__logging-link` [25965]
+- 25980: `.ll-bento-dock__cta` [26000, 26008, 26373, 26379, 27062, 27070, ...]
+- 27166: `.ll-bento-action-card__action-btn--account` [27624]
+- 27166: `.ll-bento-action-card__action-btn--community` [27624]
+- 27166: `.ll-bento-action-card__action-btn--extras` [27624]
+- 27166: `.ll-bento-action-card__action-btn--green-yellow` [27624]
+- 27166: `.ll-bento-action-card__action-btn--ideas` [27624]
+- 27166: `.ll-bento-action-card__action-btn--mine` [27624]
+- 27166: `.ll-bento-action-card__action-btn--modeling` [27624]
+- 27166: `.ll-bento-action-card__action-btn--recent` [27624]
+- 27166: `.ll-bento-action-card__action-btn--reports` [27624]
+- 27166: `.ll-bento-action-card__action-btn--speak` [27624, 27640, 27646]
+- 27166: `.ll-bento-action-card__action-btn--suggested` [27624]
+- 27353: `.ll-bento-bar--default`
+- 27353: `.ll-bento-bar__demo-colors`
+- 27359: `.ll-bento-demo-color` [27368, 27373]
+- 27378: `.ll-bento-demo-color--navy`
+- 27379: `.ll-bento-demo-color--navy-light`
+- 27380: `.ll-bento-demo-color--tab-light`
+- 27381: `.ll-bento-demo-color--reset` [27389]
+- 27393: `.ll-bento-demo-color--border` [27400, 27406]
+- 27400: `.ll-bento-demo-color--border-icon` [27406, 27409, 27414]
+- 27409: `.ll-bento-demo-color--border-off`
+- 27414: `.ll-bento-demo-color--border-thick`
+- 27419: `.ll-bento-device-frame--no-section-border` [27435]
+- 27444: `.ll-bento-device-frame--section-border-thick`
+- 27465: `.ll-bento-device-frame--demo-bg` [27470]
+- 27813: `.ll-shell` [28121, 28129, 28139, 28150, 28154, 28679]
+- 27837: `.ll-brand`
+- 27838: `.ll-mark`
+- 27846: `.ll-brandname`
+- 27848: `.ll-searchpill`
+- 27859: `.ll-searchicon`
+- 27860: `.ll-searchtext`
+- 27861: `.ll-kbd`
+- 27871: `.ll-upgrade` [27880]
+- 27881: `.ll-upgrade--topbar`
+- 27888: `.ll-dock` [28684]
+- 27904: `.ll-dockItem` [27915, 27919]
+- 27921: `.ll-dockItem--primary`
+- 27926: `.ll-dockIcon`
+- 27927: `.ll-dockLabel`
+- 27929: `.ll-overlay`
+- 27936: `.ll-sheet`
+- 27946: `.ll-sheetHandle`
+- 27953: `.ll-sheetGrid`
+- 27958: `.ll-sheetItem` [27965]
+- 27966: `.ll-sheetTitle`
+- 27967: `.ll-sheetSub`
+- 27969: `.ll-sheetFooter`
+- 27970: `.ll-upgrade--wide`
+- 27972: `.ll-sheetRow` [27984]
+- 27981: `.ll-sheetRow--danger`
+- 27986: `.ll-searchOverlay`
+- 27996: `.ll-searchTop`
+- 28001: `.ll-searchInput` [28010]
+- 28013: `.ll-ghost`
+- 28019: `.ll-searchBody`
+- 28020: `.ll-searchGroup`
+- 28021: `.ll-searchGroupTitle`
+- 28022: `.ll-searchRow` [28031]
+- 28032: `.ll-muted`
+- 28034: `.ll-orbit`
+- 28036: `.ll-orbitStage`
+- 28052: `.ll-softGlow`
+- 28060: `.ll-rings`
+- 28070: `.ll-orb` [28080, 28680]
+- 28081: `.ll-orbInner`
+- 28093: `.ll-orbTitle`
+- 28094: `.ll-orbSub`
+- 28096: `.ll-chip` [28107, 28681]
+- 28108: `.ll-chipTitle`
+- 28109: `.ll-chipSub`
+- 28111: `.ll-pos--top`
+- 28112: `.ll-pos--right` [28682]
+- 28113: `.ll-pos--left` [28683]
+- 28115: `.ll-recents`
+- 28116: `.ll-sectionHead` [28121, 28129, 28139, 28324, 28333]
+- 28150: `.ll-sectionHead--withSupervisor` [28154, 28519, 28525, 28531, 28537]
+- 28158: `.ll-sectionTitle` [28337, 28504, 28541]
+- 28159: `.ll-link` [28167, 28172]
+- 28175: `.ll-seeAll` [28185, 28190, 28195, 28537]
+- 28197: `.ll-cardsRow`
+- 28202: `.ll-miniCard` [28211]
+- 28212: `.ll-miniTitle`
+- 28213: `.ll-miniSub`
+- 28216: `.ll-topbar--stacked` [28219, 28220, 28221]
+- 28219: `.ll-title` [28226]
+- 28220: `.ll-actions` [28252]
+- 28221: `.ll-tabs` [28228]
+- 28236: `.ll-tab` [28242, 28246, 28250]
+- 28253: `.ll-iconBtn` [28260, 28264]
+- 28266: `.ll-avatarBtn` [28273]
+- 28276: `.ll-avatarDot`
+- 28282: `.ll-stack-bg`
+- 28291: `.ll-stack`
+- 28295: `.ll-banner`
+- 28306: `.ll-bannerText`
+- 28309: `.ll-group` [28337]
+- 28317: `.ll-groupTitle`
+- 28324: `.ll-group--actions` [28327, 28330]
+- 28327: `.ll-hero` [28345]
+- 28330: `.ll-groupActionsGrid`
+- 28333: `.ll-group--boards`
+- 28333: `.ll-group--reports`
+- 28358: `.ll-heroBg`
+- 28364: `.ll-heroLeft`
+- 28373: `.ll-heroText`
+- 28374: `.ll-heroTitle`
+- 28375: `.ll-heroSub`
+- 28376: `.ll-heroActions`
+- 28386: `.ll-heroActions-pill`
+- 28387: `.ll-heroActions-btn`
+- 28388: `.ll-pill` [28400]
+- 28409: `.ll-primaryBtn` [28419, 28423]
+- 28424: `.ll-heroIcon` [28438, 28444]
+- 28450: `.ll-heroIcon__img`
+- 28456: `.ll-section`
+- 28458: `.ll-carousel` [28477, 28478]
+- 28465: `.ll-carousel--even` [28472]
+- 28472: `.ll-boardCard` [28480, 28490, 28493]
+- 28494: `.ll-boardCard--new` [28497, 28500]
+- 28500: `.ll-boardName` [28501]
+- 28502: `.ll-boardMeta`
+- 28504: `.ll-supervisorsBox` [28510]
+- 28525: `.ll-sectionHeadLeft` [28541]
+- 28531: `.ll-sectionHeadSupervisors`
+- 28544: `.ll-sectionHeadSeparator` [28557]
+- 28567: `.ll-mainSupervisor` [28580, 28584]
+- 28585: `.ll-mainSupervisorName`
+- 28587: `.ll-grid2`
+- 28593: `.ll-metricCard` [28601, 28604]
+- 28605: `.ll-metricTitle`
+- 28606: `.ll-sparkline`
+- 28617: `.ll-sparklineChart`
+- 28623: `.ll-sparkline--usage`
+- 28628: `.ll-sparkline--sessions`
+- 28634: `.ll-softCard` [28645, 28648]
+- 28649: `.ll-softCard__icon`
+- 28661: `.ll-softCard__icon--extras`
+- 28661: `.ll-softCard__icon--modeling`
+- 28667: `.ll-softCard__img`
+- 28672: `.ll-softCard__body`
+- 28673: `.ll-softTitle`
+- 28674: `.ll-softSub`
+- 28817: `.btn-backspace` † [28849, 28891, 29262]
+- 28817: `.symbol-grid__empty` † [28849, 28876, 29449, 29455, 29457]
+- 28898: `.app-main` † [28899, 28900, 29127]
+- 28898: `.app-sidebar` † [28899, 28900, 28991, 29072]
+- 28995: `.app-topbar` †
+- 29005: `.topbar__logo` † [29011]
+- 29017: `.topbar__search` † [29029, 29030]
+- 29036: `.topbar__right` †
+- 29042: `.topbar__badge` †
+- 29052: `.topbar__badge--non-clinical` †
+- 29057: `.topbar__avatar` † [29069]
+- 29120: `.nav-item__icon` †
+- 29135: `.main__title`
+- 29141: `.main__subtitle`
+- 29163: `.panel-card__title` †
+- 29186: `.phrase-bar__tokens` †
+- 29194: `.phrase-bar__placeholder` †
+- 29201: `.phrase-token` † [29214, 29217]
+- 29217: `.phrase-token__remove` † [29221, 29229]
+- 29233: `.phrase-token--actions`
+- 29233: `.phrase-token--descriptors`
+- 29233: `.phrase-token--feelings`
+- 29233: `.phrase-token--food`
+- 29233: `.phrase-token--objects`
+- 29233: `.phrase-token--people`
+- 29233: `.phrase-token--places`
+- 29233: `.phrase-token--social`
+- 29238: `.phrase-bar__actions` †
+- 29250: `.btn-speak--large`
+- 29372: `.symbol-card--actions` [29374, 29376]
+- 29372: `.symbol-card--descriptors` [29374, 29376]
+- 29372: `.symbol-card--feelings` [29374, 29376]
+- 29372: `.symbol-card--food` [29374, 29376]
+- 29372: `.symbol-card--objects` [29374, 29376]
+- 29372: `.symbol-card--people` [29374, 29376]
+- 29372: `.symbol-card--places` [29374, 29376]
+- 29372: `.symbol-card--social` [29374, 29376]
+- 29374: `.symbol-card__icon-wrap` † [29380, 29389, 29412, 29425]
+- 29392: `.symbol-card__icon-img` †
+- 29398: `.symbol-card__label` † [29418, 29432]
+- 29408: `.symbol-card--sm` [29412, 29418]
+- 29421: `.symbol-card--lg` [29425, 29432]
+- 29435: `.symbol-card--skeleton` † [29441]
+- 29467: `.recent-phrase-list`
+- 29484: `.recent-phrase__dot`
+- 29492: `.recent-phrase__text`
+- 29499: `.recent-phrase__time`
+- 29506: `.progress-list`
+- 29512: `.progress-item__header`
+- 29517: `.progress-item__label`
+- 29523: `.progress-item__value`
+- 29536: `.progress-bar__fill`
+- 29543: `.progress-bar__fill--actions`
+- 29543: `.progress-bar__fill--descriptors`
+- 29543: `.progress-bar__fill--feelings`
+- 29543: `.progress-bar__fill--food`
+- 29543: `.progress-bar__fill--objects`
+- 29543: `.progress-bar__fill--people`
+- 29543: `.progress-bar__fill--places`
+- 29543: `.progress-bar__fill--social`
+- 29546: `.progress-bar__fill--primary`
+- 29547: `.progress-bar__fill--accent`
+- 29549: `.schedule-list`
+- 29564: `.schedule-item__time`
+- 29573: `.schedule-item__label`
+- 29589: `.schedule-tag--clinical`
+- 29590: `.schedule-tag--practice`
+- 29591: `.schedule-tag--social`
+- 30221: `.la-divider` [38563]
+- 30310: `.la-section-divider`
+- 30421: `.la-about-glass-card--cta` [30433, 35261, 35267]
+- 30684: `.la-contact-hero-subtitle` [30692]
+- 31336: `.la-pricing-table-layout` [31341]
+- 31346: `.la-pricing-table-wrap` [31351]
+- 31356: `.la-pricing-table-wrap--full` [31360, 31366, 31370]
+- 31370: `.la-pricing-trial-hint` [31424]
+- 31378: `.la-plan-text--centered` [31383, 31388, 31396, 31401, 31409, 31420]
+- 31558: `.la-cta-title` [31572, 38993]
+- 31558: `.la-logo` [31572, 31601, 31613, 31615, 31618]
+- 31558: `.la-stat-number` [31572, 35579, 35633]
+- 31558: `.la-testimonial-display-text` [31572, 38205, 43949, 44065, 44169]
+- 31558: `.la-testimonial-mark` [31572, 38195]
+- 31625: `.la-logo-img`
+- 31688: `.la-topbar-alt-link` [31698, 31705, 35130]
+- 31973: `.la-mobile-drawer__badges`
+- 32072: `.la-topbar-compare-link` [32079, 44109]
+- 32083: `.la-font-toggles` [44113]
+- 32089: `.la-font-toggle` [32106, 32112]
+- 32116: `.la-font-toggle--active`
+- 32124: `.la-font-toggle-letter--atkinson`
+- 32128: `.la-font-toggle-letter--lexend`
+- 32132: `.la-topbar-sign-in` [32144]
+- 32266: `.la-topbar-login` [32278, 32509]
+- 32282: `.la-hero-color-toggle` [32294]
+- 32301: `.la-sidebar` [32311, 38537, 38546, 38549, 38550, 38551, ...]
+- 32331: `.la-sidebar-quicklinks`
+- 32367: `.la-nav-icon`
+- 32374: `.la-panel-badges`
+- 32384: `.la-badge` [32397, 38904, 38913]
+- 32592: `.la-hero-highlight` [32753, 34750]
+- 32714: `.la-hero-eyebrow`
+- 32818: `.md-navbar__speech-dot` [32829]
+- 32833: `.md-hero__speech-dot` [32843]
+- 32893: `.md-home-steps` [56863, 68985, 68996]
+- 33206: `.md-ds-welcome__progress` † [33250]
+- 33213: `.md-ds-welcome__num` †
+- 33214: `.md-ds-welcome__line` †
+- 33222: `.md-ds-welcome__cards` † [33249]
+- 33229: `.md-ds-welcome-card` †
+- 33243: `.md-ds-welcome-card__title` †
+- 35229: `.la-about-glass-grid` [43991]
+- 35514: `.la-stats-strip` [43915]
+- 35538: `.la-stat-cell` [35552, 35553, 35554, 35555, 35563, 35566, ...]
+- 35590: `.la-stats-strip--in-hero`
+- 35604: `.la-stats-strip--below-mockup` [35612, 35624, 35633, 35640]
+- 35654: `.la-scroll-hint`
+- 35662: `.la-scroll-hint__arrow`
+- 35676: `.la-scroll-hint__label`
+- 35700: `.la-features-modal-body` [35733, 35748, 37000, 37006, 37015, 37028, ...]
+- 35882: `.la-support-page-card__head`
+- 35886: `.la-support-page-card__title`
+- 35894: `.la-support-page-card__sub`
+- 36047: `.la-support-lead`
+- 36150: `.la-beta-feedback-hp`
+- 36159: `.la-beta-feedback-hp__input`
+- 36201: `.demo-board-page__intro` [36210, 36218, 36225, 36632]
+- 36241: `.demo-board-page__intro-actions`
+- 37585: `.la-a11y-badge`
+- 38187: `.la-testimonial-display`
+- 38216: `.la-testimonial-attribution` [38224]
+- 38237: `.la-testimonial-author-name`
+- 38243: `.la-testimonial-author-role`
+- 38514: `.la-a11y-bar` [38523, 38530, 38534, 38537, 38546, 38549, ...]
+- 38549: `.la-a11y-icon` [38556]
+- 38550: `.la-a11y-heading`
+- 38622: `.la-footer-logo` [38635, 38643]
+- 38649: `.la-footer-logo-img`
+- 38900: `.la-footer-bottom-badges` [38904, 38913, 38918]
+- 38918: `.la-badge--oss`
+- 38937: `.la-panel-card` [38943, 38948]
+- 38954: `.la-panel-card-eyebrow` [38962]
+- 38962: `.la-panel-card--cta`
+- 38967: `.la-testimonial-quote` [38976, 38977]
+- 38980: `.la-testimonial-author`
+- 38987: `.la-testimonial-role`
+- 39004: `.la-cta-body`
+- 39013: `.la-cta-actions`
+- 39144: `.la-features-modal-wrap` [39151, 39160, 39168, 39177, 39186, 39207, ...]
+- 39304: `.la-add-app-modal-wrap` [39458, 39472, 39477, 39485, 39494, 39504]
+- 39507: `.la-modal-header-icon--app`
+- 39517: `.la-add-app-modal-body`
+- 39520: `.la-add-app-modal-desc`
+- 39526: `.la-add-app-modal-stores`
+- 39534: `.la-add-app-modal-store-link` [39538]
+- 39542: `.la-add-app-modal-store-img`
+- 39546: `.la-add-app-modal-hint`
+- 40563: `.la-record-note-modal-wrap` [40568, 40576, 40585, 40596]
+- 40599: `.la-modal-header-icon--note`
+- 41402: `.la-record-note-modal-body` [41405, 41413, 41418, 41423, 41427, 41436]
+- 41440: `.la-record-note-type-toggle`
+- 41446: `.la-record-note-type-btn` [41456, 41466]
+- 41459: `.la-record-note-type-btn--active` ¶ [41463, 41466]
+- 41470: `.la-record-note-statuses`
+- 41475: `.la-record-note-prior`
+- 41483: `.la-record-note-modal-footer` [103891]
+- 41490: `.la-record-note-save-btn` [41501, 41505]
+- 42188: `.new-board-checkbox` [42200, 42209, 42214, 59665, 59685, 59697, ...]
+- 42226: `.new-board-checkbox-hint` [59727]
+- 44494: `.register-subtitle`
+- 44726: `.register-checkboxes__error`
+- 44930: `.google-link-account` [44936]
+- 45002: `.ub-search-page__label`
+- 45018: `.ub-search-page__input` [45030, 45034]
+- 45242: `.ub-search-page__go`
+- 45254: `.ub-search-page__actions`
+- 45269: `.ub-search-page__sep`
+- 45273: `.ub-search-page__see-all`
+- 45278: `.ub-search-page__none-found`
+- 45311: `.ub-search-page__boards-title-note`
+- 45320: `.ub-search-page__board-group` [45324]
+- 45327: `.ub-search-page__board-group-title`
+- 46103: `.beta-mode-toggle`
+- 46120: `.beta-mode-toggle__slider` [46134]
+- 46134: `.beta-mode-toggle--short`
+- 46138: `.beta-mode-toggle__option`
+- 46159: `.beta-mode-toggle__option--active`
+- 47187: `.md-avatarbtn` [47203]
+- 47204: `.md-avatarbtn__dot`
+- 47436: `.md-pillnav__spacer` [68226]
+- 47438: `.md-pillnav__upgrade` [47468, 68227]
+- 47528: `.md-user-meta--after-hero`
+- 47570: `.md-user-meta__value` [47619, 47628, 47664]
+- 47577: `.md-user-meta__icon`
+- 47583: `.md-user-meta__dot`
+- 47612: `.md-user-meta__chip--joined` [47618, 47619, 76404]
+- 47621: `.md-user-meta__chip--active` [47627, 47628, 76404]
+- 47670: `.md-user-outlet`
+- 47679: `.md-user-outlet--in-workspace`
+- 47779: `.md-stats-grid`
+- 47779: `.md-stats-row`
+- 47907: `.md-shell--contact` [47917, 47940, 48057, 48060, 48077, 48080, ...]
+- 47907: `.md-shell--support` [47917, 47940, 47980, 47991, 47994, 47997, ...]
+- 47917: `.md-main--contact` [48057]
+- 47917: `.md-main--support` [47994]
+- 47924: `.md-hero--contact` [47928, 47934, 48060, 48065, 48071, 48077]
+- 47924: `.md-hero--support` [47928, 47934, 47980, 47985, 47991]
+- 47940: `.md-grid--contact`
+- 47940: `.md-grid--support`
+- 47949: `.md-card--contact-single` [47970, 47974, 48086, 48089]
+- 47949: `.md-card--support-single` [47970, 47974, 48006, 48009]
+- 47957: `.md-card--contact-section` [47961, 48080, 48083]
+- 47957: `.md-card--support-section` [47961, 47997, 48000]
+- 47965: `.md-card--support-section-divider` [48003]
+- 48013: `.md-card__body` [48096, 48125, 48128]
+- 48016: `.md-support-lead` [48131]
+- 48049: `.md-support-cookies-btn` [48200, 48208]
+- 49053: `.md-room-card__sub`
+- 49060: `.md-room-card--current`
+- 49735: `.md-card__org-list` [57460, 57468, 57476]
+- 49810: `.md-org-dropdown__list`
+- 49828: `.md-org-dropdown__option` [49841, 49846]
+- 49849: `.md-org-dropdown__org-icon`
+- 49860: `.md-org-dropdown__org-name`
+- 51544: `.md-edit-profile__quick-links`
+- 51550: `.md-edit-profile__back-link` [51564]
+- 51570: `.md-edit-profile__pill-link` [51584]
+- 51600: `.md-edit-profile__section` [51605]
+- 51608: `.md-edit-profile__subgroup`
+- 51612: `.md-edit-profile__subgroup-title`
+- 51620: `.md-edit-profile__section--compact` [51623, 51628, 51634]
+- 51637: `.md-edit-profile__section-title`
+- 51926: `.md-edit-profile__connections` [51940, 51946, 51990, 52000, 52004]
+- 51932: `.md-edit-profile__connections-heading`
+- 53431: `.md-preferences__back-link`
+- 53802: `.md-hero--user__wizard-btn` † [53817]
+- 53824: `.md-hero--user__divider` †
+- 53831: `.md-hero--user__below-divider` †
+- 53888: `.md-card__value`
+- 53894: `.md-grid--actions` [54347, 54400]
+- 53900: `.md-action-card` [53917, 53921, 53932]
+- 53921: `.md-action-card__icon`
+- 53932: `.md-action-card__label`
+- 53980: `.md-user-summary__available-boards-title` [54353]
+- 53987: `.md-user-summary__board-tabs` [54000, 54004, 54015, 54019, 54024, 54027, ...]
+- 54038: `.md-user-summary__available-boards-body`
+- 54041: `.md-user-summary__board-filter`
+- 54044: `.md-user-summary__board-filter-input` [54055, 54058]
+- 54064: `.md-user-summary__board-grid` [54074, 54080, 54085, 54090, 54095, 54104, ...]
+- 54437: `.md-about-hero` [54470]
+- 54444: `.md-about-hero__workspace` [54462]
+- 54475: `.md-about-hero__eyebrow`
+- 54484: `.md-about-hero__brand`
+- 54487: `.md-about-hero__brand--italic`
+- 54492: `.md-about-hero__separator`
+- 54502: `.md-about-hero__grid` [54512]
+- 54517: `.md-about-hero__card` [54552, 54556]
+- 54521: `.md-about-hero__card--cta`
+- 54528: `.md-about-hero__icon`
+- 54541: `.md-about-hero__text` [54547]
+- 54560: `.md-about-hero__actions` [54568, 54572]
+- 54706: `.md-strip` † [56784, 64044, 64368, 66770, 66836, 68050, ...]
+- 54836: `.md-link` [54850]
+- 56275: `.md-card__row` [56279, 57460, 58058, 58070]
+- 58099: `.md-chip__dot`
+- 58372: `.md-card__boards-icon` [66823]
+- 58389: `.md-stat` [58412, 66820, 66823]
+- 58406: `.md-card__head--center-back` [58412]
+- 58423: `.md-card__new-board-inline` [58431, 58439]
+- 58656: `.new-board__footer-actions`
+- 59613: `.new-board__cancel` [59622]
+- 60327: `.label-chips__container--display-only` [60332]
+- 60335: `.new-board-prefs-labels`
+- 60338: `.new-board-prefs-labels__count`
+- 60375: `.new-board-dimensions__field` [60387]
+- 60381: `.new-board-dimensions__sublabel`
+- 60393: `.nb-stepper` [60416]
+- 60424: `.nb-stepper__btn` [60441, 60445, 60448, 60451]
+- 60454: `.nb-stepper__input` [60469]
+- 61535: `.new-board-mockup-toolbar`
+- 61548: `.md-board-detail-edit-toolbar__paint-exit`
+- 62318: `.nb-words-grid__col--order` [62332]
+- 62776: `.nb-section__head-checklist` [62802]
+- 62791: `.nb-checklist--inset` [62807]
+- 63191: `.nb-field__row`
+- 63212: `.nb-field__sublabel`
+- 63239: `.nb-field__sublabel--legend` [63275, 63297]
+- 63251: `.nb-field__hint--legend`
+- 63291: `.nb-field__radio-group--page-center` [63297, 63300, 63304, 63307]
+- 63838: `.nb-note`
+- 63867: `.nb-note__icon`
+- 63871: `.nb-note__label`
+- 63878: `.nb-note__value` [63884]
+- 63975: `.md-stat__num` [66832]
+- 64040: `.md-stat__meta` [64041]
+- 64042: `.md-stat__label`
+- 64086: `.md-strip__item` † [64115, 64354, 64374, 64380, 64414, 64425, ...]
+- 64149: `.md-strip__home-glyph`
+- 64159: `.md-strip__label` † [64405, 66852]
+- 64169: `.md-strip__name` †
+- 64176: `.md-strip__lang` †
+- 64183: `.md-strip__owner` †
+- 64384: `.md-thumb` † [64396, 64432, 64452, 64510, 66853]
+- 64400: `.md-thumb__icon` [64514, 66857]
+- 64440: `.md-strip__item--emergency` ◊ † [64447]
+- 64476: `.md-thumb--with-icon`
+- 64482: `.md-thumb__board-img` † [64510]
+- 64528: `.md-strip__item--new`
+- 64528: `.md-thumb--new`
+- 64688: `.md-avatar--p1`
+- 64689: `.md-avatar--p2`
+- 64690: `.md-avatar--p3`
+- 64691: `.md-avatar--p4`
+- 64692: `.md-avatar--p5`
+- 64693: `.md-avatar--p6`
+- 64694: `.md-avatar--p7`
+- 64695: `.md-avatar--p8`
+- 64788: `.md-card__head-actions`
+- 64913: `.md-add-supervisor__head`
+- 64922: `.md-add-supervisor__title`
+- 64929: `.md-add-supervisor__close` [64940, 64944]
+- 64945: `.md-add-supervisor__body`
+- 64948: `.md-add-supervisor__intro`
+- 65047: `.md-add-supervisor__hint`
+- 65066: `.md-add-supervisor__actions`
+- 65289: `.md-morepill` [65298]
+- 65351: `.md-miniStats`
+- 65359: `.md-miniStat`
+- 65371: `.md-miniStat__num`
+- 65372: `.md-miniStat__label`
+- 65374: `.md-spark`
+- 65395: `.md-focusbar`
+- 65414: `.md-focusbar__item` [65424, 65429, 68680]
+- 65430: `.md-focusbar__icon`
+- 65431: `.md-focusbar__text` [68679]
+- 65554: `.md-stats-hero__eyebrow`
+- 65665: `.md-stat-icon`
+- 65752: `.md-stats-compare-group__row` [65755, 65758, 65761, 65793, 65799]
+- 65933: `.md-stats-filter__label` [66711]
+- 66182: `.md-stats-filter__compare-plus`
+- 66242: `.md-stats-filter__select` [66260, 66265]
+- 66783: `.md-shell--board-view` [66793, 66801, 66811, 66818, 66820, 66823, ...]
+- 66811: `.md-boards-page` [66818, 66820, 66823, 66832, 66836, 66846, ...]
+- 66876: `.ub-boards-page__gs-secondary-btn` [66882, 76115, 76127]
+- 66888: `.md-shell--supervisor-view` [66906, 66910, 66930, 66943, 66964, 66978, ...]
+- 67223: `.md-reports-expanded`
+- 67230: `.md-reports-expanded__stats` [67236, 68215]
+- 67240: `.md-reports-expanded__chart`
+- 67244: `.md-spark--tall`
+- 67248: `.md-reports-expanded__list-title`
+- 67254: `.md-reports-list`
+- 67263: `.md-reports-list__row` [67277, 67280, 67283]
+- 67312: `.md-extras-page__title`
+- 67324: `.md-extras-page__sub`
+- 67581: `.md-extras-card__btn-wrap`
+- 67593: `.md-extras-card__btn` [67626, 67636, 67639]
+- 68426: `.md-pillnav-dropdown__icon` †
+- 68976: `.md-home-actions` [68985, 68996]
+- 69470: `#inner_ember` [69487, 69488, 69497, 69504, 69508]
+- 70394: `.board-alt-view-toggle` [70406, 70419, 70422, 70423]
+- 70408: `.board-alt-view-toggle__icon` [70428]
+- 70552: `.la-style-switcher-wrapper`
+- 71024: `.board-picker__close` [71039, 71046]
+- 71052: `.board-picker__filter-row` [72047]
+- 71075: `.board-picker__set-home-btn` [71092]
+- 71097: `.board-picker__set-home-btn--active` [71103, 71119]
+- 71115: `.board-picker__set-home-btn-icon` [71119]
+- 71128: `.board-picker__new-board-btn` [71158]
+- 71208: `.board-picker__selecting-home-msg`
+- 71222: `.board-picker__home-btn` [71239]
+- 71244: `.board-picker__home-btn--unset` [71248]
+- 71252: `.board-picker__no-home-msg`
+- 71265: `.board-picker__home-btn-icon`
+- 71288: `.board-picker__filter-icon`
+- 71292: `.board-picker__filter-input` [71301, 71304]
+- 71307: `.board-picker__filter-clear` [71322]
+- 71326: `.board-picker__empty`
+- 71349: `.board-picker__tabs` [72047, 72051, 72055, 72073, 72086, 72093]
+- 72106: `.board-picker__filter-below-tabs`
+- 72120: `.board-picker__folders`
+- 72130: `.board-picker__folders--open` [72186]
+- 72134: `.board-picker__folders-toggle` [72149]
+- 72154: `.board-picker__folders-title`
+- 72160: `.board-picker__folders-count`
+- 72174: `.board-picker__folders-subtitle`
+- 72181: `.board-picker__folders-chevron` [72186]
+- 72189: `.board-picker__folders-body`
+- 72196: `.board-picker__folders-actions`
+- 72203: `.board-picker__folders-action-btn` [72217]
+- 72223: `.board-picker__folder-chip` [72237]
+- 72244: `.board-picker__folder-chip-name`
+- 72247: `.board-picker__folder-chip-count`
+- 72262: `.board-picker__folder-drilled-in`
+- 72274: `.board-picker__folder-back` [72288]
+- 72294: `.board-picker__folder-back-arrow`
+- 72298: `.board-picker__folder-current`
+- 72323: `.board-picker__loading`
+- 72334: `.board-picker__loading-text`
+- 72337: `.board-picker__loading-spinner` [72347]
+- 72350: `.board-picker__item` [72394]
+- 72372: `.board-picker__thumb` [72386, 72394]
+- 72401: `.board-picker__name`
+- 72477: `.board-picker__item--current` [72482]
+- 72493: `.board-picker__current-badge`
+- 72516: `.board-picker__item--liked`
+- 72516: `.md-strip__item--liked` †
+- 72521: `.board-picker__heart` [72620, 72635, 72648]
+- 72521: `.md-strip__heart` † [72635, 72648, 72666]
+- 73433: `.la-hero-title--placeholder` †
+- 73554: `.ub-boards-page__hero` [76456]
+- 73569: `.ub-boards-page__hero-avatar-wrap`
+- 73570: `.ub-boards-page__hero-avatar`
+- 73577: `.ub-boards-page__online-dot`
+- 73584: `.ub-boards-page__hero-name`
+- 73590: `.ub-boards-page__hero-username`
+- 73595: `.ub-boards-page__hero-meta`
+- 73714: `.ub-boards-page__stats-chip--private`
+- 73808: `.ub-boards-page__actions-row` [76457]
+- 73814: `.ub-boards-page__action-btn` [73832]
+- 73840: `.ub-boards-page__action-btn--extras`
+- 73842: `.ub-boards-page__action-icon`
+- 73848: `.ub-boards-page__extras-trigger`
+- 73870: `.ub-boards-page__starting-boards` [73875]
+- 74481: `.ub-boards-page__folders-hint`
+- 75484: `.ub-boards-page__folder-context-header`
+- 75489: `.ub-boards-page__folder-back-btn` [75503]
+- 75553: `.ub-boards-page__folder-context-icon`
+- 75569: `.ub-boards-page__folder-context-subtitle`
+- 75576: `.ub-boards-page__folder-context-title`
+- 75583: `.ub-boards-page__folder-context-title-row`
+- 75588: `.ub-boards-page__folder-edit-btn` [75601]
+- 75607: `.ub-boards-page__folder-delete-btn` [75620]
+- 75675: `.ub-boards-page__folder-context-divider`
+- 75711: `.ub-boards-page__folder-hint`
+- 75718: `.ub-boards-page__drag-hint`
+- 76137: `.la-delete-folder-overlay`
+- 76960: `.md-board-detail-error__retry`
+- 77218: `.md-board-detail-collapse-btn--sentence-row` [77700, 77712, 93374, 93379]
+- 77413: `.md-board-detail-main__topbar`
+- 77419: `.md-board-detail-main__topbar-left`
+- 77426: `.md-board-detail-boards-btn` [77441, 77445, 77651, 93051, 93055]
+- 77569: `.md-board-detail-header__edit-actions-grid` [77577, 77598, 77608, 77618, 77626, 77631, ...]
+- 77626: `.md-board-edit-panel__tile--save` [77631, 77636, 77642, 108905, 108912, 108938, ...]
+- 77655: `.md-board-detail-sentence-nav` [77700, 77712, 93374, 93379]
+- 77665: `.md-board-detail-sentence-nav__btn` [77682, 77687, 77690, 77694, 89996, 93366, ...]
+- 79749: `.md-board-detail-sentence-bar__btn--clear` [79753]
+- 79756: `.md-board-detail-sentence-bar__icon-btn` [79773, 79776, 89996]
+- 80424: `.md-board-detail-header__editing-float`
+- 80841: `.md-board-edit-panel__finish` [80857, 80873, 80879, 80887, 80894, 80898]
+- 80904: `.md-board-detail-header__privacy-row`
+- 80913: `.md-board-detail-header__license-icon--at-end`
+- 81119: `.md-board-detail-info-btn` [81139, 89996]
+- 81205: `.md-board-detail-nav-btn--home`
+- 81211: `.md-board-detail-board-actions-wrap` [81226, 81294, 92507]
+- 81238: `.md-board-detail-quick-actions` [81274]
+- 81249: `.md-board-detail-quick-actions__btn` [81263, 81268, 81278, 81281]
+- 81359: `.md-board-detail-board-actions__btn--active` [81364]
+- 81368: `.md-board-detail-board-actions__divider` [92540, 93588]
+- 81371: `.md-board-detail-board-actions__row`
+- 81381: `.md-board-detail-board-actions__group` [93564]
+- 81391: `.md-board-detail-board-actions__group-pill` [81406, 81409, 81414, 81418, 93569, 93573, ...]
+- 81421: `.md-board-detail-board-actions__group-pill--standalone` [93583]
+- 81427: `.md-board-detail-board-actions__group-pill--active`
+- 81431: `.md-board-detail-share-dropdown` †
+- 81444: `.md-board-detail-share-dropdown__item` † [81463, 81466, 89996]
+- 81470: `.md-board-detail-share-dropdown__divider`
+- 81551: `.md-board-detail-header__sub--checklist`
+- 81567: `.md-board-detail-header__sub-check` [81579]
+- 81585: `.md-board-detail-header__board-icon-wrap`
+- 81596: `.md-board-detail-header__sub-badge` [81627]
+- 81623: `.md-board-detail-header__sub-text`
+- 81645: `.md-board-detail-header__sub-badge--copying` [81661]
+- 82093: `.md-board-detail-tease-row` [82100, 82113]
+- 82545: `.md-board-detail-phrase-builder__grid` [82874]
+- 82742: `.md-board-detail-phrase-builder__btn` [82760, 82765, 82769, 82878]
+- 82772: `.md-board-detail-phrase-builder__btn--folder`
+- 82783: `.md-board-detail-phrase-builder__btn-path` [82800]
+- 82818: `.md-board-detail-phrase-builder__btn-img` [82826, 82882]
+- 83025: `.md-board-detail-inline-sidebar__close` [83036]
+- 83045: `.md-board-detail-inline-sidebar__pin` [83059, 83075, 83082, 83086, 83243, 83249, ...]
+- 83063: `.md-board-detail-inline-sidebar__pin--active` [83079, 83090]
+- 83289: `.md-board-detail-add-wrap` [92944]
+- 83295: `.md-board-detail-add-btn` [83310, 83313, 93162]
+- 83318: `.md-board-detail-add-btn--active`
+- 83323: `.md-board-detail-add-dropdown`
+- 83338: `.md-board-detail-add-dropdown__item` [83358, 83362, 83366, 89996]
+- 83371: `.md-board-detail-placement-cursor`
+- 83391: `.md-board-detail-grid--placing` [83394, 83399, 83404]
+- 83407: `.md-board-detail-placement-banner`
+- 83420: `.md-board-detail-placement-banner__icon`
+- 83425: `.md-board-detail-placement-banner__cancel` [83437]
+- 83441: `.md-board-detail-categories`
+- 83446: `.md-board-detail-category-btn` [83457]
+- 83457: `.md-board-detail-category-btn--active` ¶ [83461]
+- 83600: `.md-board-detail-actions-menu__divider` [83783, 93413]
+- 83725: `.md-board-detail-actions-menu__item--theme` [83749, 83752]
+- 83735: `.md-board-detail-actions-menu__theme-pill` [83749, 83752]
+- 85042: `.md-board-detail-exit-btn` [85058]
+- 85064: `.md-board-detail-options-dropdown`
+- 85068: `.md-board-detail-options-btn` [85094, 93784, 93789]
+- 85108: `.md-board-detail-options-menu`
+- 85121: `.md-board-detail-options-menu__item` [85136]
+- 85142: `.md-board-detail-suggestions`
+- 85151: `.md-board-detail-suggestion` [85166, 85172, 89996, 93796, 93801]
+- 85175: `.md-board-detail-suggestion__img`
+- 85181: `.md-board-detail-suggestion__text`
+- 85184: `.md-board-detail-suggestion__loading`
+- 85203: `.md-board-detail-loading--saving` [85208, 85213]
+- 85295: `.md-board-detail-saving-overlay` [85311]
+- 85315: `.md-board-detail-saving-overlay__spinner`
+- 85323: `.md-board-detail-saving-overlay__label`
+- 85326: `.md-board-detail-edit-toolbar__spinner`
+- 85385: `.md-board-detail-edit-toolbar` [88640, 88645, 88648, 88669, 88681, 88690, ...]
+- 87479: `.md-board-detail-symbol-card__alt-text` [87497, 87659, 91240, 92642]
+- 87655: `.md-board-detail-symbol-card__placeholder-icon` [91237]
+- 88158: `.md-board-detail-color-trigger` [88179, 88183, 88186, 88189, 93147]
+- 88394: `.md-board-detail-edit-toolbar__search` [88433, 93756, 93766, 93770, 93774]
+- 88437: `.md-board-detail-edit-toolbar__search-clear` [88450]
+- 88455: `.md-board-detail-search` [88458]
+- 88458: `.md-board-detail-search__input` [88480, 88489, 93341, 93346, 93349]
+- 88461: `.md-board-detail-search__form`
+- 88467: `.md-board-detail-search__label` [93337]
+- 88494: `.md-board-detail-search__clear` [88505, 93353, 93358]
+- 88756: `.md-board-detail-edit-toolbar__btn--active` [89706, 89712, 93716]
+- 88756: `.md-board-detail-edit-toolbar__section--settings-toggle`
+- 88795: `.md-board-detail-edit-toolbar__section--actions`
+- 88831: `.md-board-detail-edit-toolbar__section--layout` [89169, 89172, 89191, 89210, 89234, 89240, ...]
+- 88845: `.md-board-detail-edit-toolbar__display-prefs` [88861, 88866, 88871, 88877, 88880, 88892, ...]
+- 88904: `.md-settings-group` [88954]
+- 89042: `.md-settings-toggle-btn` [90723, 90738, 90753, 90877, 90882]
+- 89049: `.md-settings-skin-group` [89352, 90238, 90274, 90815]
+- 89069: `.md-settings-hidden-controls` [90083]
+- 89131: `.md-board-detail-edit-toolbar--expanded` [89137]
+- 89251: `.md-board-detail-edit-toolbar__section--text-position`
+- 89252: `.md-board-detail-edit-toolbar__section--text`
+- 89253: `.md-board-detail-edit-toolbar__section--levels`
+- 89266: `.md-board-detail-edit-toolbar__btn` [89677, 89694, 89698, 89702, 89990, 89996, ...]
+- 89324: `.md-settings-skin-popover` [90220]
+- 89379: `.md-settings-skin-cell` [89383, 89398, 89405, 89411, 90253]
+- 89383: `.md-settings-skin-cell__label` [89398, 89405, 89411, 90256]
+- 89440: `.md-board-detail-edit-toolbar__divider` [89527, 89538, 93693]
+- 89452: `.md-board-detail-edit-toolbar__expand-btn` [89489, 89501, 89508, 89517, 89520]
+- 89486: `.md-board-detail-edit-toolbar__expand-btn__label`
+- 89505: `.md-board-detail-edit-toolbar__expand-btn--open`
+- 89541: `.md-board-detail-edit-toolbar__spacer` [90809]
+- 89547: `.md-board-detail-edit-toolbar__actions-dock` [89579, 89598, 89609, 89613]
+- 89558: `.md-board-detail-edit-toolbar__actions-group` [89573]
+- 89579: `.md-board-detail-edit-toolbar__actions-cluster` [89613, 89624, 89644, 89654]
+- 89582: `.md-board-detail-edit-toolbar__actions-cluster--filter` [89598, 89601, 89613]
+- 89716: `.md-board-detail-edit-toolbar__btn--cancel` [89721]
+- 89731: `.md-board-detail-edit-toolbar__palette-preview`
+- 89811: `.md-board-detail-edit-toolbar__paint-dot`
+- 89819: `.md-board-detail-edit-toolbar__paint-dot--custom`
+- 89827: `.md-board-detail-paint-custom-wrap`
+- 89844: `.md-board-detail-edit-toolbar__paint-dropdown-grid`
+- 89868: `.md-board-detail-edit-toolbar__paint-dropdown-item--custom`
+- 89871: `.md-board-detail-edit-toolbar__paint-dropdown-footer`
+- 89877: `.md-board-detail-paint-picker`
+- 89890: `.md-board-detail-paint-picker--in-dropdown`
+- 89901: `.md-board-detail-paint-picker__header`
+- 89907: `.md-board-detail-paint-picker__title`
+- 89912: `.md-board-detail-paint-picker__close` [89929, 89996]
+- 89933: `.md-board-detail-paint-picker__row`
+- 89938: `.md-board-detail-paint-picker__preview`
+- 89945: `.md-board-detail-paint-picker__input`
+- 89954: `.md-board-detail-paint-picker__hex`
+- 89962: `.md-board-detail-paint-picker__apply` [89978, 89996]
+- 89996: `.md-board-detail-edit-toolbar__paint-swatch`
+- 89996: `.md-board-detail-folder-dropdown__item` † [91865, 91884]
+- 90217: `.md-settings-sublabel-wrap--skin`
+- 90742: `.md-settings-toggle-btn--active` [90748, 90886]
+- 90763: `.md-settings-toggle` [90796, 90803]
+- 90777: `.md-settings-toggle__thumb` [90793]
+- 90789: `.md-settings-toggle--on` [90793, 90799]
+- 91853: `.md-board-detail-folder-dropdown` †
+- 91887: `.md-board-detail-folder-dropdown__item--active`
+- 92477: `.md-board-detail-edit-toolbar__level-badge`
+- 95247: `.md-translate-status`
+- 95265: `.md-edit-unit-curriculum`
+- 95270: `.md-edit-unit-curriculum__row` [95322]
+- 95276: `.md-edit-unit-curriculum__remove` [95291, 95331]
+- 95298: `.md-edit-unit-curriculum__add` [95314]
+- 95329: `.md-edit-unit-curriculum__title`
+- 96654: `.md-modal-link--inline-button`
+- 97649: `.md-org-meta`
+- 97662: `.md-org-meta__chip` [97683]
+- 97687: `.md-org-meta__chip--muted`
+- 97739: `.md-org-context-actions`
+- 97739: `.md-org-hero-actions` [97750]
+- 97763: `.md-org-context-actions__divider`
+- 97812: `.md-org-stat-card--wide` [98953, 99975, 99983]
+- 97929: `.md-pillnav-dropdown--caseload` [97934, 97937, 97940, 97948, 97951, 97955, ...]
+- 97969: `.md-org-supervisees-link__card` † [97984]
+- 97990: `.md-org-supervisees-link__icon` †
+- 98000: `.md-org-supervisees-link__text` †
+- 98007: `.md-org-supervisees-link__label` †
+- 98012: `.md-org-supervisees-link__desc` †
+- 98016: `.md-org-supervisees-link__arrow` †
+- 98381: `.md-org-directory__intro`
+- 98594: `.md-org-directory-grid`
+- 98599: `.md-org-directory-card` [98612]
+- 98619: `.md-org-directory-card__body`
+- 98625: `.md-org-directory-card__name`
+- 98632: `.md-org-directory-card__meta`
+- 98637: `.md-org-directory-card__arrow`
+- 99585: `.google-visualization-tooltip`
+- 100601: `.la-beta-feedback-detail__back`
+- 100685: `.ll-premium-progress__count`
+- 100819: `.ll-premium-progress--in-modal`
+- 101310: `.btn-group-sm` ‡
+- 101310: `.btn-group-xs` ‡
+- 101310: `.btn-xs` ‡
+- 101310: `.form-group-sm` ‡
+- 101310: `.initialism` ‡
+- 101310: `.input-group-sm` ‡
+- 101310: `.pagination-sm` ‡
+- 101359: `.beta-feedback-panel__intro` [102021]
+- 102079: `.beta-feedback-panel__checklist-title`
+- 102649: `.beta-feedback-modal__hero` [102658]
+- 102661: `.beta-feedback-modal__title` [102677]
+- 102680: `.beta-feedback-modal__subtitle` [102725]
+- 102714: `.beta-feedback-modal__body` [102728]
+- 104429: `.user-select-modern` [104468, 104476, 104498, 104539, 104546, 104557]
+- 104923: `.md-board-edit-panel__back-link` [105145, 105430, 105575, 105612, 105675, 105702, ...]
+- 104923: `.md-board-edit-panel__btn` [105145, 105753, 105769, 105774, 105777, 105804, ...]
+- 105050: `.md-board-edit-panel__finish-btn` [105058]
+- 105464: `.md-board-edit-panel__row--classic`
+- 105641: `.md-board-edit-panel__top` [105649, 105670, 106507, 106549, 108905, 108912, ...]
+- 105717: `.md-board-edit-panel__icon--back` [105728]
+- 105748: `.md-board-edit-panel__action-pair` [106520, 106562]
+- 105781: `.md-board-edit-panel__btn--cancel` [105784, 105818]
+- 105789: `.md-board-edit-panel__btn--save` [105795, 105821]
+- 105800: `.md-board-edit-panel__btn--saving`
+- 105972: `.md-board-edit-panel__group--view` [105995, 106010, 106026, 106072]
+- 106907: `.md-board-edit-panel__filter-badge`
+- 106996: `.md-leave-edit-btn--discard` [107001]
+- 107464: `.md-board-edit-view-style--segmented`
+- 107473: `.md-board-edit-view-style__toggle--viewstyle` † [107479, 107496, 107505, 107509, 107516, 107527, ...]
+- 107493: `.md-board-edit-view-style__toggle--viewstyle-modern` †
+- 107621: `.md-board-edit-view-style__jump` [107648, 107654]
+- 107665: `.md-board-edit-view-style__current`
+- 107682: `.md-board-edit-view-style__pill` [107696]
+- 108039: `.md-board-edit-right-panel__swatches`
+- 108044: `.md-board-edit-right-panel__swatch` [108052]
+- 108060: `.md-board-edit-right-panel__btn-row`
+- 108224: `.md-board-edit-right-panel__select-wrap` [108227]
+- 108232: `.md-board-edit-right-panel__icongroup`
+- 108236: `.md-board-edit-right-panel__icon-toggle` [108249, 108286]
+- 108255: `.md-board-edit-right-panel__icon-toggle--active`
+- 108259: `.md-board-edit-right-panel__btnmock`
+- 108268: `.md-board-edit-right-panel__btnmock-img`
+- 108275: `.md-board-edit-right-panel__btnmock-text` [108290]
+- 108281: `.md-board-edit-right-panel__btnmock--text-only` [108290]
+- 108500: `.md-board-edit-right-panel__brush` [108518, 108523, 108760, 108765]
+- 108535: `.md-board-edit-right-panel__brush--active`
+- 108925: `.md-board-edit-panel__tile--discard` [108932, 108938, 108958, 108969]
+- 109744: `.md-tour__li-check` † [109797]
+- 109754: `.md-tour__li-text` †
+
+### `_caseload.scss` (32)
+
+- 118: `.md-caseload__extras-dropdown` [3855, 3863, 3867, 3870, 3885, 3893, ...]
+- 118: `.md-caseload__extras-dropdown--mobile` ¶ [121, 158, 162, 1674, 1688, 3957, ...]
+- 162: `.md-caseload__action--more` [1688]
+- 210: `.md-caseload__back-to-list` [226, 232]
+- 1457: `.md-caseload__grid` [4039]
+- 1589: `.md-caseload__identity-row`
+- 1606: `.md-caseload__options-row` [2640]
+- 1718: `.md-caseload__eyebrow` [3243]
+- 1761: `.md-caseload__list-controls`
+- 2549: `.md-caseload__card-main` [4049, 4103]
+- 2556: `.md-caseload__card-corner` [4052, 4107]
+- 2575: `.md-caseload__access` [4056]
+- 2705: `.md-caseload__access-eyebrow`
+- 2719: `.md-caseload__extras-col`
+- 3064: `.md-caseload__avatar-link` [3093, 3120, 3135, 3144, 3147, 3188, ...]
+- 3153: `.md-caseload__avatar`
+- 3170: `.md-caseload__avatar--svg`
+- 3206: `.md-caseload__online`
+- 3219: `.md-caseload__info`
+- 3234: `.md-caseload__role`
+- 3254: `.md-caseload__name-line` [3261, 3265]
+- 3261: `.md-caseload__name` [3320, 3337, 3348]
+- 3265: `.md-caseload__access-badge` [3283]
+- 3312: `.md-caseload__access-badge--view`
+- 3316: `.md-caseload__access-badge--modeling`
+- 3412: `.md-caseload__goal--empty` [3434, 3492, 3501]
+- 3737: `.md-caseload__action--primary` [3768, 3771]
+- 3790: `.md-caseload__action--corner-extras` [3831, 3841, 3845, 3855, 3863, app.scss:89996]
+- 3821: `.md-caseload__action--corner-extras__label` [3841, 3863]
+- 3825: `.md-caseload__action--corner-extras__chevron` [3841, 3863, 3867]
+- 3893: `.md-caseload__dropdown-menu` [3927, 3940, 3943, 3957, 3966, 3969, ...]
+- 4000: `.md-caseload__dropdown-icon`
+
+### `_classic-home.scss` (23)
+
+- 519: `.ch-group__label` [1155, _focused-view.scss:4966]
+- 1143: `.ch-group` [_focused-view.scss:4958]
+- 1143: `.ch-rail__item--wide`
+- 1185: `.ch-sup`
+- 1223: `.ch-menu__icon`
+- 1228: `.ch-menu__item--note` [1236, _focused-view.scss:5743, _focused-view.scss:5744]
+- 1244: `.ch-chips`
+- 1250: `.ch-chip` [1272, _focused-view.scss:4971, _focused-view.scss:4986]
+- 2088: `.ch-tabs--breadcrumb` [2091]
+- 2094: `.ch-tab--back`
+- 2100: `.ch-tab__meta`
+- 2739: `.ch-tile--learn` [2744, 2811]
+- 2739: `.ch-tile--log` [2744, 2812]
+- 2739: `.ch-tile--search` [2744, 2781]
+- 2739: `.ch-tile--sup` [2744, 2782]
+- 4548: `.ch-tour__eyebrow`
+- 4564: `.ch-tour__eyebrow-icon`
+- 4566: `.ch-tour__heading`
+- 4569: `.ch-tour__lead`
+- 4576: `.ch-tour__list`
+- 4582: `.ch-tour__li`
+- 4592: `.ch-tour__li-check`
+- 4600: `.ch-tour__foot`
+
+### `_eval_quick.scss` (12)
+
+- 818: `.evq-runner__item-card`
+- 832: `.evq-runner__item-id`
+- 844: `.evq-runner__item-prompt`
+- 853: `.evq-runner__score-row`
+- 864: `.evq-score` [880]
+- 886: `.evq-score--correct` [890]
+- 896: `.evq-score--incorrect` [900]
+- 906: `.evq-score--skip` [909]
+- 1956: `.evq-report__missing-title`
+- 2537: `.evq-item__choice-symbol`
+- 2689: `.evq-item__library-tag`
+- 3189: `.evq-targeted__placeholder`
+
+### `_focused-view.scss` (3)
+
+- 2690: `.nb-section__title--inline` ¶ [app.scss:62849]
+- 3193: `.ll-density-compressed` ◊ [3203, app.scss:48931, app.scss:48938, app.scss:48943]
+- 5921: `.md-card__view-all` [app.scss:396, app.scss:49379, app.scss:49396]
+
+### `_search.scss` (2)
+
+- 266: `.ub-find-board__search-row` [267]
+- 268: `.ub-find-board__locale-wrap`
+
+### `_goals.scss` (1)
+
+- 401: `.md-goal-btn--danger`
+
+## Possibly built at runtime (NOT confirmed unused)
+
+Each name starts or ends with a fragment the code joins to a variable. Whether the joined value ever produces exactly this name depends on runtime data, so these need a person to check each one.
+
+- `.aac-section-label` (matches `-label`)
+- `.app-panel` (matches `-panel`)
+- `.board-picker__home-btn-label` (matches `-label`)
+- `.board_hierarchy_actions` (matches `board_`)
+- `#board_picker_backdrop` (matches `board_`, `board_picker_`)
+- `#board_picker_inner` (matches `board_`, `board_picker_`)
+- `.color_black` (matches `color_`)
+- `.dropdown-menu__try-new-style-item` (matches `-item`)
+- `.evq-item__choice-grid--cols-3` (matches `evq-item__choice-grid--cols-`)
+- `.evq-item__choice-grid--cols-4` (matches `evq-item__choice-grid--cols-`)
+- `.evq-item__choice-grid--cols-6` (matches `evq-item__choice-grid--cols-`)
+- `.evq-pill__status-badge--ready` (matches `evq-pill__status-badge--`, `-ready`)
+- `.evq-pill__status-badge--software_fallback` (matches `evq-pill__status-badge--`, `_fallback`)
+- `.evq-pill__status-badge--unavailable` (matches `evq-pill__status-badge--`)
+- `.evq-symbol--book` (matches `evq-symbol--`)
+- `.evq-symbol--plate` (matches `evq-symbol--`)
+- `.home_links` (matches `home_`)
+- `.la-beta-feedback-admin__priority--high` (matches `la-beta-feedback-admin__priority--`)
+- `.la-beta-feedback-admin__priority--low` (matches `la-beta-feedback-admin__priority--`)
+- `.la-beta-feedback-admin__priority--medium` (matches `la-beta-feedback-admin__priority--`)
+- `.la-beta-feedback__reaction-btn--green` (matches `la-beta-feedback__reaction-btn--`)
+- `.la-beta-feedback__reaction-btn--red` (matches `la-beta-feedback__reaction-btn--`)
+- `.la-beta-feedback__reaction-btn--yellow` (matches `la-beta-feedback__reaction-btn--`)
+- `.la-beta-feedback__reaction-face--frown` (matches `la-beta-feedback__reaction-face--`)
+- `.la-beta-feedback__reaction-face--neutral` (matches `la-beta-feedback__reaction-face--`)
+- `.la-beta-feedback__reaction-face--smile` (matches `la-beta-feedback__reaction-face--`)
+- `.la-nav-item` (matches `-item`)
+- `.la-panel` (matches `-panel`)
+- `.la-sidebar-label` (matches `-label`)
+- `.la-stat-label` (matches `-label`)
+- `.ll-bento-bar-welcome__link` (matches `_link`)
+- `.ll-bento-current-home__link` (matches `_link`)
+- `.ll-bento-dock__logging-last-label` (matches `-label`)
+- `.ll-bento-dock__supervisor-label` (matches `-label`)
+- `.ll-bento-section-label` (matches `-label`)
+- `.ll-bento-welcome__link` (matches `_link`)
+- `.ll-copy-drawer--done` (matches `ll-copy-drawer--`)
+- `.ll-copy-drawer--error` (matches `ll-copy-drawer--`)
+- `.ll-toast--error` (matches `ll-toast--`)
+- `.ll-toast--success` (matches `ll-toast--`)
+- `.ll-toast--warning` (matches `ll-toast--`)
+- `.md-add-supervisor__link` (matches `_link`)
+- `.md-board-detail-actions-menu__section-label` (matches `-label`)
+- `.md-board-detail-actions-menu__theme-label` (matches `-label`)
+- `.md-board-detail-edit-toolbar__layout-item` (matches `-item`)
+- `.md-board-detail-edit-toolbar__stepper-label` (matches `-label`)
+- `.md-board-detail-goals-list__fill--blue` (matches `md-board-detail-goals-list__fill--`)
+- `.md-board-detail-goals-list__fill--gold` (matches `md-board-detail-goals-list__fill--`)
+- `.md-board-detail-goals-list__fill--green` (matches `md-board-detail-goals-list__fill--`)
+- `.md-board-detail-goals-list__fill--red` (matches `md-board-detail-goals-list__fill--`)
+- `.md-board-detail-grid--hidden-grid` (matches `md-board-detail-grid--hidden-`)
+- `.md-board-detail-grid--hidden-hide` (matches `md-board-detail-grid--hidden-`)
+- `.md-board-detail-grid--hidden-hint` (matches `md-board-detail-grid--hidden-`)
+- `.md-board-detail-grid--text-huge` (matches `md-board-detail-grid--text-`)
+- `.md-board-detail-grid--text-pos-bottom` (matches `md-board-detail-grid--text-pos-`, `md-board-detail-grid--text-`)
+- `.md-board-detail-grid--text-pos-none` (matches `md-board-detail-grid--text-pos-`, `md-board-detail-grid--text-`)
+- `.md-board-detail-grid--text-pos-text_only` (matches `md-board-detail-grid--text-pos-`, `md-board-detail-grid--text-`)
+- `.md-board-detail-grid--text-pos-top` (matches `md-board-detail-grid--text-pos-`, `md-board-detail-grid--text-`)
+- `.md-board-detail-grid__group--how_when` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--keyboard` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--keyboard_extra` (matches `md-board-detail-grid__group--`, `_extra`)
+- `.md-board-detail-grid__group--no_not` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--social` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--things` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--time` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--words` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-grid__group--yes` (matches `md-board-detail-grid__group--`)
+- `.md-board-detail-header__sub-item` (matches `-item`)
+- `.md-board-detail-phrase-builder__btn-label` (matches `-label`)
+- `.md-board-detail-schedule-list__type--clinical` (matches `md-board-detail-schedule-list__type--`)
+- `.md-board-detail-schedule-list__type--practice` (matches `md-board-detail-schedule-list__type--`)
+- `.md-board-detail-schedule-list__type--social` (matches `md-board-detail-schedule-list__type--`)
+- `.md-board-detail-sidebar__icon--favorites` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--goal-tracking` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--phrase-builder` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--preferences` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--profiles` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--progress-reports` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--recent` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--sessions` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--symbol-board` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-sidebar__icon--voice-output` (matches `md-board-detail-sidebar__icon--`)
+- `.md-board-detail-symbol-card--adjective` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--adverb` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--article` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--conjunction` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--contrast` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--determiner` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--expletive` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--interjection` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--negation` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--nominative` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--noun` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--number` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--other` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--preposition` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--pronoun` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--question` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--social` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--social_phrase` (matches `md-board-detail-symbol-card--`)
+- `.md-board-detail-symbol-card--verb` (matches `md-board-detail-symbol-card--`)
+- `.md-board-edit-panel__filter-item--adjective` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--adverb` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--conjunction` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--determiner` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--folder` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--negation` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--noun` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--other` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--preposition` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--pronoun` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--question` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--social` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-panel__filter-item--verb` (matches `md-board-edit-panel__filter-item--`)
+- `.md-board-edit-view-style__current-label` (matches `-label`)
+- `.md-bs-group-label` (matches `-label`)
+- `.md-caseload__access-badge--edit` (matches `-edit`)
+- `.md-caseload__goal--status-achieved` (matches `md-caseload__goal--status-`)
+- `.md-caseload__goal--status-in_progress` (matches `md-caseload__goal--status-`)
+- `.md-caseload__goal--status-paused` (matches `md-caseload__goal--status-`)
+- `.md-caseload__goal-list__dot--achieved` (matches `md-caseload__goal-list__dot--`)
+- `.md-caseload__goal-list__dot--in_progress` (matches `md-caseload__goal-list__dot--`)
+- `.md-caseload__goal-list__dot--paused` (matches `md-caseload__goal-list__dot--`)
+- `.md-caseload__goal-status-tag--achieved` (matches `md-caseload__goal-status-tag--`)
+- `.md-caseload__goal-status-tag--in_progress` (matches `md-caseload__goal-status-tag--`)
+- `.md-caseload__goal-status-tag--paused` (matches `md-caseload__goal-status-tag--`)
+- `.md-edit-unit-curriculum__url` (matches `_url`)
+- `.md-extras-card__icon-wrap--account` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--goals` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--lessons` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--new-board` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--offline_boards` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--record_note` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--reports` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--run_eval` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--supervisors` (matches `md-extras-card__icon-wrap--`)
+- `.md-extras-card__icon-wrap--sync_details` (matches `md-extras-card__icon-wrap--`)
+- `.md-org-context-actions__link` (matches `_link`)
+- `.md-org-hero-actions__link` (matches `_link`)
+- `.md-settings-skin--default` (matches `md-settings-skin--`)
+- `.md-settings-skin--medium_dark` (matches `md-settings-skin--`)
+- `.md-settings-skin--medium_light` (matches `md-settings-skin--`)
+- `.md-settings-skin--trigger-swatch` (matches `md-settings-skin--`)
+- `.nav-header-welcome__link` (matches `_link`)
+- `.progress-highlight--negative` (matches `progress-highlight--`)
+- `.progress-highlight--neutral` (matches `progress-highlight--`)
+- `.progress-highlight--positive` (matches `progress-highlight--`)
+- `.purchase_link` (matches `_link`)
+- `.report-kpi--buttons-per-minute` (matches `report-kpi--`)
+- `.report-kpi--total-buttons` (matches `report-kpi--`)
+- `.report-kpi--total-utterances` (matches `report-kpi--`)
+- `.report-kpi--words-per-minute` (matches `report-kpi--`)
+- `.report-kpi__change--negative` (matches `report-kpi__change--`)
+- `.report-kpi__change--neutral` (matches `report-kpi__change--`)
+- `.report-kpi__change--positive` (matches `report-kpi__change--`)
+- `.setup-symbols-dropdown__trigger-label` (matches `-label`)
+- `.sidebar__section-label` (matches `-label`)
+- `.sound_search` (matches `sound_`)
+- `.speak-edit` (matches `-edit`)
+- `.symbol_background_black` (matches `symbol_background_`)
+- `.symbol_background_white` (matches `symbol_background_`)
+- `.ub-boards-page__action-label` (matches `-label`)
+- `.ub-boards-page__filter-label` (matches `-label`)
+- `.ub-boards-page__folder-context-label` (matches `-label`)
+- `.ub-boards-page__starting-board-item` (matches `-item`)
+- `.ub-search-page__link` (matches `_link`)
+
+## Named only in tests
+
+- `#header_search`
+
+## Removal (2026-10-12, requested: "if you are certain we don't use them anywhere in the code, remove them")
+
+**Result:** 1,101 of the 1,221 names are gone from the compiled CSS; about 16,400 lines of SCSS removed across 7 files. Uncommitted.
+
+**How:** a script parsed each SCSS file, resolved nesting and `&`, and removed a selector only when every rule nested under it also required a confirmed-unused name (a BEM child such as `&__link` compiles to a different, possibly live, class). Whole blocks were deleted only when every selector in them was dead; `@media` blocks left empty were removed. Comments above removed blocks were kept.
+
+**Proof it changed nothing visible:**
+1. Both versions compiled offline with the project's Sass: all 13,863 live, non-empty rules are present in the same order with the same counts, and no rule appeared that was not in the original. The removed rules all required an unused name, plus 49 empty rules whose only content was a comment.
+2. The same check against the dev server's own rebuilt `frontend.css`: identical result.
+3. 68 screenshots (Home, Caseload, Boards, Extras, Profile, Edit, Goals, Logs, Stats, Subscription, Organization rooms, Board picker, Basic home, landing, login; 1440 and 390px; top and bottom; a communicator, an org manager and an SLP) are pixel-identical before and after. Elena's Basic home first differed only because a different tab was remembered between runs; with the same tab and no hover, it is identical too.
+
+**Still present (120 names), deliberately not touched:**
+- inside `:not()`, `:is()`, `:where()` or `:has()`: removing them changes specificity or can change which rule wins;
+- generated in Sass loops or mixins (`phrase-token--*`, `symbol-card--*`, `progress-bar__fill--*`), or in selector lists that contain comments.
+Each would need a hand edit. Names: `app-logo`, `app-sidebar`, `bento-main`, `board-picker-btn--open`, `board-picker__filter-row`, `board-picker__heart`, `board-picker__home-badge`, `board-picker__home-btn`, `board-picker__item`, `board-picker__item--liked`, `board-picker__loading-spinner`, `board-picker__new-board-btn`, `board-picker__set-home-btn`, `board-picker__tabs`, `board-view-modern-btn`, `btn-group-sm`, `btn-group-xs`, `btn-xs`, `ch-group__label`, `evq-report__missing-title`, `evq-targeted__placeholder`, `form-group-sm`, `header-search-btn`, `header-search-icon`, `initialism`, `inner_ember`, `input-group-sm`, `la-add-app-modal-wrap`, `la-features-modal-body`, `la-features-modal-wrap`, `la-logo`, `la-record-note-modal-body`, `la-topbar`, `la-topbar-login`, `ll-bento-action-card__action-btn`, `ll-bento-app-shell`, `ll-bento-upgrade-btn--nav`, `ll-bento-welcome`, `ll-density-compressed`, `md-board-detail-add-dropdown__item`, `md-board-detail-board-actions`, `md-board-detail-board-actions-wrap`, `md-board-detail-board-actions__btn`, `md-board-detail-edit-toolbar`, `md-board-detail-edit-toolbar__btn`, `md-board-detail-edit-toolbar__display-prefs`, `md-board-detail-edit-toolbar__paint-swatch`, `md-board-detail-edit-toolbar__search-input`, `md-board-detail-folder-dropdown__item`, `md-board-detail-info-btn`, `md-board-detail-inline-sidebar__pin`, `md-board-detail-paint-picker__apply`, `md-board-detail-paint-picker__close`, `md-board-detail-sentence-bar__icon-btn`, `md-board-detail-sentence-nav__btn`, `md-board-detail-share-dropdown__item`, `md-board-detail-suggestion`, `md-board-details-edit-btn-wrap`, `md-board-edit-panel__back-link`, `md-board-edit-panel__btn`, `md-board-edit-panel__group--view`, `md-board-edit-panel__top`, `md-board-edit-right-panel__brush`, `md-card__org-list`, `md-card__view-all`, `md-caseload__access-badge`, `md-caseload__action--corner-extras`, `md-caseload__avatar`, `md-caseload__avatar--svg`, `md-caseload__extras-dropdown--mobile`, `md-caseload__eyebrow`, `md-caseload__goal--empty`, `md-copying-board-header`, `md-extras-card__btn`, `md-home-actions`, `md-pillnav-dropdown--caseload`, `md-room-card__sub`, `md-settings-group`, `md-settings-skin-group`, `md-settings-sublabel-wrap--skin`, `md-settings-toggle-btn`, `md-stats-filter__select`, `md-strip`, `md-strip__heart`, `md-strip__home-glyph`, `md-strip__item`, `md-strip__item--liked`, `md-strip__label`, `nav-header__app-name-link`, `nb-section__title--inline`, `pagination-sm`, `phrase-token--actions`, `phrase-token--descriptors`, `phrase-token--feelings`, `phrase-token--food`, `phrase-token--objects`, `phrase-token--people`, `phrase-token--places`, `phrase-token--social`, `progress-bar__fill--actions`, `progress-bar__fill--descriptors`, `progress-bar__fill--feelings`, `progress-bar__fill--food`, `progress-bar__fill--objects`, `progress-bar__fill--people`, `progress-bar__fill--places`, `progress-bar__fill--social`, `search-page`, `setup-intro__skip-pill`, `symbol-card--actions`, `symbol-card--descriptors`, `symbol-card--feelings`, `symbol-card--food`, `symbol-card--objects`, `symbol-card--people`, `symbol-card--places`, `symbol-card--social`, `symbol-card__icon-wrap`, `ub-search-page__input`, `user-select-modern`
