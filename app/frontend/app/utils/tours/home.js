@@ -10,6 +10,41 @@
 import i18n from '../i18n';
 import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, waitForElement, doneCelebration, nextAdvance } from './shared';
 
+// THE COMMUNICATOR WELCOME (2026-10-12, tour redesign: docs/task-management/2026-10-12_tour-redesign.md).
+// One clear choice. Requested: "a primary Start talking now button with the board picture and 'We'll set
+// up Vocal Flair 60. You can change it anytime.' Add a secondary Choose a different board and a small Take
+// a quick tour (1 min) link." The communicator's tour itself runs on their board (board-detail-speak.js /
+// board-alt-speak.js), so on the home page this card is the whole tour.
+// Actions (components/guided-tour.js#_welcomeAction): `speak` = utils/tours/start_talking.js (Vocal
+// Flair 60 becomes the home board, then Speak Mode); `picker` = the board picker; `speak_tour` = as
+// `speak`, then the board tour. `classic` renders it in Basic's tour skin (classic-home.js).
+var STARTER_IMAGE = '/images/vocal-flair-60.png';
+function communicatorWelcomeStep(classic) {
+  var p = classic ? 'ch' : 'md';
+  var start = tourBodyButton(
+    '<img class="md-tour__starter-img" src="' + STARTER_IMAGE + '" alt="">' +
+    '<span class="md-tour__starter-label">' + i18n.t('tour_welcome_start_talking', "Start talking now") + '</span>',
+    'speak',
+    { classes: 'md-tour__body-btn--primary md-tour__body-btn--starter', note: i18n.t('tour_welcome_start_talking_note', "We'll set up Vocal Flair 60. You can change it anytime.") }
+  );
+  var choose = tourBodyButton(i18n.t('tour_welcome_choose_board', "Choose a different board"), 'picker', { classes: 'md-tour__body-btn--secondary' });
+  var quick = '<div class="md-tour__quick-tour"><button type="button" class="md-tour__quick-tour-link" data-tour-action="speak_tour">' +
+    i18n.t('tour_welcome_quick_tour', "Take a quick tour (1 min)") + '</button></div>';
+  return {
+    id: 'home_tour_welcome',
+    title: decoratedTitle('home_tour_welcome_title', "Welcome to LingoLinq", classic ? { classic: true } : undefined),
+    text: start + choose + quick,
+    classes: classic ? 'ch-tour__step ch-tour__step--intro ch-tour__step--welcome-comm' : 'md-tour__step md-tour__step--intro md-tour__step--welcome md-tour__step--welcome-comm',
+    buttons: [
+      {
+        text: i18n.t('home_tour_exit', "Exit Tour"),
+        type: 'cancel',
+        classes: p + '-tour__btn ' + p + '-tour__btn--ghost'
+      }
+    ]
+  };
+}
+
 // Centered intro step (no attachTo). The "Skip tour for now" off-ramp is a full
 // BODY button (not a footer link) that jumps to the skip-handoff step
 // (home_tour_skip_handoff) so a user who isn't ready for the walkthrough is still
@@ -19,9 +54,11 @@ import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIden
 // "choose my board" and "start speaking" choices are for a communicator, and a supporter has no board
 // of their own to pick (guided-tour.js gives them no board-picker handoff either).
 function welcomeStep(supporter) {
-  var takeTour = tourBodyButton(
-    i18n.t('home_tour_welcome_take_tour', "Take a tour of your <span class=\"md-hero__gradient-text\">home page</span>"),
-    // Same as the footer "Start the tour" button — advance to the first step.
+  // Same as the footer "Start the tour" button — advance to the first step. A communicator's label says the
+  // tour comes before picking a home board (requested 2026-10-12); a supporter has none to pick.
+  var takeTour = tourBodyButton(supporter ?
+    i18n.t('home_tour_welcome_take_tour', "Take a tour of your <span class=\"md-hero__gradient-text\">home page</span>") :
+    i18n.t('home_tour_welcome_take_tour_first', "Take a <span class=\"md-hero__gradient-text\">home page tour</span> before picking my home board"),
     'next'
   );
   return {
@@ -30,13 +67,15 @@ function welcomeStep(supporter) {
     text: supporter ? takeTour : takeTour +
     '<div class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' + i18n.t('home_tour_or', "OR") + '</span></div>' +
     tourBodyButton(
-      i18n.t('home_tour_skip_choose_board', "Skip tour for now<br>Let's <span class=\"md-hero__gradient-text\">choose my board</span> (page-set)"),
+      // Wording requested 2026-10-12 (was "Skip tour for now / Let's choose my board (page-set)").
+      i18n.t('home_tour_skip_pick_home_board', "Skip home tour for now,<br>let's <span class=\"md-hero__gradient-text\">pick my home board</span> now"),
       'show:home_tour_skip_handoff',
       { note: i18n.t('home_tour_skip_return_note', "You can always return to the tour later.") }
     ) +
     '<div class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' + i18n.t('home_tour_or', "OR") + '</span></div>' +
     tourBodyButton(
-      i18n.t('home_tour_welcome_start_speaking', "I'd like to <span class=\"md-hero__gradient-text\">start speaking</span><br>Pick a board (page-set) for me"),
+      // Wording requested 2026-10-12 (was "I'd like to start speaking / Pick a board (page-set) for me").
+      i18n.t('home_tour_welcome_pick_for_me', "I'm not sure what to choose,<br>I'd like you to <span class=\"md-hero__gradient-text\">pick my home board for me</span>"),
       // `speak` dispatch: guided-tour.js routes to the user's OWN Vocal Flair 84
       // copy (`<user_name>/vocal-flair-84`, copied at registration) in board-detail
       // SPEAK mode, polling until the copy is ready first (see _startSpeakingHandoff).
@@ -191,16 +230,22 @@ function navPillSummary() {
 //     "You're all set", Finish.
 // (single button — type:next on the last step completes the tour via Shepherd's
 // auto-complete.)
-function doneStep(handoff) {
+// What the tour covered, for the finish steps. A COMMUNICATOR is not told about Reports (requested
+// 2026-10-12: "on the tour, make sure a communicator doesn't hear about Upgrade, Customize your dashboard,
+// Logs, Reports and Subscription"); a supporter (SLP) is.
+function summaryItems(supporter) {
+  var items = [i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode")];
+  if (supporter) { items.push(i18n.t('home_tour_welcome_b2', "Reports & insights")); }
+  items.push(i18n.t('home_tour_welcome_b3', "Account, settings & more"));
+  return items;
+}
+
+function doneStep(handoff, supporter) {
   if (handoff) {
     return {
       id: 'home_tour_done',
       title: decoratedTitle('home_tour_next_title', "Next: pick your communication board (page-set)"),
-      text: nextAdvance() + tourChecklist([
-        i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
-        i18n.t('home_tour_welcome_b2', "Reports & insights"),
-        i18n.t('home_tour_welcome_b3', "Account, settings & more")
-      ],
+      text: nextAdvance() + tourChecklist(summaryItems(supporter),
         i18n.t('home_tour_next_lead', "You've finished the Home Page tour."),
         i18n.t('home_tour_next_text', "Now let's pick the communication board (page-set) you'll use to start talking.")),
       classes: 'md-tour__step md-tour__step--intro md-tour__step--outro md-tour__step--next',
@@ -219,11 +264,7 @@ function doneStep(handoff) {
   return {
     id: 'home_tour_done',
     title: decoratedTitle('home_tour_done_title', "You're all set with the Home Page"),
-    text: doneCelebration() + tourChecklist([
-      i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
-      i18n.t('home_tour_welcome_b2', "Reports & insights"),
-      i18n.t('home_tour_welcome_b3', "Account, settings & more")
-    ], null,
+    text: doneCelebration() + tourChecklist(summaryItems(supporter), null,
       i18n.t('home_tour_done_text', "You can return anytime from the Take a tour button at the top of the dashboard.")),
     classes: 'md-tour__step md-tour__step--intro md-tour__step--outro',
     buttons: [
@@ -256,7 +297,7 @@ function doneStep(handoff) {
 // the menu never lists a topic it can't spotlight). Each topic is a SINGLE
 // spotlight with its own expanded copy. Order matches the linear tour's reading
 // order: toolbar → navigation → cards → account.
-function menuTopics() {
+function menuTopics(supporter) {
   var topics = [];
   // Dashboard cards — spotlight the whole grid so the cutout wraps every card.
   var gridEl = visibleEl('.md-grid--dashboard');
@@ -267,10 +308,13 @@ function menuTopics() {
       title: i18n.t('home_tour_menu_cards_title', "Your dashboard cards"),
       text: tourChecklist([
         i18n.t('home_tour_menu_cards_b1', "Open Speak Mode to start communicating"),
-        i18n.t('home_tour_menu_cards_b2', "Jump straight to your boards, reports and account"),
-        i18n.t('home_tour_menu_cards_b3', "Drag to reorder, or show/hide cards from Display style"),
+        // A communicator hears neither reports nor customizing the dashboard (2026-10-12, see summaryItems).
+        supporter ?
+          i18n.t('home_tour_menu_cards_b2', "Jump straight to your boards, reports and account") :
+          i18n.t('home_tour_menu_cards_b2_communicator', "Jump straight to your boards and Extras"),
+        supporter ? i18n.t('home_tour_menu_cards_b3', "Drag to reorder, or show/hide cards from Display style") : null,
         i18n.t('home_tour_menu_cards_b4', "Whatever you use most stays front and center")
-      ], i18n.t('home_tour_menu_cards_lead', "These cards are your shortcuts into everything you do here:"))
+      ].filter(Boolean), i18n.t('home_tour_menu_cards_lead', "These cards are your shortcuts into everything you do here:"))
     });
   }
   // Navigation pills. The second line NAMES THE PILLS THAT ARE ACTUALLY THERE (navPillSummary),
@@ -364,15 +408,11 @@ function tourTopicStep(t) {
 // over to pick/change their communication board. `onPickBoard` (supplied by the
 // component, which owns the router) navigates there; we complete() the tour first
 // so the overlay tears down before the route transition.
-function menuDoneStep(onPickBoard) {
+function menuDoneStep(onPickBoard, supporter) {
   return {
     id: 'home_tour_done',
     title: decoratedTitle('home_tour_done_title', "You're all set with the Home Page"),
-    text: doneCelebration() + tourChecklist([
-      i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
-      i18n.t('home_tour_welcome_b2', "Reports & insights"),
-      i18n.t('home_tour_welcome_b3', "Account, settings & more")
-    ], null,
+    text: doneCelebration() + tourChecklist(summaryItems(supporter), null,
       i18n.t('home_tour_menu_done_text', "Refreshed on the Home Page. You can reopen this menu anytime from the Take a tour button.")),
     classes: 'md-tour__step md-tour__step--intro md-tour__step--outro',
     // No board-picker link when there is no picker to go to (a supporter, 2026-10-12).
@@ -398,12 +438,12 @@ function menuDoneStep(onPickBoard) {
 // tour instead of showing an empty menu.
 function buildHomeMenuSteps(layout, options) {
   options = options || {};
-  var topics = menuTopics();
+  var topics = menuTopics(options.supporter);
   if (!topics.length) { return null; }
   var steps = [];
   steps.push(menuStep(topics));
   topics.forEach(function(t) { steps.push(topicStep(t)); });
-  steps.push(menuDoneStep(options.onPickBoard));
+  steps.push(menuDoneStep(options.onPickBoard, options.supporter));
   if (layout === 'focused') {
     steps.forEach(function(s) {
       s.classes = ((s.classes || '') + ' md-tour__step--focused').trim();
@@ -422,6 +462,12 @@ function buildHomeMenuSteps(layout, options) {
 // for the topic MENU; if no topic resolves it falls back to the linear tour.
 function buildHomeSteps(layout, options) {
   options = options || {};
+  // A COMMUNICATOR (not a supporter) gets the one-card welcome; their tour runs on their board (2026-10-12).
+  if (!options.supporter) {
+    var welcome = communicatorWelcomeStep(false);
+    if (layout === 'focused') { welcome.classes += ' md-tour__step--focused'; }
+    return [welcome];
+  }
   if (options.menu) {
     var menuSteps = buildHomeMenuSteps(layout, options);
     if (menuSteps) { return menuSteps; }
@@ -432,8 +478,8 @@ function buildHomeSteps(layout, options) {
   // It walked one step per toolbar button, account-menu item, nav pill and card (~25). The two
   // middle steps are the same summaries the replay menu shows, with Back/Next instead of "Back to
   // menu"; a topic whose element is not on screen is skipped.
-  menuTopics().forEach(function(t) { steps.push(tourTopicStep(t)); });
-  steps.push(doneStep(options.handoff));
+  menuTopics(options.supporter).forEach(function(t) { steps.push(tourTopicStep(t)); });
+  steps.push(doneStep(options.handoff, options.supporter));
   // The welcome step's "Skip tour for now" off-ramp. Appended LAST so it's reachable
   // via tour.show('home_tour_skip_handoff') but never sits in the linear Next chain
   // (the terminal doneStep button uses an explicit complete(), so its Next can't
@@ -450,5 +496,5 @@ function buildHomeSteps(layout, options) {
   return steps;
 }
 
-export { buildHomeSteps, navPillSummary };
+export { buildHomeSteps, navPillSummary, communicatorWelcomeStep };
 export default buildHomeSteps;

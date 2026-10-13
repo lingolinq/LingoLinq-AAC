@@ -31,8 +31,8 @@ module('Unit | Utility | tours | supporter home tour', function(hooks) {
       var ids = steps.map(function(s) { return s.id; });
       assert.deepEqual(ids, ['home_tour_welcome', 'home_tour_t_cards', 'home_tour_t_nav', 'home_tour_done'], 'welcome, cards, navigation, finish');
       assert.notOk(/choose my board|start speaking/i.test(steps[0].text), 'the welcome offers no "choose my board" or "start speaking"');
-      var communicator = buildHomeSteps('gentle', {}).map(function(s) { return s.id; });
-      assert.notStrictEqual(communicator.indexOf('home_tour_skip_handoff'), -1, 'a communicator keeps the board off-ramp');
+      var communicator = buildHomeSteps('gentle', {})[0].text; // the welcome card (2026-10-12 redesign, approved)
+      assert.true(communicator.includes('data-tour-action="picker"'), 'a communicator can still go choose a board ("Choose a different board")');
 
       var menu = buildHomeSteps('gentle', { supporter: true, menu: true, onPickBoard: null });
       var done = menu[menu.length - 1];

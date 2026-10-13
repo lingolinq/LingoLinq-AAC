@@ -23,18 +23,18 @@ module('Unit | Utility | home tour steps', function(hooks) {
   function ids(steps) { return steps.map(function(s) { return s.id; }); }
 
   test('first-time tour: welcome, cards, navigation, finish', function(assert) {
-    var steps = buildHomeSteps('gentle', {});
+    var steps = buildHomeSteps('gentle', { supporter: true }); // a supporter's tour since the 2026-10-12 redesign (approved)
     assert.deepEqual(ids(steps).filter(function(id) { return id !== 'home_tour_skip_handoff'; }),
       ['home_tour_welcome', 'home_tour_t_cards', 'home_tour_t_nav', 'home_tour_done']);
   });
 
   test('the navigation step names the pills on screen', function(assert) {
-    var nav = buildHomeSteps('gentle', {}).find(function(s) { return s.id === 'home_tour_t_nav'; });
+    var nav = buildHomeSteps('gentle', { supporter: true }).find(function(s) { return s.id === 'home_tour_t_nav'; });
     assert.notStrictEqual(nav.text.indexOf('Dashboard and Boards'), -1, nav.text);
   });
 
   test('replay menu: the same two areas', function(assert) {
-    var steps = buildHomeSteps('gentle', { menu: true });
+    var steps = buildHomeSteps('gentle', { menu: true, supporter: true });
     assert.deepEqual(ids(steps), ['home_tour_menu', 'home_tour_t_cards', 'home_tour_t_nav', 'home_tour_done']);
   });
 });

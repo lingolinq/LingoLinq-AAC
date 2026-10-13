@@ -197,12 +197,12 @@ function _onTourStepShow() {
           else if (spec === 'next') { tour.next(); }
           else if (spec === 'complete') { tour.complete(); }
           else if (spec === 'cancel') { tour.cancel(); }
-          else if (spec === 'speak') {
-            // Home-tour "I'd like to start speaking" — route to the user's own
-            // board copy in speak mode (see _startSpeakingHandoff on the component,
-            // reached via the tourObject bridge set in _startTour).
+          else if (spec === 'speak' || spec === 'speak_tour' || spec === 'picker') {
+            // The communicator welcome (2026-10-12): Start talking now, Take a quick tour, Choose a
+            // different board -- handled by _welcomeAction (the reopen at the end of this file),
+            // reached via the tourObject bridge set in _startTour.
             var comp = tour && tour._llGuidedTour;
-            if (comp && typeof comp._startSpeakingHandoff === 'function') { comp._startSpeakingHandoff(); }
+            if (comp && typeof comp._welcomeAction === 'function') { comp._welcomeAction(spec); }
           }
         });
       });
@@ -276,7 +276,7 @@ function _scrollTourToTop() {
 // inner-header button pulls a PAGE-SPECIFIC tour. The component renders only
 // the trigger; Shepherd portals the step popovers and modal overlay into
 // <body> at run time.
-export default Component.extend({
+const GuidedTour = Component.extend({
   tagName: '',
 
   appState: service('app-state'),
@@ -1151,7 +1151,7 @@ export default Component.extend({
       handoff: firstTime && !this.get('appState.currentUser.supporter_role'), supporter: !!this.get('appState.currentUser.supporter_role'),
       menu: menuMode,
       onPickBoard: this.get('appState.currentUser.supporter_role') ? null : onPickBoard
-    } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : {}));
+    } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : { supporter: !!this.get('appState.currentUser.supporter_role') }));
     // Smooth "scroll then show" for every attached step (runner-level, so all
     // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
     // steps with the injected beforeShowPromise + scrollTo:false. `tour` is
@@ -1491,3 +1491,61 @@ export default Component.extend({
     }
   }
 });
+
+/* THE COMMUNICATOR WELCOME'S ACTIONS (2026-10-12, tour redesign: docs/task-management/2026-10-12_tour-redesign.md).
+   Added with `reopen` so the line-anchored .eslint-todo rows above keep their lines. Each one takes over the
+   tour's end (`_speakHandoffActive`, as the old "start speaking" did) so the first-login board-picker
+   handoff bound to complete/cancel does not also fire, then closes the tour.
+   - speak       Start talking now: Vocal Flair 60 becomes the home board, then Speak Mode (start_talking.js).
+   - speak_tour  Take a quick tour (1 min): the same, then the communicator tour on that board.
+   - picker      Choose a different board: the board picker, with its own tour armed as the old handoff did. */
+GuidedTour.reopen({
+  _welcomeAction: function(spec) {
+    var _this = this;
+    var appState = this.get('appState');
+    this.set('_speakHandoffActive', true);
+    try {
+      var to = this.get('tour.tourObject');
+      if (to && typeof to.cancel === 'function') { to.cancel(); }
+    } catch (e) { /* best-effort */ }
+    if (spec === 'picker') {
+      appState.set('board_picker_tour_pending', true);
+      return this.get('router').transitionTo('board-picker');
+    }
+    return start_talking_now({ appState: appState, router: _this.get('router'), withTour: spec === 'speak_tour' });
+  }
+});
+
+/* BASIC'S BOARD-PAGE TOUR (2026-10-12 redesign). Basic's board page (templates/board/index.hbs) mounts one
+   instance as `@boardAltHost`; it starts the communicator board tour (utils/tours/communicator-board.js,
+   registered for board-alt in registry.js) when `board_alt_tour_pending` names the board on screen. Set by
+   "Take a quick tour" (utils/tours/start_talking.js) and by the first-message offer. The board is drawn
+   after the route settles, so it waits (bounded, ~6s) for the board before building the steps, which
+   are resolved from the DOM. */
+GuidedTour.reopen({
+  boardAltHost: false,
+  init: function() {
+    this._super(...arguments);
+    if (this.get('boardAltHost')) { this._consumeBoardAltTour(0); }
+  },
+  _boardAltTourWatcher: observer('appState.board_alt_tour_pending', 'appState.currentBoardState.key', 'tourKey', function() {
+    if (this.get('boardAltHost')) { this._consumeBoardAltTour(0); }
+  }),
+  _consumeBoardAltTour: function(attempt) {
+    var _this = this;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var pending = this.get('appState.board_alt_tour_pending');
+    if (!pending || this.get('appState.currentBoardState.key') !== pending) { return; }
+    if (this.get('tourKey') !== 'board_alt_speak' || !document.querySelector('.board')) {
+      if (attempt < 30) { window.setTimeout(function() { _this._consumeBoardAltTour(attempt + 1); }, 200); }
+      return;
+    }
+    this.set('appState.board_alt_tour_pending', null);
+    this._startTour();
+  }
+});
+
+export default GuidedTour;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { start_talking_now } from '../utils/tours/start_talking';

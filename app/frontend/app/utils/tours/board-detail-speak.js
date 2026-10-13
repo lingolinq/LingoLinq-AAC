@@ -163,6 +163,9 @@ function doneStep() {
 // it always builds the linear walkthrough.
 // eslint-disable-next-line no-unused-vars
 function buildBoardDetailSpeakSteps(layout, options) {
+  // A COMMUNICATOR (guided-tour.js passes `supporter: false`) gets the 5-step communicator board tour
+  // (2026-10-12 redesign, communicator-board.js); a supporter, or a caller that does not say, keeps this one.
+  if (options && options.supporter === false) { return buildCommunicatorBoardSteps('modern', layout); }
   var steps = [];
   steps.push(welcomeStep());
   pushInteriorSteps(steps);
@@ -177,3 +180,6 @@ function buildBoardDetailSpeakSteps(layout, options) {
 
 export { buildBoardDetailSpeakSteps };
 export default buildBoardDetailSpeakSteps;
+
+// Imported last, as the other late imports in these modules.
+import { buildCommunicatorBoardSteps } from './communicator-board';

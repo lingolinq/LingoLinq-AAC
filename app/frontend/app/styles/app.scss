@@ -94410,6 +94410,70 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.25);
 }
 
+/* THE COMMUNICATOR WELCOME (2026-10-12, utils/tours/home.js#communicatorWelcomeStep): a primary "Start
+   talking now" with the Vocal Flair 60 picture and its note, a secondary "Choose a different board", and a
+   small "Take a quick tour (1 min)" link. Used by both skins (Modern and Basic tours). The primary is a
+   solid verdigris ($brand-verdigris-aa: white text passes AA) so it reads as THE choice. */
+.shepherd-element .md-tour__body-btn--starter {
+  justify-content: space-between;
+  padding: 12px 18px 12px 12px;
+}
+.shepherd-element .md-tour__body-btn--starter .md-tour__body-btn-content {
+  align-items: flex-start;
+  text-align: left;
+}
+.shepherd-element .md-tour__body-btn--starter .md-tour__body-btn-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 19px;
+}
+.shepherd-element .md-tour__starter-img {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  padding: 4px;
+  box-sizing: border-box;
+}
+.shepherd-element .md-tour__body-btn--starter .md-tour__body-btn-note {
+  margin-left: 78px;
+}
+.shepherd-element .md-tour__body-btn--primary,
+.shepherd-element .md-tour__body-btn--primary:not(:disabled):hover {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(180deg, color.adjust($brand-verdigris-aa, $lightness: 4%), $brand-verdigris-aa);
+}
+.shepherd-element .md-tour__body-btn--primary .md-tour__body-btn-note {
+  color: #fff;
+  opacity: 0.92;
+}
+.shepherd-element .md-tour__body-btn--primary .md-tour__body-btn-arrow,
+.shepherd-element .md-tour__body-btn--primary:not(:disabled):hover .md-tour__body-btn-arrow {
+  color: #fff;
+}
+.shepherd-element .md-tour__quick-tour {
+  margin-top: 6px;
+  text-align: center;
+  width: 100%;
+}
+.shepherd-element .md-tour__quick-tour-link {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: $brand-dusty-denim;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.shepherd-element .md-tour__quick-tour-link:hover { color: $la-navy; }
+
 /* ── Second-round MENU step ───────────────────────────────────────────────────
    Returning users get a centered hub whose footer is a vertical BUTTON LIST of
    topic areas (instead of the usual right-aligned Back/Next pair). Restyle this

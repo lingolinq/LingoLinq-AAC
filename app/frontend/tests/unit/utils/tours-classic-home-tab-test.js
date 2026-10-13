@@ -35,7 +35,7 @@ module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
 
   test('started on Communicators: the cards step never spotlights a communicator card', function(assert) {
     assert.expect(3);
-    var steps = buildClassicHomeSteps();
+    var steps = buildClassicHomeSteps({ supporter: true }); // the multi-step tour is a supporter's since the 2026-10-12 redesign (approved)
     var cards = step(steps, 'classic_tour_cards');
     assert.ok(cards, 'the cards step is kept for when the Actions tab shows');
     var target = typeof cards.attachTo.element === 'function' ? cards.attachTo.element() : cards.attachTo.element;
@@ -49,7 +49,7 @@ module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
     // selector would match it once it is open.
     root.insertAdjacentHTML('beforeend',
       '<div class="ch-grid ch-grid--extras" id="drawer" style="display:block;width:300px;height:40px"></div>');
-    var steps = buildClassicHomeSteps();
+    var steps = buildClassicHomeSteps({ supporter: true }); // the multi-step tour is a supporter's since the 2026-10-12 redesign (approved)
     var cards = step(steps, 'classic_tour_cards');
     assert.false(cards.showOn(), 'an open drawer alone does not make the step show');
     var target = typeof cards.attachTo.element === 'function' ? cards.attachTo.element() : cards.attachTo.element;
@@ -60,7 +60,7 @@ module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
     assert.expect(1);
     var clicked = 0;
     root.querySelector('[data-tour-tab="main"]').addEventListener('click', function() { clicked++; });
-    var steps = buildClassicHomeSteps();
+    var steps = buildClassicHomeSteps({ supporter: true }); // the multi-step tour is a supporter's since the 2026-10-12 redesign (approved)
     await steps[1].beforeShowPromise();
     assert.strictEqual(clicked, 1, 'Actions tab clicked once');
   });
@@ -72,7 +72,7 @@ module('Unit | Utility | tours classic-home Actions tab', function(hooks) {
     root.insertAdjacentHTML('beforeend', '<div class="ch-grid" id="actions-grid" style="display:block;width:300px;height:80px"><button class="ch-tile ch-tile--big ch-tile--reports" style="display:block;width:80px;height:30px">Reports</button></div>');
     var clicked = 0;
     actions.addEventListener('click', function() { clicked++; });
-    var steps = buildClassicHomeSteps();
+    var steps = buildClassicHomeSteps({ supporter: true }); // the multi-step tour is a supporter's since the 2026-10-12 redesign (approved)
     await steps[1].beforeShowPromise();
     assert.strictEqual(clicked, 0, 'no tab click');
     assert.true(step(steps, 'classic_tour_cards').showOn(), 'the Actions grid is spotlit');

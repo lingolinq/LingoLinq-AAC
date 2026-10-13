@@ -21,6 +21,7 @@
 // default is silently dropped by the generator.
 import i18n from '../i18n';
 import { standardButtons, decoratedTitle, tourChecklist, visibleEl, visibleBySelector, liveTarget, waitForElement } from './shared';
+import { communicatorWelcomeStep } from './home';
 
 // Every helper is called with this so the popover, footer and checklist render in the
 // classic glass language (`ch-tour__*`, themed in _classic-home.scss) rather than the
@@ -40,15 +41,16 @@ function _classic_home_tour_i18n_extractor_no_op() {
 }
 
 // Centered intro step (no attachTo) — frames what the page is for.
-function welcomeStep() {
+function welcomeStep(supporter) {
   return {
     id: 'classic_tour_welcome',
     title: decoratedTitle('classic_tour_welcome_title', "Welcome to your home page", CLASSIC),
     text: tourChecklist([
       i18n.t('classic_tour_welcome_b1', "Start talking in one tap"),
-      i18n.t('classic_tour_welcome_b2', "See how communication is going"),
+      // How communication is going is Reports; a communicator is not told about it (2026-10-12).
+      supporter ? i18n.t('classic_tour_welcome_b2', "See how communication is going") : null,
       i18n.t('classic_tour_welcome_b3', "Find every other tool in one place")
-    ], i18n.t('classic_tour_welcome_lead', "A quick walk through the things you will use most."), null, CLASSIC),
+    ].filter(Boolean), i18n.t('classic_tour_welcome_lead', "A quick walk through the things you will use most."), null, CLASSIC),
     classes: 'ch-tour__step ch-tour__step--intro',
     buttons: [
       {
@@ -74,7 +76,7 @@ function welcomeStep() {
 //   `on`     — popover placement; floating-ui flips automatically if there is no room
 //   `padded` — region targets that want a roomy rounded cutout rather than a tight hug
 //   `last`   — ends the tour from this step instead of a separate outro
-function interiorSteps() {
+function interiorSteps(supporter) {
   return [
     {
       // The whole rail: identity block AND the setup rows under it, which used to be two
@@ -86,7 +88,9 @@ function interiorSteps() {
       title: i18n.t('classic_tour_rail_title', "Your side menu"),
       text: tourChecklist([
         i18n.t('classic_tour_rail_b1', "Who you are signed in as, and your account settings"),
-        i18n.t('classic_tour_rail_b2', "Your home board, your supporters and logging"),
+        supporter ?
+          i18n.t('classic_tour_rail_b2', "Your home board, your supporters and logging") :
+          i18n.t('classic_tour_rail_b2_communicator', "Your home board and your supporters"),
         i18n.t('classic_tour_rail_b3', "It stays in the same place on every screen")
       ], null, null, CLASSIC)
     },
@@ -116,9 +120,9 @@ function interiorSteps() {
       title: i18n.t('classic_tour_cards_title', "Your main actions"),
       text: tourChecklist([
         i18n.t('classic_tour_cards_b1', "Speak opens your board ready to talk"),
-        i18n.t('classic_tour_cards_b2', "Reports shows how communication is going"),
+        supporter ? i18n.t('classic_tour_cards_b2', "Reports shows how communication is going") : null,
         i18n.t('classic_tour_cards_b3', "Extras opens the rest of your tools")
-      ], i18n.t('classic_tour_cards_lead', "You can take this tour again any time from the side menu."), null, CLASSIC)
+      ].filter(Boolean), i18n.t('classic_tour_cards_lead', "You can take this tour again any time from the side menu."), null, CLASSIC)
     }
   ];
 }
@@ -136,9 +140,9 @@ function showActionsTab() {
   if (tab && !tab.classList.contains('is-active')) { tab.click(); }
 }
 
-function pushInteriorSteps(steps) {
+function pushInteriorSteps(steps, supporter) {
   var first = true;
-  interiorSteps().forEach(function(cfg) {
+  interiorSteps(supporter).forEach(function(cfg) {
     var el = visibleEl(cfg.sel);
     var later = !el && cfg.tab === 'main' && !!document.querySelector(ACTIONS_TAB);
     if (!el && !later) { return; }
@@ -187,8 +191,13 @@ function pushInteriorSteps(steps) {
 // eslint-disable-next-line no-unused-vars
 function buildClassicHomeSteps(options) {
   var steps = [];
-  steps.push(welcomeStep());
-  pushInteriorSteps(steps);
+  options = options || {};
+  // A COMMUNICATOR gets the one-card welcome (Start talking now / Choose a different board / Take a quick
+  // tour), in Basic's skin; their tour runs on their board (2026-10-12, tour redesign).
+  if (!options.supporter) { return [communicatorWelcomeStep(true)]; }
+  // A supporter's tour leaves out nothing; a communicator's left out Reports and logging (2026-10-12).
+  steps.push(welcomeStep(options.supporter));
+  pushInteriorSteps(steps, options.supporter);
   return steps;
 }
 

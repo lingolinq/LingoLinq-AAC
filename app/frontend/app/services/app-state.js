@@ -3263,7 +3263,7 @@ export default Service.extend({
             // guided tour IS the speak-mode intro, so the legacy modal would otherwise
             // race it and render dimmed behind the tour card. The tour clears the flag
             // once it opens, after which normal (no-tour) entry shows the modal again.
-            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
+            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak') && !this.get('board_alt_tour_pending')) {
               if(modal.route && !modal.is_open('speak-mode-intro')) {
                 modal.open('speak-mode-intro');
               }
