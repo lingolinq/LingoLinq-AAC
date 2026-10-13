@@ -78,12 +78,15 @@ const KEEP_BODY_IDS = { 'ember-testing-container': true, qunit: true, 'qunit-fix
 // Functions the APP assigns (and nulls) on a singleton while it runs, not test stubs: raw_events.js sets
 // buttonTracker.handle_direction for a gamepad/keyboard direction loop and nulls it on an animation
 // frame; utils/modal.js sets modal.auto_close_callback for an inactivity timeout and nulls it on the next
-// open; utils/persistence.js sets persistence.storing_urls while it stores URLs and nulls it in a .then.
-// These are every key app code both sets to a function and nulls on a watched singleton (searched
-// 2026-10-13). (buttonTracker.gamepadupdate is NOT here: components/dwell-tracker.js installs a no-op one that
+// open; utils/persistence.js sets persistence.storing_urls while it stores URLs and nulls it in a .then;
+// utils/edit_manager.js sets and nulls editManager.imageEditingCallback around image editing;
+// utils/ai_word_predictor.js sets and nulls ai_word_predictor._pending_reject around a request.
+// Found by searching app code for keys set to a function and set to null (2026-10-13), through the
+// singleton's name, `this.` and `_this.`. (buttonTracker.gamepadupdate is NOT here: components/dwell-tracker.js installs a no-op one that
 // its teardown never clears, a real leak reported to the owner.)
 const APP_OWNED_FUNCTIONS = { 'capabilities.fake_battery': true, 'capabilities.data_uri_to_blob': true, 'editManager.Button': true,
-  'buttonTracker.handle_direction': true, 'modal.auto_close_callback': true, 'persistence.storing_urls': true };
+  'buttonTracker.handle_direction': true, 'modal.auto_close_callback': true, 'persistence.storing_urls': true,
+  'editManager.imageEditingCallback': true, 'ai_word_predictor._pending_reject': true };
 const TARGET = Symbol('leak-check target');
 
 // Anything but an exact `report` or `off` means `fail`, so a typo cannot quietly disable the check.

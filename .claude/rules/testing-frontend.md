@@ -137,8 +137,9 @@ cache what they return across tests, and do not treat "destroyed once" as "destr
 
 **Deferred work that reaches "the current app".** A callback that runs later and goes through a
 forwarding util (`utils/app_state`, `utils/persistence`, `utils/_stashes`, `modal`) acts on whichever
-app is current WHEN IT FIRES, not the one that scheduled it. Capture the owner when scheduling
-(`var owner = live_service(LingoLinq.appState)`) and return early at fire time if
+app is current WHEN IT FIRES, not the one that scheduled it. Capture the owner itself when scheduling
+(`var owner = LingoLinq.appState`, never `live_service(...)`, which turns an owner that is already
+torn down into "no owner" and lets the work run) and return early at fire time if
 `owner_gone(owner)` (`app/utils/live_service.js`): true only when an owner WAS captured and has
 since been torn down. Never write the guard as `if(!live_service(owner)) return;`: that also returns
 when nothing was captured, and work scheduled with no owner is legitimate (the highlight controller
@@ -299,7 +300,7 @@ loading the test page in a browser, where the load error is visible.
 `.github/workflows/ci.yml`: `rspec`, `build-and-test` (template + JS lint gates and the full Ember
 suite), `audit-artifacts-integrity`, `secret-detection`, `codex-review-tests` and
 `data-bearing-paths/<base>` (posted by `.github/workflows/data-bearing-paths.yml`) are required on
-develop, the data-bearing status also on staging and main; `security-scan` also gates main. The `ember-shard-*` jobs run in shadow mode (not required).
+develop (and on staging and main); `security-scan` also gates main. The `ember-shard-*` jobs run in shadow mode (not required).
 Changing how CI decides to run a check (conditions, filters, `continue-on-error`, retries, required
 wiring) is covered by Rule 0.14 and needs approval.
 

@@ -130,7 +130,9 @@ def registered_duplicates(text):
 def coverage(shards, allowed=None):
     """--coverage: shard_checks, no test name run by more than one shard, and no name run more times
     in one shard than the suite registers it (a duplicate there means another test never ran, even
-    when the counts add up). `allowed` is registered_duplicates() of the logs."""
+    when the counts add up). `allowed` is registered_duplicates() of the logs. Known gap: for a name
+    the suite itself registers twice, one of the pair run twice and its twin never run cannot be told
+    apart by name (two such names today, differing only by a trailing space)."""
     allowed = allowed or {}
     problems = shard_checks(shards)
     seen = {}

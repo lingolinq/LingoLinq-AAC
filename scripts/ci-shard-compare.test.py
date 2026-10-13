@@ -174,6 +174,21 @@ class CoverageTest(unittest.TestCase):
         shard_a = shard_a.replace("# tests 8", "# tests 7").replace("# pass  8", "# pass  7")
         self.assertEqual(self.cover(shard_a, tap(B, shard=(4, 11))), [])
 
+    def test_a_declared_name_with_an_escaped_quote_is_matched(self):
+        quoted = 'm0: says "hi"'
+        names = [quoted, quoted] + A[1:]
+        dup_line = STAMP + '{"type":"log","text":"[SHARD-DUP] 2 m0: says \\"hi\\""}'
+        shard_a = tap(names, shard=(7, 11), extra_lines=[dup_line])
+        shard_a = shard_a.replace("# tests 8", "# tests 7").replace("# pass  8", "# pass  7")
+        self.assertEqual(self.cover(shard_a, tap(B, shard=(4, 11))), [])
+
+    def test_a_declared_name_run_more_times_than_registered_fails(self):
+        dup_line = STAMP + '{"type":"log","text":"[SHARD-DUP] 2 m0: test 0"}'
+        names = [A[0], A[0], A[0]] + A[1:4]
+        shard_a = tap(names, shard=(6, 10), extra_lines=[dup_line])
+        shard_a = shard_a.replace("# tests 7", "# tests 6").replace("# pass  7", "# pass  6")
+        self.assertIn("run 3 times in shard 1: m0: test 0", self.cover(shard_a, tap(B, shard=(4, 10))))
+
     def test_selections_that_leave_a_test_in_no_shard_fail(self):
         problems = self.cover(tap(A, shard=(6, 10)), tap(B[:3], shard=(3, 10)))
         self.assertIn("shard selections add up to 9, but 10 tests are registered", problems)

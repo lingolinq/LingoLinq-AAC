@@ -275,7 +275,8 @@ jobs:
 
   # ---------------------------------------------------------------------------------------
   # SHADOW MODE: the Ember suite split into two parallel shards, run ALONGSIDE build-and-test.
-  # build-and-test above is unchanged and is still the required check on develop and main
+  # build-and-test above still runs the whole suite and is the required check on develop and main
+  # (its test step now also saves its output for the late-work summary, at the owner's request)
   # (and main's deploy gate). These jobs are NOT required: they only gather evidence that the
   # split is faithful before a later PR makes build-and-test wait on them instead.
   # OPT-IN POOL: `pool` runs the modules listed in app/frontend/tests/parallel-pool.js (each

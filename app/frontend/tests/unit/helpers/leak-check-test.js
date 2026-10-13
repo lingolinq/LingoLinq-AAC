@@ -94,10 +94,12 @@ module('Unit | Helper | leak check', function() {
     const saved = keys.map(([obj, k]) => Object.getOwnPropertyDescriptor(obj, k));
     try {
       const found = leakCheckTesting.isolated(() => {
+        keys.forEach(([obj, k]) => { obj[k] = null; });
         leakCheckTesting.snapshotFunctions();
-        keys.forEach(([obj, k]) => { obj[k] = function() {}; });
+        keys.forEach(([obj, k]) => { obj[k] = function() {}; }); // set while the app runs
         leakCheckTesting.checkFunctions();
-        keys.forEach(([obj, k]) => { obj[k] = null; }); // and nulls them again later
+        leakCheckTesting.snapshotFunctions(); // the next test starts with them set
+        keys.forEach(([obj, k]) => { obj[k] = null; }); // and the app nulls them again
         leakCheckTesting.checkFunctions();
         return leakCheckTesting.take(/handle_direction|auto_close_callback/);
       });
