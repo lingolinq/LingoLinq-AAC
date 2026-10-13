@@ -23,7 +23,7 @@ import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates';
 
-export default Component.extend({
+const AuthenticatedView = Component.extend({
   tagName: '',
   
   router: service(),
@@ -1351,13 +1351,13 @@ export default Component.extend({
     go: function(dest) {
       if (dest === 'speak') {
         var user = this.appState.get('currentUser');
-        var homeBoard = user && user.get('preferences.home_board');
-        var lastBoard = this.stashes.get('root_board_state');
-        if (!lastBoard || !lastBoard.key) {
-          lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
-        }
-        // Continue Speaking: prefer the user's home board; fall back to last board in board-detail
-        var target = (homeBoard && homeBoard.key) ? homeBoard : ((lastBoard && lastBoard.key) ? lastBoard : null);
+        // Continue Speaking: the user's home board, else their last board, else their boards list.
+        // speak_target (end of this file) decides, and the Speak card shows that same board's
+        // picture (speakBoardImage), so the card and where it goes always agree (2026-10-13).
+        // The decision used to be written out here; it moved to that shared function, and these
+        // lines keep the count it had, so the line-anchored .eslint-todo rows below this point
+        // keep their lines.
+        var target = speak_target(user, this.stashes);
         if (target && target.key) {
           var parts = target.key.split('/');
           if(parts.length === 2) {
@@ -1845,3 +1845,58 @@ const ATTENTION_ROWS = 3;
 // everywhere above, and placing it at the end keeps the line-anchored lint baseline (.eslint-todo)
 // for this file from shifting (2026-10-10).
 import { capPreviewBoards, previewUsesFullCards } from '../../utils/preview-boards';
+
+/* WHERE THE SPEAK CARD GOES, AND ITS PICTURE (requested 2026-10-13: "on the speak mode card, instead of
+   showing the image that is on that card, show the board's image for the board it will take the user
+   to"). The card opens the user's home board, else the last board they used (root_board_state, then
+   session history), else their boards list (`go('speak')` above). `speakBoardImage` is that board's
+   picture (Board#icon_url_with_fallback, as the Boards card uses), or null, when the card keeps its own
+   image: no board to go to, or a board not loaded yet and not loadable (offline). The record is read
+   from the store, and fetched once by key when it is not there. */
+function speak_target(user, stashes) {
+  var homeBoard = user && user.get('preferences.home_board');
+  if (homeBoard && homeBoard.key) { return homeBoard; }
+  var lastBoard = stashes && stashes.get('root_board_state');
+  if (!lastBoard || !lastBoard.key) {
+    lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
+  }
+  return (lastBoard && lastBoard.key) ? lastBoard : null;
+}
+
+AuthenticatedView.reopen({
+  _speakBoardTick: 0,
+  init: function() {
+    this._super(...arguments);
+    this._loadSpeakBoard();
+  },
+  _speakTargetChanged: observer('appState.currentUser.preferences.home_board.key', function() { this._loadSpeakBoard(); }),
+  _findSpeakBoard: function(target) {
+    var store = this.get('store');
+    if (!store || !target || !target.key) { return null; }
+    var rec = null;
+    try { rec = target.id ? store.peekRecord('board', target.id) : null; } catch (e) { rec = null; }
+    if (!rec && store.peekAll) {
+      rec = store.peekAll('board').find(function(b) { return b.get('key') === target.key; }) || null;
+    }
+    return rec;
+  },
+  _loadSpeakBoard: function() {
+    var _this = this;
+    var target = speak_target(this.get('appState.currentUser'), this.get('stashes'));
+    if (!target || this._findSpeakBoard(target)) { return; }
+    var store = this.get('store');
+    if (!store || !store.findRecord) { return; }
+    this._speakBoardRequested = this._speakBoardRequested || {};
+    if (this._speakBoardRequested[target.key]) { return; }
+    this._speakBoardRequested[target.key] = true;
+    store.findRecord('board', target.key).then(function() {
+      if (!_this.isDestroyed && !_this.isDestroying) { _this.incrementProperty('_speakBoardTick'); }
+    }, function() { /* offline or gone: the card keeps its own image */ });
+  },
+  speakBoardImage: computed('_speakBoardTick', 'appState.currentUser.preferences.home_board.{id,key}', function() {
+    var rec = this._findSpeakBoard(speak_target(this.get('appState.currentUser'), this.get('stashes')));
+    return (rec && rec.get('icon_url_with_fallback')) || null;
+  })
+});
+
+export default AuthenticatedView;

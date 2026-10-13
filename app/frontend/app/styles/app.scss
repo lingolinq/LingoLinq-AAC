@@ -46859,6 +46859,22 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-card--extras-focused__img { width: 94px; height: 94px; display: block; object-fit: contain; }
 /* The Extras image is 5% smaller than Speak's at every width (requested 2026-10-12): 89.3px here. */
 .md-card--extras-focused__img { width: 89.3px; height: 89.3px; }
+/* The board the Speak card opens, in place of the speech badge (speakBoardImage, 2026-10-13), in the
+   same ROUND SILVER PICTURE FRAME as the Gentle card's (see .md-card__icon-board-img), sized for 94px:
+   slate outline, lifted frame, indented picture. */
+.md-card--speak-focused__img--board {
+  box-sizing: border-box;
+  padding: 12px;
+  border: 5px solid transparent;
+  border-radius: 50%;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, #fbfcfd 0%, #b9c0c8 22%, #eef1f4 45%, #8f97a1 68%, #dfe3e8 85%, #a9b0b9 100%) border-box;
+  box-shadow:
+    0 0 0 0.75px rgba($brand-slate-gray, 0.55),       /* slate outline, light and thin (2026-10-13) */
+    0 8px 18px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.24), /* lifted */
+    inset 0 4px 9px rgba($brand-charcoal-blue, 0.5), inset 0 -2px 2px rgba(255, 255, 255, 0.9); /* indented */
+}
 /* Image on the left, title + subheader stacked + LEFT-aligned on the right. */
 .md-card--extras-focused__text,
 .md-card--speak-focused__text,
@@ -47771,6 +47787,29 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 
 }
 .md-card__icon--speak { background: rgba(44, 183, 176, 0.12); }
+/* The board the Speak card opens (authenticated-view.js#speakBoardImage, requested 2026-10-13), in a
+   ROUND SILVER PICTURE FRAME (requested the same day): a circle on white, the ring a brushed-metal
+   gradient drawn in the transparent border (border-box) behind the white fill (padding-box), with a thin
+   light slate outline. The FRAME IS LIFTED off the page (drop shadows) and the PICTURE IS INDENTED into it (inset
+   shadows, drawn inside the ring, over the white disc). The padding keeps the symbol off the ring. */
+/* Sized inside the 46px tile (centred by its grid) so the outline and the lift shadow are not cut off. */
+.md-card__icon-board-img {
+  display: block;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  box-sizing: border-box;
+  padding: 4px;
+  object-fit: contain;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, #fbfcfd 0%, #b9c0c8 22%, #eef1f4 45%, #8f97a1 68%, #dfe3e8 85%, #a9b0b9 100%) border-box;
+  box-shadow:
+    0 0 0 0.75px rgba($brand-slate-gray, 0.55),       /* slate outline, light and thin (2026-10-13) */
+    0 3px 6px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22), /* lifted */
+    inset 0 2px 4px rgba($brand-charcoal-blue, 0.45), inset 0 -1px 1px rgba(255, 255, 255, 0.9); /* indented */
+}
 /* SVG icon (when using mic SVG instead of img): .md-card__icon--speak .md-card__icon-svg--mic { color: rgba(44, 183, 176, 0.92); } */
 /* Extras variant — soft warm coral tint matching the wave decoration
    on the card's bottom. Was previously the standalone `.md-extrasIcon`
