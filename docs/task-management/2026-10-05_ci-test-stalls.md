@@ -607,3 +607,45 @@ pattern that appears in the killing command itself; it killed the shell twice.
 - g19 full order: acceptance 8 + integration 100 + unit 3,252 = 3,360 tests, 0 failures.
 - Own mistake: a wait loop used `pgrep -f "<string>"` whose own command line contained the string, so
   it waited on itself for 30 min. Wait on a PID or a file, never on `pgrep -f` of your own command.
+
+## 2026-10-12: develop merge, senior-dev pass, review of the A3 fix commits
+
+- Merged develop (`212018190`, #1119) as `168daef9c`; no conflicts, and none of the files #1119
+  touched are in this PR. `scripts/tests/*.sh` all pass except `data-bearing-path-check-test.sh`,
+  whose 71 failures are all `jq: command not found` on this machine (the file is identical to develop).
+- `/review-pr` senior-dev pass, PII preflight exit 0:
+  `REVIEWED=range origin/develop (212018190f673be24aede55c53c8eaa84d3a567e) ... HEAD (168daef9cb6bd5a2b66e0f57bb8ab54cf871f32f)`.
+  Four reviewers, one diff slice each (CI and docs, app code, harness, tests). No Critical or High
+  after verification. Verdict: approve with comments.
+- Adversarial review of `bb6620146`, `e03144736`, `6e35856d8` (the fixes for the 4519bbd9d High): no
+  Critical or High; the High is closed for the leak-check and queued-fetch reporters.
+- Claims checked before acting:
+  - "icon-select late-image test passes without testing anything" (reported High): FALSE. With both
+    destroyed-guards removed from `components/icon-select.js`, both tests fail with "calling set on
+    destroyed object"; the file was restored.
+  - "utterance accessors capture an undefined fallback through an import cycle": the cycle is real
+    (persistence -> misc -> scanner -> edit_manager -> utterance), but every read of
+    `this.persistence` keeps its own lazy `|| persistence`, and app_state and _stashes are not in a
+    cycle. No runtime effect today.
+  - "the late-assertion reporter can fail an innocent test in the required run": true, but develop
+    already does: a late `expect().toEqual()` there calls `assert.equal` with `assert === null` and
+    the TypeError is charged to whichever test is running. The reporter makes it deterministic and
+    names the source. Not a regression.
+- Follow-ups (Medium and Low, not fixed here):
+  - Gate the late-assertion reporter behind `timingStrict()`, or document it as the exception.
+  - `ember-shard-compare` compares strict shards with the non-strict full run, so a timing hit reads as
+    order dependence; drop `timingStrict=1` or filter those lines before the shards become required.
+  - Before `ember-shard-coverage` becomes required: fail when `ember-shard-scope` did not succeed
+    instead of skipping (a skipped required check passes).
+  - Pin `timingStrict()` and report mode with tests (strict-mode destroyed-service read; positive
+    "was reported" assertion; set the mode in `wait-for-queued-store-fetches-test.js:60-74`).
+  - The leak-check self-test's `.*modal\.close` match can swallow a real finding in the same flush.
+  - Tag harness findings with a kind instead of matching ` on a destroyed service` in the text.
+  - Test-state restores that only run on success: `tests/utils/app_state-test.js` (scanner,
+    buttonTracker.transitioning) and the recommended-home-board dead-app case; move to afterEach.
+  - Poller tests assert a nulled handle, not a cleared timer (auth-sync, persistence online poller).
+  - Read the utterance accessor fallback lazily; import `live_service` directly in `raw_events.js`.
+  - `ember-fetch-probe` concurrency group is global; key it by ref.
+  - Stale text: `testing-frontend.md` 80-85, 222-223, 257-258 and `ci.yml:274` (reproduce shards with
+    `timingStrict=1`), `tests/helpers/index.js` and `leak-check.js` header comments; this log's
+    earlier "post-test pause REMOVED" entry is superseded (the settle is kept, guards use `owner_gone`).
