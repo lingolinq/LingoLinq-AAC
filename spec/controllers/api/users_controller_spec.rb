@@ -3334,7 +3334,7 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['revisions']).to eq({b1.global_id => b1.current_revision, b1.key => b1.current_revision})
       expect(json['revoked_ids']).to eq([b2.global_id])
-      expect(json['revocation_enabled']).to eq(true)
+      expect(json).not_to have_key('revocation_enabled')
     end
 
     it "should keep a linked private board the user can view through a supervisor's model permission" do
@@ -3385,7 +3385,7 @@ describe Api::UsersController, :type => :controller do
         get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1', :check_ids => check_ids}
         expect(response).to be_successful
         json = JSON.parse(response.body)
-        expect(json).to eq({'revisions' => {}, 'revoked_ids' => [], 'revocation_enabled' => true})
+        expect(json).to eq({'revisions' => {}, 'revoked_ids' => []})
       end
     end
 
@@ -3511,19 +3511,24 @@ describe Api::UsersController, :type => :controller do
       expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
     end
 
+    # Board revocation is a fix, not a feature: it has no off switch (owner decision,
+    # 2026-10-13). The environment variable the switch used to read changes nothing.
     env_wrap('BOARD_REVOCATION_DISABLED' => 'true') do
-      it "should list no revoked ids when BOARD_REVOCATION_DISABLED is set, and still leave the board out of the revisions" do
+      it "should list a revoked board even with BOARD_REVOCATION_DISABLED set (there is no off switch)" do
         token_user
         other = User.create
         board = Board.create(:user => other, :public => false)
         link_board_revisions_tree(@user, [board])
+        board.share_with(@user)
+        board.reload.unshare_with(@user)
+        Worker.process_queues
+        make_private_board_cache_stale(@user)
         get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
         expect(response).to be_successful
         json = JSON.parse(response.body)
-        expect(json['revoked_ids']).to eq([])
-        expect(json['revocation_enabled']).to eq(false)
+        expect(json['revoked_ids']).to eq([board.global_id])
+        expect(json).not_to have_key('revocation_enabled')
         expect(json['revisions'][board.global_id]).to eq(nil)
-        expect(json['revisions'].keys.length).to eq(2)
       end
     end
 

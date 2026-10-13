@@ -802,13 +802,13 @@ class Api::UsersController < ApplicationController
     # Older clients read the flat id => revision map, so the revoked list is
     # only sent, in a wrapped shape, to clients that ask for it.
     if include_revoked
-      # Kill switch: with BOARD_REVOCATION_DISABLED set, nothing is listed as
-      # revoked and revocation_enabled: false tells clients to ignore their
-      # marks and keep the local-copy fallback on a denial (the revisions stay
-      # permission-checked).
-      enabled = ENV['BOARD_REVOCATION_DISABLED'].blank?
-      revoked_ids = [] unless enabled
-      render json: {revisions: res, revoked_ids: revoked_ids.uniq, revocation_enabled: enabled}
+      # Board revocation is a fix with no off switch (owner decision, 2026-10-13):
+      # the revoked list is always sent to clients that ask for it. A client build
+      # that still reads revocation_enabled treats its absence as on. The
+      # environment variable the removed switch read, BOARD_REVOCATION_DISABLED,
+      # is no longer consulted. Kept at seven lines so the line numbers cited
+      # below this point do not move.
+      render json: {revisions: res, revoked_ids: revoked_ids.uniq}
     else
       render json: res
     end

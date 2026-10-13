@@ -211,18 +211,20 @@ module('Unit | Route | board revoked offline copies', function(hooks) {
     assert.true(await boardRevocation.is_revoked('1_9'), 'a soft reload may be the local copy: kept');
   });
 
-  test('with the server switch off, a real denial keeps the local copy and a marked board is not blocked offline', async function(assert) {
+  // There is no off switch (owner decision, 2026-10-13): a disabled flag an earlier build left in a
+  // device's storage is ignored, so a marked board is still blocked offline.
+  test('a disabled flag left in storage by an earlier build is ignored: a marked board is still blocked offline', async function(assert) {
+    assert.expect(1);
     storedBoard(this.db, '1_7');
     await boardRevocation.apply_revocations(['1_7']);
-    boardRevocation.set_revocation_enabled(false);
-    var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
-    var route = boardRoute(this, '1_1', board);
-    assert.strictEqual(await route.model({key: 'owner/shared'}), board, 'offline: the copy is shown');
-    LingoLinq.session = EmberObject.create({as_user_id: null});
-    var index = indexRoute(this, {supervisees: []});
-    var model = localModel();
-    assert.strictEqual(await index.local_reload_unless_denied(model, denied), model, 'online denial: the local copy is kept');
-    assert.deepEqual(model.reloads, [false]);
+    window.localStorage.setItem('ll_board_revocation_disabled', '1');
+    try {
+      var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
+      var appState = EmberObject.create({sessionUser: {supervisees: []}, currentBoardState: {id: '1_1'}});
+      assert.true(await boardRevocation.blocks_route(board, appState, false), 'offline: still blocked');
+    } finally {
+      window.localStorage.removeItem('ll_board_revocation_disabled');
+    }
   });
 
   test('an online denial for the home or sidebar board keeps the local copy', async function(assert) {
