@@ -50,8 +50,8 @@ class RemoteAction < ApplicationRecord
       # An action this build does not know was written by a NEWER build (rolled back since, or
       # deploying alongside). Deleting the row would lose that build's queued work, so it is kept
       # (:keep) for a build that knows it; Uploader.remote_remove_batch still purges every row
-      # older than 3 months.
-      Rails.logger.warn("RemoteAction #{ra.id}: unknown action #{ra.action.inspect}, row kept")
+      # older than 3 months. Logged without the path, which can identify a user.
+      Rails.logger.error("RemoteAction#process_action: unknown action #{ra.action}, row #{ra.id} kept")
       return :keep
     end
   end

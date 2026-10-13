@@ -146,6 +146,13 @@ describe RemoteAction, :type => :model do
       expect(ra.process_action).to eq(:keep)
     end
 
+    it "logs the unknown action and the row, never the path" do
+      allow(Rails.logger).to receive(:error)
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'someuser::1_2', act_at: 1.hour.ago)
+      ra.process_action
+      expect(Rails.logger).to have_received(:error).with("RemoteAction#process_action: unknown action action_from_a_newer_build, row #{ra.id} kept")
+    end
+
     it "is not destroyed by process_all, while a known row beside it still is" do
       ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
       known = RemoteAction.create!(action: 'delete', path: 'file/1/pic.png', extra: 'chk1', act_at: 1.hour.ago)
