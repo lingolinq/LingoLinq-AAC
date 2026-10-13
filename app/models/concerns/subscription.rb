@@ -1299,45 +1299,49 @@ module Subscription
           # Don't delete communicators marked as never-delete or who allow
           # anonymized reports for tracking
           next if user.inactivity_deletion_exempt?
-          user.settings['subscription'] ||= {}
-          last_warning = Time.parse(user.settings['subscription']['last_deletion_warning']) rescue Time.at(0)
-          if last_warning < 3.weeks.ago
-            attempts = 1
-            if last_warning > 20.weeks.ago
-              attempts = (user.settings['subscription']['last_deletion_attempts'] || 0) + 1
-            end
+          next unless inactivity_deletion_attempt(user)
+          # Decided and saved on a locked fresh copy (User#update_settings_locked): `user` was
+          # loaded with its batch, before mail went out for the accounts ahead of it, so its
+          # never_delete, warning record and activity time may be stale, and saving it reverted
+          # settings saved meanwhile. An account whose updated_at moved since the batch loaded it
+          # was used and is left for the next run; the rest is re-read from the fresh copy. The
+          # activity time moves to the retry point in the same save, only when the step is taken.
+          attempts = nil
+          taken = user.update_settings_locked(touch: false) do |fresh|
+            next false if fresh.updated_at != user.updated_at || fresh.inactivity_deletion_exempt?
+            attempts = inactivity_deletion_attempt(fresh)
+            next false unless attempts
             if attempts > 2
-              # Decided and saved on a locked fresh copy (User#update_settings_locked): `user` was
-              # loaded with its batch, before mail went out for the accounts ahead of it, so the
-              # guards above may have read a stale never_delete, and saving it reverted settings
-              # saved meanwhile. The guards are re-read here.
-              scheduled = user.update_settings_locked(touch: false) do |fresh|
-                next false if fresh.inactivity_deletion_exempt?
-                fresh.schedule_deletion_at = 36.hours.from_now
-                true
-              end
-              next unless scheduled
-              SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
+              fresh.schedule_deletion_at = 36.hours.from_now
             else
-              # Recorded on a locked fresh copy, like the scheduling above: update_setting saved the
-              # batch-loaded copy (whole settings column), reverting touch: false writes made since,
-              # and the warning went out before the exemption could be re-read.
-              warned = user.update_settings_locked(touch: false) do |fresh|
-                next false if fresh.inactivity_deletion_exempt?
-                fresh.settings['subscription'] ||= {}
-                fresh.settings['subscription']['last_deletion_warning'] = Time.now.iso8601
-                fresh.settings['subscription']['last_deletion_attempts'] = attempts
-                true
-              end
-              next unless warned
-              SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
-              alerts[:pending_deletes] += 1
+              fresh.settings['subscription'] ||= {}
+              fresh.settings['subscription']['last_deletion_warning'] = Time.now.iso8601
+              fresh.settings['subscription']['last_deletion_attempts'] = attempts
             end
-            User.where(id: user.id).update_all(updated_at: 12.months.ago + 3.weeks)
+            fresh.updated_at = 12.months.ago + 3.weeks
+            true
+          end
+          next unless taken
+          if attempts > 2
+            SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
+          else
+            SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
+            alerts[:pending_deletes] += 1
           end
         end
       end
       alerts
+    end
+
+    # The inactivity deletion step due for `user` now: nil while its last warning is under
+    # 3 weeks old, else the attempt number (1 after 20 weeks without a warning; above 2 means the
+    # account is scheduled for deletion rather than warned again).
+    def inactivity_deletion_attempt(user)
+      sub = (user.settings || {})['subscription'] || {}
+      last_warning = Time.parse(sub['last_deletion_warning']) rescue Time.at(0)
+      return nil unless last_warning < 3.weeks.ago
+      return 1 unless last_warning > 20.weeks.ago
+      (sub['last_deletion_attempts'] || 0) + 1
     end
 
     def default_eval_duration

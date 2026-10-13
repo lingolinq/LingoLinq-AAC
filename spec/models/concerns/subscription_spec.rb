@@ -2332,6 +2332,80 @@ describe Subscription, :type => :model do
         expect(User.find(second.id).settings['preferences']['never_delete']).to eq(true)
       end
 
+      # An account used after the batch was loaded is no longer inactive: it is neither scheduled
+      # nor warned, and its new activity time is kept (the next run re-evaluates it).
+      it "does not schedule an account that became active after the batch was loaded" do
+        first = inactive_account_on_final_warning
+        second = inactive_account_on_final_warning
+        after_deletion_mail_for(first) { User.find(second.id).touch }
+
+        User.check_for_subscription_updates
+
+        expect(User.find(first.id).schedule_deletion_at).not_to eq(nil)
+        stored = User.find(second.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+      end
+
+      it "does not warn an account that became active after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          User.find(second.id).touch if message == :deletion_warning && id == first.global_id
+        end
+
+        User.check_for_subscription_updates
+
+        expect(warned).to eq([first.global_id])
+        stored = User.find(second.id)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+      end
+
+      it "decides the warning from the warning record saved after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        recorded = 1.day.ago.iso8601
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          if message == :deletion_warning && id == first.global_id
+            other = User.find(second.id)
+            other.settings['subscription'] ||= {}
+            other.settings['subscription']['last_deletion_warning'] = recorded
+            other.settings['subscription']['last_deletion_attempts'] = 1
+            other.save(touch: false)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        expect(warned).to eq([first.global_id])
+        stored = User.find(second.id)
+        expect(stored.settings['subscription']['last_deletion_warning']).to eq(recorded)
+        expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+      end
+
+      it "schedules and warns untouched inactive accounts and moves their activity time to the retry point" do
+        scheduled = inactive_account_on_final_warning
+        to_warn = inactive_account_to_warn
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        retry_point = 12.months.ago + 3.weeks
+        stored = User.find(scheduled.id)
+        expect(stored.schedule_deletion_at).not_to eq(nil)
+        expect(stored.updated_at).to be_within(1.hour).of(retry_point)
+        warned = User.find(to_warn.id)
+        expect(warned.settings['subscription']['last_deletion_attempts']).to eq(1)
+        expect(warned.updated_at).to be_within(1.hour).of(retry_point)
+        expect(SubscriptionMailer).to have_received(:deliver_message).with(:account_deleted, scheduled.global_id)
+        expect(SubscriptionMailer).to have_received(:deliver_message).with(:deletion_warning, to_warn.global_id, 1)
+      end
+
       it "keeps settings saved after the batch was loaded when scheduling the deletion" do
         first = inactive_account_on_final_warning
         second = inactive_account_on_final_warning
