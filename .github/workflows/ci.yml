@@ -259,7 +259,19 @@ jobs:
         # runner (e.g. testem's iframe channel corrupted by a post-teardown
         # stack overflow) fails fast instead of burning the 6h Actions ceiling.
         timeout-minutes: 50
-        run: npx ember test --path dist-test
+        # The output is also saved for the late-work summary below (owner request, review of
+        # 6e35856d). An explicit `shell: bash` runs with -eo pipefail, so the step's exit status is
+        # still ember test's, not tee's.
+        shell: bash
+        run: npx ember test --path dist-test 2>&1 | tee ember-test.log
+
+      # This run only LOGS a queued fetch or a read on a destroyed service (it may be an earlier
+      # test's late work; the shard jobs fail on them). Their counts go in the job summary so they
+      # are visible. Report only: scripts/ci-late-work-summary.sh always exits 0.
+      - name: Late work reported by the harness (report only)
+        if: always() && steps.frontend.outputs.run == 'true'
+        working-directory: app/frontend
+        run: bash ../../scripts/ci-late-work-summary.sh ember-test.log build-and-test || true
 
   # ---------------------------------------------------------------------------------------
   # SHADOW MODE: the Ember suite split into two parallel shards, run ALONGSIDE build-and-test.
@@ -396,15 +408,9 @@ jobs:
           echo "### Ember shard ${SHARD}: ran ${tests:-0} of ${selected:-?} selected (${registered:-?} registered) in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
           # The harness logs [queued-fetch] and [owner-gone] inside the test that hit them (tests/helpers/index.js,
           # tests/test-helper.js); testem prints console output with the next test result, so the end-of-run
-          # lists (after the last result) never reach this log. List the per-test lines here instead.
-          # Report only: never fails the step.
-          # A test name may hold an escaped quote. The harness self-tests in Unit | Helper | waitForQueuedStoreFetches
-          # (tests/unit/helpers/wait-for-queued-store-fetches-test.js) leave fetches queued on purpose and log
-          # [queued-fetch] lines every run; they are not late work.
-          late_work=$(grep -oE '\[(queued-fetch|owner-gone|late-read)\] ([^"\\]|\\.)*' ember-test.log | grep -v '\[queued-fetch\].*Unit | Helper | waitForQueuedStoreFetches:' | sort | uniq -c || true)
-          if [ -n "$late_work" ]; then
-            { echo "Late work reported by the harness (a test did not wait for work it started):"; echo '```'; printf '%s\n' "$late_work"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          fi
+          # lists (after the last result) never reach this log. The per-test lines go in the job summary
+          # through the same report-only script build-and-test uses.
+          bash ../../scripts/ci-late-work-summary.sh ember-test.log "shard ${SHARD}" || true
           if [ "${tests:-0}" -eq 0 ]; then
             echo "::error::shard ${SHARD} ran 0 tests: the pool selection matched nothing"
             exit 1

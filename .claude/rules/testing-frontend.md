@@ -222,7 +222,7 @@ cancels it. Exemptions:
 - `setupTest`'s bounded wait for queued Ember Data fetches (`waitForQueuedStoreFetches`,
   `tests/helpers/index.js`), so a late flush does not hit a destroyed store in the next test. It is
   not a pass either: a test that ends with a fetch still queued is never silently passed, and the
-  required run never charges it to an unrelated test: it is logged as `[queued-fetch]` (Ember shard job summary) and
+  required run never charges it to an unrelated test: it is logged as `[queued-fetch]` (counted in the build-and-test and Ember shard job summaries) and
   FAILS the test only in timing-strict runs (the Ember shard jobs, `?timingStrict=1`, and the fetch
   probe), never in the required build-and-test run. The harness records which test was current when
   each fetch was queued (`tests/helpers/fetch-tracking.js`), but an earlier test's late callback that
@@ -297,8 +297,9 @@ loading the test page in a browser, where the load error is visible.
 ## 8. CI gates
 
 `.github/workflows/ci.yml`: `rspec`, `build-and-test` (template + JS lint gates and the full Ember
-suite), `audit-artifacts-integrity`, `secret-detection` and `codex-review-tests` are required on
-develop; `security-scan` also gates main. The `ember-shard-*` jobs run in shadow mode (not required).
+suite), `audit-artifacts-integrity`, `secret-detection`, `codex-review-tests` and
+`data-bearing-paths/<base>` (posted by `.github/workflows/data-bearing-paths.yml`) are required on
+develop, the data-bearing status also on staging and main; `security-scan` also gates main. The `ember-shard-*` jobs run in shadow mode (not required).
 Changing how CI decides to run a check (conditions, filters, `continue-on-error`, retries, required
 wiring) is covered by Rule 0.14 and needs approval.
 
