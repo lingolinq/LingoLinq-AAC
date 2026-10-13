@@ -74,13 +74,16 @@ function stored(result) {
   return RSVP.resolve(result);
 }
 
+// A snapshot of the locally stored boards: only what a decision reads (id, key,
+// mark, and the revision a later write is checked against), never the board
+// content, since the sync keeps the snapshot until it finishes.
 function local_boards() {
   return stored(lingoLinqExtras.storage.find_all('board')).then(function(list) {
     var res = [];
     (list || []).forEach(function(item) {
       var data = item && item.data;
       if(data && data.id && data.raw) {
-        res.push({id: data.raw.id || data.id, key: data.raw.key || data.key, revoked: !!data.raw.revoked, data: data});
+        res.push({id: data.raw.id || data.id, key: data.raw.key || data.key, revoked: !!data.raw.revoked, revision: data.raw.current_revision});
       }
     });
     return res;
@@ -126,35 +129,39 @@ export function fetch_revisions(persist, user, request) {
     });
     prep = state.local;
   }
-  return prep.then(function(local) {
-    return request({type: 'GET', data: {include_revoked: '1'}}).then(function(res) {
-      var parsed = parse_revisions_response(res);
-      // Only the wrapped response comes from a server that checks permissions, so
-      // only it is evidence that a listed board is viewable.
-      var cleared = (parsed.revoked_ids && local && local.list) ? clear_viewable(local.list, parsed.revisions) : RSVP.resolve(false);
-      if(state) {
-        if(parsed.revoked_ids && local && local.list) {
-          var lookup = {};
-          var keys = {};
-          parsed.revoked_ids.forEach(function(id) { lookup[id] = true; });
-          local.list.forEach(function(rec) {
-            if(lookup[rec.id] && rec.key) {
-              lookup[rec.key] = true;
-              keys[rec.id] = rec.key;
-            }
-          });
-          var viewable = {};
-          Object.keys(parsed.revisions).forEach(function(ref) { viewable[ref] = true; });
-          state.users[user_id] = {revoked: parsed.revoked_ids, lookup: lookup, keys: keys, viewable: viewable};
-        } else {
-          state.failed = true;
-        }
+  // The request does not wait for the local scan; the scan never rejects. A
+  // request that throws rejects, as it did when it ran inside a then().
+  var response = new RSVP.Promise(function(resolve) {
+    resolve(request({type: 'GET', data: {include_revoked: '1'}}));
+  });
+  return RSVP.all([prep, response]).then(function(results) {
+    var local = results[0];
+    var parsed = parse_revisions_response(results[1]);
+    // Only the wrapped response comes from a server that checks permissions, so
+    // only it is evidence that a listed board is viewable.
+    var cleared = (parsed.revoked_ids && local && local.list) ? clear_viewable(local.list, parsed.revisions) : RSVP.resolve(false);
+    if(state) {
+      if(parsed.revoked_ids && local && local.list) {
+        var lookup = {};
+        var keys = {};
+        parsed.revoked_ids.forEach(function(id) { lookup[id] = true; });
+        local.list.forEach(function(rec) {
+          if(lookup[rec.id] && rec.key) {
+            lookup[rec.key] = true;
+            keys[rec.id] = rec.key;
+          }
+        });
+        var viewable = {};
+        Object.keys(parsed.revisions).forEach(function(ref) { viewable[ref] = true; });
+        state.users[user_id] = {revoked: parsed.revoked_ids, lookup: lookup, keys: keys, viewable: viewable};
+      } else {
+        state.failed = true;
       }
-      return cleared.then(function() { return parsed.revisions; }, function() { return parsed.revisions; });
-    }, function(err) {
-      if(state) { state.failed = true; }
-      return RSVP.reject(err);
-    });
+    }
+    return cleared.then(function() { return parsed.revisions; }, function() { return parsed.revisions; });
+  }, function(err) {
+    if(state) { state.failed = true; }
+    return RSVP.reject(err);
   });
 }
 
@@ -257,7 +264,7 @@ export function clear_mark(id) {
     if(!index[id]) { return false; }
     return stored(lingoLinqExtras.storage.find('board', id)).then(function(rec) {
       if(!rec || !rec.raw) { return false; }
-      return clear_viewable([{id: rec.raw.id || rec.id, key: rec.raw.key, revoked: !!rec.raw.revoked, data: rec}], {[id]: true});
+      return clear_viewable([{id: rec.raw.id || rec.id, key: rec.raw.key, revoked: !!rec.raw.revoked}], {[id]: true});
     }, function() { return false; });
   }, function() { return false; });
 }

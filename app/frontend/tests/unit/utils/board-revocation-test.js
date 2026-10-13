@@ -381,4 +381,28 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.notOk(this.db.board['1_1'].raw.revoked, 'sidebar board: not marked');
     assert.true(this.db.board['1_3'].raw.revoked, 'control: any other board is marked');
   });
+  // The sync's local snapshot keeps only what the decision reads, and the revisions request does
+  // not wait for it.
+  test('the revisions request starts before the local scan finishes, and the scan keeps no board content', async function(assert) {
+    addBoard(this.db, '1_2');
+    var storage = lingoLinqExtras.storage;
+    var scan = storage.find_all;
+    var release = null;
+    storage.find_all = function(store) {
+      var res = scan(store);
+      return new RSVP.Promise(function(resolve) { release = function() { resolve(res); }; });
+    };
+    var persist = persistFor('u1');
+    var requested = false;
+    var done = boardRevocation.fetch_revisions(persist, user('u1'), function() {
+      requested = true;
+      return RSVP.resolve({revisions: {}, revoked_ids: ['1_2']});
+    });
+    assert.true(requested, 'requested while the scan is still running');
+    release();
+    await done;
+    var local = await persist.get('sync_progress').revocation.local;
+    assert.deepEqual(Object.keys(local.list[0]).sort(), ['id', 'key', 'revision', 'revoked'], 'id, key, revision and mark only');
+    assert.deepEqual(boardRevocation.settled_revocations(persist.get('sync_progress'), 'u1', []), ['1_2'], 'the decision is unchanged');
+  });
 });
