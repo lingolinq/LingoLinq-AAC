@@ -4794,9 +4794,9 @@ const BoardDetailController = Controller.extend(prefClasses, {
      while standing on the home board is a no-op the user has to open a modal to
      discover. Gates only the options-menu row on the speak page (the sole
      consumer of this property); the edit-panel row is separately gated and
-     unaffected. */
-  can_set_as_home: computed('app_state.sessionUser', 'is_subject_home_board', function() {
-    if(!this.get('app_state.sessionUser')) { return false; }
+     unaffected. Withheld in a trial (2026-10-13): in a folder it set the FOLDER; the trial bar's "Use this board" adopts the tried board. */
+  can_set_as_home: computed('app_state.sessionUser', 'is_subject_home_board', 'try_origin_board', function() {
+    if(!this.get('app_state.sessionUser') || this.get('try_origin_board')) { return false; }
     return !this.get('is_subject_home_board');
   }),
 
