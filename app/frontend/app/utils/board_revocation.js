@@ -18,12 +18,12 @@ import app_state from './app_state';
 // marks wait until it is turned off, so the board in use is never pulled away.
 //
 // Marked boards are skipped by the sync traversal (they are not sync errors)
-// and left out of find_recent and find_boards. The board route blocks one only
-// while offline and never in Speak Mode, nor a home or sidebar board of the
-// signed-in, referenced or synced users; online, it asks the server and a
-// successful load clears the mark. Any successful board_revisions response
-// that lists a marked board as viewable clears it too, whatever else the sync
-// ends with.
+// and left out of find_recent and find_boards. The board routes (routes/board.js, and the Basic and Modern views under
+// routes/user/) block one only while offline and never in Speak Mode, nor a home
+// or sidebar board of the signed-in, referenced or synced users; online, they ask
+// the server, and a forced reload the server answered (legacy and Basic board
+// pages) clears the mark. Any successful board_revisions response that lists a
+// marked board as viewable clears it too, whatever else the sync ends with.
 
 var INDEX_KEY = 'revokedBoards';
 var deferred_marks = null;
@@ -460,6 +460,54 @@ export function blocks_view_route(board, appState, online) {
   return blocks_route(board, appState, online);
 }
 
+// The unavailable-board record a blocked board route resolves with: its error
+// renders as the standard unavailable-board panel in templates/board.hbs, the
+// template routes/board.js and the Basic view (routes/user/board-alt.js) share.
+// No id: a second fixed 'bad' id in one session would collide in the store, and
+// an id-less record is already not a valid_id board. One record per route is
+// reused for every blocked visit, so repeated visits do not pile up records.
+export function unavailable_record(route, key) {
+  var res = route.get('revoked_placeholder');
+  if(!res || res.get('isDestroyed') || res.get('isDestroying')) {
+    res = LingoLinq.store.createRecord('board', {key: key});
+    route.set('revoked_placeholder', res);
+  } else {
+    res.set('key', key);
+    res.set('retrying', undefined);
+  }
+  res.set('lookup_key', key);
+  res.set('error', {error: 'Not authorized', unauthorized: true, revoked: true});
+  route.set('error_record', res);
+  return res;
+}
+
+// A board page's online reload: reload(force_fetch), then clear the board's
+// mark when the server itself answered. reload(true) also resolves with the
+// LOCAL copy on a 5xx, a dropped connection, a 401 or an invalid token
+// (services/persistence.js, the find error handler). Only a genuine server
+// response stamps `retrieved` with the time it arrived, so only a record
+// retrieved after the reload started is evidence the board is viewable.
+export function reload_from_server(model, force_fetch) {
+  var started = (new Date()).getTime();
+  return model.reload(force_fetch).then(function(loaded) {
+    if(force_fetch && loaded && typeof loaded.get === 'function' && loaded.get('retrieved') >= started) {
+      var done = function() { return loaded; };
+      return clear_mark(loaded.get('id')).then(done, done);
+    }
+    return loaded;
+  });
+}
+
+// After that reload failed: fall back to the local copy, unless the server
+// refused this board (route_refuses_local). Offline, timeouts, server errors
+// and ambiguous refusals keep the fallback.
+export function local_copy_unless_denied(model, err, appState) {
+  if(route_refuses_local(err, appState, model)) {
+    return RSVP.reject(denial_body(err));
+  }
+  return model.reload(false);
+}
+
 // Test hook: forget module state between tests.
 export function reset_for_tests() {
   deferred_marks = null;
@@ -486,5 +534,8 @@ export default {
   denial_body: denial_body,
   real_denial: real_denial,
   route_refuses_local: route_refuses_local,
+  unavailable_record: unavailable_record,
+  reload_from_server: reload_from_server,
+  local_copy_unless_denied: local_copy_unless_denied,
   reset_for_tests: reset_for_tests
 };

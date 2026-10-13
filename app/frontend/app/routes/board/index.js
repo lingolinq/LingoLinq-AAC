@@ -281,36 +281,13 @@ export default Route.extend({
       this.appState.set('currentBoardState', null);
     },
   },
-  // After the remote reload failed: fall back to the local copy, unless the server
-  // refused this board to a user whose refusal speaks for every synced user
-  // (utils/board_revocation.js#route_refuses_local). Offline, timeouts, server
-  // errors and ambiguous refusals keep the fallback.
-  // reload(force_fetch), then clear any offline mark on the board
-  // (utils/board_revocation.js) when the server itself answered.
+  // The online reload and its fallback to the local copy, shared with the Basic
+  // view (utils/board_revocation.js#reload_from_server, #local_copy_unless_denied).
   remote_reload: function(model, force_fetch) {
-    var _this = this;
-    var started = (new Date()).getTime();
-    return model.reload(force_fetch).then(function(loaded) {
-      return _this.loaded_remote(loaded, force_fetch, started);
-    });
-  },
-  // reload(true) also resolves with the LOCAL copy on a 5xx, a dropped
-  // connection, a 401 or an invalid token (services/persistence.js, the find
-  // error handler). Only a genuine server response stamps `retrieved` with the
-  // time it arrived, so only a record retrieved after the reload started is
-  // evidence the board is viewable.
-  loaded_remote: function(loaded, force_fetch, started) {
-    if(force_fetch && started && loaded && typeof loaded.get === 'function' && loaded.get('retrieved') >= started) {
-      var done = function() { return loaded; };
-      return boardRevocation.clear_mark(loaded.get('id')).then(done, done);
-    }
-    return loaded;
+    return boardRevocation.reload_from_server(model, force_fetch);
   },
   local_reload_unless_denied: function(model, err) {
-    if(boardRevocation.route_refuses_local(err, this.appState, model)) {
-      return RSVP.reject(boardRevocation.denial_body(err));
-    }
-    return model.reload(false);
+    return boardRevocation.local_copy_unless_denied(model, err, this.appState);
   },
   resetController: function(controller, isExiting) {
     if (isExiting && editManager.controller === controller) {
