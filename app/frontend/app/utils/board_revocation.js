@@ -439,9 +439,25 @@ export function route_refuses_local(err, appState, board) {
   if((id && refs[id]) || (key && refs[key])) { return false; }
   // Speak Mode keeps the local copy, as before: the communicator keeps a voice.
   if(appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
+  return acting_as_self(appState);
+}
+
+// The signed-in user is loaded and is acting as themselves. Before the session
+// user loads, protected_board_refs cannot see their home and sidebar boards;
+// while acting as another user, neither a mark nor a denial speaks for the
+// person whose boards are on screen.
+function acting_as_self(appState) {
   var as_user = LingoLinq.session && typeof LingoLinq.session.get === 'function' && LingoLinq.session.get('as_user_id');
   var session_user = appState && typeof appState.get === 'function' ? appState.get('sessionUser') : null;
   return !(as_user || !session_user);
+}
+
+// blocks_route for the Basic and Modern board views (routes/user/), with the
+// guards route_refuses_local applies: never while acting as another user, and
+// never before the session user is loaded.
+export function blocks_view_route(board, appState, online) {
+  if(online || !acting_as_self(appState)) { return RSVP.resolve(false); }
+  return blocks_route(board, appState, online);
 }
 
 // Test hook: forget module state between tests.
@@ -464,6 +480,7 @@ export default {
   is_revoked: is_revoked,
   without_revoked: without_revoked,
   blocks_route: blocks_route,
+  blocks_view_route: blocks_view_route,
   protected_board_refs: protected_board_refs,
   clear_mark: clear_mark,
   denial_body: denial_body,

@@ -332,4 +332,26 @@ module('Unit | Utility | board_revocation', function(hooks) {
       LingoLinq.session = realSession;
     }
   });
+  // The gate the Basic and Modern board views use (routes/user/). Before the session user loads,
+  // protected_board_refs cannot see that user's home and sidebar boards; acting as another user,
+  // the marks speak for the wrong person. Neither may block a board.
+  test('blocks_view_route never blocks before the session user loads or while acting as another user', async function(assert) {
+    assert.expect(4);
+    addBoard(this.db, '1_1');
+    addBoard(this.db, '1_2');
+    await boardRevocation.apply_revocations(['1_2']);
+    var board = EmberObject.create({id: '1_2', key: 'owner/1_2'});
+    var state = function(attrs) { return EmberObject.create(Object.assign({currentBoardState: {id: '1_1'}, sessionUser: {supervisees: []}}, attrs || {})); };
+    var realSession = LingoLinq.session;
+    LingoLinq.session = EmberObject.create({as_user_id: null});
+    try {
+      assert.true(await boardRevocation.blocks_view_route(board, state(), false), 'control: offline, acting as themselves');
+      assert.false(await boardRevocation.blocks_view_route(board, state(), true), 'online: the server decides');
+      assert.false(await boardRevocation.blocks_view_route(board, state({sessionUser: null}), false), 'session user not loaded yet');
+      LingoLinq.session = EmberObject.create({as_user_id: 'u9'});
+      assert.false(await boardRevocation.blocks_view_route(board, state(), false), 'acting as another user');
+    } finally {
+      LingoLinq.session = realSession;
+    }
+  });
 });
