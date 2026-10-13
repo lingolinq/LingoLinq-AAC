@@ -45,6 +45,15 @@ describe LingoLinq::AiConsentDisclosures do
       expect(v2.to_json).not_to include('Haiku 4.5')
     end
 
+    # The privacy page links readers to the disclosure; after a bump those links
+    # must not keep pointing at a superseded version naming the old model.
+    it 'is the version the privacy page links to' do
+      privacy = File.read(Rails.root.join('app/frontend/app/templates/privacy.hbs'))
+      linked = privacy.scan(%r{href="/ai_consent/disclosures/(\d+)"}).flatten.map(&:to_i)
+      expect(linked).not_to be_empty
+      expect(linked.uniq).to eq([described_class::CURRENT_VERSION])
+    end
+
     # Ties the disclosure to the code: every model the runtime allowlist can send
     # data to must be named in the current version.
     it 'names every model in AiClient::ALLOWED_RUNTIME_MODELS' do
