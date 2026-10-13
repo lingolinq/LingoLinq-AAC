@@ -13,12 +13,19 @@ import EmberObject from '@ember/object';
 QUnit.module('Integration | Component | dashboard/classic-rail-dropdown', function(hooks) {
   setupRenderingTest(hooks);
 
+  hooks.afterEach(function() {
+    if (this.showTrigger) { this.showTrigger.remove(); }
+  });
+
   hooks.beforeEach(async function() {
     this.set('user', EmberObject.create({ user_name: 'example', avatar_url_with_fallback: '/images/avatars/avatar-0.png' }));
     // The test browser is 1440px wide, where the CSS hides the trigger (it exists for <=900px) and a
-    // hidden element cannot take focus; show it, as the narrow layout does.
+    // hidden element cannot take focus; show it, as the narrow layout does. Added to <head> from here
+    // rather than as a <style> in the template, which template-lint forbids (no-forbidden-elements).
+    this.showTrigger = document.createElement('style');
+    this.showTrigger.textContent = '.ch-rail__menu-trigger { display: flex !important; }';
+    document.head.appendChild(this.showTrigger);
     await render(hbs`
-      <style>.ch-rail__menu-trigger { display: flex !important; }</style>
       <div id="outside">outside</div>
       <Dashboard::ClassicRailDropdown @user={{this.user}}>
         <a href="#" id="row-link">A row</a>
