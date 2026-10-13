@@ -146,4 +146,20 @@ describe('late assertion reporting', function() {
     expect(/another late value/.test(reported[0][1])).toEqual(true);
     expect(lateAssertionTesting.pending()).toEqual([]);
   });
+  // A todo test counts a failure as expected and stays "todo", so a report pushed into one would vanish:
+  // the entries wait for the next real test.
+  it('keeps a recorded late expect() for the next real test when the next test is a todo', function() {
+    lateAssertionTesting.withoutAssert(function() {
+      try { expect('a late value before a todo').toEqual('x'); } catch (e) { /* swallowed */ }
+    });
+    var reported = [];
+    var report = function(result, message) { reported.push([result, message]); };
+    lateAssertionTesting.report({ ok: report, test: { todo: true } });
+    expect(reported.length).toEqual(0);
+    expect(lateAssertionTesting.pending().length).toEqual(1);
+    lateAssertionTesting.report({ ok: report, test: { todo: false } });
+    expect(reported.length).toEqual(1);
+    expect(/a late value before a todo/.test(reported[0][1])).toEqual(true);
+    expect(lateAssertionTesting.pending()).toEqual([]);
+  });
 });

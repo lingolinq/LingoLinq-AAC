@@ -10,7 +10,7 @@ import './helpers/apply-parallel-pool';
 // Fails a test that leaves state behind for later tests, or uses state an earlier test left behind.
 import './helpers/leak-check';
 import { set_owner_gone_listener } from 'frontend/utils/live_service';
-import { fetchProbeDelay } from './helpers/fetch-probe';
+import { fetchProbeDelay, timingStrictForRun } from './helpers/fetch-probe';
 import { installFetchTracking } from './helpers/fetch-tracking';
 
 QUnit.config.testTimeout = 15000;
@@ -102,6 +102,12 @@ if (req && req.entries && typeof req === 'function') {
     });
   });
 }
+
+// The run's timing-strict mode (tests/helpers/fetch-probe.js), so CI can prove a strict job really ran strict.
+QUnit.on('runStart', function() {
+  // eslint-disable-next-line no-console
+  console.log(`[timing-strict] ${timingStrictForRun() ? 'on' : 'off'}`);
+});
 
 // Log summary when run completes (browser console; Testem shows "X tests complete" in terminal)
 QUnit.on('runEnd', function(runEnd) {

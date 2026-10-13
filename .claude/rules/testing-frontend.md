@@ -232,7 +232,10 @@ cancels it. Exemptions:
   module runs first), and fetches queued after an async or jasmine-style test signalled it was done.
   The fetch probe above finds the rest; the failure message gives the command that reproduces a hit.
   The leak check follows the same rule for a read or write on a destroyed service (logged as
-  `[late-read]`, failing only in timing-strict runs); a stub or DOM node left behind always fails.
+  `[late-read]`, failing only in timing-strict runs); a stub or DOM node left behind always fails,
+  charged to the test running when the check finds it. That is almost always the test that left it, but
+  an earlier test's timer can leave one during a later test: the failure logs a `[leak-check]` line
+  saying so, and a test that passes alone with `--filter` points at an earlier test in its module.
   The one timing-dependent finding that fails in every run is a late assertion (an `expect()` after
   its test ended), which fails the next test and names the file it came from. That is deliberate:
   without the harness the same late call throws and fails whichever test is running, so reporting it

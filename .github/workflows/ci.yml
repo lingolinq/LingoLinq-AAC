@@ -417,6 +417,23 @@ jobs:
             echo "::error::shard ${SHARD} ran ${tests} tests but selected ${selected}: the run is incomplete"
             exit 1
           fi
+          # The shards must run timing-strict (tests/test-helper.js logs the mode when the run starts). If the
+          # query stopped switching it on, the timing checks would only log here, as in build-and-test.
+          if ! grep -q '\[timing-strict\] on' ember-test.log; then
+            echo "::error::shard ${SHARD} did not run timing-strict (no [timing-strict] on line): its timing checks only logged"
+            exit 1
+          fi
+          # build-and-test only LOGS a queued fetch or a read on a destroyed service (it may be an earlier
+          # test's late work), so this non-required shard is where those fail. Make that hard to miss: an
+          # annotation on the PR's checks and a banner in the job summary. Owner decision, 2026-10-12.
+          if [ "$status" -ne 0 ] && grep -qE 'leak check: .*on a destroyed service|an Ember Data fetch was still queued when this test ended' ember-test.log; then
+            echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). build-and-test only logs these, so this shard is where they fail: fix it before merging. Reproduce: npx ember test --query \"${SHARD_QUERY}\" --filter \"<test>\""
+            {
+              echo '> [!WARNING]'
+              echo '> **Timing finding:** a test left late work behind. The required build-and-test only logs these, so fix it before merging (.claude/rules/testing-frontend.md section 5). Failing tests:'
+              grep -E '^not ok' ember-test.log | head -20 | sed 's/^/> /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
           exit "$status"
 
   # What the shards can prove WITHOUT a full run: each ran exactly what it selected, both saw the

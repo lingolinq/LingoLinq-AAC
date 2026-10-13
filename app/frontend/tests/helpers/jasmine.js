@@ -636,7 +636,9 @@ function recordLateAssertion(data) {
   console.error('[TEST] late assertion, will fail the next test: ' + entry);
 }
 function reportLateAssertions(current) {
-  if (!late_assertions.length || !current) { return; }
+  // A todo test counts a failure as expected and stays "todo", which would swallow the report: keep the
+  // entries for the next real test (tests/helpers/leak-check.js does the same).
+  if (!late_assertions.length || !current || (current.test && current.test.todo)) { return; }
   var entries = late_assertions.splice(0, late_assertions.length);
   current.ok(false, 'expect() ran after its test had ended (a late assertion from an earlier test, so its result never counted): ' + entries.join(' | '));
 }

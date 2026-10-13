@@ -11,15 +11,21 @@ function fakeRouter() {
   return {
     on(name, fn) { handlers.push(fn); },
     off(name, fn) { const i = handlers.indexOf(fn); if (i >= 0) { handlers.splice(i, 1); } },
-    fire() { handlers.slice().forEach((fn) => fn()); }
+    fire() { handlers.slice().forEach((fn) => fn()); },
+    listening() { return handlers.length; }
   };
 }
 const overlays = () => Array.prototype.slice.call(document.querySelectorAll('#ll-pre-reload-overlay'));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function waitUntil(condition, limitMs) {
+  const deadline = Date.now() + limitMs;
+  while (!condition() && Date.now() < deadline) { await wait(20); }
+  return condition();
+}
 
 module('Unit | Utility | view switch overlay dismissal', function() {
   test('a late dismissal removes only its own overlay', async function(assert) {
-    assert.expect(2);
+    assert.expect(4);
     const first = fakeRouter();
     const second = fakeRouter();
     try {
@@ -29,8 +35,11 @@ module('Unit | Utility | view switch overlay dismissal', function() {
       const secondNode = overlays()[0];
       assert.ok(secondNode, 'the second overlay is up');
       first.fire(); // the first overlay's route change arrives late
+      assert.true(await waitUntil(() => first.listening() === 0, 2000), 'the first overlay\'s dismissal ran (it stopped listening)');
       await wait(250);
       assert.true(document.body.contains(secondNode), 'the second overlay is still up');
+      second.fire(); // positive control: its own route change does remove it
+      assert.true(await waitUntil(() => !document.body.contains(secondNode), 2000), 'the second overlay\'s own dismissal removed it');
     } finally {
       second.fire();
       await wait(250);

@@ -99,6 +99,12 @@ class ShardCompareTest(unittest.TestCase):
         problems = self.check(tap(ALL + ["m10: test 10"]), tap(A, shard=(6, 10)), tap(B, shard=(4, 10)))
         self.assertIn("shards ran 10 tests, the full run 11", problems)
 
+    def test_an_indented_log_line_that_looks_like_a_result_is_not_counted(self):
+        # A browser log echoed under a result is indented; only a line starting at the timestamp is TAP.
+        echoed = STAMP + "        ok 99 Chrome 147.0 - [1 ms] - m1: test 1\n"
+        shard = tap(A, shard=(6, 10)).replace(STAMP + "# tests", echoed + STAMP + "# tests", 1)
+        self.assertEqual(self.check(tap(ALL), shard, tap(B, shard=(4, 10))), [])
+
     def test_a_browser_level_error_with_undefined_ms_counts(self):
         error_line = STAMP + "not ok 7 PuppeteerChrome - [undefined ms] - error"
         problems = self.check(tap(ALL), tap(A, shard=(6, 10)), tap(B, shard=(4, 10), extra_lines=[error_line]))
@@ -148,6 +154,11 @@ class CoverageTest(unittest.TestCase):
     def test_a_skipped_result_line_counts_toward_the_total(self):
         skipped = STAMP + "skip 7 Chrome 147.0 - [0 ms] - m10: test 10"
         log = tap(A, shard=(7, 11), extra_lines=[skipped])
+        self.assertEqual(self.cover(log, tap(B, shard=(4, 11))), [])
+
+    def test_a_todo_result_line_counts_toward_the_total(self):
+        todo = STAMP + "todo 7 Chrome 147.0 - [0 ms] - m10: test 10"
+        log = tap(A, shard=(7, 11), extra_lines=[todo])
         self.assertEqual(self.cover(log, tap(B, shard=(4, 11))), [])
 
     def test_selections_that_leave_a_test_in_no_shard_fail(self):

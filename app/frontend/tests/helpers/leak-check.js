@@ -295,6 +295,12 @@ function report(list, assert) {
   });
   if (!failing.length) { return; }
   const unique = Array.from(new Set(failing));
+  if (unique.some((m) => !isTimingFinding(m))) {
+    // A stub or node is charged to the test running when it is found; late work from an earlier test can
+    // leave one too. Say how to tell, next to the failure.
+    // eslint-disable-next-line no-console
+    console.warn(`[leak-check] charged to "${testName()}": if it passes alone (npx ember test --filter "<this test>"), an earlier test's late work left it; run its module in order to find which`);
+  }
   assert.pushResult({ result: false, actual: unique.length, expected: 0,
     message: `leak check: ${unique.slice(0, 8).join(' | ')}${unique.length > 8 ? ` | ...and ${unique.length - 8} more` : ''}` });
 }
