@@ -146,10 +146,12 @@ describe RemoteAction, :type => :model do
       expect(ra.process_action).to eq(:keep)
     end
 
-    it "is not destroyed by process_all" do
+    it "is not destroyed by process_all, while a known row beside it still is" do
       ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      known = RemoteAction.create!(action: 'delete', path: 'file/1/pic.png', extra: 'chk1', act_at: 1.hour.ago)
       RemoteAction.process_all
       expect(RemoteAction.find_by(id: ra.id)).not_to eq(nil)
+      expect(RemoteAction.find_by(id: known.id)).to eq(nil)
     end
   end
 
