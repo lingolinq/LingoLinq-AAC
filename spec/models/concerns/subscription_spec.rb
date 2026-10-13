@@ -2557,6 +2557,60 @@ describe Subscription, :type => :model do
 
         expect(User.find(failed.id).updated_at).to be > 1.hour.ago
       end
+
+      # A scheduled account keeps its schedule: the sweep's rewind of its activity time leaves an
+      # expired trial in the trial scope, so it must not be scheduled and mailed again each run.
+      describe "accounts already scheduled for deletion" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        def expired_trial_on_final_warning(age = 2.months)
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = 2
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: age.ago.change(min: 7, sec: 13))
+          u
+        end
+
+        it "does not reschedule or re-mail an account the last run scheduled" do
+          u = expired_trial_on_final_warning
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          User.check_for_subscription_updates
+          scheduled = User.find(u.id).schedule_deletion_at
+          expect(scheduled).not_to eq(nil)
+
+          travel(1.day) { User.check_for_subscription_updates }
+
+          expect(User.find(u.id).schedule_deletion_at.utc.iso8601(6)).to eq(scheduled.utc.iso8601(6))
+          expect(SubscriptionMailer).to have_received(:deliver_message).with(:account_deleted, u.global_id).once
+        end
+
+        it "does not let scheduled accounts fill the trial window" do
+          stub_const('Subscription::INACTIVITY_SWEEP_TRIAL_WINDOW', 1)
+          waiting = expired_trial_on_final_warning(3.months)
+          User.where(id: waiting.id).update_all(schedule_deletion_at: 20.hours.from_now)
+          target = expired_trial_on_final_warning(2.months)
+          allow(SubscriptionMailer).to receive(:deliver_message)
+
+          User.check_for_subscription_updates
+
+          expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+          expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, waiting.global_id)
+        end
+
+        it "does not reschedule an account scheduled after the candidate scan" do
+          u = inactive_account_on_final_warning
+          requested = 30.hours.from_now
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          after_trial_scan { User.where(id: u.id).update_all(schedule_deletion_at: requested) }
+
+          User.check_for_subscription_updates
+
+          expect(User.find(u.id).schedule_deletion_at.utc.iso8601(6)).to eq(requested.utc.iso8601(6))
+          expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, u.global_id)
+        end
+      end
     end
 
     it "should notify recently-created inactive users" do

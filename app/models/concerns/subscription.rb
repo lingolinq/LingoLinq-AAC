@@ -1255,12 +1255,13 @@ module Subscription
 
       # send out a two and one-month warning when account is 
       # going to be deleted for inactivity (after 12 months of non-use)
-      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), INACTIVITY_SWEEP_WINDOW, 'inactivity_sweep_cursor/inactive')
+      # Accounts already scheduled for deletion are left out of both lists: their schedule stands.
+      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]).where(schedule_deletion_at: nil), INACTIVITY_SWEEP_WINDOW, 'inactivity_sweep_cursor/inactive')
       non_expired_ids = []
       # if users are on an expired free trial, we can delete them much sooner
       # Accounts that are not expired communicators are set aside (hour-truncated below, which the
       # query excludes); exempt expired trials are walked past.
-      trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago])
+      trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago]).where(schedule_deletion_at: nil)
       trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW, 'inactivity_sweep_cursor/trial') do |u|
         if u.billing_state == :expired_communicator
           !u.inactivity_deletion_exempt?
@@ -1316,6 +1317,7 @@ module Subscription
           step = nil
           taken = user.update_settings_locked(touch: false) do |fresh|
             next false if fresh.updated_at != user.updated_at || fresh.inactivity_deletion_exempt?
+            next false if fresh.schedule_deletion_at
             next false unless inactivity_candidate_still_due?(fresh, inactive_id_set.include?(fresh.id), trial_id_set.include?(fresh.id))
             attempts = inactivity_deletion_attempt(fresh)
             next false unless attempts
