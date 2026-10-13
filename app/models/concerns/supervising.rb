@@ -221,7 +221,10 @@ module Supervising
       
       user.settings['supervisors'] = (user.settings['supervisors'] || []).select{|s| s['user_id'] != supervisor.global_id }
       do_unlink = true
-      if organization_unit_id && (org_unit_ids - [organization_unit_id]).length > 0
+      # a room taking itself off a link that was made directly only drops its id: the direct
+      # supervision stays (supervision_link_origin)
+      direct = organization_unit_id && UserLink.generate(user, supervisor, 'supervisor').data['origin'] == 'direct'
+      if organization_unit_id && ((org_unit_ids - [organization_unit_id]).length > 0 || direct)
         org_unit_ids -= [organization_unit_id]
         link = UserLink.generate(user, supervisor, 'supervisor')
         link.data['state']['organization_unit_ids'] = org_unit_ids

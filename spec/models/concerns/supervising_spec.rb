@@ -361,6 +361,33 @@ describe Supervising, :type => :model do
       expect(origin(sup, user)).to eq('direct')
     end
 
+    # A room taking itself off a link (OrganizationUnit#assert_supervision remove_*) only drops
+    # its id from a link that was made directly; the direct supervision stays.
+    it "keeps a direct link when the last room listing it is taken off" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, '1_5')
+
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(user.id), '1_5')
+
+      link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+      expect(link).not_to eq(nil)
+      expect(link.data['origin']).to eq('direct')
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(User.find(user.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
+    it "removes a room-made link when the last room listing it is taken off" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, '1_5')
+
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(user.id), '1_5')
+
+      expect(User.find(user.id).supervisor_user_ids).to eq([])
+    end
+
     it "treats an unrecorded link with no rooms as direct, and one with rooms as unknown" do
       sup = User.create
       user = User.create
