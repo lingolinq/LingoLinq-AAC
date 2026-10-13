@@ -48,6 +48,12 @@ class RemoteAction < ApplicationRecord
       # later if the job is lost (rows older than 3 months are dropped by the batch).
       ra.update_column(:act_at, 1.hour.from_now)
       return :keep
+    elsif ra.action == 'clean_up_destroyed_unit'
+      OrganizationUnit.schedule(:clean_up_destroyed, ra.path)
+      # Kept until OrganizationUnit.clean_up_destroyed deletes it on completion, like
+      # clean_up_destroyed_org above.
+      ra.update_column(:act_at, 1.hour.from_now)
+      return :keep
     elsif ra.action == 'update_library_cache'
       cache = LibraryCache.find_by_global_id(ra.path)
       cache.schedule_for(:slow, :find_expired_words) if cache

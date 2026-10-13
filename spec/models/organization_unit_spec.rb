@@ -1029,4 +1029,53 @@ describe OrganizationUnit, :type => :model do
       expect(UserGoal.find_by(id: gc2)).to eq(nil)
     end
   end
+
+  # Deleting a room takes it off the supervision links it made (OrganizationUnit.clean_up_destroyed);
+  # the work runs in a job, so it is retried from a durable row until the job completes.
+  describe "destroy" do
+    def room_with_members
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      [o, ou, sup, comm]
+    end
+
+    it "removes the room's supervision links, retrying from its row when the job is lost" do
+      o, ou, sup, comm = room_with_members
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+
+      OrganizationUnit.find(ou.id).destroy
+      row = RemoteAction.where(action: 'clean_up_destroyed_unit', path: ou.global_id)
+      expect(row.count).to eq(1)
+      Worker.flush_queues
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(row.count).to eq(0)
+      expect(UserLink.where(record_code: "OrganizationUnit:#{ou.global_id}").count).to eq(0)
+    end
+
+    it "keeps the room's links and its row when a removal cannot be recorded" do
+      o, ou, sup, comm = room_with_members
+      OrganizationUnit.find(ou.id).destroy
+      Worker.flush_queues
+      allow(Rails.logger).to receive(:error)
+      allow_any_instance_of(AuditEvent).to receive(:save!).and_raise(ActiveRecord::StatementInvalid.new('audit insert failed'))
+
+      expect { OrganizationUnit.clean_up_destroyed(ou.global_id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      expect(RemoteAction.where(action: 'clean_up_destroyed_unit', path: ou.global_id).count).to eq(1)
+      expect(UserLink.where(record_code: "OrganizationUnit:#{ou.global_id}").count).to eq(2)
+    end
+  end
 end

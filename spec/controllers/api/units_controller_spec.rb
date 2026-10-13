@@ -161,6 +161,47 @@ describe Api::UnitsController, :type => :controller do
       expect(json['unit']['id']).to eq(ou.global_id)
       expect(OrganizationUnit.find_by_global_id(ou.global_id)).to eq(nil)
     end
+
+    # A room links each of its supervisors to each of its communicators; deleting the room takes
+    # it off those links (only a link the room alone made is removed), and the district's later
+    # cleanup, which reads the district's remaining rooms, cannot do it for a deleted room.
+    it "takes the deleted room off its members' supervision links" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name)
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      direct_sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_supervisor(direct_sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      User.link_supervisor_to_user(User.find(direct_sup.id), User.find(comm.id))
+      ou.add_supervisor(sup.user_name, true)
+      ou.add_supervisor(direct_sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id, direct_sup.global_id)
+      before = AuditEvent.pluck(:id)
+
+      delete :destroy, params: {:id => ou.global_id}
+      expect(response).to be_successful
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(User.find(sup.id).supervisor_for?(User.find(comm.id))).to eq(false)
+      expect(User.find(comm.id).supervisor_user_ids).to include(direct_sup.global_id)
+      events = AuditEvent.where.not(id: before).select{|e| e.data['type'] == 'supervision_link_removed' }
+      expect(events.map{|e| [e.data['reason'], e.data['supervisor_id'], e.data['organization_unit_ids']] }).to eq([['organization_unit_deleted', sup.global_id, [ou.global_id]]])
+
+      o.reload.destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(User.find(comm.id).supervisor_user_ids).to include(direct_sup.global_id)
+    end
   end
   
   describe "stats" do

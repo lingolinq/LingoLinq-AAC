@@ -368,9 +368,12 @@ module Supervising
     # A legacy link is never treated as room-made while an approved SupervisorRelationship for the
     # pair exists outside the deleted district (organization_id nil or another org): that access
     # was consented to by the family (SupervisorConsentService), not granted by the district.
-    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil, actor={})
+    #
+    # reason: what is recorded as the removal's reason, 'organization_deleted' or, for a single
+    # deleted room (OrganizationUnit.clean_up_destroyed), 'organization_unit_deleted'.
+    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil, actor={}, reason: 'organization_deleted')
       with_supervision_lock(user) do
-        strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor)
+        strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor, reason)
       end
     end
 
@@ -387,7 +390,7 @@ module Supervising
       end
     end
 
-    def strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor)
+    def strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor, reason='organization_deleted')
       link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
       return false unless link
       listed = (link.data['state'] || {})['organization_unit_ids'] || []
@@ -411,7 +414,7 @@ module Supervising
         # communicator role (unlink_supervisor_from_user).
         AuditEvent.create!(user_key: 'system', data: {
           'type' => 'supervision_link_removed',
-          'reason' => 'organization_deleted',
+          'reason' => reason,
           'organization_id' => (org_id && Organization.new(id: org_id).global_id),
           'supervisor_id' => supervisor.global_id,
           'supervisee_id' => user.global_id,

@@ -6,6 +6,7 @@ class OrganizationUnit < ApplicationRecord
   include SecureSerialize
   secure_serialize :settings
   before_save :generate_defaults
+  after_destroy :schedule_destroyed_unit_cleanup
   include Replicate
 
   belongs_to :organization
@@ -173,6 +174,48 @@ class OrganizationUnit < ApplicationRecord
     end
   end
   
+  # A room's links (org_unit_supervisor, org_unit_communicator) and the supervision links it made
+  # outlive the room (no dependent: option), and Organization.clean_up_destroyed reads only the
+  # rooms that still exist. The destroy records the cleanup in its transaction (the durable row,
+  # with the deleting actor captured from the request) and enqueues it after commit; the row is
+  # released by OrganizationUnit.clean_up_destroyed when it completes, and
+  # RemoteAction#process_action re-queues it if the job is lost.
+  def schedule_destroyed_unit_cleanup
+    unit_id = self.global_id
+    RemoteAction.create(path: unit_id, action: 'clean_up_destroyed_unit', act_at: Time.now,
+      extra: {'organization_id' => self.organization_id, 'actor' => Organization.deleting_actor}.to_json)
+    ActiveRecord.after_all_transactions_commit do
+      OrganizationUnit.schedule(:clean_up_destroyed, unit_id)
+    end
+    true
+  end
+
+  # Takes a deleted room off its members' supervision links (User.strip_rooms_from_supervision,
+  # each pair under the supervisee's lock: only a link the room alone made is removed, and each
+  # removal is recorded), then removes the room's own links. Fail-closed: an error leaves the row
+  # and the room's links in place, so the retry still finds every pair. Idempotent.
+  def self.clean_up_destroyed(unit_id)
+    rows = RemoteAction.where(path: unit_id, action: 'clean_up_destroyed_unit')
+    data = rows.map{|r| JSON.parse(r.extra) rescue nil }.compact.first
+    return true unless data
+    org_id = data['organization_id']
+    links = UserLink.where(record_code: "OrganizationUnit:#{unit_id}").select{|l| ['org_unit_supervisor', 'org_unit_communicator'].include?(l.data['type']) }
+    supervisors = User.where(id: links.select{|l| l.data['type'] == 'org_unit_supervisor' }.map(&:user_id).uniq).to_a
+    communicators = User.where(id: links.select{|l| l.data['type'] == 'org_unit_communicator' }.map(&:user_id).uniq).to_a
+    if supervisors.length > 0 && communicators.length > 0
+      org_code = "Organization:#{Organization.new(id: org_id).global_id}"
+      staff_since = Organization.staff_since_for(org_code, supervisors.map(&:id)).transform_values{|at| Time.iso8601(at) }
+      supervisors.each do |sup|
+        communicators.each do |comm|
+          User.strip_rooms_from_supervision(sup, comm, [unit_id], staff_since[sup.id.to_s], org_id, data['actor'] || {}, reason: 'organization_unit_deleted')
+        end
+      end
+    end
+    links.each(&:destroy)
+    rows.delete_all
+    true
+  end
+
   def self.supervised_units(user)
     return [] unless user
     links = UserLink.links_for(user).select{|l| l['type'] == 'org_unit_supervisor' }
