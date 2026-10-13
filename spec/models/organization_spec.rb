@@ -863,6 +863,47 @@ describe Organization, :type => :model do
       expect(Organization.manager_for?(u1, u3)).to eq(true)
       expect(Organization.manager_for?(u1, u4)).to eq(true)
     end
+
+    # A destroyed organization keeps its membership links (no dependent: option), so the links
+    # alone must not make anyone a manager over its former members.
+    it "should return false once the organization is destroyed" do
+      o = Organization.create(:settings => {'total_licenses' => 1})
+      o2 = Organization.create(:settings => {'total_licenses' => 1})
+      u = User.create
+      m = User.create
+      u2 = User.create
+      m2 = User.create
+      o.add_user(u.user_name, false)
+      o.add_manager(m.user_name, true)
+      o2.add_user(u2.user_name, false)
+      o2.add_manager(m2.user_name, true)
+      expect(User.find(u.id).allows?(User.find(m.id), 'supervise')).to eq(true)
+      expect(User.find(u.id).allows?(User.find(m.id), 'edit_boards')).to eq(true)
+
+      o.reload.destroy
+
+      expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(false)
+      expect(User.find(m.id).supervisor_for?(User.find(u.id))).to eq(false)
+      ['supervise', 'edit_boards', 'manage_supervision'].each do |permission|
+        expect(User.find(u.id).allows?(User.find(m.id), permission)).to eq(false)
+      end
+      expect(Organization.manager_for?(User.find(m2.id), User.find(u2.id))).to eq(true)
+      expect(User.find(u2.id).allows?(User.find(m2.id), 'supervise')).to eq(true)
+    end
+
+    it "should return false for a manager of a destroyed parent organization" do
+      o1 = Organization.create(settings: {'total_licenses' => 1})
+      o2 = Organization.create(settings: {'total_licenses' => 1}, parent_organization_id: o1.id)
+      m = User.create
+      u = User.create
+      o1.add_manager(m.user_name, true)
+      o2.add_user(u.user_name, false)
+      expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(true)
+
+      o1.reload.destroy
+
+      expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(false)
+    end
   end
   
   describe "permissions cache" do

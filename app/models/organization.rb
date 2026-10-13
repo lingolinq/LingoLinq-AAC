@@ -961,7 +961,7 @@ class Organization < ApplicationRecord
 
   def self.manager_for?(manager, user, include_admin_managers=true)
     return false unless manager && user
-    manager_orgs = UserLink.links_for(manager).select{|l| l['type'] == 'org_manager' && l['user_id'] == manager.global_id && l['state']['full_manager'] }.map{|l| l['record_code'] }
+    manager_orgs = existing_record_codes(UserLink.links_for(manager).select{|l| l['type'] == 'org_manager' && l['user_id'] == manager.global_id && l['state']['full_manager'] }.map{|l| l['record_code'] })
     user_orgs = UserLink.links_for(user).select{|l| (l['type'] == 'org_user' || l['type'] == 'org_supervisor') && l['user_id'] == user.global_id && !l['state']['pending'] }.map{|l| l['record_code'] }
     if (manager_orgs & user_orgs).length > 0
       # if user and manager are part of the same org
@@ -1719,6 +1719,9 @@ class Organization < ApplicationRecord
   # it inline loaded every member and enqueued one default-queue job each, inside the destroy.
   def schedule_destroyed_org_cleanup
     user_ids = self.attached_users('all').pluck(:id)
+    # moves each member's cache_key, which keys the cached permissions (Permissable), so a
+    # permission granted through this organization (manager_for?) is not served from the cache
+    User.where(id: user_ids).update_all(updated_at: Time.now)
     User.persist_board_cache_refreshes(user_ids)
     org_id = self.id
     # durable fallback for the room cleanup, released by clean_up_destroyed when it finishes
@@ -1807,6 +1810,16 @@ class Organization < ApplicationRecord
       user.schedule_once(:update_available_boards)
     end
     true
+  end
+
+  # The given organization record codes ("Organization:<global id>") whose organization still
+  # exists. A destroyed organization keeps its membership links (schedule_destroyed_org_cleanup),
+  # so a permission decided from those links reads them through this.
+  def self.existing_record_codes(record_codes)
+    return [] if record_codes.blank?
+    ids = Organization.local_ids(record_codes.map{|c| c.split(/:/)[1].to_s })
+    existing = Organization.where(id: ids).pluck(:id).map{|id| "Organization:#{Organization.new(id: id).global_id}" }
+    record_codes & existing
   end
 
   def update_user_available_boards
