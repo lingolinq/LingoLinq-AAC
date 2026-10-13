@@ -2754,7 +2754,7 @@ describe Uploader do
         expect(rows.first.act_at).to be > 23.hours.from_now
       end
 
-      it "a retry run after the batch deleted its row is recorded again under its first request time" do
+      it "a retry row kept by the batch stays recorded under its first request time until the retry completes" do
         allow(Rails.logger).to receive(:error)
         first_requested_at = 2.days.ago.change(usec: 0)
         RemoteAction.create!(action: 'delete_retry', path: 'extras/x.json', act_at: 1.hour.ago, created_at: first_requested_at)
