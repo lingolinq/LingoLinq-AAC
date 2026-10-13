@@ -8795,5 +8795,6 @@
   "classic_tour_slp_model_b2": "It appears once that communicator has a home board",
   "classic_tour_slp_dash_title": "Your dashboard",
   "classic_tour_slp_dash_b1": "Rooms takes you into a room and its communicators",
-  "classic_tour_slp_dash_b2": "Your home board, logging and offline sync live here"
+  "classic_tour_slp_dash_b2": "Your home board, logging and offline sync live here",
+  "tour_welcome_open_home_note": "Opens your home board."
 }

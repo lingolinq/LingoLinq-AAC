@@ -188,7 +188,7 @@ function buildClassicHomeSteps(options) {
   options = options || {};
   // A COMMUNICATOR gets the one-card welcome (Start talking now / Choose a different board / Take a quick
   // tour), in Basic's skin; their tour runs on their board (2026-10-12, tour redesign).
-  if (!options.supporter) { return [communicatorWelcomeStep(true)]; }
+  if (!options.supporter) { return [communicatorWelcomeStep(true, !!options.hasHome)]; }
   // A SUPPORTER (an SLP): five steps (2026-10-12, "5 steps with a welcome").
   steps.push(welcomeStep());
   pushInteriorSteps(steps);

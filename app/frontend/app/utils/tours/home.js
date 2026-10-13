@@ -19,14 +19,19 @@ import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIden
 // Flair 60 becomes the home board, then Speak Mode); `picker` = the board picker; `speak_tour` = as
 // `speak`, then the board tour. `classic` renders it in Basic's tour skin (classic-home.js).
 var STARTER_IMAGE = '/images/vocal-flair-60.png';
-function communicatorWelcomeStep(classic) {
+// `hasHome`: they already have a home board (a manual "Take a tour"), so the buttons open THAT board
+// (start_talking.js) and the card says so rather than promising to set up Vocal Flair 60.
+function communicatorWelcomeStep(classic, hasHome) {
   var p = classic ? 'ch' : 'md';
-  var start = tourBodyButton(
-    '<img class="md-tour__starter-img" src="' + STARTER_IMAGE + '" alt="">' +
-    '<span class="md-tour__starter-label">' + i18n.t('tour_welcome_start_talking', "Start talking now") + '</span>',
-    'speak',
-    { classes: 'md-tour__body-btn--primary md-tour__body-btn--starter', note: i18n.t('tour_welcome_start_talking_note', "We'll set up Vocal Flair 60. You can change it anytime.") }
-  );
+  var start = hasHome ?
+    tourBodyButton(i18n.t('tour_welcome_start_talking', "Start talking now"), 'speak',
+      { classes: 'md-tour__body-btn--primary', note: i18n.t('tour_welcome_open_home_note', "Opens your home board.") }) :
+    tourBodyButton(
+      '<img class="md-tour__starter-img" src="' + STARTER_IMAGE + '" alt="">' +
+      '<span class="md-tour__starter-label">' + i18n.t('tour_welcome_start_talking', "Start talking now") + '</span>',
+      'speak',
+      { classes: 'md-tour__body-btn--primary md-tour__body-btn--starter', note: i18n.t('tour_welcome_start_talking_note', "We'll set up Vocal Flair 60. You can change it anytime.") }
+    );
   var choose = tourBodyButton(i18n.t('tour_welcome_choose_board', "Choose a different board"), 'picker', { classes: 'md-tour__body-btn--secondary' });
   var quick = '<div class="md-tour__quick-tour"><button type="button" class="md-tour__quick-tour-link" data-tour-action="speak_tour">' +
     i18n.t('tour_welcome_quick_tour', "Take a quick tour (1 min)") + '</button></div>';
@@ -354,7 +359,7 @@ function buildHomeSteps(layout, options) {
   options = options || {};
   // A COMMUNICATOR (not a supporter) gets the one-card welcome; their tour runs on their board (2026-10-12).
   if (!options.supporter) {
-    var welcome = communicatorWelcomeStep(false);
+    var welcome = communicatorWelcomeStep(false, !!options.hasHome);
     if (layout === 'focused') { welcome.classes += ' md-tour__step--focused'; }
     return [welcome];
   }

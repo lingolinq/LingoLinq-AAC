@@ -92,4 +92,37 @@ module('Unit | Utility | tours | communicator welcome', function(hooks) {
     assert.deepEqual(d.calls.transitions, ['board-picker']);
     assert.strictEqual(d.calls.speak.length, 0);
   });
+  /* A COMMUNICATOR WHO ALREADY HAS A HOME BOARD (adversary review, 2026-10-13). A manual "Take a tour" shows
+     this card too, and its buttons made Vocal Flair 60 the home board over the one their SLP set up. With a
+     home board, both buttons open THAT board and nothing is copied or saved. */
+  function withHome(d) { d.user.set('preferences', Object.assign({}, d.user.get('preferences'), { home_board: { id: '1_5', key: 'aiden/my-board' } })); return d; }
+
+  test('Start talking now with a home board already set: opens it; nothing copied, home board unchanged', async function(assert) {
+    var d = withHome(deps(false));
+    await start_talking_now(d.opts);
+    assert.strictEqual(d.calls.found, undefined, 'Vocal Flair 60 not even looked up');
+    assert.deepEqual(d.calls.copied, [], 'nothing copied or set');
+    assert.deepEqual(d.calls.speak[0].force_board_state, { id: '1_5', key: 'aiden/my-board' }, 'Speak Mode on their own home board');
+    assert.strictEqual(d.user.get('preferences.home_board.key'), 'aiden/my-board', 'home board unchanged');
+  });
+
+  test('Take a quick tour with a home board already set: the board tour runs on that board', async function(assert) {
+    var m = withHome(deps(false)); m.opts.withTour = true;
+    await start_talking_now(m.opts);
+    assert.deepEqual(m.calls.copied, [], 'nothing copied');
+    assert.strictEqual(m.calls.set.board_detail_tour_pending_speak, 'aiden/my-board', 'Modern board tour on their board');
+    var b = withHome(deps(true)); b.opts.withTour = true;
+    await start_talking_now(b.opts);
+    assert.strictEqual(b.calls.set.board_alt_tour_pending, 'aiden/my-board', 'Basic board tour on their board');
+  });
+
+  test('the card for someone with a home board does not promise to set up Vocal Flair 60', function(assert) {
+    assert.expect(8);
+    [buildHomeSteps('gentle', { hasHome: true })[0].text, buildClassicHomeSteps({ hasHome: true })[0].text].forEach(function(html) {
+      assert.deepEqual(actions(html), ['speak', 'picker', 'speak_tour'], 'the same three choices');
+      assert.false(text(html).includes('Vocal Flair 60'), 'no Vocal Flair 60 note');
+      assert.false(html.includes('/images/vocal-flair-60.png'), 'no Vocal Flair 60 picture');
+      assert.true(text(html).includes('Opens your home board.'), 'says what it does');
+    });
+  });
 });

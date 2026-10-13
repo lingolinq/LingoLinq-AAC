@@ -2,7 +2,8 @@
  * "START TALKING NOW" (2026-10-12, tour redesign: docs/task-management/2026-10-12_tour-redesign.md).
  *
  * The communicator welcome's primary button: "We'll set up Vocal Flair 60. You can change it anytime."
- * Their own copy of Vocal Flair 60 (the signup provisioner already makes one, lib/system_board_sources.rb
+ * For someone who already has a home board it opens that board and changes nothing. Otherwise, their own
+ * copy of Vocal Flair 60 (the signup provisioner already makes one, lib/system_board_sources.rb
  * SIGNUP_LIBRARY_SLUGS) becomes their home board, through the same copy-or-reuse as "Pick this Board"
  * (utils/board-copy.js), so an existing copy is reused rather than duplicated. Then Speak Mode opens on it
  * through app-state#home_in_speak_mode, which opens the board page for the user's view (Basic or Modern).
@@ -30,9 +31,14 @@ export function start_talking_now(opts) {
   if (!user) { return RSVP.resolve(null); }
   if (appState.show_loading_overlay) { appState.show_loading_overlay(i18n.t('loading_your_board', "Loading your board...")); }
   var hide = function() { if (appState.hide_loading_overlay) { appState.hide_loading_overlay(); } };
-  return RSVP.resolve(findBoard(STARTER_BOARD_KEY)).then(function(board) {
-    return copyAsHome(board, user, appState.get('label_locale'));
-  }).then(function(home) {
+  // ALREADY HAS A HOME BOARD (adversary review, 2026-10-13): open that one. A manual "Take a tour" shows
+  // the same welcome card, and copying here replaced the home board an SLP had set up.
+  var current = user.get && user.get('preferences.home_board');
+  var ready = (current && current.key) ? RSVP.resolve({ id: current.id, key: current.key }) :
+    RSVP.resolve(findBoard(STARTER_BOARD_KEY)).then(function(board) {
+      return copyAsHome(board, user, appState.get('label_locale'));
+    });
+  return ready.then(function(home) {
     var key = home.get ? home.get('key') : home.key;
     var id = home.get ? home.get('id') : home.id;
     if (opts.withTour) {

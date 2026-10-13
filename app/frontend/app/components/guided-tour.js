@@ -1148,10 +1148,10 @@ const GuidedTour = Component.extend({
       _this.router.transitionTo('index');
     };
     var builtSteps = builder(isHomeTour ? {
-      handoff: firstTime && !this.get('appState.currentUser.supporter_role'), supporter: !!this.get('appState.currentUser.supporter_role'),
+      handoff: firstTime && !this.get('appState.currentUser.supporter_role'), supporter: !!this.get('appState.currentUser.supporter_role'), hasHome: !!this.get('appState.currentUser.preferences.home_board.key'),
       menu: menuMode,
       onPickBoard: this.get('appState.currentUser.supporter_role') ? null : onPickBoard
-    } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : { supporter: !!this.get('appState.currentUser.supporter_role') }));
+    } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : { supporter: !!this.get('appState.currentUser.supporter_role'), hasHome: !!this.get('appState.currentUser.preferences.home_board.key') }));
     // Smooth "scroll then show" for every attached step (runner-level, so all
     // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
     // steps with the injected beforeShowPromise + scrollTo:false. `tour` is
