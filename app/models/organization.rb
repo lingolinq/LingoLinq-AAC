@@ -1805,6 +1805,13 @@ class Organization < ApplicationRecord
         communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor) }
       end
     end
+    # The rooms' own links go last, once every pair read from them is stripped (an error above
+    # leaves them for the retry). Removing them ends the rooms' supervisor permissions
+    # (OrganizationUnit supervisor?) and their listing (supervised_units), and moves each room's
+    # updated_at so permissions cached for it are not served.
+    units.each do |unit|
+      UserLink.where(record_code: Webhook.get_record_code(unit)).select{|l| ['org_unit_supervisor', 'org_unit_communicator'].include?(l.data['type']) }.each(&:destroy)
+    end
     RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all
     User.where(id: user_ids).find_each(batch_size: 100) do |user|
       user.schedule_once(:update_available_boards)

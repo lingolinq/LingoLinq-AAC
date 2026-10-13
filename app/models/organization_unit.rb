@@ -12,8 +12,8 @@ class OrganizationUnit < ApplicationRecord
   belongs_to :organization
   belongs_to :user_goal, optional: true  # units can exist without a goal
   
-  add_permissions('view', 'view_stats') {|user| self.supervisor?(user) }
-  add_permissions('view', 'edit', 'view_stats') {|user| self.supervisor?(user, true) }
+  add_permissions('view', 'view_stats') {|user| self.organization && self.supervisor?(user) }
+  add_permissions('view', 'edit', 'view_stats') {|user| self.organization && self.supervisor?(user, true) }
   add_permissions('view', 'edit', 'delete') {|user| self.organization && self.organization.allows?(user, 'edit') }
   add_permissions('view', 'view_stats', 'edit', 'delete') {|user| self.organization && self.organization.allows?(user, 'manage') }
   
@@ -220,7 +220,10 @@ class OrganizationUnit < ApplicationRecord
     return [] unless user
     links = UserLink.links_for(user).select{|l| l['type'] == 'org_unit_supervisor' }
     ids = links.select{|l| l['user_id'] == user.global_id }.map{|l| l['record_code'].split(/:/)[1] }
-    OrganizationUnit.find_all_by_global_id(ids).uniq
+    units = OrganizationUnit.find_all_by_global_id(ids).uniq
+    # a destroyed organization's rooms keep their links until Organization.clean_up_destroyed runs
+    live_org_ids = Organization.where(id: units.map(&:organization_id).uniq).pluck(:id)
+    units.select{|u| live_org_ids.include?(u.organization_id) }
   end
 
   def retire_goal_for(user, goal, force_conclude=false)

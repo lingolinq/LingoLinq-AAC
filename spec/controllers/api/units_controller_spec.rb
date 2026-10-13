@@ -631,7 +631,49 @@ describe Api::UnitsController, :type => :controller do
       get :logs, params: {:unit_id => u.global_id}
       assert_unauthorized
     end
-    
+
+    # A room's supervisor reads its communicators' logs and stats through the room; once the
+    # district is deleted the room grants nothing, whether or not its cleanup has run yet.
+    it "should refuse a room supervisor once the room's organization is destroyed" do
+      token_user
+      o = Organization.create(:settings => {'total_licenses' => 10})
+      o2 = Organization.create(:settings => {'total_licenses' => 10})
+      unit = OrganizationUnit.create(:organization => o)
+      live_unit = OrganizationUnit.create(:organization => o2)
+      comm = User.create
+      comm2 = User.create
+      o.add_supervisor(@user.user_name, false)
+      o2.add_supervisor(@user.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      o2.add_user(comm2.user_name, false, false)
+      unit.add_supervisor(@user.user_name)
+      unit.add_communicator(comm.user_name)
+      live_unit.add_supervisor(@user.user_name)
+      live_unit.add_communicator(comm2.user_name)
+      Worker.process_queues
+      get :logs, params: {:unit_id => unit.global_id}
+      expect(response).to be_successful
+
+      o.reload.destroy
+      Worker.flush_queues
+      [:logs, :stats, :log_stats].each do |action|
+        get action, params: {:unit_id => unit.global_id}
+        assert_unauthorized
+      end
+      post :note, params: {:unit_id => unit.global_id, :note => 'hello'}
+      assert_unauthorized
+
+      Organization.clean_up_destroyed(o.id)
+      get :logs, params: {:unit_id => unit.global_id}
+      assert_unauthorized
+      expect(UserLink.where(record_code: Webhook.get_record_code(unit)).count).to eq(0)
+
+      get :logs, params: {:unit_id => live_unit.global_id}
+      expect(response).to be_successful
+      get :stats, params: {:unit_id => live_unit.global_id}
+      expect(response).to be_successful
+    end
+
     it "should return a paginated list of logs if authorized" do
       o = Organization.create(:settings => {'total_licenses' => 100})
       unit = OrganizationUnit.create(:organization => o)
