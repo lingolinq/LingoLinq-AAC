@@ -546,7 +546,7 @@ function _applyGridPresentation(gridEl, pres) {
   // `--boards-full`, `--with-*` and the hero class all key off the layout, and a stale
   // one from the live page would style the preview for the wrong arrangement.
   Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
-    if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-|hero-|speak-placed|extras-placed|speak-beside)/.test(c)) { gridEl.classList.remove(c); }
+    if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-|hero-|speak-placed|extras-placed|speak-beside|caseload-beside|caseload-row)/.test(c)) { gridEl.classList.remove(c); }
   });
   pres.grid.classes.forEach(function(c) { gridEl.classList.add(c); });
   gridEl.style.setProperty('grid-template-areas', pres.grid.areasValue, 'important');
@@ -2166,3 +2166,6 @@ export default Component.extend({
     }
   }
 });
+
+// Exported for tests (tests/unit/components/display-style-grid-sweep-test.js).
+export { _applyGridPresentation };
