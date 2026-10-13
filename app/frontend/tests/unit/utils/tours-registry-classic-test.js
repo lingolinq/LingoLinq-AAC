@@ -51,7 +51,7 @@ module('Unit | Utility | tours registry — classic branch', function() {
     // The four existing tours call this with three arguments. The fourth must be
     // optional-and-falsy, not required.
     assert.strictEqual(tourKeyFor('user.home', 'focused'), 'home_focused', 'home focused');
-    assert.strictEqual(tourKeyFor('caseload', 'gentle'), 'caseload_gentle', 'caseload');
+    assert.strictEqual(tourKeyFor('caseload', 'gentle'), null, 'caseload has no tour (removed 2026-10-12, approved)');
     assert.strictEqual(typeof tourBuilderFor('board-picker', 'gentle'), 'function', 'board picker');
   });
 });

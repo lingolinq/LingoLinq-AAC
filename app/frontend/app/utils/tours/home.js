@@ -15,15 +15,19 @@ import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIden
 // (home_tour_skip_handoff) so a user who isn't ready for the walkthrough is still
 // shown where the tour button lives before heading to the board picker. The footer
 // keeps only "Start the tour"; the cancel X (cancelIcon) still allows a plain close.
-function welcomeStep() {
+// SUPPORTERS (SLPs and others with `supporter_role`) get the "Take a tour" button alone (2026-10-12): the
+// "choose my board" and "start speaking" choices are for a communicator, and a supporter has no board
+// of their own to pick (guided-tour.js gives them no board-picker handoff either).
+function welcomeStep(supporter) {
+  var takeTour = tourBodyButton(
+    i18n.t('home_tour_welcome_take_tour', "Take a tour of your <span class=\"md-hero__gradient-text\">home page</span>"),
+    // Same as the footer "Start the tour" button — advance to the first step.
+    'next'
+  );
   return {
     id: 'home_tour_welcome',
     title: decoratedTitle('home_tour_welcome_title', "Welcome to LingoLinq"),
-    text: tourBodyButton(
-      i18n.t('home_tour_welcome_take_tour', "Take a tour of your <span class=\"md-hero__gradient-text\">home page</span>"),
-      // Same as the footer "Start the tour" button — advance to the first step.
-      'next'
-    ) +
+    text: supporter ? takeTour : takeTour +
     '<div class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' + i18n.t('home_tour_or', "OR") + '</span></div>' +
     tourBodyButton(
       i18n.t('home_tour_skip_choose_board', "Skip tour for now<br>Let's <span class=\"md-hero__gradient-text\">choose my board</span> (page-set)"),
@@ -371,18 +375,20 @@ function menuDoneStep(onPickBoard) {
     ], null,
       i18n.t('home_tour_menu_done_text', "Refreshed on the Home Page. You can reopen this menu anytime from the Take a tour button.")),
     classes: 'md-tour__step md-tour__step--intro md-tour__step--outro',
-    buttons: [
+    // No board-picker link when there is no picker to go to (a supporter, 2026-10-12).
+    buttons: (onPickBoard ? [
       {
         text: i18n.t('home_tour_goto_board_picker', "Go to your board picker (page-set)"),
         classes: 'md-tour__btn md-tour__btn--board-link',
-        action: function() { this.complete(); if (onPickBoard) { onPickBoard(); } }
-      },
+        action: function() { this.complete(); onPickBoard(); }
+      }
+    ] : []).concat([
       {
         text: i18n.t('home_tour_finish', "Finish"),
         type: 'next',
         classes: 'md-tour__btn md-tour__btn--primary'
       }
-    ]
+    ])
   };
 }
 
@@ -421,7 +427,7 @@ function buildHomeSteps(layout, options) {
     if (menuSteps) { return menuSteps; }
   }
   var steps = [];
-  steps.push(welcomeStep());
+  steps.push(welcomeStep(options.supporter));
   // FOUR STEPS IN ALL (requested 2026-10-11): welcome, the dashboard cards, the navigation, finish.
   // It walked one step per toolbar button, account-menu item, nav pill and card (~25). The two
   // middle steps are the same summaries the replay menu shows, with Back/Next instead of "Back to
@@ -432,7 +438,8 @@ function buildHomeSteps(layout, options) {
   // via tour.show('home_tour_skip_handoff') but never sits in the linear Next chain
   // (the terminal doneStep button uses an explicit complete(), so its Next can't
   // fall into this). Excluded from the progress dots in guided-tour.js.
-  steps.push(skipHandoffStep());
+  // Not for a supporter, whose welcome has no "Skip tour for now" off-ramp to reach it (2026-10-12).
+  if (!options.supporter) { steps.push(skipHandoffStep()); }
   // Focused View: tag every step so the popover picks up the Focused-View skin
   // (Focused palette + gradient CTA) — see `.md-tour__step--focused` in app.scss.
   if (layout === 'focused') {

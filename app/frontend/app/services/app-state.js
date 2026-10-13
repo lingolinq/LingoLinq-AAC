@@ -785,9 +785,9 @@ export default Service.extend({
   finish_global_transition: function() {
     var _this = this;
     this.set('already_homed', true);
-    this.record_session_location();
+    // Recorded on the next tick, inside runNext below (2026-10-12): see record_session_location.
     runNext(function() {
-      var target = _this.get('current_route');
+      _this.record_session_location(); var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
       // footer is now a computed on application controller (from currentBoardState)
       if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards' && _this.get('to_target') != 'board-picker') {
@@ -806,10 +806,10 @@ export default Service.extend({
     }
   },
   // Remember, per user and per device, the page this session is currently on so
-  // routes/index.js can return the user here on their next login. Called from
-  // finish_global_transition (routes/application.js#didTransition), which is the
-  // only point where router.currentURL is the settled post-transition URL —
-  // global_transition runs on routeWillChange, where it is still the OLD url.
+  // routes/index.js can return the user here on their next login. Called from the
+  // runNext in finish_global_transition (routes/application.js#didTransition): in
+  // Ember 5.12 that action runs BEFORE the router service reports the new route, so a
+  // synchronous read saved the page being LEFT (measured 2026-10-12: user.home for /caseload).
   // Recording is unconditional; the `session_resume` feature flag gates the
   // RESTORE, so flipping the flag on takes effect immediately instead of waiting
   // for users to build up new history.

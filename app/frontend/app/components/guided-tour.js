@@ -373,7 +373,7 @@ export default Component.extend({
   // NEWLY-REGISTERED-USER signal, and consuming it does two things a "Take a tour" button must
   // never do: it binds `afterComplete` → `transitionTo('board-picker')`, so ANY ending of the
   // tour (finish or cancel) yanks the user off the page they asked to be shown around
-  // (_startHomeAutoOpen), and for a supporter it routes to the caseload tour instead
+  // (_startHomeAutoOpen), and for a supporter it may hop to the home page first
   // (_startAutoOpen's supporter branch). This path has neither: it starts the tour for the
   // page the user is actually on and leaves them there.
   //
@@ -746,12 +746,12 @@ export default Component.extend({
   // index) are where every writer either raises the flag or lands via
   // return_to_index (app-state.js:909-917), and `current_route` already names the
   // destination at afterRender because routeWillChange fires synchronously inside
-  // transitionTo (routes/application.js:110-139 -> app-state.js:745). A supporter
-  // who boots straight to caseload (routes/index.js:70-75) consumes there and gets
-  // the caseload tour. Anything else means the user has moved on: cancel.
-  _autoOpenRouteAllowed: function(route, supporter) {
+  // transitionTo (routes/application.js:110-139 -> app-state.js:745). The caseload
+  // page is not one of them since 2026-10-12: it has no tour, and a supporter tours
+  // the home page. Anything else means the user has moved on: cancel.
+  _autoOpenRouteAllowed: function(route) {
     if (route === 'user.home' || route === 'index' || route === 'bento') { return true; }
-    return !!supporter && route === 'caseload';
+    return false;
   },
 
   _startAutoOpen: function() {
@@ -766,15 +766,15 @@ export default Component.extend({
     }
     this._clearAutoOpenStorageTwin();
     // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
-    // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
-    // routes/index.js `_land_on_default` already sends them on every subsequent
-    // login; the only reason they are sitting on the dashboard right now is that
-    // the terms-agree session gate had to run there first (see
-    // `_session_entry_gate_pending` in that route). They also get NO board-picker
-    // handoff — that exists so a newly-registered COMMUNICATOR still completes the
-    // must-have home-board pick, and a supporter has no board of their own to pick.
+    // `supporter_role`) tour the HOME page (2026-10-12, requested: "on an slp user,
+    // start their tour on the home page instead"; they toured the caseload before).
+    // Home is also where routes/index.js `_land_on_default` sends everyone with no
+    // remembered page. They get NO board-picker handoff — that exists so a
+    // newly-registered COMMUNICATOR still completes the must-have home-board pick,
+    // and a supporter has no board of their own to pick; the builder drops the
+    // welcome's board choices for them too (utils/tours/home.js welcomeStep).
     if (supporter) {
-      this._startCaseloadAutoOpen();
+      this._startSupporterHomeAutoOpen();
       return;
     }
     this._startHomeAutoOpen();
@@ -801,34 +801,34 @@ export default Component.extend({
     this._startTour({ afterComplete: handoff, armBoardPickerTour: true });
   },
 
-  // Route a supporter to their caseload and start the CASELOAD tour there.
-  // The route hop means this instance's `tourBuilder`/`tourKey` recompute from
-  // `appState.current_route`, which settles a microtask or two AFTER the
-  // transition promise resolves — so poll for the caseload tour to become current
-  // rather than firing at a single afterRender (LEARNINGS.md: "a guided-tour
-  // auto-open flag consumed at a single afterRender misses when the gating state
-  // resolves on a promise microtask — poll the condition"). Same bound as the
-  // board-detail consumers: ~3s (20 x 150ms). If it never becomes current we
-  // simply don't fire — the user is left on their caseload with the "Take a tour"
-  // trigger right there, which is a safe outcome rather than a wrong tour.
+  // Start a supporter's HOME tour (2026-10-12; this started the caseload tour before).
+  // A page that already has a home tour (`home_gentle`/`home_focused` on user.home,
+  // `home_classic` on the Basic home) starts at once; otherwise (a modern supporter
+  // held on `index` by a session gate) hop to user.home. `tourKey` recomputes from
+  // `appState.current_route` a microtask or two AFTER the transition resolves, so
+  // poll for it (LEARNINGS.md: "a guided-tour auto-open flag consumed at a single
+  // afterRender misses when the gating state resolves on a promise microtask — poll
+  // the condition"). Same bound as the board-detail consumers: ~3s (20 x 150ms). If
+  // it never becomes current we simply don't fire — the user is on their home page
+  // with the "Take a tour" trigger right there, a safe outcome rather than a wrong tour.
   // The navbar GuidedTour instance is persistent across in-app transitions, so
   // `this` survives the hop; the isDestroyed guard covers a logout mid-poll.
-  _startCaseloadAutoOpen: function() {
+  _startSupporterHomeAutoOpen: function() {
     var _this = this;
     var attempts = 0;
     var tryStart = function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      if ((_this.get('tourKey') || '').indexOf('caseload') === 0) {
+      if ((_this.get('tourKey') || '').indexOf('home') === 0) {
         _this._startTour();
         return;
       }
       if (attempts++ < 20) { runLater(_this, tryStart, 150); }
     };
     var go = function() { scheduleOnce('afterRender', _this, tryStart); };
-    if (this.get('appState.current_route') === 'caseload') { go(); return; }
+    if ((this.get('tourKey') || '').indexOf('home') === 0) { go(); return; }
     // Route errors resolve to the same poll: if the transition is superseded the
     // poll just times out harmlessly rather than leaving a dangling promise.
-    var t = this.router.transitionTo('caseload');
+    var t = this.router.transitionTo('user.home', this.get('appState.currentUser.user_name'));
     if (t && t.then) { t.then(go, go); } else { go(); }
   },
 
@@ -1131,7 +1131,7 @@ export default Component.extend({
     //  • manual first-time finish: send them to the standalone board picker, bound
     //    to COMPLETE only — finishing means "now go pick a board"; skipping/closing
     //    the tour should NOT yank them away.
-    var firstTimeNav = (isHomeTour && !options.afterComplete && firstTime) ? onPickBoard : null;
+    var firstTimeNav = (isHomeTour && !options.afterComplete && firstTime && !this.get('appState.currentUser.supporter_role')) ? onPickBoard : null; // no board to pick for a supporter (2026-10-12)
     // Options the builder reads:
     //  • handoff — first-time outro: preview the board-picker next step (the green
     //    forward animation + "Pick my board") instead of a dead-end "Finish".
@@ -1148,9 +1148,9 @@ export default Component.extend({
       _this.router.transitionTo('index');
     };
     var builtSteps = builder(isHomeTour ? {
-      handoff: firstTime,
+      handoff: firstTime && !this.get('appState.currentUser.supporter_role'), supporter: !!this.get('appState.currentUser.supporter_role'),
       menu: menuMode,
-      onPickBoard: onPickBoard
+      onPickBoard: this.get('appState.currentUser.supporter_role') ? null : onPickBoard
     } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : {}));
     // Smooth "scroll then show" for every attached step (runner-level, so all
     // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
