@@ -649,3 +649,25 @@ pattern that appears in the killing command itself; it killed the shell twice.
   - Stale text: `testing-frontend.md` 80-85, 222-223, 257-258 and `ci.yml:274` (reproduce shards with
     `timingStrict=1`), `tests/helpers/index.js` and `leak-check.js` header comments; this log's
     earlier "post-test pause REMOVED" entry is superseded (the settle is kept, guards use `owner_gone`).
+
+### Follow-ups fixed the same day (`8c9fe77cf`), on Traci's instruction to fix them before a whole-PR review
+
+- Fixed: timing-strict split pinned by tests (per-test `QUnit.config.current.timingStrict` override;
+  strict and report self-tests); the swallowing `.*modal\.close` match; queued-fetch attribution run
+  in strict mode, report mode asserts the hit was reported; poller tests assert `clearInterval`;
+  fullscreen tests wait on the attempt; afterEach restores in app_state teardown and
+  recommended-home-board; polling positive control; per-branch fetch-probe concurrency; stale docs.
+- Verified: targeted runs green in default and `timingStrict=1` mode. Two mutant builds, every
+  mutant killed by the test aimed at it, positive controls green: report never strict, `[late-read]`
+  dropped, override ignored, attribution ignored, queued fetch not recorded, either poller nulled
+  without `clearInterval`, fullscreen guard removed, app-state poll guard removed.
+- The polling positive control first failed on the leak check (the 200 ms board-load overlay
+  painted with no router to dismiss it), not on its read count; the overlay debounce is stubbed in
+  that case only.
+- Not changed, by decision: the late-assertion reporter stays failing in every run (gating it would
+  make the required run weaker than develop; now documented in testing-frontend.md section 5); the
+  shard-promotion prerequisites (coverage fail-closed, strict-mode compare) are written at the jobs
+  in ci.yml for the PR that makes them required; the utterance lazy fallback, the `raw_events`
+  import path and `isTimingFinding`'s text match stay follow-ups (no runtime effect today).
+- Own slip: a mutant restore ran `git checkout -- app` from `app/frontend`, which missed
+  `tests/`; caught by `git status` before any run, restored from the commit.
