@@ -122,6 +122,24 @@ module('Unit | Utility | board_revocation', function(hooks) {
     return done;
   });
 
+  test("a board outside a supervisee's synced tree is still settled from the root user's verdict", async function(assert) {
+    var persist = persistFor('u1');
+    var progress = persist.get('sync_progress');
+    // the root's verdict already counts supervisee access; u2 does not sync 1_2, so says nothing about it
+    await boardRevocation.fetch_revisions(persist, user('u1', ['u2']), answer({}, ['1_2']));
+    await boardRevocation.fetch_revisions(persist, user('u2'), answer({'1_1': 'r'}, []));
+    assert.deepEqual(boardRevocation.settled_revocations(progress, 'u1', []), ['1_2']);
+  });
+
+  test('a board a synced supervisee lists as viewable only by its key is not settled', async function(assert) {
+    addBoard(this.db, '1_2');
+    var persist = persistFor('u1');
+    var progress = persist.get('sync_progress');
+    await boardRevocation.fetch_revisions(persist, user('u1', ['u2']), answer({}, ['1_2', '1_3']));
+    await boardRevocation.fetch_revisions(persist, user('u2'), answer({'owner/1_2': 'r'}, []));
+    assert.deepEqual(boardRevocation.settled_revocations(progress, 'u1', []), ['1_3']);
+  });
+
   test('nothing is decided when a supervisee did not sync, a supervisee failed, the sync had errors or was canceled', async function(assert) {
     var persist = persistFor('u1');
     var progress = persist.get('sync_progress');

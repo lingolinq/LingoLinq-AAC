@@ -7,9 +7,9 @@ import app_state from './app_state';
 //
 // The server's board_revisions endpoint (include_revoked=1) lists the board ids
 // that exist but that user can no longer view. After a sync of the root user AND
-// every supervisee has fully succeeded, a locally stored board that every one of
-// those users has lost access to is MARKED (raw.revoked = true on its local
-// record). Nothing is ever deleted, and the mark is cleared again by the next
+// every supervisee has fully succeeded, a locally stored board the root user has
+// lost access to (a verdict that counts supervisee access) and that no synced
+// user lists as viewable is MARKED (raw.revoked = true on its local record). Nothing is ever deleted, and the mark is cleared again by the next
 // successful sync that no longer reports the board, or by a re-download.
 //
 // Never acted on: a failed or timed-out revisions request, a response without
@@ -134,11 +134,17 @@ export function fetch_revisions(persist, user, request) {
       if(state) {
         if(parsed.revoked_ids && local && local.list) {
           var lookup = {};
+          var keys = {};
           parsed.revoked_ids.forEach(function(id) { lookup[id] = true; });
           local.list.forEach(function(rec) {
-            if(lookup[rec.id] && rec.key) { lookup[rec.key] = true; }
+            if(lookup[rec.id] && rec.key) {
+              lookup[rec.key] = true;
+              keys[rec.id] = rec.key;
+            }
           });
-          state.users[user_id] = {revoked: parsed.revoked_ids, lookup: lookup};
+          var viewable = {};
+          Object.keys(parsed.revisions).forEach(function(ref) { viewable[ref] = true; });
+          state.users[user_id] = {revoked: parsed.revoked_ids, lookup: lookup, keys: keys, viewable: viewable};
         } else {
           state.failed = true;
         }
@@ -174,20 +180,27 @@ export function note_failure(persist) {
   if(state) { state.failed = true; }
 }
 
-// The ids every synced user has lost access to, or null when the sync does not
-// qualify (anything short of a full, error-free sync of every synced user).
+// The ids the root user has lost access to that no synced user lists as
+// viewable (by id or key), or null when the sync does not qualify (anything
+// short of a full, error-free sync of every synced user). The root user's
+// verdict already counts supervisee access (board_caching
+// update_available_boards). Each user's revoked list covers only that user's
+// own synced tree, so a board missing from a supervisee's response is no
+// evidence either way.
 export function settled_revocations(progress, root_user_id, errors) {
   var state = progress && progress.revocation;
   if(!state || state.failed || progress.canceled || (errors && errors.length > 0)) { return null; }
   if(!state.root || state.root != root_user_id || !state.expected || state.expected.length === 0) { return null; }
-  var lists = [];
+  var entries = [];
   for(var idx = 0; idx < state.expected.length; idx++) {
     var entry = state.users[state.expected[idx]];
     if(!entry) { return null; }
-    lists.push(entry.revoked);
+    entries.push(entry);
   }
-  return lists[0].filter(function(id) {
-    return lists.every(function(list) { return list.indexOf(id) !== -1; });
+  var root = state.users[state.root];
+  return root.revoked.filter(function(id) {
+    var key = root.keys[id];
+    return !entries.some(function(e) { return e.viewable[id] || (key && e.viewable[key]); });
   });
 }
 
