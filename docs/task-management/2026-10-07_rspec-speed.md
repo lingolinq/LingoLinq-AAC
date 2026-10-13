@@ -530,3 +530,14 @@ storage stubs return mini_promise (can hide unhandled rejections); utils persist
 `spread_out` rejects every sync in test mode; `swap_images` saves a copy when `@sub_id` is set;
 history actions render untranslated; persistence `record.important` should read
 `record.raw.important` (existing test encodes the bug, needs approval).
+
+## 2026-10-13: board revocation off switch removed (`fba04618e`)
+
+Owner decision (Traci): board revocation is a fix restoring how sharing was meant to work, so it
+ships with no off switch. Scot's review had also found the switch could not work: it was a hand-set
+environment variable (`BOARD_REVOCATION_DISABLED`), and every deploy replaces the whole env, so it
+was silently dropped. The server no longer reads it or sends `revocation_enabled`; the client's
+stored disabled flag and its guards are gone; the tests that encoded the switch now encode its
+absence. The U7 row above describes the switch as first built. Scot's other findings, verified
+against the code, are being worked: items 1 and 3 (retention sweep re-checks; RemoteAction
+rollback, with the keep-unknown-rows part shipped first as PR #1129), and Mediums 4 to 8.
