@@ -188,6 +188,26 @@ describe Supervising, :type => :model do
       User.link_supervisor_to_user(u2, u3)
       expect(u2.settings['preferences']['role']).to eq('supporter')
     end
+
+    # The auto-set supporter role is undone only when no supervisee is left, read from the
+    # supervision links (settings['supervisees'] is a legacy list the links no longer fill).
+    it "keeps an auto-set supporter role while the supervisor still has a supervisee" do
+      sup = User.create
+      direct = User.create
+      roomed = User.create
+      User.link_supervisor_to_user(sup, direct)
+      User.link_supervisor_to_user(User.find(sup.id), roomed, nil, true, 'room_a')
+      expect(User.find(sup.id).settings['preferences']['role']).to eq('supporter')
+
+      User.strip_rooms_from_supervision(User.find(sup.id), User.find(roomed.id), ['room_a'])
+
+      expect(User.find(roomed.id).supervisor_user_ids).to eq([])
+      expect(User.find(sup.id).settings['preferences']['role']).to eq('supporter')
+      expect(User.find(sup.id).settings['supporter_role_auto_set']).to eq(true)
+
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(direct.id))
+      expect(User.find(sup.id).settings['preferences']['role']).to eq('communicator')
+    end
     
     it "should set the org unit id if defined" do
       u1 = User.create

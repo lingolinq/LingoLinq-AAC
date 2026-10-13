@@ -247,8 +247,11 @@ module Supervising
             supervisor.reload
           end
           supervisor.settings['supervisees'] = (supervisor.settings['supervisees'] || []).select{|s| s['user_id'] != user.global_id }
-          # If a user was auto-subscribed for being added as a supervisor, un-subscribe them when removed
-          if supervisor.settings['supervisees'].empty? && supervisor.settings['supporter_role_auto_set']
+          # If a user was auto-subscribed for being added as a supervisor, un-subscribe them when removed:
+          # only once no supervisee is left, read from the links (the legacy list is no longer filled)
+          code = Webhook.get_record_code(supervisor)
+          supervisees_left = UserLink.links_for(supervisor, true).any?{|l| l['type'] == 'supervisor' && l['record_code'] == code && l['user_id'] != supervisor.global_id }
+          if supervisor.settings['supervisees'].empty? && !supervisees_left && supervisor.settings['supporter_role_auto_set']
             supervisor.settings.delete('supporter_role_auto_set')
             supervisor.settings['preferences']['role'] = 'communicator'
             supervisor.save_with_sync('un-supervisor')
