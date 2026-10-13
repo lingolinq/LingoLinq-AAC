@@ -452,4 +452,66 @@ module('Unit | Utility | board_revocation', function(hooks) {
     var progress = persist.get('sync_progress');
     assert.deepEqual(boardRevocation.settled_revocations(progress, 'u1', []), ['1_4']);
   });
+
+  // A supervisor's device after the link to a supervisee is removed: the server no longer lets it
+  // ask about that supervisee's boards, and the supervisor's own answer covers only their own tree.
+  test('boards of a supervisee removed since the last settled sync are marked, unless a synced user can still view them', async function(assert) {
+    addBoard(this.db, '1_1');
+    var kidBoard = function(db, id, name) {
+      db.board[id] = {id: id, key: 'kid/' + name, raw: {id: id, key: 'kid/' + name, current_revision: 'r1'}};
+    };
+    kidBoard(this.db, '2_5', 'talk');
+    kidBoard(this.db, '2_6', 'shared');
+    kidBoard(this.db, '2_7', 'home');
+    var sup = {id: 'u2', user_name: 'kid', home_board_key: 'kid/home'};
+    var first = persistFor('u1');
+    await boardRevocation.fetch_revisions(first, EmberObject.create({id: 'u1', supervisees: [sup]}), answer({}, []));
+    await boardRevocation.fetch_revisions(first, user('u2'), answer({'2_5': 'r1', '2_6': 'r1', '2_7': 'r1'}, []));
+    await boardRevocation.settle(boardRevocation.settled_decision(first.get('sync_progress'), 'u1', []));
+    assert.notOk(this.db.board['2_5'].raw.revoked, 'while supervised: not marked');
+
+    var second = persistFor('u1');
+    await boardRevocation.fetch_revisions(second, EmberObject.create({id: 'u1', supervisees: []}), answer({'2_6': 'r1'}, []));
+    await boardRevocation.settle(boardRevocation.settled_decision(second.get('sync_progress'), 'u1', []));
+    assert.true(this.db.board['2_5'].raw.revoked, "the removed supervisee's board is marked");
+    assert.true(this.db.board['2_7'].raw.revoked, 'their home board too: it is no longer one of ours');
+    assert.notOk(this.db.board['2_6'].raw.revoked, 'a board the supervisor can still view is not');
+    assert.notOk(this.db.board['1_1'].raw.revoked, "the supervisor's own board is not");
+  });
+
+  test('removed-supervisee marks keep the never-mark cases and apply only to the same signed-in user', async function(assert) {
+    var kidBoard = function(db, id, name) {
+      db.board[id] = {id: id, key: 'kid/' + name, raw: {id: id, key: 'kid/' + name, current_revision: 'r1'}};
+    };
+    kidBoard(this.db, '2_5', 'talk');
+    kidBoard(this.db, '2_8', 'side');
+    kidBoard(this.db, '2_9', 'open');
+    var sup = {id: 'u2', user_name: 'kid'};
+    var first = persistFor('u1');
+    await boardRevocation.fetch_revisions(first, EmberObject.create({id: 'u1', supervisees: [sup]}), answer({}, []));
+    await boardRevocation.fetch_revisions(first, user('u2'), answer({}, []));
+    await boardRevocation.settle(boardRevocation.settled_decision(first.get('sync_progress'), 'u1', []));
+
+    var other = persistFor('u3');
+    await boardRevocation.fetch_revisions(other, EmberObject.create({id: 'u3', supervisees: []}), answer({}, []));
+    await boardRevocation.settle(boardRevocation.settled_decision(other.get('sync_progress'), 'u3', []));
+    assert.notOk(this.db.board['2_5'].raw.revoked, 'another user signed in: nothing marked');
+
+    var unsettled = persistFor('u1');
+    await boardRevocation.fetch_revisions(unsettled, EmberObject.create({id: 'u1', supervisees: []}), answer({}, []));
+    assert.strictEqual(boardRevocation.settled_decision(unsettled.get('sync_progress'), 'u1', [{error: 'x'}]), null, 'a sync with errors decides nothing');
+
+    LingoLinq.appState.setProperties({referenced_user: {preferences: {sidebar_boards: [{key: 'kid/side'}]}}, currentBoardState: {id: '2_9'}});
+    var second = persistFor('u1');
+    await boardRevocation.fetch_revisions(second, EmberObject.create({id: 'u1', supervisees: []}), answer({}, []));
+    var decision = boardRevocation.settled_decision(second.get('sync_progress'), 'u1', []);
+    LingoLinq.appState.set('speak_mode', true);
+    await boardRevocation.settle(decision);
+    assert.notOk(this.db.board['2_5'].raw.revoked, 'Speak Mode: held back');
+    LingoLinq.appState.set('speak_mode', false);
+    await boardRevocation.flush_deferred();
+    assert.true(this.db.board['2_5'].raw.revoked, 'marked once Speak Mode is off');
+    assert.notOk(this.db.board['2_8'].raw.revoked, 'a sidebar board in use is never marked');
+    assert.notOk(this.db.board['2_9'].raw.revoked, 'nor the board on screen');
+  });
 });

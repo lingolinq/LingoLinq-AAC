@@ -18,7 +18,9 @@ import { get as emberGet } from '@ember/object';
 // sync, or a sync that finished with board errors. While Speak Mode is on, new
 // marks wait until it is turned off, so the board in use is never pulled away.
 // A mark is not written over a board downloaded again, or shown as viewable by
-// the server, after the verdict it came from was asked for.
+// the server, after the verdict it came from was asked for. A supervisor's
+// device also marks the boards of a supervisee removed since an earlier settled
+// sync, unless a synced user can still view them (settle).
 //
 // Marked boards are skipped by the sync traversal (they are not sync errors)
 // and left out of find_recent and find_boards; a home or sidebar board is never
@@ -30,6 +32,9 @@ import { get as emberGet } from '@ember/object';
 // marked board as viewable clears it too, whatever else the sync ends with.
 
 var INDEX_KEY = 'revokedBoards';
+// Per root user: the supervisees their last settled sync covered, and the user
+// names of supervisees removed since (see removed_owners).
+var SYNCED_KEY = 'revocationSyncedSupervisees';
 var deferred_marks = null;
 // The decision guard (see decision_guard) the held-back marks were made under.
 var deferred_guard = null;
@@ -138,7 +143,10 @@ export function fetch_revisions(persist, user, request) {
     // Anything the server says about a board after this moment postdates the
     // root user's verdict (see decision_guard).
     state.decided_at = tick();
-    state.expected = [user_id].concat((user.get('supervisees') || []).map(function(s) { return s && s.id; }).filter(function(id) { return !!id; }));
+    state.supervisees = (user.get('supervisees') || []).filter(function(s) { return s && s.id; }).map(function(s) {
+      return {id: s.id, user_name: s.user_name};
+    });
+    state.expected = [user_id].concat(state.supervisees.map(function(s) { return s.id; }));
   }
   var prep = RSVP.resolve(null);
   if(state) {
@@ -239,7 +247,7 @@ export function settled_decision(progress, root_user_id, errors) {
       return e.viewable[id] || (key && e.viewable[key]) || e.protected[id] || (key && e.protected[key]);
     });
   });
-  return {ids: ids, at: state.decided_at, local: state.local};
+  return {ids: ids, at: state.decided_at, local: state.local, root: state.root, supervisees: state.supervisees || [], entries: entries};
 }
 
 // What a settled decision's marks are checked against when they are written:
@@ -392,9 +400,68 @@ export function finish_sync(persist, root_user_id, errors) {
   return decision ? decision.ids : null;
 }
 
-// Applies a settled decision.
+// Applies a settled decision, adding the stored boards of supervisees removed
+// from the root user since an earlier settled sync. The server no longer
+// answers board_revisions for a removed supervisee, and the root user's own
+// answer covers only the root user's tree, so the verdict alone never names
+// those boards. Resolves with the ids applied.
 export function settle(decision) {
-  return apply_revocations(decision.ids, decision);
+  return load_synced().then(function(synced) {
+    var removed = removed_owners(decision, synced[decision.root]);
+    // The board on screen is left alone, like a home or sidebar board.
+    var on_screen = app_state.get ? app_state.get('currentBoardState.id') : null;
+    return RSVP.resolve(decision.local).then(function(local) {
+      var ids = decision.ids.slice();
+      ((local && local.list) || []).forEach(function(rec) {
+        var owner = rec.key && rec.key.split('/')[0];
+        var refs = [rec.id, rec.key];
+        var kept = decision.entries.some(function(e) {
+          return refs.some(function(ref) { return e.viewable[ref] || e.protected[ref]; });
+        });
+        if(owner && removed.indexOf(owner) !== -1 && !kept && rec.id != on_screen && ids.indexOf(rec.id) === -1) {
+          ids.push(rec.id);
+        }
+      });
+      return apply_revocations(ids, decision).then(function() {
+        var next = Object.assign({}, synced);
+        next[decision.root] = {supervisees: decision.supervisees, removed: removed};
+        return save_synced(next);
+      }).then(function() { return ids; });
+    });
+  });
+}
+
+// User names of the root user's supervisees that are gone: those the last
+// settled sync covered and this one does not, and those already gone before,
+// unless they are supervisees again. previous is null for a root user this
+// device has not settled a sync for, so nothing counts as removed.
+function removed_owners(decision, previous) {
+  var ids = {};
+  var names = {};
+  decision.supervisees.forEach(function(s) {
+    ids[s.id] = true;
+    if(s.user_name) { names[s.user_name] = true; }
+  });
+  var removed = {};
+  ((previous && previous.removed) || []).forEach(function(name) {
+    if(!names[name]) { removed[name] = true; }
+  });
+  ((previous && previous.supervisees) || []).forEach(function(s) {
+    if(s && !ids[s.id] && s.user_name && !names[s.user_name]) { removed[s.user_name] = true; }
+  });
+  return Object.keys(removed);
+}
+
+function load_synced() {
+  return stored(lingoLinqExtras.storage.find('settings', SYNCED_KEY)).then(function(rec) {
+    return (rec && rec.raw && rec.raw.by_root) || {};
+  }, function() {
+    return {};
+  });
+}
+
+function save_synced(by_root) {
+  return stored(lingoLinqExtras.storage.store('settings', {raw: {by_root: by_root}, storageId: SYNCED_KEY, id: SYNCED_KEY})).then(null, function() { });
 }
 
 export function has_deferred() {
