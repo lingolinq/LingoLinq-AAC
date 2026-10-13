@@ -3,9 +3,11 @@ require 'spec_helper'
 describe AiConsent::DisclosuresController, :type => :controller do
   render_views
 
+  let(:current_version) { LingoLinq::AiConsentDisclosures::CURRENT_VERSION.to_s }
+
   describe "GET show" do
     it "renders 200 for a known version, with named vendors, retention, and revocation copy" do
-      get :show, params: {version: '1'}
+      get :show, params: {version: current_version}
       expect(response).to be_successful
       body = response.body
       expect(body).to include('Anthropic')
@@ -13,7 +15,7 @@ describe AiConsent::DisclosuresController, :type => :controller do
       # Anthropic identified the wrong processor (corrected 2026-08-02).
       expect(body).to include('Amazon Web Services, Inc.')
       expect(body).to include('Amazon Bedrock')
-      expect(body).to include('Claude Haiku 4.5')
+      expect(body).to include('Claude Haiku 5.5')
       # Not invoked on the classic plane, so it must not be advertised as in use.
       expect(body).not_to include('Claude Opus 4.7')
       # Google Gemini fallback disabled 2026-07-09 (PR #570) -- no longer a live vendor
@@ -36,7 +38,7 @@ describe AiConsent::DisclosuresController, :type => :controller do
     # the metadata alone did NOT fix what a parent reads, and no artifact check
     # covers rendered output. These assert the page itself.
     it "asserts none of the banned AI claims anywhere in the rendered page" do
-      get :show, params: {version: '1'}
+      get :show, params: {version: current_version}
       offenders = AiDisclosureClaims.offending_claims(response.body)
       expect(offenders).to be_empty, "rendered consent page still #{offenders.join('; ')}"
     end
@@ -46,12 +48,12 @@ describe AiConsent::DisclosuresController, :type => :controller do
     # a district reviewer. Asserted here so the guard above can never be "satisfied"
     # by deleting the disclaimer instead of the false claim.
     it "keeps the disclaimer that the runtime path is not Anthropic's commercial API" do
-      get :show, params: {version: '1'}
+      get :show, params: {version: current_version}
       expect(response.body).to match(/not Anthropic&#39;s commercial API|not Anthropic's commercial API/)
     end
 
     it "does not present evaluation data as being sent while eval narration is inactive" do
-      get :show, params: {version: '1'}
+      get :show, params: {version: current_version}
       body = response.body
       expect(body).to match(/evaluation/i)
       # Whatever sentence mentions evaluation data must mark it inactive.
@@ -60,21 +62,21 @@ describe AiConsent::DisclosuresController, :type => :controller do
     end
 
     it "renders each vendor's own training note rather than a boolean-derived sentence" do
-      get :show, params: {version: '1'}
+      get :show, params: {version: current_version}
       body = response.body
-      LingoLinq::AiConsentDisclosures.metadata(1)['vendors'].each do |vendor|
+      LingoLinq::AiConsentDisclosures.metadata(current_version)['vendors'].each do |vendor|
         expect(body).to include(vendor['training_note']),
                         "rendered page is missing the registry training_note for #{vendor['name']}"
       end
     end
 
     it "renders the same content_hash the module exposes for that version" do
-      get :show, params: {version: '1'}
-      expect(response.body).to include(LingoLinq::AiConsentDisclosures.content_hash(1))
+      get :show, params: {version: current_version}
+      expect(response.body).to include(LingoLinq::AiConsentDisclosures.content_hash(current_version))
     end
 
     it "does not require authentication" do
-      get :show, params: {version: '1'}
+      get :show, params: {version: current_version}
       expect(response.status).to eq(200)
     end
 
@@ -91,6 +93,26 @@ describe AiConsent::DisclosuresController, :type => :controller do
     it "renders without the application layout (fragment, not a full document)" do
       get :show, params: {version: '1'}
       expect(response.body).not_to include('<html')
+      get :show, params: {version: current_version}
+      expect(response.body).not_to include('<html')
+    end
+
+    # Version 2 reuses the version 1 template with version 2 facts. Both must render
+    # their OWN facts: version 1 stays the record of what a version-1 consent saw.
+    it "renders version 1 with Haiku 4.5 and version 2 with Haiku 5.5, each with its own hash" do
+      get :show, params: {version: '1'}
+      v1 = response.body
+      expect(v1).to include('data-disclosure-version="1"')
+      expect(v1).to include('Claude Haiku 4.5')
+      expect(v1).not_to include('Claude Haiku 5.5')
+      expect(v1).to include(LingoLinq::AiConsentDisclosures.content_hash(1))
+
+      get :show, params: {version: '2'}
+      v2 = response.body
+      expect(v2).to include('data-disclosure-version="2"')
+      expect(v2).to include('Claude Haiku 5.5')
+      expect(v2).not_to include('Claude Haiku 4.5')
+      expect(v2).to include(LingoLinq::AiConsentDisclosures.content_hash(2))
     end
   end
 
@@ -107,6 +129,30 @@ describe AiConsent::DisclosuresController, :type => :controller do
     it "does not require authentication" do
       get :show, params: {version: 'art50_v1'}
       expect(response.status).to eq(200)
+    end
+
+    # The frontend links to art50_v<CURRENT_VERSION>. Version 2 reuses the version 1
+    # template with version 2 facts; version 1 keeps rendering its own.
+    it "renders art50_v2 with Haiku 5.5 and art50_v1 still with Haiku 4.5" do
+      get :show, params: {version: 'art50_v2'}
+      expect(response.status).to eq(200)
+      v2 = response.body
+      expect(v2).to include('data-disclosure-version="2"')
+      expect(v2).to include('Claude Haiku 5.5')
+      expect(v2).not_to include('Claude Haiku 4.5')
+      expect(v2).to include(LingoLinq::Article50Disclosures.content_hash(2))
+      expect(AiDisclosureClaims.offending_claims(v2)).to be_empty
+
+      get :show, params: {version: 'art50_v1'}
+      v1 = response.body
+      expect(v1).to include('Claude Haiku 4.5')
+      expect(v1).not_to include('Claude Haiku 5.5')
+    end
+
+    it "renders the Spanish translation of art50_v2 when locale=es" do
+      get :show, params: {version: 'art50_v2', locale: 'es'}
+      expect(response.status).to eq(200)
+      expect(response.body).to include(I18n.t('art50_disclosures.v1.page_title', locale: :es))
     end
 
     it "renders without the application layout (fragment, not a full document)" do

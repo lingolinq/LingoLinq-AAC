@@ -4,12 +4,55 @@ require 'spec_helper'
 
 describe LingoLinq::AiConsentDisclosures do
   describe '::CURRENT_VERSION' do
-    it 'is 1' do
-      expect(described_class::CURRENT_VERSION).to eq(1)
+    it 'is 2' do
+      expect(described_class::CURRENT_VERSION).to eq(2)
     end
 
     it 'is a known version' do
       expect(described_class.known_version?(described_class::CURRENT_VERSION)).to eq(true)
+    end
+  end
+
+  # Version 2 exists only because the runtime model changed (Haiku 4.5 -> 5.5).
+  # These pin that it changed nothing else, and that version 1 still says what a
+  # version-1 consent was given against.
+  describe 'version 2 (runtime model change)' do
+    def comparable(version)
+      described_class.metadata(version).except('version', 'content_hash', 'effective_date')
+    end
+
+    it 'differs from version 1 only in the model named' do
+      v1_renamed = JSON.parse(
+        comparable(1).to_json
+          .gsub('Claude Haiku 4.5 (claude-haiku-4-5-20251001)', 'Claude Haiku 5.5 (claude-haiku-5-5)')
+          .gsub('Claude Haiku 4.5', 'Claude Haiku 5.5')
+      )
+      expect(comparable(2)).to eq(v1_renamed)
+      expect(comparable(2)).not_to eq(comparable(1))
+    end
+
+    it 'keeps version 1 naming Claude Haiku 4.5, unchanged' do
+      v1 = described_class.metadata(1)
+      expect(v1['effective_date']).to eq('2026-07-09')
+      expect(v1.to_json).to include('Claude Haiku 4.5 (claude-haiku-4-5-20251001)')
+      expect(v1.to_json).not_to include('Haiku 5.5')
+    end
+
+    it 'names Claude Haiku 5.5 and no longer names Haiku 4.5' do
+      v2 = described_class.metadata(2)
+      expect(v2['effective_date']).to eq('2026-10-13')
+      expect(v2.to_json).to include('Claude Haiku 5.5 (claude-haiku-5-5)')
+      expect(v2.to_json).not_to include('Haiku 4.5')
+    end
+
+    # Ties the disclosure to the code: every model the runtime allowlist can send
+    # data to must be named in the current version.
+    it 'names every model in AiClient::ALLOWED_RUNTIME_MODELS' do
+      models = described_class.metadata(described_class::CURRENT_VERSION)['vendors']
+                              .flat_map { |v| v['models'] }.join(' ')
+      AiClient::ALLOWED_RUNTIME_MODELS.each do |model_alias|
+        expect(models).to include(model_alias.delete_prefix('anthropic.'))
+      end
     end
   end
 
@@ -26,12 +69,12 @@ describe LingoLinq::AiConsentDisclosures do
     end
 
     it 'names AWS as the processor and Anthropic as the model provider' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       names = m['vendors'].map { |v| v['name'] }
       expect(names).to include('Amazon Web Services, Inc.')
       expect(names).to include('Anthropic, PBC')
       models = m['vendors'].flat_map { |v| v['models'] }.join(' ')
-      expect(models).to include('Claude Haiku 4.5')
+      expect(models).to include('Claude Haiku 5.5')
       # Opus 4.7 is not invoked on the classic Bedrock plane (absent from the catalog),
       # so eval narration egresses nothing and the model must not be named here.
       expect(models).not_to include('Claude Opus 4.7')
@@ -50,7 +93,7 @@ describe LingoLinq::AiConsentDisclosures do
     # appears in the active set and the inactive-language requirement lifts
     # automatically.
     it 'never implies eval-narration egress while eval narration is not an active feature' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       active = m['vendors'].flat_map { |v| v['features'] || [] }.uniq
 
       if active.include?('eval_narrator')
@@ -73,7 +116,7 @@ describe LingoLinq::AiConsentDisclosures do
     # AWS-operated accounts the provider cannot access. Saying data is sent
     # "to Anthropic" names the wrong recipient.
     it 'does not name Anthropic as the recipient of runtime data' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       expect(m['revocation_summary']).not_to match(/to Anthropic/i)
       expect(m['retention']['vendor_side']).not_to match(/sent to Anthropic/i)
     end
@@ -85,7 +128,7 @@ describe LingoLinq::AiConsentDisclosures do
     end
 
     it 'does not list Google Gemini as a vendor (fallback disabled 2026-07-09, PR #570)' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       gemini = m['vendors'].find { |v| v['name'].include?('Google') }
       expect(gemini).to be_nil
       expect(JSON.generate(m)).not_to match(/gemini/i)
@@ -98,18 +141,18 @@ describe LingoLinq::AiConsentDisclosures do
     end
 
     it 'never uses the word "de-identified" anywhere in the metadata text' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       expect(JSON.generate(m)).not_to match(/de-identified/i)
     end
 
     it 'does not claim unqualified "never trains"' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       serialized = JSON.generate(m)
       expect(serialized).not_to match(/never trains/i)
     end
 
     it 'returns retention metadata with the EU/children/general split, not a single blanket number' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       retention = m['retention']
       expect(retention['lingolinq_eu']['window_years']).to eq(5)
       # false, corrected 2026-08-30 with the #888 retraction pass: the 5-year EU
@@ -132,14 +175,14 @@ describe LingoLinq::AiConsentDisclosures do
     # "Article 50 record-keeping" basis (#888 retraction, adversary pass
     # 2026-08-31).
     it 'states the EU window basis as under counsel review without reasserting the retracted Article 50 record-keeping basis' do
-      note = described_class.metadata(1)['retention']['lingolinq_eu']['note']
+      note = described_class.metadata(described_class::CURRENT_VERSION)['retention']['lingolinq_eu']['note']
       expect(note).to match(/Article 50 is a transparency rule and imposes no record-keeping period/)
       expect(note).to match(/under review with counsel/i)
       expect(note).not_to match(/Article 50 record-keeping/i)
     end
 
     it 'includes data categories and a scrubbing note' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       expect(m['data_categories']).to be_an(Array)
       # Word prediction + eval narration only -- AI board generation was reclassified
       # Non-personal 2026-07-09 (Scot) and is deliberately not gated by this consent.
@@ -149,21 +192,22 @@ describe LingoLinq::AiConsentDisclosures do
     end
 
     it 'includes a revocation summary' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       expect(m['revocation_summary']).to be_a(String)
       expect(m['revocation_summary']).to match(/withdraw/i)
     end
 
     it 'includes the resolved version number and a content hash' do
-      m = described_class.metadata(1)
-      expect(m['version']).to eq(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
+      expect(m['version']).to eq(2)
       expect(m['content_hash']).to match(/\A[0-9a-f]{64}\z/)
+      expect(m['content_hash']).not_to eq(described_class.content_hash(1))
     end
 
     it 'returns a deep copy: mutating the result does not mutate the REGISTRY' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       m['vendors'] << { 'name' => 'Evil Corp' }
-      m2 = described_class.metadata(1)
+      m2 = described_class.metadata(described_class::CURRENT_VERSION)
       expect(m2['vendors'].map { |v| v['name'] }).not_to include('Evil Corp')
     end
   end
@@ -191,9 +235,10 @@ describe LingoLinq::AiConsentDisclosures do
   end
 
   describe '.known_version?' do
-    it 'is true for CURRENT_VERSION and false for an unknown version' do
+    it 'is true for CURRENT_VERSION and earlier versions, false for an unknown version' do
       expect(described_class.known_version?(1)).to eq(true)
-      expect(described_class.known_version?(2)).to eq(false)
+      expect(described_class.known_version?(2)).to eq(true)
+      expect(described_class.known_version?(3)).to eq(false)
       expect(described_class.known_version?(nil)).to eq(false)
     end
   end

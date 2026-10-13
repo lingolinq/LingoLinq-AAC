@@ -530,6 +530,16 @@ describe AiClient do
         end
       end
 
+      # The `us.` geo profile, not `global.`, so inference stays in US Regions.
+      it 'maps Claude Haiku 5.5 to its us. geo inference profile' do
+        with_env({}) do
+          expect(described_class.bedrock_model('anthropic.claude-haiku-5-5'))
+            .to eq('us.anthropic.claude-haiku-5-5')
+          expect(described_class.bedrock_model('claude-haiku-5-5'))
+            .to eq('us.anthropic.claude-haiku-5-5')
+        end
+      end
+
       it 'normalizes a missing anthropic. prefix before mapping' do
         with_env({}) do
           expect(described_class.bedrock_model('claude-haiku-4-5'))
@@ -619,16 +629,20 @@ describe AiClient do
 
     it 'uses the vetted default when no override is set' do
       with_model(nil) do
-        expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
-          .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0')
+        expect(described_class.runtime_model('anthropic.claude-haiku-5-5'))
+          .to eq('us.anthropic.claude-haiku-5-5')
       end
     end
 
     it 'accepts an allowlisted override' do
-      with_model('anthropic.claude-haiku-4-5') do
-        expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
-          .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0')
+      with_model('anthropic.claude-haiku-5-5') do
+        expect(described_class.runtime_model('anthropic.claude-haiku-5-5'))
+          .to eq('us.anthropic.claude-haiku-5-5')
       end
+    end
+
+    it 'allowlists exactly Claude Haiku 5.5, the model the disclosures name' do
+      expect(described_class::ALLOWED_RUNTIME_MODELS).to eq(['anthropic.claude-haiku-5-5'])
     end
 
     # The Covered Models CLAUDE.md bars from Tier 1 (mandatory 30-day retention),
@@ -638,12 +652,30 @@ describe AiClient do
       [
         'anthropic.claude-fable-5',
         'anthropic.claude-mythos-5',
+        'anthropic.claude-fable-5-1',
+        'anthropic.claude-mythos-5-1',
         'meta.llama3-70b-instruct-v1:0',
         'anthropic.claude-opus-4-7'
       ].each do |bad|
         with_model(bad) do
-          expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
-            .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0'), "leaked for #{bad}"
+          expect(described_class.runtime_model('anthropic.claude-haiku-5-5'))
+            .to eq('us.anthropic.claude-haiku-5-5'), "leaked for #{bad}"
+        end
+      end
+    end
+
+    # Haiku 4.5 left the allowlist on 2026-10-13. A deployment still carrying an old
+    # ANTHROPIC_MODEL value (bare, dated or profile form) must not keep sending data
+    # to a model the current disclosures no longer name.
+    it 'refuses the retired Haiku 4.5 in every id form and uses the vetted default' do
+      [
+        'anthropic.claude-haiku-4-5',
+        'claude-haiku-4-5-20251001',
+        'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+      ].each do |old|
+        with_model(old) do
+          expect(described_class.runtime_model('anthropic.claude-haiku-5-5'))
+            .to eq('us.anthropic.claude-haiku-5-5'), "still allowed #{old}"
         end
       end
     end
@@ -658,13 +690,14 @@ describe AiClient do
         'apac.meta.llama3-70b-instruct-v1:0'
       ].each do |bad|
         with_model(bad) do
-          expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
-            .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0'), "leaked for #{bad}"
+          expect(described_class.runtime_model('anthropic.claude-haiku-5-5'))
+            .to eq('us.anthropic.claude-haiku-5-5'), "leaked for #{bad}"
         end
       end
     end
 
     it 'canonicalizes profile, dated and bare forms to the same allowlist key' do
+      expect(described_class.allowed_runtime_model?('us.anthropic.claude-haiku-5-5')).to eq(true)
       expect(described_class.canonical_alias('us.anthropic.claude-haiku-4-5-20251001-v1:0'))
         .to eq('anthropic.claude-haiku-4-5')
       expect(described_class.canonical_alias('claude-haiku-4-5')).to eq('anthropic.claude-haiku-4-5')
