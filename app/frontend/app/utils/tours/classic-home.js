@@ -40,17 +40,17 @@ function _classic_home_tour_i18n_extractor_no_op() {
   i18n.t('classic_tour_welcome_title', "Welcome to your home page");
 }
 
-// Centered intro step (no attachTo) — frames what the page is for.
-function welcomeStep(supporter) {
+// Centered intro step (no attachTo). A supporter's (an SLP's) tour; a communicator gets the shared
+// welcome card instead (buildClassicHomeSteps).
+function welcomeStep() {
   return {
     id: 'classic_tour_welcome',
     title: decoratedTitle('classic_tour_welcome_title', "Welcome to your home page", CLASSIC),
     text: tourChecklist([
-      i18n.t('classic_tour_welcome_b1', "Start talking in one tap"),
-      // How communication is going is Reports; a communicator is not told about it (2026-10-12).
-      supporter ? i18n.t('classic_tour_welcome_b2', "See how communication is going") : null,
-      i18n.t('classic_tour_welcome_b3', "Find every other tool in one place")
-    ].filter(Boolean), i18n.t('classic_tour_welcome_lead', "A quick walk through the things you will use most."), null, CLASSIC),
+      i18n.t('classic_tour_slp_welcome_b1', "Your boards"),
+      i18n.t('classic_tour_slp_welcome_b2', "Your caseload, and modeling on their boards"),
+      i18n.t('classic_tour_slp_welcome_b3', "Your dashboard")
+    ], i18n.t('classic_tour_welcome_lead', "A quick walk through the things you will use most."), null, CLASSIC),
     classes: 'ch-tour__step ch-tour__step--intro',
     buttons: [
       {
@@ -67,84 +67,79 @@ function welcomeStep(supporter) {
   };
 }
 
-// The interior spotlights. REGIONS, NOT ITEMS (2026-10-09): this was six steps, one per
-// control — account, setup rows, Speak, Reports, Extras, tabs. It now describes each MENU as a
-// whole, which is both shorter and more durable: a step bound to `.ch-rail` keeps working when a
-// row is added or a card is renamed, where `.ch-tile--speak-main` did not.
+// THE SLP TOPICS (2026-10-12, tour redesign: docs/task-management/2026-10-12_tour-redesign.md). Requested:
+// "SLPs: favorites, caseload, Model, dashboards." Basic's Boards tab has no favorites view (Suggested,
+// Mine, Community, Recent), so that step is "Your boards". Model is a tile on each communicator card
+// (`.ch-comm__actions`, classic-view.hbs), on the Communicators tab.
 //
 //   `sel`    — target selector (first VISIBLE match wins)
+//   `tab`    — the tab the target lives on; the step opens it first, and is kept at build time when
+//              the target is not on screen but the tab is, then skipped at show time if still absent
 //   `on`     — popover placement; floating-ui flips automatically if there is no room
 //   `padded` — region targets that want a roomy rounded cutout rather than a tight hug
 //   `last`   — ends the tour from this step instead of a separate outro
-function interiorSteps(supporter) {
+function interiorSteps() {
   return [
     {
-      // The whole rail: identity block AND the setup rows under it, which used to be two
-      // separate steps hugging `.ch-rail__identity` and `.ch-rail__list`.
-      id: 'classic_tour_rail',
+      id: 'classic_tour_slp_boards',
+      sel: '.ch-tabs [data-tour-tab="boards"]',
+      on: 'bottom',
+      padded: true,
+      title: i18n.t('classic_tour_slp_boards_title', "Your boards"),
+      text: tourChecklist([
+        i18n.t('classic_tour_slp_boards_b1', "Boards has Suggested, Mine, Community and Recent"),
+        i18n.t('classic_tour_slp_boards_b2', "Create a board, or find one for a communicator")
+      ], null, null, CLASSIC)
+    },
+    {
+      id: 'classic_tour_slp_caseload',
+      sel: '.ch-tabs [data-tour-tab="supervisees"]',
+      on: 'bottom',
+      padded: true,
+      title: i18n.t('classic_tour_slp_caseload_title', "Your caseload"),
+      text: tourChecklist([
+        i18n.t('classic_tour_slp_caseload_b1', "Communicators lists everyone you support"),
+        i18n.t('classic_tour_slp_caseload_b2', "Each card has their goal, reports and boards")
+      ], null, null, CLASSIC)
+    },
+    {
+      id: 'classic_tour_slp_model',
+      sel: '.ch-comm__actions',
+      tab: 'supervisees',
+      on: 'bottom',
+      padded: true,
+      title: i18n.t('classic_tour_slp_model_title', "Model on their board"),
+      text: tourChecklist([
+        i18n.t('classic_tour_slp_model_b1', "Model opens a communicator's board so you can show words as you talk"),
+        i18n.t('classic_tour_slp_model_b2', "It appears once that communicator has a home board")
+      ], null, null, CLASSIC)
+    },
+    {
+      id: 'classic_tour_slp_dashboards',
       sel: '.ch-rail',
       on: 'right',
       padded: true,
-      title: i18n.t('classic_tour_rail_title', "Your side menu"),
-      text: tourChecklist([
-        i18n.t('classic_tour_rail_b1', "Who you are signed in as, and your account settings"),
-        supporter ?
-          i18n.t('classic_tour_rail_b2', "Your home board, your supporters and logging") :
-          i18n.t('classic_tour_rail_b2_communicator', "Your home board and your supporters"),
-        i18n.t('classic_tour_rail_b3', "It stays in the same place on every screen")
-      ], null, null, CLASSIC)
-    },
-    {
-      // The Actions / Boards / Updates strip.
-      id: 'classic_tour_tabs',
-      sel: '.ch-tabs',
-      on: 'bottom',
-      padded: true,
-      title: i18n.t('classic_tour_tabs_title', "Switch between views"),
-      text: tourChecklist([
-        i18n.t('classic_tour_tabs_b1', "Actions is what you see now"),
-        i18n.t('classic_tour_tabs_b2', "Boards browses and finds boards"),
-        i18n.t('classic_tour_tabs_b3', "Updates has notifications and recent sessions")
-      ], null, null, CLASSIC)
-    },
-    {
-      // The whole Actions row, replacing the separate Speak / Reports / Extras steps.
-      // `:not(.ch-grid--extras)` so an open Extras drawer does not win the match — both
-      // carry `.ch-grid`, and the drawer is the later element in the DOM.
-      id: 'classic_tour_cards',
-      sel: '.ch-grid:not(.ch-grid--extras)',
-      tab: 'main',
-      on: 'top',
-      padded: true,
       last: true,
-      title: i18n.t('classic_tour_cards_title', "Your main actions"),
+      title: i18n.t('classic_tour_slp_dash_title', "Your dashboard"),
       text: tourChecklist([
-        i18n.t('classic_tour_cards_b1', "Speak opens your board ready to talk"),
-        supporter ? i18n.t('classic_tour_cards_b2', "Reports shows how communication is going") : null,
-        i18n.t('classic_tour_cards_b3', "Extras opens the rest of your tools")
-      ].filter(Boolean), i18n.t('classic_tour_cards_lead', "You can take this tour again any time from the side menu."), null, CLASSIC)
+        i18n.t('classic_tour_slp_dash_b1', "Rooms takes you into a room and its communicators"),
+        i18n.t('classic_tour_slp_dash_b2', "Your home board, logging and offline sync live here")
+      ], i18n.t('classic_tour_cards_lead', "You can take this tour again any time from the side menu."), null, CLASSIC)
     }
   ];
 }
 
-/* THE TOUR IS OF THE ACTIONS TAB (2026-10-02, adversarial review). Its Speak, Reports and Extras
-   steps live on that tab, and the tabs step says "Actions is what you see now". Started on another
-   tab, those tiles were not rendered, so their steps were dropped (and Reports matched a
-   communicator card's link). So the first interior step switches to Actions through the tab's own
-   button (`data-tour-tab="main"`, classic-view.hbs), and an Actions-tab step is kept at build time
-   whenever that tab exists, then skipped at show time (`showOn`) if its tile is not there -- which
-   still drops Speak for a supporter, whose Actions tab has no Speak card. */
-var ACTIONS_TAB = '.ch-tabs [data-tour-tab="main"]';
-function showActionsTab() {
-  var tab = document.querySelector(ACTIONS_TAB);
+// Opens the tab a step's target lives on, through the tab's own button (`data-tour-tab`, classic-view.hbs).
+function tabButton(name) { return document.querySelector('.ch-tabs [data-tour-tab="' + name + '"]'); }
+function showTab(name) {
+  var tab = tabButton(name);
   if (tab && !tab.classList.contains('is-active')) { tab.click(); }
 }
 
-function pushInteriorSteps(steps, supporter) {
-  var first = true;
-  interiorSteps(supporter).forEach(function(cfg) {
+function pushInteriorSteps(steps) {
+  interiorSteps().forEach(function(cfg) {
     var el = visibleEl(cfg.sel);
-    var later = !el && cfg.tab === 'main' && !!document.querySelector(ACTIONS_TAB);
+    var later = !el && !!cfg.tab && !!tabButton(cfg.tab);
     if (!el && !later) { return; }
     var wait = waitForElement(cfg.sel);
     var step = {
@@ -153,15 +148,15 @@ function pushInteriorSteps(steps, supporter) {
       // painted a beat late (common under deployment latency, where the DOM is not as
       // instant as on a dev machine) is still spotlighted.
       attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
-      beforeShowPromise: first ? function() { showActionsTab(); return wait(); } : wait,
+      beforeShowPromise: cfg.tab ? function() { showTab(cfg.tab); return wait(); } : wait,
       title: cfg.title,
       text: cfg.text,
-      classes: 'ch-tour__step' + (cfg.cls ? ' ' + cfg.cls : ''),
+      classes: 'ch-tour__step',
       // The final step ends the tour itself, so there is no separate outro screen.
       //
       // An ACTION, not `type: 'complete'`: ember-shepherd's makeButton accepts only
       // back/cancel/next as types and ASSERTS otherwise, which in a development build once
-      // stopped this whole tour from starting. Carried over from the outro step this replaces.
+      // stopped this whole tour from starting.
       buttons: cfg.last ? [
         standardButtons(CLASSIC)[0],
         {
@@ -173,14 +168,13 @@ function pushInteriorSteps(steps, supporter) {
     };
     // Force a scroll for every step so placement is consistent, rather than the runner's
     // "already visible? skip" fast-path, which would let floating-ui flip the popover.
-    step.scrollBlock = cfg.block || 'center';
+    step.scrollBlock = 'center';
     if (cfg.padded) {
       step.modalOverlayOpeningPadding = 12;
       step.modalOverlayOpeningRadius = 18;
       step.matchTargetRadius = false;
     }
     if (cfg.tab) { step.showOn = function() { return !!visibleBySelector(cfg.sel); }; }
-    first = false;
     steps.push(step);
   });
 }
@@ -195,9 +189,9 @@ function buildClassicHomeSteps(options) {
   // A COMMUNICATOR gets the one-card welcome (Start talking now / Choose a different board / Take a quick
   // tour), in Basic's skin; their tour runs on their board (2026-10-12, tour redesign).
   if (!options.supporter) { return [communicatorWelcomeStep(true)]; }
-  // A supporter's tour leaves out nothing; a communicator's left out Reports and logging (2026-10-12).
-  steps.push(welcomeStep(options.supporter));
-  pushInteriorSteps(steps, options.supporter);
+  // A SUPPORTER (an SLP): five steps (2026-10-12, "5 steps with a welcome").
+  steps.push(welcomeStep());
+  pushInteriorSteps(steps);
   return steps;
 }
 

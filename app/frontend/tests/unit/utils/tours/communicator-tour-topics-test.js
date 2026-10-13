@@ -21,6 +21,9 @@ module('Unit | Utility | tours | a communicator hears no supporter tools', funct
     var grid = put('ch-grid');
     var tab = document.createElement('button'); tab.setAttribute('data-tour-tab', 'main'); added[3].appendChild(tab);
     grid.textContent = 'x';
+    // The caseload targets of the supporter (SLP) tour (2026-10-12 redesign), which is where it names reports.
+    put('md-card--caseload');
+    var comm = document.createElement('button'); comm.setAttribute('data-tour-tab', 'supervisees'); comm.textContent = 'c'; added[3].appendChild(comm);
   });
   hooks.afterEach(function() { added.forEach(function(e) { e.remove(); }); added = []; });
 
