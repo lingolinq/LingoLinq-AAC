@@ -25,4 +25,13 @@ QUnit.module('Integration | display-style disc', function(hooks) {
     assert.strictEqual(typeof this.owner.lookup('service:app-state').get('dashboard_design_opener'), 'function',
       'the opener other entry points use is registered');
   });
+
+  // In the View menu now (2026-10-13): the navbar mounts it without its button, and the menu's Display
+  // item opens the page through the same opener (components/view-switcher.js#open_display_style).
+  QUnit.test('@triggerless: no button, but the opener is still registered', async function(assert) {
+    await render(hbs`<DisplayStyle @triggerless={{true}} />`);
+    assert.dom('.md-display-style__trigger').doesNotExist('no button in the navbar');
+    assert.strictEqual(typeof this.owner.lookup('service:app-state').get('dashboard_design_opener'), 'function',
+      'the View menu and the drawer can still open it');
+  });
 });

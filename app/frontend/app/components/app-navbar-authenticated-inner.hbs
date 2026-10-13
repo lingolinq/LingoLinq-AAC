@@ -38,7 +38,7 @@
              so a supporter can switch style from either. Mounting it here also
              registers `appState.dashboard_design_opener`, which the ≤640px drawer
              button below depends on — keep the two route lists in sync. --}}
-        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle />{{/if}}{{/unless}}
+        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle @triggerless={{true}} />{{/if}}{{/unless}}
       </span>
     {{/if}}
     {{!-- App-wide Classic/Modern switch. Sits AFTER the home-actions cluster so it

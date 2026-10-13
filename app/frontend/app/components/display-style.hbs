@@ -3,7 +3,11 @@
      .app-navbar__home-actions). Pinned in the inner-header on the home page only.
      NOTE: this control still invokes `startDisplayStyle` / the tour component for
      now — the class + visible label have been repurposed to "Display Style"; the
-     underlying action/behavior is a separate (pending) change. --}}
+     underlying action/behavior is a separate (pending) change.
+     `@triggerless` (2026-10-13): the navbar mounts it WITHOUT this button, since the entry point moved
+     into the View menu's DISPLAY group (components/view-switcher.hbs); mounting still registers
+     `appState.dashboard_design_opener`, which that menu item and the phone drawer open the page through. --}}
+{{#unless @triggerless}}
 <button
   type="button"
   class="md-display-style__trigger display-style"
@@ -25,3 +29,4 @@
   {{!-- Label ("Display Style") shows at all widths (see app.scss). --}}
   <span class="md-display-style__trigger-label">{{t "Display Style" key="display_style"}}</span>
 </button>
+{{/unless}}

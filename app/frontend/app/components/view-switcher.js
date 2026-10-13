@@ -132,9 +132,24 @@ export default Component.extend({
     return this.appState.get('sessionUser.preferences.dashboard_layout') === 'focused';
   }),
 
+  // The DISPLAY group's Display Style item (requested 2026-10-13: moved here from its own navbar button).
+  // Offered where that button was: wherever the mounted display-style component has registered its
+  // opener (Modern, on the home and caseload pages; app-navbar-authenticated-inner.hbs).
+  canDisplayStyle: computed('appState.dashboard_design_opener', function() {
+    return typeof this.get('appState.dashboard_design_opener') === 'function';
+  }),
+
   actions: {
     toggleMenu: function() {
       this.toggleProperty('menu_open');
+    },
+
+    // Opens the page the old button opened, through the same opener as the phone drawer
+    // (app-navbar-authenticated-inner.js#openDisplayStyle).
+    open_display_style: function() {
+      this.set('menu_open', false);
+      var opener = this.get('appState.dashboard_design_opener');
+      if (typeof opener === 'function') { opener('display_style_layout'); }
     },
 
     // Select Gentle or Focused. No navigation: unlike the Layout switch below, both
