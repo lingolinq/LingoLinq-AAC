@@ -869,10 +869,10 @@
           {{#unless this.immersive_tools}}
           <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-label={{t "Speak sentence" key="board_detail_speak_sentence"}} data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
+              {{!-- The speaker (2026-10-13): a microphone read as voice input; same glyph as the Speak Mode card. --}}
+              <path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/>
+              <path d="M15.6 8.5a5 5 0 0 1 0 7"/>
+              <path d="M18.7 5.8a9 9 0 0 1 0 12.4"/>
             </svg>
           </button>
           {{/unless}}
@@ -915,10 +915,10 @@
           <div class="md-board-detail-sentence-bar__quick-actions" role="menu" aria-label={{t "Sentence actions" key="board_detail_sentence_actions"}}>
             <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="23"/>
-                <line x1="8" y1="23" x2="16" y2="23"/>
+                {{!-- The speaker (2026-10-13): a microphone read as voice input; same glyph as the Speak Mode card. --}}
+                <path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/>
+                <path d="M15.6 8.5a5 5 0 0 1 0 7"/>
+                <path d="M18.7 5.8a9 9 0 0 1 0 12.4"/>
               </svg>
             <span>{{t "Speak" key="board_detail_speak"}}</span>
           </button>

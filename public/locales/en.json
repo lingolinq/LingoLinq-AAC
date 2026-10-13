@@ -8802,5 +8802,7 @@
   "set_home_copy_slow_close_cancel": "This is taking longer than usual. You can close this; the copy is still removed when it finishes.",
   "view_group_display": "Display",
   "view_desc_display_style": "Choose and arrange your home page cards.",
+  "speak_mode_intro_1_modern": "Tap buttons to add words to the sentence bar at the top; tap the speaker button to speak the whole phrase. Use home, backspace, and clear as needed.",
+  "speak_mode_intro_2_modern": "To leave, open the menu (top right) and choose \"Exit Boards: To Home Page\".",
   "display_design": "Display Design"
 }
