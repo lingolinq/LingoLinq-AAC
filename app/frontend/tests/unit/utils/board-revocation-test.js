@@ -405,4 +405,36 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.deepEqual(Object.keys(local.list[0]).sort(), ['id', 'key', 'revision', 'revoked'], 'id, key, revision and mark only');
     assert.deepEqual(boardRevocation.settled_revocations(persist.get('sync_progress'), 'u1', []), ['1_2'], 'the decision is unchanged');
   });
+
+  // A mark decided from an earlier answer is written only if nothing newer has happened to the
+  // board since: a download (a new revision) or a server answer that it is viewable.
+  test('a mark is not written over a board downloaded since the decision, or one the server has since shown', async function(assert) {
+    addBoard(this.db, '1_2');
+    addBoard(this.db, '1_3');
+    addBoard(this.db, '1_4');
+    var persist = persistFor('u1');
+    await boardRevocation.fetch_revisions(persist, user('u1'), answer({}, ['1_2', '1_3', '1_4']));
+    var decision = boardRevocation.settled_decision(persist.get('sync_progress'), 'u1', []);
+    this.db.board['1_2'].raw.current_revision = 'r2';
+    await boardRevocation.clear_mark('1_3');
+    await boardRevocation.settle(decision);
+    assert.notOk(this.db.board['1_2'].raw.revoked, 'downloaded since: not marked');
+    assert.notOk(this.db.board['1_3'].raw.revoked, 'loaded from the server since: not marked');
+    assert.true(this.db.board['1_4'].raw.revoked, 'control: marked');
+  });
+
+  test('marks held back in Speak Mode skip a board downloaded since the decision', async function(assert) {
+    addBoard(this.db, '1_2');
+    addBoard(this.db, '1_3');
+    var persist = persistFor('u1');
+    await boardRevocation.fetch_revisions(persist, user('u1'), answer({}, ['1_2', '1_3']));
+    var decision = boardRevocation.settled_decision(persist.get('sync_progress'), 'u1', []);
+    LingoLinq.appState.set('speak_mode', true);
+    await boardRevocation.settle(decision);
+    this.db.board['1_2'].raw.current_revision = 'r2';
+    LingoLinq.appState.set('speak_mode', false);
+    assert.true(await boardRevocation.flush_deferred());
+    assert.notOk(this.db.board['1_2'].raw.revoked, 'downloaded since: not marked');
+    assert.true(this.db.board['1_3'].raw.revoked, 'control: marked');
+  });
 });

@@ -16,6 +16,8 @@ import app_state from './app_state';
 // the revoked list (an older server), a supervisee sync that failed, a canceled
 // sync, or a sync that finished with board errors. While Speak Mode is on, new
 // marks wait until it is turned off, so the board in use is never pulled away.
+// A mark is not written over a board downloaded again, or shown as viewable by
+// the server, after the verdict it came from was asked for.
 //
 // Marked boards are skipped by the sync traversal (they are not sync errors)
 // and left out of find_recent and find_boards; a home or sidebar board is never
@@ -28,7 +30,19 @@ import app_state from './app_state';
 
 var INDEX_KEY = 'revokedBoards';
 var deferred_marks = null;
+// The decision guard (see decision_guard) the held-back marks were made under.
+var deferred_guard = null;
 var index_promise = null;
+// Board id => the tick at which the server last showed this board as viewable.
+var shown_at = {};
+// Orders verdicts and server answers within this session (see superseded). A
+// counter, not the clock: both often land in the same millisecond.
+var clock = 0;
+
+function tick() {
+  clock += 1;
+  return clock;
+}
 
 function progress_for(persist) {
   try {
@@ -120,6 +134,9 @@ export function fetch_revisions(persist, user, request) {
   var progress = progress_for(persist);
   if(state && progress && progress.root_user == user_id && !state.root) {
     state.root = user_id;
+    // Anything the server says about a board after this moment postdates the
+    // root user's verdict (see decision_guard).
+    state.decided_at = tick();
     state.expected = [user_id].concat((user.get('supervisees') || []).map(function(s) { return s && s.id; }).filter(function(id) { return !!id; }));
   }
   var prep = RSVP.resolve(null);
@@ -196,6 +213,13 @@ export function note_failure(persist) {
 // own synced tree, so a board missing from a supervisee's response is no
 // evidence either way.
 export function settled_revocations(progress, root_user_id, errors) {
+  var decision = settled_decision(progress, root_user_id, errors);
+  return decision ? decision.ids : null;
+}
+
+// settled_revocations with what applying it needs: when the root user's verdict
+// was asked for, and the local snapshot the verdict was matched against.
+export function settled_decision(progress, root_user_id, errors) {
   var state = progress && progress.revocation;
   if(!state || state.failed || progress.canceled || (errors && errors.length > 0)) { return null; }
   if(!state.root || state.root != root_user_id || !state.expected || state.expected.length === 0) { return null; }
@@ -206,19 +230,45 @@ export function settled_revocations(progress, root_user_id, errors) {
     entries.push(entry);
   }
   var root = state.users[state.root];
-  return root.revoked.filter(function(id) {
+  var ids = root.revoked.filter(function(id) {
     var key = root.keys[id];
     return !entries.some(function(e) { return e.viewable[id] || (key && e.viewable[key]); });
   });
+  return {ids: ids, at: state.decided_at, local: state.local};
+}
+
+// What a settled decision's marks are checked against when they are written:
+// the time the verdict was asked for, and each board's revision in the
+// snapshot the verdict was matched against. null without a decision.
+function decision_guard(decision) {
+  if(!decision) { return RSVP.resolve(null); }
+  return RSVP.resolve(decision.local).then(function(local) {
+    var revisions = {};
+    ((local && local.list) || []).forEach(function(rec) { revisions[rec.id] = rec.revision; });
+    return {at: decision.at, revisions: revisions};
+  }, function() {
+    return {at: decision.at, revisions: {}};
+  });
+}
+
+// True when something newer than the decision happened to the board: the
+// server showed it as viewable, or a download changed its revision.
+function superseded(id, raw, guard) {
+  if(!guard) { return false; }
+  if(shown_at[id] && guard.at && shown_at[id] > guard.at) { return true; }
+  return Object.prototype.hasOwnProperty.call(guard.revisions, id) && raw.current_revision !== guard.revisions[id];
 }
 
 // Sets or clears the mark on the CURRENT stored record. rec may be a snapshot
 // taken earlier in the sync (state.local is read once and reused across
 // supervisees), so the record is re-read here and only raw.revoked changes:
-// writing the snapshot back would undo a board downloaded in the meantime.
-function write_mark(rec, revoked) {
+// writing the snapshot back would undo a board downloaded in the meantime. A
+// mark made under a decision guard is not written over anything newer than
+// that decision (superseded).
+function write_mark(rec, revoked, guard) {
   return stored(lingoLinqExtras.storage.find('board', rec.id)).then(function(current) {
     if(!current || !current.raw) { return false; }
+    if(revoked && superseded(rec.id, current.raw, guard)) { return false; }
     var raw = Object.assign({}, current.raw);
     if(revoked) {
       raw.revoked = true;
@@ -235,6 +285,10 @@ function write_mark(rec, revoked) {
 // even when the rest of the sync fails.
 function clear_viewable(list, revisions) {
   if(!revisions || typeof revisions !== 'object') { return RSVP.resolve(false); }
+  var at = tick();
+  (list || []).forEach(function(rec) {
+    if((rec.id && revisions[rec.id]) || (rec.key && revisions[rec.key])) { shown_at[rec.id] = at; }
+  });
   var clear = (list || []).filter(function(rec) {
     return rec.revoked && ((rec.id && revisions[rec.id]) || (rec.key && revisions[rec.key]));
   });
@@ -257,6 +311,7 @@ function clear_viewable(list, revisions) {
 // The board route loaded this board from the server: clear its mark, if any.
 export function clear_mark(id) {
   if(!global_board_id(id)) { return RSVP.resolve(false); }
+  shown_at[id] = tick();
   if(deferred_marks) {
     deferred_marks = deferred_marks.filter(function(d) { return d != id; });
   }
@@ -277,13 +332,15 @@ function spared(refs, rec) {
 
 // Brings the local marks in line with a settled decision: boards in revoked_ids
 // are marked (deferred while Speak Mode is on), every other marked board, and
-// any home or sidebar board, is cleared.
-export function apply_revocations(revoked_ids) {
+// any home or sidebar board, is cleared. With a decision (settled_decision),
+// a mark is not written over anything newer than it (superseded).
+export function apply_revocations(revoked_ids, decision) {
   var lookup = {};
   (revoked_ids || []).forEach(function(id) { lookup[id] = true; });
-  return RSVP.all([local_boards(), load_index()]).then(function(res) {
+  return RSVP.all([local_boards(), load_index(), decision_guard(decision)]).then(function(res) {
     var list = res[0];
     var index = Object.assign({}, res[1]);
+    var guard = res[2];
     if(!list) { return null; }
     var refs = protected_board_refs(app_state);
     var writes = [];
@@ -304,12 +361,14 @@ export function apply_revocations(revoked_ids) {
     });
     if(in_speak_mode()) {
       deferred_marks = to_mark;
+      deferred_guard = guard;
       return RSVP.all(writes).then(function() { return save_index(index); });
     }
     deferred_marks = null;
+    deferred_guard = null;
     list.forEach(function(rec) {
       if(to_mark.indexOf(rec.id) !== -1) {
-        writes.push(write_mark(rec, true).then(function(ok) {
+        writes.push(write_mark(rec, true, guard).then(function(ok) {
           if(ok) { index[rec.id] = true; }
         }));
       }
@@ -321,11 +380,16 @@ export function apply_revocations(revoked_ids) {
 // Root completion hook: snapshot the settled decision now (sync_progress is
 // cleared right after) and apply it in the background.
 export function finish_sync(persist, root_user_id, errors) {
-  var ids = settled_revocations(progress_for(persist), root_user_id, errors);
-  if(ids) {
-    apply_revocations(ids).then(null, function() { });
+  var decision = settled_decision(progress_for(persist), root_user_id, errors);
+  if(decision) {
+    settle(decision).then(null, function() { });
   }
-  return ids;
+  return decision ? decision.ids : null;
+}
+
+// Applies a settled decision.
+export function settle(decision) {
+  return apply_revocations(decision.ids, decision);
 }
 
 export function has_deferred() {
@@ -336,7 +400,9 @@ export function has_deferred() {
 export function flush_deferred() {
   if(!has_deferred() || in_speak_mode()) { return RSVP.resolve(false); }
   var ids = deferred_marks;
+  var guard = deferred_guard;
   deferred_marks = null;
+  deferred_guard = null;
   return RSVP.all([local_boards(), load_index()]).then(function(res) {
     var list = res[0] || [];
     var index = Object.assign({}, res[1]);
@@ -344,7 +410,7 @@ export function flush_deferred() {
     var writes = [];
     list.forEach(function(rec) {
       if(!rec.revoked && ids.indexOf(rec.id) !== -1 && !spared(refs, rec)) {
-        writes.push(write_mark(rec, true).then(function(ok) {
+        writes.push(write_mark(rec, true, guard).then(function(ok) {
           if(ok) { index[rec.id] = true; }
         }));
       }
@@ -529,6 +595,8 @@ export function local_copy_unless_denied(model, err, appState) {
 // Test hook: forget module state between tests.
 export function reset_for_tests() {
   deferred_marks = null;
+  deferred_guard = null;
+  shown_at = {};
   index_promise = null;
 }
 
@@ -538,6 +606,8 @@ export default {
   skip_board: skip_board,
   note_failure: note_failure,
   settled_revocations: settled_revocations,
+  settled_decision: settled_decision,
+  settle: settle,
   apply_revocations: apply_revocations,
   finish_sync: finish_sync,
   has_deferred: has_deferred,
