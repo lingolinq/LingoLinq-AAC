@@ -8721,5 +8721,9 @@
   "set_home_copy_yes": "Yes, make a copy",
   "set_home_copy_no": "No",
   "set_home_copy_open": "Open my new home board",
-  "not_now": "Not now"
+  "not_now": "Not now",
+  "trial_bar_aria": "Trying a board",
+  "trial_bar_trying": "Trying:",
+  "trial_bar_use": "Use this board",
+  "trial_bar_use_for": "Use this board for %{user_name}"
 }

@@ -1,0 +1,19 @@
+{{#if this.shown}}
+  <div class="ll-trial-bar ll-trial-bar--{{this.view}}" role="region" aria-label={{t "Trying a board" key="trial_bar_aria"}}>
+    <span class="ll-trial-bar__label">
+      {{t "Trying:" key="trial_bar_trying"}} <strong class="ll-trial-bar__name">{{this.boardName}}</strong>
+    </span>
+    <span class="ll-trial-bar__actions">
+      <button type="button" class="ll-trial-bar__use" disabled={{this.busy}} {{on "click" this.use}}>
+        {{#if this.forUserName}}
+          {{t "Use this board for %{user_name}" key="trial_bar_use_for" user_name=this.forUserName}}
+        {{else}}
+          {{t "Use this board" key="trial_bar_use"}}
+        {{/if}}
+      </button>
+      <button type="button" class="ll-trial-bar__exit" disabled={{this.busy}} {{on "click" this.exit}}>
+        {{t "Exit" key="exit"}}
+      </button>
+    </span>
+  </div>
+{{/if}}

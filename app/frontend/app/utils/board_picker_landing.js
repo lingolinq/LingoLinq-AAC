@@ -26,7 +26,7 @@ export function after_pick_for_other(router, key, userName, viewUser) {
 }
 
 /* A "Try" in Basic: the board tried and the user it would become home for (the communicator when
-   the picker was opened for one). Read by components/basic-try-home-button.js on the Basic board
+   the picker was opened for one). Read by components/trial-bar.js on the Basic board
    page; kept in app state because the picker forgets its user when it is left. */
 export function mark_basic_try(appState, key, user) {
   appState.set('basic_try_home', { key: key, user_id: user && user.get('id'), user_name: user && user.get('user_name') });
@@ -44,7 +44,7 @@ export function clear_basic_try(appState) {
 /* WHOSE TRY IS ON SCREEN (2026-10-01): 'other' when the board was tried for someone else (an SLP
    choosing for a communicator), 'self' when for the signed-in user (or no user was recorded), null
    when the board on screen was not tried. The board header shows ONE home button from this: the
-   blue "Set as Home Board for X" (components/basic-try-home-button.js) for 'other', the grey "Set
+   trial bar's "Use this board for X" (components/trial-bar.js) for 'other', the grey "Set
    as Home" (templates/application.hbs, via helpers/basic-try-home.js) for 'self'. */
 export function basic_try_target(appState) {
   var mark = basic_try_for(appState, appState.get('currentBoardState.key'));

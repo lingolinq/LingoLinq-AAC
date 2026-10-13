@@ -538,15 +538,15 @@
                 {{!-- Same condition as the phone menu's "Set as Home" below (requested 2026-10-12: desktop has no
                      hamburger, so the option shows here whenever the phone offers it). Replaces the 2026-10-01
                      rule of showing it only to someone with no home board. A try for someone else still shows
-                     only <BasicTryHomeButton>. --}}
-                {{#if (and this.app_state.current_board_not_home_or_supervising (not (basic-try-home "other")))}}
+                     only the trial bar (components/trial-bar.js). --}}
+                {{#if (and this.app_state.current_board_not_home_or_supervising (not (basic-try-home "other")) (not (basic-try-home "self")))}}
                   <a class="btn btn-default" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>
                     <span class="wide">{{t "Set as Home" key="set_as_home"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
                   </a>
                 {{/if}}
                 {{!-- After a "Try this Board" (Basic): ONE home button. A try for yourself shows the grey "Set as
                      Home" above, even with a home board; a try for someone else shows only this one (2026-10-01). --}}
-                <BasicTryHomeButton @board={{this.board.model}} />
+                {{!-- (2026-10-12) the old Basic trial button left: the trial bar on the board page (components/trial-bar.js) offers "Use this board". --}}
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}

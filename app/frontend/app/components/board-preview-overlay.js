@@ -296,7 +296,7 @@ export default Component.extend({
       // cannot repaint its picker CTAs during the hand-off.
       app_state.set('tour_board_picker_active', false);
       /* BASIC (2026-09-30): the tried board opens on the Basic board page in normal mode, which
-         offers "Set as Home Board" for it (components/basic-try-home-button.js) for the user the
+         offers "Use this board" for it (components/trial-bar.js) for the user the
          picker is choosing for -- the communicator when an SLP opened it for one. The picker
          forgets that user once left, so it rides with the marker. Modern keeps its Back
          control on board-detail. */
@@ -304,7 +304,10 @@ export default Component.extend({
       if (basic) {
         mark_basic_try(app_state, key, app_state.get('setup_user') || app_state.get('currentUser'));
       } else {
-        app_state.set('board_detail_try_origin', { key: key, from: 'board_picker' });
+        // Who it is for rides along (2026-10-12), as Basic's marker does: the trial bar's "Use this board"
+        // makes it THAT user's home board (components/trial-bar.js).
+        var tryFor = app_state.get('setup_user') || app_state.get('currentUser');
+        app_state.set('board_detail_try_origin', { key: key, from: 'board_picker', user_id: tryFor && tryFor.get('id'), user_name: tryFor && tryFor.get('user_name') });
       }
 
       modal.close_board_preview();

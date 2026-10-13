@@ -1,3 +1,6 @@
+{{!-- The "Try this Board" trial bar (2026-10-12, components/trial-bar.js). Basic browses the tried board on this
+     page (routes/user/board-alt/index.js renders `board/index`); the bar shows only for that trial. --}}
+<TrialBar @board={{this.model}} @view="basic" />
 <ButtonListener @computeHeight={{this.ctrlAction "compute_height"}} @buttonEvent={{this.eventAction "button_event"}}>
 {{#if this.model.integration}}
   {{#unless this.app_state.sessionUser.currently_premium_or_premium_supporter}}
