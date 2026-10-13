@@ -13,9 +13,10 @@ import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
 module('Unit | Component | available-boards-section set-home mode', function(hooks) {
   setupTest(hooks);
 
-  var originalOpen;
-  hooks.beforeEach(function() { originalOpen = modal.open; });
-  hooks.afterEach(function() { modal.open = originalOpen; });
+  var originalOpen, originalClear;
+  hooks.beforeEach(function() { originalOpen = modal.open; originalClear = boardsPageListCache.clear; });
+  // Restored here, so a failing test cannot leave its stubs to later suites (final review, 2026-10-13).
+  hooks.afterEach(function() { modal.open = originalOpen; boardsPageListCache.clear = originalClear; });
 
   function section(owner) {
     var sent = [];
@@ -81,7 +82,6 @@ module('Unit | Component | available-boards-section set-home mode', function(hoo
   test('Not now after a copy refreshes My Boards so the new copy is listed', function(assert) {
     var t = section(this.owner);
     var cleared = [];
-    var origClear = boardsPageListCache.clear;
     boardsPageListCache.clear = function(id) { cleared.push(id); };
     t.comp._followHomeMove = function() {};
     var opts;
@@ -91,7 +91,6 @@ module('Unit | Component | available-boards-section set-home mode', function(hoo
     t.comp.send('toggleSetHomeMode');
     t.comp.onOpenBoardInUserView(board('lingolinq/quick-core-24'));
     opts.onNotNow(EmberObject.create({ key: 'example/quick-core-24' }));
-    boardsPageListCache.clear = origClear;
     assert.deepEqual(cleared, ['1_1'], 'the cached list is dropped');
     assert.deepEqual(t.sent[0], ['retry_board_list'], 're-queried');
     t.comp.destroy();
@@ -175,6 +174,25 @@ module('Unit | Component | available-boards-section set-home mode', function(hoo
     assert.deepEqual(opened, [['confirm-home-board-copy', 'lingolinq/quick-core-24', 'example']]);
     assert.strictEqual(t.copies.length, 0, 'nothing copied before they agree');
     assert.deepEqual(t.sent, [], 'not opened');
+    t.comp.destroy();
+  });
+
+  /* FINAL REVIEW (2026-10-13): in Set Home mode, an owned board is set as home on one tap, and the mode stays on
+     until that save resolves, so a second tap (or a tap on another board) fired a second save and a second
+     dialog; whichever save resolved last became home. Taps while one is saving are ignored. */
+  test('a second tap while an owned board is being set is ignored', async function(assert) {
+    var t = section(this.owner);
+    var finish;
+    t.comp.copyAsHome = function(b, u) { t.copies.push([b.get('key'), u.get('user_name')]); return new RSVP.Promise(function(resolve) { finish = function() { resolve(b); }; }); };
+    var opened = [];
+    modal.open = function(template, opts) { opened.push(template); return RSVP.resolve(); };
+    t.comp.send('toggleSetHomeMode');
+    t.comp.onOpenBoardInUserView(board('example/three'));
+    t.comp.onOpenBoardInUserView(board('example/four'));
+    assert.deepEqual(t.copies, [['example/three', 'example']], 'only the first is set');
+    finish();
+    await RSVP.resolve(); await RSVP.resolve();
+    assert.deepEqual(opened, ['confirm-home-board-copy'], 'one dialog');
     t.comp.destroy();
   });
 });

@@ -953,10 +953,17 @@ AvailableBoardsSection.reopen({
     };
     if (owned) {
       // Theirs already: set it, then ask whether to open it (the dialog starts at its last step).
+      // One at a time (final review, 2026-10-13): the mode stays on until this save resolves, so a second tap
+      // fired a second save and dialog, and whichever resolved last became home.
+      if (self._settingOwnedHome) { return Promise.resolve(); }
+      self._settingOwnedHome = true;
+      var settled = function() { self._settingOwnedHome = false; };
       return self.get('copyAsHome')(board, user).then(function(home) {
+        settled();
         self._setAssigningHome(false);
         modal.open('confirm-home-board-copy', Object.assign(dialog, { stage: 'done', copied: false, home: home || board }));
       }, function(err) {
+        settled();
         try { modal.error(typeof err === 'string' ? err : i18n.t('set_as_home_failed', "Home board update failed unexpectedly")); } catch (e) { /* no flash outlet */ }
       });
     }
