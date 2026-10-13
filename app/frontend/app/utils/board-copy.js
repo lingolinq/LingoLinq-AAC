@@ -157,10 +157,14 @@ export function can_cancel_home_copy(board, user) {
    `new_board_ids` from the source's stored downstream list (User#copy_board_links), which can be
    stale, while the copy itself follows the real links. Seen 2026-10-11: one copied board was missing
    from the report and was left behind until this walked the links to it. */
-export function discard_cancelled_copy(ids, user, startedAt) {
+export function discard_cancelled_copy(ids, user, startedAt, root) {
   var userName = user && user.get && user.get('user_name');
   var homeKey = user && user.get && user.get('preferences.home_board.key');
-  var since = startedAt ? new Date(startedAt).getTime() - 60000 : null;
+  // The cutoff is the cancelled copy's own `created` (server time) when it is known, so this device's
+  // clock cannot shift it either way (adversary review, 2026-10-13); otherwise when the copy started here.
+  var rootCreated = root && root.get && root.get('created');
+  var from = rootCreated || startedAt;
+  var since = from ? new Date(from).getTime() - 60000 : null;
   var queue = (ids || []).slice();
   var seen = {};
   queue.forEach(function(id) { seen[id] = true; });

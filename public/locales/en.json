@@ -8796,5 +8796,8 @@
   "classic_tour_slp_dash_title": "Your dashboard",
   "classic_tour_slp_dash_b1": "Rooms takes you into a room and its communicators",
   "classic_tour_slp_dash_b2": "Your home board, logging and offline sync live here",
-  "tour_welcome_open_home_note": "Opens your home board."
+  "tour_welcome_open_home_note": "Opens your home board.",
+  "set_home_copy_cancel_failed": "The copy stopped with an error, so some copied boards may still be in My Boards. Your home board wasn't changed.",
+  "set_home_copy_slow_close": "This is taking longer than usual. You can close this; it keeps working, and your home board is set when it finishes.",
+  "set_home_copy_slow_close_cancel": "This is taking longer than usual. You can close this; the copy is still removed when it finishes."
 }

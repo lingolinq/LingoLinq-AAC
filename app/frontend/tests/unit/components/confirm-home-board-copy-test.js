@@ -116,4 +116,58 @@ module('Unit | Component | confirm-home-board-copy', function(hooks) {
     assert.strictEqual(t.comp.get('error'), 'Could not copy');
     t.comp.destroy();
   });
+
+  /* ADVERSARY REVIEW, 2026-10-13. */
+  function cancellable(owner, copyResult, extra) {
+    var model = Object.assign({
+      board: EmberObject.create({ key: 'lingolinq/quick-core-24', name: 'Quick Core 24' }),
+      user: EmberObject.create({ id: '1_1', user_name: 'example' }),
+      copyAsHome: function() { copyResult.then(null, function() {}); return copyResult; }
+    }, extra || {});
+    var comp = owner.factoryFor('component:confirm-home-board-copy').create({ model: model });
+    comp.set('model', model);
+    var closed = [];
+    comp.set('modal', { close: function() { closed.push(true); } });
+    return { comp: comp, closed: closed, model: model };
+  }
+  var wait = function(ms) { return new RSVP.Promise(function(r) { setTimeout(r, ms); }); };
+
+  test('an error after Cancel says the copy stopped and boards may be left, not "Cancelled"', async function(assert) {
+    var fail;
+    var t = cancellable(this.owner, new RSVP.Promise(function(resolve, reject) { fail = reject; }));
+    t.comp.send('confirm');
+    t.comp.send('cancelCopy');
+    fail('Board re-linking failed while processing');
+    await wait(10);
+    assert.strictEqual(t.comp.get('stage'), 'error', 'not cancelled: nothing was removed');
+    assert.true(/may still be in My Boards/.test(t.comp.get('error')), t.comp.get('error'));
+    t.comp.destroy();
+  });
+
+  test('a cancelled copy is removed using the copy itself to date the cutoff', async function(assert) {
+    var made = EmberObject.create({ key: 'example/quick-core-24', created: new Date() });
+    var got = [];
+    var t = cancellable(this.owner, RSVP.reject({ cancelled: true, board: made, new_board_ids: ['1_90'] }),
+      { discardCopy: function(ids, root) { got.push([ids, root]); return RSVP.resolve(); } });
+    t.comp.send('confirm');
+    await wait(10);
+    assert.deepEqual(got[0][0], ['1_90']);
+    assert.strictEqual(got[0][1], made, 'handed the copy');
+    t.comp.destroy();
+  });
+
+  test('a copy that takes unusually long can be closed; the work carries on', async function(assert) {
+    var t = cancellable(this.owner, new RSVP.Promise(function() {}));
+    t.comp.set('slowAfter', 30);
+    t.comp.send('confirm');
+    assert.true(t.comp.get('isBusy'), 'cannot be closed at first');
+    t.comp.send('close');
+    assert.strictEqual(t.closed.length, 0, 'close ignored while busy');
+    await wait(60);
+    assert.false(t.comp.get('isBusy'), 'closeable after the wait');
+    assert.true(t.comp.get('waitedLong'), 'and it says why');
+    t.comp.send('close');
+    assert.strictEqual(t.closed.length, 1, 'closed');
+    t.comp.destroy();
+  });
 });

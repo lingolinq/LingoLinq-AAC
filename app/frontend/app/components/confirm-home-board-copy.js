@@ -36,6 +36,10 @@ export default Component.extend({
   progressStep: 0,
   progressInterval: 30000,
   cancelRequested: false,
+  // After this long the dialog can be closed: the copy (or the clean-up after a cancel) runs in
+  // utils/edit_manager.js and utils/board-copy.js, not here, so it carries on (adversary review, 2026-10-13).
+  slowAfter: 120000,
+  waitedLong: false,
 
   init() {
     this._super(...arguments);
@@ -83,8 +87,10 @@ export default Component.extend({
   isError: computed('stage', function() { return this.get('stage') === 'error'; }),
   isCancelling: computed('stage', function() { return this.get('stage') === 'cancelling'; }),
   isCancelled: computed('stage', function() { return this.get('stage') === 'cancelled'; }),
-  // Copying or cleaning up after a cancel: the dialog cannot be closed until that settles.
-  isBusy: computed('stage', function() { return ['copying', 'cancelling'].indexOf(this.get('stage')) !== -1; }),
+  // Copying or cleaning up after a cancel: the dialog cannot be closed until that settles, or until it
+  // has taken unusually long (`waitedLong`), when it says so and offers Close.
+  isWorking: computed('stage', function() { return ['copying', 'cancelling'].indexOf(this.get('stage')) !== -1; }),
+  isBusy: computed('isWorking', 'waitedLong', function() { return this.get('isWorking') && !this.get('waitedLong'); }),
   canCancel: computed('model.board', 'model.user', function() {
     return can_cancel_home_copy(this.get('model.board'), this.get('model.user'));
   }),
@@ -112,8 +118,17 @@ export default Component.extend({
   _stopTicking() {
     if (this._ticker) { window.clearInterval(this._ticker); this._ticker = null; }
   },
+  _startSlowTimer() {
+    var self = this;
+    self._stopSlowTimer();
+    self._slow = window.setTimeout(function() { if (!self.isDestroyed && !self.isDestroying) { self.set('waitedLong', true); } }, self.get('slowAfter'));
+  },
+  _stopSlowTimer() {
+    if (this._slow) { window.clearTimeout(this._slow); this._slow = null; }
+  },
   willDestroy() {
     this._stopTicking();
+    this._stopSlowTimer();
     this._super(...arguments);
   },
 
@@ -129,12 +144,14 @@ export default Component.extend({
       var self = this;
       var model = self.get('model') || {};
       var copy = model.copyAsHome || copy_or_reuse_as_home;
-      var discard = model.discardCopy || function(ids) { return discard_cancelled_copy(ids, model.user, startedAt); };
+      var discard = model.discardCopy || function(ids, root) { return discard_cancelled_copy(ids, model.user, startedAt, root); };
       var startedAt = new Date();
       self.set('stage', 'copying');
       self.set('progressStep', 0);
       self.set('cancelRequested', false);
+      self.set('waitedLong', false);
       self._startTicking();
+      self._startSlowTimer();
       copy(model.board, model.user, null, { isCancelled: function() { return self.get('cancelRequested'); } }).then(function(home) {
         self._stopTicking();
         if (self.isDestroyed || self.isDestroying) { return; }
@@ -146,11 +163,17 @@ export default Component.extend({
         if (err && err.cancelled) {
           // Home board untouched; remove what this copy made, then say so.
           var finish = function() { if (!self.isDestroyed && !self.isDestroying) { self.set('stage', 'cancelled'); } };
-          if (err.new_board_ids && err.new_board_ids.length) { discard(err.new_board_ids).then(finish, finish); } else { finish(); }
+          if (err.new_board_ids && err.new_board_ids.length) { discard(err.new_board_ids, err.board).then(finish, finish); } else { finish(); }
           return;
         }
         if (self.isDestroyed || self.isDestroying) { return; }
-        if (self.get('cancelRequested')) { self.set('stage', 'cancelled'); return; }
+        // Failed after Cancel: what it made could not be identified, so nothing was removed. Say so
+        // rather than "Cancelled" (adversary review, 2026-10-13).
+        if (self.get('cancelRequested')) {
+          self.set('error', i18n.t('set_home_copy_cancel_failed', "The copy stopped with an error, so some copied boards may still be in My Boards. Your home board wasn't changed."));
+          self.set('stage', 'error');
+          return;
+        }
         self.set('error', (typeof err === 'string' && err) ? err : i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
         self.set('stage', 'error');
       });

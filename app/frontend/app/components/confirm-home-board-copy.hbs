@@ -31,11 +31,17 @@
         <span class="md-modal-spinner" aria-hidden="true"></span>
         {{this.progressMessage}}
       </p>
+      {{#if this.waitedLong}}
+        <p class="md-modal-hint">{{t "This is taking longer than usual. You can close this; it keeps working, and your home board is set when it finishes." key="set_home_copy_slow_close"}}</p>
+      {{/if}}
     {{else if this.isCancelling}}
       <p class="md-modal-message" role="status">
         <span class="md-modal-spinner" aria-hidden="true"></span>
         {{t "Cancelling and removing the copy..." key="set_home_copy_cancelling"}}
       </p>
+      {{#if this.waitedLong}}
+        <p class="md-modal-hint">{{t "This is taking longer than usual. You can close this; the copy is still removed when it finishes." key="set_home_copy_slow_close_cancel"}}</p>
+      {{/if}}
     {{else if this.isCancelled}}
       <p class="md-modal-message" role="status">{{t "Cancelled. Your home board wasn't changed." key="set_home_copy_cancelled"}}</p>
     {{else if this.isDone}}
@@ -52,12 +58,23 @@
     {{/if}}
   </div>
   {{#if this.isCopying}}
-    {{#if this.canCancel}}
+    {{#if (or this.canCancel this.waitedLong)}}
       <div class="modal-footer md-modal-footer">
-        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "cancelCopy")}}>{{t "Cancel" key="cancel"}}</button>
+        {{#if this.canCancel}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "cancelCopy")}}>{{t "Cancel" key="cancel"}}</button>
+        {{/if}}
+        {{#if this.waitedLong}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+        {{/if}}
       </div>
     {{/if}}
-  {{else unless this.isCancelling}}
+  {{else if this.isCancelling}}
+    {{#if this.waitedLong}}
+      <div class="modal-footer md-modal-footer">
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+      </div>
+    {{/if}}
+  {{else}}
     <div class="modal-footer md-modal-footer">
       {{#if this.isAsk}}
         <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>{{t "Yes, make a copy" key="set_home_copy_yes"}}</button>

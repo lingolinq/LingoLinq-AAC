@@ -156,4 +156,26 @@ module('Unit | Utility | cancelling a home board copy', function(hooks) {
     await discard_cancelled_copy(['1_90', '1_91', '1_92', '1_93', '1_1', '1_99'], user, started);
     assert.deepEqual(deleted.sort(), ['1_90', '1_91'], "only this copy's own new boards; never someone else's, an older board, or their home board");
   });
+
+  /* DEVICE CLOCK (adversary review, 2026-10-13). The age check compared this device's clock with the
+     server's `created`, so a device running ahead removed nothing (yet said it had), and one running far
+     behind let the link walk reach older boards. The cutoff now comes from the cancelled copy's own
+     `created`, which is server time, when it is known. */
+  test('discard_cancelled_copy dates its cutoff from the copy itself, not this device\'s clock', async function(assert) {
+    var user = fake_user('example');
+    var deviceSaysNow = new Date('2026-10-11T10:30:00Z'); // device clock 30 minutes ahead
+    var deleted = [];
+    function rec(id, attrs) {
+      return { id: id, get: function(k) { return attrs[k]; }, deleteRecord: function() { deleted.push(id); }, save: function() { return RSVP.resolve(this); } };
+    }
+    var root = rec('1_90', { user_name: 'example', key: 'example/top', created: new Date('2026-10-11T10:00:05Z'), buttons: [{ load_board: { id: '1_91', key: 'example/top-food' } }, { load_board: { id: '1_96', key: 'example/older' } }] });
+    var recs = {
+      '1_90': root,
+      '1_91': rec('1_91', { user_name: 'example', key: 'example/top-food', created: new Date('2026-10-11T10:00:20Z') }),
+      '1_96': rec('1_96', { user_name: 'example', key: 'example/older', created: new Date('2026-10-11T09:20:00Z') })
+    };
+    LingoLinq.store.findRecord = function(type, id) { return recs[id] ? RSVP.resolve(recs[id]) : RSVP.reject({ status: 404 }); };
+    await discard_cancelled_copy(['1_90'], user, deviceSaysNow, root);
+    assert.deepEqual(deleted.sort(), ['1_90', '1_91'], 'the copy is removed; a board made 40 minutes earlier stays');
+  });
 });
