@@ -729,7 +729,7 @@ $(document).on('mousedown touchstart', function(event) {
   }
 }).on('keyup', '#button_list', function(event) {
   if(event.keyCode == 13 || event.keyCode == 32 || event.code == 'Enter' || event.code == 'Space') {
-    $(this).trigger('select');
+    fire_select(this); // native, so {{on "select"}} hears it (utils/select_event.js)
   }
 }).on('drop', '.button,.board_drop', function(event) {
   event.preventDefault();
@@ -1702,7 +1702,7 @@ var buttonTracker = EmberObject.extend({
             runLater(function() {
               $elem.removeClass('focus');
             }, 500);
-            $elem.trigger('select');
+            fire_select(elem_wrap.dom); // native, so {{on "select"}} hears it (utils/select_event.js)
           } else if($(elem_wrap.dom).closest('#pin').length > 0 && (elem_wrap.dom.tagName == 'A' || elem_wrap.dom.tagName == 'BUTTON')) {
             if(event_source === 'click' && event.type === 'mouseup') {
               // Mouse: the native click propagates straight to Ember via the #pin
@@ -3410,3 +3410,6 @@ export default buttonTracker;
       n - flip text
       s - share big button
 */
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { fire_select } from './select_event';

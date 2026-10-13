@@ -75,4 +75,14 @@ person has talked once."
   `{{on "select" (this.ctrlAction "vocalize")}}`, a native listener; `utils/raw_events.js:1705` fires
   `$elem.trigger('select')`, a jQuery event, which native listeners never receive. Measured on a tap:
   jQuery `select` 1, native 0, `vocalize_list` 0. A native `select` event speaks and the offer follows.
-  The `{{on}}` form arrived in #625 (2026-07-17). Needs its own fix proposal.
+  The `{{on}}` form arrived in #625 (2026-07-17); before it, `{{action "vocalize" on="select"}}` went
+  through Ember's event dispatcher, which jQuery-triggered events reached while jQuery integration was on.
+  **Fixed 2026-10-13** (uncommitted at the time of writing): `utils/select_event.js#fire_select` dispatches a
+  native `select`; used on the tap path (`raw_events.js` element_release), the Enter/Space keyup handler
+  (`raw_events.js`), and switch scanning (`scanner.js#pick_elem`, where `JShim.select()` did nothing at
+  all on an `<a>`). Test: `tests/unit/utils/button-list-select-test.js` (keyboard + scanner, red first;
+  falsified on the keyup line). Live (Aiden, Basic): tapping the bar and tapping a word chip both speak,
+  the tour offer follows, Start opens the board tour, 0 page errors.
+  **Still open:** pressing Enter on the focused bar does not speak live. On keydown, focus leaves the bar
+  for BODY, so the keyup lands on BODY and the `#button_list` keyup handler never matches. Cause not yet
+  traced (no `blur()` in raw_events' keydown path explains it). Pre-existing, independent of this fix.
