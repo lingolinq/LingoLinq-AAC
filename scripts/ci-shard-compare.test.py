@@ -129,7 +129,7 @@ class CoverageTest(unittest.TestCase):
     """--coverage: what the shards prove on their own, with no full run to compare against."""
 
     def cover(self, *shards):
-        return compare_mod.coverage([compare_mod.parse(s) for s in shards])
+        return compare_mod.coverage([compare_mod.parse(s) for s in shards], compare_mod.registered_duplicates("".join(shards)))
 
     def test_a_complete_disjoint_split_passes(self):
         self.assertEqual(self.cover(tap(A, shard=(6, 10)), tap(B, shard=(4, 10))), [])
@@ -160,6 +160,19 @@ class CoverageTest(unittest.TestCase):
         todo = STAMP + "todo 7 Chrome 147.0 - [0 ms] - m10: test 10"
         log = tap(A, shard=(7, 11), extra_lines=[todo])
         self.assertEqual(self.cover(log, tap(B, shard=(4, 11))), [])
+
+    def test_a_test_run_twice_in_one_shard_while_another_never_runs_fails(self):
+        # Counts still add up (6 selected, 6 run), so only per-shard multiplicity catches it.
+        doubled = [A[0]] + A[:5]
+        problems = self.cover(tap(doubled, shard=(6, 10)), tap(B, shard=(4, 10)))
+        self.assertIn("run 2 times in shard 1: m0: test 0", problems)
+
+    def test_a_name_the_suite_registers_twice_may_run_twice_in_a_shard(self):
+        # tests/helpers/apply-parallel-pool.js logs each name registered more than once.
+        dup_line = STAMP + '{"type":"log","text":"[SHARD-DUP] 2 m0: test 0"}'
+        shard_a = tap([A[0]] + A, shard=(7, 11), extra_lines=[dup_line])
+        shard_a = shard_a.replace("# tests 8", "# tests 7").replace("# pass  8", "# pass  7")
+        self.assertEqual(self.cover(shard_a, tap(B, shard=(4, 11))), [])
 
     def test_selections_that_leave_a_test_in_no_shard_fail(self):
         problems = self.cover(tap(A, shard=(6, 10)), tap(B[:3], shard=(3, 10)))

@@ -20,6 +20,7 @@ full run): every shard ran exactly what it selected, all shards saw the same reg
 the selections add up to it, and no test name was run by more than one shard.
 """
 import collections
+import json
 import re
 import sys
 
@@ -28,6 +29,10 @@ SUMMARY_RE = re.compile(r"# (tests|pass|skip|todo|fail)\s+(\d+)\s*$")
 # `[undefined ms]` and may have no browser version, so neither is assumed.
 RESULT_RE = re.compile(r"(?:^|Z )(not ok|ok|skip|todo) \d+ (?:.+?) - \[(?:\d+|undefined) ms\] - (.+?)\s*$")
 SHARD_RE = re.compile(r"\[SHARD\] selected=(\d+) registered=(\d+)")
+# A test name the suite registers more than once (same module and name), with its count, logged by
+# tests/helpers/apply-parallel-pool.js. Inside a JSON-escaped console line, so the name stops at an
+# unescaped quote.
+DUP_RE = re.compile(r'\[SHARD-DUP\] (\d+) ((?:[^"\\]|\\.)*)')
 MAX_LISTED = 20
 
 
@@ -110,13 +115,37 @@ def shard_checks(shards):
     return problems
 
 
-def coverage(shards):
-    """--coverage: shard_checks plus no test name run by more than one shard."""
+def registered_duplicates(text):
+    """{name: count} for the names the suite registers more than once ([SHARD-DUP] lines)."""
+    allowed = {}
+    for match in DUP_RE.finditer(text):
+        try:
+            name = json.loads('"%s"' % match.group(2))
+        except ValueError:
+            name = match.group(2)
+        allowed[name] = max(allowed.get(name, 0), int(match.group(1)))
+    return allowed
+
+
+def coverage(shards, allowed=None):
+    """--coverage: shard_checks, no test name run by more than one shard, and no name run more times
+    in one shard than the suite registers it (a duplicate there means another test never ran, even
+    when the counts add up). `allowed` is registered_duplicates() of the logs."""
+    allowed = allowed or {}
     problems = shard_checks(shards)
     seen = {}
+    repeated = []
     for index, (_counts, results, _shard) in enumerate(shards):
-        for name in {name for (_status, name) in results}:
+        per_name = collections.Counter()
+        for (_status, name), count in results.items():
+            per_name[name] += count
+        for name, count in sorted(per_name.items()):
+            if count > allowed.get(name, 1):
+                repeated.append("run %d times in shard %d: %s" % (count, index + 1, name))
             seen.setdefault(name, []).append(index + 1)
+    problems += repeated[:MAX_LISTED]
+    if len(repeated) > MAX_LISTED:
+        problems.append("... and %d more tests run more than once in a shard" % (len(repeated) - MAX_LISTED))
     overlap = sorted(name for name, where in seen.items() if len(where) > 1)
     for name in overlap[:MAX_LISTED]:
         problems.append("run by more than one shard (%s): %s" % (", ".join("shard %d" % i for i in seen[name]), name))
@@ -132,10 +161,14 @@ def main(argv):
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2
     parsed = []
+    allowed = {}
     for path in paths:
         try:
             with open(path, encoding="utf-8", errors="replace") as handle:
-                result = parse(handle.read())
+                text = handle.read()
+                result = parse(text)
+                for name, count in registered_duplicates(text).items():
+                    allowed[name] = max(allowed.get(name, 0), count)
         except OSError as error:
             print("cannot read %s: %s" % (path, error), file=sys.stderr)
             return 2
@@ -147,7 +180,7 @@ def main(argv):
         print("%s: %s | %d results%s" % (path, " ".join("%s=%d" % item for item in sorted(counts.items())),
                                          sum(results.values()),
                                          " | selected=%d registered=%d" % shard if shard else ""))
-    problems = coverage(parsed) if coverage_only else compare(parsed[0], parsed[1:])
+    problems = coverage(parsed, allowed) if coverage_only else compare(parsed[0], parsed[1:])
     for problem in problems:
         print("MISMATCH: " + problem)
     if not problems:

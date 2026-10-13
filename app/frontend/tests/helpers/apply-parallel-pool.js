@@ -21,5 +21,14 @@ if (poolFilter) {
   QUnit.on('runStart', function(details) {
     const registered = QUnit.config.modules.reduce((sum, mod) => sum + mod.tests.length, 0);
     console.log('[SHARD] selected=' + details.testCounts.total + ' registered=' + registered);
+    // Names the suite registers more than once (same module and name), so ci-shard-compare.py
+    // --coverage can tell a legitimately repeated name from a test run twice in place of one that
+    // never ran. Built the way testem names a result (qunit_adapter.js: module + ': ' + name).
+    const byName = new Map();
+    QUnit.config.modules.forEach((mod) => mod.tests.forEach((t) => {
+      const name = (mod.name ? mod.name + ': ' : '') + t.name;
+      byName.set(name, (byName.get(name) || 0) + 1);
+    }));
+    byName.forEach((count, name) => { if (count > 1) { console.log('[SHARD-DUP] ' + count + ' ' + name); } });
   });
 }
