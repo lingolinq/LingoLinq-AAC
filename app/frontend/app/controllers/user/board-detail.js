@@ -6567,7 +6567,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       title: this.get('title')
     });
     // Cap at 20 entries
-    if(history.length > 20) { history = history.slice(history.length - 20); }
+    if(history.length > 20) { history = this.get('try_origin_board') ? [history[0]].concat(history.slice(history.length - 19)) : history.slice(history.length - 20); } // in a trial the first entry, the tried board, stays (2026-10-13)
     this.set('app_state.board_detail_nav_history', history);
   },
 
@@ -7519,9 +7519,9 @@ const BoardDetailController = Controller.extend(prefClasses, {
        Clears the marker first: the button is gone the moment it is used, and the
        picker route re-arms its own state on entry. */
     try_back_to_picker: function() {
-      this.set('app_state.board_detail_try_origin', null); this.set('app_state.board_picker_restore', true); // the picker returns to its place (components/board-picker.js)
-      this.set('show_options_menu', false);
-      this.get('router').transitionTo('board-picker');
+      var _this = this; var go = function() { _this.set('app_state.board_detail_try_origin', null); _this.set('app_state.board_picker_restore', true); _this.get('router').transitionTo('board-picker'); }; // the picker returns to its place (components/board-picker.js)
+      this.set('show_options_menu', false); var pin = this.get('app_state.open_speak_mode_exit_pin');
+      if(typeof pin !== 'function') { go(); } else { RSVP.resolve(pin.call(this.get('app_state'), 'none')).then(function(res) { if(res && res.correct_pin) { go(); } }); } // the Speak Mode PIN when set, as Close asks (exit_to_home) (2026-10-13)
     },
 
     exit_to_home: function() {
@@ -9461,7 +9461,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       // returns false immediately when stashes.sticky_board is unset.
       if(this.board_lock_blocks_exit()) { return; }
       board = board || this._sidebar_board_by_key(key);
-      this._push_nav_history();
+      this._push_nav_history(); this.set('app_state.board_detail_try_origin', null); // a sidebar board leaves any trial (2026-10-13)
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
         appController.send('jump', key, 'sidebar', board);

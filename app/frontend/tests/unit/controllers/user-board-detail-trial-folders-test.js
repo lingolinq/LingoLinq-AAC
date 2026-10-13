@@ -69,4 +69,42 @@ module('Unit | Controller | user/board-detail trial through folders', function(h
     t.c.send('go_home');
     assert.deepEqual(t.calls, [['user.board-detail', 'lingolinq', 'vocal-flair-40']]);
   });
+
+  /* FINAL REVIEW (2026-10-13), Medium: a sidebar jump pushes the trail too, so the trial bar (and Home -> tried
+     board) appeared on the user's OWN sidebar board. A sidebar jump leaves the tried board's set: it ends the
+     trial. And the trail's 20-entry cap dropped its oldest entry, the tried board, on a long trial. */
+  test('a sidebar jump during a trial ends it', function(assert) {
+    var t = page(this.owner, { user: 'lingolinq', board: 'vocal-flair-40', history: [] });
+    t.c._sidebar_board_by_key = function() { return null; };
+    t.c._sidebarAppController = function() { return { send: function() {} }; };
+    t.c._maybeCloseInlineSidebarAfterAction = function() {};
+    t.c.send('sidebar_jump', 'aiden/feelings');
+    assert.strictEqual(t.c.get('app_state.board_detail_try_origin'), null, 'the trial is over');
+  });
+
+  test('a long trial keeps the tried board on its trail', function(assert) {
+    var history = [{ user_name: 'lingolinq', boardname: 'vocal-flair-40' }];
+    for (var i = 0; i < 19; i++) { history.push({ user_name: 'lingolinq', boardname: 'vocal-flair-40-sub_' + i }); }
+    var t = page(this.owner, { user: 'lingolinq', board: 'vocal-flair-40-sub_19', history: history });
+    for (var j = 0; j < 5; j++) { t.c._push_nav_history(); }
+    assert.strictEqual(t.c.get('app_state.board_detail_nav_history').length, 20, 'still capped');
+    assert.strictEqual(t.c.get('app_state.board_detail_nav_history')[0].boardname, 'vocal-flair-40', 'the tried board stays first');
+    assert.strictEqual(t.c.get('try_origin_board'), TRIED, 'so the bar stays');
+  });
+
+  /* FINAL REVIEW (2026-10-13): "Try another" left a Modern Speak Mode page with no PIN check, while Close goes
+     through the PIN-checked Exit Boards. Both ask for the Speak Mode PIN when one is set. */
+  test('Try another asks for the Speak Mode PIN when one is set', async function(assert) {
+    var t = page(this.owner, { user: 'lingolinq', board: 'vocal-flair-40' });
+    t.c.set('app_state.open_speak_mode_exit_pin', function() { return Promise.resolve({ correct_pin: false }); });
+    await t.c.send('try_back_to_picker');
+    await new Promise(function(r) { setTimeout(r, 0); });
+    assert.deepEqual(t.calls, [], 'wrong or cancelled PIN: they stay');
+    assert.strictEqual(t.c.get('app_state.board_detail_try_origin'), TRIED, 'still trying it');
+    t.c.set('app_state.open_speak_mode_exit_pin', function() { return Promise.resolve({ correct_pin: true }); });
+    await t.c.send('try_back_to_picker');
+    await new Promise(function(r) { setTimeout(r, 0); });
+    assert.deepEqual(t.calls, [['board-picker']], 'right PIN (or none set): back to the picker');
+    assert.strictEqual(t.c.get('app_state.board_detail_try_origin'), null, 'the trial is over');
+  });
 });
