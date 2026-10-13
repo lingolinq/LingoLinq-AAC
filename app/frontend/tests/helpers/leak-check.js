@@ -75,7 +75,15 @@ const KEEP_BODY_IDS = { 'ember-testing-container': true, qunit: true, 'qunit-fix
 // capabilities.fake_battery (app/utils/capabilities.js battery setup); content-grabbers assigns
 // capabilities.data_uri_to_blob when it first loads (app/services/content-grabbers.js); editManager
 // setup assigns its Button class (app/utils/edit_manager.js `setup`).
-const APP_OWNED_FUNCTIONS = { 'capabilities.fake_battery': true, 'capabilities.data_uri_to_blob': true, 'editManager.Button': true };
+// Functions the APP assigns (and nulls) on a singleton while it runs, not test stubs: raw_events.js sets
+// buttonTracker.handle_direction for a gamepad/keyboard direction loop and nulls it on an animation
+// frame; utils/modal.js sets modal.auto_close_callback for an inactivity timeout and nulls it on the next
+// open; utils/persistence.js sets persistence.storing_urls while it stores URLs and nulls it in a .then.
+// These are every key app code both sets to a function and nulls on a watched singleton (searched
+// 2026-10-13). (buttonTracker.gamepadupdate is NOT here: components/dwell-tracker.js installs a no-op one that
+// its teardown never clears, a real leak reported to the owner.)
+const APP_OWNED_FUNCTIONS = { 'capabilities.fake_battery': true, 'capabilities.data_uri_to_blob': true, 'editManager.Button': true,
+  'buttonTracker.handle_direction': true, 'modal.auto_close_callback': true, 'persistence.storing_urls': true };
 const TARGET = Symbol('leak-check target');
 
 // Anything but an exact `report` or `off` means `fail`, so a typo cannot quietly disable the check.
@@ -232,12 +240,39 @@ function functionHolders() {
   });
   return holders;
 }
-function snapshotFunctions() {
+function snapshotFunctions() { return snapshotFunctionsOf(functionHolders()); }
+function snapshotFunctionsOf(holders) {
   const snap = {};
-  const holders = functionHolders();
   internal++;
-  try { Object.keys(holders).forEach((name) => { if (holders[name]) { snap[name] = { obj: holders[name], fns: functionsOf(holders[name]) }; } }); } finally { internal--; }
+  try { Object.keys(holders).forEach((name) => { if (holders[name]) { snap[name] = { obj: holders[name], fns: functionsOf(holders[name]), shadowed: shadowedFunctions(holders[name]) }; } }); } finally { internal--; }
   return snap;
+}
+// Own keys holding a non-function that hides an inherited function (`modal.close = null` on an
+// EmberObject singleton, whose methods live on its prototype).
+function shadowedFunctions(obj) {
+  const out = new Set();
+  ownDataFields(obj).forEach(([k, d]) => { if (typeof d.value !== 'function' && typeof inherited(obj, k) === 'function') { out.add(k); } });
+  return out;
+}
+// A function a holder had before the test that is gone after it: an own function deleted or set to a
+// non-function, or an inherited method newly hidden by an own non-function. Not counted: keys the app
+// owns (APP_OWNED_FUNCTIONS) and an own stub removed so the inherited original shows through.
+function missingFunctions(snap) {
+  const out = [];
+  const gone = (name, k) => out.push(`${name}.${k} was deleted or set to a non-function and not restored`);
+  Object.keys(snap).forEach((name) => {
+    const obj = snap[name].obj;
+    const now = functionsOf(obj);
+    snap[name].fns.forEach((_fn, k) => {
+      if (now.has(k) || APP_OWNED_FUNCTIONS[`${name}.${k}`]) { return; }
+      if (!Object.prototype.hasOwnProperty.call(obj, k) && typeof inherited(obj, k) === 'function') { return; }
+      gone(name, k);
+    });
+    shadowedFunctions(obj).forEach((k) => {
+      if (!snap[name].shadowed.has(k) && !APP_OWNED_FUNCTIONS[`${name}.${k}`]) { gone(name, k); }
+    });
+  });
+  return out;
 }
 function checkFunctions() {
   if (!before) { return; }
@@ -255,6 +290,10 @@ function checkFunctions() {
         record(`${name}.${k} was replaced and not restored (a stub left on a shared singleton)`);
       });
     });
+    // The other direction, on the util singletons only: a function they had before the test is gone.
+    const singletonsBefore = {};
+    Object.keys(before).forEach((name) => { if (Object.prototype.hasOwnProperty.call(SINGLETONS, name)) { singletonsBefore[name] = before[name]; } });
+    missingFunctions(singletonsBefore).forEach(record);
   } finally { internal--; }
 }
 function describeNode(n) {
@@ -325,6 +364,8 @@ export const leakCheckTesting = {
     try { return callback(); } finally { before = saved.before; bodyBefore = saved.bodyBefore; }
   },
   snapshotFunctions() { before = snapshotFunctions(); },
+  snapshotFunctionsOf,
+  missingFunctions,
   checkFunctions,
   snapshotBody() { bodyBefore = new Set(Array.prototype.slice.call(document.body.children)); },
   checkBody

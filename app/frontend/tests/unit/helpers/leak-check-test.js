@@ -2,6 +2,7 @@ import * as QUnit from 'qunit';
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import modal from 'frontend/utils/modal';
+import buttonTracker from 'frontend/utils/raw_events';
 import { leakCheckTesting, unwrapLeakProxy } from 'frontend/tests/helpers/leak-check';
 
 /*
@@ -85,6 +86,63 @@ module('Unit | Helper | leak check', function() {
       node.remove();
     }
   });
+  // App code itself assigns these (raw_events.js, utils/modal.js), so a
+  // test that drives that code leaves them changed; that is not a stub the test forgot.
+  test('functions the app assigns on the singletons are not recorded', function(assert) {
+    assert.expect(1);
+    const keys = [[buttonTracker, 'handle_direction'], [modal, 'auto_close_callback']];
+    const saved = keys.map(([obj, k]) => Object.getOwnPropertyDescriptor(obj, k));
+    try {
+      const found = leakCheckTesting.isolated(() => {
+        leakCheckTesting.snapshotFunctions();
+        keys.forEach(([obj, k]) => { obj[k] = function() {}; });
+        leakCheckTesting.checkFunctions();
+        keys.forEach(([obj, k]) => { obj[k] = null; }); // and nulls them again later
+        leakCheckTesting.checkFunctions();
+        return leakCheckTesting.take(/handle_direction|auto_close_callback/);
+      });
+      assert.deepEqual(found, [], 'app-owned assignments are not leaks');
+    } finally {
+      keys.forEach(([obj, k], i) => { if (saved[i]) { Object.defineProperty(obj, k, saved[i]); } else { delete obj[k]; } });
+    }
+  });
+
+  test('a singleton method set to null is recorded by the check', function(assert) {
+    assert.expect(1);
+    const hadOwn = Object.prototype.hasOwnProperty.call(modal, 'close');
+    const original = modal.close;
+    try {
+      const found = leakCheckTesting.isolated(() => {
+        leakCheckTesting.snapshotFunctions();
+        modal.close = null; // hides the method modal inherits from its EmberObject class
+        leakCheckTesting.checkFunctions();
+        return leakCheckTesting.take(/modal\.close/);
+      });
+      assert.true(found.some((m) => /modal\.close was deleted or set to a non-function/.test(m)), `recorded: ${found.join(' | ')}`);
+    } finally {
+      if (hadOwn) { modal.close = original; } else { delete modal.close; }
+    }
+  });
+
+  test('a deleted own function is recorded; a removed stub that exposes the original is not', function(assert) {
+    assert.expect(3);
+    const plain = { shared() {} };
+    let before = leakCheckTesting.snapshotFunctionsOf({ plain });
+    delete plain.shared;
+    assert.deepEqual(leakCheckTesting.missingFunctions(before), ['plain.shared was deleted or set to a non-function and not restored'], 'deleted');
+
+    const nulled = { shared() {} };
+    before = leakCheckTesting.snapshotFunctionsOf({ nulled });
+    nulled.shared = null;
+    assert.strictEqual(leakCheckTesting.missingFunctions(before).length, 1, 'set to null');
+
+    const holder = Object.create({ shared() {} });
+    holder.shared = function() {}; // a stub over the inherited original
+    before = leakCheckTesting.snapshotFunctionsOf({ holder });
+    delete holder.shared;
+    assert.deepEqual(leakCheckTesting.missingFunctions(before), [], 'removing the stub exposes the inherited original');
+  });
+
   // The check must FAIL the test it finds a leak in (QUnit.hooks.afterEach, fail mode by default), not
   // just record it. This plants a stub, lets the global hook report it, and turns that one expected
   // failure into a pass; a check softened to pass, warn, or not run leaves it one assertion short or red.
