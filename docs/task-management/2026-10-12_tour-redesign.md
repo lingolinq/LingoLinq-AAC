@@ -193,3 +193,34 @@ passes, and this morning's) was re-checked: all fixed items are still fixed; #7 
 | Process | `classic-view-extras-scroll-test.js` deleted (e076292dc) with no recorded approval (its code was removed too); `.eslint-todo` regenerated in bef644b00: checked, no (file, rule, hash) count rose (rows 1604 -> 1560), so no finding was grandfathered; `boards-set-home-mode-test` restores a stub outside `finally`; `preferences_lower` key reused with a different default (pre-existing pattern) | CONFIRMED | |
 
 Blocking: the High (CONFIRMED regression) blocks a PR per root CLAUDE.md.
+
+## PR readiness check (2026-10-13)
+
+Green: ESLint gate (0 new), template lint, `git diff --check` (whitespace only in a task log), no merge
+conflicts with develop, backend specs changed by the branch (509, 0 failures), the branch's Ember test
+modules run one by one, live UI probes (frame, drawer, trial, Speak Mode PIN on "Try another").
+
+Fixed, not committed: the Speak card picture fetch (`authenticated-view.js` `_loadSpeakBoard`, run in
+`init`) also ran on the Basic home page (`classic-view.js` extends it; `classic-view.hbs` never shows the
+picture). Wasted request on every Basic home load, and in unit tests the fetch landed after teardown and
+failed the next test (`classic-view-home-assign-test`, 3 of 4, every run). `classic-view.js` now overrides
+`_loadSpeakBoard` with a no-op. New test in `dashboard-speak-board-image-test.js`: red without the fix,
+green with it; home-assign 4/4 with no test edit.
+
+Diagnosed: an order-dependent slowdown in the `classic-rail` integration group, LOCAL (macOS) ONLY.
+- develop: 16 tests, ~2 s each, twice. Branch: 21 tests; from test 15 they take 10-12 s, then the two
+  last `classic-rail rooms only` tests run ~6 min each and fail. Each module passes alone; without the
+  five `classic-rail-dropdown` tests the other 16 run clean on the branch build.
+- CAUSE: Chrome background throttling of the test page, not app code. A CPU profile in a plain Chrome
+  page (Playwright) showed the same run idle and every test ~2 s. Through testem with a temp config
+  (outside the repo) the three flags Playwright adds fix it; a control copy without them reproduces it;
+  `--disable-backgrounding-occluded-windows` ALONE fixes it, `--disable-renderer-backgrounding` alone
+  does not. So Chrome treats the macOS test window as occluded and throttles its timers; QUnit's 15 s
+  timeout is itself a timer, which is why a test could run ~6 min. (An earlier note here said "the main
+  thread is busy"; the profile disproved it: it was idle.)
+- Ruled out on the way: run-loop timers, pending requests, test waiters, the injected style, the real
+  app-state service (stubbed: still slow), the dropdown's listeners, `image-fallback-to-rel`.
+- NOT established: why the dropdown tests in particular push the window into the throttled state.
+- CI runs ubuntu-latest, where Chrome has no native window occlusion tracking: expected unaffected, but
+  UNVERIFIED until the PR's `build-and-test` run.
+- Adding the flag to `testem.js` would be a test-config change (Rule #14): only with approval.
