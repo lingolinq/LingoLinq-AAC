@@ -40,7 +40,11 @@ module BoardCaching
         return
       end
     end
-    store_available_board_ids({'generated' => Time.now.to_i}, touch: false)
+    generated = Time.now.to_i
+    store_available_board_ids({'generated' => generated}, touch: false)
+    supervisees = self.supervisees
+    # what this run reads, compared under the lock before its result is stored
+    inputs_read = {'generated' => generated, 'access' => available_boards_access_inputs(self, supervisees)}
     authored = []
     # find all private boards authored by this user
     Board.where(:public => false, :user_id => self.id).select('id').find_in_batches(batch_size: 200) do |batch|
@@ -65,7 +69,7 @@ module BoardCaching
     supervisee_authored = []
     supervisee_view_shared = []
     supervisee_edit_shared = []
-    self.supervisees.each do |sup| #.select{|s| self.edit_permission_for?(s) }.each do |sup|
+    supervisees.each do |sup| #.select{|s| self.edit_permission_for?(s) }.each do |sup|
       supervisee_view_shared += sup.private_viewable_board_ids 
       supervisee_edit_shared += sup.private_editable_board_ids if self.edit_permission_for?(sup)
 #       # TODO: sharding
@@ -101,21 +105,30 @@ module BoardCaching
     lists_changed = ab_json != {'view' => view_ids, 'edit' => edit_ids}.to_json
     Board.regenerate_shared_board_ids([self.global_id])
     # save those lists
-    store_available_board_ids({'view' => view_ids, 'edit' => edit_ids, 'generated' => Time.now.to_i},
+    stored = store_available_board_ids({'view' => view_ids, 'edit' => edit_ids, 'generated' => Time.now.to_i},
       # boards_updated_at is the stamp the shared-board lists are checked against (sharing.rb
       # boards_updated_stamp). The forced rebuild above just stored them with the current stamp,
       # so moving it when nothing changed made the very next read rebuild them again.
-      # After STALE_REFRESH_RETRIES rescheduled runs the result is stored anyway: a user whose
-      # row moves during every run otherwise never got a revocation stored. It was computed from
-      # links read at this run's start, newer than what is stored; a change it missed left its own
-      # outbox row (act_at after started_at), which survives below and triggers another run.
+      # After STALE_REFRESH_RETRIES rescheduled runs a row that moved no longer stops the store: a
+      # user whose row moves during every run (settings churn) otherwise never got a revocation
+      # stored. inputs_read still refuses it, whatever the retry count, when the access this run
+      # read changed meanwhile or a newer run already stored its result: a removed link or share
+      # need not leave a row this run would keep (a newer refresh deletes it, the unshare path
+      # runs a direct job), so storing would re-grant the removed access for good.
       boards_updated_at: (lists_changed ? Time.now : nil),
       stale_after: (stale_retries < STALE_REFRESH_RETRIES ? self.updated_at : nil),
+      inputs_read: inputs_read,
       save_method: (lists_changed ? :save_with_sync : nil), save_args: (lists_changed ? ['board_list_changed'] : []),
       # updated_at moves only when access changed: it keys every cached permission (permissable
       # cache_key), which must not be reused after a change, and it is also the inactivity sweep's
       # activity signal (subscription.rb), which a no-op refresh must not reset
       touch: lists_changed)
+    if stored == false
+      # Refused: the stored list is left for a run that reads the current access. The row is due
+      # now and this run does not clear it, so the hourly batch retries a lost job.
+      User.schedule_board_cache_refresh(self, true)
+      return
+    end
     # if the lists changed, schedule this same update for all users
     # who would have been affected by a change (supervisors)
     if lists_changed
@@ -140,15 +153,45 @@ module BoardCaching
   # assert_current_record! cannot see. stale_after replaces assert_current_record! under the lock:
   # a row updated since then may carry link changes (user_link.rb touch_connections) this run did
   # not read, so it raises StaleObjectError and update_available_boards reschedules itself.
-  def store_available_board_ids(entries, boards_updated_at: nil, stale_after: nil, **save_opts)
+  #
+  # inputs_read (update_available_boards) skips the save, returning false, when the access inputs
+  # read at the run's start differ from the current ones, or a run that started later has stored.
+  def store_available_board_ids(entries, boards_updated_at: nil, stale_after: nil, inputs_read: nil, **save_opts)
     self.update_settings_locked(**save_opts) do |fresh|
       raise ActiveRecord::StaleObjectError if stale_after && fresh.updated_at.to_f > stale_after.to_f
+      next false if inputs_read && !available_boards_inputs_current?(fresh, inputs_read)
       fresh.settings['available_private_board_ids'] ||= {'view' => [], 'edit' => []}
       fresh.settings['available_private_board_ids'].merge!(entries)
       fresh.boards_updated_at = boards_updated_at if boards_updated_at
       true
     end
   end
+
+  # Everything about who may see what that update_available_boards reads, other than board rows and
+  # organizations: the links of the user and of each supervisee (shares, org memberships,
+  # supervision and its edit permission, Organization.manager_for?), each supervisee's board lists,
+  # and the supervision relationships edit_permission_for? reads. Only access state: settings
+  # churn on these users leaves it unchanged, so the capped retry can still store.
+  def available_boards_access_inputs(user, supervisees, fresh=false)
+    {
+      'links' => ([user] + supervisees).map{|u| [u.id, UserLink.links_for(u, fresh).map(&:to_json).sort] },
+      'supervisee_boards' => supervisees.map{|u| [u.id, u.private_viewable_board_ids, u.private_editable_board_ids] },
+      'relationships' => SupervisorRelationship.where(supervisor_user_id: user.id).order(:id).pluck(:id, :communicator_user_id, :status, :permission_level)
+    }
+  end
+
+  # Read fresh (links from the tables, not the links_for cache) under the user's row lock.
+  def available_boards_inputs_current?(fresh, inputs_read)
+    generated = (fresh.settings['available_private_board_ids'] || {})['generated'] || 0
+    return false if generated > inputs_read['generated']
+    supervisee_ids = inputs_read['access']['supervisee_boards'].map(&:first)
+    by_id = User.where(id: supervisee_ids).index_by(&:id)
+    supervisees = supervisee_ids.map{|id| by_id[id] }
+    # a supervisee deleted since the run started
+    return false if supervisees.include?(nil)
+    available_boards_access_inputs(fresh, supervisees, true) == inputs_read['access']
+  end
+  private :available_boards_access_inputs, :available_boards_inputs_current?
 
   def private_viewable_board_ids
     self.settings ||= {}

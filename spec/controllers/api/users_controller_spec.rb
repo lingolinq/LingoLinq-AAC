@@ -3626,6 +3626,77 @@ describe Api::UsersController, :type => :controller do
       end
       expect(counts[1]).to eq(counts[0])
     end
+
+    # A shallow clone's access also depends on its sub-user's cached list, so one the user cannot
+    # view is left out of the revisions without being called revoked.
+    it "should leave out another user's shallow clone without calling it revoked" do
+      token_user
+      owner = User.create
+      other = User.create
+      board = Board.create(:user => owner, :public => true)
+      shallow_id = "#{board.global_id}-#{other.global_id}"
+      link_board_revisions_tree(@user, [Board.find_by_global_id(shallow_id)])
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions']).not_to have_key(shallow_id)
+      expect(json['revisions'].keys.length).to eq(2)
+      expect(json['revoked_ids']).to eq([])
+    end
+
+    it "should list the user's own shallow clone with its key" do
+      token_user
+      owner = User.create
+      board = Board.create(:user => owner, :public => true)
+      shallow = Board.find_by_global_id("#{board.global_id}-#{@user.global_id}")
+      link_board_revisions_tree(@user, [shallow])
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][shallow.global_id]).to eq(board.reload.current_revision)
+      expect(json['revisions'][shallow.key]).to eq(board.current_revision)
+      expect(json['revoked_ids']).to eq([])
+    end
+
+    # Neither has a supervision link or share, so only the owner-permission fallback in
+    # board_viewable_now? (board.user.allows? model or edit) keeps these boards.
+    it "should keep a private board of a user the user manages through an organization" do
+      token_user
+      member = User.create
+      org = Organization.create
+      org.add_manager(@user.user_name, true)
+      org.add_user(member.user_name, false, false)
+      board = Board.create(:user => member, :public => false)
+      link_board_revisions_tree(@user.reload, [board])
+      make_private_board_cache_stale(@user)
+      expect(@user.supervised_user_ids).to eq([])
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
+      expect(json['revisions'][board.key]).to eq(board.current_revision)
+      expect(json['revoked_ids']).to eq([])
+    end
+
+    it "should keep a private board of a communicator the user supervises through an approved relationship without a link" do
+      token_user
+      communicator = User.create
+      SupervisorRelationship.create!(supervisor_user: @user, communicator_user: communicator, status: 'approved', permission_level: 'view_only')
+      board = Board.create(:user => communicator, :public => false)
+      link_board_revisions_tree(@user.reload, [board])
+      make_private_board_cache_stale(@user)
+      expect(@user.supervised_user_ids).to eq([])
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
+      expect(json['revisions'][board.key]).to eq(board.current_revision)
+      expect(json['revoked_ids']).to eq([])
+    end
   end
   
   describe "places" do

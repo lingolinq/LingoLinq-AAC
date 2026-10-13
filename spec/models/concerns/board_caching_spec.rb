@@ -709,6 +709,116 @@ describe BoardCaching, :type => :model do
         expect(User.find(u.id).private_viewable_board_ids).to eq([])
       end
 
+      # The capped retry stores without the stale_after check. A run that read a supervision link,
+      # a share or an org home board which was removed while it ran, after a newer refresh had
+      # already stored the revocation and cleared the outbox row, merged its older list over it
+      # and re-granted the removed access with nothing left to correct it.
+      describe "access removed while a capped retry runs" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        # Runs the block once, after the refresh has read its inputs and before it stores.
+        def before_refresh_stores(&block)
+          ran = false
+          allow(Board).to receive(:regenerate_shared_board_ids).and_wrap_original do |original, *args|
+            unless ran
+              ran = true
+              block.call
+            end
+            original.call(*args)
+          end
+        end
+
+        def supervisor_of_child_with_private_board
+          sup = User.create(:user_name => "capped_sup")
+          child = User.create(:user_name => "capped_child")
+          board = Board.create(:user => child)
+          User.link_supervisor_to_user(sup, child, nil, true)
+          Worker.flush_queues
+          User.find(child.id).update_available_boards
+          User.find(sup.id).update_available_boards
+          expect(User.find(sup.id).private_viewable_board_ids).to include(board.global_id)
+          expect(board.reload.allows?(User.find(sup.id), 'view')).to eq(true)
+          [sup, child, board]
+        end
+
+        def unlink_and_refresh_during(sup, child)
+          before_refresh_stores do
+            User.unlink_supervisor_from_user(User.find(sup.id), User.find(child.id))
+            # a newer refresh completes first: it stores the revocation and clears the outbox row
+            User.find(sup.id).update_available_boards
+            expect(RemoteAction.where(path: sup.global_id, action: 'update_available_boards').count).to eq(0)
+          end
+        end
+
+        it "does not re-grant a removed supervisor's view of the child's private board" do
+          sup, child, board = supervisor_of_child_with_private_board
+          running = User.find(sup.id)
+          unlink_and_refresh_during(sup, child)
+
+          running.update_available_boards(BoardCaching::STALE_REFRESH_RETRIES)
+
+          stored = User.find(sup.id)
+          expect(stored.private_viewable_board_ids).not_to include(board.global_id)
+          expect(board.reload.allows?(stored, 'view')).to eq(false)
+          # the refused store leaves a refresh pending, so the current links get computed
+          expect(RemoteAction.where(path: sup.global_id, action: 'update_available_boards').where('act_at <= ?', Time.now).count).to eq(1)
+        end
+
+        it "does not re-grant it on a first run either" do
+          sup, child, board = supervisor_of_child_with_private_board
+          running = User.find(sup.id)
+          unlink_and_refresh_during(sup, child)
+
+          running.update_available_boards(0)
+
+          stored = User.find(sup.id)
+          expect(stored.private_viewable_board_ids).not_to include(board.global_id)
+          expect(board.reload.allows?(stored, 'view')).to eq(false)
+        end
+
+        it "does not re-grant a board unshared from the user" do
+          u, b = shared_board_user
+          u.update_available_boards
+          expect(User.find(u.id).private_viewable_board_ids).to eq([b.global_id])
+          running = User.find(u.id)
+          before_refresh_stores do
+            # the unshare path runs the user's refresh as a direct job, with no outbox row
+            b.reload.unshare_with(User.find(u.id))
+            User.find(u.id).update_available_boards
+          end
+
+          running.update_available_boards(BoardCaching::STALE_REFRESH_RETRIES)
+
+          stored = User.find(u.id)
+          expect(stored.private_viewable_board_ids).to eq([])
+          expect(b.reload.allows?(stored, 'view')).to eq(false)
+        end
+
+        # An org's home boards are read from the organization, not from a link, so only the newer
+        # refresh's generated stamp shows this run's list is older than the stored one.
+        it "does not store over the list a newer refresh stored" do
+          manager = User.create
+          member = User.create
+          board = Board.create(:user => manager)
+          org = Organization.create
+          org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+          org.save
+          org.add_user(member.user_name, false, false)
+          member.reload.update_available_boards
+          expect(User.find(member.id).private_viewable_board_ids).to include(board.global_id)
+          running = User.find(member.id)
+          before_refresh_stores do
+            org.reload.settings.delete('default_home_boards')
+            org.save
+            travel(5.seconds) { User.find(member.id).update_available_boards }
+          end
+
+          running.update_available_boards(BoardCaching::STALE_REFRESH_RETRIES)
+
+          expect(User.find(member.id).private_viewable_board_ids).not_to include(board.global_id)
+        end
+      end
+
       it "keeps a write made after the caller loaded the user and before the refresh started" do
         u, b = shared_board_user
         quiet = User.find(u.id)
