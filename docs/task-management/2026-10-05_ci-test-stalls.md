@@ -671,3 +671,28 @@ pattern that appears in the killing command itself; it killed the shell twice.
   import path and `isTimingFinding`'s text match stay follow-ups (no runtime effect today).
 - Own slip: a mutant restore ran `git checkout -- app` from `app/frontend`, which missed
   `tests/`; caught by `git status` before any run, restored from the commit.
+
+### Whole-PR adversarial review of 68f46ad39, and its fixes (`88d50e7be`)
+
+- Four adversary agents (production code, harness and pool, CI/scripts/docs, test integrity): no
+  Critical or High. Production: no guard fires in a live session (nothing destroys app-state; logout
+  reloads). Test integrity: no existing test weakened, renamed or skipped.
+- Owner decision (Traci, 2026-10-12, "follow best practices"; option C of the three offered): the
+  required build-and-test keeps logging, not failing, a queued fetch or a read on a destroyed
+  service; the non-required shards fail on them, with a PR-checks annotation and a summary banner.
+  Develop had no check for either (an un-awaited fetch crashed and failed a random test instead).
+- Fixed: `parseTimingStrict` with tests, `[timing-strict] on|off` logged at runStart and required by
+  the shard step; [leak-check] attribution hint for stub/DOM failures and the docs' wording; overlay
+  test positive controls; late-assertion reports deferred past todo tests; compare-script tests for
+  todo lines and the anchor.
+- Verified: targeted runs green in both modes (the `[timing-strict]` line reaches testem output on
+  passing runs); mutants killed (parser loosened, overlay never removed, todo check removed, compare
+  regex todo/anchor); the shard step's bash run against fake logs (green 0; no strict line 1 with
+  annotation; timing failure 1 with annotation and banner; plain failure 1 without banner).
+- Left as follow-ups (Low): `[late-read]` lines reach no job summary for build-and-test (adding a
+  tee would change the required step's command); per-access stack capture and undeduplicated
+  `[late-read]` lines; `poolSelection` throwing at import on an unknown pool value;
+  `waitForUtteranceRefresh` silent timeout; button-set `all_wait` handlers and `sensor_listen`
+  stop() leftovers (test-only effects); the app-state poll's promise never settling after teardown;
+  test hooks exported from production modules; partial re-run job lookup; thin real-timer margins
+  in a few owner tests; CLAUDE.md conflict and merge order with #1117.
