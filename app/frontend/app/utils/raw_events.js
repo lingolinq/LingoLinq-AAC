@@ -539,18 +539,18 @@ $(document).on('mousedown touchstart', function(event) {
     focusedMenuBtn.click();
     return;
   }
-  // Classic speak bar: the board-intro button is <div role="button" tabindex="0"
-  // class="extra-btn"> (templates/application.hbs) with only an {{on "click"}}
-  // handler. A div gets no native click from Space/Enter and matches none of the
-  // delegated keyup targets above, so a keyboard user could focus it, never fire it.
-  // Guards mirror the letter-typing branch below: `return` leaves only THIS listener
-  // and preventDefault stops none, so without them the select key (default 32/Space)
-  // also reaches the scanning handler, and a held key re-opens the intro every repeat.
+  // Classic speak bar: the board-intro <div role="button" class="extra-btn"> has only an {{on "click"}},
+  // which Space/Enter never fire on a div, so they click it here. The SENTENCE BAR (#button_list) is spoken
+  // by the keyup handler above, but with keyboard_listen on, the typing branch below turned Enter/Space into
+  // a typed space and activate_button blurred the bar before keyup (2026-10-13), so for the bar they only
+  // stop here, held repeats included. Guards mirror the typing branch: `return` leaves only THIS listener
+  // and preventDefault stops none, so without them the select key (default 32/Space) also reaches the
+  // scanning handler, and a held key re-opens the intro every repeat.
   var focusedExtraBtn = (event.target && event.target.closest) ?
-    event.target.closest('[role="button"].extra-btn') : null;
-  if(focusedExtraBtn && !event.repeat && !buttonTracker.check('scanning_enabled') && !dwell_key && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.target.closest('[role="button"].extra-btn, #button_list') : null;
+  if(focusedExtraBtn && (!event.repeat || focusedExtraBtn.id === 'button_list') && !buttonTracker.check('scanning_enabled') && !dwell_key && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
     event.preventDefault();
-    focusedExtraBtn.click();
+    if(focusedExtraBtn.id !== 'button_list') { focusedExtraBtn.click(); }
     return;
   }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open() && !typing_into_a_field(event.target)) {

@@ -83,6 +83,15 @@ person has talked once."
   all on an `<a>`). Test: `tests/unit/utils/button-list-select-test.js` (keyboard + scanner, red first;
   falsified on the keyup line). Live (Aiden, Basic): tapping the bar and tapping a word chip both speak,
   the tour offer follows, Start opens the board tour, 0 page errors.
-  **Still open:** pressing Enter on the focused bar does not speak live. On keydown, focus leaves the bar
-  for BODY, so the keyup lands on BODY and the `#button_list` keyup handler never matches. Cause not yet
-  traced (no `blur()` in raw_events' keydown path explains it). Pre-existing, independent of this fix.
+  Committed as 71ccda4d7.
+  **Enter on the focused bar (fixed 2026-10-13, uncommitted at the time of writing).** Traced live with a
+  stack at the blur: with "listen to the keyboard" on (`keyboard_listen`), the document keydown handler in
+  `raw_events.js` typed Enter/Space into the sentence as a space, and `services/app-state.js#activate_button`
+  ran `$(":focus").blur()` in Speak Mode, so the keyup landed on BODY and the bar's keyup handler never ran.
+  Fix, line-neutral: the existing Extras-button guard in that keydown handler also matches `#button_list`;
+  for the bar it only prevents the typing (held repeats included) and returns, so focus stays and the keyup
+  handler speaks it. Tests in `button-list-select-test.js` pin every gate of the typing branch (scanning,
+  dwell, an open modal: other suites leave them on, which made the first version pass vacuously); falsified
+  against HEAD. Mixed run (select/scanner/utterance/keyboard filter): only the 2 `app_state` toggle tests
+  fail, and they fail identically at HEAD (`this.controller.set is not a function` from state another suite
+  leaves). Live (Aiden, Basic): keydown and keyup both on the bar, spoken once, nothing typed, 0 page errors.
