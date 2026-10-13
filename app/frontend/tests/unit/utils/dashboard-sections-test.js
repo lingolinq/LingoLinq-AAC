@@ -259,7 +259,9 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     };
     var g = seq(gridLayoutState(vis, null, 'gentle'));
     var f = seq(gridLayoutState(vis, null, 'focused', 'org'));
-    assert.strictEqual(g.indexOf('org_mgmt'), 0, 'gentle leads with My Organizations');
+    // Updated 2026-10-12 (approved, twice the same day): the Caseload | Speak | Extras row sits directly
+    // BELOW My Organizations for an org manager ("move caseload and extras buttons below organizations div").
+    assert.deepEqual(g.slice(0, 4), ['org_mgmt', 'caseload', 'speak', 'extras'], 'gentle leads with My Organizations, then the caseload row');
     assert.strictEqual(f.indexOf('org_mgmt'), 0, 'focused leads with My Organizations');
     assert.ok(g.indexOf('caseload') < g.indexOf('boards'), 'gentle: caseload before boards');
     assert.ok(f.indexOf('boards') < f.indexOf('caseload'), 'focused: boards before the caseload/speak pair');

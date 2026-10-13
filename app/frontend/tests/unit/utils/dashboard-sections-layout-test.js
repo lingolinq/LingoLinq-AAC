@@ -87,7 +87,11 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
       var keys = sectionsForLayout(pair[1], 'focused').map(function(s) { return s.key; });
       assert.strictEqual(keys.indexOf('speak'), -1, 'Focused hides the Speak toggle for ' + pair[0]);
       var gentle = sectionsForLayout(pair[1], 'gentle').map(function(s) { return s.key; });
-      assert.notStrictEqual(gentle.indexOf('speak'), -1, 'Gentle still offers it to ' + pair[0]);
+      // Updated 2026-10-12 (approved): an admin (org manager) has no Speak on either layout ("on an admin
+      // user, hide the speak button on the home page"); a supervisor still gets it on Gentle.
+      var gentleOffersSpeak = pair[1] !== orgOnly;
+      assert.strictEqual(gentle.indexOf('speak') !== -1, gentleOffersSpeak,
+        'Gentle ' + (gentleOffersSpeak ? 'still offers' : 'does not offer') + ' it to ' + pair[0]);
     });
   });
 
@@ -120,14 +124,16 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     // anchored the utility row near the top; now Extras alone does, at its own (last) order slot.
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'focused').map(function(s) { return s.key; }),
-      ['caseload', 'attention', 'rooms', 'extras'],
-      'the collapsed utility row is listed at its rendered position'
+      // Updated later on 2026-10-12 (approved): Extras sits beside Caseload on the first row.
+      ['caseload', 'extras', 'attention', 'rooms'],
+      'Extras is listed beside Caseload, where it renders'
     );
-    // The org caseload+speak PAIR is emitted as the bottom row, after the utility row.
+    // Updated 2026-10-12 (approved): an admin has no Speak, so there is no Caseload | Speak bottom pair;
+    // Caseload is a full row at its order slot, directly after the My Organizations hero.
     assert.deepEqual(
       sectionsForLayout(SHAPES['an org manager who also supervises'], 'focused').map(function(s) { return s.key; }),
-      ['org', 'extras', 'caseload', 'speak'],
-      'the bottom pair row is listed last'
+      ['org', 'caseload', 'extras'],
+      'no Speak, so Caseload follows the hero and the utility row is last'
     );
   });
 
@@ -143,7 +149,8 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     assert.expect(2);
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'gentle').map(function(s) { return s.key; }),
-      ['caseload', 'attention', 'rooms', 'speak', 'extras'],
+      // Updated 2026-10-12 (approved): Caseload, Speak and Extras share the top row (caseloadRowFirst).
+      ['caseload', 'speak', 'extras', 'attention', 'rooms'],
       'Gentle reads in its default order'
     );
     assert.deepEqual(

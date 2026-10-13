@@ -10150,6 +10150,16 @@ body.pretty_loader {
     background-image: none;
     margin: -10px -20px;
     padding: 10px 5px;
+    /* NO BOTTOM INSET AROUND A MODERN SHELL (2026-10-12, requested: "md-shell doesn't extend to the full
+       height of the page ... a recurring problem"). `.md-shell` carries the page's background, and this
+       legacy 10px bottom padding left a strip of `#content` showing beneath it (measured on Home and
+       Extras above 1024px). The -10px margin only cancelled the padding, so both go and nothing else
+       moves. The `max-width: 1024px` and `950px` blocks zero this padding too: those were per-breakpoint
+       patches for the same strip. */
+    &:has(> .md-shell) {
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
   }
   .middle_column {
     background: transparent;
@@ -48299,14 +48309,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-grid.md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__icon {
     width: 140px !important;
     height: 140px !important;
-    background: url(../images/caseload-light.png) center / contain no-repeat !important;
-    border: none !important;
-    box-shadow: none !important;
-    filter: saturate(1.10) !important;
   }
-  .md-grid.md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__icon > svg {
-    display: none !important;
-  }
+}
+/* EVERY GENTLE MY CASELOAD BUTTON SHOWS THE CASELOAD-LIGHT IMAGE, not the icon on its icon background
+   (2026-10-12, requested: "the my caseload button should not have an icon or icon bg, it should have a
+   caseload image - on modern gentle, it should be caseload-light"). This swap was inside the >=951px
+   full-width block above, so the button lost it once it shared the Caseload | Speak | Extras row. */
+.md-grid.md-grid--layout-gentle .md-card.md-card--caseload.md-card--caseload-as-button .md-card__icon {
+  background: url(../images/caseload-light.png) center / contain no-repeat !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: saturate(1.10) !important;
+}
+.md-grid.md-grid--layout-gentle .md-card.md-card--caseload.md-card--caseload-as-button .md-card__icon > svg {
+  display: none !important;
 }
 /* Slightly darker "Speak Mode" title on the supervisor card so it reads a touch
    stronger than the inherited navy. */
@@ -48320,7 +48336,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    rule at ~app.scss:54210). The leading `.md-grid--dashboard` lifts these to (0,6,0)
    so they beat those equal-specificity 24/18px rules that sit LATER in the file. */
 .md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--badge-action.md-card--as-button,
-.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--extras.md-card--as-button {
+/* Not Extras in the Caseload | Speak | Extras row (md-grid--caseload-row, 2026-10-12): there it is sized
+   with Caseload and Speak, below, and is not part of an action-card group to pull up to. */
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle:not(.md-grid--caseload-row) .md-card--extras.md-card--as-button {
   min-height: 125px !important;
   /* Pull the action cards up so they sit closer together and read as one
      grouping (the grid's row gap is 28px; -14px halves the vertical spacing
@@ -48334,6 +48352,136 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--badge-action.md-card--as-button .md-card__sub,
 .md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--extras.md-card--as-button .md-card__sub {
   font-size: 14px !important;
+}
+/* GENTLE: MY CASELOAD | SPEAK MODE | EXTRAS (2026-10-12, requested: Caseload "top left on the page, the
+   same height as the speak mode button, then speak mode, then extras ... in equal sizes ... The heights
+   should match the buttons on the focused view home page"). The row comes from caseloadRowFirst
+   (utils/dashboard_sections.js), which flags the grid md-grid--caseload-row (-3 with all three).
+   Heights, padding and image sizes are Focused's Speak and Extras curves (the `max-width: 1200px` and
+   `1024px` blocks after the Focused Extras arrow rule): 120px tall above 1200px, linear to 84px at
+   901px, 84px when stacked. A fixed `height` (not min-height), so the three are always equal. */
+$gentle-caseload-row: '.md-grid.md-grid--dashboard.md-grid--layout-gentle.md-grid--caseload-row';
+#{$gentle-caseload-row} > .md-card.md-card--caseload-as-button,
+#{$gentle-caseload-row} > .md-card.md-card--speak-as-button,
+#{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button {
+  height: clamp(84px, calc(12vw - 24px), 120px) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding-top: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
+  padding-bottom: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
+  box-sizing: border-box !important;
+}
+#{$gentle-caseload-row} > .md-card.md-card--caseload-as-button .md-card__icon,
+#{$gentle-caseload-row} > .md-card.md-card--speak-as-button .md-card__icon,
+#{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button .md-card__icon {
+  width: clamp(65.8px, calc(9.4vw - 18.8px), 94px) !important;
+  height: clamp(65.8px, calc(9.4vw - 18.8px), 94px) !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+/* Inside, the Focused arrangement at every width: the image on the left, the title and subtitle beside
+   it, the pair centred, at Focused's title and subtitle sizes. Gentle's own small-screen rules (text
+   centred at <=950px, the image stacked above the text at <=640px) do not fit a fixed-height button. */
+#{$gentle-caseload-row} > .md-card.md-card--caseload-as-button,
+#{$gentle-caseload-row} > .md-card.md-card--speak-as-button,
+#{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button {
+  padding-left: clamp(12px, calc(2.6667vw - 12px), 24px) !important;
+  padding-right: clamp(12px, calc(2.6667vw - 12px), 24px) !important;
+  .md-card__head {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: clamp(10px, calc(2.3333vw - 18px), 24px) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .md-card__titles {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    text-align: left !important;
+  }
+  .md-card__title {
+    font-size: clamp(15px, calc(1.6667vw + 1px), 21px) !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+  }
+  .md-card__sub,
+  .md-card__status {
+    font-size: clamp(12px, calc(0.6667vw + 7px), 15px) !important;
+    line-height: 1.2 !important;
+    margin-top: 4px !important;
+  }
+  .md-card__sub {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+}
+/* THREE ACROSS AT 901-1200px leaves each card about 190-265px wide, so a Focused-size image left the
+   text ~100px and cut every title. Here the image is 80% of Focused's, the title steps 18px -> 14px (it
+   may wrap between words), and the subtitle keeps to one line below 1101px. The height is unchanged. */
+// The three cards, each named as the rules above name it, so these win for Extras too (one class more).
+$gentle-caseload-row-3-cards: '#{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--caseload-as-button, #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--speak-as-button, #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--extras.md-card--as-button';
+@media (min-width: 901px) and (max-width: 1200px) {
+  #{$gentle-caseload-row-3-cards} {
+    .md-card__icon {
+      width: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px) !important;
+      height: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px) !important;
+    }
+    .md-card__title {
+      font-size: clamp(14px, calc(1.3333vw + 2px), 18px) !important;
+    }
+  }
+}
+@media (min-width: 901px) and (max-width: 1024px) {
+  #{$gentle-caseload-row-3-cards} {
+    .md-card__icon {
+      width: clamp(44.74px, calc(6.392vw - 12.784px), 63.92px) !important;
+      height: clamp(44.74px, calc(6.392vw - 12.784px), 63.92px) !important;
+    }
+  }
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  #{$gentle-caseload-row-3-cards} {
+    .md-card__sub {
+      -webkit-line-clamp: 1 !important;
+    }
+  }
+}
+@media (max-width: 1024px) {
+  #{$gentle-caseload-row} > .md-card.md-card--caseload-as-button .md-card__icon,
+  #{$gentle-caseload-row} > .md-card.md-card--speak-as-button .md-card__icon,
+  #{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button .md-card__icon {
+    width: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px) !important;
+    height: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px) !important;
+  }
+}
+/* 901-950px is Gentle's wrapping flex layout (the `max-width: 950px` block, where buttons are half a row
+   and Caseload a full row): the row keeps its cards side by side, a half or a third each. */
+@media (max-width: 950px) {
+  #{$gentle-caseload-row} > .md-card.md-card--caseload-as-button,
+  #{$gentle-caseload-row} > .md-card.md-card--speak-as-button,
+  #{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button {
+    width: calc(50% - 8px) !important;
+  }
+  #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--caseload-as-button,
+  #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--speak-as-button,
+  #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--extras.md-card--as-button {
+    width: calc((100% - 32px) / 3) !important;
+  }
+}
+/* 900px and below: one per row, as Focused stacks Speak and Extras (decided 2026-10-12). */
+@media (max-width: 900px) {
+  #{$gentle-caseload-row} > .md-card.md-card--caseload-as-button,
+  #{$gentle-caseload-row} > .md-card.md-card--speak-as-button,
+  #{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button,
+  #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--caseload-as-button,
+  #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--speak-as-button,
+  #{$gentle-caseload-row}.md-grid--caseload-row-3 > .md-card.md-card--extras.md-card--as-button {
+    width: 100% !important;
+  }
 }
 /* ≤640px (Gentle single-column) — stack each action card's head: the icon (or the Speak
    image) sits CENTERED on its own row, and the title + subtitle wrap to a CENTERED row
@@ -49062,15 +49210,20 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
 .md-attention__all {
   flex-shrink: 0;
 }
-/* "View all communicators" as a header button (Modern Focused only, requested 2026-10-05): it
-   matches "View all rooms" and sits at the right of the Need Attention header. That header has
-   no space-between wrapper like `.md-card--rooms__top`, so `margin-left: auto` pushes it right.
-   Outside Focused the header button is hidden and the link under the list stays; in Focused the
-   reverse. Gated on the grid's layout class (as the caseload hero is) so the Dashboard Design
-   preview clone follows the layout it previews. */
-.md-attention__all { margin-left: auto; }
-.md-grid:not(.md-grid--layout-focused) .md-card--attention .md-attention__all,
-.md-grid.md-grid--layout-focused .md-card--attention .md-attention__list + .md-card__view-all { display: none; }
+/* "View all communicators" as a header button: it matches "View all rooms" and sits at the right of
+   the Need Attention header. That header has no space-between wrapper like `.md-card--rooms__top`,
+   so `margin-left: auto` pushes it right. Focused since 2026-10-05; Gentle too since 2026-10-12
+   (requested: "move view all communicators from the bottom ... to the top header right-aligned. Make
+   the button 44px tall (do it on both focused and gentle view)"). The link under the list is gone
+   from the template, so the per-layout show/hide that lived here went with it. 44px is also the
+   minimum touch target. */
+.md-attention__all {
+  margin-left: auto;
+  height: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+}
 /* Room count — a styled pill sitting to the right of the "Rooms" header. */
 /* .md-rooms__count is styled together with .md-attention__count below (shared
    pill rule) so the two counts stay in lockstep. */
@@ -56218,7 +56371,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    positive scope would silently drop the Speak hero everywhere else. */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
 .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
-.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
+.md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
@@ -56260,30 +56413,36 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    the edges. White text measures 4.8:1 on the slate itself (WCAG AA); the centre is lighter, the
    edges darker, so the label sits on the stronger part of that. */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button {
-  background: radial-gradient(ellipse at center, color.mix(#fff, $brand-slate-gray, 12%) 0%, color.mix(#000, $brand-slate-gray, 22%) 100%) !important;
+  /* SPEAK'S RADIAL RECIPE ON SLATE (requested 2026-10-12: "make the gradient radial, like the speak
+     mode button is"). Same as `$focus-hero-*` (_variables.scss): a base, a centre 16% white and an
+     edge 34% black (both mixed in oklch), interpolated in OKLAB, with an sRGB fallback line first.
+     The base is brand slate gray 25% darker, twice (both requested 2026-10-12), so the card keeps
+     the darkness asked for while its centre glows the way Speak's does. */
+  $extras-hero-base: color.scale(color.scale($brand-slate-gray, $lightness: -25%), $lightness: -25%);
+  $extras-hero-center: cf-oklch-mix($extras-hero-base, white, 84%);
+  $extras-hero-edge: cf-oklch-mix($extras-hero-base, black, 66%);
+  background: radial-gradient(ellipse at center, cf-srgb($extras-hero-center) 0%, cf-srgb($extras-hero-edge) 100%) !important;
+  background: radial-gradient(ellipse at center in oklab, cf-srgb($extras-hero-center) 0%, cf-srgb($extras-hero-edge) 100%) !important;
 }
 /* THE SPEAK HERO IS 100px SHORTER (requested 2026-10-10: "the main let's communicate button
    height needs to be 100px shorter height (not width)"): 220 -> 120. Its content was 166px (the
    126px badge plus 20px above and below), so the floor alone could not come down: the padding
    goes to 12px and the badge to 94px (`.md-card--speak-focused__img`), 94 + 24 + the 2px border = 120, with the
    78px title block beside it. Width is untouched.
-   The Caseload hero keeps its 220px: it shared these two declarations until this split, and the
-   request named only Let's Communicate. */
+   MY CASELOAD JOINED THEM (requested 2026-10-12: "give the my caseload button the same bg and style as
+   the speak mode on modern focused", for the supervisor hero and the admin's card alike). It was
+   220px tall here, with a 144x148 image and a 25px title; it now takes Speak's sizes throughout. */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused {
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
+.md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
   min-height: 120px !important;
   padding: 12px 32px !important;
-}
-.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
-  /* Hero height — 20px taller (200→220) for a bit more presence. */
-  min-height: 220px !important;
-  padding: 20px 32px !important;
 }
 /* Hover: a clear "press me" cue — lift 2px, deepen the drop shadow, and bloom a
    faint brand-blue glow around the whole card so it reads as interactive. */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button:hover,
 .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused:hover,
-.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused:hover {
+.md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused:hover {
   transform: translateY(-2px) !important;
   box-shadow:
     inset 0 3px 0 rgba($focus-on-dark, 0.40),
@@ -56297,7 +56456,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    "pushed-in" shadow (the decisive "it's a button" cue). */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button:active,
 .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused:active,
-.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused:active {
+.md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused:active {
   transform: translateY(2px) !important;
   box-shadow:
     inset 0 2px 5px rgba($focus-shadow-ink, 0.35),
@@ -56374,15 +56533,15 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    The show conditions are the ones the as-button cards had here before. */
 .md-grid.md-grid--layout-focused .md-card.md-card--speak-as-button,
 .md-grid.md-grid--layout-focused .md-card.md-card--caseload-as-button { display: none !important; }
-.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--speak-action,
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--caseload-action { display: flex !important; }
+/* The admin's Caseload is the Speak-style card (`--caseload-focused`) since 2026-10-12, not this one. */
+.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--speak-action { display: flex !important; }
 /* Larger screens only (above the wrap breakpoint): nudge the centered icon+text
    group 8px to the LEFT via asymmetric padding (24/40 keeps the 64px total, so
    the justify-center group shifts left 8px). Small screens keep their centering. */
 @media (min-width: 1025px) {
   .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
   .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
-  .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
+  .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
     padding-left: 24px !important;
     padding-right: 40px !important;
   }
@@ -56408,12 +56567,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    render together. `focusedHeroKey` (utils/dashboard_sections.js) returns exactly ONE key
    and stamps a single `md-grid--hero-*` on the grid, so a supporter sees the caseload hero
    and a communicator sees the Speak one. */
-.md-card--caseload-focused__img { width: 144px; height: 148px; display: block; object-fit: fill; }
+.md-card--caseload-focused__img { width: 94px; height: 94px; display: block; object-fit: contain; } /* Speak's 94px since 2026-10-12 (was 144x148) */
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
    becomes the hero's unmistakable focal point. 94px since 2026-10-10, when the hero came down
    100px (see "THE SPEAK HERO IS 100px SHORTER"): 126px no longer fit inside it. */
+/* 94px at full size; scaling down below 1200px and 15% smaller at 1024px and below (requested
+   2026-10-12; see "SPEAK AND EXTRAS SCALE DOWN"). */
 .md-card--speak-focused__img,
 .md-card--extras-focused__img { width: 94px; height: 94px; display: block; object-fit: contain; }
+/* The Extras image is 5% smaller than Speak's at every width (requested 2026-10-12): 89.3px here. */
+.md-card--extras-focused__img { width: 89.3px; height: 89.3px; }
 /* Image on the left, title + subheader stacked + LEFT-aligned on the right. */
 .md-card--extras-focused__text,
 .md-card--speak-focused__text,
@@ -56421,12 +56584,13 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-card--extras-focused__title,
 .md-card--speak-focused__title,
 .md-card--caseload-focused__title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; color: $focus-on-dark; }
-/* 2px SMALLER AT 1024px AND BELOW (requested 2026-10-10: "on 1024px and smaller, reduce the speak
-   mode header by 2px"). Speak Mode only; the Caseload hero's title keeps 25px. */
-@media (max-width: 1024px) {
-  .md-card--speak-focused__title,
-  .md-card--extras-focused__title { font-size: 23px; }
-}
+/* Speak and Extras titles 4px smaller (requested 2026-10-12), scaling down below 1200px; the
+   Caseload hero too, since it took Speak's style the same day. */
+.md-card--extras-focused__title,
+.md-card--speak-focused__title,
+.md-card--caseload-focused__title { font-size: 21px; }
+/* (Speak and Extras titles scale with the card below 1200px: see "SPEAK AND EXTRAS SCALE DOWN" after
+   the arrow rule. That replaced a fixed 2px-smaller title at 1024px from 2026-10-10.) */
 /* Divider between the title and subheader: a left→right fading hairline
    (white, on the dark button). */
 .md-card--extras-focused__divider,
@@ -56455,6 +56619,57 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   margin-left: 3px;
   display: inline-block;
   vertical-align: -0.05em;
+}
+
+/* SPEAK AND EXTRAS SCALE DOWN BELOW 1200px (requested 2026-10-12: "the speak mode and extras buttons
+   should start to scale down in size with their inner content at 1200px and smaller screens").
+   Each size runs linearly from its full value at 1200px to about 70% at 900px and holds there:
+   clamp(<value at 900px>, <straight line through both>, <value at 1200px>). Text keeps readable
+   floors (title 16px, subtitle 13px; the arrow is 1.5em of the subtitle), and the card stays far
+   above the 44px tap target (84px at its smallest). The Caseload hero joined on 2026-10-12.
+   After the full-size rules above (same selectors, same !important), so these win below 1200px. */
+@media (max-width: 1200px) {
+  .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
+  .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
+  .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
+    min-height: clamp(84px, calc(12vw - 24px), 120px) !important;
+    padding-top: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
+    padding-bottom: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
+    padding-left: clamp(16px, calc(2.6667vw - 8px), 24px) !important;
+    padding-right: clamp(24px, calc(5.3333vw - 24px), 40px) !important;
+    gap: clamp(16px, calc(2.6667vw - 8px), 24px) !important;
+  }
+  /* Images: v(w) = full * (w/1000 - 0.2), i.e. full size at 1200px and 70% at 900px. Speak's full
+     is 94px; Extras' is 5% smaller, 89.3px. */
+  .md-card--speak-focused__img,
+  .md-card--caseload-focused__img {
+    width: clamp(65.8px, calc(9.4vw - 18.8px), 94px);
+    height: clamp(65.8px, calc(9.4vw - 18.8px), 94px);
+  }
+  .md-card--extras-focused__img {
+    width: clamp(62.51px, calc(8.93vw - 17.86px), 89.3px);
+    height: clamp(62.51px, calc(8.93vw - 17.86px), 89.3px);
+  }
+  .md-card--speak-focused__title,
+  .md-card--extras-focused__title,
+  .md-card--caseload-focused__title { font-size: clamp(16px, calc(1.6667vw + 1px), 21px); }
+  .md-card--speak-focused__sub,
+  .md-card--extras-focused__sub,
+  .md-card--caseload-focused__sub { font-size: clamp(13px, calc(0.6667vw + 7px), 15px); }
+}
+/* 15% SMALLER IMAGES AT 1024px AND BELOW (requested 2026-10-12: "make the 15% smaller rule apply only
+   on 1024px and smaller screens", Extras staying 5% smaller than that, so 20%). The same line as
+   above, times 0.85 for Speak (full 79.9px) and 0.80 for Extras (75.2px); still scaling to 900px. */
+@media (max-width: 1024px) {
+  .md-card--speak-focused__img,
+  .md-card--caseload-focused__img {
+    width: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
+    height: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
+  }
+  .md-card--extras-focused__img {
+    width: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px);
+    height: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px);
+  }
 }
 
 /* On Home while Focused is active, the "Hey <name>" bar is the greeting, so hide
@@ -56894,7 +57109,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   transition: box-shadow 180ms ease-out, transform 140ms ease-out !important;
   -webkit-tap-highlight-color: transparent;
 }
-.md-grid .md-card.md-card--as-button::before {
+/* Not the Focused Extras card (2026-10-12): it is built like the Speak card, which has no top
+   shine, and this sheen turned its radial gradient into a top-lit band. `:where()` adds no weight. */
+.md-grid .md-card.md-card--as-button:where(:not(.md-card--extras-focused))::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -57727,8 +57944,18 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     align-self: stretch !important;
     height: auto !important;
   }
+  /* 24px between the Speak / Extras row and Boards (requested 2026-10-12: more space there): the
+     row-gap's 8px plus this 16px. Was 6px (14px in all). */
   .md-grid.md-grid--layout-focused.md-grid--speak-beside > .md-card.md-card--boards {
-    margin-top: 6px !important;
+    margin-top: 16px !important;
+  }
+  /* MY CASELOAD | EXTRAS (2026-10-12, requested: "modern focused show my caseload to the left of extras
+     (like it does on gentle view)"), `md-grid--caseload-beside`: the two drop their hero margins so they
+     split the row evenly and line up. The grid's row gap is left alone here: the panels below them
+     (Attention, Rooms) keep their spacing. */
+  .md-grid.md-grid--layout-focused.md-grid--caseload-beside .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
+  .md-grid.md-grid--layout-focused.md-grid--caseload-beside > .md-card.md-card--caseload-focused {
+    margin: 0 !important;
   }
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
@@ -67557,8 +67784,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-shell,
   #content .ember-view > .md-shell,
   #content > .md-shell {
-    min-height: auto !important;
-
+    min-height: 100vh !important;
+    /* 100vh is a FLOOR, not a cap (2026-10-12): with flex 0 0 auto the shell still grows with tall content, and a short page's background reaches the bottom (was `auto`, which stopped it partway at 901-950px). */
     flex: 0 0 auto !important;
 
   }
@@ -68485,8 +68712,9 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    Focused View keeps its 2×2 in that range. */
 @media (max-width: 1024px) {
   /* Not the Speak-beside layout (2026-10-12): that one keeps its grid down to 901px so Speak and the
-     cards beside it stay side by side, and takes this flex layout at 900px and below (next block). */
-  .md-grid.md-grid--dashboard.md-grid--layout-focused:where(:not(.md-grid--speak-beside)) {
+     cards beside it stay side by side, and takes this flex layout at 900px and below (next block).
+     Nor the Caseload | Extras row (`md-grid--caseload-beside`, the same day), for the same reason. */
+  .md-grid.md-grid--dashboard.md-grid--layout-focused:where(:not(.md-grid--speak-beside):not(.md-grid--caseload-beside)) {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
@@ -68500,13 +68728,27 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 }
 /* The Speak-beside layout takes the same flex layout at 900px and below (see the rule above). */
 @media (max-width: 900px) {
-  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside {
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside,
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--caseload-beside {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
     align-items: stretch !important;
     gap: 16px !important;
     transition: none !important;
+  }
+  /* 24px above Boards here too, matching the wider layout: the 16px gap plus 8px. Speak and Extras
+     drop the hero's 6px / 10px margins here (they are 0 above 900px too), which also lines both up
+     with the Boards card's edges. Their selector is heavier than the hero look rule's (0,7,0) so it
+     clears those margins. */
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside > .md-card--boards {
+    margin-top: 8px !important;
+  }
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside:not(.md-grid--hero-caseload):not(.md-grid--hero-org) > .md-card.md-card--speak-focused,
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--caseload-beside > .md-card.md-card--caseload-focused,
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--caseload-beside .md-card.md-card--extras.md-card--extras-focused.md-card--as-button {
+    margin: 0 !important;
   }
 }
 @media (max-width: 1024px) {
@@ -68549,9 +68791,11 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      `calc(50% - 12px)` matches the utility tiles' basis rather than the container's exact
      16px gap, so the row's two halves and the four tiles above them share one measurement.
      Both `--caseload-as-button` and `--caseload` are named: which variant renders depends
-     on whether Caseload is the hero, and on an org dashboard it is the ordinary card. */
-  .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload-as-button,
-  .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload,
+     on whether Caseload is the hero, and on an org dashboard it is the ordinary card.
+     Not the Caseload | Extras row (`md-grid--caseload-beside`, 2026-10-12): it stacks at 900px and
+     below, as Gentle's and the Speak row do. */
+  .md-grid--layout-focused.md-grid--hero-org:not(.md-grid--caseload-beside) > .md-card--caseload-as-button,
+  .md-grid--layout-focused.md-grid--hero-org:not(.md-grid--caseload-beside) > .md-card--caseload,
   .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-as-button,
   .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-action {
     flex: 1 1 calc(50% - 12px) !important;

@@ -2838,42 +2838,10 @@ body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-manageme
     #{color.mix($brand-blue-grey, #FFFFFF, 38%)} 100%) !important;
 }
 
-// The INDIVIDUAL organization tiles inside that card take the BOARDS card's surface
-// (2026-08-16, requested), so a tile reads as a panel sitting on the org card rather than
-// as another card competing with it.
-// `$focus-boards-bg` is the token `.md-grid--layout-focused .md-card--boards` uses, reused
-// here rather than copied — the two surfaces are meant to be identical, and a copy would
-// drift the first time the Boards card is retuned. It is a two-layer gradient (white sheen
-// over a tinted base), which is why this sets `background` and not `background-color`.
-// Scoped INSIDE `.md-card--org-management`: `.md-room-card` is shared with the Rooms card,
-// which is not part of this request.
-// FOCUSED-ONLY organization TILE illustration (2026-08-16) — the per-organization buttons
-// inside the card, which reuse `.md-room-card` chrome and swap the room door for the
-// SINGULAR organization art (app.scss ~46327). Gentle keeps `organization.png`.
-// Same pattern as the card's header icon below: `image-set()` for the WebP/PNG pair,
-// prefixed copy first for Safari, preload in both shells.
-// The source was 192x192 for a 46x46 box; resized to 92x92 (2x the display size) —
-// 48KB -> 13KB PNG, 2.1KB WebP.
-// The light art's saturate/brightness lift is cleared: the dark version is already tuned,
-// and stacking the filter on it muddied the tile.
-body.ll-layout-focused .md-card--org-management .md-room-card__icon {
-  /* PLAIN url() FIRST as the fallback. `type()` inside image-set() needs Safari 17+ /
-     Chrome 113+, and legacy -webkit-image-set() never supported type() at all — so on
-     an older iPad or a pre-2023 Android WebView (a very common AAC device population)
-     BOTH declarations below were dropped, the base rule's LIGHT artwork won, and
-     `filter: none` still applied, stripping the saturate/brightness lift that light art
-     was tuned with: exactly the washed-out tile the -dark variants exist to prevent.
-     This also makes the PNG reachable at all — every engine that supports
-     image-set()+type() also supports WebP, so the in-set PNG branch never wins. */
-  background-image: url('../images/organization-dark.png') !important;
-  background-image: -webkit-image-set(
-    url('../images/organization-dark.webp') type('image/webp'),
-    url('../images/organization-dark.png') type('image/png')) !important;
-  background-image: image-set(
-    url('../images/organization-dark.webp') type('image/webp'),
-    url('../images/organization-dark.png') type('image/png')) !important;
-  filter: none !important;
-}
+// THE ORGANIZATION TILES AND THEIR ICON MATCH GENTLE (2026-10-12, requested: "modern focused, lighten
+// the organization buttons to the same as they are on gentle view"). The Focused-only tile surface (the
+// Boards surface 10% lighter) and the organization-dark icon were removed, so the shared rules for
+// `.md-card--org-management .md-room-card` in app.scss apply in both layouts.
 
 // FOCUSED-ONLY organizations illustration (2026-08-16). The card's icon is a CSS
 // background (`.md-card__icon--org`, app.scss ~46785) rather than an <img>, so the swap
@@ -2881,13 +2849,13 @@ body.ll-layout-focused .md-card--org-management .md-room-card__icon {
 // untouched, as asked.
 //
 // `image-set()` gives the WebP/PNG pair the same treatment the <picture> heroes get:
-// browsers that understand `type("image/webp")` take the 6.7KB WebP, the rest fall back to
-// the 69KB PNG. Both are declared here; the `-webkit-` prefixed copy first because Safari
+// browsers that understand `type("image/webp")` take the 9KB WebP, the rest fall back to
+// the 50KB PNG. Both are declared here; the `-webkit-` prefixed copy first because Safari
 // only accepts the prefixed form, and an unprefixed-only declaration silently drops the
 // background there.
-// The source art was 492x507 / 210KB for a box that renders at 92x92; it is resized to
-// 248x256 (2x the display size, matching organizations.png's 256px convention) and stripped
-// of metadata.
+// ART: organizations-focused (2026-10-12, requested, replacing organizations-dark). The source was a
+// 1254px opaque square on grey; it is cropped to its circle with a transparent mask and resized to
+// 184x184, 2x the 92px box, and stripped of metadata.
 //
 // RENDERING EARLY IS THE PRELOAD'S JOB, not this rule's: a CSS background cannot carry
 // `decoding="sync"`, so the fetch is started ahead of time by the <link rel="preload"> in
@@ -2905,13 +2873,13 @@ body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon-
      was tuned with: exactly the washed-out tile the -dark variants exist to prevent.
      This also makes the PNG reachable at all — every engine that supports
      image-set()+type() also supports WebP, so the in-set PNG branch never wins. */
-  background-image: url('../images/organizations-dark.png') !important;
+  background-image: url('../images/organizations-focused.png') !important;
   background-image: -webkit-image-set(
-    url('../images/organizations-dark.webp') type('image/webp'),
-    url('../images/organizations-dark.png') type('image/png')) !important;
+    url('../images/organizations-focused.webp') type('image/webp'),
+    url('../images/organizations-focused.png') type('image/png')) !important;
   background-image: image-set(
-    url('../images/organizations-dark.webp') type('image/webp'),
-    url('../images/organizations-dark.png') type('image/png')) !important;
+    url('../images/organizations-focused.webp') type('image/webp'),
+    url('../images/organizations-focused.png') type('image/png')) !important;
   // The light illustration was warmed with saturate/brightness to lift it off the card;
   // the dark art is already tuned, so the filter is cleared rather than stacked on top.
   filter: none !important;
@@ -3660,13 +3628,11 @@ body.ll-layout-focused .md-acct-rail__row:focus-visible {
 //
 // (0,2,1) against the base rule's (0,1,0), and the base carries NO `!important`, so specificity
 // alone decides — which it must, since @use emits this file far above app.scss.
-//
-// BRAND SLATE GRAY SINCE 2026-10-12 (requested: "modern focused side menu, make the bg behind the
-// menu our brand slate gray"), replacing the darkened translucent gradient described above. Solid,
-// so the menu reads as its own panel. Every row on it is a light card with its own dark ink, so no
-// text sits directly on the slate.
 body.ll-layout-focused .md-acct-rail {
-  background: $brand-slate-gray;
+  background:
+    linear-gradient(160deg,
+      rgba(color.scale(rgb(255, 255, 255), $lightness: -10%), 0.55) 0%,
+      rgba(color.scale($la-navy, $lightness: -10%), 0.05) 100%);
 }
 
 // SILVER RING ON THE ATTENTION AVATARS (requested 2026-09-20). Each communicator's avatar in
@@ -3745,28 +3711,6 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--atte
   // SWITCHING BACK to a previous artwork is a one-word edit: `communicators-glassy-2` or
   // `communicators-glassy`. All three are on disk in both asset roots.
   @include focus-glass-card-art('communicators-folders');
-}
-
-// ...LIGHTENED 10% (2026-08-16, requested). The tiles no longer take `$focus-boards-bg`
-// verbatim — they take its STRUCTURE with the colour layer scaled 10% toward white, so
-// they read as a lighter sibling of the Boards surface rather than a copy of it.
-// Structure restated rather than filtered: `filter: brightness()` would lighten the tile's
-// TEXT and icon along with its background, and `opacity` would let the darker org card
-// underneath show through and darken it instead.
-// The FIRST layer is the white sheen — already white, so lightening it is a no-op and it is
-// carried over unchanged. Only the second (colour) layer moves.
-// Both stops keep their original alphas; `color.scale(..., $lightness: 10%)` moves each
-// 10% of the remaining distance to white, which is the "10% lighter" being asked for and
-// leaves the ramp's shape intact.
-body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-management .md-room-card {
-  background:
-    linear-gradient(180deg,
-      rgba(255, 255, 255, 0.60) 0%,
-      rgba(255, 255, 255, 0.12) 20%,
-      rgba(255, 255, 255, 0) 42%),
-    linear-gradient(180deg,
-      rgba(color.scale($focus-surface-top, $lightness: 10%), 0.60) 0%,
-      rgba(color.scale($focus-surface-bottom, $lightness: 10%), 0.55) 100%) !important;
 }
 
 // -----------------------------------------------------------------------------

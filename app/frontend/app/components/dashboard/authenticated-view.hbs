@@ -266,10 +266,10 @@
             <h3 class="md-card__title">{{t "Communicators Need Attention" key="communicators_need_attention"}} <span class="md-attention__count">{{this.attentionCommunicators.length}}</span></h3>
             <div class="md-card__sub">{{t "Follow up on these communicators" key="attention_card_sub"}}</div>
           </div>
-          {{!-- Modern Focused (requested 2026-10-05): the same primary button as "View all rooms",
-               right-aligned in this header. Always rendered; CSS shows it ONLY under
-               .md-grid--layout-focused and hides the under-list link there, so Gentle keeps the
-               link below and the Dashboard Design preview clone follows the layout. --}}
+          {{!-- The same primary button as "View all rooms", right-aligned in this header (Focused since
+               2026-10-05; Gentle too since 2026-10-12, requested: "move view all communicators from the
+               bottom of the communicators need attention card to the top header right-aligned", which
+               also removed the link that sat under the list). --}}
           {{#if this.attentionOverflow}}
             <LinkTo @route="caseload" class="md-btn md-btn--primary md-attention__all">
               {{t "View all communicators" key="view_all_communicators_label"}}<span aria-hidden="true">&nbsp;→</span>
@@ -297,10 +297,7 @@
             </LinkTo>
           {{/each}}
         </div>
-        {{!-- Only the first few are listed (attentionShown); the rest are on the caseload page. --}}
-        {{#if this.attentionOverflow}}
-          <LinkTo @route="caseload" class="md-card__view-all">{{t "View all communicators" key="view_all_communicators_label"}}<span aria-hidden="true">&nbsp;→</span></LinkTo>
-        {{/if}}
+        {{!-- Only the first few are listed (attentionShown); the header button opens the rest on the caseload page. --}}
       </section>
       {{/if}}
       {{!-- Speak Mode mirrors My Caseload: two sibling variants, CSS @media
@@ -421,10 +418,15 @@
       <button type="button" class="md-card md-card--extras md-card--extras-focused md-card--as-button" style={{this.cardHideStyle.extras}} aria-label={{t "Extras" key="extras"}} {{on "click" (fn this.onGoTab "extras")}}>
         {{!-- Built like the Speak Mode card above (requested 2026-10-12: "make the modern focused Extras
              styles match the modern focused speak mode button styles (all but the bg color)", with the
-             Extras illustration Gentle uses). Its own `__` classes join the Speak card's rules in
+             extras-focused illustration). Its own `__` classes join the Speak card's rules in
              app.scss; the background is brand slate gray. --}}
         <span class="md-card--extras-focused__icon" aria-hidden="true">
-          <img src={{path "images/extras-circle.png"}} class="md-card--extras-focused__img" alt="" decoding="async">
+          {{!-- extras-focused artwork (2026-10-12): a 224px WebP (2x the 94px display) with a PNG fallback,
+               like the Speak card's image; cropped to the circle with a transparent surround. --}}
+          <picture>
+            <source srcset={{path "images/extras-focused.webp"}} type="image/webp">
+            <img src={{path "images/extras-focused.png"}} class="md-card--extras-focused__img" alt="" decoding="async">
+          </picture>
         </span>
         <span class="md-card--extras-focused__text">
           <span class="md-card--extras-focused__title">{{t "Extras" key="extras"}}</span>

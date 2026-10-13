@@ -34,7 +34,8 @@ var HOME_SECTIONS = [
   // is the role the request named. They keep every other route to boards — the Boards pill and
   // tab in the nav are untouched, as is the account rail's Home Board row.
   { key: 'boards',   cardClass: 'md-card--boards',        labelKey: 'boards',           labelDefault: "Boards",           available: function(user) { return !(user && (user.get('supporter_role') || hasOrgManagement(user))); } },
-  { key: 'speak',    cardClass: 'md-card--speak',         labelKey: 'speak_mode',       labelDefault: "Speak Mode",       available: function() { return true; }, hero_for: 'communicator' },
+  // NOT FOR AN ADMIN (org manager), 2026-10-12, requested: "on an admin user, hide the speak button on the home page".
+  { key: 'speak',    cardClass: 'md-card--speak',         labelKey: 'speak_mode',       labelDefault: "Speak Mode",       available: function(user) { return !hasOrgManagement(user); }, hero_for: 'communicator' },
   { key: 'extras',   cardClass: 'md-card--extras',        labelKey: 'extras',           labelDefault: "Extras",           available: function() { return true; } },
   { key: 'caseload', cardClass: 'md-card--caseload',      labelKey: 'my_caseload',      labelDefault: "My Caseload",      available: function(user) { return !!(user && user.get('supporter_role')); }, hero_for: 'supervisor' },
   { key: 'rooms',    cardClass: 'md-card--rooms',         labelKey: 'rooms',            labelDefault: "Rooms",            available: function(user) { return !!(user && user.get('supporter_role') && (user.get('supervised_units') || []).length > 0); } },
@@ -390,7 +391,7 @@ function defaultOrderFor(user, layout, vis) {
      takes it above and only promotes its hero -- so the Edit-Dashboard-beside-Create-a-Board
      move has to happen on this side of that branch, not inside it. Putting it in the shared
      function reordered Focused's utility row too, which the request did not ask for. */
-  return extrasBesideSpeak(editBesideCreate(base), vis);
+  return caseloadRowFirst(extrasBesideSpeak(editBesideCreate(base), vis), vis);
 }
 
 // The visible section keys in display order: start from the saved order (or the
@@ -429,6 +430,32 @@ function extrasBesideSpeak(base, vis) {
   var out = base.filter(function(k) { return k !== 'extras'; });
   out.splice(out.indexOf('speak') + 1, 0, 'extras');
   return out;
+}
+
+/* MY CASELOAD, SPEAK MODE AND EXTRAS LEAD THE GENTLE PAGE AS ONE ROW (requested 2026-10-12: "the My
+   Caseload button needs to show top left on the page ... then speak mode, then extras should show to
+   its right, in equal sizes"; decided the same day: org managers too, above My Organizations).
+   Derived at the same two Gentle-only seams as extrasBesideSpeak, for the same reason. Moves Caseload
+   and whichever of Speak and Extras are visible to the FRONT, in that order; packOrder then emits
+   them as one row. Without `vis` (the editor's full default order) all three move. A user with no
+   caseload, or with neither partner visible, keeps the order unchanged. */
+var CASELOAD_ROW_PARTNERS = ['speak', 'extras'];
+function caseloadRowFirst(base, vis) {
+  if (base.indexOf('caseload') === -1 || (vis && !vis.caseload)) { return base; }
+  var partners = CASELOAD_ROW_PARTNERS.filter(function(k) { return base.indexOf(k) !== -1 && (!vis || vis[k]); });
+  if (!partners.length) { return base; }
+  var lead = ['caseload'].concat(partners);
+  var rest = base.filter(function(k) { return lead.indexOf(k) === -1; });
+  /* AN ADMIN'S ROW SITS DIRECTLY BELOW MY ORGANIZATIONS (requested later on 2026-10-12: "for an admin
+     user, move caseload and extras buttons below organizations div"). An admin is an org manager: the
+     live grid sees `vis.org`; the editor's default order (no `vis`) is ORG_DEFAULT_ORDER, led by 'org'.
+     Keyed that way because the other two orders also list 'org' (inert for non-managers). */
+  var orgLed = vis ? !!vis.org : rest[0] === 'org';
+  if (orgLed && rest.indexOf('org') !== -1) {
+    var at = rest.indexOf('org') + 1;
+    return rest.slice(0, at).concat(lead, rest.slice(at));
+  }
+  return lead.concat(rest);
 }
 
 function editBesideCreate(base) {
@@ -470,7 +497,15 @@ function packOrder(keys, extraFull) {
   };
   for (var i = 0; i < keys.length; i++) {
     var key = keys[i];
-    if (pairedWith(key, keys[i + 1])) {
+    // The caseload row (caseloadRowFirst): Caseload, then the partners that directly follow it, as
+    // ONE row of two or three cells. dashboardLayout widens the grid when it has three.
+    var partners = [];
+    while (key === 'caseload' && CASELOAD_ROW_PARTNERS.indexOf(keys[i + 1 + partners.length]) !== -1) { partners.push(keys[i + 1 + partners.length]); }
+    if (partners.length) {
+      if (pending) { rows.push(a(pending) + ' .'); pending = null; }
+      rows.push([key].concat(partners).map(a).join(' '));
+      i += partners.length;
+    } else if (pairedWith(key, keys[i + 1])) {
       if (pending) { rows.push(a(pending) + ' .'); pending = null; }
       rows.push(a(key) + ' ' + a(keys[i + 1]));
       i++;
@@ -514,7 +549,7 @@ function dashboardLayout(vis, order) {
      order has to be added in BOTH places or the dashboard and its editor disagree. That is
      exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
      alone: the preview reordered and the real page did not. */
-  var def = extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)), vis);
+  var def = caseloadRowFirst(extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)), vis), vis);
   /* NO SMALL CARD GETS A FULL-WIDTH ROW ANY MORE (requested 2026-10-09: "do not allow any of
      the buttons to span the full row"). This was `supervisor ? ['speak'] : ['speak','extras']`,
      which made Speak -- and Extras for a communicator -- full-width showcase rows.
@@ -522,7 +557,18 @@ function dashboardLayout(vis, order) {
      caseload, rooms, attention and org unconditionally. Those are panels, not buttons, and the
      request was about the buttons. */
   var extraFull = [];
-  return framed(packOrder(orderedVisible(vis, order, def), extraFull));
+  var body = packOrder(orderedVisible(vis, order, def), extraFull);
+  // A three-cell caseload row needs thirds, so the grid becomes SIX columns (as Focused's Speak row
+  // does): every row's cells widen evenly, three tracks per half and two per third.
+  if (!body.some(function(row) { return row.split(' ').length === 3; })) { return framed(body); }
+  var GRID_COLS = 6;
+  var widened = framedN(body.map(function(row) {
+    var cells = row.split(' '), out = [];
+    cells.forEach(function(c) { for (var n = 0; n < GRID_COLS / cells.length; n++) { out.push(c); } });
+    return out.join(' ');
+  }), GRID_COLS);
+  widened.cols = GRID_COLS;
+  return widened;
 }
 
 // The small "utility" action cards that share ONE row on Focused View. Extras joined them on
@@ -634,6 +680,15 @@ function focusedLayout(vis, order, heroKey) {
      user's own arrangement: then they are read from `flowAreas`, the stacked layout built above
      from that order, so small screens keep following it. */
   var beside = besideSpeak(keys, heroKey);
+  var lead = 'speak';
+  /* MY CASELOAD LEADS THE SAME ROW where Speak is not the hero (requested 2026-10-12: "modern focused
+     show my caseload to the left of extras (like it does on gentle view)"): a supervisor (Caseload hero)
+     and an admin (org hero), with Extras on its right. Not with the org Caseload | Speak pair, which
+     already gives Caseload its row. */
+  if (!beside.length && !orgPair && heroKey && heroKey !== 'speak' && keys.indexOf('caseload') !== -1 && keys.indexOf('extras') !== -1) {
+    beside = ['extras'];
+    lead = 'caseload';
+  }
   if (beside.length) {
     /* SIDE BY SIDE AT EQUAL WIDTH (2026-10-12, requested: "make the width of the buttons evenly split
      over the area ... the buttons shouldn't stack, they should sit side by side and be the same
@@ -650,8 +705,8 @@ function focusedLayout(vis, order, heroKey) {
     var others = actionKeys.filter(function(k) { return beside.indexOf(k) === -1; });
     var gridRows = [], othersEmitted = false;
     keys.forEach(function(k) {
-      if (k === 'speak') {
-        gridRows.push(spanRow(['speak'].concat(beside)));
+      if (k === lead) {
+        gridRows.push(spanRow([lead].concat(beside)));
       } else if (beside.indexOf(k) !== -1) {
         return;
       } else if (others.indexOf(k) !== -1) {
@@ -662,7 +717,7 @@ function focusedLayout(vis, order, heroKey) {
     });
     var besideBuilt = framedN(gridRows, GRID_COLS);
     besideBuilt.cols = GRID_COLS;
-    besideBuilt.beside = true;
+    besideBuilt.beside = lead;
     if (order && order.length) { besideBuilt.flowAreas = framedN(rowsOut, cols).areas; }
     return besideBuilt;
   }
@@ -740,7 +795,16 @@ function gridLayoutState(vis, order, layout, heroKey) {
   if (areas.some(function(row) { return row.split(' ').indexOf('extras') !== -1; })) { classes.push('md-grid--extras-placed'); }
   // Focused's Create a Board / Extras stack beside the Speak hero (focusedLayout). app.scss
   // tightens that stack.
-  if (built.beside) { classes.push('md-grid--speak-beside'); }
+  // `beside` names the card leading that row: Speak, or Caseload (2026-10-12), each with its own class
+  // because app.scss spaces them differently (the Speak row tightens the grid's row gap around Boards).
+  if (built.beside) { classes.push(built.beside === 'caseload' ? 'md-grid--caseload-beside' : 'md-grid--speak-beside'); }
+  // Gentle's Caseload | Speak | Extras row (caseloadRowFirst): app.scss sizes the three like Focused's
+  // Speak and Extras, and stacks them at 900px and below. Not Focused, whose org pair also shares a row.
+  if (layout !== 'focused' && areas.some(function(row) { var t = row.split(' '); return t.indexOf('caseload') !== -1 && t.some(function(c) { return c !== 'caseload'; }); })) {
+    classes.push('md-grid--caseload-row');
+    // Three cards (the six-column grid) or two: the 901-950px flex layout sizes them a third or a half.
+    if (built.cols === 6) { classes.push('md-grid--caseload-row-3'); }
+  }
   // Flag when Boards spans BOTH columns (a full-width 'boards boards' row) so the
   // CSS can let the board strip shrink to fit instead of horizontally scrolling.
   if (areas.some(function(row) { var t = row.split(' '); return t.length > 1 && t.every(function(c) { return c === 'boards'; }); })) { classes.push('md-grid--boards-full'); }
@@ -759,7 +823,9 @@ function gridLayoutState(vis, order, layout, heroKey) {
   if (layout !== 'focused') {
     areas.forEach(function(row) {
       var t = row.split(' ');
-      if (t[0] === t[1] && t[0] !== 'boards' && t[0] !== '.' && t[0] !== 'sup') {
+      // EVERY cell, not just the first two: on the six-column grid (the caseload row) a third is two
+      // cells, so `caseload caseload speak ...` would otherwise read as a full-width Caseload.
+      if (t.every(function(c) { return c === t[0]; }) && t[0] !== 'boards' && t[0] !== '.' && t[0] !== 'sup') {
         var key = Object.keys(AREA).filter(function(k) { return AREA[k] === t[0]; })[0];
         if (key) { classes.push('md-grid--fullspan-' + key); }
       }
