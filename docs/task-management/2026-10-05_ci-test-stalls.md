@@ -696,3 +696,11 @@ pattern that appears in the killing command itself; it killed the shell twice.
   stop() leftovers (test-only effects); the app-state poll's promise never settling after teardown;
   test hooks exported from production modules; partial re-run job lookup; thin real-timer margins
   in a few owner tests; CLAUDE.md conflict and merge order with #1117.
+- Adversarial review of `88d50e7be`: no Critical or High. Fixed in `ad6eb9cde`: the queued-fetch
+  check now reads `timingStrict()` only (its self-tests set the shared per-test override, so a broken
+  caller fails them; mutant `strict = false` killed); the annotation's reproduce command drops
+  `pool=` (it replaces `--filter`); `grep -m 20` instead of `grep | head` (SIGPIPE exit 141 under
+  pipefail at 500 failures, reproduced in the step simulation, now exit 1); the planted-stub
+  self-test suppresses the attribution hint (mutant without the suppression: one hint line); the
+  overlay test waits two animation frames. Left: a queued fetch in a todo test is absorbed
+  (deferring it would charge an innocent test).
