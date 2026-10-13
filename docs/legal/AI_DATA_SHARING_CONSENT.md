@@ -47,7 +47,7 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
 
 ### 2.1 Anthropic, PBC
 
-- **Models used:** Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) for AI word prediction (also
+- **Models used:** Claude Haiku 5.5 (`claude-haiku-5-5`; Claude Haiku 4.5 until 2026-10-13) for AI word prediction (also
   used for AI board suggestions, which are Non-personal and not gated by this consent -- see
   section 3); Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`) for
   AI evaluation narration.
