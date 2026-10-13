@@ -132,4 +132,31 @@ module('Unit | Component | trial-bar', function(hooks) {
     assert.notOk(t.appState.get('basic_try_home'), 'Basic marker cleared');
     assert.deepEqual(t.calls.transitions, [['board-picker']], 'back to the picker');
   });
+
+  /* RESTORED COVERAGE (adversary review, 2026-10-13). basic-try-home-button-tail-test was deleted with that
+     component; its preload and sync cases now belong here (trial-bar.js#use). Finished like the picker's
+     "Pick this Board": preload the new home board's images, and sync when online with auto-sync on. */
+  function syncing(t, online) {
+    var log = [];
+    t.component.set('preloadImages', function(b) { log.push('preload ' + b.get('key')); return Promise.resolve(); });
+    t.component.set('persistence', EmberObject.create({
+      online: online, auto_sync: true,
+      sync: function(who, a, b, reason) { log.push('sync ' + who + ' ' + reason); return Promise.resolve(); }
+    }));
+    return log;
+  }
+
+  test('Use, online: preloads the new home board, then syncs', async function(assert) {
+    var t = setup(this);
+    var log = syncing(t, true);
+    await t.component.use();
+    assert.deepEqual(log, ['preload example/core-60', 'sync self home_board_changed']);
+  });
+
+  test('Use, offline: preloads, no sync', async function(assert) {
+    var t = setup(this);
+    var log = syncing(t, false);
+    await t.component.use();
+    assert.deepEqual(log, ['preload example/core-60']);
+  });
 });
