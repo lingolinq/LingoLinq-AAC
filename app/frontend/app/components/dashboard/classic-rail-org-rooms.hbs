@@ -1,0 +1,18 @@
+{{!-- THE ORG'S ROOMS ROW in the Basic rail (components/dashboard/classic-rail.hbs), shared by its two
+     org menus: the editors' org menu, between Reports and Trainings, and the rooms-only mix, after
+     Home Board (2026-10-01). `@orgId` is the org's id; router.js declares `/organizations/:id`.
+     `is-active` comes from <LinkTo> on the LIST route, and from `@active` (the rail's `roomsActive`,
+     read from the route name) on a room's DETAIL page. `organization.room` is a SIBLING of
+     `organization.rooms` in router.js (`path: '/rooms/:room_id'`), so the path nests but the route
+     name does not; and `@current-when` could not cover it, since a LinkTo checks its own models
+     against the route and a room's page also needs a room id. --}}
+<li class="ch-rail__item">
+  <LinkTo @route="organization.rooms" @model={{@orgId}} @activeClass="is-active" class="ch-row ch-row--minor {{if @active "is-active"}}">
+    <span class="ch-row__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><path d="M3 10h18" stroke="#46505F"/><path d="M9 20v-6h6v6" stroke="#2A9D8F"/></svg>
+    </span>
+    <span class="ch-row__short" aria-hidden="true">{{t "Rooms" key="rooms"}}</span>
+    <span class="ch-row__body"><span class="ch-row__title">{{t "Rooms" key="rooms"}}</span></span>
+    <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+  </LinkTo>
+</li>

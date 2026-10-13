@@ -957,7 +957,7 @@ var buttonTracker = EmberObject.extend({
       // Eye gaze users can't just tap again to make stuck things
       // go away, so this is a backup patch in case things get weird
       // so that they don't lose the ability to select
-      runLater(function() {
+      setTimeout(function() {
         if(buttonTracker.triggerEvent && buttonTracker.triggerEvent.key == key) {
           buttonTracker.triggerEvent = null;
         }

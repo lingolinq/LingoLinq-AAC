@@ -62,9 +62,9 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
   end
 
   describe '.user_pref_allows_ai?' do
-    it 'grandfathers when master is nil' do
+    it 'is off when master is nil' do
       u = User.new(settings: { 'preferences' => {} })
-      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true)
+      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
     end
 
     it 'blocks all when master is false' do
@@ -108,12 +108,12 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
       end
     end
 
-    # The grandfather path is for rows that have NEVER carried a value, and it
-    # stays exactly as wide as it was before this changeset.
-    it 'still grandfathers a genuinely absent master' do
+    # A master that has NEVER carried a value is off (AI features default to off,
+    # 2026-09-30), for gated and ungated features alike.
+    it 'treats a genuinely absent master as off' do
       u = User.new(settings: { 'preferences' => {} })
-      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true)
-      expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(true)
+      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
+      expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(false)
     end
 
     # An unreadable master must deny the two features OUTSIDE
@@ -313,8 +313,8 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
       expect(FeatureFlags.ai_feature_enabled_for?(feature, u)).to eq(false)
     end
 
-    it 'returns true when grandfather prefs, feature flag on, and no consent blocks' do
-      u = User.new(settings: { 'preferences' => {} })
+    it 'returns true when the account turned the feature on, feature flag on, and no consent blocks' do
+      u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => true, feature => true } })
       allow(FeatureFlags).to receive(:ai_enabled_for?).with(u).and_return(true)
       allow(FeatureFlags).to receive(:feature_enabled_for?).with(feature, u).and_return(true)
       expect(FeatureFlags.ai_feature_enabled_for?(feature, u)).to eq(true)

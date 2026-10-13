@@ -5,6 +5,7 @@ import { observer, computed } from '@ember/object';
 import { scheduleOnce, later as runLater, cancel as runCancel } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
+import { is_classic } from '../utils/view_style';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 import modal from '../utils/modal';
 import article50Gate from '../utils/article50_gate';
@@ -295,8 +296,16 @@ export default Component.extend({
 
   // The step-builder for the current page/layout, or null when no tour exists
   // here. Drives both the trigger visibility (hasTour) and _startTour.
-  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
-    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
+  // `isClassic` is the fourth axis the registry needs. It is read HERE rather than in the
+  // registry so that module stays a pure function of its arguments — see its comment.
+  // Depends on the preference key itself, so flipping view style re-resolves the builder
+  // without a reload.
+  isClassicView: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
+
+  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {
+    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'), this.get('isClassicView'));
   }),
 
   // Only show the trigger when the current page actually has a tour.
@@ -307,8 +316,8 @@ export default Component.extend({
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
-  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
-    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
+  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {
+    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'), this.get('isClassicView'));
   }),
 
   // Whether THIS page+view's tour has been completed at least once — drives the
@@ -352,6 +361,33 @@ export default Component.extend({
     if (this.get('appState.auto_open_home_tour')) {
       this._consumeAutoOpenSignal();
     }
+  }),
+
+  // A PLAIN, USER-REQUESTED TOUR — what the navbar trigger does, reachable by a page that
+  // renders its own button instead. The classic home page is the only caller today: it offers
+  // the tour from a rail row and from its intro card
+  // (components/dashboard/classic-view.js#start_tour), and has no handle on this component.
+  //
+  // IT IS DELIBERATELY NOT `auto_open_home_tour`, which is what classic used to raise and why
+  // its buttons misbehaved even once an instance was mounted. That flag is the
+  // NEWLY-REGISTERED-USER signal, and consuming it does two things a "Take a tour" button must
+  // never do: it binds `afterComplete` → `transitionTo('board-picker')`, so ANY ending of the
+  // tour (finish or cancel) yanks the user off the page they asked to be shown around
+  // (_startHomeAutoOpen), and for a supporter it routes to the caseload tour instead
+  // (_startAutoOpen's supporter branch). This path has neither: it starts the tour for the
+  // page the user is actually on and leaves them there.
+  //
+  // Cleared on consumption so a second click re-fires — an observer only runs on CHANGE, and
+  // a flag left true would make the button work exactly once per page load.
+  _manualStartWatcher: observer('appState.start_home_tour', function() {
+    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (!this.get('appState.start_home_tour')) { return; }
+    this.get('appState').set('start_home_tour', false);
+    // Nothing to start if this page has no tour. The button that raised the flag is expected
+    // to hide itself in that case (classic gates its row on the same feature flag), but a
+    // guard here keeps a stray signal from throwing inside the builder.
+    if (!this.get('tourBuilder')) { return; }
+    this._startTour();
   }),
 
   // True only when THIS instance is the board-detail EDIT tour (edit mode on a
@@ -1053,11 +1089,20 @@ export default Component.extend({
     });
 
     // The board-picker handoff, returning-user topic MENU, and post-registration
-    // setup handoff are all HOME-tour concepts. Scope them to the home tour so
+    // setup handoff are all MODERN HOME-tour concepts. Scope them to that tour so
     // OTHER tours built on this runner (board-picker, board-detail edit) get a
-    // plain linear walkthrough with no cross-page handoff. (Home behavior is
-    // unchanged: isHomeTour is true there.)
-    var isHomeTour = (this.get('appState.current_route') === 'user.home');
+    // plain linear walkthrough with no cross-page handoff.
+    //
+    // `!isClassicView` IS LOAD-BEARING, not belt-and-braces. The classic home page
+    // renders at `user.home` too (routes/user/home.js sets templateName 'index', and
+    // routes/index.js#_land_on_default sends everyone there), so a route-only test was
+    // true for classic as well — and utils/tours/classic-home.js#doneStep states the
+    // opposite contract: "No handoff — unlike the modern home tour there is no
+    // board-picker step to pass to." A first-time classic user pressing "Got it" on an
+    // outro that says the tour can be retaken from the rail was instead transitioned to
+    // the board picker, which then auto-opened a second, unrequested tour.
+    var isHomeTour = (this.get('appState.current_route') === 'user.home') &&
+                     !this.get('isClassicView');
     // A user who has NOT completed THIS page+layout's tour is "first time" —
     // however the tour was launched (post-registration auto-open OR a manual
     // "Take a tour"). First-timers get the linear walkthrough whose outro previews

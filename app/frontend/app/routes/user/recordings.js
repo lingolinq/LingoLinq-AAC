@@ -5,7 +5,7 @@ import contentGrabbers from '../../utils/content_grabbers';
 export default Route.extend({
   model: function() {
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('recordings', 'recordings'));
+    user.set('subroute_name', i18n.t('recordings', "recordings"));
     return user;
   },
   setupController: function(controller, model) {

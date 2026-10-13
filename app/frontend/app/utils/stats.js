@@ -188,19 +188,19 @@ LingoLinq.Stats = EmberObject.extend({
       for(var wday = 0; wday < 7; wday++) {
         var day = {day: wday, blocks: []};
         if(wday === 0) {
-          day.day = i18n.t('sunday_abbrev', 'Su');
+          day.day = i18n.t('sunday_abbrev', "Su");
         } else if(wday == 1) {
-          day.day = i18n.t('monday_abbrev', 'M');
+          day.day = i18n.t('monday_abbrev', "M");
         } else if(wday == 2) {
-          day.day = i18n.t('tuesday_abbrev', 'Tu');
+          day.day = i18n.t('tuesday_abbrev', "Tu");
         } else if(wday == 3) {
-          day.day = i18n.t('wednesday_abbrev', 'W');
+          day.day = i18n.t('wednesday_abbrev', "W");
         } else if(wday == 4) {
-          day.day = i18n.t('thurs_abbrev', 'Th');
+          day.day = i18n.t('thurs_abbrev', "Th");
         } else if(wday == 5) {
-          day.day = i18n.t('friday_abbrev', 'F');
+          day.day = i18n.t('friday_abbrev', "F");
         } else if(wday == 6) {
-          day.day = i18n.t('saturday_abbrev', 'Sa');
+          day.day = i18n.t('saturday_abbrev', "Sa");
         }
         for(var block = 0; block < (24*4); block = block + 2) {
           var val = new_blocks[(wday * 24 * 4) + block] || 0;

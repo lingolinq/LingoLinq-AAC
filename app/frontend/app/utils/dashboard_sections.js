@@ -23,16 +23,45 @@
 import i18n from './i18n';
 
 var HOME_SECTIONS = [
-  { key: 'boards',   cardClass: 'md-card--boards',        labelKey: 'boards',           labelDefault: "Boards",           available: function() { return true; } },
+  // BOARDS IS COMMUNICATOR-ONLY ON THE HOME GRID (2026-09-20). An SLP/supporter's home is
+  // their caseload and an org manager's is their organization; for both, a Boards card sits
+  // below work they actually came here to do. Communicators (and signed-out/unknown users)
+  // still get it.
+  // `hasOrgManagement` is a function declaration below, so it is hoisted and callable here —
+  // the `org` entry already relies on that, so this is the established pattern rather than a
+  // new dependency.
+  // A supporter who is ALSO a communicator loses the card: `supporter_role` decides, and that
+  // is the role the request named. They keep every other route to boards — the Boards pill and
+  // tab in the nav are untouched, as is the account rail's Home Board row.
+  { key: 'boards',   cardClass: 'md-card--boards',        labelKey: 'boards',           labelDefault: "Boards",           available: function(user) { return !(user && (user.get('supporter_role') || hasOrgManagement(user))); } },
   { key: 'speak',    cardClass: 'md-card--speak',         labelKey: 'speak_mode',       labelDefault: "Speak Mode",       available: function() { return true; }, hero_for: 'communicator' },
   { key: 'extras',   cardClass: 'md-card--extras',        labelKey: 'extras',           labelDefault: "Extras",           available: function() { return true; } },
   { key: 'caseload', cardClass: 'md-card--caseload',      labelKey: 'my_caseload',      labelDefault: "My Caseload",      available: function(user) { return !!(user && user.get('supporter_role')); }, hero_for: 'supervisor' },
   { key: 'rooms',    cardClass: 'md-card--rooms',         labelKey: 'rooms',            labelDefault: "Rooms",            available: function(user) { return !!(user && user.get('supporter_role') && (user.get('supervised_units') || []).length > 0); } },
   { key: 'attention', cardClass: 'md-card--attention',    labelKey: 'communicators_need_attention', labelDefault: "Communicators Need Attention", available: function(user) { return !!(user && user.get('supporter_role') && communicatorsNeedingAttention(user).length > 0); } },
   { key: 'org',      cardClass: 'md-card--org-management', labelKey: 'my_organizations', labelDefault: "My Organizations", available: function(user) { return hasOrgManagement(user); }, hero_for: 'admin' },
-  { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return true; } },
+  // RETIRED FROM THE HOME GRID 2026-09-20 (`available` false, entries deliberately kept).
+  // My Account and Reports no longer appear as cards on the modern home dashboard.
+  //
+  // WHY `available: false` RATHER THAN DELETING THE ENTRIES. This registry is the single
+  // source of truth, so returning false removes them from EVERY consumer at once and that is
+  // what makes the Edit Dashboard modal update itself: `layoutPresentation` builds its `vis`
+  // map from `availableHomeSections`, and `display-style` builds the modal's checkbox list
+  // and its live-preview clone from the same function. Nothing had to be told twice.
+  // It also produces a state the layout engine ALREADY handles every day — a key that is
+  // present in the order arrays but absent from `vis` is exactly what a user-hidden card looks
+  // like — whereas deleting the entries would mean matching surgery on `AREA`, four
+  // DEFAULT_ORDER arrays, `FOCUSED_ACTION_KEYS` and the grid-area matrices, for no behavioural
+  // gain and a real chance of shifting the remaining cards.
+  // Re-enabling is a one-word change back to `true`. Users who had explicitly toggled either
+  // card off keep that stored preference untouched in `dashboard_sections`.
+  //
+  // NEITHER DESTINATION IS LOST: My Account is in the account rail (components/account-rail.hbs)
+  // and, for communicators, the far-right nav pill; Reports is in that same rail and in the
+  // Extras card list (`extrasItems`, dashboard/authenticated-view.js).
+  { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return false; } },
   { key: 'createboard', cardClass: 'md-card--create-board', labelKey: 'create_a_board',   labelDefault: "Create a Board",   available: function() { return true; } },
-  { key: 'reports',  cardClass: 'md-card--reports',        labelKey: 'reports',          labelDefault: "Reports",          available: function() { return true; } },
+  { key: 'reports',  cardClass: 'md-card--reports',        labelKey: 'reports',          labelDefault: "Reports",          available: function() { return false; } },
   { key: 'editdashboard', cardClass: 'md-card--edit-dashboard', labelKey: 'edit_dashboard', labelDefault: "Edit Dashboard", available: function() { return true; } }
 ];
 
@@ -126,7 +155,7 @@ function communicatorsNeedingAttention(user) {
 // The i18n.t calls sit INSIDE the function, not in a module-level lookup table:
 // a table would evaluate every string once at import time, before i18n has
 // necessarily loaded its locale, and would then never re-translate when the user
-// switches language. Same reason helpers/home-pill-label.js resolves per call.
+// switches language.
 // Written as literal key + double-quoted default calls so i18n_generator.rb's
 // static scanner can extract them.
 function attentionBadgeFor(supervisee) {
@@ -175,6 +204,68 @@ function attentionBadgeFor(supervisee) {
 // The subset of sections that exist for this user (in display order).
 function availableHomeSections(user) {
   return HOME_SECTIONS.filter(function(s) { return s.available(user); });
+}
+
+// The sections a LAYOUT actually renders for this user, IN THE ORDER THE PAGE SHOWS THEM. `availableHomeSections` answers "does
+// this user have it"; the two layouts then diverge, because Focused View drops sections BY
+// DESIGN, for everyone, whatever the user's own on/off preference says — `extras` always, and
+// `speak` whenever Speak is not the role hero and the org caseload+speak pair does not apply
+// (focusedLayout, below). A dropped card is not merely unplaced: gridLayoutState flags it and
+// app/styles/app.scss ~55329 sets `display: none !important` on it. So a checkbox for one of
+// those is a control that cannot change anything, and the Dashboard Design checklist uses this
+// function instead of availableHomeSections to avoid offering one.
+//
+// DERIVED FROM THE BUILT AREAS, NOT FROM A COPY OF THOSE CONDITIONS. Restating them here would
+// be a third copy (focusedLayout and layoutPresentation each hold one), and the next force-hide
+// would have to be added to every copy or the surfaces silently disagree. Reading the engine's
+// own output cannot drift. It is also the established idiom in this file: gridLayoutState
+// derives `speakPlaced` the same way, for the reason its comment gives.
+//
+// `vis` IS ALL-TRUE ON PURPOSE. The question is "can this layout ever render this section",
+// not "is it rendering right now" — so a toggle the user has currently switched off is still
+// offered, which is the whole point of having the toggle. The deliberate limit: a force-hide
+// CONDITIONAL on another card's visibility is not covered, because it is not hidden by design
+// for everyone. An org manager who has hidden My Caseload breaks `orgPair` and loses the Speak
+// card while keeping its toggle. That state is unchanged by this function and is reachable
+// only by the user's own choice; covering it would mean recomputing the list on every
+// checkbox change, and a toggle that vanished because you unchecked a different one would
+// read as a glitch.
+//
+// ADDING A HOME_SECTIONS ENTRY: `orderedVisible` keeps only keys present in the layout's
+// default order array, so a new key must also be added to DEFAULT_ORDER,
+// SUPERVISOR_DEFAULT_ORDER, ORG_DEFAULT_ORDER and FOCUSED_DEFAULT_ORDER, or it will be absent
+// from the areas and this function will stop offering it. All four are complete today.
+function sectionsForLayout(user, layout, order) {
+  var all = availableHomeSections(user);
+  var name = (['gentle', 'focused'].indexOf(layout) === -1) ? 'gentle' : layout;
+  var vis = {};
+  all.forEach(function(s) { vis[s.key] = true; });
+  var built = gridLayoutState(vis, (order && order.length) ? order : null, name, focusedHeroKey(user));
+  var placed = {};
+  built.areas.forEach(function(row) {
+    row.split(' ').forEach(function(token) { placed[token] = true; });
+  });
+  // Match on AREA NAMES, not keys — `org` occupies the area `org_mgmt` (AREA, below), so
+  // comparing raw keys would drop the Organizations row. The spacer tokens `.` and `sup` that
+  // framed()/framedN() emit match no AREA value, so they cannot mark a section placed.
+  //
+  // SORTED INTO PAGE READING ORDER, top-to-bottom and left-to-right, using the
+  // `orderIndices` gridLayoutState already computes by walking the built areas. The order
+  // ARRAYS (defaultOrderFor and a saved `dashboard_order`) are NOT the rendered order in
+  // Focused View and must not be used for this: `focusedLayout` collapses every visible
+  // FOCUSED_ACTION_KEYS card into ONE row emitted at the first one's slot, and the org
+  // caseload+speak pair is moved to the BOTTOM row. For a supervisor that alone is a visible
+  // disagreement — Create a Board and Edit Dashboard sit side by side near the top of the
+  // page, while SUPERVISOR_DEFAULT_ORDER ranks them 2 and 8 with Attention, Rooms,
+  // Organizations and Boards in between. Reading the areas gets all of that for free.
+  var oi = built.orderIndices || {};
+  return all
+    .filter(function(s) { return !!placed[AREA[s.key]]; })
+    .sort(function(a, b) {
+      var ia = (oi[a.key] === undefined) ? 999 : oi[a.key];
+      var ib = (oi[b.key] === undefined) ? 999 : oi[b.key];
+      return ia - ib;
+    });
 }
 
 // A section is hidden ONLY when the user explicitly turned it off. Missing or
@@ -289,7 +380,11 @@ function defaultOrderFor(user, layout) {
   var base = gentleDefaultOrder(user);
   // The drag preview + live grid both resolve their default here so they agree.
   if (layout === 'focused') { return heroFirst(base, focusedHeroKey(user)); }
-  return base;
+  /* GENTLE ONLY. `gentleDefaultOrder` is the shared base BOTH layouts start from -- Focused
+     takes it above and only promotes its hero -- so the Edit-Dashboard-beside-Create-a-Board
+     move has to happen on this side of that branch, not inside it. Putting it in the shared
+     function reordered Focused's utility row too, which the request did not ask for. */
+  return editBesideCreate(base);
 }
 
 // The visible section keys in display order: start from the saved order (or the
@@ -305,6 +400,24 @@ function orderedVisible(vis, order, defaultOrder) {
 // Pack an ordered list of visible keys into area-row strings (WITHOUT the trailing
 // '. sup' spacer). Small cards pair two-per-row; Boards is its own full-width row;
 // a small card left without a partner spans the full width.
+/* GENTLE PUTS EDIT DASHBOARD IMMEDIATELY AFTER CREATE A BOARD (requested 2026-09-21: "the
+   edit dashboard button needs to show to the right of the create a board button by default").
+   DERIVED FROM THE SHARED ORDER, NOT A FOURTH LIST. The three *_DEFAULT_ORDER constants are
+   read by BOTH layouts -- `focusedLayout` builds on them too (`var base = supervisor ?
+   SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER`) -- so editing them in place moved Focused's
+   utility row as well, which this request did not ask for and which its own tests caught.
+   Deriving here keeps one source list and confines the change to Gentle.
+   Both callers matter: the live grid (`dashboardLayout`) and the editor/preview
+   (`gentleDefaultOrder`). This file already records what happens when only one of them gets a
+   new order -- the preview reorders and the real page does not. */
+function editBesideCreate(base) {
+  var i = base.indexOf('createboard');
+  if (i === -1 || base.indexOf('editdashboard') === -1) { return base; }
+  var out = base.filter(function(k) { return k !== 'editdashboard'; });
+  out.splice(out.indexOf('createboard') + 1, 0, 'editdashboard');
+  return out;
+}
+
 function packOrder(keys, extraFull) {
   var a = function(k) { return AREA[k]; };
   var rows = [], pending = null;
@@ -317,8 +430,24 @@ function packOrder(keys, extraFull) {
     if (key === 'boards' || key === 'caseload' || key === 'rooms' || key === 'attention' || key === 'org') { return true; }
     return !!(extraFull && extraFull.indexOf(key) !== -1);
   };
-  keys.forEach(function(key) {
-    if (fullWidth(key)) {
+  /* EDIT DASHBOARD SITS TO THE RIGHT OF CREATE A BOARD (requested 2026-09-21, Gentle View).
+     Stated as a PAIR rather than left to the packing, because packing is positional: it fills
+     rows two-at-a-time from whatever is VISIBLE, so the same order array produces different
+     pairings for different users. With Account visible the run is account+createboard, then
+     editdashboard+reports -- the two never meet. Hiding one card would move them again.
+     Naming the pair makes the guarantee hold for every visibility combination, and the
+     orders above put the two adjacent so the row is emitted where Create a Board sits.
+     Only applies when BOTH are visible; either one alone packs normally. */
+  var pairedWith = function(key, next) {
+    return key === 'createboard' && next === 'editdashboard';
+  };
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (pairedWith(key, keys[i + 1])) {
+      if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
+      rows.push(a(key) + ' ' + a(keys[i + 1]));
+      i++;
+    } else if (fullWidth(key)) {
       if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
       rows.push(a(key) + ' ' + a(key));
     } else if (pending) {
@@ -326,7 +455,7 @@ function packOrder(keys, extraFull) {
     } else {
       pending = key;
     }
-  });
+  }
   if (pending) { rows.push(a(pending) + ' ' + a(pending)); }
   return rows;
 }
@@ -358,7 +487,7 @@ function dashboardLayout(vis, order) {
      order has to be added in BOTH places or the dashboard and its editor disagree. That is
      exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
      alone: the preview reordered and the real page did not. */
-  var def = vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER);
+  var def = editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER));
   var extraFull = supervisor ? ['speak'] : ['speak', 'extras'];
   return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
@@ -460,10 +589,19 @@ function focusedLayout(vis, order, heroKey) {
 // Move srcKey to just before/after dstKey in a FULL order array (all section
 // keys, including hidden ones, so a hidden card keeps its relative slot). Returns
 // a new normalized full order. Drives the Dashboard Design drag-to-insert.
-function reorderInsert(order, srcKey, dstKey, after, defaultOrder) {
-  var base = defaultOrder || DEFAULT_ORDER;
+// The saved order, completed against a base: start from the caller's order (or the base when
+// there is none) and append any base key it is missing, so callers can index into a FULL order
+// even for a user who has never dragged anything. Extracted because reorderInsert and
+// reorderForFocused's two branches all did these same three lines verbatim.
+function normalizedOrder(order, base) {
   var full = (order && order.length) ? order.slice() : base.slice();
   base.forEach(function(k) { if (full.indexOf(k) === -1) { full.push(k); } });
+  return full;
+}
+
+function reorderInsert(order, srcKey, dstKey, after, defaultOrder) {
+  var base = defaultOrder || DEFAULT_ORDER;
+  var full = normalizedOrder(order, base);
   full = full.filter(function(k) { return k !== srcKey; });
   var idx = full.indexOf(dstKey);
   if (idx < 0) { full.push(srcKey); return full; }
@@ -551,15 +689,40 @@ function gridLayoutState(vis, order, layout, heroKey) {
 function reorderForFocused(order, srcKey, dstKey, after, defaultOrder) {
   var srcAction = FOCUSED_ACTION_KEYS.indexOf(srcKey) !== -1;
   var dstAction = FOCUSED_ACTION_KEYS.indexOf(dstKey) !== -1;
-  // A utility card can't leave its row onto a full-width row.
-  if (srcAction && !dstAction) { return null; }
+  /* A UTILITY CARD DROPPED ON A FULL-WIDTH ROW IS MIRRORED, not refused (2026-09-22, requested).
+     It used to `return null`, because a single utility card cannot meaningfully leave its row
+     and land inside a row that spans both columns. The gesture is now read as the one the user
+     evidently meant: as though the FULL-WIDTH ROW had been dragged onto the utility card, so the
+     two rows exchange places. Implemented by recursing with the roles swapped, which reuses the
+     snap-to-block-edge branch below rather than restating it.
+
+     DIRECTION COMES FROM THE CURRENT ORDER, NOT THE POINTER. `after` is measured over whichever
+     element was the drop TARGET (_dropAfter, components/display-style.js), and mirroring the
+     gesture changes which element that is — so the measured value no longer means what it did
+     and is deliberately discarded here. A row sitting BEFORE the utility block is sent after it
+     and vice versa, which is what makes this a swap: keeping the pointer half would leave one
+     half of every row resolving to where the row already is, i.e. a drop that visibly does
+     nothing. (Requested behaviour: "always swap".)
+
+     Recursion is exactly one level deep: the swapped call has srcAction false and dstAction
+     true, which takes the branch below and returns. */
+  if (srcAction && !dstAction) {
+    var swapBase = defaultOrder || FOCUSED_DEFAULT_ORDER;
+    var swapFull = normalizedOrder(order, swapBase);
+    var rowIdx = swapFull.indexOf(dstKey);
+    var actionIdxs = [];
+    swapFull.forEach(function(k, i) { if (FOCUSED_ACTION_KEYS.indexOf(k) !== -1) { actionIdxs.push(i); } });
+    // Degenerate inputs keep the old refusal: an unplaceable row, or an order with no utility
+    // row at all, has no "other side of the block" to swap to.
+    if (rowIdx < 0 || !actionIdxs.length) { return null; }
+    return reorderForFocused(order, dstKey, srcKey, rowIdx < Math.min.apply(null, actionIdxs), defaultOrder);
+  }
   // A full-width row dropped onto the utility row snaps to the utility block's
   // edge, so the row lands directly above/below the WHOLE utility row (never
   // between two utility cards).
   if (!srcAction && dstAction) {
     var base = defaultOrder || FOCUSED_DEFAULT_ORDER;
-    var full = (order && order.length) ? order.slice() : base.slice();
-    base.forEach(function(k) { if (full.indexOf(k) === -1) { full.push(k); } });
+    var full = normalizedOrder(order, base);
     var actionsInOrder = full.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
     if (actionsInOrder.length) {
       dstKey = after ? actionsInOrder[actionsInOrder.length - 1] : actionsInOrder[0];
@@ -650,5 +813,5 @@ function layoutPresentation(user, layout, opts) {
   };
 }
 
-export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, ORG_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
-export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
+export { HOME_SECTIONS, sectionsForLayout, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, ORG_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
+export default { HOME_SECTIONS, sectionsForLayout, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };

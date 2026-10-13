@@ -63,4 +63,5 @@ Rules:
 - The `snippet` must exist verbatim in the cited manifest/lockfile at `<auditedSha>`
   (`scripts/citation-check.rb` enforces this).
 - The orchestrator computes the stable `id`, sets timestamps/owner, and reconciles against the
-  existing register.
+  existing register. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
+  lowercased), citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.

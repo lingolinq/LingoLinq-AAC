@@ -1,6 +1,6 @@
 <tr>
   <td>
-    <LinkTo @route="user.log" @models={{array @user.user_name @log.id}}>
+    <LinkTo @route="user.log" @models={{array @user.user_name @log.id}} @query={{this.linkQuery}}>
       {{#if @log.video_type}}
         <span class="glyphicon glyphicon-film"></span>
         <span class="sr-only">{{t "video" key="video_lower"}}</span>
@@ -66,7 +66,7 @@
   </td>
   {{#unless @messagesOnly}}
     <td style="white-space: nowrap;">
-      <LinkTo @route="user.log" @models={{array @user.user_name @log.id}}>
+      <LinkTo @route="user.log" @models={{array @user.user_name @log.id}} @query={{this.linkQuery}}>
         {{#if @log.note_type}}
           ...
         {{else if @log.journal_type}}
@@ -78,7 +78,7 @@
     </td>
     <td>
       {{#if @log.event_note_count}}
-        <LinkTo @route="user.log" @models={{array @model.user_name @log.id}}>
+        <LinkTo @route="user.log" @models={{array @model.user_name @log.id}} @query={{this.linkQuery}}>
           <span class="label label-primary">{{@log.event_note_count}}</span>
         </LinkTo>
       {{/if}}

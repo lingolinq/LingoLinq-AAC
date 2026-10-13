@@ -87,19 +87,19 @@ LingoLinq.Badge = BaseModel.extend({
     var badge_level = this.get('completion_settings');
     if(badge_level.instance_count) {
       if(badge_level.word_instances) {
-        return i18n.t('word', 'word');
+        return i18n.t('word', "word");
       } else if(badge_level.button_instances) {
-        return i18n.t('button', 'button');
+        return i18n.t('button', "button");
       } else if(badge_level.session_instances) {
-        return i18n.t('session', 'session');
+        return i18n.t('session', "session");
       } else if(badge_level.modeled_button_instances) {
-        return i18n.t('modeled_button', 'modeled button');
+        return i18n.t('modeled_button', "modeled button");
       } else if(badge_level.modeled_word_instances) {
-        return i18n.t('modeled_word', 'modeled word');
+        return i18n.t('modeled_word', "modeled word");
       } else if(badge_level.unique_word_instances) {
-        return i18n.t('unique_word', 'unique word');
+        return i18n.t('unique_word', "unique word");
       } else if(badge_level.unique_button_instances) {
-        return i18n.t('unique_button', 'unique button');
+        return i18n.t('unique_button', "unique button");
       }
     }
     return i18n.t('match', "match");
@@ -275,32 +275,32 @@ LingoLinq.Badge = BaseModel.extend({
       var item = null;
       if(badge_level.word_instances) {
         str = i18n.t('use_at_least', "Use at least ");
-        str = str + i18n.t('n_words', 'word', {count: badge_level.instance_count});
-        item = i18n.t('word', 'word');
+        str = str + i18n.t('n_words', "word", {count: badge_level.instance_count});
+        item = i18n.t('word', "word");
       } else if(badge_level.button_instances) {
         str = i18n.t('hit_at_least', "Hit at least ");
-        str = str + i18n.t('n_buttons', 'button', {count: badge_level.instance_count});
-        item = i18n.t('button', 'button');
+        str = str + i18n.t('n_buttons', "button", {count: badge_level.instance_count});
+        item = i18n.t('button', "button");
       } else if(badge_level.session_instances) {
         str = i18n.t('have_at_least', "Have at least ");
-        str = str + i18n.t('n_sessions', 'session', {count: badge_level.instance_count});
-        item = i18n.t('session', 'session');
+        str = str + i18n.t('n_sessions', "session", {count: badge_level.instance_count});
+        item = i18n.t('session', "session");
       } else if(badge_level.modeled_button_instances) {
         str = i18n.t('have_modeled_at_least', "Have modeled at least ");
-        str = str + i18n.t('n_buttons', 'button', {count: badge_level.instance_count});
-        item = i18n.t('modeled_button', 'modeled button');
+        str = str + i18n.t('n_buttons', "button", {count: badge_level.instance_count});
+        item = i18n.t('modeled_button', "modeled button");
       } else if(badge_level.modeled_word_instances) {
         str = i18n.t('have_modeled_at_least', "Have modeled at least ");
-        str = str + i18n.t('n_words', 'word', {count: badge_level.instance_count});
-        item = i18n.t('modeled_word', 'modeled word');
+        str = str + i18n.t('n_words', "word", {count: badge_level.instance_count});
+        item = i18n.t('modeled_word', "modeled word");
       } else if(badge_level.unique_word_instances) {
         str = i18n.t('use_at_least', "Use at least ");
-        str = str + i18n.t('n_unique_words', 'unique word', {count: badge_level.instance_count});
-        item = i18n.t('unique_word', 'unique word');
+        str = str + i18n.t('n_unique_words', "unique word", {count: badge_level.instance_count});
+        item = i18n.t('unique_word', "unique word");
       } else if(badge_level.unique_button_instances) {
         str = i18n.t('hit_at_least', "Hit at least ");
-        str = str + i18n.t('n_unique_buttons', 'unique button', {count: badge_level.instance_count});
-        item = i18n.t('unique_button', 'unique button');
+        str = str + i18n.t('n_unique_buttons', "unique button", {count: badge_level.instance_count});
+        item = i18n.t('unique_button', "unique button");
       } else {
         return null;
       }

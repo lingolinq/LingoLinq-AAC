@@ -31,13 +31,13 @@ function appStateStub(flagOn, prefs) {
 
 describe('ai_feature_gate', function() {
   describe('prefAllowsAi', function() {
-    it('allows when user is missing (flag layer still gates)', function() {
-      expect(aiFeatureGate.prefAllowsAi(null, 'ai_board_generation')).toEqual(true);
+    it('is off when user is missing', function() {
+      expect(aiFeatureGate.prefAllowsAi(null, 'ai_board_generation')).toEqual(false);
     });
 
-    it('grandfathers when master is nil', function() {
-      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({}), 'ai_board_generation')).toEqual(true);
-      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({ ai_features_enabled: null }), 'ai_word_prediction')).toEqual(true);
+    it('is off when master is nil', function() {
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({}), 'ai_board_generation')).toEqual(false);
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({ ai_features_enabled: null }), 'ai_word_prediction')).toEqual(false);
     });
 
     it('blocks all when master is false', function() {
@@ -206,11 +206,11 @@ describe('ai_feature_gate', function() {
       )).toEqual(false);
     });
 
-    it('is true when flag is on and prefs are grandfathered', function() {
+    it('is false when flag is on but the account never recorded an AI choice', function() {
       expect(aiFeatureGate.aiFeatureEnabled(
         appStateStub(true, {}),
         'ai_board_generation'
-      )).toEqual(true);
+      )).toEqual(false);
     });
 
     it('is false when flag is on but master pref is false', function() {
@@ -236,7 +236,7 @@ describe('ai_feature_gate', function() {
   });
 
   describe('prefExplicitlyEnabled', function() {
-    it('is false when user is missing (unlike prefAllowsAi grandfather)', function() {
+    it('is false when user is missing (as prefAllowsAi is)', function() {
       expect(aiFeatureGate.prefExplicitlyEnabled(null, 'ai_board_generation')).toEqual(false);
     });
 
@@ -285,6 +285,7 @@ describe('ai_feature_gate', function() {
       var user = {
         get: function(key) {
           if(key === 'preferences') { return opts.prefs; }
+          if(key === 'feature_flags') { return { ai_board_generation: opts.flagOn !== false }; }
           if(key === 'eu_under_16') { return !!opts.eu_under_16; }
           if(key === 'eu_ai_parental_consent_active') { return !!opts.eu_consent_active; }
           if(key === 'coppa_parental_consent_pending') { return !!opts.coppa_pending; }
@@ -295,7 +296,7 @@ describe('ai_feature_gate', function() {
       return {
         get: function(key) {
           if(key === 'feature_flags.ai_board_generation') { return opts.flagOn !== false; }
-          if(key === 'currentUser') { return opts.noUser ? null : user; }
+          if(key === 'currentUser' || key === 'sessionUser') { return opts.noUser ? null : user; }
           return null;
         }
       };
@@ -331,11 +332,11 @@ describe('ai_feature_gate', function() {
       }))).toEqual('blocked_coppa');
     });
 
-    it('returns needs_opt_in for unset prefs even though prefAllowsAi grandfathers', function() {
+    it('returns needs_opt_in for unset prefs, which prefAllowsAi also treats as off', function() {
       expect(aiFeatureGate.boardGenerationEntry(entryState({
         prefs: {}
       }))).toEqual('needs_opt_in');
-      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({}), 'ai_board_generation')).toEqual(true);
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({}), 'ai_board_generation')).toEqual(false);
     });
 
     it('returns allowed when master and board generation are explicit trues', function() {

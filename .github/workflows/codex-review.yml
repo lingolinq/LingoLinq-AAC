@@ -193,7 +193,10 @@ jobs:
             scripts/codex-review-build-evidence.py \
             scripts/codex-review-build-envelope.py \
             scripts/codex-review-run-chunks.py \
+            scripts/codex-review-quiet-exec.py \
             scripts/codex-review-claude-deep.sh \
+            scripts/codex-review-claude-deep-build-request.py \
+            scripts/codex-review-claude-deep-extract-response.py \
             scripts/codex-review-path-classifier.sh
 
       - name: Re-classify paths in CI (fail-safe; n8n's classification is not trusted alone)
@@ -204,9 +207,11 @@ jobs:
 
       - name: Gather live state
         id: live_state
+        # PR title, body and file list are PR content. They go to files, never
+        # to a step output or env var: Actions prints a step's env values in the
+        # public job log.
         run: |
           {
-            echo "live_state<<LIVE_STATE_EOF"
             echo "### gh pr view"
             gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
             echo ""
@@ -238,8 +243,7 @@ jobs:
                 printf '(deleted at head)\t%s\n' "$f"
               fi
             done
-            echo "LIVE_STATE_EOF"
-          } >> "$GITHUB_OUTPUT"
+          } > /tmp/live_state_prompt.txt
           {
             echo "### gh pr view"
             gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
@@ -277,13 +281,14 @@ jobs:
           RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
           TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
           FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
-          # Build the bounded diff ONCE into a file. It is used twice: injected
-          # into the prompt (via GITHUB_OUTPUT below) AND scanned by the
-          # prompt-injection guard in build-envelope.py, which must see exactly
-          # what the reviewer saw. Emit an authoritative completeness NOTE on
-          # BOTH paths: CI knows whether the diff fit under the cap; the reviewer
-          # (which may have no shell) does not, and without a positive signal it
-          # can wrongly assume the diff is partial and refuse a verdict.
+          # Build the bounded diff ONCE into a file. It is used twice: read by
+          # the prompt assembler (from this file, never via a step output) AND
+          # scanned by the prompt-injection guard in build-envelope.py, which
+          # must see exactly what the reviewer saw. Emit an authoritative
+          # completeness NOTE on BOTH paths: CI knows whether the diff fit
+          # under the cap; the reviewer (which may have no shell) does not, and
+          # without a positive signal it can wrongly assume the diff is partial
+          # and refuse a verdict.
           {
             if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
               echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
@@ -303,11 +308,6 @@ jobs:
               printf '%s\n' "$RAW"
             fi
           } > /tmp/pr_diff.txt
-          {
-            echo "pr_diff<<PR_DIFF_EOF"
-            cat /tmp/pr_diff.txt
-            echo "PR_DIFF_EOF"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Build chunked PR evidence
         if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
@@ -323,8 +323,8 @@ jobs:
         id: prompt
         run: python3 scripts/codex-review-assemble-prompt.py /tmp/prompt.md
         env:
-          LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
-          PR_DIFF: ${{ steps.pr_diff.outputs.pr_diff }}
+          LIVE_STATE_FILE: /tmp/live_state_prompt.txt
+          PR_DIFF_FILE: /tmp/pr_diff.txt
           LOOP_N: ${{ inputs.loop_n }}
 
       - name: Install Codex CLI
@@ -354,7 +354,12 @@ jobs:
             # This is the whole-diff pass that produces the verdict directly. The
             # chunked path pins terra on BOTH legs too (DEFAULT_CHUNK_MODEL and
             # DEFAULT_SYNTHESIS_MODEL in scripts/codex-review-run-chunks.py).
-            codex exec \
+            # codex-review-quiet-exec.py keeps the transcript (prompt, diff,
+            # model output) out of the public job log; on failure it prints
+            # only the exit code and a fixed label. --ephemeral stops codex
+            # saving the session (the same transcript) under CODEX_HOME.
+            python3 scripts/codex-review-quiet-exec.py -- codex exec \
+              --ephemeral \
               --sandbox read-only \
               -m gpt-5.6-terra \
               --output-schema .github/codex/review-schema.json \
@@ -366,7 +371,7 @@ jobs:
             if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
               echo "Run produced invalid JSON; retrying with stricter instruction." >&2
               { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | codex exec --sandbox read-only -m gpt-5.6-terra \
+                | python3 scripts/codex-review-quiet-exec.py -- codex exec --ephemeral --sandbox read-only -m gpt-5.6-terra \
                     --output-schema .github/codex/review-schema.json \
                     --output-last-message "$1"
             fi
@@ -502,7 +507,8 @@ jobs:
 
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
             echo "POST to n8n W2 failed with HTTP $HTTP_STATUS" >&2
-            cat /tmp/w2-response.json >&2
+            # The response body is not printed: it may echo the posted review.
+            echo "W2 response body: $(wc -c < /tmp/w2-response.json 2>/dev/null || echo 0) bytes (not printed)" >&2
             exit 1
           fi
 

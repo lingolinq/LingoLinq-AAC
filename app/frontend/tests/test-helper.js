@@ -7,6 +7,10 @@ import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
 
 QUnit.config.testTimeout = 15000;
+// Keep passed-test rows out of the QUnit reporter. With ~3,300 tests the rows reached 65k+
+// DOM nodes and every later test slowed with them (per-test floor ~40 ms -> ~1.5 s in CI;
+// suite 46.9 -> 20.3 min with this set). Failed tests are still listed.
+QUnit.config.hidepassed = true;
 
 // Skip deferred readiness in tests so the app boots immediately instead of waiting
 // for IndexedDB/lang/extras (which can hang in headless Chromium on WSL2).
@@ -87,11 +91,17 @@ import 'frontend/tests/unit/components/button-set-action-vocalization-test';
 import 'frontend/tests/unit/components/board-icon-pick-behavior-test';
 import 'frontend/tests/unit/components/board-density-defaults-test';
 import 'frontend/tests/unit/components/boards-layout-toggle-test';
+import 'frontend/tests/unit/components/view-switcher-availability-test';
+import 'frontend/tests/unit/components/classic-view-extras-scroll-test';
+import 'frontend/tests/unit/utils/tours-registry-classic-test';
+import 'frontend/tests/unit/components/classic-view-observer-kick-test';
+import 'frontend/tests/unit/controllers/application-try-new-style-test';
 import 'frontend/tests/unit/helpers/break-on-separators-test';
-import 'frontend/tests/unit/helpers/home-pill-label-test';
 import 'frontend/tests/unit/helpers/letter-stagger-test';
 import 'frontend/tests/unit/utils/dashboard-sections-test';
+import 'frontend/tests/unit/utils/session-user-wait-test';
 import 'frontend/tests/unit/routes/setup-retired-test';
+import 'frontend/tests/unit/routes/board-cold-boot-view-test';
 /* eslint-enable ember/no-test-import-export */
 
 // loadTests: false — we already pre-loaded all test modules above

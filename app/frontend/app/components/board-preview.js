@@ -7,6 +7,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { board_view_route } from '../utils/board_view';
+import { is_copy_decision } from '../utils/copy_decision';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -292,7 +293,8 @@ export default Component.extend({
       var oldBoard = _this.get('model');
       modal.close_board_preview();
       modal.open('copy-board', {board: oldBoard, for_editing: false}).then(function(decision) {
-        decision = decision || {};
+        // A dismissed dialog resolves without a decision (utils/copy_decision.js); it must not copy.
+        if(!is_copy_decision(decision)) { return; }
         decision.user = decision.user || _this.appState.get('currentUser');
         decision.action = decision.action || "nothing";
         oldBoard.set('copy_name', decision.board_name);

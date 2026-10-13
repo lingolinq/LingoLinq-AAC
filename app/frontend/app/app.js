@@ -510,6 +510,22 @@ LingoLinq.keyed_colors = [
     // never inject an attacker-chosen class name.
     document.body.classList.toggle('ll-layout-focused', layout === 'focused');
   };
+  /* The BASIC/MODERN axis, alongside the Gentle/Focused one above. Two classes rather than
+     one boolean, because unlike the Focused overlay neither view is "the default plus
+     changes" -- they are two shells, and styling for EITHER needs a hook on every page.
+     That is the whole point of stamping this app-wide: most pages look identical in both
+     views today, so this exists to be designed against later.
+
+     Same non-injection property as set_layout_scope: both class names are LITERALS and
+     `style` only chooses between them, so a garbage `board_view_style` preference can at
+     most pick the wrong one of two fixed classes, never introduce a name of its own. An
+     unrecognised value leaves BOTH off rather than guessing, so a half-hydrated record
+     cannot flash the wrong shell. */
+  LingoLinq.set_view_scope = function(style) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    document.body.classList.toggle('ll-view-basic', style === 'classic');
+    document.body.classList.toggle('ll-view-modern', style === 'modern');
+  };
 })();
 LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
@@ -913,16 +929,16 @@ window.addEventListener('message', function(event) {
 
 LingoLinq.Visualizations = {
   wait: function(name, callback) {
-    if(!LingoLinq.Visualizations.ready) {
+    // Only a geo map needs the Maps script; charts need only the Charts loader.
+    var maps = name == 'geo';
+    if(!(maps ? LingoLinq.Visualizations.maps_ready : LingoLinq.Visualizations.ready)) {
       LingoLinq.Visualizations.callbacks = LingoLinq.Visualizations.callbacks || [];
-//       var found = LingoLinq.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
-//       if(!found) {
-        LingoLinq.Visualizations.callbacks.push({
-          name: name,
-          callback: callback
-        });
-//       }
-      LingoLinq.Visualizations.init();
+      LingoLinq.Visualizations.callbacks.push({
+        name: name,
+        maps: maps,
+        callback: callback
+      });
+      if(maps) { LingoLinq.Visualizations.init_maps(); } else { LingoLinq.Visualizations.init(); }
     } else {
       callback();
     }
@@ -930,50 +946,50 @@ LingoLinq.Visualizations = {
   handle_callbacks: function() {
     LingoLinq.Visualizations.initializing = false;
     LingoLinq.Visualizations.ready = true;
-    (LingoLinq.Visualizations.callbacks || []).forEach(function(obj) {
-      obj.callback();
-    });
-    LingoLinq.Visualizations.callbacks = [];
+    LingoLinq.Visualizations.flush_callbacks();
+  },
+  handle_maps: function() {
+    LingoLinq.Visualizations.maps_initializing = false;
+    LingoLinq.Visualizations.maps_ready = true;
+    LingoLinq.Visualizations.flush_callbacks();
+  },
+  flush_callbacks: function() {
+    var is_ready = function(obj) { return obj.maps ? LingoLinq.Visualizations.maps_ready : LingoLinq.Visualizations.ready; };
+    var pending = LingoLinq.Visualizations.callbacks || [];
+    LingoLinq.Visualizations.callbacks = pending.filter(function(obj) { return !is_ready(obj); });
+    pending.filter(is_ready).forEach(function(obj) { obj.callback(); });
+  },
+  init_maps: function() {
+    if(LingoLinq.Visualizations.maps_initializing || LingoLinq.Visualizations.maps_ready) { return; }
+    LingoLinq.Visualizations.maps_initializing = true;
+    if(window.google && window.google.maps) { return setTimeout(LingoLinq.Visualizations.handle_maps, 0); }
+    window.ready_to_do_maps = LingoLinq.Visualizations.handle_maps;
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.async = true;
+    // TODO: pull api keys out into config file?
+    script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
+        'callback=ready_to_do_maps&key=' + window.maps_key;
+    document.body.appendChild(script);
   },
   init: function() {
     if(LingoLinq.Visualizations.initializing || LingoLinq.Visualizations.ready) { return; }
     LingoLinq.Visualizations.initializing = true;
-    if(!window.google || !window.google.visualization || !window.google.maps) {
-      var script = document.createElement('script');
-      script.type = 'text/javascript';
-
-      var one_done = function(type) {
-        one_done[type] = true;
-        if(one_done.graphs && one_done.maps) {
-          if(!window.google || !window.google.charts || !window.google.charts.load) {
-            setTimeout(function() {
-              one_done('both');
-            }, 500);
-          } else {
-            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinq.Visualizations.handle_callbacks});
-          }
+    if(!window.google || !window.google.visualization) {
+      var load_charts = function() {
+        if(!window.google || !window.google.charts || !window.google.charts.load) {
+          setTimeout(load_charts, 500);
+        } else {
+          window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinq.Visualizations.handle_callbacks});
         }
       };
-
-      window.ready_to_load_graphs = function() {
-        one_done('graphs');
-      };
-      script.src = 'https://www.gstatic.com/charts/loader.js';
-      document.body.appendChild(script);
+      window.ready_to_load_graphs = load_charts;
       var script = document.createElement('script');
       script.type = 'text/javascript';
-      script.appendChild(document.createTextNode("window.ready_to_load_graphs();"));
+      script.src = 'https://www.gstatic.com/charts/loader.js';
       document.body.appendChild(script);
-
-      window.ready_to_do_maps = function() {
-        one_done('maps');
-      };
       script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.async = true;
-      // TODO: pull api keys out into config file?
-      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
-          'callback=ready_to_do_maps&key=' + window.maps_key;
+      script.appendChild(document.createTextNode("window.ready_to_load_graphs();"));
       document.body.appendChild(script);
     } else {
       RunLater(LingoLinq.Visualizations.handle_callbacks);
@@ -1009,5 +1025,14 @@ window.LingoLinq = LingoLinq;
 window.LingoLinq.VERSION = window.app_version;
 // Set verboseDebug=true in console or localStorage lingolinq_verbose_debug='true' for verbose debug logs
 window.LingoLinq.verboseDebug = window.LingoLinq.verboseDebug || (typeof localStorage !== 'undefined' && localStorage.getItem('lingolinq_verbose_debug') === 'true');
+
+/* The Compressed View density axis. `on` is already resolved (flag AND preference, see
+   utils/compressed_view_state.js); only an exact `true` adds the class, and the class name is a
+   literal, so a garbage value can at most leave it off. Driven by sync_density_scope in
+   services/app-state.js. Board pages are not compressed: their styles never read this class. */
+LingoLinq.set_density_scope = function(on) {
+  if(typeof document === 'undefined' || !document.body) { return; }
+  document.body.classList.toggle('ll-density-compressed', on === true);
+};
 
 export default LingoLinq;

@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { confirm_view_style_change } from '../../utils/view_style';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
@@ -40,8 +41,8 @@ export default Controller.extend(prefClasses, {
   // panelled experience; 'classic' = this board-alt grid. Defaults to
   // 'modern'. Drives the edit-mode view toggle's active state + the
   // conditional "open the other view" jump link.
-  board_view_style: computed('appState.currentUser.preferences.board_view_style', function() {
-    return this.get('appState.currentUser.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
+  board_view_style: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return this.get('appState.effective_view_user.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
   }),
   /* Broken/unsynced board recovery (classic speak shell). Same roles as
      board-detail: Home/Back for everyone; Exit Speak for supervisors. */
@@ -490,7 +491,6 @@ export default Controller.extend(prefClasses, {
     'appState.referenced_user.preferences.word_suggestions',
     'model.description',
     'model.focus_id',
-    'appState.sidebar_pinned',
     'appState.sidebar_visible',
     'long_description',
     'appState.currentUser.preferences.word_suggestion_images',
@@ -528,7 +528,13 @@ export default Controller.extend(prefClasses, {
       // the cap so the floor can never push the sidebar wider than we already ship.
       var sidebar_width = Math.min(Math.max(Math.round(column_width * 1.1), 44), sidebar_cap);
       document.documentElement.style.setProperty('--sidebar-width', sidebar_width + 'px');
-      if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
+      // Reserve the width whenever the sidebar is VISIBLE, not merely when it is pinned.
+      // #sidebar is position:absolute (app.scss:9929), so this subtraction is the only
+      // thing that makes room for it. Gating it on a narrower condition than the one that
+      // RENDERS the sidebar (services/app-state.js:3823) left every show-without-pinning
+      // path -- the sidebar tease, and the speak-menu "Show Sidebar" item at
+      // controllers/application.js:784 -- drawing the sidebar on top of the board.
+      if(this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width;
       }
       this.set('window_inner_width', inner_width);
@@ -561,17 +567,31 @@ export default Controller.extend(prefClasses, {
       var sidebarTopHeight = topHeight;
       this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode') && !this.appState.get('eval_mode'));
       if(this.get('show_word_suggestions')) {
-        topHeight = topHeight + 55;
         var style = this.get('get_style');
         var position = this.get('text_position');
-        if(style == 'text_small') { topHeight = topHeight - 4; }
-        else if(style == 'text_large') { topHeight = topHeight + 4; }
-        else if(style == 'text_huge') { topHeight = topHeight + 17; }
-        if(this.get('appState.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
-          topHeight = topHeight + 50;
-          this.set('show_word_suggestion_images', true);
+        var with_images = this.get('appState.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only';
+        this.set('show_word_suggestion_images', with_images);
+        // THIS RESERVATION AND THE RAIL'S CSS HEIGHT ARE ONE NUMBER IN TWO PLACES. Whatever is
+        // added here is the strip the board subtracts from its own height, so if it exceeds the
+        // rail's rendered height the board comes up short and leaves dead space beneath the last
+        // row; if it is less, the board runs under the rail.
+        //
+        // BOARD-ALT'S RAIL IS SHORTER (2026-09-22). It is styled down to a flat 66px there --
+        // `#within_ember.board-alt-view #word_suggestions.with_images` in app.scss -- against
+        // the shared 55 + 50 = 105 the classic board uses, and the board was still reserving
+        // 105, which is exactly the ~39px gap this fixes.
+        //
+        // The text-size adjustments below are deliberately NOT applied on board-alt: that
+        // stylesheet pins the height at 66px whatever the text style, so tracking the style
+        // here would re-introduce the same disagreement in the other direction.
+        if(with_images && this.appState.get('current_route') === 'user.board-alt.index') {
+          topHeight = topHeight + 66;
         } else {
-          this.set('show_word_suggestion_images', false);
+          topHeight = topHeight + 55;
+          if(style == 'text_small') { topHeight = topHeight - 4; }
+          else if(style == 'text_large') { topHeight = topHeight + 4; }
+          else if(style == 'text_huge') { topHeight = topHeight + 17; }
+          if(with_images) { topHeight = topHeight + 50; }
         }
       }
       if(this.appState.controller && this.appState.controller.get('setup_footer')) {
@@ -1515,14 +1535,24 @@ export default Controller.extend(prefClasses, {
     // Ember Data ships the full raw preferences blob.
     set_board_view_style: function(style) {
       if(style !== 'modern' && style !== 'classic') { return; }
-      var user = this.get('appState.currentUser');
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.get('appState.effective_view_user');
       if(!user) { return; }
-      user.set('preferences.board_view_style', style);
-      this.notifyPropertyChange('board_view_style');
-      if(user.save) {
-        user.set('preferences.device.updated', true);
-        user.save();
-      }
+      /* Ask first when the view being changed belongs to someone else. */
+      var _this = this;
+      confirm_view_style_change(this.get('appState'), style).then(function(ok) {
+        if(!ok) { return; }
+        user.set('preferences.board_view_style', style);
+        _this.notifyPropertyChange('board_view_style');
+        if(user.save) {
+          user.set('preferences.device.updated', true);
+          user.save();
+        }
+      });
     },
 
     // "Take me to the Modern View (in edit mode)". board-detail HAS a
@@ -1542,11 +1572,25 @@ export default Controller.extend(prefClasses, {
       this.get('router').transitionTo('user.board-detail.edit', user_name, boardname);
     },
 
-    // Normal-mode "Modern View" button: persist the user's preference
+    // Normal-mode "Card View" button: persist the user's preference
     // to 'modern' (so future logins land in the modern view) AND then
     // take them straight to the modern (board-detail) view.
     go_to_modern: function() {
-      var user = this.get('appState.currentUser');
+      /* Guarded like every other view write: if this board's view belongs to a communicator,
+         ask before changing their stored default, and on a cancel do not navigate either. */
+      var _gm = this;
+      confirm_view_style_change(this.get('appState'), 'modern').then(function(ok) {
+        if(ok) { _gm.send('_go_to_modern_confirmed'); }
+      });
+    },
+
+    _go_to_modern_confirmed: function() {
+      /* The record whose view is ON SCREEN, not the session account. While a supervisor
+         models for a communicator those differ, and writing `currentUser` there would
+         store the change against the supervisor while the page kept rendering the
+         communicator's shell -- the control would look dead. See
+         app-state#effective_view_user. */
+      var user = this.get('appState.effective_view_user');
       if(user) {
         user.set('preferences.board_view_style', 'modern');
         this.notifyPropertyChange('board_view_style');

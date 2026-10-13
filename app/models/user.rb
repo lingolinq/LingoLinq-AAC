@@ -553,7 +553,13 @@ class User < ApplicationRecord
   # when they re-enable AI in preferences.
   # force_under_13: automated license expiry (no manager attestation) when
   # school_authorization is still on file.
-  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false)
+  # skip_if_supported_elsewhere: re-check, under this method's user lock, that no other
+  # organization still supports the student (License.active_seat_elsewhere?). The callers check
+  # before calling, but a claim can seat the student between that check and this lock;
+  # Organization#claim_user takes the same user lock to seat them, so the answer here is
+  # current. When another organization does support them, only the age attestation is recorded
+  # and nothing else changes; the method returns false.
+  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
     )
@@ -567,12 +573,15 @@ class User < ApplicationRecord
     send_coppa_email = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
+      if skip_if_supported_elsewhere && License.active_seat_elsewhere?(self, org)
+        if birth_month.present? && birth_year.present?
+          stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+          self.save!
+        end
+        next
+      end
       if birth_month.present? && birth_year.present?
-        self.settings['registration'] ||= {}
-        self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
-        self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
-        self.settings['registration']['offboarding_attested_at'] = Time.now.utc.iso8601
-        self.settings['registration']['offboarding_org_jurisdiction'] = org_jurisdiction if org_jurisdiction
+        stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
         if !attested_under_16.nil?
           self.settings['registration']['under_16'] = !!attested_under_16
           # Prefer releasing org jurisdiction so school-created users (no country)
@@ -677,6 +686,30 @@ class User < ApplicationRecord
       end
     end
     did_coppa || did_ai
+  end
+
+  # Record a manager's birth month/year attestation WITHOUT starting offboarding. Used by
+  # Organization#remove_user when another organization still holds an active seat for this
+  # student, so offboarding is skipped: License.expire_stale_licenses! reads these fields when
+  # that last seat later expires, and without them treats a school-authorized student with no
+  # birth date on file as under 13. Writes nothing else (no COPPA, no AI reset, no under_16).
+  def record_offboarding_age_attestation!(birth_month: nil, birth_year: nil, org: nil)
+    return false unless birth_month.present? && birth_year.present?
+    org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+      self.save!
+    end
+    true
+  end
+
+  def stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+    self.settings['registration'] ||= {}
+    self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
+    self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
+    self.settings['registration']['offboarding_attested_at'] = Time.now.utc.iso8601
+    self.settings['registration']['offboarding_org_jurisdiction'] = org_jurisdiction if org_jurisdiction
   end
 
   # Login-time (or revoked re-request): stamp parent email + token and send
@@ -1930,14 +1963,25 @@ class User < ApplicationRecord
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
         'board_view_style' => 'modern',
-        # Home-page dashboard arrangement: 'gentle' (default) or 'focused'.
-        # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
-        # modifier on the dashboard grid.
+        # Home-page dashboard arrangement: 'gentle' or 'focused'. Chosen during the
+        # Dashboard Design flow or from the navbar View menu; drives the
+        # md-grid--layout-* modifier on the dashboard grid and the app-wide
+        # body.ll-layout-focused overlay.
+        #
+        # THIS BUCKET VALUE IS THE BACKFILL DEFAULT, NOT THE NEW-ACCOUNT DEFAULT, and the
+        # two deliberately differ. NEW accounts get 'focused' — seeded under `new_record?`
+        # in generate_defaults. This entry stays 'gentle' because the bucket loop has no
+        # new_record? guard and runs on every save, so changing it would restyle every
+        # existing account that has never been saved since this key was introduced.
+        # Both halves are pinned in spec/models/user_spec.rb.
+        #
         # NOTE (adversarial-review false positive — "client/server default mismatch"):
-        # this server default is 'gentle', matching the frontend default
-        # (dashboard/authenticated-view.js#effectiveLayout). They are aligned; new users
-        # get 'gentle' from both sides. (sanitize_dashboard_preferences! below also coerces
-        # any out-of-range stored value back to a known variant.)
+        # the frontend `|| 'gentle'` fallbacks (dashboard/authenticated-view.js and
+        # app-state.js #effectiveLayout) match THIS value, and both describe the same
+        # case — a stored preference that is absent. A new account never reaches either,
+        # because registration persists an explicit 'focused'.
+        # (sanitize_dashboard_preferences! below also coerces any out-of-range stored
+        # value back to a known variant.)
         'dashboard_layout' => 'gentle',
         # Per-section visibility for the home dashboard cards, e.g.
         # {'boards' => true, 'extras' => false}. Chosen during the Getting
@@ -2027,6 +2071,20 @@ class User < ApplicationRecord
     if self.new_record?
       self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
       self.settings['preferences']['word_suggestion_position'] = 'side_rail' if self.settings['preferences']['word_suggestion_position'] == nil
+      # Focused is the home style NEW accounts land on — the stronger-contrast, bolder-cue
+      # arrangement, which is what the View menu now presents first and badges "Default".
+      #
+      # Seeded HERE, under new_record?, and NOT by changing the 'gentle' entry in the
+      # preference_defaults['any_user'] bucket below. That bucket loop runs on every save with
+      # no new_record? guard, so flipping its value would restyle every EXISTING account that
+      # has not been saved since the key was introduced — the silent-behaviour-change trap the
+      # note on `board_category_grouping` in preference_defaults spells out. This block runs
+      # BEFORE the bucket loop, so a record seeded here is already non-nil and the bucket
+      # skips it; an existing user still falls to the bucket's 'gentle'.
+      #
+      # `== nil`, so an explicit choice made before the first save (a registration flow, or
+      # the Dashboard Design step) always wins.
+      self.settings['preferences']['dashboard_layout'] = 'focused' if self.settings['preferences']['dashboard_layout'] == nil
     end
     if !FeatureFlags.user_created_after?(self, 'battery_sounds')
       self.settings['preferences']['battery_sounds'] = true if self.settings['preferences']['battery_sounds'] == nil
@@ -2462,6 +2520,11 @@ class User < ApplicationRecord
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
       'board_dark_mode',
+      # Compressed View (feature flag compressed_view): tighter app shell and Modern home
+      # page. Boolean, no server default (absent = off), coerced in
+      # sanitize_dashboard_preferences!. Read with `=== true` in
+      # app/frontend/app/utils/compressed_view_state.js.
+      'compressed_view',
       # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
       # or 'top-down' (the original stacked order). Persisted per USER, not per
       # device, so the choice follows the user to a new login/browser — localStorage
@@ -2472,7 +2535,7 @@ class User < ApplicationRecord
       # failure mode called out on 'dashboard_layout' above.
       # Values are constrained on write by sanitize_boards_layout_preference!.
       'boards_layout',
-      # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
+      # AI feature prefs (master + per-feature). Master nil = off (AI defaults off);
       # for EU under-16 without parental consent these are forced false on write.
       'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
       'ai_board_suggestions', 'ai_symbol_search'
@@ -2775,6 +2838,7 @@ class User < ApplicationRecord
     if params['preferences'] && !(non_user_params['updater'] && non_user_params['updater'].admin?)
       params['preferences'].delete('beta_program_access')
     end
+    ai_prefs_before = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     PREFERENCE_PARAMS.each do |attr|
       if params['preferences'] && params['preferences'][attr] != nil
         val = params['preferences'][attr]
@@ -2794,6 +2858,7 @@ class User < ApplicationRecord
         self.settings['preferences'][attr] = val
       end
     end
+    ai_prefs_requested = EU_AI_PREF_KEYS.map { |k| [k, self.settings['preferences'][k]] }.to_h
     # EU under-16 without active AI parental consent: default AI prefs off on
     # create, and silently force false if the client tries to enable any.
     # Also never allow product-improvement / telemetry opt-in for EU under-16.
@@ -2807,6 +2872,35 @@ class User < ApplicationRecord
     end
     if eu_under_16?
       product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
+    # Record each AI preference whose STORED value changed in this save, with who,
+    # when, and the old and new value. Compared after normalization and the EU
+    # override above, so a save that omits the keys, repeats a value, or sends a
+    # dropped blank records nothing. A value the EU rule set, rather than the
+    # one this save asked for, is marked 'source' => 'eu_forced'.
+    EU_AI_PREF_KEYS.each do |key|
+      before = ai_prefs_before[key]
+      after = self.settings['preferences'][key]
+      next if before == after
+      forced = ai_prefs_requested[key] != after
+      # With no editor, an EU-rule value is credited to the rule itself, and a
+      # request with no signed-in user (a sign-up) to a fixed system actor.
+      whodunnit = PaperTrail.request.whodunnit
+      updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
+                   elsif forced then 'system:eu_rule'
+                   elsif whodunnit.to_s.start_with?('unauthenticated') then 'system:unauthenticated'
+                   else whodunnit end
+      entry = {
+        'updater' => updater_id,
+        'setting' => key,
+        'from' => before,
+        'to' => after,
+        'timestamp' => Time.now.utc.iso8601
+      }
+      entry['source'] = 'eu_forced' if forced
+      entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
+      self.settings['confirmation_log'] ||= []
+      self.settings['confirmation_log'] << entry
     end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe
@@ -3253,6 +3347,18 @@ class User < ApplicationRecord
     written = entry.call(
       val.merge('enabled' => enabled, 'order' => order), true
     ).merge('boards' => clean_boards)
+    # IN PROGRESS GUARD (2026-09-28). Only a user with the board_category_grouping flag may
+    # store grouping as on; while the flag is out of every list (lib/feature_flags.rb) that is
+    # nobody. A stale or offline client re-sends its whole preferences hash on any save, so a
+    # stored "on" from before this guard is turned off on that save (no migration resets them;
+    # see lib/board_category_grouping_reset.rb). Checked on the REBUILT value so 'true',
+    # 1 and '1' are caught, and only when it is on, so ordinary saves skip the flag lookup.
+    # The check is on THIS user (the preference's owner), not on whoever is editing it, so
+    # during a beta a flagged supervisor cannot switch it on for an unflagged communicator.
+    # Remove together with lib/board_category_grouping_reset.rb once the feature ships.
+    if written['enabled'] == true && !FeatureFlags.feature_enabled_for?('board_category_grouping', self)
+      written['enabled'] = false
+    end
     log_board_category_grouping_enable!(written)
     prefs['board_category_grouping'] = written
   end
@@ -3321,6 +3427,12 @@ class User < ApplicationRecord
     # dashboard_layout: a single known variant, else fall back to default.
     if prefs.has_key?('dashboard_layout') && !['gentle', 'focused'].include?(prefs['dashboard_layout'])
       prefs.delete('dashboard_layout')
+    end
+
+    # compressed_view: a real boolean. The PREFERENCE_PARAMS loop already turns 'true' and
+    # 'false' into booleans; anything else is stored as off.
+    if prefs.has_key?('compressed_view')
+      prefs['compressed_view'] = (prefs['compressed_view'] == true)
     end
 
     # dashboard_sections: { known_key => boolean }.
@@ -3410,9 +3522,67 @@ class User < ApplicationRecord
   # request (LogSession save calls this multiple times).
   def effective_data_policy
     @effective_data_policy ||= begin
-      org = self.managing_organization
-      org ? org.effective_data_policy : {}
+      policies = policy_governing_organizations.map(&:effective_data_policy)
+      if policies.empty?
+        {}
+      else
+        # Intersect STRICTEST-WINS across every sponsoring organization rather than picking one.
+        #
+        # This used to read `self.managing_organization`, which returns the first sponsored link
+        # that Organization.attached_orgs happens to yield. UserLink.links_for builds that list
+        # with `self.where(user_id: record.id)` and no ORDER BY, so with two sponsored links the
+        # governing organization was row-order dependent and could differ between requests. A
+        # student supported by a hospital (logging_allowed false, a short retention_months) and
+        # by a permissive district therefore resolved to whichever row came back first, and the
+        # hospital's floor was bypassed intermittently rather than never or always.
+        #
+        # A communicator may legitimately be supported by more than one organization at a time,
+        # so this is a normal configuration, not an edge case. The merge mirrors
+        # Organization#effective_data_policy, which already applies exactly this intersection
+        # against a parent organization: a false on any boolean wins, and the smallest limit
+        # wins. When one organization governs, the result is that organization's own policy.
+        # When a sponsoring organization and an accepted UNSPONSORED one both govern (see
+        # policy_governing_organizations), both now apply; the single-org resolver this replaced
+        # applied only the sponsor's.
+        merged = policies.first.dup
+        policies.drop(1).each do |policy|
+          %w[logging_allowed geo_logging_allowed log_reports_allowed
+             log_publishing_allowed research_opt_in_allowed].each do |key|
+            merged[key] = false if policy[key] == false
+          end
+          %w[max_logging_cutoff_hours retention_months].each do |key|
+            if policy[key] && (merged[key].nil? || policy[key] < merged[key])
+              merged[key] = policy[key]
+            end
+          end
+        end
+        merged
+      end
     end
+  end
+
+  # Every organization whose data policy governs this user as a communicator. Plural by design:
+  # co-existing organizations are supported.
+  #
+  # Deliberately NOT filtered on 'sponsored'. The single-org resolver this replaced,
+  # User#managing_organization, falls back through three detects: sponsored, then any
+  # non-pending, then any at all. Its second detect meant an UNSPONSORED organization's policy
+  # still governed, which matters because organizations attach communicators unsponsored through
+  # `add_unsponsored_user` and `add_external_user` (Organization#process_params calls
+  # add_user(key, true, false, false)) and through gift-code redemption. Requiring 'sponsored'
+  # here returned an empty policy for exactly those users, and an empty policy is PERMISSIVE:
+  # LogSession reads `effective_data_policy['logging_allowed'] != false` and strips geo only on an
+  # explicit false, so a clinic's logging_allowed=false silently stopped applying.
+  #
+  # Accepted links are preferred, with pending ones used only when there are none, mirroring the
+  # old detect-2-then-detect-3 order. A pending invitation from an organization the family has not
+  # accepted therefore cannot tighten the policy of an account another organization already
+  # governs.
+  def policy_governing_organizations
+    links = Organization.attached_orgs(self).select { |o| o['type'] == 'user' }
+    accepted = links.reject { |o| o['pending'] }
+    chosen = accepted.any? ? accepted : links
+    chosen.map { |o| Organization.find_by_global_id(o['id']) }.compact
   end
 
   def clear_effective_data_policy_cache

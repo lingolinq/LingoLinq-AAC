@@ -819,10 +819,18 @@ describe UserGoal, type: :model do
       g2 = UserGoal.create(:advance_at => 1.hour.from_now)
       g3 = UserGoal.create(:advance_at => 2.weeks.ago)
       Worker.process_queues
+      # BRACKET the call, as in calculate_advancement above: `scheduled` is stamped with
+      # Time.now.to_i inside `schedule` (boy_band scheduled_stamp), so comparing it to a
+      # later Time.now fails whenever the clock ticks between the two.
+      before = Time.now.to_i
       UserGoal.advance_goals
-      expect(Worker.scheduled_actions.map{|a| a.except('domain_id')}).to eq([{
+      after = Time.now.to_i
+      actions = Worker.scheduled_actions.map{|a| a.except('domain_id')}
+      scheduled = actions.dig(0, 'args', 2, 'scheduled')
+      expect(scheduled).to be_between(before, after)
+      expect(actions).to eq([{
         'class' => 'Worker',
-        'args' => ['UserGoal', 'perform_action', {'id' => g.id, 'method' => 'advance!', 'scheduled' => Time.now.to_i, 'arguments' => []}]
+        'args' => ['UserGoal', 'perform_action', {'id' => g.id, 'method' => 'advance!', 'scheduled' => scheduled, 'arguments' => []}]
       }])
     end
     

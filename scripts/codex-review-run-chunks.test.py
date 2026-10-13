@@ -3,6 +3,8 @@ import importlib.util
 import json
 import os
 import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -237,6 +239,30 @@ class RunChunksTest(unittest.TestCase):
 
         self.assertEqual(seen, [run_chunks.CHUNK_MODEL, run_chunks.SYNTHESIS_MODEL])
 
+    def test_model_calls_do_not_save_sessions(self):
+        seen = []
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = pathlib.Path(tmp) / "prompt.md"
+            prompt.write_text("prompt")
+            output = pathlib.Path(tmp) / "out.json"
+
+            def fake_run(command, **_kwargs):
+                seen.append(command)
+                output.write_text(json.dumps({"verdict": "APPROVE"}))
+                return Ok()
+
+            try:
+                run_chunks.subprocess.run = fake_run
+                run_chunks.run_model(object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL)
+            finally:
+                run_chunks.subprocess.run = original
+        self.assertIn("--ephemeral", seen[0])
+
     def test_needs_tiebreak_for_approve_block_split(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -332,6 +358,205 @@ class RunChunksTest(unittest.TestCase):
             self.assertIn("Second blocker.", prompt)
             self.assertIn('"decisive_path"', prompt)
             self.assertIn('"convergence"', prompt)
+
+
+# Canary strings standing in for PR content. AAC is a public repo, so anything the
+# chunk runner writes to stdout or stderr lands in a publicly readable Actions log.
+# Assertions match the shared stem, so a truncated echo is caught too.
+CANARY_STEM = "ZZLOGCANARY"
+DIFF_CANARY = f"{CANARY_STEM}_DIFF_3f9c"
+BODY_CANARY = f"{CANARY_STEM}_BODY_3f9c"
+MODEL_CANARY = f"{CANARY_STEM}_MODEL_3f9c"
+
+# Stand-in for `codex exec`. The real CLI echoes the whole prompt after a `user`
+# line and prints its final message after a `codex` line. This fake reproduces
+# both echoes, puts MODEL_CANARY in the finding text AND in the model-controlled
+# chunk_id, and has one mode per path through the runner:
+#   block      REQUEST_CHANGES every call (single run per leg)
+#   alternate  APPROVE, REQUEST_CHANGES, APPROVE, ... (runs 2 and 3 fire)
+#   fail       echo, write nothing, exit 1 (failure label and retry path)
+#   timeout    echo, then hang past the per-call timeout
+FAKE_CODEX = r'''#!/usr/bin/env python3
+import json, os, pathlib, sys, time
+args = sys.argv[1:]
+out = args[args.index("--output-last-message") + 1]
+schema = args[args.index("--output-schema") + 1]
+mode = os.environ["FAKE_CODEX_MODE"]
+prompt = sys.stdin.read()
+counter = pathlib.Path(os.environ["FAKE_CODEX_COUNTER"])
+calls = int(counter.read_text() or "0") + 1
+counter.write_text(str(calls))
+pathlib.Path(os.environ["FAKE_CODEX_RECEIVED_DIR"], f"received-{calls}").write_text(prompt)
+sys.stderr.write("user\n" + prompt + "\n")
+sys.stderr.flush()
+if mode == "fail":
+    sys.exit(1)
+if mode == "timeout":
+    time.sleep(30)
+    sys.exit(0)
+canary = os.environ["FAKE_CODEX_MODEL_CANARY"]
+approve = mode == "alternate" and calls % 2 == 1
+finding = {"id": "CR-1", "severity": "HIGH", "category": "code", "file": "app/a.rb",
+           "line": 1, "description": canary, "evidence": "e", "suggested_fix": "f",
+           "verifiable_check": "v"}
+review = {"verdict": "APPROVE" if approve else "REQUEST_CHANGES", "head_sha": "a" * 40,
+          "findings": [] if approve else [finding]}
+if "synthesis" in schema:
+    review.update({"coverage_complete": True, "chunk_results_complete": True,
+                   "checks_run": {}, "resolved_from_prior_loop": [],
+                   "cross_file_notes": [], "dedupe_notes": []})
+else:
+    review.update({"chunk_id": "chunk-0001 " + canary, "chunk_hash": "b" * 64,
+                   "reviewed_structural_index": []})
+body = json.dumps(review)
+pathlib.Path(out).write_text(body)
+sys.stdout.write("codex\n" + body + "\n")
+'''
+
+# mode -> (expected codex calls, text the log must still carry for diagnosis)
+MODES = {
+    "block": (2, None),
+    "alternate": (4, None),
+    "fail": (4, "model call failed: exit=1 label="),
+    "timeout": (4, "model call exceeded 1s and was killed"),
+}
+
+
+class ChunkRunnerLogExposureTest(unittest.TestCase):
+    def run_runner(self, root, mode):
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        fake = bin_dir / "codex"
+        fake.write_text(FAKE_CODEX)
+        fake.chmod(0o755)
+        counter = root / "codex-calls"
+        counter.write_text("0")
+
+        evidence = root / "evidence"
+        evidence.mkdir()
+        (evidence / "chunk-0001.diff").write_text(
+            "diff --git a/app/a.rb b/app/a.rb\n"
+            "--- a/app/a.rb\n+++ b/app/a.rb\n@@ -1 +1 @@\n"
+            f"-old\n+{DIFF_CANARY}\n"
+        )
+        chunk = {
+            "id": "chunk-0001",
+            "path": "chunk-0001.diff",
+            "raw_sha256": "b" * 64,
+            "prompt_sha256": "c" * 64,
+            "coverage": [{"path": "app/a.rb"}],
+        }
+        (evidence / "manifest.json").write_text(json.dumps({"chunks": [chunk]}))
+        (evidence / "manifest.md").write_text("manifest\n")
+        live_state = root / "live_state.txt"
+        live_state.write_text(f"### gh pr view\n{{\"title\": \"t\", \"body\": \"{BODY_CANARY}\"}}\n")
+        out_dir = root / "results"
+
+        env = dict(os.environ)
+        env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+        env["FAKE_CODEX_COUNTER"] = str(counter)
+        env["FAKE_CODEX_RECEIVED_DIR"] = str(root)
+        env["FAKE_CODEX_MODEL_CANARY"] = MODEL_CANARY
+        env["FAKE_CODEX_MODE"] = mode
+        env["CODEX_REVIEW_MODEL_CALL_TIMEOUT"] = "1"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(MODULE_PATH),
+                "--evidence-dir", str(evidence),
+                "--live-state-file", str(live_state),
+                "--out-dir", str(out_dir),
+                "--head-sha", "a" * 40,
+            ],
+            cwd=MODULE_PATH.resolve().parents[1],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        return result, int(counter.read_text()), out_dir, root
+
+    def test_pr_content_never_reaches_the_job_log(self):
+        for mode, (expected_calls, diagnostic) in MODES.items():
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                result, calls, out_dir, root = self.run_runner(pathlib.Path(tmp), mode)
+
+                # The runner must actually have fed the canaries to the model,
+                # or their absence from the log proves nothing.
+                self.assertEqual(result.returncode, 0, "chunk runner did not complete")
+                self.assertEqual(calls, expected_calls, "unexpected number of codex calls")
+                chunk_prompt = (out_dir / "chunk-0001-prompt.md").read_text()
+                self.assertIn(DIFF_CANARY, chunk_prompt)
+                self.assertIn(BODY_CANARY, chunk_prompt)
+                # What the model actually read on stdin, not just what was written.
+                self.assertEqual((root / "received-1").read_text(), chunk_prompt, "the model did not receive the chunk prompt")
+                self.assertTrue((out_dir / "run-summary.json").exists())
+                if mode in ("block", "alternate"):
+                    self.assertIn(MODEL_CANARY, (out_dir / "chunk-0001-review-2.json" if mode == "alternate" else out_dir / "chunk-0001-review-1.json").read_text())
+
+                log = result.stdout + result.stderr
+                self.assertFalse(CANARY_STEM in log, "PR content or model output reached the job log")
+                if diagnostic:
+                    self.assertIn(diagnostic, log, "a failed call must still be diagnosable from the log")
+
+
+class QuietExecLabelTest(unittest.TestCase):
+    quiet = run_chunks.quiet_exec
+
+    def test_echoed_prompt_cannot_steer_the_label(self):
+        prompt = "diff tail: insufficient_quota 401 Unauthorized bwrap: rate_limit_exceeded context_length_exceeded"
+        transcript = "user\n" + prompt + "\nERROR: stream disconnected before completion\n"
+        self.assertEqual(self.quiet.failure_label(transcript, prompt), "unclassified")
+
+    def test_token_count_is_not_an_auth_failure(self):
+        self.assertEqual(self.quiet.failure_label("codex\n{}\ntokens used\n1,401\n"), "unclassified")
+
+    def test_codex_error_messages_get_their_labels(self):
+        # Verbatim messages from codex-cli 0.156.1, plus the raw API forms.
+        cases = {
+            "Quota exceeded. Check your plan and billing details.": "quota_or_billing",
+            "You exceeded your current quota, please check your plan and billing details.": "quota_or_billing",
+            "unexpected status 401 Unauthorized: Incorrect API key provided": "auth",
+            "exceeded retry limit, last status: 429 Too Many Requests": "rate_limit",
+            "stream error: rate limit exceeded: try again later": "rate_limit",
+            "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.": "context_length",
+            "bwrap: Failed RTM_NEWADDR: Operation not permitted": "sandbox",
+            "stream disconnected before completion": "unclassified",
+        }
+        for message, label in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(self.quiet.failure_label(f"user\nprompt\nERROR: {message}\n", "prompt"), label)
+
+    def test_signal_exit_is_reported_like_a_shell(self):
+        cli = MODULE_PATH.with_name("codex-review-quiet-exec.py")
+        result = subprocess.run(
+            [sys.executable, str(cli), "--", sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGTERM)"],
+            input=b"",
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 128 + 15)
+
+    def run_child(self, code, prompt, timeout=10):
+        with tempfile.TemporaryFile() as stdin:
+            stdin.write(prompt.encode())
+            stdin.seek(0)
+            return self.quiet.run_quiet([sys.executable, "-c", code], stdin, timeout=timeout)
+
+    def test_run_quiet_labels_the_error_not_the_prompt(self):
+        echo_then_fail = "import sys; sys.stdout.write(sys.stdin.read()); print('ERROR: {}'); sys.exit(3)"
+        self.assertEqual(
+            self.run_child(echo_then_fail.format("insufficient_quota"), "a billing diff"),
+            (3, "quota_or_billing"),
+        )
+        self.assertEqual(
+            self.run_child(echo_then_fail.format("connection reset"), "diff says insufficient_quota"),
+            (3, "unclassified"),
+        )
+
+    def test_run_quiet_returns_when_the_command_exits(self):
+        # A process the command leaves behind that still holds its output must
+        # not turn a finished call into a timeout.
+        leave_child = "import subprocess, sys; subprocess.Popen(['sleep', '4']); sys.exit(0)"
+        self.assertEqual(self.run_child(leave_child, "", timeout=2), (0, None))
 
 
 if __name__ == "__main__":

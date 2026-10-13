@@ -243,6 +243,45 @@ describe('ApplicationController', 'controller:application', function() {
         expect(topBoard.get('copy_source_from_board')).toEqual(visibleBoard);
       });
     });
+
+    // 2026-10-02: Make a Copy on Quick Core 40 (opened directly, so no root state) copied its
+    // linked "Quick Core 40 - Things at Home" instead -- the guess took any link whose key or
+    // name merely CONTAINED "home". Only a board that IS a top page counts.
+    it('does not take a linked sub-board whose name merely contains "home" as the copy root', function() {
+      var controller = testOwner.lookup('controller:application');
+      var visibleBoard = EmberObject.create({
+        id: '1_105',
+        global_id: '1_105',
+        key: 'lingolinq/core-40',
+        linked_boards: [
+          { id: '1_106', key: 'lingolinq/core-40-people', name: 'Quick Core 40 - People' },
+          { id: '1_109', key: 'lingolinq/core-40-things-at-home', name: 'Quick Core 40 - Things at Home' },
+          { id: '1_110', key: 'lingolinq/core-40-go', name: 'Go home' }
+        ]
+      });
+      var requestedRef = null;
+      var resolvedBoard = null;
+
+      controller.set('appState.currentBoardState', { id: '1_105', key: 'lingolinq/core-40' });
+      controller.set('stashes', EmberObject.create({
+        temporary_root_board_state: null,
+        root_board_state: null
+      }));
+      LingoLinq.store.findRecord = function(type, ref) {
+        requestedRef = ref;
+        return RSVP.resolve(EmberObject.create({ id: '1_109', global_id: '1_109', key: ref }));
+      };
+
+      controller.copy_source_board(visibleBoard).then(function(board) {
+        resolvedBoard = board;
+      });
+
+      waitsFor(function() { return resolvedBoard; });
+      runs(function() {
+        expect(requestedRef).toEqual(null);
+        expect(resolvedBoard).toEqual(visibleBoard);
+      });
+    });
   });
 
   describe('copy_and_edit_board', function() {

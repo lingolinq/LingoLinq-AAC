@@ -843,8 +843,8 @@ export default Component.extend({
           setTimeout(function() {
             var t = document.getElementById('ll-pre-reload-overlay__title');
             var s = document.getElementById('ll-pre-reload-overlay__sub');
-            if(t) { t.textContent = i18n.t('still_working_loading', 'Still working…'); }
-            if(s) { s.textContent = i18n.t('large_board_sets_take_longer', 'Large board sets can take a little longer to prepare.'); }
+            if(t) { t.textContent = i18n.t('still_working_loading', "Still working…"); }
+            if(s) { s.textContent = i18n.t('large_board_sets_take_longer', "Large board sets can take a little longer to prepare."); }
           }, 3000);
         }
       }

@@ -8,7 +8,7 @@ export default Route.extend({
   store: service('store'),
   model: function(params) {
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('goals', 'goals'));
+    user.set('subroute_name', i18n.t('goals', "goals"));
     return this.store.findRecord('goal', params.goal_id);
   },
   setupController: function(controller, model) {

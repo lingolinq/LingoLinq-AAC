@@ -1,9 +1,23 @@
 <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
-  <div class="modal-header md-modal-header">
+  {{!-- `--profiles` carries this modal's own header padding (requested 2026-09-14: 8px more
+       top and bottom). A modifier rather than editing `.md-modal-header`, which every modern
+       modal in the app shares — see app.scss. --}}
+  <div class="modal-header md-modal-header md-modal-header--profiles">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <h3><span class='glyphicon glyphicon-lamp'></span> {{t "Communication Profiles for %{un}" un=this.model.user.user_name key="communication_profiles_for"}}
+    {{!-- Inline SVG, not `glyphicon glyphicon-lamp`. Glyphicons are the legacy Bootstrap icon
+         font; every modernised modal in this app draws its mark as an SVG, which scales with
+         the type and does not depend on the font loading. Two-tone like the rest of the icon
+         set: charcoal structure, teal accent. `aria-hidden` because the heading beside it
+         already names the modal. --}}
+    <h3>
+      <svg class="md-modal-header__glyph" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 18h6" stroke="#46505F"/>
+        <path d="M10 22h4" stroke="#46505F"/>
+        <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" stroke="#2A9D8F"/>
+      </svg>
+      {{t "Communication Profiles for %{un}" un=this.model.user.user_name key="communication_profiles_for"}}
     </h3>
   </div>
   <div class="modal-body md-modal-body">
@@ -14,11 +28,11 @@
         {{else if this.profile.error}}
           {{t "Error loading profile details" key="error_loading_profile_details"}}
         {{else}}
-          <h3 style='margin-top: 0;'>{{this.profile.name}}</h3>
+          <h3 class="md-profiles__heading">{{this.profile.name}}</h3>
         {{/if}}
       </div>
       {{#if this.profile.date}}
-        <div style='margin: 10px 0 20px;'>
+        <div class="md-profiles__current">
           <button type="button" {{on "click" (this.ctrlAction "review_profile" this.profile.log_id)}} class={{if this.profile.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{this.profile.circle_style}}>
             {{#if this.profile.summary}}
               {{this.profile.summary}}
@@ -29,23 +43,23 @@
           {{#if this.profile.author}}
             {{t "completed by <b>%{un}</b>" un=this.profile.author.user_name key="completed_by_user"}}
           {{/if}}
-          <div style='font-style: italic; margin-left: 30px;'>{{date this.profile.date}}</div>
+          <div class="md-profiles__meta md-profiles__meta--indent">{{date this.profile.date}}</div>
           <button type="button" class="md-link-btn" {{on "click" (this.ctrlAction "review_profile" this.profile.log_id)}}>{{t "review details" key="review_details"}}</button>
         </div>
         {{#if this.profile.priors}}
           Additional profiles:<br>
-          <div style='margin-left: 15px; color: #888;'>
+          <div class="md-profiles__priors">
             {{#each this.profile.priors as |prior|}}
               {{date prior.date}}<br>
             {{/each}}
           </div>
         {{/if}}
       {{else if this.profile.name}}
-        <div style='margin: 20px 0;'>
+        <div class="md-profiles__note">
           {{t "No data recorded for this profile type" key="no_data_for_profile_type"}}
         </div>
       {{/if}}
-      <div style='margin-top: 20px;'>
+      <div class="md-profiles__note">
         <button type="button" class="md-link-btn" {{on "click" (this.ctrlAction "clear_profile")}}>{{t "See other profile results" key="see_other_profile_results"}}</button>
       </div>
     {{else}}
@@ -58,12 +72,12 @@
           <p>{{t "Communication Profiles are evaluation tools that can be used to assess or monitor a user's communication development. Profiles can target communicators or the people who work with them, and can be run multiple times. They can help with deciding on appropriate goals for a user and can help teams coordinate on effective strategies for support." key="profiles_explainer"}}</p>
           <p>{{t "NOTE: Profiles should always be run with the user's involvement, even if their participation may be limited. Also, profiles should never be used as \"proof\" that someone shouldn't receive full communication supports or age-appropriate learning experiences." key="profiles_explainer_2"}}</p>
         {{/unless}}
-        <table>
+        <table class="md-profiles__table">
           <tbody>
             {{#each this.profiles as |prof|}}
-              <tr style='border-bottom: 1px solid #ccc;'>
+              <tr class="md-profiles__row">
                 {{#if prof.date}}
-                  <td style='height: 80px;'>
+                  <td class="md-profiles__cell-mark">
                     <button type="button" {{on "click" (this.ctrlAction "review_profile" prof.log_id)}} class={{if prof.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{prof.circle_style}}>
                       {{#if prof.summary}}
                         {{prof.summary}}
@@ -72,48 +86,48 @@
                       {{/if}}
                     </button>
                   </td>
-                  <td style='width: 100%;'>
-                    <div style='font-size: 16px; font-weight: bold;'>{{prof.name}}</div>
-                    <div style='font-style: italic;'>{{prof.author.user_name}} {{date prof.date}}</div>
+                  <td class="md-profiles__cell-main">
+                    <div class="md-profiles__name">{{prof.name}}</div>
+                    <div class="md-profiles__meta">{{prof.author.user_name}} {{date prof.date}}</div>
                   </td>
-                  <td style='padding: 0 5px;'>
-                    <button {{on "click" (this.ctrlAction "review_profile" prof.log_id)}} class='btn btn-default'>{{t "review" key="review"}}</button>
+                  <td class="md-profiles__cell-action">
+                    <button type="button" {{on "click" (this.ctrlAction "review_profile" prof.log_id)}} class="btn md-modal-btn md-modal-btn--secondary">{{t "review" key="review"}}</button>
                   </td>
-                  <td style='padding: 0 5px;'>
-                    <button {{on "click" (this.ctrlAction "run_profile" prof.id)}} class={{prof.button_class}} style='width: 90px;'>{{t "repeat" key="repeat"}}</button>
+                  <td class="md-profiles__cell-action">
+                    <button {{on "click" (this.ctrlAction "run_profile" prof.id)}} class="{{prof.button_class}} md-profiles__run-btn">{{t "repeat" key="repeat"}}</button>
                   </td>
                 {{else}}
-                  <td style='height: 80px;'>
-                    <button type="button" {{on "click" (this.ctrlAction "review_profile")}} class='profile_modal_circle single_row' style='opacity: 0.8;' aria-label={{t "No profile data" key="no_profile_data"}}>
+                  <td class="md-profiles__cell-mark">
+                    <button type="button" {{on "click" (this.ctrlAction "review_profile")}} class="profile_modal_circle single_row md-profiles__mark--empty" aria-label={{t "No profile data" key="no_profile_data"}}>
                       -
                     </button>
                   </td>
-                  <td style='width: 100%;'>
-                    <div style='font-size: 16px; font-weight: bold;'>{{prof.name}}</div>
-                    <div style='font-style: italic; max-width: 275px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;'>{{prof.description}}</div>
+                  <td class="md-profiles__cell-main">
+                    <div class="md-profiles__name">{{prof.name}}</div>
+                    <div class="md-profiles__meta md-profiles__meta--clamped">{{prof.description}}</div>
                   </td>
-                  <td style='padding: 0 5px;'>
+                  <td class="md-profiles__cell-action">
                   </td>
-                  <td style='padding: 0 5px;'>
-                    <button {{on "click" (this.ctrlAction "run_profile" prof.id)}} class={{prof.button_class}} style='width: 90px;'>{{t "run" key="run"}}</button>
+                  <td class="md-profiles__cell-action">
+                    <button {{on "click" (this.ctrlAction "run_profile" prof.id)}} class="{{prof.button_class}} md-profiles__run-btn">{{t "run" key="run"}}</button>
                   </td>
                 {{/if}}
               </tr>
             {{/each}}
           </tbody>
         </table>
-        <div class='row' style='margin: 15px 0;'>
-          <div class='col-sm-5' style='padding-right: 0;'>
+        <div class="row md-profiles__lookup">
+          <div class="col-sm-5 md-profiles__lookup-field">
             <label for="find_profile_id" class="sr-only">{{t "Look up profile by ID" key="find_profile_id_label"}}</label>
             <input id="find_profile_id" type="text" class="form-control" {{on-enter (this.ctrlAction "lookup")}} value={{this.find_profile_id}} {{on "input" (set-field this "find_profile_id")}} placeholder={{t "Look up profile by ID" key="find_profile_id_label"}} />
           </div>
-          <div class='col-sm-3' style='padding-left: 3px;'>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "lookup")}}>{{t "Go" key="go"}}</button>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "browse")}}>{{t "Browse" key="browse"}}</button>
+          <div class="col-sm-3 md-profiles__lookup-actions">
+            <button type="button" class="btn md-modal-btn md-modal-btn--secondary" {{on "click" (this.ctrlAction "lookup")}}>{{t "Go" key="go"}}</button>
+            <button type="button" class="btn md-modal-btn md-modal-btn--secondary" {{on "click" (this.ctrlAction "browse")}}>{{t "Browse" key="browse"}}</button>
           </div>
         </div>
         {{#if this.lookup_state}}
-          <div style='margin-top: -10px; font-style: italic; margin-left: 20px;'>
+          <div class="md-profiles__status">
             {{#if this.lookup_state.loading}}
               {{t "Loading profile..." key="loading_profile"}}
             {{else if this.lookup_state.error}}
@@ -123,24 +137,24 @@
             {{/if}}
           </div>
         {{else if this.browse_state}}
-          <div style='margin-top: -10px; font-style: italic; margin-left: 20px;'>
+          <div class="md-profiles__status">
             {{#if this.browse_state.loading}}
               {{t "Loading profiles..." key="loading_profiles"}}
             {{else if this.browse_state.error}}
               {{t "Error loading profiles" key="error_loading_profiles"}}
             {{else}}
-              <table>
+              <table class="md-profiles__table">
                 <tbody>
                   {{#each this.browse_state.list as |prof|}}
-                    <tr style='border-bottom: 1px solid #ccc;'>
-                      <td style='width: 100%; padding: 25px 0;'>
-                        <div style='font-size: 16px; font-weight: bold;'>{{prof.name}}</div>
-                        <div style='font-style: italic; overflow: hidden; max-height: 100px; text-overflow: ellipsis;'>{{prof.description}}</div>
+                    <tr class="md-profiles__row">
+                      <td class="md-profiles__cell-main md-profiles__cell-main--browse">
+                        <div class="md-profiles__name">{{prof.name}}</div>
+                        <div class="md-profiles__meta md-profiles__meta--block">{{prof.description}}</div>
                       </td>
-                      <td style='padding: 0 5px;'>
+                      <td class="md-profiles__cell-action">
                       </td>
-                      <td style='padding: 0 5px;'>
-                        <button {{on "click" (this.ctrlAction "run_profile" prof.id)}} class='btn btn-lg btn-default' style='width: 90px;'>{{t "run" key="run"}}</button>
+                      <td class="md-profiles__cell-action">
+                        <button type="button" {{on "click" (this.ctrlAction "run_profile" prof.id)}} class="btn md-modal-btn md-modal-btn--secondary md-profiles__run-btn">{{t "run" key="run"}}</button>
                       </td>
                     </tr>
                   {{/each}}
@@ -156,7 +170,7 @@
   </div>
   <div class="modal-footer md-modal-footer">
     {{#if this.profile.date}}
-      <button {{on "click" (this.ctrlAction "review_profile" this.profile.log_id)}} class='btn btn-lg btn-default'>{{t "Review Results" key="review_profile"}}</button>
+      <button type="button" {{on "click" (this.ctrlAction "review_profile" this.profile.log_id)}} class="btn md-modal-btn md-modal-btn--secondary">{{t "Review Results" key="review_profile"}}</button>
     {{/if}}
     {{#if this.model.profile_id}}
       <button {{on "click" (this.ctrlAction "run_profile" this.model.profile_id)}} class={{this.repeat_button_class}}>
@@ -167,6 +181,6 @@
         {{/if}}
       </button>
     {{/if}}
-    <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
   </div>
 </ModalDialog>

@@ -115,7 +115,7 @@ export default Component.extend({
     res = res + ':';
     if (blocks[1] < 10) { res = res + '0'; }
     res = res + blocks[1];
-    res = res + (am ? i18n.t('am', 'am') : i18n.t('pm', 'pm'));
+    res = res + (am ? i18n.t('am', "am") : i18n.t('pm', "pm"));
     return res;
   },
 

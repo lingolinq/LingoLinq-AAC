@@ -143,7 +143,7 @@ function interiorSteps() {
       // what a supporter CAN do varies per person, and the badge is the only
       // place that is stated.
       id: 'caseload_tour_access',
-      sel: '.md-caseload__list-badges',
+      sel: '.md-caseload__list-badges, .md-cl-row__role',
       on: 'bottom',
       title: i18n.t('caseload_tour_access_title', "What you're allowed to do"),
       text: tourChecklist([
@@ -155,7 +155,7 @@ function interiorSteps() {
     // ---- Per-communicator quick actions ------------------------------------
     {
       id: 'caseload_tour_quick',
-      sel: '.md-caseload__list-quick',
+      sel: '.md-caseload__list-quick, .md-cl-row__actions',
       on: 'top',
       padded: true,
       title: i18n.t('caseload_tour_quick_title', "Quick actions"),
@@ -167,7 +167,7 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_model',
-      sel: '.md-caseload__quick-action--model',
+      sel: '.md-caseload__quick-action--model, .md-cl-btn--model',
       on: 'top',
       title: i18n.t('caseload_tour_model_title', "Model on their board"),
       text: tourChecklist([
@@ -178,7 +178,7 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_choose_board',
-      sel: '.md-caseload__quick-action--choose-board',
+      sel: '.md-caseload__quick-action--choose-board, .md-cl-btn--choose-board',
       on: 'top',
       title: i18n.t('caseload_tour_choose_board_title', "Set a home board"),
       text: tourChecklist([
@@ -188,7 +188,7 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_speak',
-      sel: '.md-caseload__quick-action--speak',
+      sel: '.md-caseload__quick-action--speak, .md-cl-btn--speak',
       on: 'top',
       title: i18n.t('caseload_tour_speak_title', "Open Speak Mode"),
       text: tourChecklist([
@@ -198,7 +198,7 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_reports',
-      sel: '.md-caseload__quick-action--reports',
+      sel: '.md-caseload__quick-action--reports, .md-cl-btn--more',
       on: 'top',
       title: i18n.t('caseload_tour_reports_title', "See how it's going"),
       text: tourChecklist([
@@ -208,7 +208,7 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_ideas',
-      sel: '.md-caseload__quick-action--ideas',
+      sel: '.md-caseload__quick-action--ideas, .md-cl-btn--more',
       on: 'top',
       title: i18n.t('caseload_tour_ideas_title', "Modeling ideas"),
       text: tourChecklist([
@@ -218,7 +218,7 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_more',
-      sel: '.md-caseload__quick-action--more',
+      sel: '.md-caseload__quick-action--more, .md-cl-btn--more',
       on: 'top',
       title: i18n.t('caseload_tour_more_title', "Open the full panel"),
       text: tourChecklist([
@@ -232,7 +232,7 @@ function interiorSteps() {
     // opens the first row first.
     {
       id: 'caseload_tour_panel_actions',
-      sel: '.md-caseload__actions--tiles',
+      sel: '.md-caseload__actions--tiles, .md-cl-more',
       on: 'top',
       padded: true,
       expand: true,
@@ -312,6 +312,10 @@ function expandFirstRow() {
    trips (store.query then findRecord), so its step showed with the target still absent,
    liveTarget returned null, Shepherd fell back to document.body and the card rendered
    unattached, highlighting nothing. */
+// COMPACT CASELOAD (Modern + Focused + Compressed View, templates/caseload.hbs) renders its own row
+// markup, so each step's `sel` also names the compact element (`.md-cl-*`) after the tiled one;
+// the first visible match wins, so only the one on screen is used. In Compact, Reports and Modeling
+// Ideas live behind the "…" button, so those two steps point at it.
 function expandThenWait(selector) {
   var expand = expandFirstRow();
   var wait = waitForElement(selector);

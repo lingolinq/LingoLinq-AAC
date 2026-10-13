@@ -117,7 +117,7 @@ export default Component.extend({
       }).then(function() {
         _this.set('status', null);
         modal.close();
-        modal.success(i18n.t('message_sent', 'Message successfully sent!'));
+        modal.success(i18n.t('message_sent', "Message successfully sent!"));
       }, function() {
         _this.set('status', { error: true });
       });

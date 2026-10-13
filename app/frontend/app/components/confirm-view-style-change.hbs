@@ -1,0 +1,38 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
+    <h3 class="md-modal-title">{{t "Change this person's view?" key="confirm_view_style_title"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        {{!-- Two panels with a warning mark: the view being swapped, and the fact that it
+             is not a local change. --}}
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.5" y="4" width="19" height="16" rx="2.5"/>
+          <line x1="2.5" y1="8" x2="21.5" y2="8"/>
+          <line x1="12" y1="11.5" x2="12" y2="15"/>
+          <line x1="12" y1="17.5" x2="12" y2="17.6"/>
+        </svg>
+      </div>
+    </div>
+    {{#if this.model.user_name}}
+      <p class="md-modal-message">
+        {{t "You are about to change the saved view for %{un}. This is their own preference, so it follows them onto every device they use, not just this session." un=this.model.user_name key="confirm_view_style_message_named"}}
+      </p>
+    {{else}}
+      <p class="md-modal-message">
+        {{t "You are about to change the saved view for the person you are modelling for. This is their own preference, so it follows them onto every device they use, not just this session." key="confirm_view_style_message"}}
+      </p>
+    {{/if}}
+    <p class="md-modal-hint">
+      {{t "If you only need this change while you are modelling, remember to change it back before you finish." key="confirm_view_style_temporary_hint"}}
+    </p>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>
+      {{t "Change their view" key="confirm_view_style_confirm"}}
+    </button>
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+  </div>
+</ModalDialog>

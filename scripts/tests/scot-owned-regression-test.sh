@@ -466,6 +466,108 @@ fi
 
 fi  # FIXTURE_SHA guard
 
+echo "-- both mergers: a re-find keeps a stored withheld-form ruleKey --"
+
+# A row whose ruleKey is the self-referencing withheld form ("minimized-finding-" + its own id,
+# lowercased) is one citation-check does not recompute the id for. A re-find carrying the ruleKey
+# the id derives from
+# lands on the row by id; the merger must leave the stored ruleKey as it is and add no row.
+# One open row (reseen path) and one verified-closed row (regression path) per merger.
+
+# assert_withheld_kept <label> <out.json> <expected-row-count> <id> <stored-ruleKey> [<id> <stored-ruleKey> ...]
+assert_withheld_kept() {
+  local label="$1" out="$2" expected="$3"; shift 3
+  local count
+  count="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0]))["findings"].size' "$out" 2>/dev/null)"
+  if [ "$count" = "$expected" ]; then ok "$label: no row added ($count rows)"
+  else bad "$label: expected $expected rows, got ${count:-missing}"; fi
+  while [ "$#" -ge 2 ]; do
+    local got; got="$(field "$out" "$1" 'f["ruleKey"]')"
+    if [ "$got" = "$2" ]; then ok "$label: $1 kept its stored ruleKey"
+    else bad "$label: $1 ruleKey changed on re-find (expected the stored withheld form)"; fi
+    shift 2
+  done
+}
+
+RK5_OPEN='fx-am-withheld-open'
+RK5_VC='fx-am-withheld-verified-closed'
+ID5_OPEN="$(id_of "$RK5_OPEN" "$RK5_OPEN")"
+ID5_VC="$(id_of "$RK5_VC" "$RK5_VC")"
+WK5_OPEN="minimized-finding-$(printf '%s' "$ID5_OPEN" | tr 'A-Z' 'a-z')"
+WK5_VC="minimized-finding-$(printf '%s' "$ID5_VC" | tr 'A-Z' 'a-z')"
+
+ruby -rjson -e '
+  ev = {"type"=>"runtime","source"=>"original-evidence"}
+  rows = [
+    {"id"=>ARGV[0],"ruleKey"=>ARGV[2],"title"=>"fx withheld open","severity"=>"low","status"=>"open",
+     "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+    {"id"=>ARGV[1],"ruleKey"=>ARGV[3],"title"=>"fx withheld verified-closed","severity"=>"low","status"=>"verified-closed",
+     "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+  ]
+  File.write(ARGV[4], JSON.pretty_generate({"meta"=>{"schemaVersion"=>"1.1"},"findings"=>rows}))
+' "$ID5_OPEN" "$ID5_VC" "$WK5_OPEN" "$WK5_VC" "$TMP/am-withheld-register.json"
+
+OUTFILE="$TMP/am-withheld-finder.json" ruby -rjson -e '
+  findings = ARGV.map { |k| {"ruleKey"=>k,"title"=>"refind","severity"=>"low",
+    "evidence"=>{"type"=>"runtime","source"=>"refinder-evidence","snippet"=>"refound"}} }
+  File.write(ENV["OUTFILE"], JSON.pretty_generate({"domain"=>"ci-smoke","findings"=>findings}))
+' "$RK5_OPEN" "$RK5_VC"
+
+if ! ruby "$AUDIT_MERGE" --register "$TMP/am-withheld-register.json" --sha "0000000000000000000000000000000000000000" \
+    --no-restamp --in "$TMP/am-withheld-finder.json" --out "$TMP/am-withheld-out.json" > "$TMP/am-withheld-log.txt" 2>&1; then
+  bad "audit-merge.rb exited non-zero on the withheld-form fixture:"
+  sed 's/^/      /' "$TMP/am-withheld-log.txt" >&2
+else
+  assert_withheld_kept "audit-merge" "$TMP/am-withheld-out.json" 2 "$ID5_OPEN" "$WK5_OPEN" "$ID5_VC" "$WK5_VC"
+  # The re-find must actually have landed on the rows, not been skipped.
+  got_src="$(field "$TMP/am-withheld-out.json" "$ID5_OPEN" 'f.dig("evidence","source")')"
+  if [ "$got_src" = "refinder-evidence" ]; then ok "audit-merge: open withheld-form row took the reseen path (evidence re-anchored)"
+  else bad "audit-merge: open withheld-form row was not reseen (evidence.source=${got_src:-missing})"; fi
+  assert_regression "audit-merge: verified-closed withheld-form row regresses" "$TMP/am-withheld-out.json" "$ID5_VC" true
+fi
+
+if [ -n "$FIXTURE_SHA" ]; then
+  RK6_OPEN='fx-pf-withheld-open'
+  RK6_VC='fx-pf-withheld-verified-closed'
+  ID6_OPEN="$(id_of "$RK6_OPEN" "$FIXTURE_FILE")"
+  ID6_VC="$(id_of "$RK6_VC" "$FIXTURE_FILE")"
+  WK6_OPEN="minimized-finding-$(printf '%s' "$ID6_OPEN" | tr 'A-Z' 'a-z')"
+  WK6_VC="minimized-finding-$(printf '%s' "$ID6_VC" | tr 'A-Z' 'a-z')"
+
+  ruby -rjson -e '
+    ev = {"type"=>"code","file"=>ARGV[4],"line"=>1,"snippet"=>ARGV[5],"sha"=>ARGV[6]}
+    rows = [
+      {"id"=>ARGV[0],"ruleKey"=>ARGV[2],"title"=>"fx withheld open","severity"=>"high","status"=>"open",
+       "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+      {"id"=>ARGV[1],"ruleKey"=>ARGV[3],"title"=>"fx withheld verified-closed","severity"=>"high","status"=>"verified-closed",
+       "evidence"=>ev,"firstSeen"=>"2026-01-01","lastSeen"=>"2026-01-01"},
+    ]
+    File.write(ARGV[7], JSON.pretty_generate({"meta"=>{"schemaVersion"=>"1.1"},"findings"=>rows}))
+  ' "$ID6_OPEN" "$ID6_VC" "$WK6_OPEN" "$WK6_VC" "$FIXTURE_FILE" "$FIXTURE_SNIPPET" "$FIXTURE_SHA" "$TMP/pf-withheld-register.json"
+
+  OUTFILE="$TMP/pf-withheld-finder.json" ruby -rjson -e '
+    file, snippet, sha = ARGV[0], ARGV[1], ARGV[2]
+    findings = ARGV[3..].map { |k| {"ruleKey"=>k,"title"=>"refind","severity"=>"high",
+      "evidence"=>{"type"=>"code","file"=>file,"line"=>1,"snippet"=>snippet,"sha"=>sha}} }
+    File.write(ENV["OUTFILE"], JSON.pretty_generate({"source"=>"manual","pr"=>nil,"reviewer"=>"ci-smoke","findings"=>findings}))
+  ' "$FIXTURE_FILE" "$FIXTURE_SNIPPET" "$FIXTURE_SHA" "$RK6_OPEN" "$RK6_VC"
+
+  if ! ruby "$PROMOTE_FINDING" --register "$TMP/pf-withheld-register.json" \
+      --in "$TMP/pf-withheld-finder.json" --out "$TMP/pf-withheld-out.json" > "$TMP/pf-withheld-log.txt" 2>&1; then
+    bad "promote-finding.rb exited non-zero on the withheld-form fixture:"
+    sed 's/^/      /' "$TMP/pf-withheld-log.txt" >&2
+  else
+    assert_withheld_kept "promote-finding" "$TMP/pf-withheld-out.json" 2 "$ID6_OPEN" "$WK6_OPEN" "$ID6_VC" "$WK6_VC"
+    # The re-find must actually have landed on the rows, not been skipped.
+    got_note="$(field "$TMP/pf-withheld-out.json" "$ID6_OPEN" 'f["notes"].to_s')"
+    case "$got_note" in
+      *"Re-found by"*) ok "promote-finding: open withheld-form row took the reseen path (re-found note)" ;;
+      *) bad "promote-finding: open withheld-form row was not reseen (no re-found note)" ;;
+    esac
+    assert_regression "promote-finding: verified-closed withheld-form row regresses" "$TMP/pf-withheld-out.json" "$ID6_VC" true
+  fi
+fi
+
 echo "-- citation-check.rb --render: the regression marker survives an untriaged/null disposition --"
 
 # The render fix at citation-check.rb moved the ⚠regression marker outside the "disp != untriaged"

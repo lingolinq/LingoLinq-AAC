@@ -237,6 +237,8 @@ class Api::UsersController < ApplicationController
     end
     options['device'] = user_device
     options['updater'] = @api_user
+    # The person acting for this account (organization or site admin), if any.
+    options['operator'] = @true_user if @true_user
 
     if user.process(user_data, options)
       start_code_progress = user.instance_variable_get('@start_code_progress')

@@ -1,15 +1,21 @@
 # Codex review pipeline
 
-> **Status 2026-09-12: dormant, revival in progress.** The last dispatched run
-> was 2026-08-04; PRs merged since then carry no `codex-review/deep-pass` status,
-> and the check is not in the required set on develop, staging or main. The
-> n8n W1 webhooks are still registered, so the stop is on the n8n side. Revival
-> checklist: (1) restore W1 dispatch in n8n, (2) confirm `CODEX_OPENAI_API_KEY`
-> still authenticates (it was re-provisioned 2026-08-04), (3) run one smoke PR,
-> (4) re-add `codex-review/deep-pass` to branch protection on develop and
-> staging, (5) decide the canary variables (see Evidence modes). Until (4) the
+> **Status 2026-09-26: live again, not yet required.** Dispatch stopped after
+> 2026-08-04 because W1's `Debounce Delay` was a Code node sleeping 300s, equal
+> to n8n's 300s task-runner timeout, so every reviewable event timed out there.
+> On 2026-09-26 it was replaced with a native n8n Wait node (same 5-minute
+> default, same `CODEX_REVIEW_DEBOUNCE_MS` override). Revival checklist:
+> (1) restore W1 dispatch in n8n: done 2026-09-26; (2) confirm
+> `CODEX_OPENAI_API_KEY` still authenticates: done 2026-09-26; (3) run one smoke
+> PR: done 2026-09-26 on PR #1070 (Actions run 36276775066 completed, W2 posted
+> the sticky comment); (4) re-add `codex-review/deep-pass` to branch protection
+> on develop and staging: OPEN, the check is still not in the required set on
+> develop, staging or main; (5) decide the canary variables (see Evidence
+> modes): OPEN. Until (4) a failing deep pass does not block merge, and the
 > `--admin` exception policy in `docs/process/deep-pass-admin-exception-policy.md`
-> has nothing to override.
+> has nothing to override. Known gap: simultaneous PR events (for example
+> `opened` plus auto `review_requested`) can each dispatch before W1's
+> duplicate-head record is saved, so one head can be reviewed more than once.
 
 `codex-review.yml` is dispatched by the n8n W1 orchestrator and reports the
 Actions-owned `codex-review/deep-pass` commit status. W2 owns the sticky PR

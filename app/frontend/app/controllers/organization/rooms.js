@@ -4,11 +4,75 @@ import Utils from '../../utils/misc';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { computed } from '@ember/object';
+import { is_classic } from '../../utils/view_style';
 import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   // Ember Data 5.x removed automatic `store` injection into controllers.
   store: service('store'),
+  app_state: service('app-state'),
+
+  /* Basic view gets the `ch-` tab strip; Modern is untouched. Read through
+     `utils/view_style#is_classic`, the single reader for this preference. */
+  isBasicView: computed('app_state.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('app_state.effective_view_user'));
+  }),
+
+  /* True only for someone who can load this org's units at all -- see the note in
+     routes/organization/rooms.js. Everyone else gets `ownRooms` below. */
+  canEditOrg: computed('model.permissions.edit', function() {
+    return !!this.get('model.permissions.edit');
+  }),
+
+  /* THE SUPERVISOR'S OWN ROOMS, from the user record rather than the manager-only units API.
+     Filtered to the org being viewed so the page shows this district's rooms and not every
+     room the person supervises anywhere. Sorted the same way `dashboard/authenticated-view.js`
+     sorts them, so the rail's count and this list cannot disagree. */
+  ownRooms: computed('app_state.currentUser.supervised_units.[]', 'model.id', function() {
+    var org_id = this.get('model.id');
+    var units = (this.get('app_state.currentUser.supervised_units') || []).filter(function(u) {
+      return u && (!org_id || u.organization_id === org_id);
+    });
+    var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    return units.slice().sort(function(a, b) {
+      return collator.compare((a && a.name) || '', (b && b.name) || '');
+    });
+  }),
+  /* THE SEARCH FILTER (2026-10-01, requested). Supervisors' rooms (`ownRooms`) carry a name only;
+     managers' `units` also list their supervisors and communicators, so a manager can find the
+     room someone is in. Case-insensitive substring. The unfiltered lists stay as they are:
+     `max_session_count` (the shared stats bar scale) keeps reading every room. */
+  roomFilter: '',
+  _roomQuery: computed('roomFilter', function() {
+    return (this.get('roomFilter') || '').trim().toLowerCase();
+  }),
+  filteredOwnRooms: computed('ownRooms.[]', '_roomQuery', function() {
+    var q = this.get('_roomQuery');
+    var list = this.get('ownRooms') || [];
+    if(!q) { return list; }
+    return list.filter(function(r) { return String((r && r.name) || '').toLowerCase().indexOf(q) !== -1; });
+  }),
+  filteredUnits: computed('units.[]', 'units.@each.{name,supervisors,communicators}', '_roomQuery', function() {
+    var units = this.get('units');
+    if(!Array.isArray(units)) { return units; }
+    var q = this.get('_roomQuery');
+    if(!q) { return units; }
+    var has = function(v) { return String(v || '').toLowerCase().indexOf(q) !== -1; };
+    return units.filter(function(u) {
+      if(!u) { return false; }
+      if(has(u.get ? u.get('name') : u.name)) { return true; }
+      var people = [].concat((u.get ? u.get('supervisors') : u.supervisors) || [], (u.get ? u.get('communicators') : u.communicators) || []);
+      return people.some(function(p) { return p && has(p.user_name); });
+    });
+  }),
+  // Shown with more than one room (the UNFILTERED count, as the caseload does), or while a filter is
+  // set so it can be cleared.
+  showRoomFilter: computed('ownRooms.[]', 'units.[]', 'roomFilter', 'model.permissions.edit', function() {
+    if(this.get('roomFilter')) { return true; }
+    var units = this.get('units');
+    var count = this.get('model.permissions.edit') ? (Array.isArray(units) ? units.length : 0) : (this.get('ownRooms') || []).length;
+    return count > 1;
+  }),
   refresh_units: function() {
     var _this = this;
     this.set('units', {loading: true});
@@ -56,6 +120,9 @@ export default Controller.extend({
   },
 
   actions: {
+    clearRoomFilter: function() {
+      this.set('roomFilter', '');
+    },
     add_unit: function() {
       var name = this.get('new_unit_name');
       var _this = this;

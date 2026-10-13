@@ -39,6 +39,33 @@ import ApplicationSerializer from './application';
 export default ApplicationSerializer.extend({
   // Server sets these on responses; never send on create/update (was defaulting to false and looked like a COPPA bug).
   attrs: {
+    /* `supervisees` MUST NOT BE SERIALIZED, and this is a silent data-loss fix, not a tidy-up
+     * (2026-09-24).
+     *
+     * SYMPTOM: a supporter's view preference would not stick. Switching Basic <-> Modern flipped
+     * the shell, then any page that refreshed the user record put it back -- reported twice, as
+     * "clicked the logo and it converted me" and "click an organization and it switches me".
+     *
+     * CAUSE, traced in the browser: `user.save()` REJECTED before issuing any request, with
+     * "Converting circular structure to JSON ... starting at object with constructor 'Store'".
+     * `supervisees` is `attr('raw')` (models/user.js:183) and its entries carry a materialised
+     * `current_badge`, whose `_secretInit.store` points back at the Ember Data Store --
+     * measured at `supervisees.0.current_badge._secretInit.store`. Serializing the record walks
+     * that and throws. `set_view_style` ends in `.then(null, function() { })`, so the rejection
+     * was swallowed and the preference silently never persisted. `changedAttributes()` confirms
+     * the dirty attribute is `supervisees`, not `preferences` -- every preference save on a
+     * supporter's record was riding on a payload that could not be built.
+     *
+     * WHY DROPPING IT IS SAFE: `supervisees` is server-computed and read-only, and
+     * `User#process_params` is a whitelist with no mass-assignment, so the server already
+     * discards this key. Not sending it cannot lose data; it only stops the serializer choking.
+     * Same reasoning the note above this block applies to `_actual_id`, with the opposite
+     * conclusion because that one IS read back by the offline path and this one is not.
+     * CORRECTED 2026-10-01: the offline path DOES read it back. persistence#convert_model_to_json
+     * stores the serialized user as the whole local record, so an offline save erased the list.
+     * It stays off the network payload (minimisation; the server ignores it) and `serialize`
+     * below adds a plain copy only for that local copy (`options.localCopy`). */
+    supervisees: { serialize: false },
     coppa_parental_consent_pending: { serialize: false },
     eu_under_16: { serialize: false },
     eu_ai_parental_consent_pending: { serialize: false },
@@ -49,6 +76,11 @@ export default ApplicationSerializer.extend({
     var json = this._super(snapshot, options);
     if (!json || typeof json !== 'object' || !snapshot) {
       return json;
+    }
+    // The supervisee list, for the OFFLINE local copy only (see `supervisees` in attrs above).
+    if (options && options.localCopy && snapshot.record && typeof snapshot.record.get === 'function') {
+      var supervisees = snapshot.record.get('supervisees');
+      if (Array.isArray(supervisees)) { json.supervisees = plain_copy(supervisees, []); }
     }
     // Response-only flags; never POST them (new records default DS.attr('boolean') to false).
     delete json.coppa_parental_consent_pending;
@@ -87,3 +119,26 @@ export default ApplicationSerializer.extend({
     return json;
   },
 });
+
+/* A plain-data copy for storage: primitives, arrays and plain objects are kept; anything else
+   (Ember objects and records, which can reach the Store and form cycles; functions) is left out,
+   as is a repeated reference along the current path. Dates become ISO strings, as JSON would. */
+function plain_copy(value, path) {
+  if (value === null || typeof value !== 'object') {
+    return typeof value === 'function' ? undefined : value;
+  }
+  if (value instanceof Date) { return value.toISOString(); }
+  if (path.indexOf(value) !== -1) { return undefined; }
+  var next = path.concat([value]);
+  if (Array.isArray(value)) {
+    return value.map(function(v) { return plain_copy(v, next); }).filter(function(v) { return v !== undefined; });
+  }
+  var proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) { return undefined; }
+  var out = {};
+  Object.keys(value).forEach(function(k) {
+    var v = plain_copy(value[k], next);
+    if (v !== undefined) { out[k] = v; }
+  });
+  return out;
+}

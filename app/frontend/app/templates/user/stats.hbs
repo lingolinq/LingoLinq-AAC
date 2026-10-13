@@ -1,7 +1,27 @@
 <OpeningObserver @done_opening={{this.ctrlAction "draw_charts"}}>
-<div class="md-shell md-shell--reports-view">
+{{!-- `md-shell--stats` is a Reports-only hook. `--reports-view` is SHARED with the
+     standalone Boards page (templates/user/boards.hbs), so a rule that must move Reports
+     without moving Boards needs a selector only this page carries. --}}
+<div class="md-shell md-shell--reports-view md-shell--stats">
+  {{!-- BASIC VIEW'S SECTION NAV (2026-09-25, requested: the rail must follow every page the
+       account panel links to, and Reports is its first row).
+       WHY HERE AND NOT IN templates/user.hbs LIKE THE OTHER FIFTEEN: `user.stats` is a bare
+       route (`BARE_ROUTE_BASES`, controllers/user.js), so user.hbs renders `{{outlet}}` alone
+       and this page supplies its own `.md-shell`. templates/organizations.hbs mounts the
+       dashboard rail the same way, for the same reason.
+       A DIRECT CHILD OF `.md-shell`, which is what the layout keys on: the Basic rail rules are
+       `body.ll-view-basic .md-shell:has(> .ch-rail--account)` (_classic-home.scss), so the rail
+       has to be the shell's own child or the shell never becomes a row. It also puts the rail
+       inside the element that carries the page background, rather than on bare page beside it.
+       `showClassicAccountRail` is ALIASED from the `user` controller -- see the note there. --}}
+  {{#if this.showClassicAccountRail}}
+    <Dashboard::ClassicAccountRail @user={{this.model}} />
+  {{/if}}
   <div class="md-workspace">
-    <UserPillNav @active="reports" @userName={{this.model.user_name}} />
+    {{!-- NO PILL-NAV (removed 2026-09-18). This page is reached from the account rail, from
+         Extras and from the caseload, each of which keeps its own way back; the pill row was
+         a third nav on top of those and the only page-level nav that did not match the
+         section the user arrived from. --}}
     <header class="md-hero md-hero--dashboard md-hero--reports-dashboard">
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Activity for" key="reports_activity_for_pre"}} <em class="md-hero__sub-user">{{this.model.user_name}}</em></span></h1>
       <p class="md-hero__sub md-hero__sub--meta"><span class="md-hero__sub--from-right">{{#if this.model.joined}}<span class="md-hero-meta__item"><svg class="md-hero-meta__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="16" rx="3" fill="rgba(42,157,143,0.16)" stroke="#1B365D" stroke-width="1.8"/><path d="M3.5 9.5h17" stroke="#1B365D" stroke-width="1.8"/><path d="M8 3v3.5M16 3v3.5" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round"/></svg>{{t "Joined" key="joined_cap"}} <strong>{{date_ago this.model.joined}}</strong></span>{{/if}}{{#if this.model.last_access}}<span class="md-hero-meta__item"><span class="md-hero-meta__dot" aria-hidden="true"></span>{{t "Last active" key="last_active"}} <strong>{{date_ago this.model.last_access "day"}}</strong></span>{{/if}}</span></p>
@@ -19,6 +39,43 @@
         <button type="button" class="md-btn md-btn--ghost md-reports-hero__action" {{on "click" (this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
       {{/if}}
     </header>
+    {{!-- THE PAGE HEADER FOR FOCUSED VIEW (2026-09-21). Same icon + title + divider the rest
+         of the account section carries, and the same rule: `.md-stats-main__focus-head` is
+         listed with `.md-billing__header` in app.scss, so the divider is that family's
+         border-bottom and there is no separate divider element.
+         IT IS A PAGE HEADER, NOT A PANEL HEADING, and that is why it now renders even when
+         the Progress and Usage summary does. The old `:not(:has(.communication-report))`
+         gate suppressed it to avoid "doubling up the heading", but the two are different
+         levels: this names the PAGE, and the summary's <h1> names the panel inside it --
+         exactly as Supervision shows "Supervision" above a "My Supervisors" card. Without
+         this the page was the only one in the section with no header at all in Focused.
+         FIRST THING IN `.md-workspace`, above the "Select Communicator" picker below
+         (requested 2026-09-21): it is the page title, so it precedes the page's first
+         control rather than following it.
+         OUTSIDE `.md-stats-page`, deliberately: every other section header
+         sits on the page background, while `.md-stats-page` / `.md-stats-main` carry their own
+         surface in Focused View. Nested inside those the header sat ON that surface instead of
+         above it, which read as a panel heading rather than a page title.
+         (The `md-stats-main__` prefix is now a slight misnomer -- kept so the shared rule in
+         app.scss and this element do not have to be renamed in lockstep.)
+         GATED ON `effectiveLayout`, not on `body.ll-layout-focused`: that class is applied
+         from an observer that runs after first paint, so a CSS-hidden header flashes on a
+         hard reload -- the reason templates/user/index.hbs gates its hero the same way.
+         ICON is the rail's Reports glyph, two-tone on the repo's split: the tall middle bar
+         in the teal accent (#2A9D8F), the short bars in charcoal (#46505F). `aria-hidden`,
+         since the <h2> beside it names the page.
+         The accent span and subtitle this head used to carry are gone -- no sibling header
+         has either, and matching them was the point. --}}
+    {{#if (is-equal this.app_state.effectiveLayout "focused")}}
+      <div class="md-stats-main__focus-head">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/>
+          <line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/>
+          <line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
+        </svg>
+        <h2 class="md-stats-main__focus-title">{{t "Reports" key="reports"}}</h2>
+      </div>
+    {{/if}}
     {{!-- Supporter path: a dropdown-style trigger sitting where the stats content
          would start, pushing .md-stats-page down. A supporter's reports are always
          ABOUT a communicator (they have no activity of their own to report), so
@@ -41,11 +98,6 @@
          summary (login / premium-required / logging-off). When the summary is on
          screen it carries the page title itself, so _focused-view.scss suppresses
          this head via :has(.communication-report). --}}
-    <div class="md-stats-main__focus-head">
-      <h3 class="md-card__title">{{t "Reports" key="reports"}} <span class="md-card__title-accent--verdigris">{{t "(Usage & Progress)" key="reports_focus_accent"}}</span></h3>
-      <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
-    </div>
-    <div class="md-stats-main__focus-divider md-card--boards__divider" aria-hidden="true"></div>
 {{#if this.app_state.currentUser.modeling_only}}
   <ModelingOnlyNotice />
 {{else if this.model.currently_premium}}
@@ -126,20 +178,13 @@
         {{/if}}
 
         {{#if this.hasReportData}}
-          <section class="progress-highlight progress-highlight--{{this.primaryInsight.tone}}" aria-labelledby="progress-highlight-title">
-            <div class="progress-highlight__icon" aria-hidden="true">
-              <Stats::ReportIcon @name={{this.primaryInsightIcon}} />
-            </div>
-
-            <div class="progress-highlight__content">
-              {{!-- No eyebrow here: the compared range is already named in the
-                    description below and stated in full under the KPI row. --}}
-              <h2 id="progress-highlight-title">{{this.primaryInsight.title}}</h2>
-
-              <p class="progress-highlight__description">{{this.primaryInsight.description}}</p>
-            </div>
-          </section>
-
+          {{!-- EVIDENCE BEFORE INTERPRETATION (reordered 2026-09-24, requested: "put the
+                metrics before the insight. Readers should see the evidence before the
+                interpretation."). The three measurements and the basis line come first; the
+                insight that reads them follows as a strip beneath.
+                A DOM MOVE, NOT `order`: a visual-only reorder would leave the reading order and
+                the tab order saying the opposite of the page, which is the same mistake as
+                styling a heading to look like body text. --}}
           <section class="report-kpis" aria-label={{t "Communication summary" key="communication_summary"}}>
             {{#each this.summaryMetrics as |metric|}}
               <article class="report-kpi report-kpi--{{metric.key}}">
@@ -167,6 +212,26 @@
             {{/each}}
           </section>
 
+          <section class="progress-highlight progress-highlight--{{this.primaryInsight.tone}}" aria-labelledby="progress-highlight-title">
+            <div class="progress-highlight__icon" aria-hidden="true">
+              <Stats::ReportIcon @name={{this.primaryInsightIcon}} />
+            </div>
+
+            <div class="progress-highlight__content">
+              {{!-- No eyebrow here: the compared range is already named in the
+                    description below and stated in full under the KPI row. --}}
+              <h2 id="progress-highlight-title">{{this.primaryInsight.title}}</h2>
+
+              <p class="progress-highlight__description">{{this.primaryInsight.description}}</p>
+            </div>
+          </section>
+
+          {{!-- THE BASIS LINE FOLLOWS THE INSIGHT (moved 2026-09-24, requested: "move this below
+                the communication badge"). It sat between the metrics and the insight, which put
+                a two-line explanation of the arithmetic in the middle of the evidence it
+                explains. Reading order is now: the figures, the sentence that interprets them,
+                then the note saying what "change" was measured against -- the detail you go
+                looking for once you have a reason to. --}}
           {{#if this.comparisonBasis}}
             <p class="report-kpis__basis">{{this.comparisonBasis}}</p>
           {{/if}}
@@ -343,15 +408,17 @@
       </div>
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         {{#if this.model.preferences.geo_logging }}
-          <Stats::GeoLocations @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} @snapshots={{this.filter_list}} />
-          {{#if this.usage_stats2}}
-            <Stats::GeoLocations @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
+          {{#if this.app_state.feature_flags.location_maps}}
+            <Stats::GeoLocations @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} @snapshots={{this.filter_list}} />
+            {{#if this.usage_stats2}}
+              <Stats::GeoLocations @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
+            {{/if}}
           {{/if}}
           <Stats::IpAddresses @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} />
           {{#if this.usage_stats2}}
             <Stats::IpAddresses @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
           {{/if}}
-        {{else}}
+        {{else if this.app_state.feature_flags.location_maps}}
           <Stats::GeoDisabled @side_by_side={{this.usage_stats2}} />
           {{#if this.usage_stats2}}
             <Stats::GeoDisabled @side_by_side={{true}} @right_side={{true}} />

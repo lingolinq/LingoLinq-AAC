@@ -1589,18 +1589,17 @@ describe Api::BoardsController, :type => :controller do
         expect(response).to be_successful
       end
 
-      # A never-written master stays grandfathered; this changeset does not
-      # narrow the existing allowance, only the unreadable-value case.
-      it "should succeed for a legacy account that never wrote the preference" do
+      # AI features default to off (2026-09-30): an account that never wrote the
+      # preference gets no AI until it is turned on.
+      it "should 403 for an account that never wrote the preference" do
         token_user
         stub_ai_layers_except_prefs
         User::EU_AI_PREF_KEYS.each { |k| @user.settings['preferences'].delete(k) }
         @user.save!
-        allow(AiBoardGenerator).to receive(:generate_words).and_return(
-          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
-        )
+        expect(AiBoardGenerator).not_to receive(:generate_words)
         post_generate
-        expect(response).to be_successful
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
       end
     end
 

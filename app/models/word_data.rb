@@ -14,6 +14,8 @@ class WordData < ApplicationRecord
     privacy_security_retention_children
     privacy_security_retention_ai_logs
     privacy_special_coppa_v2
+    privacy_special_ai_consent_intro
+    privacy_special_ai_consent_outro
   ].freeze
 
   # https://www.enchantedlearning.com/wordlist/opposites.shtml

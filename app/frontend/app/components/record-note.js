@@ -98,10 +98,10 @@ export default Component.extend({
   goal_options: computed('model.active_goals', function() {
     const res = [];
     if ((this.get('model.active_goals') || []).length > 0 || true) {
-      res.push({ id: '', name: i18n.t('select_goal', '[ Select to Update Status or Link this Note to a Goal ]') });
-      res.push({ id: 'status', name: i18n.t('overall_status_for_this_user', 'Overall Status for this User') });
+      res.push({ id: '', name: i18n.t('select_goal', "[ Select to Update Status or Link this Note to a Goal ]") });
+      res.push({ id: 'status', name: i18n.t('overall_status_for_this_user', "Overall Status for this User") });
       (this.get('model.active_goals') || []).forEach(function(goal) {
-        res.push({ id: goal.get('id'), name: i18n.t('goal_dash', 'Goal - ') + goal.get('summary') });
+        res.push({ id: goal.get('id'), name: i18n.t('goal_dash', "Goal - ") + goal.get('summary') });
       });
       res.push({ id: '', name: i18n.t('no_goal_link', "Don't Link this Note to a Goal or Status") });
     }

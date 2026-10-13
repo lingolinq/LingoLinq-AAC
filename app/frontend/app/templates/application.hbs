@@ -51,8 +51,17 @@
                  (folders, tabs, filter, grid) — no parallel modal
                  markup or state machine. --}}
             <button class='btn btn-default access' id="home_button" type="button" {{on "click" (this.ctrlAction "openMyBoards")}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
-                <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+              {{!-- House icon (requested), the same glyph the create-board-new board preview
+                   uses on its own home button (components/create-board-new.hbs). The two
+                   `d` paths are identical to it and to the eval-mode button directly above;
+                   the stroke weight and 22px box match THAT button rather than the preview's
+                   33px/1.25, so the two home controls in this same header are consistent.
+                   `fill: none` + `stroke: currentColor` replaces the grid icon's solid fill.
+                   `pointer-events: none` is kept: without it the SVG swallows the click
+                   meant for the button. --}}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
+                <path d="M3 12 12 3l9 9"/>
+                <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
               </svg>
             </button>
           {{else}}
@@ -342,8 +351,21 @@
         <div class="nav-header__board-bar">
         <button id='board_done' class='btn btn-default' {{on "click" (this.ctrlAction "back_to_from_route")}}>
           {{#if this.on_board_alt}}
+            {{!-- TWO LINES, not one wrapped string (requested 2026-09-22): the icon runs the
+                 full height on the left and "EXIT" / "BOARDS" stack to its right.
+                 SPLIT INTO TWO EXISTING KEYS rather than CSS-breaking the single
+                 `exit_boards` string: a forced line break inside a translated phrase puts
+                 the break wherever English happens to put its space, which is meaningless in
+                 a language that words this differently. `exit` and `boards` are both already
+                 in public/locales, so this adds no new keys and needs no generator run. --}}
             <span class='board-done__exit-icon'></span>
-            <span class='board-done__exit-label'>{{t "Exit Boards" key="exit_boards"}}</span>
+            <span class='board-done__exit-label'>
+              {{!-- The two lines carry distinct modifiers so the second can drop on a narrow
+                   screen (SCSS, <=640px) without also taking the first. A shared class was
+                   enough while both always showed; it is not once they diverge. --}}
+              <span class='board-done__exit-line board-done__exit-line--exit'>{{t "Exit" key="exit"}}</span>
+              <span class='board-done__exit-line board-done__exit-line--boards'>{{t "Boards" key="boards"}}</span>
+            </span>
           {{else}}
             <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
             <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
@@ -452,22 +474,29 @@
                   {{/if}}
                 {{else}}
                   {{#if this.board.model.multiple_copies}}
-                    <span style="margin-right: -1px;">
-                    <a href="#" class='btn btn-info' {{on "click" (this.ctrlAction "list_copies")}}>
+                    <span class="ll-copies-slot" style="margin-right: -1px;">
+                    {{!-- BOARD-ALT WEARS THE "More" BUTTON'S STYLE HERE (requested 2026-09-22). `btn-info`
+                         everywhere else, `btn-default` on board-alt -- the same class the More
+                         dropdown beside it uses, rather than a board-alt rule in SCSS that
+                         restates More's colours and then drifts from them.
+                         All THREE states of this slot carry it (Copies / My Copy / Original):
+                         they are one control in three mutually exclusive branches, so styling
+                         only the first would change the slot's appearance by board state. --}}
+                    <a href="#" class="btn {{if this.on_board_alt 'btn-default' 'btn-info'}}" {{on "click" (this.ctrlAction "list_copies")}}>
                       <span class="wide">{{t "Copies" key="copies"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                     </a>
                     </span>
                   {{else if this.board.model.copy.key}}
                     <!-- TODO: no idea why this is necessary -->
-                    <span style="margin-right: -1px;">
-                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn btn-info">
+                    <span class="ll-copies-slot" style="margin-right: -1px;">
+                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn {{if this.on_board_alt 'btn-default' 'btn-info'}}">
                       <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                     </LinkTo>
                     </span>
                   {{else if this.board.model.original.key}}
                     <!-- TODO: no idea why this is necessary -->
-                    <span style="margin-right: -1px;">
-                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="btn btn-info">
+                    <span class="ll-copies-slot" style="margin-right: -1px;">
+                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="btn {{if this.on_board_alt 'btn-default' 'btn-info'}}">
                       <span class="wide">{{t "Original" key="original"}}</span><span class="skinny real_skinny glyphicon glyphicon-certificate"></span>
                     </LinkTo>
                     </span>
@@ -506,24 +535,27 @@
                     </a>
                   {{/unless}}
                 {{/if}}
-                {{#unless this.app_state.current_board_is_home}}
-                  {{#unless this.app_state.currentUser.preferences.home_board}}
+                {{#unless (or this.app_state.current_board_is_home (basic-try-home "other"))}}
+                  {{#if (or (basic-try-home "self") (not this.app_state.currentUser.preferences.home_board))}}
                     <a class="btn btn-default" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>
                       <span class="wide">{{t "Set as Home" key="set_as_home"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
                     </a>
-                  {{/unless}}
+                  {{/if}}
                 {{/unless}}
+                {{!-- After a "Try this Board" (Basic): ONE home button. A try for yourself shows the grey "Set as
+                     Home" above, even with a home board; a try for someone else shows only this one (2026-10-01). --}}
+                <BasicTryHomeButton @board={{this.board.model}} />
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}
-                  <a class='btn btn-default medium_skinny not_really_skinny' href="#" {{on "click" (this.ctrlAction "star")}}>
+                  <a class='btn btn-default medium_skinny not_really_skinny ll-like-btn' href="#" {{on "click" (this.ctrlAction "star")}}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
+                    <span class="wide">{{t "Like" key="star"}}</span>{{#if this.board.model.stars}} <span class="badge">{{this.board.model.stars}}</span>{{/if}}
                   </a>
                 {{else}}
-                  <span class='btn btn-default not_really_skinny' href="#">
+                  <span class='btn btn-default not_really_skinny ll-like-btn' href="#">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
+                    <span class="wide">{{t "Like" key="star"}}</span>{{#if this.board.model.stars}} <span class="badge">{{this.board.model.stars}}</span>{{/if}}
                   </span>
                 {{/if}}
                 {{#if this.board.model.shareable}}
@@ -532,93 +564,31 @@
                   </a>
                 {{/if}}
               {{/unless}}
-              <span class="dropdown" style="display: inline-block;">
-                <a class='btn btn-default' href="#" data-toggle="dropdown">
+              {{!-- `ll-board-more-wrap` is the menu's POSITIONING CONTEXT. The menu used to live
+                   in `.la-board-hamburger-wrap`, which sits further along the bar, so it opened
+                   beside the More button rather than under it. It is anchored to the trigger
+                   the user actually clicks now. --}}
+              <span class="dropdown ll-board-more-wrap" style="display: inline-block;">
+                {{!-- MORE OPENS THE SHARED BOARD MENU (2026-09-22), the same one the hamburger
+                     opens, instead of its own Bootstrap dropdown. The menu itself is defined
+                     ONCE, further down inside `.la-board-hamburger-wrap`, and this is simply a
+                     second trigger for it -- the alternative was a second copy of eleven wired
+                     menu items that would drift from the first.
+                     ANCHORING WORKS BECAUSE THE WRAP ALWAYS EXISTS: `.la-board-hamburger-wrap`
+                     is `position: relative; display: inline-block` at every width and only the
+                     BUTTON inside it is `display: none`, so the absolutely-positioned menu has
+                     a valid anchor in the bar whether the hamburger is showing or not.
+                     `.ll-board-more-btn` is also what keeps the close-click working -- see the
+                     outside-click handler in controllers/application.js. --}}
+                <a class='btn btn-default ll-board-more-btn' href="#" {{on "click" (this.ctrlAction "toggleBoardMenu")}}>
                   <span class="wide">{{t "More" key="more"}} <b class="caret"></b></span><span class="skinny real_skinny glyphicon glyphicon-chevron-down"></span>
                 </a>
-                <ul class="dropdown-menu skinny-right" role="menu" aria-labelledby="dLabel">
-                  <li role="presentation">
-                    <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "boardDetails")}}>{{t "Board Details" key="board_details"}}</a>
-                  </li>
-                  {{#unless this.board.model.uncopyable}}
-                    {{#if this.app_state.currentUser}}
-                      {{#if this.board.model.permissions.edit}}
-                        <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "toggleEditMode")}}>{{t "Edit Board" key="edit_board"}}</a>
-                        </li>
-                      {{/if}}
-                      <li role="presentation">
-                        <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "tweakBoard")}}>{{t "Make a Copy" key="make_copy"}}</a>
-                      </li>
-                      {{#if this.app_state.current_board_not_home_or_supervising}}
-                        <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>{{t "Set as Home Board" key="set_as_home_board"}}</a>
-                        </li>
-                      {{/if}}
-                      <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "add_to_sidebar")}}>{{t "Add to Sidebar" key="add_to_sidebar"}}</a>
-                      </li>
-                    {{/if}}
-                    {{#unless this.app_state.feature_flags.other_menu}}
-                    <li role="presentation">
-                      <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "downloadBoard")}}>{{t "Download Board" key="download_board"}}</a>
-                    </li>
-                    {{/unless}}
-                    <li role="presentation">
-                      <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "printBoard")}}>{{t "Print Board" key="print_board"}}</a>
-                    </li>
-                    {{#if this.board.model.local_only}}
-                      {{#if this.board.model.editable_source_key}} 
-                          <li role="presentation">
-                            <LinkTo @route="board" @model={{this.board.model.editable_source_key}} role="menuitem" tabindex="-1">{{t "Editable Version" key="editable_version"}}</LinkTo>
-                          </li>
-                      {{/if}}
-                    {{else}}
-                      {{#if this.board.model.levels}}
-                        {{#if this.board.model.multiple_copies}}
-                          <li role="presentation">
-                            <a role='menuitem' tabindex='-1' href="#" {{on "click" (this.ctrlAction "list_copies")}}>{{t "View Copies" key="view_copies"}}</a>
-                          </li>
-                        {{else if this.board.model.copy.key}}
-                          <li role="presentation">
-                            <LinkTo @route="board" @model={{this.board.model.copy.key}} role="menuitem" tabindex="-1">{{t "View My Copy" key="view_my_copy"}}</LinkTo>
-                          </li>
-                        {{else if this.board.model.original.key}}
-                          <li role="presentation">
-                            <LinkTo @route="board" @model={{this.board.model.original.key}} role="menuitem" tabindex="-1">{{t "View Original" key="original_board"}}</LinkTo>
-                          </li>
-                        {{/if}}
-                      {{/if}}
-                    {{/if}}
-                    {{#if this.app_state.feature_flags.other_menu}}
-                      <li role="presentation">
-                        <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "board_actions")}}>{{t "Other Actions" key="other_actions"}}</a>
-                      </li>
-                    {{/if}}
-                  {{/unless}}
-                </ul>
-              </span>
-              {{!-- Single "Modern View" link, styled like the Speak
-                   Mode button; navigates straight to the modern
-                   (board-detail) view. --}}
-              <a href="#" class="btn board-view-modern-btn" {{on "click" (this.ctrlAction "go_to_modern")}}>
-                <span class="glyphicon glyphicon-th-large"></span>
-                <span class="wide">{{t "Modern View" key="board_view_modern"}}</span>
-              </a>
-            {{/if}}
-          {{/if}}
-
-          {{!-- Hamburger menu for small screens. The button + dropdown
-               share a positioning wrapper so the menu anchors directly
-               below the hamburger instead of inheriting #normal_mode's
-               wider positioning context (which dropped the menu out
-               to the right of the button). --}}
-          <span class="la-board-hamburger-wrap">
-          <button class="la-board-hamburger" type="button" {{on "click" (this.ctrlAction "toggleBoardMenu")}} aria-label={{t "Menu" key="menu"}}>
-            <span class="la-board-hamburger__bar"></span>
-            <span class="la-board-hamburger__bar"></span>
-            <span class="la-board-hamburger__bar"></span>
-          </button>
+                {{!-- The old Bootstrap `<ul class="dropdown-menu">` that lived here is GONE
+                     (2026-09-22). Its items are all present in the shared board menu the
+                     trigger above now opens, so keeping it would have meant two menus for one
+                     button, drifting apart on every future edit. The two items it carried that
+                     the shared menu did NOT have -- the copies slot and Like -- were moved into
+                     that menu rather than dropped; see `.ll-compact-only` there. --}}
           {{#if this.boardMenuOpen}}
             <div class="la-board-mobile-menu">
               {{#if this.board.model.permissions.edit}}
@@ -627,7 +597,7 @@
                   {{t "Edit Board" key="edit_board"}}
                 </button>
               {{/if}}
-              {{#if this.app_state.current_board_not_home_or_supervising}}
+              {{#if (and this.app_state.current_board_not_home_or_supervising (not (basic-try-home "other")))}}
                 <button type="button" class="la-board-mobile-menu__item" {{on "click" (this.ctrlAction "setAsHome")}}>
                   <span class="glyphicon glyphicon-home"></span>
                   {{t "Set as Home" key="set_as_home"}}
@@ -658,19 +628,6 @@
                     <span class="glyphicon glyphicon-duplicate"></span>
                     {{t "Make a Copy" key="make_copy"}}
                   </button>
-                  {{!-- Set as Home Board: same gate as the full-size
-                       "Set as Home" link in the dropdown menu (board
-                       isn't already the user's current home AND the
-                       user is signed in) so the action is only offered
-                       when it would actually do something. Wires to
-                       the existing `setAsHome` action used at full
-                       size. --}}
-                  {{#if this.app_state.current_board_not_home_or_supervising}}
-                    <button type="button" class="la-board-mobile-menu__item" {{on "click" (this.ctrlAction "setAsHome")}}>
-                      <span class="glyphicon glyphicon-home"></span>
-                      {{t "Set as Home Board" key="set_as_home_board"}}
-                    </button>
-                  {{/if}}
                   {{!-- Add to Sidebar: same action as the full-size
                        More-menu item; only offered to signed-in users
                        (mirrors the same condition wrapping the
@@ -688,6 +645,39 @@
                   <span class="glyphicon glyphicon-print"></span>
                   {{t "Print Board" key="print_board"}}
                 </button>
+                {{!-- CARRIED OVER FROM THE RETIRED "More" DROPDOWN (2026-09-22). These were the
+                     only two things that menu offered which this one did not, so they move here
+                     rather than being lost when it was removed. Same actions, same guards.
+
+                     The copies trio keeps `.ll-compact-only`, so it appears only at the widths
+                     where the bar's own copies button is hidden (<=640px) -- above that the bar
+                     still carries it and a menu entry would be a duplicate. Editable Version has
+                     no bar equivalent, so it is always offered. --}}
+                {{#if this.board.model.local_only}}
+                  {{#if this.board.model.editable_source_key}}
+                    <LinkTo @route="board" @model={{this.board.model.editable_source_key}} class="la-board-mobile-menu__item">
+                      <span class="glyphicon glyphicon-pencil"></span>
+                      {{t "Editable Version" key="editable_version"}}
+                    </LinkTo>
+                  {{/if}}
+                {{else}}
+                  {{#if this.board.model.multiple_copies}}
+                    <button type="button" class="la-board-mobile-menu__item ll-compact-only" {{on "click" (this.ctrlAction "list_copies")}}>
+                      <span class="glyphicon glyphicon-file"></span>
+                      {{t "View Copies" key="view_copies"}}
+                    </button>
+                  {{else if this.board.model.copy.key}}
+                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="la-board-mobile-menu__item ll-compact-only">
+                      <span class="glyphicon glyphicon-file"></span>
+                      {{t "View My Copy" key="view_my_copy"}}
+                    </LinkTo>
+                  {{else if this.board.model.original.key}}
+                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="la-board-mobile-menu__item ll-compact-only">
+                      <span class="glyphicon glyphicon-certificate"></span>
+                      {{t "View Original" key="original_board"}}
+                    </LinkTo>
+                  {{/if}}
+                {{/if}}
                 {{!-- Other Actions: wires to the same `board_actions`
                      action used at full size (opens modals/board-actions
                      via application.js#board_actions), gated on the
@@ -706,6 +696,26 @@
               </button>
             </div>
           {{/if}}
+              </span>
+              {{!-- The "Card View" link was REMOVED here (2026-09-02, requested): the
+                   navbar View dropdown now offers the same switch from every
+                   authenticated page, so this was a second control for one action —
+                   and on this page specifically, sitting inside `#normal_mode` right
+                   beside "Try in Speak Mode". See components/view-switcher.js. --}}
+            {{/if}}
+          {{/if}}
+
+          {{!-- Hamburger menu for small screens. The button + dropdown
+               share a positioning wrapper so the menu anchors directly
+               below the hamburger instead of inheriting #normal_mode's
+               wider positioning context (which dropped the menu out
+               to the right of the button). --}}
+          <span class="la-board-hamburger-wrap">
+          <button class="la-board-hamburger" type="button" {{on "click" (this.ctrlAction "toggleBoardMenu")}} aria-label={{t "Menu" key="menu"}}>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+          </button>
           </span>
         </span>
         <span id="board_id">
@@ -757,16 +767,9 @@
       {{#unless (is-equal this.app_state.current_route "landing")}}
         {{#if (persistence-online)}}
           {{#unless this.app_state.super_no_linky}}
-            {{#if this.allow_search}}
-              <form id="header_search" {{on "submit" (this.ctrlAction "searchBoards")}}>
-                <div class="header-search-wrap">
-                  <input aria-label={{t "Search Boards" key="search_boards"}} type="text" value={{this.searchString}} {{on "input" (set-field this "searchString")}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
-                  <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
-                    <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  </button>
-                </div>
-              </form>
-            {{/if}}
+            {{!-- Search Boards field REMOVED (2026-09-02, requested) — see the note in
+                 components/app-navbar-authenticated-inner.hbs. "Find Board" in the
+                 identity dropdown below still reaches the same page. --}}
           {{/unless}}
         {{/if}}
       {{/unless}}
@@ -920,27 +923,27 @@
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "More" key="more"}}</span><span class="skinny glyphicon glyphicon-wrench"></span> <span class='caret'></span></button>
           <ul class="dropdown-menu skinny_right" role="menu" aria-labelledby="dLabel">
             <li role="presentation" class={{this.undo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "undoEdit")}}>{{t "Undo" key="undo"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "undoEdit")}}><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>{{t "Undo" key="undo"}}</a>
             </li>
             <li role="presentation" class={{this.redo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "redoEdit")}} disabled="true">{{t "Redo" key="redo"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "redoEdit")}} disabled="true"><span class="glyphicon glyphicon-arrow-right" aria-hidden="true"></span>{{t "Redo" key="redo"}}</a>
             </li>
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "editBoardDetails")}}>{{t "Edit Name & Details" key="edit_details"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "editBoardDetails")}}><span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>{{t "Edit Name & Details" key="edit_details"}}</a>
             </li>
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "openButtonStash")}}>{{t "Button Stash" key="button_stash"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "openButtonStash")}}><span class="glyphicon glyphicon-inbox" aria-hidden="true"></span>{{t "Button Stash" key="button_stash"}}</a>
             </li>
             {{#if this.board.button_levels}}
               <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "preview_levels")}}>{{t "Preview Levels" key="preview_levels"}}</a>
+                <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "preview_levels")}}><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>{{t "Preview Levels" key="preview_levels"}}</a>
               </li>
             {{/if}}
             <li role="presentation" class="really_skinny">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "saveBoard")}}>{{t "Save Board" key="save_board"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "saveBoard")}}><span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span>{{t "Save Board" key="save_board"}}</a>
             </li>
             <li role="presentation" class="really_skinny">
-              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "resetBoard")}}>{{t "Cancel Changes" key="cancel_changes"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "resetBoard")}}><span class="glyphicon glyphicon-remove" aria-hidden="true"></span>{{t "Cancel Changes" key="cancel_changes"}}</a>
             </li>
           </ul>
         </span>
@@ -953,13 +956,31 @@
     {{/if}}
     </span>
   {{/if}}
+    {{!-- App-wide Classic/Modern switch, legacy-header copy. `useAppNavbarInHeader`
+         is false on user.board-alt.index (controllers/application.js:2326), so the
+         modern navbar's <ViewSwitcher /> does not render there — the classic board
+         needs its own mount to stay switchable. The component self-hides with no
+         user, in speak mode and on every board page (utils/board_view.js is_board_page,
+         2026-10-02), so on a board this mount renders nothing either.
+
+         NOT ON BOARD-ALT (requested 2026-09-22), for both Focused and Gentle. Note the
+         irony this guard has to hold: this mount exists BECAUSE board-alt has no modern
+         navbar, so board-alt is the page it was most obviously "for" -- but the View
+         menu is not wanted there. Every OTHER page this mount serves, the classic board
+         view in particular, keeps it, which is why the guard is here and the mount is
+         not simply deleted.
+         Gated rather than hidden in SCSS so the trigger and its menu leave the DOM: a
+         `display: none` dropdown is still focusable in source order. --}}
+    {{#unless this.on_board_alt}}
+      <ViewSwitcher />
+    {{/unless}}
     <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if this.showBentoStyleHeader "identity-with-dark-toggle"}} {{unless this.app_state.speak_mode "app-navbar-auth-nav--desktop identity-with-dark-toggle"}}">
       {{#if this.app_state.speak_mode}}
       {{#if this.showBentoStyleHeader}}
         {{#unless this.app_state.eval_mode}}
             {{#if this.app_state.currentUser.user_name}}
-            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
-              <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>
+            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Home" key="home_nav"}} title={{t "Home" key="home_nav"}}>
+              <span class="ll-bento-help-btn__label">{{t "Home" key="home_nav"}}</span>
             </LinkTo>
             {{/if}}
             {{#if this.isMasquerading}}
@@ -1175,7 +1196,7 @@
               <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+                  <LinkTo @route="index">{{t "Home" key="home_nav"}}</LinkTo>
                 </li>
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
@@ -1191,7 +1212,7 @@
             {{else}}
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+                  <LinkTo @route="index">{{t "Home" key="home_nav"}}</LinkTo>
                 </li>
               {{/unless}}
             {{/if}}
@@ -1357,10 +1378,17 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser}}
+    {{!-- NOT ON BOARD-ALT (requested 2026-09-22), for both Focused and Gentle. Gated here
+         rather than hidden in SCSS so it leaves the DOM entirely: a `display: none` link
+         is still in the tab order's source and still reachable by a screen reader on a
+         page it is not meant to be on. The circular variant below carries the same guard --
+         they are one control at two breakpoints, so they have to agree. --}}
+    {{#unless this.on_board_alt}}
     <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       {{t "Beta feedback" key="beta_feedback_nav"}}
     </a>
+    {{/unless}}
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support app-navbar__large-only" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
@@ -1368,14 +1396,25 @@
         </span>
       </div>
     </LinkTo>
+    {{!-- BETA BEFORE SETTINGS (requested 2026-09-15), and swapped in the DOM rather than
+         with flex `order` so the tab order keeps matching the visual order — these are
+         siblings in #identity's flex row, so source order IS the rendered order.
+
+         This also makes the two breakpoints agree: above 1200px the FULL beta pill (a few
+         elements up) already renders before the settings gear, while the circular β that
+         replaces it below 1200px used to render after it, so the pair visibly traded places
+         as the window crossed that threshold. --}}
+    {{!-- Same board-alt guard as the full pill above; see its note. --}}
+    {{#unless this.on_board_alt}}
+    <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
+      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
+    </a>
+    {{/unless}}
     <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     </LinkTo>
-    <a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
-      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
-    </a>
     {{/if}}
     <span style="display: inline-block;" class="dropdown">
       {{#if this.app_state.currentUser}}
@@ -1428,7 +1467,7 @@
         <li role="presentation">
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
-        <li><LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
+        <li><LinkTo @route="user.boards" @model={{this.app_state.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
         <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
           {{#if this.app_state.currentUser.unread_messages}}
@@ -1437,9 +1476,6 @@
           {{t "Messages" key="messages"}}
         </LinkTo></li>
         <li><a href="#" {{on "click" (this.ctrlAction "support")}}>{{t "Help" key="help"}}</a></li>
-        {{#if this.app_state.currentBoardState.key}}
-        <li class="dropdown-menu__try-new-style-item"><a href="#" {{on "click" (this.ctrlAction "goToNewStyle")}}>{{t "Try New Style" key="try_new_style"}}</a></li>
-        {{/if}}
         <li class="app-navbar__beta-feedback-menu-item"><a href="#" {{on "click" (this.ctrlAction "openBetaFeedback")}}>{{t "Beta feedback" key="beta_feedback_nav"}}</a></li>
         {{#if this.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>
@@ -1496,7 +1532,7 @@
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
         {{#unless this.app_state.index_or_landing_view}}
         <li role="presentation">
-          <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+          <LinkTo @route="index">{{t "Home" key="home_nav"}}</LinkTo>
         </li>
         {{/unless}}
         <li role="presentation">
@@ -1524,6 +1560,16 @@
        delete `hide_beta_feedback_temporarily` from controllers/application.js. --}}
   {{#unless this.hide_beta_feedback_temporarily}}
   {{#if this.showBetaFeedbackDrawer}}
+  {{!-- NOT IN BOARD-ALT SPEAK MODE (requested 2026-09-22). Speak mode on board-alt is the
+       communicator's actual talking surface: a floating "Beta feedback" tab sits over the
+       board there, and it is the one screen where an accidental tap costs the user their
+       sentence. The header's beta buttons were already gated off board-alt entirely; this is
+       the bottom-centre drawer tab, which reaches this point through `speak_mode` in the
+       condition below.
+       THE DRAWER IS WRAPPED TOO, not just the tab. Leaving the panel mounted would let a
+       drawer opened on another page follow the user into speak mode with its trigger gone,
+       so the only way to shut it would be the panel's own buttons. --}}
+  {{#unless (and this.on_board_alt this.app_state.speak_mode)}}
     {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
       <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.onToggleBetaFeedbackDrawer}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1536,6 +1582,7 @@
         <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onCloseBetaFeedbackDrawer}} @onCancel={{this.onCloseBetaFeedbackDrawer}} @onClose={{this.onCloseBetaFeedbackDrawer}} />
       </aside>
     </div>
+  {{/unless}}
   {{/if}}
   {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}
@@ -1547,7 +1594,43 @@
        absolutely positioned, so it adds nothing to this flex column. Self-
        suppressing — renders nothing on your own pages or with the flag off. --}}
   <SupervisingContextPill />
-  {{ outlet }}
+  {{!-- THE PERSISTENT CHROME. Mounted ONCE here rather than inside each page's template,
+       so it is never destroyed and rebuilt on a transition -- see `showGlobalChrome` in
+       controllers/application.js for why this is the only possible mount point and which
+       routes it covers. The rail is fixed to the left and the nav sticks to the top of
+       this scroller, so only `.ll-appshell__content` moves when the page scrolls.
+       The {{outlet}} appears TWICE on purpose: bare for every route without chrome
+       (login, boards in speak mode, the email-link pages), wrapped for the rest. Ember
+       renders whichever branch is live, so there is only ever one outlet on screen. --}}
+  {{#if this.showGlobalChrome}}
+    {{!-- `ll-appshell--no-nav` is not decoration: the shell's top padding exists ONLY to clear
+         the floating nav, so the page has to know when there is no nav to clear. Same flag as
+         the nav's own `{{#if}}` below, so the clearance and the thing it clears can never
+         disagree -- see `--ll-nav-clearance` in app.scss. --}}
+    <div class="ll-appshell {{unless this.showPillNav "ll-appshell--no-nav"}}">
+      <AccountRail @user={{this.globalChromeUser}} />
+      <div class="ll-appshell__main">
+        {{!-- THE PILL NAV IS THE HOME SECTION'S, NOT THE APP'S (requested 2026-09-21). The rail
+             above renders on all 22 chrome routes because it genuinely belongs on them; this
+             nav renders only where it can say where you are. `showPillNav` is
+             `globalNavActive != null`, so the set of pages that get the nav is exactly the set
+             of pages the nav has a pill for -- see controllers/application.js.
+             AN {{#if}}, NOT `display: none`: a hidden nav is still in the DOM, still in the tab
+             order and still a landmark a screen-reader user can jump into, on pages where it is
+             not the navigation. --}}
+        {{#if this.showPillNav}}
+          <div class="ll-appshell__navbar">
+            <UserPillNav @active={{this.globalNavActive}} @userName={{this.globalChromeUser.user_name}} />
+          </div>
+        {{/if}}
+        <div class="ll-appshell__content">
+          {{ outlet }}
+        </div>
+      </div>
+    </div>
+  {{else}}
+    {{ outlet }}
+  {{/if}}
 </div>
 {{#if this.app_state.eval_paused}}
   {{!-- In-place eval pause overlay: covers the board below the header and eats

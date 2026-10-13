@@ -4,7 +4,9 @@
  * Feature flags control rollout; preferences control user opt-in.
  *
  * Pref semantics (match lib/feature_flags.rb#user_pref_allows_ai?):
- * - Master (ai_features_enabled) ABSENT (null/undefined) => grandfather allow
+ * - No user, no preferences object, or master (ai_features_enabled) ABSENT
+ *   (null/undefined) => off. AI features are off until turned on for the
+ *   account (product direction 2026-09-30).
  * - Master an explicit opt-out (false/'false'/0/'0') => block all AI
  * - Master PRESENT but unrecognized ('', 'maybe', an object) => block all AI
  * - Master an explicit opt-in => USER_PREF_AI_FEATURES require
@@ -52,20 +54,19 @@ function aiPrefValue(val) {
  * @returns {boolean}
  */
 function prefAllowsAi(user, feature) {
-  if(!user) { return true; }
+  if(!user) { return false; }
   var prefs = null;
   if(typeof user.get === 'function') {
     prefs = user.get('preferences');
   } else {
     prefs = user.preferences;
   }
-  if(!prefs || typeof prefs !== 'object') { return true; }
+  if(!prefs || typeof prefs !== 'object') { return false; }
 
   var master = prefs.ai_features_enabled;
-  // Absent master only. Note `prefs.ai_features_enabled` is undefined for a key
-  // that was never written, and null for one explicitly stored as null; both are
-  // the legacy grandfather case.
-  if(master === undefined || master === null) { return true; }
+  // `prefs.ai_features_enabled` is undefined for a key that was never written,
+  // and null for one explicitly stored as null; both mean AI was never turned on.
+  if(master === undefined || master === null) { return false; }
   // Deny on an explicit opt-out AND on anything unrecognized, for every feature.
   if(aiPrefValue(master) !== true) { return false; }
   if(!USER_PREF_AI_FEATURES[feature]) { return true; }
@@ -93,9 +94,9 @@ function userAttr(user, key) {
 }
 
 /**
- * UI-only opt-in check. Unlike prefAllowsAi, an absent master is NOT
- * grandfathered — it is treated as off so Generate with AI can prompt the
- * user to enable features. Server grandfather is unchanged.
+ * UI-only opt-in check. Same answer as prefAllowsAi now that an absent master
+ * is off on both client and server; kept separate because the Generate with AI
+ * entry uses it to decide when to prompt the user to turn features on.
  *
  * True only when master is an explicit true AND (for USER_PREF_AI_FEATURES)
  * the per-feature pref is an explicit true. Missing user / prefs / nil /
@@ -119,17 +120,79 @@ function coppaAiBlocked(user) {
 }
 
 /**
- * How the create-board AI entry should proceed.
- * @returns {'allowed'|'needs_opt_in'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
+ * Whether the signed-in person can change this account's AI settings. The
+ * server writes them only for someone with `edit` on the account, and the user
+ * model carries the viewer's permissions. Unknown permissions do not hide the
+ * turn-on step: the server still refuses a save it does not allow.
+ */
+function canChangeAiSettings(user) {
+  var perms = userAttr(user, 'permissions');
+  if(!perms || typeof perms !== 'object') { return true; }
+  return !!perms.edit;
+}
+
+/**
+ * The account an AI authoring feature (board generation, focus words) is
+ * judged for: the signed-in person, as on the server, where these endpoints
+ * check @api_user (integrations_controller.rb focus_generate_words,
+ * boards_controller.rb generate_labels). Not currentUser, which app-state's
+ * set_current_user points at the communicator in speak mode.
+ */
+function authoringUser(appState) {
+  if(!appState || typeof appState.get !== 'function') { return null; }
+  return appState.get('sessionUser');
+}
+
+/**
+ * The feature flag for an authoring feature, from authoringUser's own
+ * feature_flags: the server checks feature_enabled_for?(feature, @api_user),
+ * built by the same FeatureFlags.frontend_flags_for that serializes
+ * user.feature_flags (lib/json_api/user.rb). Not appState.feature_flags, which
+ * is currentUser's plus the build's enabled list. Missing flags => off.
+ */
+function authoringFlagEnabled(appState, feature) {
+  var flags = userAttr(authoringUser(appState), 'feature_flags');
+  if(!flags || typeof flags !== 'object') { return false; }
+  return flags[feature] === true;
+}
+
+/**
+ * Flag AND preference for an authoring feature, both judged for authoringUser
+ * (eval narration: eval_sessions_controller.rb checks @api_user, the SLP).
+ */
+function authoringFeatureEnabled(appState, feature) {
+  if(!authoringFlagEnabled(appState, feature)) { return false; }
+  return prefAllowsAi(authoringUser(appState), feature);
+}
+
+/**
+ * How the create-board AI entry should proceed, for authoringUser.
+ * @returns {'allowed'|'needs_opt_in'|'no_permission'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
  */
 function boardGenerationEntry(appState) {
   if(!appState || typeof appState.get !== 'function') { return 'blocked_flag'; }
-  var user = appState.get('currentUser');
+  var user = authoringUser(appState);
   if(euAiConsentRequired(user)) { return 'eu_consent'; }
-  if(!appState.get('feature_flags.ai_board_generation')) { return 'blocked_flag'; }
+  if(!authoringFlagEnabled(appState, 'ai_board_generation')) { return 'blocked_flag'; }
   if(coppaAiBlocked(user)) { return 'blocked_coppa'; }
-  if(!prefExplicitlyEnabled(user, 'ai_board_generation')) { return 'needs_opt_in'; }
+  if(!prefExplicitlyEnabled(user, 'ai_board_generation')) {
+    return canChangeAiSettings(user) ? 'needs_opt_in' : 'no_permission';
+  }
   return 'allowed';
+}
+
+/**
+ * Whether to show a "Generate with AI" entry. Shown whenever the feature is
+ * available for the account, so a person reaches the turn-on step or a plain
+ * reason (boardGenerationEntry) rather than finding no button at all. The
+ * flag is checked first: boardGenerationEntry returns eu_consent before it
+ * reads the flag, and a consent request for an unavailable feature is not an
+ * entry worth showing.
+ */
+function boardGenerationOffered(appState) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  if(!authoringFlagEnabled(appState, 'ai_board_generation')) { return false; }
+  return boardGenerationEntry(appState) !== 'blocked_flag';
 }
 
 /**
@@ -172,7 +235,12 @@ export default {
   prefExplicitlyEnabled: prefExplicitlyEnabled,
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
+  authoringUser: authoringUser,
+  authoringFlagEnabled: authoringFlagEnabled,
+  authoringFeatureEnabled: authoringFeatureEnabled,
   boardGenerationEntry: boardGenerationEntry,
+  boardGenerationOffered: boardGenerationOffered,
+  canChangeAiSettings: canChangeAiSettings,
   applyAiFeaturePrefs: applyAiFeaturePrefs,
   rollbackAiFeaturePrefs: rollbackAiFeaturePrefs
 };
@@ -185,7 +253,12 @@ export {
   prefExplicitlyEnabled,
   euAiConsentRequired,
   coppaAiBlocked,
+  authoringUser,
+  authoringFlagEnabled,
+  authoringFeatureEnabled,
   boardGenerationEntry,
+  boardGenerationOffered,
+  canChangeAiSettings,
   applyAiFeaturePrefs,
   rollbackAiFeaturePrefs
 };

@@ -1,4 +1,15 @@
-import Controller from '@ember/controller';
+import Controller, { inject as controller } from '@ember/controller';
+
+/* Routes that render the persistent chrome. A module CONSTANT, not a controller property:
+   it never changes, so making it reactive state would be a lie -- and as a property it
+   tripped `ember/require-computed-property-dependencies`, which was right to complain. */
+const CHROME_ROUTES = [
+  'index', 'user.home', 'caseload', 'organizations',
+  'user.boards', 'user.extras', 'user.logs', 'user.log',
+  'user.index', 'user.account', 'user.goals', 'user.goal', 'user.badges',
+  'user.edit', 'user.recordings', 'user.stats', 'user.preferences',
+  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus'
+];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -26,6 +37,12 @@ import mineGrouping from '../utils/mine_board_grouping';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
+import { board_edit_route } from '../utils/board_view';
+import { set_view_style, is_classic } from '../utils/view_style';
+import { pillForRoute } from '../utils/primary_nav';
+import { showsRoomsPill } from '../utils/rooms_nav';
+import { isSiteAdmin } from '../utils/admin_nav';
+import { is_copy_decision } from '../utils/copy_decision';
 
 export default Controller.extend({
   router: service('router'),
@@ -109,15 +126,8 @@ export default Controller.extend({
     'appState.currentUser.permissions',
     function() {
       // Prefer sessionUser (logged-in account); in speak mode currentUser may be the communicator.
-      var u = this.get('appState.sessionUser') || this.get('appState.currentUser');
-      if (!u) {
-        return false;
-      }
-      if (u.get('admin') || u.get('is_admin')) {
-        return true;
-      }
-      var perm = u.get('permissions');
-      return !!(perm && perm.admin_support_actions);
+      // The admin reading itself is shared with the nav's Admin slot (utils/admin_nav).
+      return isSiteAdmin(this.get('appState.sessionUser') || this.get('appState.currentUser'));
     }
   ),
 
@@ -278,7 +288,7 @@ export default Controller.extend({
       self.set('landingNavOpen', !self.get('landingNavOpen'));
     };
     this.closeLandingNav = () => {
-      self.set('landingNavOpen', false);
+      window.setTimeout(function() { if(!self.isDestroyed && !self.isDestroying) { self.set('landingNavOpen', false); } }, 0); // after the click: see closeLandingDrawer, components/app-navbar.js
     };
     this.onCloseBetaFeedbackDrawer = () => {
       self.send('closeBetaFeedbackDrawer');
@@ -333,8 +343,8 @@ export default Controller.extend({
         var key = linked && linked.key;
         var name = linked && linked.name;
         var same_owner = !owner || (key && key.split(/\//)[0] == owner);
-        var topish_key = key && key.match(/(^|[-/])(top[-_]?page|home)([-/]|$)/);
-        var topish_name = name && name.match(/(^|\s)(top page|home)(\s|$)/i);
+        var topish_key = key && key.split('/').pop().match(/^(top[-_]?page|home([-_]?page)?)(_\d+)?$/i); // the WHOLE slug is a top page, not merely contains one (2026-10-02: core-40-things-at-home was copied for core-40)
+        var topish_name = name && name.trim().match(/^(top page|home( page)?)$/i);
         return linked && !linked.link_disabled && same_owner && (linked.home_board || topish_key || topish_name);
       });
       var linked_ref = linked_root && (linked_root.key || linked_root.id);
@@ -405,6 +415,9 @@ export default Controller.extend({
           selected_user_name: selected_user_name
         });
       }).then(function(opts) {
+        // Dismissed without a decision (utils/copy_decision.js): stop, rather than reopen the dialog
+        // through the `!decision` branch above. Callers read an undefined result as a cancel.
+        if(!is_copy_decision(opts)) { return; }
         return _this.copy_board(opts, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution);
       });
     }
@@ -705,7 +718,23 @@ export default Controller.extend({
     closeBetaFeedbackDrawer: function() {
       this.set('betaFeedbackDrawerOpen', false);
     },
+    // "Try New Style" (application.hbs, classic header). This USED to navigate to
+    // board-detail without touching the preference, which stranded the user: they
+    // were in the modern shell while `board_view_style` still said 'classic', so
+    // the next board they opened threw them back. Persist the choice, exactly as
+    // the navbar View switch and the board's own Modern View button both do.
+    //
+    // Writes to `sessionUser`, NOT `currentUser`. This control renders only inside
+    // `{{#if this.app_state.speak_mode}}` (application.hbs:920), and in speak mode
+    // `set_current_user` reassigns `currentUser` to `speakModeUser`
+    // (services/app-state.js:2463) — so `currentUser` is the COMMUNICATOR, not the
+    // person tapping the menu. Writing there flipped and persisted an AAC user's own
+    // stored view because their supporter tried a different UI. `sessionUser` is the
+    // signed-in account and speak mode does not reassign it. When a communicator
+    // speaks as themselves the two are the same record, so that case is unchanged. NOT RENDERED since 2026-10-02 ("Try New Style" removed: no view switch on a board page).
     goToNewStyle: function() {
+      var user = this.appState.get('sessionUser');
+      if(user) { set_view_style(user, 'modern'); }
       var key = this.appState.get('currentBoardState.key');
       if(key && key.indexOf('/') !== -1) {
         var parts = key.split('/');
@@ -783,7 +812,7 @@ export default Controller.extend({
     },
     searchBoards: function() {
       if(this.get('searchString') == 'home') {
-        this.router.transitionTo('home-boards');
+        this.router.transitionTo('board-picker');
       } else {
         this.router.transitionTo('search', 'any', encodeURIComponent(this.get('searchString') || '_'));
       }
@@ -1278,7 +1307,13 @@ export default Controller.extend({
           // brand-new copy — and re-showed the "Edit this Board" copy prompt. A direct
           // edit transition skips that re-check; the copy is owned, so editing/saving works.
           _this.stashes.persist('copy_on_save', null);
-          _this.get('router').transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
+          // View-aware edit destination. board-detail has an /edit subroute; the
+          // classic board has none (router.js declares only `index` under board-alt) —
+          // classic editing is a MODE entered via app_state.toggle_edit_mode. So a
+          // classic user lands on their own board here rather than being ejected into
+          // modern. KNOWN GAP: edit mode is not auto-entered for them; closing that
+          // needs the classic edit route (Cluster C in the restoration plan).
+          _this.get('router').transitionTo(board_edit_route(_this.get('appState.effective_view_user')), parts[0], parts.slice(1).join('/'));
           return;
         }
         // Fallback (no usable key): previous jump-to-board behavior.
@@ -1416,7 +1451,11 @@ export default Controller.extend({
       if(this.get('boardMenuOpen')) {
         var _this = this;
         var handler = function(e) {
-          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+          // `.ll-board-more-btn` is the THIRD trigger, added 2026-09-22 when the More button
+          // started opening this same menu. Without it here, a click on More to CLOSE the menu
+          // is seen as an outside click: this handler sets `boardMenuOpen` false and the
+          // button's own action then toggles it straight back to true, so the menu never shuts.
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger') && !e.target.closest('.ll-board-more-btn')) {
             _this.set('boardMenuOpen', false);
             document.removeEventListener('click', handler, true);
           }
@@ -1424,13 +1463,38 @@ export default Controller.extend({
         setTimeout(function() {
           document.addEventListener('click', handler, true);
         }, 10);
+        // SIZE THE MENU TO THE SPACE ACTUALLY BELOW IT. The stylesheet can only guess where the
+        // menu starts -- it had `max-height: calc(100vh - 88px)`, 88px being a measured guess at
+        // the menu's top -- and the board-alt header is not one fixed height: it grows with the
+        // board-name row and shrinks across breakpoints. Whenever the real top exceeded the
+        // guess, the menu was allowed to be taller than the room beneath it, ran past the
+        // bottom of `#within_ember` (which is `overflow: hidden`) and clipped its last item,
+        // while still showing a scrollbar as if it had nowhere to go.
+        //
+        // Measuring the top and subtracting it is the only version of this that cannot drift,
+        // because it asks the layout instead of predicting it. The CSS max-height stays as the
+        // pre-measurement fallback for the frame before this runs, and for any path where it
+        // does not (no rAF).
+        //
+        // requestAnimationFrame, not the runloop: this file's own convention since the
+        // `ember/no-runloop` conversion, and the menu must already be laid out to be measured.
+        if(typeof window !== 'undefined' && window.requestAnimationFrame) {
+          window.requestAnimationFrame(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            var menu = document.querySelector('.la-board-mobile-menu');
+            if(!menu) { return; }
+            var top = menu.getBoundingClientRect().top;
+            var room = window.innerHeight - top - 12;   // 12px breathing space at the bottom
+            if(room > 120) { menu.style.maxHeight = room + 'px'; }
+          });
+        }
       }
     },
     boardDetails: function() {
       this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
-    // "Modern View" header button on the classic page delegates to the
+    // "Card View" header button on the classic page delegates to the
     // board.index controller, which persists the user's view-style
     // preference to 'modern' and then navigates to the modern view.
     go_to_modern: function() {
@@ -2199,6 +2263,122 @@ export default Controller.extend({
     }
     return res;
   }),
+  /* ── THE PERSISTENT CHROME (2026-09-21) ────────────────────────────────────────
+     The account rail and the primary pill nav are mounted ONCE here, above the outlet,
+     instead of inside each page's template.
+
+     WHY HERE AND NOWHERE ELSE: `index`, `caseload` and `organizations` are top-level
+     routes while `user.*` nests under `user` with `resetNamespace: true`, so `application`
+     is the ONLY common ancestor of the six destinations. Nesting them under a shared
+     parent would change their URLs and break deep links and district bookmarks, and was
+     rejected for that reason.
+
+     WHAT IT FIXES: mounted per-page, the chrome was destroyed and rebuilt on every
+     transition — measured 1/6 hops kept the same DOM node — and the rail was not rendered
+     on four of the six destinations at all. Mounted once, it simply never unmounts, which
+     is what makes the section feel like one app rather than six pages.
+
+     The two email-link routes stay deliberately BARE (`user.password_reset`,
+     `user.confirm_registration`): they are single-task pages reached from an email, the
+     user fetch succeeds even signed out, and chrome there would offer a stranger's account
+     menu. This is the same exclusion `accountRailContext` already makes. */
+  showGlobalChrome: computed(
+    'appState.current_route',
+    'appState.currentUser',
+    'appState.speak_mode',
+    'appState.effective_view_user.preferences.board_view_style',
+    'globalNavActive',
+    function() {
+    if(!this.appState.get('currentUser')) { return false; }
+    // Speak mode takes the whole screen; chrome there would sit over the board.
+    if(this.appState.get('speak_mode')) { return false; }
+    /* BASIC VIEW HAS NO APP SHELL (requested 2026-09-22). Basic ("classic",
+       `preferences.board_view_style`) brings its own page chrome, so the account rail and the
+       floating pill nav are both wrong there — they are Modern's navigation.
+       RETURNED FALSE HERE rather than hidden in CSS, and rather than gated on each of the two
+       separately: this flag already wraps both (templates/application.hbs), and its `{{else}}`
+       renders the bare outlet, which is exactly the chrome-less page Basic wants. It also
+       drops the shell's nav-clearance padding, which a `display: none` would have left behind
+       as a gap at the top of every Basic page.
+       Not rendering also keeps them out of the tab order and the landmark list — the same
+       reasoning the pill nav's own `{{#if}}` records in that template.
+       Read through `utils/view_style` so the preference has one reader; `effective_view_user`
+       is what every other consumer of this preference keys off. */
+    if(is_classic(this.appState.get('effective_view_user'))) { return false; }
+    var route = this.appState.get('current_route') || '';
+    /* THE ROOMS PAGE IS CHROME FOR THE PERSON WHOSE NAV IT IS, AND NOT OTHERWISE (2026-09-23).
+       `/organizations/:id/rooms` is the one org page a rooms-only supervisor lives on -- Rooms
+       is their pill in the Organizations slot -- so for them it has to keep the rail and the
+       nav rather than dropping both for the org-section shell.
+       For a MANAGER the same URL is an ordinary org sub-page reached from the Organizations
+       page, and it gets the org section's own nav like its siblings. That is why this is not a
+       line in CHROME_ROUTES: a flat entry would have given managers the account rail on exactly
+       one page of a section that has none.
+       ASKED OF `globalNavActive`, so the rail and the nav turn on together and share the one
+       reading of the user in utils/rooms_nav. */
+    if(route === 'organization.rooms') { return !!this.get('globalNavActive'); }
+    return CHROME_ROUTES.indexOf(route) !== -1;
+  }),
+
+  /* Which pill is current. Derived from the ROUTE rather than passed in per template,
+     which is the whole point of mounting once — there is no longer a caller to pass it.
+     Account-section routes return null on purpose: they are not a top-level section, so
+     no pill should light while the RAIL carries the active row instead.
+     The rule itself lives in utils/primary_nav.js because the rail needs the same answer;
+     this reads it, it does not restate it. */
+  globalNavActive: computed(
+    'appState.current_route',
+    'router.currentURL',
+    'appState.currentUser.has_management_responsibility',
+    'appState.currentUser.supervised_units.[]',
+    'appState.feature_flags.updates_pill',
+    function() {
+      return pillForRoute(
+        this.appState.get('current_route') || '',
+        this.get('router.currentURL'),
+        {
+          canManageOrgs: this.appState.get('currentUser.has_management_responsibility'),
+          canSeeRooms: showsRoomsPill(this.appState.get('currentUser')),
+          updatesEnabled: this.appState.get('feature_flags.updates_pill')
+        }
+      );
+    }
+  ),
+
+  /* WHETHER THE PILL NAV RENDERS AT ALL (requested 2026-09-21): it is the HOME section's
+     navigation, so it belongs on Home and on the destinations it itself offers, and nowhere
+     else. On an account-section page the RAIL is the navigation, and the nav was rendering
+     there with no active pill — present, but not claiming to be that section's nav.
+
+     THE SAME VALUE AS THE ACTIVE PILL, deliberately, not a second route list: a page this nav
+     can name is a page this nav belongs on, and the two can therefore never disagree about
+     which pages those are. That also means the gates in `pillForRoute` reach here — with the
+     `updates_pill` flag off, `?nav=home` on the logs page is just the logs page, and the rail
+     owns it.
+
+     `showGlobalChrome` above is UNCHANGED and still governs the rail, which does belong on
+     all 22 routes. Only the nav narrows. */
+  showPillNav: computed('globalNavActive', function() {
+    return !!this.get('globalNavActive');
+  }),
+
+  userController: controller('user'),
+
+  /* The rail links by `user_name`, and on a supervisee's account pages it must point at
+     THEM, not at me — which is what the per-template `@user={{this.model}}` did. Mounted
+     globally there is no template model to read, so the viewed user comes from the `user`
+     controller when we are inside that route, and falls back to the signed-in user
+     everywhere else. Getting this wrong would silently retarget every rail row at the
+     wrong person while still looking correct. */
+  globalChromeUser: computed('appState.current_route', 'userController.model', 'appState.currentUser', function() {
+    var route = this.appState.get('current_route') || '';
+    if(route.indexOf('user.') === 0) {
+      var viewed = this.get('userController.model');
+      if(viewed) { return viewed; }
+    }
+    return this.appState.get('currentUser');
+  }),
+
   content_class: computed(
     'appState.sidebar_visible',
     'appState.index_view',

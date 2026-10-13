@@ -97,7 +97,7 @@ export default Component.extend({
 
   user_name: computed('model.badge.user_name', function() {
     if (!this.get('model.badge.user_name')) {
-      return i18n.t('the_user', 'the user');
+      return i18n.t('the_user', "the user");
     }
     return this.get('model.badge.user_name');
   }),

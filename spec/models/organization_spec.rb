@@ -3687,6 +3687,88 @@ describe Organization, :type => :model do
       expect(policy['log_publishing_allowed']).to eq(false)
     end
 
+    it "rejects a non-numeric retention_months and leaves the stored policy unchanged" do
+      # Coerced with to_i, "abc" was stored as 0, which DataPolicyEnforcer reads as "no
+      # retention policy", so the organization's purge stopped without any error. The write is
+      # refused as a whole: no key from the same request is applied.
+      o = Organization.create
+      u = User.create
+      o.update_data_policy({'retention_months' => 12}, u)
+      o.save
+
+      result = o.update_data_policy({'retention_months' => 'abc', 'geo_logging_allowed' => false}, u)
+
+      expect(result).to eq(false)
+      expect(o.processing_errors.join(' ')).to match(/retention_months/)
+      o.save
+      o.reload
+      expect(o.data_policy['retention_months']).to eq(12)
+      expect(o.data_policy['geo_logging_allowed']).to be_nil
+      expect(o.data_policy_version).to eq(1)
+    end
+
+    it "accepts whole-number values and refuses every other shape for the numeric keys" do
+      u = User.create
+      {12 => 12, '12' => 12, ' 12 ' => 12, 0 => 0, nil => nil}.each do |input, stored|
+        o = Organization.create
+        expect(o.update_data_policy({'retention_months' => input}, u)).to eq(true), "expected #{input.inspect} accepted"
+        expect(o.data_policy['retention_months']).to eq(stored)
+      end
+      ['abc', '', '3.5', '-1', -1, 3.5, true, [], {}].each do |input|
+        %w[retention_months max_logging_cutoff_hours].each do |key|
+          o = Organization.create
+          expect(o.update_data_policy({key => input}, u)).to eq(false), "expected #{key}=#{input.inspect} refused"
+          expect(o.data_policy.key?(key)).to eq(false)
+        end
+      end
+    end
+
+    it "accepts recognised true and false values and refuses every other shape for the boolean keys" do
+      # An unrecognised value such as "no" or "off" used to be stored as true, which for an
+      # "allowed" key is the permissive setting. It is refused instead, and the whole request
+      # with it.
+      u = User.create
+      {true => true, 'true' => true, '1' => true, 1 => true,
+       false => false, 'false' => false, '0' => false, 0 => false, nil => nil}.each do |input, stored|
+        o = Organization.create
+        expect(o.update_data_policy({'logging_allowed' => input}, u)).to eq(true), "expected #{input.inspect} accepted"
+        expect(o.data_policy['logging_allowed']).to eq(stored)
+      end
+      ['no', 'off', 'yes', 'on', '', 'False', 2, [], {}].each do |input|
+        Organization::DATA_POLICY_BOOLEAN_KEYS.each do |key|
+          o = Organization.create
+          expect(o.update_data_policy({key => input, 'retention_months' => 6}, u)).to eq(false), "expected #{key}=#{input.inspect} refused"
+          expect(o.processing_errors.join(' ')).to match(/#{key}/)
+          expect(o.data_policy.key?(key)).to eq(false)
+          expect(o.data_policy.key?('retention_months')).to eq(false)
+        end
+      end
+    end
+
+    it "refuses a non-numeric retention_months through process_params" do
+      o = Organization.create
+      u = User.create
+      expect(o.process({'data_policy' => {'retention_months' => 'abc'}}, {'updater' => u})).to eq(false)
+      expect(o.processing_errors.join(' ')).to match(/retention_months/)
+      expect(o.data_policy['retention_months']).to be_nil
+    end
+
+    it "refuses a bad data_policy before a management action in the same request runs" do
+      # The data policy used to be checked last, after the management action had already
+      # attached the user, so a refused request still changed the organization.
+      o = Organization.create(:settings => {'total_licenses' => 1})
+      u = User.create
+      res = o.process({
+        :management_action => "add_user-#{u.user_name}",
+        :data_policy => {'logging_allowed' => 'no'}
+      }, {'updater' => User.create})
+
+      expect(res).to eq(false)
+      expect(o.processing_errors.join(' ')).to match(/logging_allowed/)
+      expect(o.reload.attached_users('user').length).to eq(0)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' }).to be_nil
+    end
+
     it "should accept data_policy through process_params" do
       o = Organization.create
       u = User.create
@@ -3752,6 +3834,727 @@ describe Organization, :type => :model do
       o.add_manager(u.user_name, true)
       u.reload
       expect(Organization.external_ai_processing_allowed_for_user?(u)).to eq(false)
+    end
+  end
+
+  describe "claim_user" do
+    # The seat-claim path is a second, newer attachment path that does not go through
+    # add_user's fallback branch, so it skips invariants that branch honours. These examples
+    # cover what the path must get right on its own: seats are not double-consumed or lost to
+    # a race, the family's purchased time survives, the attach is not wrapped in a transaction
+    # it cannot safely roll back, and another organization supporting the same student is left
+    # alone.
+    #
+    # Authorization is deliberately NOT asserted here. LL-1baffd92d5 remains open. Its details
+    # are withheld under the security disclosure policy while it is unremediated, and the
+    # product decision required to close it is recorded in the private evidence store rather
+    # than in this file. Add the authorization examples in the change that closes it.
+
+    it "lets two organizations support the same student at the same time" do
+      # A communicator can be supported by more than one organization at once: a student
+      # transitioning between districts, or attending one school in the morning and another in
+      # the afternoon. Organization.attached_orgs returns one entry per org_user link and
+      # licenses.user_id carries no unique index, so the model is built for it. An earlier
+      # version of this fix treated the second claim as a transfer and evicted the first
+      # district; this example is what forbids that.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      morning_license = License.create!(organization: morning, seat_type: 'student', status: 'active')
+      afternoon_license = License.create!(organization: afternoon, seat_type: 'student', status: 'active')
+
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+
+      # Both districts keep their seat.
+      expect(morning_license.reload.user_id).to eq(u.id)
+      expect(afternoon_license.reload.user_id).to eq(u.id)
+
+      # And both keep their management link.
+      links = UserLink.links_for(u.reload, true)
+      [morning, afternoon].each do |org|
+        code = Webhook.get_record_code(org)
+        expect(links.detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to_not be_nil
+      end
+    end
+
+    it "makes the organization holding the seat the sponsor" do
+      # managing_organization_id is single-valued and drives billing, seat expiry, telemetry
+      # attribution and which organization's configuration governs the student. Sponsorship
+      # needs no rule of its own because it follows the seat: claim_user is the only writer of
+      # the column and reaches that write only after assigning one.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 45.days.from_now)
+
+      org.claim_user(u)
+
+      expect(u.reload.managing_organization_id).to eq(org.id)
+      expect(u.reload.expires_at.to_i).to be_within(5).of(license.reload.expires_at.to_i)
+    end
+
+    it "banks the user's remaining paid time instead of discarding it" do
+      u = User.create
+      u.expires_at = 30.days.from_now
+      u.settings['subscription'] = {'expiration_source' => 'purchase'}
+      u.save!
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 5.days.from_now)
+
+      org.claim_user(u)
+      u.reload
+
+      # clear_existing_subscription(:track_seconds_left => true) is what the established
+      # path calls: it banks the remaining purchased time so it can be restored when the
+      # district releases the seat. Overwriting expires_at with the license expiry destroys
+      # time the family paid for.
+      # Tightened from `be > 0`, which passed for any future expires_at regardless of source.
+      expect(u.settings['subscription']['seconds_left']).to be_within(300).of(30.days.to_i)
+    end
+
+    it "records the attachment through the subscription routine" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      org.claim_user(u)
+      u.reload
+
+      # Only update_subscription_organization writes these, so their presence is the
+      # mechanical proof that the claim path no longer bypasses it.
+      expect(u.settings['subscription']['added_to_organization']).to_not be_nil
+      expect(u.settings['subscription']['added_org_id']).to eq(org.global_id)
+    end
+
+    it "returns the existing seat rather than consuming a second one" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      first = License.create!(organization: org, seat_type: 'student', status: 'active')
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      claimed = org.claim_user(u)
+      again = org.claim_user(u.reload)
+
+      expect(again.id).to eq(claimed.id)
+      expect(again.id).to eq(first.id)
+      expect(org.licenses.where(user_id: u.id, status: 'active').count).to eq(1)
+    end
+
+    it "does not consume a second seat when a sibling request already seated the student" do
+      # The "already ours" lookup must happen INSIDE the user lock. Read before it, two
+      # concurrent claims of the same student by one district both see no existing seat, then
+      # each takes a DIFFERENT empty license and each compare-and-set succeeds, so the district
+      # holds two seats for one student and is billed twice. The compare-and-set cannot catch
+      # this: it defends a single row and cannot see a sibling request seating the same student.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      first = License.create!(organization: org, seat_type: 'student', status: 'active')
+      second = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      # A sibling request seats the student on the OTHER license just before our lock is taken.
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, &blk|
+        License.where(id: second.id).update_all(user_id: u.id, granted_at: Time.now)
+        orig.call(&blk)
+      end
+
+      claimed = org.claim_user(u)
+
+      # We must adopt the sibling's seat, not add our own on top of it.
+      expect(claimed.id).to eq(second.id)
+      expect(org.licenses.where(user_id: u.id, status: 'active').count).to eq(1)
+      expect(first.reload.user_id).to be_nil
+    end
+
+    it "does not claim a seat that stopped being active mid-flight" do
+      # The compare-and-set carries a status predicate as well as user_id, because
+      # License.expire_stale_licenses! flips status on its own schedule. Without it a claim could
+      # assign a student to a seat that had just expired, which reads as a live seat on the
+      # roster while the license is no longer valid.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      # Expire the row in the window between the SELECT that chose it and the UPDATE that claims
+      # it. Raw SQL so the hook cannot re-enter itself.
+      flipped = false
+      allow(License).to receive(:where).and_wrap_original do |orig, *args|
+        if !flipped && args.first.is_a?(Hash) && args.first.key?(:id) &&
+           args.first.key?(:user_id) && args.first[:user_id].nil?
+          flipped = true
+          ActiveRecord::Base.connection.update(
+            "UPDATE licenses SET status = 'expired' WHERE id = #{license.id}"
+          )
+        end
+        orig.call(*args)
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/no longer active/)
+      expect(org.licenses.where(user_id: u.id).count).to eq(0)
+    end
+
+    it "does not destroy time the family purchased while already sponsored" do
+      # The guard that stops a second organization banking the first one's seat time must not
+      # reach an expiry the FAMILY paid for. update_subscription moves expires_at forward on a
+      # purchase and sets expiration_source to 'purchase' without touching
+      # managing_organization_id, so keying the guard on that column destroyed purchased time and
+      # did not bank it, because skipping the banking is the whole point of the guard.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+
+      morning.claim_user(u)
+      u.reload
+      banked_before_purchase = u.settings['subscription']['seconds_left'] || 0
+
+      # The family buys time while the morning district still sponsors them. This is the state the
+      # old guard could not distinguish from an org-granted expiry.
+      u.expires_at = 5.years.from_now
+      sub = u.settings['subscription'].merge('expiration_source' => 'purchase')
+      u.settings = u.settings.merge('subscription' => sub)
+      u.save!
+
+      afternoon.claim_user(u.reload)
+      u.reload
+
+      # The purchase must be banked, not silently discarded.
+      expect(u.settings['subscription']['seconds_left']).to be > banked_before_purchase
+      expect(u.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(5.years.to_i)
+    end
+
+    it "keeps a purchase that lands just before the seat-time clear" do
+      # The guard below clears an expiry that a seat granted. It used to decide from the
+      # in-memory user, so a purchase saved after that copy was loaded was wiped by
+      # update_columns(expires_at: nil), and update_columns does not advance updated_at, so
+      # nothing noticed until the attach raised on the stale row with the purchase already gone.
+      # The purchase here is saved through a second instance just before the guard runs.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      morning.claim_user(u)
+      u.reload
+      expect(u.settings['subscription']['expiration_source']).to eq('org_license')
+
+      allow(afternoon).to receive(:attached_as_communicator?).and_wrap_original do |orig, *args|
+        other = User.find(u.id)
+        other.expires_at = 5.years.from_now
+        other.settings = other.settings.merge('subscription' => other.settings['subscription'].merge('expiration_source' => 'purchase'))
+        other.save!
+        orig.call(*args)
+      end
+
+      afternoon.claim_user(u)
+
+      expect(u.reload.settings['subscription']['seconds_left']).to be_within(2.days.to_i).of(5.years.to_i)
+    end
+
+    it "clears seat-granted time under the user lock" do
+      # Structure behind the example above: the decision and the clear run inside one user lock,
+      # so a purchase either commits before the lock (and is seen) or waits for it (and then
+      # writes its own expiry). The interleaving after the lock is taken cannot be reproduced
+      # in the transactional suite, which runs on one connection.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      morning.claim_user(u)
+      u.reload
+
+      current = nil
+      entries = 0
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = current
+          current = (entries += 1)
+          begin
+            blk.call
+          ensure
+            current = outer
+          end
+        end
+      end
+      clears = []
+      allow(u).to receive(:update_columns).and_wrap_original do |orig, *args|
+        clears << current if args.first.is_a?(Hash) && args.first.key?(:expires_at)
+        orig.call(*args)
+      end
+
+      afternoon.claim_user(u)
+
+      expect(clears.length).to eq(1)
+      expect(clears.first).to be_a(Integer)
+    end
+
+    it "does not bank another organization's seat time as the family's credit" do
+      # clear_existing_subscription(:track_seconds_left => true) banks whatever expires_at holds
+      # and checks nothing about expiration_source, so a second organization's claim would
+      # otherwise credit the family with the first organization's unused seat time, which
+      # License#release_user! later restores to them as a free subscription.
+      u = User.create
+      morning = Organization.create(:settings => {'total_licenses' => 1})
+      afternoon = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: morning, seat_type: 'student', status: 'active', expires_at: 200.days.from_now)
+      License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+
+      morning.claim_user(u)
+      # The first claim legitimately banks the student's OWN remaining trial.
+      banked_after_first = u.reload.settings['subscription']['seconds_left']
+      expect(u.reload.expires_at).to_not be_nil
+
+      afternoon.claim_user(u.reload)
+
+      # The second claim must add nothing: the family did not buy the morning district's 200 days.
+      expect(u.reload.settings['subscription']['seconds_left']).to eq(banked_after_first)
+    end
+
+    it "raises when the district has no seat to give" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 0})
+
+      expect { org.claim_user(u) }.to raise_error(/No seats available/)
+    end
+
+    it "does not hand a seat that another request already took" do
+      # The lock is on the USER row, so it serializes two districts claiming the same student
+      # but not two students being seated by the same district: those lock different rows and
+      # race for the same empty seat. An unconditional write let the second claim overwrite the
+      # first, leaving one student with no seat while the roster and the seat count both still
+      # looked correct. db/schema.rb indexes licenses.user_id but NOT uniquely, so the database
+      # does not catch it either.
+      first_user = User.create
+      second_user = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      # Take the row in the window the compare-and-set exists to cover: after the SELECT that
+      # chose it, before the UPDATE that claims it. The seat lookups go through the
+      # `org.licenses` association, so hooking `License.where` fires only on the compare-and-set
+      # itself. Raw SQL inside the hook so it cannot re-enter itself.
+      stolen = false
+      allow(License).to receive(:where).and_wrap_original do |orig, *args|
+        if !stolen && args.first.is_a?(Hash) && args.first.key?(:id) &&
+           args.first.key?(:user_id) && args.first[:user_id].nil?
+          stolen = true
+          ActiveRecord::Base.connection.update(
+            "UPDATE licenses SET user_id = #{first_user.id}, granted_at = now() WHERE id = #{license.id}"
+          )
+        end
+        orig.call(*args)
+      end
+
+      expect { org.claim_user(second_user) }.to raise_error(/claimed by another request/)
+
+      # The losing claim must take nothing. The winner's row is not asserted here: the steal
+      # runs inside this claim's own transaction, so the raise rolls it back with everything
+      # else. What matters, and what is observable, is that the loser did not get the seat.
+      expect(org.licenses.where(user_id: second_user.id, status: 'active').count).to eq(0)
+    end
+
+    it "attaches only after the seat transaction commits" do
+      # update_subscription_organization enqueues irreversible billing work through plain
+      # Resque.enqueue, which fires immediately rather than on commit: cancel_subscription
+      # from clear_existing_subscription, and an unsubscribe token on every sponsored attach.
+      # Called inside the transaction, a later failure would roll the seat back while a
+      # paying family's subscription had already been cancelled, with nothing able to undo it.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      baseline = ActiveRecord::Base.connection.open_transactions
+      depth_during_attach = nil
+      allow(u).to receive(:update_subscription_organization) do
+        depth_during_attach = ActiveRecord::Base.connection.open_transactions
+        # Stand in for the routine's observable effect, which claim_user verifies before it
+        # reports success. Without this the post-attach check fires and masks what this
+        # example is measuring.
+        u.settings['subscription'] ||= {}
+        u.settings['subscription']['added_org_id'] = org.global_id
+        u.save!
+      end
+
+      org.claim_user(u)
+
+      expect(depth_during_attach).to eq(baseline)
+    end
+
+    it "refuses to report success when the attach did not complete" do
+      # update_subscription_organization rescues ActiveRecord::StaleObjectError, saves only the
+      # link, reschedules ITSELF and returns normally, so a half-applied attach used to look
+      # like success: seat assigned and link saved, but added_org_id, the communicator role,
+      # the pending flag and the seconds_left banking all lost.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization).and_return(true)
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+    end
+
+    it "does not accept an attach marker left by an earlier attach of the same organization" do
+      # Detaching never deletes added_org_id, so a student this organization attached before
+      # still carries its id. When the re-attach hits the stale-record rescue, nothing this
+      # attempt wrote is saved, and the old marker must not read as this attempt's success.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      u.settings['subscription'] = {'added_org_id' => org.global_id, 'added_to_organization' => 1.year.ago.iso8601}
+      u.expires_at = 2.years.from_now
+      u.save!
+      expires_before = u.reload.expires_at
+      License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      allow(u).to receive(:assert_current_record!).and_raise(ActiveRecord::StaleObjectError)
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+
+      u.reload
+      expect(u.managing_organization_id).to be_nil
+      expect(u.expires_at).to eq(expires_before)
+    end
+
+    it "does not accept an attach whose save did not run" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      u.settings['subscription'] = {'added_org_id' => org.global_id, 'added_to_organization' => 1.year.ago.iso8601}
+      u.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:save).and_return(false)
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+      expect(u.reload.managing_organization_id).to be_nil
+    end
+
+    it "refreshes the student's available boards" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:schedule)
+
+      org.claim_user(u)
+
+      expect(u).to have_received(:schedule).with(:update_available_boards)
+    end
+
+    it "re-reads the seat and writes the sponsor column under the user lock" do
+      # License#release_user! takes the user lock before it frees a seat and repoints the
+      # column. The final seat check and the column write must sit inside that same lock, or a
+      # release landing between them lets this claim write back an organization that no longer
+      # holds a seat. The interleaving itself cannot be reproduced in the transactional suite,
+      # which runs on one connection, so this asserts the structure that prevents it.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      # Number each lock entry, so the check and the write can be shown to share ONE lock rather
+      # than two consecutive ones, which would reopen the window between them.
+      entries = 0
+      current = nil
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = current
+          current = (entries += 1)
+          begin
+            blk.call
+          ensure
+            current = outer
+          end
+        end
+      end
+      # Observe the seat reads at the SQL layer: License#reload is defined on a prepended module
+      # that RSpec cannot stub.
+      seat_reads = []
+      subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        seat_reads << current if payload[:sql] =~ /\ASELECT .* FROM "licenses" WHERE "licenses"\."id" = /
+      end
+      column_writes = []
+      allow(u).to receive(:update!).and_wrap_original do |orig, *args|
+        column_writes << current if args.first.is_a?(Hash) && args.first.key?(:managing_organization_id)
+        orig.call(*args)
+      end
+
+      begin
+        org.claim_user(u)
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      # Two reads of the seat row: the one after the compare-and-set, and the final check. Both
+      # happen under a lock, and the final check shares its lock with the column write.
+      expect(seat_reads.length).to eq(2)
+      expect(seat_reads).to all(be_a(Integer))
+      expect(column_writes.length).to eq(1)
+      expect(column_writes.first).to be_a(Integer)
+      expect(seat_reads.last).to eq(column_writes.first)
+      expect(u.reload.managing_organization_id).to eq(org.id)
+    end
+
+    it "does not write sponsorship from a seat that expired during the attach" do
+      # License.expire_stale_licenses! sets status 'expired' before it takes the user lock, and
+      # expiry keeps user_id. The final check under the lock must therefore require the seat to
+      # still be active, or the claim writes the managing column from an expired seat.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET status = 'expired' WHERE id = #{license.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/no longer active \(expired\)/)
+
+      expect(u.reload.managing_organization_id).to_not eq(org.id)
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
+    it "keeps the link when a concurrent claim by the same organization seated the student" do
+      # The organization has ONE org_user link per student, so a losing claim's cleanup removes
+      # the same link a concurrent claim that succeeded on a different seat relies on. Here the
+      # seat this claim took is released during the attach while a sibling claim seats the
+      # student on the organization's other seat.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      2.times { License.create!(organization: org, seat_type: 'student', status: 'active') }
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        held = License.where(organization_id: org.id, user_id: u.id).first
+        other = License.where(organization_id: org.id).where.not(id: held.id).first
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{held.id}")
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = #{u.id}, granted_at = NOW() WHERE id = #{other.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/lost a concurrent race/)
+
+      code = Webhook.get_record_code(org)
+      link = UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }
+      expect(link).to_not be_nil
+      expect(link['state']['sponsored']).to eq(true)
+    end
+
+    it "keeps the link when its seat expired but another of the organization's seats holds the student" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      2.times { License.create!(organization: org, seat_type: 'student', status: 'active', expires_at: 1.year.from_now) }
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        held = License.where(organization_id: org.id, user_id: u.id).first
+        other = License.where(organization_id: org.id).where.not(id: held.id).first
+        ActiveRecord::Base.connection.update("UPDATE licenses SET status = 'expired' WHERE id = #{held.id}")
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = #{u.id}, granted_at = NOW() WHERE id = #{other.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/no longer active \(expired\)/)
+
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to_not be_nil
+    end
+
+    it "removes the link when the organization's only other seat for the student is a supervisor seat" do
+      # The link this cleanup removes is the communicator link, so only a student seat keeps it.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+      License.create!(organization: org, seat_type: 'supervisor', status: 'active', user: u)
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{license.id}")
+        res
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/lost a concurrent race/)
+
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
+    it "re-checks the organization's seats and removes the link under one user lock" do
+      # Structure behind the two examples above: a sibling claim assigns its seat under the user
+      # lock, so the losing claim's re-check and removal must share one lock, or the sibling can
+      # seat the student between them. The interleaving itself cannot be reproduced in the
+      # transactional suite, which runs on one connection.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{license.id}")
+        res
+      end
+
+      entries = 0
+      current = nil
+      allow(u).to receive(:with_lock).and_wrap_original do |orig, *args, &blk|
+        orig.call(*args) do
+          outer = current
+          current = (entries += 1)
+          begin
+            blk.call
+          ensure
+            current = outer
+          end
+        end
+      end
+      seat_checks = []
+      subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        seat_checks << current if payload[:sql] =~ /\ASELECT 1 AS one FROM "licenses"/
+      end
+      removals = []
+      allow(UserLink).to receive(:remove).and_wrap_original do |orig, *args|
+        removals << current if args[2] == 'org_user'
+        orig.call(*args)
+      end
+
+      begin
+        expect { org.claim_user(u) }.to raise_error(/lost a concurrent race/)
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      expect(removals.length).to eq(1)
+      expect(removals.first).to be_a(Integer)
+      expect(seat_checks.last).to eq(removals.first)
+    end
+
+    it "reports a seat that disappeared mid-claim without blaming another request" do
+      # The compare-and-set fails for more than one reason, and a message naming the wrong one
+      # sends a district manager looking for a competing claim that never happened.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      gone = false
+      allow(License).to receive(:where).and_wrap_original do |orig, *args|
+        if !gone && args.first.is_a?(Hash) && args.first.key?(:id) &&
+           args.first.key?(:user_id) && args.first[:user_id].nil?
+          gone = true
+          ActiveRecord::Base.connection.delete("DELETE FROM licenses WHERE id = #{license.id}")
+        end
+        orig.call(*args)
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/changed before it could be assigned/)
+      expect(License.where(user_id: u.id).count).to eq(0)
+    end
+
+    it "refuses a supervisor seat and leaves a paying supporter untouched" do
+      # The claim path runs the communicator attach, which cancels the family's subscription and
+      # sets the communicator role. A supervisor seat has no attach routine of its own here, so
+      # the claim is refused before anything is written.
+      u = User.create
+      u.settings['preferences']['role'] = 'supporter'
+      u.expires_at = 3.years.from_now
+      u.settings['subscription'] = {'expiration_source' => 'purchase', 'subscription_id' => 'sub_1', 'customer_id' => 'cus_1', 'started' => 1.month.ago.iso8601, 'plan_id' => 'slp_monthly_5'}
+      u.save!
+      expires_before = u.reload.expires_at
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      seat = License.create!(organization: org, seat_type: 'supervisor', status: 'active')
+
+      expect { org.claim_user(u, 'supervisor') }.to raise_error(/only student seats/i)
+
+      u.reload
+      expect(seat.reload.user_id).to be_nil
+      expect(u.settings['preferences']['role']).to eq('supporter')
+      expect(u.settings['subscription']['subscription_id']).to eq('sub_1')
+      expect(u.settings['subscription']['expiration_source']).to eq('purchase')
+      expect(u.expires_at).to eq(expires_before)
+      expect(u.managing_organization_id).to be_nil
+    end
+
+    it "refuses any seat type that is not a student seat, including a missing one" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      [nil, '', 'Student', 'teacher', 'supervisor'].each do |seat_type|
+        expect { org.claim_user(u, seat_type) }.to raise_error(/only student seats/i)
+      end
+      expect(License.where(user_id: u.id).count).to eq(0)
+    end
+
+    it "converts an accepted eval link into a regular seat when a student seat is claimed" do
+      # An eval link is sponsored and accepted, but attached_users('user') excludes it, so a
+      # student seat claimed over it must still run the attach that clears the eval state.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1, 'total_eval_licenses' => 1})
+      org.add_user(u.user_name, false, true, true)
+      expect(u.reload.settings['subscription']['eval_account']).to eq(true)
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      org.claim_user(u.reload)
+
+      u.reload
+      link = UserLink.links_for(u, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == Webhook.get_record_code(org) }
+      expect(link['state']['eval']).to eq(false)
+      expect(u.settings['subscription']['eval_account']).to be_nil
+      expect(org.attached_users('user').map(&:id)).to include(u.id)
+    end
+
+    it "undoes a half-applied attach so a re-run completes it" do
+      # update_subscription_organization's stale-record rescue saves the link but not the user's
+      # settings. Left in place, that link reads as a completed attach, so the re-run the error
+      # asks for skipped the attach and its verification and reported success.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization) do |target, *_rest|
+        link = UserLink.generate(u, target, 'org_user')
+        link.data['state']['sponsored'] = true
+        link.data['state']['pending'] = false
+        link.data['state']['added'] = Time.now.iso8601
+        link.save!
+        true
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+
+      allow(u).to receive(:update_subscription_organization).and_call_original
+      org.claim_user(u.reload)
+
+      expect(u.reload.settings['subscription']['added_org_id']).to eq(org.global_id)
+    end
+
+    it "undoes the link when the attach raises" do
+      # The attach routine saves the link before it saves the user, so an error in between
+      # leaves the same half-applied link as the stale-record path.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:save_with_sync).and_raise(ActiveRecord::StatementInvalid.new("boom"))
+
+      expect { org.claim_user(u) }.to raise_error(ActiveRecord::StatementInvalid)
+
+      code = Webhook.get_record_code(org)
+      expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
+    it "puts back an invitation it found when the attach did not complete" do
+      # The undo restores the link's prior state rather than deleting it, so a pending
+      # invitation from this organization is not lost along with the failed attach.
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      invite = UserLink.generate(u, org, 'org_user')
+      invite.data['state'] = {'pending' => true, 'sponsored' => true, 'added' => 2.days.ago.iso8601}
+      invite.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      allow(u).to receive(:update_subscription_organization) do |target, *_rest|
+        link = UserLink.generate(u, target, 'org_user')
+        link.data['state']['pending'] = false
+        link.save!
+        true
+      end
+
+      expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+
+      restored = UserLink.find(invite.id)
+      expect(restored.data['state']['pending']).to eq(true)
+      expect(restored.data['state']['added']).to eq(invite.data['state']['added'])
     end
   end
 end

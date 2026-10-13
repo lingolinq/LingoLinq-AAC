@@ -9,7 +9,7 @@ export default Route.extend({
   model: function(params) {
     var _this = this;
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('reset_password', 'reset password'));
+    user.set('subroute_name', i18n.t('reset_password', "reset password"));
     return new RSVP.Promise(function(resolve, reject) {
       _this.persistence.ajax('/api/v1/users/' + user.get('user_name') + '/password_reset', {
         type: 'POST',

@@ -122,7 +122,6 @@ module GoogleAuthentication
   end
 
   def google_sso_blocked?
-    org = Organization.external_auth_for(self, true)
-    org && org.settings['saml_metadata_url'] && org.settings['saml_enforced']
+    !!SamlLoginPolicy.enforced_org_for(self)
   end
 end

@@ -176,12 +176,18 @@ export default Route.extend({
         var ga_url = this.router.currentURL;
         window.ga('send', 'pageview', { 'page': ga_url, 'title': ga_url });
       }
-      if (!this.appState.get('skip_scroll_to_top')) {
-        window.scrollTo(0, 0);
-        var content = document.getElementById('content');
-        if (content) { content.scrollTop = 0; }
-      }
-      this.appState.set('skip_scroll_to_top', false);
+      /* Unconditional: every route transition returns the user to the top of the page.
+         This was gated on an appState flag `skip_scroll_to_top` from the first public
+         commit until 2026-09-21, but NOTHING ever set that flag true -- `git log --all
+         -S skip_scroll_to_top` shows the only lines ever added were this read and the
+         reset that followed it, so the guard never fired once and the scroll has always
+         been unconditional in practice. Removed so the code states what it does.
+         Confirmed against the running app before removal: three in-app navigations
+         (a same-route query-param filter link and two cross-route moves) each reset the
+         scroller from a non-zero position to 0. */
+      window.scrollTo(0, 0);
+      var content = document.getElementById('content');
+      if (content) { content.scrollTop = 0; }
       runLater(function() {
         speecher.load_beep().then(null, function() { });
       }, 100);

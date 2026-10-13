@@ -87,11 +87,11 @@ export default Component.extend({
     res.push({ id: 'arasaac', name: i18n.t('arasaac', "ArasAAC") });
     res.push({ id: 'twemoji', name: i18n.t('twemoji', "Twitter Emoji") });
     res.push({ id: 'noun-project', name: i18n.t('noun_project', "Noun Project") });
-    res.push({ id: 'sclera', name: i18n.t('sclera', 'Sclera (High Contrast)') });
-    res.push({ id: 'mulberry', name: i18n.t('mulberry', 'Mulberry') });
-    res.push({ id: 'tawasol', name: i18n.t('tawasol', 'Tawasol (Arabic)') });
-    res.push({ id: 'pixabay_photos', name: i18n.t('pixabay_photos', 'Pixabay Photos') });
-    res.push({ id: 'pixabay_vectors', name: i18n.t('pixabay_vectors', 'Pixabay Vector Images') });
+    res.push({ id: 'sclera', name: i18n.t('sclera', "Sclera (High Contrast)") });
+    res.push({ id: 'mulberry', name: i18n.t('mulberry', "Mulberry") });
+    res.push({ id: 'tawasol', name: i18n.t('tawasol', "Tawasol (Arabic)") });
+    res.push({ id: 'pixabay_photos', name: i18n.t('pixabay_photos', "Pixabay Photos") });
+    res.push({ id: 'pixabay_vectors', name: i18n.t('pixabay_vectors', "Pixabay Vector Images") });
     if (this.get('lessonpix_enabled')) {
       res.push({ id: 'lessonpix', name: i18n.t('lessonpix', "LessonPix") });
     }

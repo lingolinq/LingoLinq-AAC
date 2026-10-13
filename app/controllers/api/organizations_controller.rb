@@ -331,6 +331,11 @@ class Api::OrganizationsController < ApplicationController
     end
     res['user_counts']['recent_session_count'] = recent_sessions.count
     res['user_counts']['recent_session_user_count'] = recent_sessions.distinct.count('user_id')
+    # The total those recent users are out of (2026-10-02). The org page's pie subtracts one from
+    # the other (components/stats/recent-sessions.js), so both must count the same people: every
+    # user on the site-admin org, whose recent sessions are system-wide (the `org.admin?` bypass
+    # above), and the approved users everywhere else.
+    res['user_counts']['recent_session_total_users'] = org.admin? ? User.count : res['user_counts']['total_users']
 
     render json: res.to_json
   end
@@ -854,6 +859,13 @@ class Api::OrganizationsController < ApplicationController
       org_data.delete('org_access')
       org_data.delete('inactivity_timeout')
       org_data.delete('premium')
+      # External auth settings decide which identity provider this org trusts
+      # for sign-in (Organization#generate_defaults, Organization.find_by_saml_issuer),
+      # so only site admins may set or clear them.
+      org_data.delete('saml_metadata_url')
+      org_data.delete('saml_sso_url')
+      org_data.delete('saml_enforced')
+      org_data.delete('external_auth_shortcut')
     end
     if org_data && !org.allows?(@api_user, 'delete')
       org_data.delete('parent_org')
@@ -884,7 +896,9 @@ class Api::OrganizationsController < ApplicationController
     else
       {}
     end
-    @org.update_data_policy(attrs.stringify_keys, @api_user)
+    unless @org.update_data_policy(attrs.stringify_keys, @api_user)
+      return api_error(400, {error: "invalid data policy", errors: @org.processing_errors})
+    end
     if @org.save
       render json: JsonApi::Organization.as_json(@org, :wrapper => true, :permissions => @api_user).to_json
     else

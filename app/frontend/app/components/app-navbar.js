@@ -3,6 +3,7 @@ import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
 
 /**
  * Reusable navbar: matches bento #inner_header when authenticated,
@@ -17,12 +18,19 @@ export default Component.extend({
 
   appState: service('app-state'),
 
+  /* Classic takes the beta-feedback tab's CENTRED base placement instead of the
+     `--navbar` corner anchor — see the template. Reads through utils/view_style so
+     the preference key keeps a single reader. */
+  isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
+
   application: computed(function() {
     return getOwner(this).lookup('controller:application');
   }),
 
   ariaLabel: computed(function() {
-    return i18n.t('main_navigation', 'Main navigation');
+    return i18n.t('main_navigation', "Main navigation");
   }),
 
   isAuthenticated: computed('application.isSessionAuthenticated', function() {
@@ -35,7 +43,7 @@ export default Component.extend({
     return this.appState.get('current_route') === 'login.device';
   }),
 
-  /** Hide "Modern Dashboard" nav link when already on dashboard home (/username/home). */
+  /** Hide the speak-mode "Home" nav link when already on dashboard home (/username/home). */
   isOnUserHomeDashboard: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.home';
   }),
@@ -80,8 +88,16 @@ export default Component.extend({
     this.toggleLandingDrawer = () => {
       self.set('isLandingDrawerOpen', !self.get('isLandingDrawerOpen'));
     };
+    /* CLOSED AFTER THE CLICK, NOT DURING IT (2026-10-02, reported: "I click Sign In and it
+       refreshes the page"). The drawer's LinkTos run this on click BEFORE LinkTo's own handler, and
+       closing re-renders the drawer away (`{{#if @isOpen}}`, la-mobile-drawer.hbs) in between, so
+       LinkTo's handler never ran: nothing prevented the default and the browser loaded the href as
+       a new page. A 0ms timeout runs after every listener for this click, so the link navigates in
+       the app first. scripts/drawer-link-reload-qa.mjs is the check (a unit test cannot see it). */
     this.closeLandingDrawer = () => {
-      self.set('isLandingDrawerOpen', false);
+      window.setTimeout(function() {
+        if(!self.isDestroyed && !self.isDestroying) { self.set('isLandingDrawerOpen', false); }
+      }, 0);
     };
     this.toggleBetaFeedbackDrawer = () => {
       owner.lookup('controller:application').send('toggleBetaFeedbackDrawer');

@@ -35,8 +35,8 @@ export default Component.extend({
   // those actions in board-detail; in Classic (board-alt) board/index lacks
   // open_color_picker (would throw) and its word_data expects an id. Classic
   // never had these items, so gate them on Modern.
-  is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
-    return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
+  is_modern: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return this.get('appState.effective_view_user.preferences.board_view_style') !== 'classic';
   }),
   // Text-position preference (top / bottom / text_only) for the button-mockup
   // previews (header + Color tab) so they render the label/symbol the same way the

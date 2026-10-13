@@ -1,0 +1,11 @@
+{{#if this.shown}}
+  <button type="button" class="btn btn-primary ll-basic-try-home" disabled={{this.busy}} {{on "click" this.setAsHome}}>
+    <span class="wide">
+      {{#if this.forUserName}}
+        {{t "Set as Home Board for %{user_name}" key="set_as_home_board_for_user" user_name=this.forUserName}}
+      {{else}}
+        {{t "Set as Home Board" key="set_as_home_board"}}
+      {{/if}}
+    </span><span class="skinny real_skinny glyphicon glyphicon-home" aria-hidden="true"></span>
+  </button>
+{{/if}}
