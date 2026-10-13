@@ -133,6 +133,21 @@ describe BoardCaching, :type => :model do
       expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
+    # The update_available_boards row is the outbox for authorization state: removed when the hourly
+    # batch enqueued its job, a lost job left the stale board list in place. update_available_boards
+    # removes it when the refresh completes.
+    it "keeps a due refresh row through the hourly batch until the refresh completes" do
+      u = User.create(:user_name => "outbox_user")
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      Uploader.remote_remove_batch
+      expect(RemoteAction.where(id: ra.id).count).to eq(1)
+      expect(ra.reload.act_at).to be < Time.now
+      u.reload.update_available_boards
+      expect(RemoteAction.where(id: ra.id).count).to eq(0)
+    end
+
     # if someone shares a board with me and creates a private sub-board, I shouldn't see it
     it "should ignore downstream boards without downstream share" do
       u1 = User.create(:user_name => "user1")
@@ -221,6 +236,9 @@ describe BoardCaching, :type => :model do
       expect(u1.reload.private_viewable_board_ids).to eq([b.global_id])
       expect(u2.reload.private_viewable_board_ids).to eq([b.global_id])
       expect(u3.reload.private_viewable_board_ids).to eq([b.global_id])
+      # the sharing above left refresh rows due in an hour, kept until a refresh run after then
+      # deletes them; its refreshes already ran, so clear them and count only what b2 adds
+      RemoteAction.where(action: 'update_available_boards', path: [u1, u2, u3].map(&:global_id)).delete_all
       
       b2 = Board.create(:user => u2, :public => true)
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
@@ -338,8 +356,14 @@ describe BoardCaching, :type => :model do
       #   'method' => 'update_available_boards',
       #   'arguments' => []
       # })).to eq(true)
+      # rows are kept until a refresh that starts after their act_at (the board's debounce also
+      # pushes them out an hour): make them due before each wave, so a loop shows as a new row
+      due = -> { RemoteAction.where(action: 'update_available_boards').update_all(act_at: 1.minute.ago) }
+      due.call
       RemoteAction.process_all
+      due.call
       Worker.process_queues
+      due.call
       Worker.process_queues
       expect(RemoteAction.find_by(path: u1.global_id, action: 'update_available_boards')).to eq(nil)
       expect(Worker.scheduled_for?(:slow, User, :perform_action, {

@@ -35,7 +35,13 @@ class RemoteAction < ApplicationRecord
       WeeklyStatsSummary.schedule(:update_now, user_id, weekyear)
     elsif ra.action == 'update_available_boards'
       user = User.find_by_path(ra.path)
-      user.schedule_once_for(:slow, :update_available_boards) if user
+      if user
+        user.schedule_once_for(:slow, :update_available_boards)
+        # Kept until update_available_boards completes: it deletes the rows due when it started
+        # (board_caching.rb), so act_at stays put; an unfinished refresh is enqueued again each
+        # hour, deduped by schedule_once.
+        return :keep
+      end
     elsif ra.action == 'clean_up_destroyed_org'
       Organization.schedule(:clean_up_destroyed, ra.path.to_i)
       # Kept until Organization.clean_up_destroyed deletes it on completion: retried an hour
