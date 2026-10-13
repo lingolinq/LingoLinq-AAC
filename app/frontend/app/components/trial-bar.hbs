@@ -1,7 +1,7 @@
 {{#if this.shown}}
   <div class="ll-trial-bar ll-trial-bar--{{this.view}}" role="region" aria-label={{t "Trying a board" key="trial_bar_aria"}}>
     <span class="ll-trial-bar__label">
-      {{t "Trying:" key="trial_bar_trying"}} <strong class="ll-trial-bar__name">{{this.boardName}}</strong>
+      {{t "Trying" key="trial_bar_trying_label"}} <strong class="ll-trial-bar__name">{{this.boardName}}</strong>
     </span>
     <span class="ll-trial-bar__actions">
       <button type="button" class="ll-trial-bar__use" disabled={{this.busy}} {{on "click" this.use}}>
@@ -11,8 +11,12 @@
           {{t "Use this board" key="trial_bar_use"}}
         {{/if}}
       </button>
+      {{!-- "Try another" (2026-10-13): back to the picker, where they left it. "Close" ends the trial. --}}
       <button type="button" class="ll-trial-bar__exit" disabled={{this.busy}} {{on "click" this.exit}}>
-        {{t "Exit" key="exit"}}
+        {{t "Try another" key="trial_bar_try_another"}}
+      </button>
+      <button type="button" class="ll-trial-bar__close" disabled={{this.busy}} {{on "click" this.close}}>
+        {{t "Close" key="close"}}
       </button>
     </span>
   </div>

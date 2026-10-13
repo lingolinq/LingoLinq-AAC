@@ -8804,5 +8804,11 @@
   "view_desc_display_style": "Choose and arrange your home page cards.",
   "speak_mode_intro_1_modern": "Tap buttons to add words to the sentence bar at the top; tap the speaker button to speak the whole phrase. Use home, backspace, and clear as needed.",
   "speak_mode_intro_2_modern": "To leave, open the menu (top right) and choose \"Exit Boards: To Home Page\".",
+  "trial_bar_trying_label": "Trying",
+  "trial_bar_try_another": "Try another",
+  "board_picker_recently_tried": "Recently tried",
+  "board_picker_recent_failed": "That board couldn't be opened. Please try again.",
+  "trial_bar_now_home": "%{board} is now your home board.",
+  "trial_bar_copy_failed": "We couldn't finish making %{board} your home board. Your home board wasn't changed.",
   "display_design": "Display Design"
 }

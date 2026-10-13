@@ -75,6 +75,18 @@
           </div>
         {{/if}}
         <div class="md-card--home-boards__picker">
+          {{!-- "Recently tried" (2026-10-13): the boards tried this session; a chip opens its preview again. --}}
+          {{#if this.recentTries.length}}
+            <div class="bp-recent" role="group" aria-label={{t "Recently tried" key="board_picker_recently_tried"}}>
+              <span class="bp-recent__label">{{t "Recently tried" key="board_picker_recently_tried"}}</span>
+              {{#each this.recentTries as |tried|}}
+                <button type="button" class="bp-recent__chip" {{on "click" (this.ctrlAction "open_recent" tried.key)}}>
+                  {{#if tried.image}}<img class="bp-recent__img" src={{tried.image}} alt="">{{/if}}
+                  <span class="bp-recent__name">{{tried.name}}</span>
+                </button>
+              {{/each}}
+            </div>
+          {{/if}}
           <BoardPicker @searchAtTop={{true}} />
         </div>
         {{!-- Rendered LAST and positioned fixed, so the picker behind it is fully

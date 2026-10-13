@@ -28,13 +28,21 @@ export function after_pick_for_other(router, key, userName, viewUser) {
 /* A "Try" in Basic: the board tried and the user it would become home for (the communicator when
    the picker was opened for one). Read by components/trial-bar.js on the Basic board
    page; kept in app state because the picker forgets its user when it is left. */
-export function mark_basic_try(appState, key, user) {
-  appState.set('basic_try_home', { key: key, user_id: user && user.get('id'), user_name: user && user.get('user_name') });
+export function mark_basic_try(appState, key, user, name) {
+  var mark = { key: key, user_id: user && user.get('id'), user_name: user && user.get('user_name') };
+  if(name) { mark.name = name; } // so the bar names the tried board inside its folders (2026-10-13)
+  appState.set('basic_try_home', mark);
 }
 
+/* The trial covers the tried board AND every board reached from it by its folders (2026-10-13, as Modern's
+   does: controllers/user/board-detail.js#try_origin_board). A Basic trial browses in normal mode, whose trail
+   is app-state's browse history (`get_history`); a new trial starts it empty (board-preview-overlay.js). */
 export function basic_try_for(appState, key) {
   var mark = appState.get('basic_try_home');
-  return (mark && key && mark.key === key) ? mark : null;
+  if(!mark || !key) { return null; }
+  if(mark.key === key) { return mark; }
+  var history = (typeof appState.get_history === 'function' && appState.get_history()) || [];
+  return history.some(function(h) { return h && h.key === mark.key; }) ? mark : null;
 }
 
 export function clear_basic_try(appState) {

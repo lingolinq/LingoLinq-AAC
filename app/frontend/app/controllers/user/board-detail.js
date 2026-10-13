@@ -138,7 +138,7 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('switch_communicators', "Switch Communicators");
 }
 
-export default Controller.extend(prefClasses, {
+const BoardDetailController = Controller.extend(prefClasses, {
   app_state: service('app-state'),
   /* Session-wide dismissal of the screen-recommendation overlays, shared with
      create-board-new and the Display Style step so "Continue Anyway" here silences the
@@ -245,25 +245,25 @@ export default Controller.extend(prefClasses, {
     return (this.get('board_detail_history') || []).length > 0;
   }),
 
-  /* "Try this Board" from the board picker sets app_state.board_detail_try_origin.
-     While it is set AND names the board actually on screen, board-detail offers a
-     prominent way back to the picker.
-
-     Matched on KEY rather than treated as a bare boolean, deliberately: a user who
-     tries a board and then navigates deeper (into a folder, or to another board
-     entirely) is no longer "trying" the thing they came to try, and a Back button
-     that silently returns them to the picker from three boards away would be a
-     trap. The marker is cleared outright when they leave board-detail -- see the
-     route's resetController. */
+  /* "Try this Board" from the board picker sets app_state.board_detail_try_origin; while it is
+     set, the trial bar (Trying / Use this board / Exit) shows on the tried board AND on every
+     board reached from it by its folders (tablet report, 2026-10-13: the bar, the only way out,
+     vanished in a folder). "Reached from it" is read off this page's own trail: the tried board is
+     in `board_detail_nav_history` (pushed on each folder; a new trial starts it empty, see
+     components/board-preview-overlay.js#try_board). A board the trial never led to does not match,
+     so a stale marker cannot put the bar on an unrelated board. Home, during a trial, returns to
+     the tried board's main page (`_trial_home`, end of this file). The marker is still cleared
+     outright when they leave board-detail -- see the route's resetController.
+     (trial_includes is at the end of this file.) */
   try_origin_board: computed(
     'app_state.board_detail_try_origin',
     'user.user_name',
-    'boardname',
+    'boardname', 'app_state.board_detail_nav_history.[]',
     function() {
       var origin = this.get('app_state.board_detail_try_origin');
       if(!origin || !origin.key) { return null; }
       var here = (this.get('user.user_name') || '') + '/' + (this.get('boardname') || '');
-      return origin.key === here ? origin : null;
+      return trial_includes(origin, here, this.get('app_state.board_detail_nav_history')) ? origin : null;
     }
   ),
   show_try_back_nav: computed('try_origin_board', function() {
@@ -7519,7 +7519,7 @@ export default Controller.extend(prefClasses, {
        Clears the marker first: the button is gone the moment it is used, and the
        picker route re-arms its own state on entry. */
     try_back_to_picker: function() {
-      this.set('app_state.board_detail_try_origin', null);
+      this.set('app_state.board_detail_try_origin', null); this.set('app_state.board_picker_restore', true); // the picker returns to its place (components/board-picker.js)
       this.set('show_options_menu', false);
       this.get('router').transitionTo('board-picker');
     },
@@ -7771,7 +7771,7 @@ export default Controller.extend(prefClasses, {
     },
 
     go_home: function() {
-      this.set('show_options_menu', false);
+      this.set('show_options_menu', false); if(this._trial_home()) { return; } // during a trial: the tried board (end of this file)
       // Home is a board-to-board exit like any other and was entirely unguarded
       // — it even cleared board_detail_nav_history on the way out.
       if(this.board_lock_blocks_exit()) { return; }
@@ -10426,3 +10426,31 @@ export default Controller.extend(prefClasses, {
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { maybe_offer_tour } from '../../utils/tours/tour_offer';
+
+/* A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13, see `try_origin_board` above). True on the
+   tried board itself, and on any board whose trail (`board_detail_nav_history`, the boards navigated FROM)
+   includes it. */
+function trial_includes(origin, here, history) {
+  if(!origin || !origin.key) { return false; }
+  if(origin.key === here) { return true; }
+  return (history || []).some(function(h) { return h && (h.user_name + '/' + h.boardname) === origin.key; });
+}
+
+BoardDetailController.reopen({
+  // Home during a trial goes to the tried board's main page, not the user's own home board, and the trail
+  // starts again there. Returns true when it handled Home. Board lock is checked first, as go_home does.
+  // Also while a home board chosen with the trial bar's "Use this board" is still being copied
+  // (`home_copy_pending`, components/trial-bar.js#use): Home goes to that board, not the old home board.
+  _trial_home: function() {
+    var origin = this.get('try_origin_board') || this.get('app_state.home_copy_pending');
+    if(!origin || !origin.key) { return false; }
+    if(this.board_lock_blocks_exit()) { return true; }
+    this.set('app_state.board_detail_nav_history', []);
+    this.get('app_state').restore_session_locale_override();
+    var parts = origin.key.split('/');
+    this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+    return true;
+  }
+});
+
+export default BoardDetailController;

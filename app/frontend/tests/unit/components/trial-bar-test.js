@@ -49,7 +49,7 @@ module('Unit | Component | trial-bar', function(hooks) {
     context.owner.register('service:router', Service.extend({
       transitionTo: function() { calls.transitions.push(Array.prototype.slice.call(arguments)); }
     }));
-    var board = EmberObject.create({ key: 'lingolinq/core-60', name: 'Core 60' });
+    var board = EmberObject.create({ id: '1_60', key: 'lingolinq/core-60', name: 'Core 60' });
     var appState = context.owner.lookup('service:app-state');
     var component = context.owner.factoryFor('component:trial-bar').create({
       board: board,
@@ -59,7 +59,13 @@ module('Unit | Component | trial-bar', function(hooks) {
       preloadImages: function() { return Promise.resolve(); },
       copyAsHome: o.copyFails ?
         function() { return Promise.reject('Copy failed'); } :
-        function(b, user, locale) { calls.copy.push({ board: b, user: user, locale: locale }); return Promise.resolve(EmberObject.create({ id: '1_99', key: user.get('user_name') + '/core-60' })); }
+        function(b, user, locale) {
+          calls.copy.push({ board: b, user: user, locale: locale });
+          var made = EmberObject.create({ id: '1_99', key: user.get('user_name') + '/core-60' });
+          // `copyPending`: the copy finishes only when the test says so, as a long copy does.
+          if (o.copyPending) { return new Promise(function(resolve) { o.copyPending(function() { resolve(made); }); }); }
+          return Promise.resolve(made);
+        }
     });
     return { component: component, calls: calls, appState: appState, board: board, me: me, aiden: aiden };
   }
@@ -86,17 +92,28 @@ module('Unit | Component | trial-bar', function(hooks) {
     assert.strictEqual(setup(this, { forOther: true }).component.get('forUserName'), 'aiden_parker', 'for a communicator');
   });
 
-  test('Use, for yourself (Modern): makes it YOUR home board, then opens Speak Mode on your copy', async function(assert) {
-    var t = setup(this);
-    await t.component.use();
-    assert.strictEqual(t.calls.copy.length, 1, 'copied or reused once');
-    assert.strictEqual(t.calls.copy[0].user, t.me, 'for you');
-    assert.strictEqual(t.calls.copy[0].board, t.board, 'the tried board');
-    assert.strictEqual(t.calls.speak.length, 1, 'Speak Mode opens');
+  /* USE THIS BOARD OPENS SPEAK MODE RIGHT AWAY (requested 2026-10-13: "Use this board opens Speak Mode right
+     away with 'Vocal Flair 40 is now your home board.' The copy finishes in the background."). It used to wait
+     for the whole copy (about 30 seconds for a large set) before Speak Mode opened. Rewritten for that request:
+     Speak Mode opens on the TRIED board at once, the copy then becomes the home board, and while it is copying
+     Home goes to the tried board (`home_copy_pending`, controllers/user/board-detail.js#_trial_home). */
+  test('Use, for yourself (Modern): Speak Mode opens right away on the board, and it says so', async function(assert) {
+    var finish;
+    var t = setup(this, { copyPending: function(f) { finish = f; } });
+    var using = t.component.use();
+    await new Promise(function(r) { setTimeout(r, 0); });
+    assert.strictEqual(t.calls.speak.length, 1, 'Speak Mode opens before the copy finishes');
     assert.strictEqual(t.calls.speak[0].user, t.me, 'as you');
-    assert.deepEqual(t.calls.speak[0].force_board_state, { id: '1_99', key: 'example/core-60' }, 'on the new home board, whatever else the user prefers');
-    assert.deepEqual(t.calls.transitions, [], 'no other navigation: Speak Mode picks the page for the view');
+    assert.deepEqual(t.calls.speak[0].force_board_state, { id: '1_60', key: 'lingolinq/core-60' }, 'on the board they tried');
+    assert.deepEqual(messages, [['success', 'Core 60 is now your home board.']], 'and says so');
     assert.notOk(t.appState.get('board_detail_try_origin'), 'the trial is over');
+    assert.deepEqual(t.appState.get('home_copy_pending'), { id: '1_60', key: 'lingolinq/core-60' }, 'Home goes to it while copying');
+    assert.strictEqual(t.calls.copy.length, 1, 'the copy is under way, for you');
+    assert.strictEqual(t.calls.copy[0].user, t.me);
+    finish();
+    await using;
+    assert.notOk(t.appState.get('home_copy_pending'), 'copy done: their own copy is the home board now');
+    assert.deepEqual(t.calls.transitions, [], 'no other navigation');
   });
 
   test('Use, for yourself (Basic): the same, Speak Mode opens in Basic', async function(assert) {
@@ -118,12 +135,12 @@ module('Unit | Component | trial-bar', function(hooks) {
     assert.deepEqual(m.calls.transitions, [['user.boards', 'aiden_parker']], 'Modern: their boards list');
   });
 
-  test('a failed Use says so and leaves the trial where it is', async function(assert) {
+  test('a copy that fails after Speak Mode opened says so, and the home board is unchanged', async function(assert) {
     var t = setup(this, { copyFails: true });
     await t.component.use();
-    assert.deepEqual(messages, [['error', 'Copy failed']], 'the error is shown');
-    assert.deepEqual(t.calls.speak, [], 'no Speak Mode');
-    assert.ok(t.appState.get('board_detail_try_origin'), 'still trying');
+    assert.strictEqual(t.calls.speak.length, 1, 'Speak Mode had already opened');
+    assert.deepEqual(messages[messages.length - 1], ['error', "We couldn't finish making Core 60 your home board. Your home board wasn't changed."], 'the error is shown');
+    assert.notOk(t.appState.get('home_copy_pending'), 'Home goes back to their own home board');
   });
 
   test('Exit ends the trial and returns to the board picker', function(assert) {
@@ -158,5 +175,25 @@ module('Unit | Component | trial-bar', function(hooks) {
     var log = syncing(t, false);
     await t.component.use();
     assert.deepEqual(log, ['preload example/core-60']);
+  });
+
+  /* TRY ANOTHER AND CLOSE (requested 2026-10-13: "Trying Vocal Flair 40 · Use this board · Try another ·
+     Close"). Try another is the old Exit (back to the picker, in its place); Close ends the trial and goes to
+     the home page. In Modern it goes through the board page's own exit (`onClose`, exit_to_home, which asks
+     for the Speak Mode PIN when one is set). */
+  test('Close (Basic) ends the trial and goes to the home page', function(assert) {
+    var t = setup(this, { classic: true });
+    t.component.close();
+    assert.notOk(t.appState.get('basic_try_home'), 'Basic marker cleared');
+    assert.deepEqual(t.calls.transitions, [['index']], 'the home page');
+  });
+
+  test('Close (Modern) uses the board page\'s own exit', function(assert) {
+    var t = setup(this);
+    var used = [];
+    t.component.set('onClose', function() { used.push(true); });
+    t.component.close();
+    assert.deepEqual(used, [true], 'its PIN-checked Exit Boards');
+    assert.deepEqual(t.calls.transitions, [], 'no second navigation');
   });
 });

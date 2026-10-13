@@ -65726,7 +65726,8 @@ span.md-board-detail-modeling-btn--badge .md-board-detail-nav-btn__label {
   gap: 8px;
 }
 .ll-trial-bar__use,
-.ll-trial-bar__exit {
+.ll-trial-bar__exit,
+.ll-trial-bar__close {
   height: 44px;
   padding: 0 18px;
   border-radius: 999px;
@@ -65740,14 +65741,17 @@ span.md-board-detail-modeling-btn--badge .md-board-detail-nav-btn__label {
   color: #fff;
 }
 .ll-trial-bar__use:hover { filter: brightness(1.08); }
-.ll-trial-bar__exit {
+.ll-trial-bar__exit,
+.ll-trial-bar__close {
   border: 1.5px solid rgba($la-navy, 0.35);
   background: transparent;
   color: $la-navy;
 }
-.ll-trial-bar__exit:hover { background: rgba($la-navy, 0.06); }
+.ll-trial-bar__exit:hover,
+.ll-trial-bar__close:hover { background: rgba($la-navy, 0.06); }
 .ll-trial-bar__use:disabled,
-.ll-trial-bar__exit:disabled { opacity: 0.6; cursor: progress; }
+.ll-trial-bar__exit:disabled,
+.ll-trial-bar__close:disabled { opacity: 0.6; cursor: progress; }
 
 /* Back button — the secondary control beside the primary (glass) Home. Mirrors
    the right-side sidebar toggle: translucent blue-grey, charcoal icon+label,

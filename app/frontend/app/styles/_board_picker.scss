@@ -876,3 +876,38 @@ $bp-target: 44px;
     height: 50px !important;
   }
 }
+
+// "Recently tried" chips above the picker (2026-10-13, templates/board-picker.hbs): the boards tried this
+// session; a chip opens its preview again. 44px targets, wrapping on narrow screens.
+.bp-recent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.bp-recent__label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: $la-navy;
+  margin-right: 4px;
+}
+.bp-recent__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 16px 4px 6px;
+  border: 1.5px solid rgba($la-navy, 0.25);
+  border-radius: 999px;
+  background: #fff;
+  color: $la-navy;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bp-recent__chip:hover { background: rgba($la-navy, 0.05); }
+.bp-recent__chip:focus-visible { outline: 3px solid $brand-verdigris-aa; outline-offset: 2px; }
+.bp-recent__img { width: 32px; height: 32px; border-radius: 8px; object-fit: contain; background: #fff; }

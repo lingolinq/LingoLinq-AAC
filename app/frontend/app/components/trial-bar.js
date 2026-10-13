@@ -53,8 +53,9 @@ export default Component.extend({
     if(this.get('view') === 'basic') { return !this.get('appState.speak_mode') && !this.get('appState.edit_mode'); }
     return true;
   }),
-  boardName: computed('board.name', function() {
-    return this.get('board.name') || '';
+  // The TRIED board's name: the bar also shows on its folders (2026-10-13), where `board` is the folder.
+  boardName: computed('board.name', 'trial.name', function() {
+    return this.get('trial.name') || this.get('board.name') || '';
   }),
   forUserName: computed('trial', 'appState.currentUser.id', function() {
     var trial = this.get('trial');
@@ -78,12 +79,13 @@ export default Component.extend({
     var who = forOther ? this.get('store').findRecord('user', trial.user_id) : RSVP.resolve(me);
     this.set('busy', true);
     var target = null;
-    return who.then(function(user) {
-      target = user;
-      return _this.copyAsHome(_this.get('board'), user, appState.get('label_locale'));
-    }).then(function(home) {
-      // Finished like the picker's "Pick this Board" (components/board-preview-overlay.js#_finishPickForHome):
-      // preload the new home board's images (best effort), and sync when online with auto-sync on.
+    // Adopt the TRIED board, never a folder of it that happens to be on screen (2026-10-13).
+    var board = this.get('board');
+    var tried = (trial.key && board && board.get && board.get('key') !== trial.key) ? this.get('store').findRecord('board', trial.key) : RSVP.resolve(board);
+    var locale = appState.get('label_locale');
+    // Finished like the picker's "Pick this Board" (components/board-preview-overlay.js#_finishPickForHome):
+    // preload the new home board's images (best effort), and sync when online with auto-sync on.
+    var finishPick = function(home) {
       return RSVP.resolve(_this.preloadImages(home)).then(null, function() {}).then(function() {
         var persistence = _this.get('persistence');
         if(persistence && persistence.get('online') && persistence.get('auto_sync')) {
@@ -91,15 +93,37 @@ export default Component.extend({
         }
         return home;
       });
-    }).then(function(home) {
-      _this._endTrial();
+    };
+    return who.then(function(user) {
+      target = user;
+      return tried;
+    }).then(function(b) {
       if(forOther) {
-        modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
-        after_pick_for_other(_this.get('router'), home.get('key'), target.get('user_name'), appState.get('effective_view_user'));
-        return;
+        // For a communicator: as "Pick this Board" does, once their copy is made.
+        return _this.copyAsHome(b, target, locale).then(finishPick).then(function(home) {
+          _this._endTrial();
+          modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
+          after_pick_for_other(_this.get('router'), home.get('key'), target.get('user_name'), appState.get('effective_view_user'));
+        });
       }
-      appState.home_in_speak_mode({ user: me, force_board_state: { id: home.get('id'), key: home.get('key') } });
-    }, function(err) {
+      /* For yourself, RIGHT AWAY (requested 2026-10-13): Speak Mode opens on the board they tried and says it is
+         now their home board; their own copy is made in the background and becomes the home board when done
+         (copy_or_reuse_as_home saves it). Until then Home goes to the tried board (`home_copy_pending`,
+         controllers/user/board-detail.js#_trial_home). If the copy fails, they are told the home board did not
+         change. */
+      var name = (b && b.get && (b.get('name') || b.get('key'))) || '';
+      var spot = { id: b.get('id'), key: b.get('key') };
+      _this._endTrial();
+      appState.set('home_copy_pending', spot);
+      modal.success(i18n.t('trial_bar_now_home', "%{board} is now your home board.", { board: name }));
+      appState.home_in_speak_mode({ user: me, force_board_state: spot });
+      return _this.copyAsHome(b, me, locale).then(finishPick).then(function() {
+        appState.set('home_copy_pending', null);
+      }, function() {
+        appState.set('home_copy_pending', null);
+        modal.error(i18n.t('trial_bar_copy_failed', "We couldn't finish making %{board} your home board. Your home board wasn't changed.", { board: name }));
+      });
+    }).then(null, function(err) {
       modal.error((typeof err === 'string' && err) ? err : i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
     }).finally(function() {
       if(!_this.isDestroyed && !_this.isDestroying) { _this.set('busy', false); }
@@ -108,9 +132,18 @@ export default Component.extend({
 
   // Modern passes the board page's own `try_back_to_picker` (it also closes that page's options menu).
   onExit: null,
+  // Ends the trial and goes to the home page (2026-10-13). Modern passes `onClose`, the board page's own
+  // Exit Boards (controllers/user/board-detail.js#exit_to_home), which asks for the Speak Mode PIN when set.
+  close: action(function() {
+    if(typeof this.get('onClose') === 'function') { return this.get('onClose')(); }
+    this._endTrial();
+    this.get('router').transitionTo('index');
+  }),
+
   exit: action(function() {
     if(typeof this.get('onExit') === 'function') { return this.get('onExit')(); }
     this._endTrial();
+    this.get('appState').set('board_picker_restore', true); // the picker returns to its place (components/board-picker.js)
     this.get('router').transitionTo('board-picker');
   })
 });

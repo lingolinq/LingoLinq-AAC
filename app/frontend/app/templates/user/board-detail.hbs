@@ -620,7 +620,7 @@
            Hidden in edit mode by `.md-shell--board-detail-edit
            .md-board-detail-sentence-row { display: none }` in app.scss; the
            editing state is shown by the session bar in the header instead. --}}
-      <TrialBar @board={{this.model}} @view="modern" @mark={{this.try_origin_board}} @onExit={{this.ctrlAction "try_back_to_picker"}} />
+      <TrialBar @board={{this.model}} @view="modern" @mark={{this.try_origin_board}} @onExit={{this.ctrlAction "try_back_to_picker"}} @onClose={{this.ctrlAction "exit_to_home"}} />
       <div id="speak" class="md-board-detail-sentence-row {{this.sentence_bar_height_class}} {{this.symbol_background_class}} {{if this.hide_speak_bar 'md-board-detail-sentence-row--hide-bar'}}">
       {{!-- Left nav column: Home on top; inside a folder the back button
            drops beneath it (styled like the right-side sidebar dropdown
