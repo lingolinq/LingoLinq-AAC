@@ -46964,6 +46964,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     width: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
     height: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
   }
+  /* The board picture's silver frame shrinks with it (final review, 2026-10-13): the full-size 12px padding and
+     5px ring left only ~22px of picture in the 56px slot at 900px. */
+  .md-card--speak-focused__img--board { padding: 6px; border-width: 3px; }
   .md-card--extras-focused__img {
     width: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px);
     height: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px);
