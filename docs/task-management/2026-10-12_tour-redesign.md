@@ -95,3 +95,75 @@ person has talked once."
   against HEAD. Mixed run (select/scanner/utterance/keyboard filter): only the 2 `app_state` toggle tests
   fail, and they fail identically at HEAD (`this.controller.set is not a function` from state another suite
   leaves). Live (Aiden, Basic): keydown and keyup both on the bar, spoken once, nothing typed, 0 page errors.
+
+## Adversary review (local), 2026-10-13: branch vs develop, commits 8b9dd20cb..bef14ad59
+Local substitute (`/adversary-review-local`, five read-only reviewers, findings verified by hand); the
+canonical `/review-pr` and `/adversary-review` did not run here. Earlier commits had three prior red-team
+passes, all findings resolved (logged in 8b9dd20cb).
+
+| # | Sev | Finding | Label | Evidence |
+|---|---|---|---|---|
+| 1 | High | A communicator's manual "Take a tour" shows the welcome card; "Start talking now" and "Take a quick tour" replace an existing home board with Vocal Flair 60, no check | CONFIRMED | `utils/tours/home.js` buildHomeSteps (non-supporter always welcome), `start_talking.js` copy_or_reuse_as_home; at base the welcome's speak only opened the existing board |
+| 2 | Medium | Speak-as: the offer reads `currentUser`, which is the communicator in Speak Mode (`app-state.js:2744`), so a supervisor's message shows them the offer and saves the flag on the communicator | CONFIRMED | `tour_offer.js:48-57` |
+| 3 | Medium | `tour_offer_visible` is cleared only by Start/Not now; the card returns on every Speak Mode entry, incl. a supervisor modeling. Logout leak and stale `board_alt_tour_pending` | CONFIRMED / PLAUSIBLE | `tour-offer.hbs:1`, `tour_offer.js` |
+| 4 | Medium | Copy fails after Cancel: dialog says "Cancelled", discard never runs, copies left behind | CONFIRMED | `confirm-home-board-copy.js:153` |
+| 5 | Medium | Cancel discard trusts the device clock: clock ahead leaves copies (says removed); clock far behind can delete a user's own board linked but not copied | CONFIRMED / PLAUSIBLE | `board-copy.js:160-184` |
+| 6 | Medium | Copy dialog cannot be closed while the server job is stuck (uncloseable, no timeout) | CONFIRMED in code | `confirm-home-board-copy.js` isBusy + `@uncloseable` |
+| 7 | Medium | 87 new `!important` declarations in override blocks (Rule #0.7), mostly b9744e3cc (66) and b59eff03c (12) | CONFIRMED | `git diff 8b9dd20cb.. -- app/frontend/app/styles` |
+| 8 | Medium | The tour offer is new UI with no feature flag | Decision | `tour_offer.js` |
+| 9 | Medium | First-message `user.save()` may push stale preferences over a supervisor's concurrent edit | PLAUSIBLE | `tour_offer.js:26-36` |
+| 10 | Medium | Gentle rail dropdown sub-label likely below 4.5:1 | PLAUSIBLE | `_classic-home.scss:701-708` |
+| 11 | Low | Display Style preview keeps stale caseload grid classes | CONFIRMED | `display-style.js:549` vs `dashboard_sections.js:800-806` |
+| 12 | Low | `.google-visualization-tooltip` rule removed; Google Charts (CDN) adds it | CONFIRMED | 3fc054bdd^ app.scss:99585; `stats/sessions-per-week.js:39` |
+| 13 | Low | Board-alt Support button 36px (below 44px) | CONFIRMED | app.scss board-alt `.ll-bento-help-btn` |
+| 14 | Low | Trial-bar online preload/sync lost its test with basic-try-home-button-tail-test | CONFIRMED | `trial-bar.js:87-91` |
+| 15 | Low | Others: SLP tour leaves Communicators tab open; boardAltHost instance not excluded from home watchers (harmless today); stale `home_tour_skip_handoff` filter; Set Home owned-board double tap; offline cancel silent; dropdown not closed on focusout; fixed heights at 200% text; scanning user Space at a focused bar; tour-offer-test leaves `list_vocalized`/ghost_utterance; stale glassy-image comment; Basic Assign Home mode unflagged | mixed | reviewer reports |
+
+REFUTED: "the offer cannot be tapped on touch devices" (eat_events): on an emulated Android tablet
+(`capabilities.mobile` true) Start closed the offer and opened the tour in both Modern and Basic. Real iPad not tested.
+Blocking: #1 (High, CONFIRMED) blocks a PR per root CLAUDE.md.
+
+### Fixes from the review (2026-10-13, uncommitted at the time of writing)
+Each red first, falsified by reverting the fix, then restored.
+- **#1 (High) fixed.** `start_talking.js` opens an existing home board instead of copying (the only route to
+  the copy); the welcome card takes `hasHome` (`guided-tour.js` builder options, same lines) and then reads
+  "Opens your home board." with no Vocal Flair 60 picture or note. Tests: 3 in `home-welcome-buttons-test.js`.
+  Live (Aiden, home board lingolinq/keyboard, manual tour in Modern and Basic): the card says it opens their
+  home board, the quick tour runs 5 steps on it, the home board is unchanged, 0 boards created. The no-home
+  first-login flow re-checked live in both views: unchanged.
+- **#2 fixed.** `maybe_offer_tour` returns early when `sessionUser` is not the Speak Mode user.
+- **#3 fixed.** The card shows only to `tour_offer_user`; leaving Speak Mode for 1.5s (a page change's brief
+  dip does not count) ends the offer and drops Basic's pending board tour (`end_speak_mode_tour_state`);
+  `_consumeBoardAltTour` drops its flag when it gives up. Tests: 4 in `tour-offer-test.js`.
+- **#4 fixed.** An error after Cancel shows "The copy stopped with an error, so some copied boards may still be
+  in My Boards. Your home board wasn't changed." instead of "Cancelled" (cleanup is not possible there:
+  `edit_manager.copy_board` rejects with strings only).
+- **#5 fixed.** `discard_cancelled_copy` dates its cutoff from the cancelled copy's own `created` (server time).
+- **#6 fixed.** After 2 minutes (`slowAfter`) the copy dialog can be closed, with a line saying the work carries
+  on (the copy and its clean-up run outside the dialog). Tests: 3 in `confirm-home-board-copy-test.js`, 1 in
+  `home-copy-cancel-test.js`.
+- **#10 fixed.** `.ch-rail__menu-sub` opacity 0.8 -> 0.9 in its original rule: measured live 4.27-4.44:1 before,
+  5.26-5.52:1 after (Gentle, 390px).
+- **#11 fixed.** The preview sweep covers `caseload-beside` / `caseload-row*`; `_applyGridPresentation` exported
+  for its test (`display-style-grid-sweep-test.js`).
+- **#12 fixed.** `.google-visualization-tooltip` restored verbatim at its original place.
+- **#14 fixed.** Trial-bar preload/sync coverage restored (2 tests; the online one fails with the sync removed).
+- `tour-offer-test` restores `list_vocalized`.
+- **Not done, decisions:** #7 (87 `!important` in override blocks: folding them into their original rules is a
+  styling refactor across Gentle/Focused at several widths), #8 (feature flag for the offer), #9 (whole-preferences
+  save, a pre-existing pattern shared by every progress flag), #13 (36px Support button, a design she set), and the
+  remaining Lows.
+
+### Speak Mode card shows the board it opens (2026-10-13, uncommitted at the time of writing)
+- Requested: "on the speak mode card, instead of showing the image that is on that card, show the board's image
+  for the board it will take the user to"; then a round silver picture frame, lifted, the picture indented, and a
+  light thin slate outline.
+- `components/dashboard/authenticated-view.js`: `speak_target` (home board, else last board) is shared by
+  `go('speak')` (same line count, so `.eslint-todo` rows hold) and `speakBoardImage` (Board#icon_url_with_fallback;
+  the record is peeked, or fetched once by key). No board, or none loadable: the card keeps its own icon/badge.
+  All four Speak card variants in `authenticated-view.hbs`; frame styles in `app.scss` (`.md-card__icon-board-img`,
+  `.md-card--speak-focused__img--board`). Test: `dashboard-speak-board-image-test.js` (4; falsified). Written
+  before its test, against the red-first rule; checked by mutation instead.
+- Live: the example user's home board picture in Gentle and Focused, an SLP's Vocal Flair 112 in Gentle; 0 page errors.
+- Full suite: two runs did not complete because `ember serve` was running (frontend CLAUDE.md: do not run the full
+  suite then). The slow failures named different tests each time, and each passes alone.
