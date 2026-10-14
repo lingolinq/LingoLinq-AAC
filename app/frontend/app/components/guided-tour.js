@@ -386,7 +386,7 @@ const GuidedTour = Component.extend({
   // `_scheduleAutoOpen` binds afterComplete → board-picker on cancel/complete, so
   // a speak-tour Skip/X would yank the user off their board.
   _autoOpenWatcher: observer('appState.auto_open_home_tour', function() {
-    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (this.get('speakHost') || this.get('editHost') || this.get('boardAltHost')) { return; }
     if (this.get('appState.auto_open_home_tour')) {
       this._consumeAutoOpenSignal();
     }
@@ -409,7 +409,7 @@ const GuidedTour = Component.extend({
   // Cleared on consumption so a second click re-fires — an observer only runs on CHANGE, and
   // a flag left true would make the button work exactly once per page load.
   _manualStartWatcher: observer('appState.start_home_tour', function() {
-    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (this.get('speakHost') || this.get('editHost') || this.get('boardAltHost')) { return; }
     if (!this.get('appState.start_home_tour')) { return; }
     this.get('appState').set('start_home_tour', false);
     // Nothing to start if this page has no tour. The button that raised the flag is expected
@@ -722,7 +722,7 @@ const GuidedTour = Component.extend({
   _scheduleAutoOpen: function() {
     // Belt-and-suspenders: never attach the board-picker handoff from a
     // board-detail host (see _autoOpenWatcher).
-    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (this.get('speakHost') || this.get('editHost') || this.get('boardAltHost')) { return; }
     // init and _autoOpenWatcher can both call this; run one chain at a time.
     if (this._autoOpenDeferring) { return; }
     this._autoOpenDeferring = true;
@@ -1497,7 +1497,7 @@ const GuidedTour = Component.extend({
 
     // Home auto-open signals — navbar/home only (never speak/edit hosts; those
     // would bind afterComplete → board-picker onto the wrong tour).
-    if (!this.get('speakHost') && !this.get('editHost')) {
+    if (!this.get('speakHost') && !this.get('editHost') && !this.get('boardAltHost')) {
       if (this.get('appState.auto_open_home_tour')) {
         this._consumeAutoOpenSignal();
       } else {

@@ -54147,23 +54147,10 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    reads as part of the same premium card family as the rest of the dashboard.
    Scoped to Gentle View; Focused View keeps its own sizing. Source-ordered after
    the .md-grid--dashboard rules above so the equal-specificity sizes win. */
-/* Boards spanning both columns (boards-full, e.g. supervisor home) — keep the
-   larger fixed tile basis (overrides the 160px boards-full rule above). */
-/* Taller thumbnail to match the bigger tile (0,4,0 beats the 80px base + the
-   96px supervisor/admin rule). */
-/* ≤1024px: trim the strip to Home Board + the first preferred board + the
-   Emergency/Crisis board (3 total). The sibling combinator hides every regular
-   tile that FOLLOWS another regular tile, so only the first preferred one (the
-   top favourite/other) survives alongside Home and Emergency. */
-/* ≤768px: drop the preferred board too — just Home + Emergency (2 total). The
-   rest stay reachable via "View All Boards". */
-
-.md-thumb--a { background: linear-gradient(135deg, rgba(44,183,176,0.18), rgba(255,255,255,0.0)); }
-.md-thumb--b { background: linear-gradient(135deg, rgba(91,141,239,0.18), rgba(255,255,255,0.0)); }
-.md-thumb--c { background: linear-gradient(135deg, rgba(240,106,91,0.16), rgba(255,255,255,0.0)); }
-.md-thumb--d { background: linear-gradient(135deg, rgba(44,183,176,0.14), rgba(255,255,255,0.0)); }
-.md-thumb--e { background: linear-gradient(135deg, rgba(91,141,239,0.14), rgba(255,255,255,0.0)); }
-.md-thumb--f { background: linear-gradient(135deg, rgba(240,106,91,0.12), rgba(255,255,255,0.0)); }
+/* (The .md-thumb--a..f board-strip thumbnail tints and the orphaned strip-trimming comment blocks
+   that stood here were removed 2026-10-14: the boards strip was refactored to the compact-grid +
+   BoardIcon system, so nothing renders .md-thumb--* any more; its only writer, the thumbClass
+   assignment in authenticated-view.js#previewBoards, is gone too.) */
 
 
 /* --- Supervisors Card --- */

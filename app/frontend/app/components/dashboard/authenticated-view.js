@@ -1006,7 +1006,6 @@ const AuthenticatedView = Component.extend({
       // / LEARNINGS "visible-tile counts need root clustering".
       var pool = this.get('_fetchedBoards') || this.get('_fetchedPreviewBoards') || [];
       var fetched = filterRootBoards(pool, this.get('appState.currentUser.id'));
-      var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
       // When a board's display name falls back to its key (no `name`
@@ -1113,11 +1112,7 @@ const AuthenticatedView = Component.extend({
           };
         }
       } catch (e) { /* crisis tile is a best-effort append — never block the strip */ }
-      var top = capPreviewBoards(ordered, crisisItem);
-      return top.map(function(item, idx) {
-        item.thumbClass = thumbClasses[idx % thumbClasses.length];
-        return item;
-      });
+      return capPreviewBoards(ordered, crisisItem);
     }
   ),
   // 5 or fewer boards in the card: the Boards page's full-size cards instead of its compact rows.
