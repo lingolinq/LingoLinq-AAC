@@ -33,8 +33,9 @@ class SupervisorConsentService
   end
 
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
-    # F1: Anti-timing side-channel.
-    if lookup_key.blank?
+    # F1: Anti-timing side-channel. An unknown permission level is answered before the lookup,
+    # the same way for every account (it would otherwise fail only once an account was found).
+    if lookup_key.blank? || !SupervisorRelationship::PERMISSION_LEVELS.include?(permission_level.to_s)
       ::BCrypt::Password.create(SecureRandom.hex) rescue nil
       return { message: GENERIC_LOOKUP_MESSAGE }
     end

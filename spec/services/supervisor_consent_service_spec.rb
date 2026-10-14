@@ -48,6 +48,18 @@ describe SupervisorConsentService, :type => :model do
   end
 
   describe "#request_access" do
+    # An unknown permission level gets the same generic answer whether or not the account exists.
+    it "answers an unknown permission level the same for an existing and a missing account" do
+      supervisor = User.create
+      communicator = User.create
+      expect(SupervisorMailer).not_to receive(:schedule_delivery)
+      existing = service.request_access(supervisor: supervisor, lookup_key: communicator.user_name, permission_level: 'owner')
+      missing = service.request_access(supervisor: supervisor, lookup_key: 'no-such-user-anywhere', permission_level: 'owner')
+      expect(existing).to eq({ message: SupervisorConsentService::GENERIC_LOOKUP_MESSAGE })
+      expect(missing).to eq(existing)
+      expect(SupervisorRelationship.where(supervisor_user_id: supervisor.id).count).to eq(0)
+    end
+
     it "should create a pending relationship and generate token" do
       supervisor = User.create
       communicator = User.create
