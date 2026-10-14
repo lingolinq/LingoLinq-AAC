@@ -4190,8 +4190,28 @@ describe User, :type => :model do
       Worker.process_queues
       expect(u.reload.settings['asdf']).to eq('bacon')
     end
+
+    # The stash and its job are one unit: a transaction that rolls back the stash must not leave
+    # its job queued (the job would fail on the missing stash).
+    it "queues the deferred update only once its transaction commits" do
+      u = User.create
+      User.where(:id => u.id).update_all(:updated_at => 1.hour.from_now)
+      Worker.flush_queues
+      User.transaction do
+        expect(u.update_setting('asdf', 'bacon')).to eq('pending')
+        raise ActiveRecord::Rollback
+      end
+      expect(Worker.scheduled_actions.select{|a| a['args'].to_s.include?('job_stash') }).to eq([])
+
+      User.transaction do
+        expect(u.update_setting('asdf', 'bacon')).to eq('pending')
+        expect(Worker.scheduled_actions.select{|a| a['args'].to_s.include?('job_stash') }).to eq([])
+      end
+      s = JobStash.last
+      expect(Worker.scheduled?(User, :perform_action, {'id' => u.id, 'method' => 'update_setting', 'arguments' => ['job_stash', s.global_id]})).to eq(true)
+    end
   end
-  
+
   describe "external_email_allowed?" do
     it "should return the correct values" do
       u = User.new
