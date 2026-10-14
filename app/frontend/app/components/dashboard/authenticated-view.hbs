@@ -326,7 +326,7 @@
       <button type="button" class="md-card md-card--speak md-card--speak-as-button md-card--speak-narrow-only" style={{this.cardHideStyle.speak}} aria-label={{t "Speak Mode" key="speak_mode"}} {{on "click" (fn this.onGo "speak")}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
-            {{#if this.speakBoardImage}}<img src={{this.speakBoardImage}} class="md-card__icon-board-img" alt="">{{else}}<svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/><path d="M15.6 8.5a5 5 0 0 1 0 7"/><path d="M18.7 5.8a9 9 0 0 1 0 12.4"/></svg>{{/if}}
+            {{#if this.speakBoardImage}}<img src={{this.speakBoardImage}} class="md-card__icon-board-img" alt="">{{else}}<img src={{path "images/speak-circle-light.png"}} class="md-card__icon-circle-img" alt="">{{/if}}
           </div>
           <div class="md-card__titles">
             <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}} <span aria-hidden="true">→</span></div>
