@@ -106,6 +106,11 @@ function buildCommunicatorBoardSteps(view, layout) {
       step.modalOverlayOpeningRadius = 18;
       step.matchTargetRadius = false;
     }
+    // Nudge the "Review your board" popover down (CSS translate stacks on floating-ui's transform;
+    // requested 2026-10-13, Modern board-detail). Scoped by class so only that step moves.
+    if (cfg.id === 'comm_board_tour_board') {
+      step.classes += ' ' + p + '-tour__step--comm-board';
+    }
     steps.push(step);
   });
   if (!basic && layout === 'focused') {

@@ -93733,6 +93733,12 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 .shepherd-element.md-tour__step--bds-grid[data-popper-placement^=top] {
   margin-top: calc(10rem - 16px);
 }
+/* "Review your board" (communicator board-detail tour, comm_board_tour_board) sits 100px lower
+   (requested 2026-10-13): it spotlights the board top and rode high over the header. Scoped to the
+   top-placed case, like the rule above, so a flipped (bottom) placement is not shoved wrong. */
+.shepherd-element.md-tour__step--comm-board[data-popper-placement^=top] {
+  margin-top: 100px;
+}
 .shepherd-element.md-tour__step--intro {
   /* Wide enough to hold the (long) progress-dot row + the intro/outro buttons on
      one line — the tour has many steps now. */
