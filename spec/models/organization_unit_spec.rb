@@ -1078,4 +1078,63 @@ describe OrganizationUnit, :type => :model do
       expect(UserLink.where(record_code: "OrganizationUnit:#{ou.global_id}").count).to eq(2)
     end
   end
+
+  # Taking a member out of a room removes the room link at once and the pair's supervision in a
+  # job; the job is backed by a row (room_member_removal) kept until it completes.
+  describe "member removal" do
+    def room_members
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      [o, ou, sup, comm]
+    end
+
+    def removal_rows
+      RemoteAction.where(action: 'room_member_removal')
+    end
+
+    it "completes a removal from its row when the job is lost" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      expect(removal_rows.count).to eq(1)
+      Worker.flush_queues
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "completes a removal after the organization is destroyed when the job is lost" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      o.reload.destroy
+      Worker.flush_queues
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "releases the row when the removal job completes" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      expect(removal_rows.count).to eq(1)
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => sup.global_id, 'remove_supervisor' => sup.user_name})
+      expect(removal_rows.count).to eq(0)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+    end
+  end
 end

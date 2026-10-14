@@ -129,6 +129,7 @@ class OrganizationUnit < ApplicationRecord
     return false unless user && org
     UserLink.remove(user, self, 'org_unit_supervisor')
     assert_list('supervisors', user.global_id)
+    record_member_removal(user, 'supervisor')
     schedule(:assert_supervision, {user_id: user.global_id, remove_supervisor: user_name})
     true
     self.save
@@ -157,6 +158,7 @@ class OrganizationUnit < ApplicationRecord
     return false unless user && org
     UserLink.remove(user, self, 'org_unit_communicator')
     assert_list('communicators', user.global_id)
+    record_member_removal(user, 'communicator')
     schedule(:assert_supervision, {user_id: user.global_id, remove_communicator: user_name})
     true
     self.save
@@ -346,11 +348,13 @@ class OrganizationUnit < ApplicationRecord
       communicators.each do |user|
         User.unlink_supervisor_from_user(ref_user, user, self.global_id)
       end
+      member_removal_done(ref_user, 'supervisor')
     elsif opts['remove_communicator']
       self.schedule(:assert_goal)
       supervisors.each do |user|
         User.unlink_supervisor_from_user(user, ref_user, self.global_id)
       end
+      member_removal_done(ref_user, 'communicator')
     elsif opts['add_supervisor']
       edit_permission = !!supervisor_links.detect{|l| l['user_id'] == ref_user.global_id && l['state'] && l['state']['edit_permission'] }
       communicators.each do |user|
@@ -374,17 +378,61 @@ class OrganizationUnit < ApplicationRecord
   # own supervision links, not from the room's members.
   def strip_destroyed_org_supervision(ref_user, opts)
     return false unless opts['remove_supervisor'] || opts['remove_communicator']
+    kind = opts['remove_supervisor'] ? 'supervisor' : 'communicator'
     org_id = self.organization_id
     unit_ids = OrganizationUnit.where(organization_id: org_id).map(&:global_id)
-    if opts['remove_supervisor']
+    pairs = OrganizationUnit.removed_member_pairs(ref_user, kind, unit_ids)
+    if pairs.length > 0
+      staff_since, actor = Organization.destroyed_org_cleanup_context(org_id)
+      User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor)
+    end
+    member_removal_done(ref_user, kind)
+    true
+  end
+
+  # The supervision pairs of a member taken out of a room, from the member's own supervision links
+  # that list any of unit_ids (the room no longer lists the member).
+  def self.removed_member_pairs(ref_user, kind, unit_ids)
+    if kind == 'supervisor'
       links = ref_user.supervisee_links.select{|l| ((l['state'] || {})['organization_unit_ids'] || []).intersect?(unit_ids) }
-      pairs = User.find_all_by_global_id(links.map{|l| l['user_id'] }.uniq).map{|comm| [ref_user, comm] }
+      User.find_all_by_global_id(links.map{|l| l['user_id'] }.uniq).map{|comm| [ref_user, comm] }
     else
       links = ref_user.supervisor_links.select{|l| ((l['state'] || {})['organization_unit_ids'] || []).intersect?(unit_ids) }
-      pairs = User.find_all_by_global_id(links.map{|l| l['record_code'].split(/:/)[1] }.uniq).map{|sup| [sup, ref_user] }
+      User.find_all_by_global_id(links.map{|l| l['record_code'].split(/:/)[1] }.uniq).map{|sup| [sup, ref_user] }
     end
-    return true if pairs.empty?
-    staff_since, actor = Organization.destroyed_org_cleanup_context(org_id)
-    User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor)
+  end
+
+  # A member's removal (remove_supervisor, remove_communicator) is completed by a queued
+  # assert_supervision; this row backs that job, is released when it completes
+  # (member_removal_done), and RemoteAction#process_action runs complete_member_removal from it
+  # if the job is lost. Ids and the kind only.
+  def member_removal_path(user, kind)
+    "#{self.global_id}::#{user.global_id}::#{kind}"
+  end
+
+  def record_member_removal(user, kind)
+    path = member_removal_path(user, kind)
+    RemoteAction.where(path: path, action: 'room_member_removal').delete_all
+    RemoteAction.create(path: path, action: 'room_member_removal', act_at: 1.hour.from_now,
+      extra: {'organization_id' => self.organization_id}.to_json)
+  end
+
+  def member_removal_done(user, kind)
+    RemoteAction.where(path: member_removal_path(user, kind), action: 'room_member_removal').delete_all
+  end
+
+  def self.complete_member_removal(path)
+    rows = RemoteAction.where(path: path, action: 'room_member_removal')
+    return true unless rows.exists?
+    unit_id, user_id, kind = path.split(/::/)
+    user = User.find_by_global_id(user_id)
+    unit = OrganizationUnit.find_by_global_id(unit_id)
+    if user && unit
+      # releases the row when it completes
+      unit.assert_supervision({'user_id' => user.global_id, "remove_#{kind}" => true})
+    else
+      rows.delete_all
+    end
+    true
   end
 end

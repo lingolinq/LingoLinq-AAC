@@ -54,6 +54,11 @@ class RemoteAction < ApplicationRecord
       # clean_up_destroyed_org above.
       ra.update_column(:act_at, 1.hour.from_now)
       return :keep
+    elsif ra.action == 'room_member_removal'
+      OrganizationUnit.schedule(:complete_member_removal, ra.path)
+      # Kept until the removal completes (OrganizationUnit#member_removal_done).
+      ra.update_column(:act_at, 1.hour.from_now)
+      return :keep
     elsif ra.action == 'update_library_cache'
       cache = LibraryCache.find_by_global_id(ra.path)
       cache.schedule_for(:slow, :find_expired_words) if cache
