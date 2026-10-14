@@ -242,6 +242,49 @@ describe SupervisorConsentService, :type => :model do
       expect(communicator.reload.supervisor_user_ids).to include(supervisor.global_id)
     end
 
+    # A request made on behalf of an organization is approved only while the supervisor still
+    # belongs to it as an approved supervisor or manager; otherwise it closes without a link.
+    def org_request
+      o = Organization.create
+      supervisor = User.create
+      communicator = User.create
+      o.add_supervisor(supervisor.user_name, false)
+      o.add_user(communicator.user_name, false, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: o.global_id)
+      rel = SupervisorRelationship.where(supervisor_user_id: supervisor.id, communicator_user_id: communicator.id).last
+      expect(rel.organization_id).to eq(o.id)
+      [o, supervisor, communicator, rel]
+    end
+
+    it "does not link a supervisor who left the request's organization" do
+      o, supervisor, communicator, rel = org_request
+      o.remove_supervisor(supervisor.user_name)
+      result = service.approve(token: rel.consent_response_token)
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(User.find(communicator.id).supervisor_user_ids).to eq([])
+      rel.reload
+      expect(rel.status).to eq('expired')
+      expect(rel.revocation_reason).to eq('supervisor_not_in_organization')
+      expect(rel.consent_response_token).to eq(nil)
+    end
+
+    it "does not link through the in-app approval a supervisor whose organization was destroyed" do
+      o, supervisor, communicator, rel = org_request
+      o.reload.destroy
+      result = service.approve_as_party(relationship: rel, actor: User.find(communicator.id))
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(User.find(communicator.id).supervisor_user_ids).to eq([])
+      expect(rel.reload.status).to eq('expired')
+    end
+
+    it "links a supervisor who still belongs to the request's organization" do
+      o, supervisor, communicator, rel = org_request
+      result = service.approve(token: rel.consent_response_token)
+      expect(result[:error]).to eq(nil)
+      expect(User.find(communicator.id).supervisor_user_ids).to eq([supervisor.global_id])
+    end
+
     it "should return error for invalid token" do
       result = service.approve(token: 'bogus')
       expect(result[:error]).to eq('invalid_or_expired_token')

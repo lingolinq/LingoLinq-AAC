@@ -328,6 +328,19 @@ class SupervisorConsentService
   # Runs inside the caller's lock and transaction. Mail is NOT scheduled here;
   # see schedule_after_commit.
   def finalize_approve(relationship)
+    # A request made on behalf of an organization is approved only while the supervisor still
+    # belongs to it as an approved supervisor or manager; otherwise it closes, with the reason
+    # recorded, and nothing is linked (the caller gets the generic token error).
+    if relationship.organization_id && !supervisor_still_in_organization?(relationship)
+      relationship.update!(
+        status: 'expired',
+        consent_responded_at: Time.current,
+        consent_response_token: nil,
+        revocation_reason: 'supervisor_not_in_organization'
+      )
+      return token_rejection(relationship)
+    end
+
     relationship.update!(
       status: 'approved',
       consent_responded_at: Time.current,
@@ -339,6 +352,12 @@ class SupervisorConsentService
     User.link_supervisor_to_user(relationship.supervisor_user, relationship.communicator_user, nil, link_type)
 
     { relationship: relationship }
+  end
+
+  def supervisor_still_in_organization?(relationship)
+    org = Organization.find_by(id: relationship.organization_id)
+    supervisor = relationship.supervisor_user
+    !!(org && supervisor && Organization.staff_org_ids(supervisor).include?(org.global_id))
   end
 
   def finalize_deny(relationship)
