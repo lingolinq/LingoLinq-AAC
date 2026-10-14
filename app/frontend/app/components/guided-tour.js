@@ -802,6 +802,13 @@ const GuidedTour = Component.extend({
     if (supporter) {
       return;
     }
+    // Switch-scanning / eye-gaze (dwell) communicators cannot operate the full-screen welcome card
+    // (its in-body buttons are no scanner target and in no dwell region; only Esc rescues a keyboard
+    // user) — the same population the post-message tour offer already excludes (tours/tour_offer.js:54).
+    // Skip the auto-open welcome for them rather than trap them in it (adversary review 2026-10-14).
+    if (this.get('appState.currentUser.preferences.device.scanning') || this.get('appState.currentUser.preferences.device.dwell')) {
+      return;
+    }
     this._startHomeAutoOpen();
   },
 

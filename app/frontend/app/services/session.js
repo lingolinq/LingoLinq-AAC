@@ -717,9 +717,11 @@ export default Service.extend({
       capabilities.access_token = null;
     }
     // Clear the stored login only when it is this tab's (or already empty): another tab may have
-    // signed in since, and every tab shares it.
+    // signed in since, and every tab shares it. A NULL own_token is "not provably mine", so it must
+    // NOT clear a stored token another tab just installed (adversary review 2026-10-14): only an empty
+    // stored login or an exact match may be cleared.
     var stored = this.stashes.get_object('auth_settings', true) || {};
-    if(!stored.access_token || !own_token || stored.access_token === own_token) {
+    if(!stored.access_token || stored.access_token === own_token) {
       try {
         this.persist({});
       } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }

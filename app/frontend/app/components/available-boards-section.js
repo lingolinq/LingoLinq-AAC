@@ -918,6 +918,12 @@ AvailableBoardsSection.reopen({
     if (user && me && backend_user_id(user) === backend_user_id(me)) { user = me; }
     var key = board && (board.get ? board.get('key') : board.key);
     if (!key || !user) { return; }
+    // Leave Set-Home mode SYNCHRONOUSLY on this first tap, before any await (adversary review
+    // 2026-10-14). The owned latch (_settingOwnedHome) only blocked a second OWNED tap; a public
+    // board tapped during an owned board's in-flight save still opened the copy dialog, so two
+    // home-sets raced and the last write won. With assigningHome off now, a second tap on any other
+    // board routes to open_board_in_user_view (the assigningHome gate at ~l.213), not a second assign.
+    self._setAssigningHome(false);
     var owned = key.indexOf(user.get('user_name') + '/') === 0;
     var ctrl = self.get('boardsCtrl');
     // Where every tile is now, so Not now can replay the re-sort as movement (utils/home-move.js).

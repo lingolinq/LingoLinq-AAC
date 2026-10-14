@@ -2193,7 +2193,7 @@ export default Service.extend({
        a previous account's record surviving a logout is exactly what this method
        exists to prevent. */
     this.set('page_user', null);
-    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null, board_picker_recent: null, board_picker_return: null, board_picker_category: null, board_picker_restore: false, home_copy_pending: null, board_alt_tour_pending: null, tour_offer_visible: false, tour_offer_user: null }); // Basic Try marker + home-page handoffs (2026-10-01), and the trial, picker and tour-offer state (2026-10-13): per-user, must not reach the next account
+    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null, board_picker_recent: null, board_picker_return: null, board_picker_category: null, board_picker_restore: false, home_copy_pending: null, board_alt_tour_pending: null, tour_offer_visible: false, tour_offer_user: null, board_detail_try_origin: null, board_detail_nav_history: null }); // Basic Try marker + home-page handoffs (2026-10-01), and the trial, picker and tour-offer state (2026-10-13): per-user, must not reach the next account. board_detail_try_origin/nav_history (the Modern trial marker + trail, which carry the trial subject's id/name) added 2026-10-14 (adversary review) so they do not survive to the next account on a shared device
 
     // Per-user route memory (next route transition would overwrite anyway,
     // but clearing here removes stale "previous user" context from any
