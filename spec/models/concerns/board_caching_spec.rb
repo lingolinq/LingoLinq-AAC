@@ -849,6 +849,36 @@ describe BoardCaching, :type => :model do
 
           expect(User.find(member.id).private_viewable_board_ids).not_to include(board.global_id)
         end
+
+        # The same within one second, as two refreshes of a small user usually are: a whole-second
+        # 'generated' stamp could not tell the newer run from the older one.
+        it "does not store over the list a newer refresh stored in the same second" do
+          manager = User.create
+          member = User.create
+          board = Board.create(:user => manager)
+          org = Organization.create
+          org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+          org.save
+          org.add_user(member.user_name, false, false)
+          member.reload.update_available_boards
+          expect(User.find(member.id).private_viewable_board_ids).to include(board.global_id)
+          running = User.find(member.id)
+          before_refresh_stores do
+            org.reload.settings.delete('default_home_boards')
+            org.save
+            User.find(member.id).update_available_boards
+            expect(User.find(member.id).private_viewable_board_ids).not_to include(board.global_id)
+          end
+
+          # one wall-clock second for both runs
+          travel_to(Time.at(Time.now.to_i + 0.1)) do
+            running.update_available_boards(BoardCaching::STALE_REFRESH_RETRIES)
+          end
+
+          expect(User.find(member.id).private_viewable_board_ids).not_to include(board.global_id)
+          # the refused run leaves a refresh pending
+          expect(RemoteAction.where(path: member.global_id, action: 'update_available_boards').count).to eq(1)
+        end
       end
 
       it "keeps a write made after the caller loaded the user and before the refresh started" do

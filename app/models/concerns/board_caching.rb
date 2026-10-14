@@ -46,10 +46,14 @@ module BoardCaching
       end
     end
     generated = Time.now.to_i
-    store_available_board_ids({'generated' => generated}, touch: false)
+    # 'run' marks the latest run to start: a run that started later overwrites it, so this run's
+    # store is refused unless it is still this run's own. 'generated' (whole seconds, read by the
+    # 60-minute gate above) cannot order two runs within one second.
+    run = SecureRandom.hex(8)
+    store_available_board_ids({'generated' => generated, 'run' => run}, touch: false)
     supervisees = self.supervisees
     # what this run reads, compared under the lock before its result is stored
-    inputs_read = {'generated' => generated, 'access' => available_boards_access_inputs(self, supervisees)}
+    inputs_read = {'generated' => generated, 'run' => run, 'access' => available_boards_access_inputs(self, supervisees)}
     authored = []
     # find all private boards authored by this user
     Board.where(:public => false, :user_id => self.id).select('id').find_in_batches(batch_size: 200) do |batch|
@@ -187,8 +191,10 @@ module BoardCaching
 
   # Read fresh (links from the tables, not the links_for cache) under the user's row lock.
   def available_boards_inputs_current?(fresh, inputs_read)
-    generated = (fresh.settings['available_private_board_ids'] || {})['generated'] || 0
-    return false if generated > inputs_read['generated']
+    stored = fresh.settings['available_private_board_ids'] || {}
+    # a run that started later: its own token, or, from code that writes no token, a later second
+    return false if stored['run'] != inputs_read['run']
+    return false if (stored['generated'] || 0) > inputs_read['generated']
     supervisee_ids = inputs_read['access']['supervisee_boards'].map(&:first)
     by_id = User.where(id: supervisee_ids).index_by(&:id)
     supervisees = supervisee_ids.map{|id| by_id[id] }
