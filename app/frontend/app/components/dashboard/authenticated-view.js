@@ -23,6 +23,17 @@ import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates';
 
+/* STALE-WHILE-REVALIDATE cache for the Boards card previews, keyed by user id, OUTLIVING the
+   component (which is rebuilt on every home/extras/index arrival, so instance state re-fetched
+   from scratch — the "several seconds" the Boards div took to fill). `_loadPreviewBoards` seeds
+   `_fetchedPreviewBoards`/`_fetchedBoards` from here so the card paints instantly, then ALWAYS
+   runs its background fetch and overwrites both the lists and this cache. Because the fetch is
+   never skipped, a created/copied/deleted board shows one fetch-window late rather than "until
+   reload" — the staleness the prior inline note (~_fetchRemainingForCount) warned a plain cache
+   would cause. Module-scoped (not a service) is the smallest thing that survives the component;
+   it clears naturally on a full reload. */
+var _previewBoardCache = {};
+
 const AuthenticatedView = Component.extend({
   tagName: '',
   
@@ -1116,6 +1127,15 @@ const AuthenticatedView = Component.extend({
     var _this = this;
     var user = _this.get('appState.currentUser');
     if (!user || !user.get('id')) { return; }
+    var userId = user.get('id');
+    // SEED the Boards card from the cross-navigation cache so it paints instantly on return; the
+    // background fetch below still runs (the guard is instance state) and overwrites with fresh
+    // data + refreshes the cache (stale-while-revalidate).
+    var cached = _previewBoardCache[userId];
+    if (cached && !_this.get('_fetchedPreviewBoards')) {
+      _this.set('_fetchedPreviewBoards', cached.preview);
+      if (cached.full) { _this.set('_fetchedBoards', cached.full); }
+    }
     if (_this.get('_previewBoardsLoaded')) { return; }
     _this.set('_previewBoardsLoaded', true);
     // Fetch preview boards (5) and total count in parallel
@@ -1125,19 +1145,27 @@ const AuthenticatedView = Component.extend({
     // partition (starred vs not) something real to sort. Board count
     // follow-up (_fetchRemainingForCount) is unaffected — it just sees
     // a larger first page before paging the rest for the total count.
-    _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
+    _this.get('store').query('board', { user_id: userId, per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', A(results));
+      _previewBoardCache[userId] = _previewBoardCache[userId] || {};
+      _previewBoardCache[userId].preview = A(results);
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
+        _this._fetchRemainingForCount(userId, meta.next_offset, results);
       } else {
         _this.set('_fetchedBoards', A(results));
+        _previewBoardCache[userId].full = A(results);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedPreviewBoards', A([]));
+      // A FAILED revalidation must not wipe cache-seeded previews to empty (they would flash then
+      // vanish offline). Only clear to empty when there was nothing seeded, so a first-load failure
+      // still resolves the loading state to "no boards".
+      if (!(_this.get('_fetchedPreviewBoards') || []).length) {
+        _this.set('_fetchedPreviewBoards', A([]));
+      }
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
@@ -1169,6 +1197,8 @@ const AuthenticatedView = Component.extend({
         _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
         _this.set('_fetchedBoards', A(combined));
+        _previewBoardCache[userId] = _previewBoardCache[userId] || {};
+        _previewBoardCache[userId].full = A(combined);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
