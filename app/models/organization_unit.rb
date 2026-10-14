@@ -355,22 +355,29 @@ class OrganizationUnit < ApplicationRecord
     # afterwards; a removal still applies (strip_destroyed_org_supervision).
     return strip_destroyed_org_supervision(ref_user, opts) unless self.organization
 
-    links = UserLink.links_for(self)
+    # read fresh: who is in the room now decides a queued removal and who a queued add links
+    links = UserLink.links_for(self, true)
     communicator_ids = links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq
     supervisor_links = links.select{|l| l['type'] == 'org_unit_supervisor' }
     supervisor_ids = supervisor_links.map{|l| l['user_id'] }.uniq
     communicators = User.find_all_by_global_id(communicator_ids)
     supervisors = User.find_all_by_global_id(supervisor_ids)
 
+    # a member put back in the room since the removal was queued keeps the room's supervision:
+    # the removal only completes its row (membership read fresh above)
     if opts['remove_supervisor']
-      communicators.each do |user|
-        User.unlink_supervisor_from_user(ref_user, user, self.global_id)
+      unless supervisor_ids.include?(ref_user.global_id)
+        communicators.each do |user|
+          User.unlink_supervisor_from_user(ref_user, user, self.global_id)
+        end
       end
       member_removal_done(ref_user, 'supervisor')
     elsif opts['remove_communicator']
       self.schedule(:assert_goal)
-      supervisors.each do |user|
-        User.unlink_supervisor_from_user(user, ref_user, self.global_id)
+      unless communicator_ids.include?(ref_user.global_id)
+        supervisors.each do |user|
+          User.unlink_supervisor_from_user(user, ref_user, self.global_id)
+        end
       end
       member_removal_done(ref_user, 'communicator')
     elsif opts['add_supervisor']

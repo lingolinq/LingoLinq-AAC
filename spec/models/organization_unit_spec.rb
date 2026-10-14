@@ -604,6 +604,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_supervisor(u4.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u2, ou.global_id)
@@ -676,6 +677,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_communicator(u1.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u3, u1, ou.global_id)
@@ -702,6 +704,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_communicator(u1.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u3, u1, ou.global_id)
@@ -729,6 +732,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_supervisor(u4.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u2, ou.global_id)
@@ -1113,6 +1117,22 @@ describe OrganizationUnit, :type => :model do
 
       expect(OrganizationUnit.find(ou.id).supervisor?(User.find(sup.id))).to eq(true)
       expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
+    # A removal job queued before the member was put back runs after the re-add: it finds them in
+    # the room again and only completes its row.
+    it "keeps the supervision of a member re-added when the queued removal runs afterwards" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      OrganizationUnit.find(ou.id).add_communicator(comm.user_name)
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+
+      # the removal job queued before the re-add, run late
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'remove_communicator' => comm.user_name})
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(removal_rows.count).to eq(0)
     end
 
     it "completes a removal from its row when the job is lost" do
