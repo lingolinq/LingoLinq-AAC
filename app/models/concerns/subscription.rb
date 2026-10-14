@@ -1117,7 +1117,7 @@ module Subscription
     # columns the check needs: id, updated_at and settings for the default exemption check
     # (inactivity_deletion_exempt?), and full rows for a custom accept block (billing_state reads
     # several columns and may save).
-    def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, &accept)
+    def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, stats: nil, &accept)
       columns = accept ? nil : [:id, :updated_at, :settings]
       accept ||= lambda{|u| !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil? }
       accepted = {}
@@ -1139,12 +1139,12 @@ module Subscription
         last_id, last_at = keys[-1]
       end
       ids = accepted.keys.first(window)
+      # stats (optional Hash): counts only, for the sweep's log line
+      stats.merge!('scanned' => scanned, 'accepted' => ids.length) if stats
       stop_at, stop_id = cursor_key && inactivity_sweep_stop(scope, accepted, ids, window, scanned, last_at, last_id)
-      if stop_id
-        Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{stop_at.utc.iso8601(6)}|#{stop_id}")
-      elsif cursor_key
-        RedisInit.default.del(cursor_key)
-      end
+      # resume point, or none so the next run starts from the oldest
+      Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{stop_at.utc.iso8601(6)}|#{stop_id}") if stop_id
+      RedisInit.default.del(cursor_key) if cursor_key && !stop_id
       ids
     end
 
@@ -1256,13 +1256,14 @@ module Subscription
       # send out a two and one-month warning when account is 
       # going to be deleted for inactivity (after 12 months of non-use)
       # Accounts already scheduled for deletion are left out of both lists: their schedule stands.
-      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]).where(schedule_deletion_at: nil), INACTIVITY_SWEEP_WINDOW, 'inactivity_sweep_cursor/inactive')
+      inactive_stats, trial_stats = {}, {}
+      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]).where(schedule_deletion_at: nil), INACTIVITY_SWEEP_WINDOW, 'inactivity_sweep_cursor/inactive', stats: inactive_stats)
       non_expired_ids = []
       # if users are on an expired free trial, we can delete them much sooner
       # Accounts that are not expired communicators are set aside (hour-truncated below, which the
       # query excludes); exempt expired trials are walked past.
       trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago]).where(schedule_deletion_at: nil)
-      trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW, 'inactivity_sweep_cursor/trial') do |u|
+      trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW, 'inactivity_sweep_cursor/trial', stats: trial_stats) do |u|
         if u.billing_state == :expired_communicator
           !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil?
         else
@@ -1289,7 +1290,12 @@ module Subscription
       #   puts exp_ids.length
       # end;
 
-      User.where(id: non_expired_ids).update_all("updated_at = DATE_TRUNC('hour', updated_at)")
+      # Set aside in statements of at most a page of rows, not one statement over the whole scan.
+      set_aside = 0
+      non_expired_ids.each_slice(INACTIVITY_SWEEP_PAGE) do |slice|
+        set_aside += User.where(id: slice).update_all("updated_at = DATE_TRUNC('hour', updated_at)")
+      end
+      Rails.logger.info("[inactivity sweep] inactive scanned=#{inactive_stats['scanned']} accepted=#{inactive_stats['accepted']}; trial scanned=#{trial_stats['scanned']} accepted=#{trial_stats['accepted']} set_aside=#{set_aside}")
       # Which candidate list each id came from, so the locked step can re-apply that list's rule.
       inactive_id_set = to_be_deleted_ids.to_set
       trial_id_set = trial_to_be_deleted_ids.to_set

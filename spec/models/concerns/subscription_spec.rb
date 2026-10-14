@@ -2427,8 +2427,8 @@ describe Subscription, :type => :model do
       # batch loaded matches its batch copy, so the locked step re-applies the candidate list's own
       # inactivity rule to the fresh row.
       def after_trial_scan(&block)
-        allow(User).to receive(:inactive_deletion_candidate_ids).and_wrap_original do |orig, scope, window, cursor_key = nil, &accept|
-          res = orig.call(scope, window, cursor_key, &accept)
+        allow(User).to receive(:inactive_deletion_candidate_ids).and_wrap_original do |orig, scope, window, cursor_key = nil, **opts, &accept|
+          res = orig.call(scope, window, cursor_key, **opts, &accept)
           block.call if cursor_key == 'inactivity_sweep_cursor/trial'
           res
         end
@@ -2681,6 +2681,33 @@ describe Subscription, :type => :model do
         expect(User.find(second.id).settings['subscription']['last_deletion_attempts']).to eq(1)
         # the run returned the last account in the scope, so the next run starts from the oldest
         expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
+      end
+
+      # Expired-trial rows that are not expired communicators are set aside (hour-truncated) in
+      # statements of at most a page of rows, and the run logs its counts (no identifiers).
+      it "sets aside non-expired trial rows a page at a time and logs the sweep counts" do
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 2)
+        set_aside = 5.times.map do |i|
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['never_expires'] = true
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: (2.months.ago + i.minutes).change(sec: 13))
+          u
+        end
+        expect(User.find(set_aside[0].id).billing_state).not_to eq(:expired_communicator)
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        allow(Rails.logger).to receive(:info).and_call_original
+        updates = []
+        record = ->(*, payload) { updates << payload[:sql] if payload[:sql] =~ /UPDATE "users".*DATE_TRUNC/m }
+
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          User.check_for_subscription_updates
+        end
+
+        expect(updates.length).to eq(3)
+        set_aside.each { |u| expect(User.find(u.id).updated_at).to eq(User.find(u.id).updated_at.beginning_of_hour) }
+        expect(Rails.logger).to have_received(:info).with("[inactivity sweep] inactive scanned=0 accepted=0; trial scanned=5 accepted=0 set_aside=5")
       end
     end
 
