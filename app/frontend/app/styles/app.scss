@@ -40353,6 +40353,20 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   font-variant-numeric: tabular-nums;
   box-shadow: none;
 }
+/* Need Attention sub-line: the full phrase at desktop, a short "Follow up needed"
+   at ≤1024px where the header is tighter (requested 2026-10-13). One sub-line is
+   shown at a time; the other is display:none so it stays out of layout. */
+.md-attention__sub-short {
+  display: none;
+}
+@media (max-width: 1024px) {
+  .md-attention__sub-full {
+    display: none;
+  }
+  .md-attention__sub-short {
+    display: inline;
+  }
+}
 /* ≤640px: drop the count badge's 12px left margin on the My Organizations and
    Communicators Need Attention counts (Rooms keeps its margin — not requested).
    Scoped to org so the shared .md-rooms__count base isn't touched for Rooms. */

@@ -4944,6 +4944,7 @@
   "view_all_rooms_label": "View all rooms",
   "communicators_need_attention": "Communicators Need Attention",
   "attention_card_sub": "Follow up on these communicators",
+  "attention_card_sub_short": "Follow up needed",
   "view_all_communicators_label": "View all communicators",
   "start_communication": "Start communication",
   "continue_speaking": "Continue Speaking",
