@@ -1359,7 +1359,12 @@ module Subscription
             mail = attempts > 2 ? 'account_deleted' : 'deletion_warning'
             outcome, failures = settle_failed_inactivity_step(user.id, *step)
             Rails.logger.error("[inactivity sweep] #{mail} mail failed (#{e.class}); step #{outcome}#{failures ? " after #{failures} failures" : ''}")
-            if outcome == :kept_without_notice
+            if outcome == :undone
+              # put it back in front of the cursor, so the next run retries it
+              at = Time.iso8601(step[0]['updated_at'])
+              rewind_inactivity_sweep_cursor('inactivity_sweep_cursor/inactive', at, user.id) if inactive_id_set.include?(user.id)
+              rewind_inactivity_sweep_cursor('inactivity_sweep_cursor/trial', at, user.id) if trial_id_set.include?(user.id)
+            elsif outcome == :kept_without_notice
               AuditEvent.log_command('system', {'type' => 'inactivity_step_kept_without_notice', 'user_id' => user.global_id, 'step' => mail, 'mail_failures' => failures})
             end
             next
@@ -1455,6 +1460,16 @@ module Subscription
       elsif scanned >= INACTIVITY_SWEEP_SCAN_LIMIT && last_id
         [last_at, last_id]
       end
+    end
+
+    # Moves a sweep cursor back so the next run resumes at (updated_at, id) inclusive, when it is
+    # set and past that row; an unset cursor already starts the next run from the oldest.
+    def rewind_inactivity_sweep_cursor(cursor_key, at, id)
+      cur_at, cur_id = inactivity_sweep_cursor(cursor_key)
+      return unless cur_id
+      return if at.utc.iso8601(6) > cur_at.utc.iso8601(6) || (at.utc.iso8601(6) == cur_at.utc.iso8601(6) && id > cur_id)
+      # the cursor is exclusive ((updated_at, id) > cursor) and ids are integers
+      Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{at.utc.iso8601(6)}|#{id - 1}")
     end
 
     # Recorded under settings['subscription']['inactivity_deletion'] when the inactivity sweep

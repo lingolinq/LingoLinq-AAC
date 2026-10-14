@@ -2631,6 +2631,48 @@ describe Subscription, :type => :model do
         end
       end
 
+      # A run that fills its window resumes after the last account it returned. An account whose
+      # step was undone after its mail failed is put back in front of the cursor, so the next run
+      # retries it instead of leaving it behind until the scope wraps.
+      describe "an undone account and the sweep cursor" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        before(:each) do
+          stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+          stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+        end
+
+        def two_accounts_to_warn
+          first = inactive_account_to_warn
+          User.where(id: first.id).update_all(updated_at: 14.months.ago, created_at: 2.years.ago)
+          second = inactive_account_to_warn
+          User.where(id: second.id).update_all(created_at: 2.years.ago)
+          [first, second]
+        end
+
+        it "retries an account whose mail failed on the next run" do
+          first, second = two_accounts_to_warn
+          failing_mail_for(first)
+          User.check_for_subscription_updates
+          expect((User.find(first.id).settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          travel(1.day) { User.check_for_subscription_updates }
+
+          expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+
+        it "moves past an account whose mail always fails once its step is kept" do
+          first, second = two_accounts_to_warn
+          failing_mail_for(first)
+
+          9.times { |d| travel(d.days) { User.check_for_subscription_updates } }
+
+          expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(User.find(second.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+      end
+
       describe "accounts already scheduled for deletion" do
         include ActiveSupport::Testing::TimeHelpers
 
