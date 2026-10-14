@@ -1,6 +1,10 @@
 class SupervisorConsentService
   GENERIC_LOOKUP_MESSAGE = "If an account matching that information exists, an email has been sent.".freeze
 
+  # The global id of the organization stored on the last request_access relationship (nil when
+  # none was stored or no relationship was made), for the caller's audit record.
+  attr_reader :requested_organization_id
+
   def create_with_supervisor(supervisor:, communicator_params:, owner_email:, permission_level: 'edit_boards')
     communicator = User.process_new(communicator_params)
     return { error: 'communicator_creation_failed', communicator: communicator } if communicator.errored?
@@ -33,6 +37,7 @@ class SupervisorConsentService
   end
 
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
+    @requested_organization_id = nil
     # F1: Anti-timing side-channel. An unknown permission level is answered before the lookup,
     # the same way for every account (it would otherwise fail only once an account was found).
     if lookup_key.blank? || !SupervisorRelationship::PERMISSION_LEVELS.include?(permission_level.to_s)
@@ -65,6 +70,7 @@ class SupervisorConsentService
       ).first
 
       unless existing
+        sup_staff_orgs = Organization.staff_org_ids(supervisor)
         relationship = SupervisorRelationship.new(
           supervisor_user: supervisor,
           communicator_user: communicator,
@@ -73,8 +79,9 @@ class SupervisorConsentService
           initiated_by: 'supervisor',
           creation_method: 'request_access',
           lookup_method: lookup_key.include?('@') ? 'email' : 'username',
-          # A supplied organization is used only when it is one of the supervisor's own.
-          organization_id: relationship_organization_id((sup_orgs.include?(organization_id.to_s) ? organization_id.to_s : nil) || (comm_orgs & sup_orgs).first)
+          # A supplied organization is used only when it is one of the supervisor's own: one they
+          # belong to as an approved supervisor or manager (Organization.staff_org_ids).
+          organization_id: relationship_organization_id((sup_staff_orgs.include?(organization_id.to_s) ? organization_id.to_s : nil) || (comm_orgs & sup_staff_orgs).first)
         )
 
         # F10: COPPA - Route to parent/guardian if under 13
@@ -91,6 +98,7 @@ class SupervisorConsentService
         
         relationship.consent_email_sent_to = target_email
         relationship.save!
+        @requested_organization_id = relationship.organization_id && Organization.new(id: relationship.organization_id).global_id
         relationship.generate_consent_token!
         
         SupervisorMailer.schedule_delivery(:consent_request, relationship.global_id)

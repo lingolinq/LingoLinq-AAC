@@ -162,6 +162,28 @@ describe SupervisorConsentService, :type => :model do
       expect(mail.text_part.body.to_s).not_to include('Other District')
     end
 
+    # The supervisor's own organizations are those they belong to as an approved supervisor or
+    # manager: a pending invitation or a communicator membership does not name the request.
+    it "does not store an organization the supervisor is only invited to or a communicator in" do
+      invited = Organization.create
+      member = Organization.create(settings: {'total_licenses' => 2})
+      supervisor = User.create
+      communicator = User.create
+      invited.add_supervisor(supervisor.user_name, true)
+      invited.add_user(communicator.user_name, false, false)
+      member.add_user(supervisor.user_name, false, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name)
+      expect(SupervisorRelationship.last.organization_id).to eq(nil)
+      expect(service.requested_organization_id).to eq(nil)
+
+      communicator2 = User.create
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator2.user_name, organization_id: member.global_id)
+      expect(SupervisorRelationship.last.communicator_user).to eq(communicator2)
+      expect(SupervisorRelationship.last.organization_id).to eq(nil)
+      expect(service.requested_organization_id).to eq(nil)
+    end
+
     it "keeps the supervisor's own organization when it is passed" do
       own = Organization.create(settings: {'name' => 'Own District'})
       supervisor = User.create
@@ -173,6 +195,7 @@ describe SupervisorConsentService, :type => :model do
       service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: own.global_id)
       rel = SupervisorRelationship.last
       expect(rel.organization_id).to eq(own.id)
+      expect(service.requested_organization_id).to eq(own.global_id)
       mail = SupervisorMailer.consent_request(rel.global_id)
       expect(mail.html_part.body.to_s).to include('Own District')
     end

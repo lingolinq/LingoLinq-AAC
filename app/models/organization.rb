@@ -1829,6 +1829,12 @@ class Organization < ApplicationRecord
     record_codes & existing
   end
 
+  # Global ids of the organizations the user belongs to as an approved (not pending) supervisor or
+  # manager: the organizations a supervision consent can be made on behalf of.
+  def self.staff_org_ids(user)
+    attached_orgs(user).select{|o| ['supervisor', 'manager'].include?(o['type']) && !o['pending'] }.map{|o| o['id'] }.uniq
+  end
+
   def update_user_available_boards
     self.attached_users('all').each do |u| 
       ra_cnt = RemoteAction.where(path: u.global_id, action: 'update_available_boards').count
