@@ -24,7 +24,9 @@ module('Unit | Component | trial-bar in a folder', function(hooks) {
     this.owner.register('service:app-state', Service.extend({
       currentUser: me, sessionUser: me, effective_view_user: me, label_locale: 'en',
       board_detail_try_origin: { key: 'lingolinq/vocal-flair-40', name: 'Vocal Flair 40', from: 'board_picker', user_id: '1_3', user_name: 'aiden_parker' },
-      home_in_speak_mode: function() {}
+      home_in_speak_mode: function() {},
+      // Use is gated by the speak-mode exit PIN (adversary review 2026-10-14); resolve it immediately.
+      open_speak_mode_exit_pin: function() { return Promise.resolve({ correct_pin: true }); }
     }));
     this.owner.unregister('service:store');
     this.owner.register('service:store', Service.extend({

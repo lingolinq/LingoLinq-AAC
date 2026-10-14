@@ -76,8 +76,22 @@ export default Component.extend({
   use: action(function() {
     var _this = this;
     var appState = this.get('appState');
+    if(!this.get('trial') || this.get('busy')) { return RSVP.resolve(); }
+    // Gate the home-board change behind the speak-mode exit PIN, like the trial's other actions
+    // (close -> exit_to_home, try_back_to_picker): a permanent home-board change inside a locked
+    // speak-mode trial must require the PIN (adversary review 2026-10-14). open_speak_mode_exit_pin
+    // resolves {correct_pin:true} immediately when no PIN is set, so the no-PIN case is unchanged.
+    var ready = appState.open_speak_mode_exit_pin('none');
+    if(ready && ready.then) {
+      return ready.then(function(res) { return (res && res.correct_pin) ? _this._performUse() : RSVP.resolve(); });
+    }
+    return _this._performUse();
+  }),
+
+  _performUse: function() {
+    var _this = this;
+    var appState = this.get('appState');
     var trial = this.get('trial');
-    if(!trial || this.get('busy')) { return RSVP.resolve(); }
     var me = appState.get('currentUser');
     var forOther = !!this.get('forUserName');
     var who = forOther ? this.get('store').findRecord('user', trial.user_id) : RSVP.resolve(me);
@@ -149,7 +163,7 @@ export default Component.extend({
     }).finally(function() {
       if(!_this.isDestroyed && !_this.isDestroying) { _this.set('busy', false); }
     });
-  }),
+  },
 
   // Modern passes the board page's own `try_back_to_picker` (it also closes that page's options menu).
   onExit: null,

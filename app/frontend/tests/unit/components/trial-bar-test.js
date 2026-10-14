@@ -24,7 +24,7 @@ module('Unit | Component | trial-bar', function(hooks) {
 
   function setup(context, opts) {
     var o = opts || {};
-    var calls = { copy: [], findRecord: [], transitions: [], speak: [], saved: [], discarded: [], stash: {} };
+    var calls = { copy: [], findRecord: [], transitions: [], speak: [], saved: [], discarded: [], stash: {}, pinPrompts: 0 };
     var me = EmberObject.create({ id: '1_3', user_name: 'example', preferences: { board_view_style: o.classic ? 'classic' : 'modern' } });
     var aiden = EmberObject.create({ id: '1_7', user_name: 'aiden_parker' });
     var forOther = o.forOther;
@@ -39,7 +39,10 @@ module('Unit | Component | trial-bar', function(hooks) {
       currentBoardState: { key: o.boardKey || 'lingolinq/core-60' },
       basic_try_home: o.classic ? (o.marker === undefined ? { key: 'lingolinq/core-60', user_id: forOther ? '1_7' : '1_3', user_name: forOther ? 'aiden_parker' : 'example' } : o.marker) : null,
       board_detail_try_origin: o.classic ? null : { key: 'lingolinq/core-60', from: 'board_picker', user_id: forOther ? '1_7' : '1_3', user_name: forOther ? 'aiden_parker' : 'example' },
-      home_in_speak_mode: function(args) { calls.speak.push(args); }
+      home_in_speak_mode: function(args) { calls.speak.push(args); },
+      // Use is now gated by the speak-mode exit PIN (adversary review 2026-10-14); resolve it
+      // immediately. o.pin === false simulates a wrong/cancelled PIN so a test can assert Use bails.
+      open_speak_mode_exit_pin: function() { calls.pinPrompts++; return Promise.resolve({ correct_pin: o.pin !== false }); }
     }));
     context.owner.unregister('service:store');
     context.owner.register('service:store', Service.extend({
@@ -127,6 +130,16 @@ module('Unit | Component | trial-bar', function(hooks) {
     await using;
     assert.notOk(t.appState.get('home_copy_pending'), 'copy done: their own copy is the home board now');
     assert.deepEqual(t.calls.transitions, [], 'no other navigation');
+  });
+
+  test('Use is gated by the speak-mode exit PIN: a wrong/cancelled PIN bails, the home board is unchanged', async function(assert) {
+    var t = setup(this, { pin: false });
+    await t.component.use();
+    await new Promise(function(r) { setTimeout(r, 0); });
+    assert.strictEqual(t.calls.pinPrompts, 1, 'the speak-mode exit PIN was requested');
+    assert.deepEqual(t.calls.saved, [], 'no home board was saved');
+    assert.strictEqual(t.calls.speak.length, 0, 'Speak Mode was not re-opened on a new home');
+    assert.ok(t.appState.get('board_detail_try_origin'), 'the trial is not ended');
   });
 
   test('Use, for yourself (Basic): the same, Speak Mode opens in Basic', async function(assert) {
