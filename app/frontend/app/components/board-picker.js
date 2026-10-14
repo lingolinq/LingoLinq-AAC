@@ -18,7 +18,7 @@ import {
 } from '../utils/board-roots';
 import { subjectHomeBoardKey, SUBJECT_HOME_BOARD_DEPS } from '../utils/subject_home_board';
 
-export default Component.extend({
+const BoardPicker = Component.extend({
   appState: service('app-state'),
   router: service('router'),
   boardSearchQuery: '',
@@ -591,7 +591,7 @@ export default Component.extend({
       this.set('compact_boards', !!compact);
     },
     set_category: function(str) {
-      var alreadyShowing = this.get('current_category') === str;
+      var alreadyShowing = this.get('current_category') === str; if(this.get('searchAtTop')) { this.appState.set('board_picker_category', str); } // for "Try another" (2026-10-13)
       var shown = this.get('category_boards');
       if (alreadyShowing && shown && !shown.loading && !shown.error) {
         return;
@@ -686,3 +686,48 @@ export default Component.extend({
     },
   }
 });
+
+/* "TRY ANOTHER" RETURNS TO THE SAME SPOT (tablet report and request, 2026-10-13). The place is recorded when
+   it happens: the category in set_category (`board_picker_category`, above), the scroll when Try is pressed
+   (utils/board_picker_trials.js#remember_trial). The trial's "Try another" sets `board_picker_restore`
+   (controllers/user/board-detail.js#try_back_to_picker, components/trial-bar.js#exit); the picker page's own
+   picker (`@searchAtTop`) then reopens that category and scrolls back once its boards are drawn. The request
+   stays open for `restoreWindow` ms, so a picker the page rebuilds just after also comes back. A plain visit
+   still starts at the top. Added with `reopen` so the line-anchored .eslint-todo rows above keep their lines. */
+BoardPicker.reopen({
+  restoreWindow: 5000,
+  didInsertElement: function() {
+    this._super(...arguments);
+    this._restorePickerPlace();
+  },
+  // The element that scrolls the picker page (measured: #content), else the document.
+  _pickerScroller: function() {
+    return document.getElementById('content') || document.scrollingElement;
+  },
+  _restorePickerPlace: function() {
+    var _this = this;
+    var appState = this.get('appState');
+    var place = appState.get('board_picker_return');
+    if(!this.get('searchAtTop') || !appState.get('board_picker_restore') || !place) { return; }
+    if(!appState._pickerRestoreTimer) {
+      appState._pickerRestoreTimer = window.setTimeout(function() {
+        appState._pickerRestoreTimer = null;
+        if(!appState.isDestroyed) { appState.set('board_picker_restore', false); }
+      }, this.get('restoreWindow'));
+    }
+    if(place.category && place.category !== this.get('current_category')) { this.send('set_category', place.category); }
+    if(!place.scrollTop) { return; }
+    // The boards draw after the category loads; scroll once the page is tall enough (about 4s at most).
+    var tries = 0;
+    var scrollBack = function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var el = _this._pickerScroller();
+      var loading = _this.get('category_boards.loading');
+      if(el && !loading && (el.scrollHeight - el.clientHeight) >= place.scrollTop) { el.scrollTop = place.scrollTop; return; }
+      if(tries++ < 20) { window.setTimeout(scrollBack, 200); } else if(el) { el.scrollTop = place.scrollTop; }
+    };
+    window.setTimeout(scrollBack, 0);
+  }
+});
+
+export default BoardPicker;

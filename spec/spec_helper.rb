@@ -1,5 +1,12 @@
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 ENV["RAILS_ENV"] ||= 'test'
+# THE TEST PROCESS RUNS IN UTC, like CI (ubuntu-latest) and production (Cloud Run containers), whose
+# default zone it is. Some code turns times into dates in the machine's LOCAL zone (lib/stats.rb's
+# day ranges use `to_date` / `to_time` / `utc_offset`), so on a laptop in another zone the
+# date-boundary specs (stats_spec's daily summaries, Organization#usage_stats) failed after local
+# evening, once the UTC date had rolled over. Pinning the zone here makes a local run match CI at any
+# time of day (approved 2026-10-10). Ruby re-reads ENV['TZ'] when it is assigned.
+ENV['TZ'] = 'UTC'
 require 'dotenv'
 root = File.expand_path('..', __dir__)
 dotenv_paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|

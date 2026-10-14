@@ -1,6 +1,8 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
+import { computed } from '@ember/object';
+import { is_classic } from '../utils/view_style';
 
 /**
  * Speak Mode Intro modal (Phase 2).
@@ -9,6 +11,12 @@ export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
   tagName: '',
+  // The tip names the exit in the menu that is on screen (2026-10-13): Basic's speak menu says "Exit Speak
+  // Mode" (templates/application.hbs); Modern's board page menu says "Exit Boards / To Home Page"
+  // (templates/user/board-detail.hbs), and its Speak button is the speaker icon.
+  isClassic: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
   init() {
     this._super(...arguments);
     var self = this;

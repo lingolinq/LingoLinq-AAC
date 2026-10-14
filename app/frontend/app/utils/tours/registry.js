@@ -14,8 +14,8 @@ import { buildHomeSteps } from './home';
 import { buildBoardPickerSteps } from './board-picker';
 import { buildBoardDetailSteps } from './board-detail';
 import { buildBoardDetailSpeakSteps } from './board-detail-speak';
-import { buildCaseloadSteps } from './caseload';
 import { buildClassicHomeSteps } from './classic-home';
+import { buildCommunicatorBoardSteps } from './communicator-board';
 
 // Board-detail EDIT mode is a STATE (app_state.edit_mode), not its own route —
 // both `user.board-detail.index` and `user.board-detail.edit` can be in edit
@@ -44,13 +44,12 @@ function tourBuilderFor(route, layout, editMode, isClassic) {
     // will hand off to the board picker) through to the step builder.
     return function(options) { return buildHomeSteps(view, options); };
   }
-  // The caseload page — a SUPPORTER's home base. Registering it here is also what
-  // makes the navbar "Take a tour" trigger appear there: <GuidedTour /> is already
-  // mounted on this page (app-navbar-authenticated-inner.hbs gates it on
-  // `empty_header`, not on route) and self-hides on `hasTour`.
-  if (route === 'caseload') {
-    var clView = (layout === 'focused') ? 'focused' : 'gentle';
-    return function(options) { return buildCaseloadSteps(clView, options); };
+  // NO CASELOAD TOUR (2026-10-12, requested: "remove the tour on their caseload page"). An SLP's
+  // tour is the home page tour; with no builder here the "Take a tour" trigger hides on /caseload.
+  // BASIC'S BOARD PAGE (2026-10-12 redesign): the communicator board tour, in Basic's skin. Basic users
+  // only (Modern never routes to board-alt); not in edit mode.
+  if (isClassic && !editMode && route && route.indexOf('user.board-alt') === 0) {
+    return function() { return buildCommunicatorBoardSteps('basic'); };
   }
   if (route === 'board-picker') {
     var bpView = (layout === 'focused') ? 'focused' : 'gentle';
@@ -83,8 +82,8 @@ function tourKeyFor(route, layout, editMode, isClassic) {
   if (route === 'user.home') {
     return 'home_' + ((layout === 'focused') ? 'focused' : 'gentle');
   }
-  if (route === 'caseload') {
-    return 'caseload_' + ((layout === 'focused') ? 'focused' : 'gentle');
+  if (isClassic && !editMode && route && route.indexOf('user.board-alt') === 0) {
+    return 'board_alt_speak';
   }
   if (route === 'board-picker') {
     return 'board_picker_' + ((layout === 'focused') ? 'focused' : 'gentle');

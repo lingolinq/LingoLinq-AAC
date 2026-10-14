@@ -68,37 +68,11 @@ function welcomeStep() {
 // (regions, not single rounded controls) for a roomy rounded cutout. `block` is
 // the scroll hint forwarded to the runner.
 function interiorSteps() {
+  /* FOUR STEPS IN ALL (requested 2026-10-12: "the board page edit tour should be only 4 steps total"):
+     welcome, these two spotlights, finish. It walked eight (the session bar, board details, the grid, one
+     button, both side panels, Save, Cancel); the buttons now come first and the editing bar last, with
+     Save, Cancel and the side panels named there. */
   return [
-    {
-      id: 'board_detail_tour_session',
-      sel: '.md-board-edit-session',
-      on: 'bottom',
-      padded: true,
-      title: i18n.t('board_detail_tour_session_title', "You're in edit mode"),
-      text: tourChecklist([
-        i18n.t('board_detail_tour_session_b1', "This bar shows you're editing"),
-        i18n.t('board_detail_tour_session_b2', "Cancel undoes all your changes"),
-        i18n.t('board_detail_tour_session_b3', "Save keeps your work")
-      ])
-    },
-    {
-      // Board name / description / privacy moved OUT of the edit header (the
-      // `__edit-card` this step used to spotlight was removed) and into the
-      // "Edit Board Details" Board Action, so point at that row instead. A step
-      // whose selector matches nothing is worse than a moved step: Shepherd
-      // resolves targets at show time, so it renders as an unanchored floating
-      // card mid-tour.
-      id: 'board_detail_tour_details',
-      sel: '[data-bd-action="board_details"]',
-      on: 'right',
-      padded: true,
-      title: i18n.t('board_detail_tour_details_title', "Name your board"),
-      text: tourChecklist([
-        i18n.t('board_detail_tour_details_b1', "Give your board a clear name"),
-        i18n.t('board_detail_tour_details_b2', "Add a short description"),
-        i18n.t('board_detail_tour_details_b3', "Choose who can see it")
-      ])
-    },
     {
       id: 'board_detail_tour_grid',
       sel: '.md-board-detail-grid',
@@ -107,84 +81,21 @@ function interiorSteps() {
       title: i18n.t('board_detail_tour_grid_title', "Your board's buttons"),
       text: tourChecklist([
         i18n.t('board_detail_tour_grid_b1', "Every tile here is a button"),
-        i18n.t('board_detail_tour_grid_b2', "Drag buttons to rearrange them"),
-        i18n.t('board_detail_tour_grid_b3', "This is what your communicator sees"),
         i18n.t('board_detail_tour_grid_b4', "Click on them to edit each button"),
+        i18n.t('board_detail_tour_grid_b2', "Drag buttons to rearrange them"),
         i18n.t('board_detail_tour_grid_b5', "Drag and drop images to update images")
       ])
     },
     {
-      // A single button cell — explain how to edit one. Target the card wrapper
-      // (NOT its nested edit-action buttons) so the spotlight reads as the button.
-      id: 'board_detail_tour_button',
-      sel: '.md-board-detail-symbol-card',
+      id: 'board_detail_tour_session',
+      sel: '.md-board-edit-session',
       on: 'bottom',
-      title: i18n.t('board_detail_tour_button_title', "Edit any button"),
-      text: tourChecklist([
-        i18n.t('board_detail_tour_button_b1', "Tap a button to change it"),
-        i18n.t('board_detail_tour_button_b2', "Add a word and a picture"),
-        i18n.t('board_detail_tour_button_b3', "Link it to another board")
-      ])
-    },
-    {
-      id: 'board_detail_tour_tools',
-      sel: '.md-board-edit-panel',
-      on: 'right',
       padded: true,
-      title: i18n.t('board_detail_tour_tools_title', "Board tools and actions"),
-      // The Action Panel groups every board-level tool into labelled sections —
-      // describe the SECTIONS (not one sub-action), so it doesn't read like
-      // "add this panel to your sidebar". The last item notes the collapse/expand
-      // chevron as its own checklist line.
+      title: i18n.t('board_detail_tour_session_title', "You're in edit mode"),
       text: tourChecklist([
-        i18n.t('board_detail_tour_tools_b1', "Board Actions: set as home, favorite, board ideas, and more"),
-        i18n.t('board_detail_tour_tools_b2', "Search & Filter your buttons by name or category"),
-        i18n.t('board_detail_tour_tools_b3', "Share & Print to copy, download, or print this board"),
-        i18n.t('board_detail_tour_tools_b4', "Collapse the panel for more room, then expand it whenever you need a tool.")
-      ],
-        i18n.t('board_detail_tour_tools_lead', "Every tool for this board lives here, grouped into sections:"))
-    },
-    {
-      id: 'board_detail_tour_style',
-      sel: '.md-board-edit-right-panel',
-      on: 'left',
-      padded: true,
-      title: i18n.t('board_detail_tour_style_title', "Style and customize your board"),
-      // The Settings Panel splits into two accordion groups; name EVERY section
-      // (grouped by the panel's own Button Settings / Board Settings headers) so
-      // the tour reflects the full panel, not just a few styling tools.
-      text: tourChecklist([
-        i18n.t('board_detail_tour_style_b1', "Button Settings: Levels, Hidden, Paint, Shape & Border, Text & Image"),
-        i18n.t('board_detail_tour_style_b2', "Board Settings: Background, Layout, Symbols, Menu, Folders, Skin-Tones, Speak Bar, Word Prediction"),
-        i18n.t('board_detail_tour_style_b3', "Tap a section to open it; collapse the panel for more room")
-      ],
-        i18n.t('board_detail_tour_style_lead', "Fine-tune how this board looks and works, grouped into two sections:"))
-    },
-    {
-      id: 'board_detail_tour_save',
-      sel: '.md-board-edit-session__btn--save',
-      on: 'bottom',
-      title: i18n.t('board_detail_tour_save_title', "Save your work"),
-      text: tourChecklist([
-        i18n.t('board_detail_tour_save_b1', "Press Save to keep your changes"),
-        i18n.t('board_detail_tour_save_b2', "Your changes go live right away"),
-        i18n.t('board_detail_tour_save_b3', "You can edit again anytime"),
-        i18n.t('board_detail_tour_finish_top_note', "Save and Cancel also sit at the top of the page for quick access")
-      ])
-    },
-    {
-      // Cancel counterpart, shown AFTER the Save showcase. The session bar pairs
-      // Save with Cancel, so spotlight Cancel too.
-      // `board_detail_tour_finish_top_note` is SHARED with the save step above —
-      // both buttons are ALSO mirrored at the top of the page
-      // (md-board-detail-header__edit-actions), so each step notes it.
-      id: 'board_detail_tour_discard',
-      sel: '.md-board-edit-session__btn--discard',
-      on: 'bottom',
-      title: i18n.t('board_detail_tour_discard_title', "Cancel your changes"),
-      text: tourChecklist([
-        i18n.t('board_detail_tour_discard_b1', "Press Cancel to undo all your edits"),
-        i18n.t('board_detail_tour_discard_b2', "The board goes back to how it was before"),
+        i18n.t('board_detail_tour_session_b3', "Save keeps your work"),
+        i18n.t('board_detail_tour_session_b2', "Cancel undoes all your changes"),
+        i18n.t('board_detail_tour_session_panels', "Board tools and styles are in the side panels"),
         i18n.t('board_detail_tour_finish_top_note', "Save and Cancel also sit at the top of the page for quick access")
       ])
     }

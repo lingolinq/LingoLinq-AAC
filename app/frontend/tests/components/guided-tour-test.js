@@ -368,12 +368,12 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(starts.home).toEqual(1);
   });
 
-  itAsync('the resume allowlist: gate hosts for everyone, caseload only for a supporter', async function() {
+  itAsync('the resume allowlist: gate hosts for everyone, never the caseload page', async function() {
     expect(component._autoOpenRouteAllowed('user.home', false)).toEqual(true);
     expect(component._autoOpenRouteAllowed('user.home', true)).toEqual(true);
     expect(component._autoOpenRouteAllowed('index', false)).toEqual(true);
     expect(component._autoOpenRouteAllowed('bento', false)).toEqual(true);
-    expect(component._autoOpenRouteAllowed('caseload', true)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('caseload', true)).toEqual(false); // no caseload tour since 2026-10-12 (approved)
     expect(component._autoOpenRouteAllowed('caseload', false)).toEqual(false);
     expect(component._autoOpenRouteAllowed('user.extras', false)).toEqual(false);
     expect(component._autoOpenRouteAllowed('user.extras', true)).toEqual(false);

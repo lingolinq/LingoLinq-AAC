@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, layoutPresentation, HOME_SECTIONS, AREA } from 'frontend/utils/dashboard_sections';
+import { gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, layoutPresentation, HOME_SECTIONS, AREA, defaultOrderFor } from 'frontend/utils/dashboard_sections';
 
 // Regression lock for the dashboard LAYOUT ENGINE (utils/dashboard_sections.js).
 // The engine is an ORDERED-LIST reorder model: the visible sections are packed in
@@ -29,20 +29,32 @@ module('Unit | Utility | dashboard sections layout engine', function() {
        full-width row of its own; Reports, left alone after the pair, does the same. Pinning
        it means a later change to the packing cannot quietly re-pair them without this test
        saying so. */
+    /* SPEC CHANGED 2026-10-09 by request: "do not allow any of the buttons to span the full
+       row. put speak mode and extras next to each other (with speak mode on the left) and
+       compact them" (Gentle View).
+       Three consequences are pinned below, all deliberate:
+         • `speak extras` — the two are now a NAMED PAIR (packOrder#pairedWith) and `extras` is
+           moved beside `speak` by `extrasBesideSpeak`, so Speak is always the LEFT cell.
+         • `account .` / `reports .` — a small card with no row-partner now occupies ONE column
+           and leaves the other empty, where it used to stretch to 'X X'. The holes are the
+           cost of the request and are what this assertion exists to make visible.
+         • NO `md-grid--fullspan-*` for small cards — that class is emitted only for a row whose
+           two cells are the same key, so it falls away on its own.
+       `boards boards` is UNCHANGED: Boards is a content panel, not a button, and `fullWidth()`
+       still returns true for it and the other panels. */
     var vis = visFor(['account', 'extras', 'boards', 'createboard', 'speak', 'reports', 'editdashboard']);
     var state = gridLayoutState(vis, null, 'gentle');
     assert.deepEqual(state.areas, [
-      'speak speak',
+      'speak extras',
       'boards boards',
-      'account account',
+      'account .',
       'createboard editdashboard',
-      'reports reports',
-      'extras extras',
+      'reports .',
       '. sup'
     ], 'default communicator areas');
-    assert.equal(state.rows, 'auto auto auto auto auto auto 0', 'rows');
-    assert.ok(state.classes.indexOf('md-grid--fullspan-speak') !== -1, 'speak full-width styling');
-    assert.ok(state.classes.indexOf('md-grid--fullspan-extras') !== -1, 'extras full-width styling');
+    assert.equal(state.rows, 'auto auto auto auto auto 0', 'rows');
+    assert.strictEqual(state.classes.indexOf('md-grid--fullspan-speak'), -1, 'speak no longer a full-width showcase');
+    assert.strictEqual(state.classes.indexOf('md-grid--fullspan-extras'), -1, 'extras no longer a full-width showcase');
   });
 
   test('Boards always renders full-width and flags md-grid--boards-full', function(assert) {
@@ -51,20 +63,25 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     assert.ok(state.classes.indexOf('md-grid--boards-full') !== -1, 'boards-full class');
   });
 
-  test('a lone trailing small card spans full width + gets a fullspan flag', function(assert) {
+  /* RENAMED AND INVERTED 2026-10-09 with the request above: a lone trailing small card used to
+     span both columns and take the fullspan showcase styling. It now keeps one column. */
+  test('a lone trailing small card keeps one column and gets no fullspan flag', function(assert) {
     var state = gridLayoutState(visFor(['account']), ['account'], 'gentle');
-    assert.deepEqual(state.areas, ['account account', '. sup'], 'lone card full-width');
-    assert.ok(state.classes.indexOf('md-grid--fullspan-account') !== -1, 'fullspan-account class');
+    assert.deepEqual(state.areas, ['account .', '. sup'], 'lone card occupies one column');
+    assert.strictEqual(state.classes.indexOf('md-grid--fullspan-account'), -1, 'no fullspan-account class');
   });
 
   test('order controls placement; hidden cards are skipped', function(assert) {
-    // Uses the small paired cards (account / createboard / reports) — Extras is a
-    // full-width showcase now, so it no longer pairs.
+    // Uses the small paired cards (account / createboard / reports). Extras is deliberately
+    // absent: as of 2026-10-09 it is pinned beside Speak as a named pair, so including it here
+    // would test that pairing rather than positional packing. (This comment previously said
+    // Extras was "a full-width showcase now, so it no longer pairs" — both halves are false
+    // since that request; nothing is a full-width showcase among the buttons any more.)
     var vis = visFor(['account', 'createboard', 'reports']);
     var a = gridLayoutState(vis, ['account', 'createboard', 'reports'], 'gentle');
-    assert.deepEqual(a.areas, ['account createboard', 'reports reports', '. sup'], 'account|createboard then reports');
+    assert.deepEqual(a.areas, ['account createboard', 'reports .', '. sup'], 'account|createboard then a one-column reports');
     var b = gridLayoutState(vis, ['reports', 'account', 'createboard'], 'gentle');
-    assert.deepEqual(b.areas, ['reports account', 'createboard createboard', '. sup'], 'reordered');
+    assert.deepEqual(b.areas, ['reports account', 'createboard .', '. sup'], 'reordered; the odd card keeps one column');
   });
 
   test('reorderInsert moves a card before/after a target in the full order', function(assert) {
@@ -75,34 +92,34 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     assert.equal(after.length, DEFAULT_ORDER.length, 'no card lost on reorder');
   });
 
-  test('focused layout puts the Speak hero full-width on top, no Extras', function(assert) {
+  test('focused layout puts the Speak hero on top, with Extras beside it', function(assert) {
     var vis = visFor(['speak', 'extras', 'boards', 'account']);
     var state = gridLayoutState(vis, null, 'focused');
-    // The hero spans the full row whatever the column count (here 1 utility card → 1 col).
-    var hero = state.areas[0].split(' ');
-    assert.ok(hero.length >= 1 && hero.every(function(t) { return t === 'speak'; }), 'speak hero on top, full width');
-    assert.ok(!state.areasValue.includes('extras'), 'extras never shows in focused');
+    // Changed 2026-10-10 (approved): Extras beside the Speak hero; 2026-10-12 (approved): equal width, six columns.
+    var hero = state.areas[0];
+    assert.strictEqual(hero, 'speak speak speak extras extras extras', 'speak hero on top, Extras to its right, half each');
+    assert.strictEqual(state.areas[2], 'account account account account account account', 'the other action card keeps its row below Boards');
   });
 
-  test('focused layout puts the four action cards on one 4-up row', function(assert) {
-    var vis = visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard']);
-    var state = gridLayoutState(vis, null, 'focused');
-    assert.ok(state.areas.indexOf('account createboard reports editdashboard') !== -1, 'action cards share one row');
-    assert.ok(state.areas.indexOf('boards boards boards boards') !== -1, 'boards is a full-width row');
-    assert.equal(state.columns, 'repeat(4, 1fr)', '4 utility cards → 4 columns');
+  test('focused: Speak, Create a Board and Extras side by side at equal width; no Edit Dashboard', function(assert) {
+    var state = gridLayoutState(visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras']), null, 'focused');
+    // Changed 2026-10-12 by request (approved): above 900px the three sit side by side, a third each of six columns.
+    assert.strictEqual(state.areas[0], 'speak speak createboard createboard extras extras', 'one row, a third each');
+    assert.notStrictEqual(state.areas.indexOf('account account account reports reports reports'), -1, 'the other action cards keep a row of their own, half each');
+    assert.strictEqual(state.columns, 'repeat(6, 1fr)', 'six columns, so a third and a half are both whole tracks');
   });
 
   test('focused columns track the visible utility-card count — remaining cards fill the row', function(assert) {
-    // Hide one utility card: 3 remain → 3 columns, the row fills with no empty cells.
-    var vis = visFor(['speak', 'boards', 'account', 'createboard', 'reports']);
-    var state = gridLayoutState(vis, null, 'focused');
-    assert.equal(state.columns, 'repeat(3, 1fr)', '3 utility cards → 3 columns');
-    assert.ok(state.areas.indexOf('account createboard reports') !== -1, 'utility row fills 3 cols');
-    assert.ok(state.areas.indexOf('boards boards boards') !== -1, 'boards spans the 3 cols');
+    // On a CASELOAD hero since 2026-10-10 (approved): the Speak hero now stacks the pair beside itself.
+    var vis = visFor(['caseload', 'boards', 'account', 'createboard', 'reports']);
+    var state = gridLayoutState(vis, null, 'focused', 'caseload');
+    assert.strictEqual(state.columns, 'repeat(3, 1fr)', '3 utility cards → 3 columns');
+    assert.notStrictEqual(state.areas.indexOf('account createboard reports'), -1, 'utility row fills 3 cols');
+    assert.notStrictEqual(state.areas.indexOf('boards boards boards'), -1, 'boards spans the 3 cols');
     // No "." padding cells in any content row (only the trailing sup spacer carries them).
-    state.areas.slice(0, -1).forEach(function(row) {
-      assert.ok(row.indexOf('.') === -1, 'no empty padding cells: ' + row);
-    });
+    var padded = state.areas.slice(0, -1).filter(function(row) { return row.indexOf('.') !== -1; });
+    assert.deepEqual(padded, [], 'no empty padding cells');
+    assert.strictEqual(state.areas[0], 'caseload caseload caseload', 'the hero spans the row');
   });
 
   test('gentle layout leaves the column count to the stylesheet', function(assert) {
@@ -228,7 +245,7 @@ module('Unit | Utility | dashboard sections layout engine', function() {
   // divergence deliberately, so the pair above cannot be "fixed" back into agreement by
   // someone who reads the invariant test and assumes it applies to everyone.
   test('org managers deliberately DIVERGE: caseload before boards in gentle, after in focused', function(assert) {
-    var on = ['caseload', 'account', 'createboard', 'org', 'boards', 'speak', 'reports', 'editdashboard'];
+    var on = ['caseload', 'account', 'createboard', 'org', 'boards', 'speak', 'reports', 'editdashboard', 'extras']; // + extras: 4 Focused action cards (2026-10-10)
     var vis = visFor(on);
     var seq = function(state) {
       var seen = [], out = [];
@@ -242,24 +259,26 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     };
     var g = seq(gridLayoutState(vis, null, 'gentle'));
     var f = seq(gridLayoutState(vis, null, 'focused', 'org'));
-    assert.strictEqual(g.indexOf('org_mgmt'), 0, 'gentle leads with My Organizations');
+    // Updated 2026-10-12 (approved, twice the same day): the Caseload | Speak | Extras row sits directly
+    // BELOW My Organizations for an org manager ("move caseload and extras buttons below organizations div").
+    assert.deepEqual(g.slice(0, 4), ['org_mgmt', 'caseload', 'speak', 'extras'], 'gentle leads with My Organizations, then the caseload row');
     assert.strictEqual(f.indexOf('org_mgmt'), 0, 'focused leads with My Organizations');
     assert.ok(g.indexOf('caseload') < g.indexOf('boards'), 'gentle: caseload before boards');
     assert.ok(f.indexOf('boards') < f.indexOf('caseload'), 'focused: boards before the caseload/speak pair');
     assert.strictEqual(f.indexOf('speak'), f.indexOf('caseload') + 1, 'focused: speak sits immediately after caseload (the paired row)');
   });
 
-  test('focused drops Speak when it is not the hero', function(assert) {
-    // Regression lock for the supervisor Focused View: Speak has no non-hero
-    // presentation there (app.scss hides .md-card--speak-as-button in focused), so
-    // leaving its key in would reserve a full-width row for an invisible card.
+  test('focused places Speak beside the Caseload hero for a supporter', function(assert) {
+    // Updated 2026-10-13 (approved): a supporter's Focused view now PLACES Speak beside the Caseload
+    // hero (Caseload | Speak). Before, Speak was dropped for a non-speak hero; now the caseload hero
+    // keeps it as the right-hand card of the lead row. Still present when Speak is itself the hero.
     var vis = visFor(['caseload', 'account', 'boards', 'speak']);
     var supervisor = gridLayoutState(vis, null, 'focused', 'caseload');
-    assert.notOk(supervisor.areasValue.includes('speak'),
-      'no speak row for a caseload hero');
+    assert.ok(supervisor.areasValue.includes('speak'),
+      'Speak is placed beside the Caseload hero');
     var communicator = gridLayoutState(vis, null, 'focused', 'speak');
     assert.ok(communicator.areasValue.includes('speak'),
-      'but Speak IS present when it is the hero');
+      'and Speak IS present when it is the hero');
   });
 
   test('focused keeps the utility cards contiguous in one row', function(assert) {
@@ -277,20 +296,25 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     var vis = visFor(['caseload', 'account', 'boards', 'speak']);
     var state = gridLayoutState(vis, null, 'focused', 'caseload');
     var first = state.areas[0].split(' ');
-    assert.ok(first.every(function(t) { return t === AREA_CASELOAD; }),
-      'caseload hero occupies the whole first row for a supervisor');
+    // Updated 2026-10-13 (approved): the Caseload hero still leads the top row but now shares it with
+    // Speak (Caseload fills the left half, Speak the right); before, Caseload spanned the whole row.
+    assert.ok(first.slice(0, 3).every(function(t) { return t === AREA_CASELOAD; }),
+      'the Caseload hero fills the left half of the first row');
+    assert.ok(first.slice(3).every(function(t) { return t === 'speak'; }),
+      'Speak fills the right half');
   });
 
   test('a communicator\'s focused layout is unchanged by the shared-order switch', function(assert) {
     // Regression lock: DEFAULT_ORDER and the retired FOCUSED_DEFAULT_ORDER filter to
     // the SAME list for a communicator (no caseload/rooms/attention/org), so this
     // change must be a no-op for them. If this fails, communicators were affected.
-    var vis = visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard']);
-    var state = gridLayoutState(vis, null, 'focused');
-    assert.notStrictEqual(state.areas.indexOf('account createboard reports editdashboard'), -1,
-      'utility cards still share one row');
-    assert.strictEqual(state.columns, 'repeat(4, 1fr)', 'still 4 columns');
-    assert.notOk(state.areasValue.includes('extras'), 'extras still hidden in focused');
+    // Expected layout updated 2026-10-10 (approved): Create a Board + Extras beside Speak; and
+    // 2026-10-12 (approved): the three side by side at equal width on a six-column grid.
+    var state = gridLayoutState(visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras']), null, 'focused');
+    assert.deepEqual(state.areas.slice(0, 3), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards', 'account account account reports reports reports'],
+      'Speak, Create a Board and Extras in one row, then Boards, then the other utility cards');
+    assert.strictEqual(state.columns, 'repeat(6, 1fr)', 'six columns');
+    assert.notOk(state.areasValue.includes('editdashboard'), 'Edit Dashboard is not on the Focused home');
   });
 });
 
@@ -375,7 +399,7 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
         var p = layoutPresentation(users[role], layout, {});
         expected += HOME_SECTIONS.filter(function(sec) {
           return p.vis[sec.key] && FULLSPAN_SAFETY_NET.indexOf(sec.key) === -1;
-        }).length + 1;   // + the Extras claim asserted once per role/layout
+        }).length + 1;   // + the Edit Dashboard claim asserted once per role/layout
       });
     });
     assert.expect(expected);
@@ -393,31 +417,31 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
           assert.ok(placed[sec.key],
             role + ' / ' + layout + ': "' + sec.key + '" is visible, so it must be placed');
         });
-        // The half of the pair that actually broke: Extras must never be VISIBLE on
-        // Focused View, safety net or not — the net makes an orphan full-width, which
-        // is what put a phantom Extras card across the top of the Focused preview.
+        // Edit Dashboard must never be VISIBLE on Focused View (2026-10-10, approved: it
+        // left the Focused home; the navbar's Display Style button opens the same editor).
+        // A visible card with no area is what once put a phantom Extras across the top.
         // Asserted unconditionally (qunit/no-conditional-assertions): on Gentle the
         // left-hand side is false, so the claim holds vacuously and the assertion still
         // runs, keeping the per-run assertion count stable.
         // Hoisted out of the assertion (qunit/no-assert-logical-expression), same reason as
         // the spacer-row test above: naming the claim keeps the failure message about the
         // claim rather than about one arbitrary half of an `&&`.
-        var extrasVisibleOnFocused = layout === 'focused' && pres.vis.extras;
-        assert.notOk(extrasVisibleOnFocused,
-          role + ' / ' + layout + ': Extras is never visible on Focused View');
+        var editVisibleOnFocused = layout === 'focused' && pres.vis.editdashboard;
+        assert.notOk(editVisibleOnFocused,
+          role + ' / ' + layout + ': Edit Dashboard is never visible on Focused View');
       });
     });
   });
 
-  test('Focused View forces Extras off, so vis and the grid agree', function(assert) {
+  test('Focused View forces Edit Dashboard off, so vis and the grid agree', function(assert) {
     var user = fakeUser({});
-    assert.false(layoutPresentation(user, 'focused', {}).vis.extras,
-      'focused hides extras — Speak takes the focal hero slot');
-    assert.true(layoutPresentation(user, 'gentle', {}).vis.extras,
-      'gentle still shows extras');
+    assert.false(layoutPresentation(user, 'focused', {}).vis.editdashboard,
+      'focused hides Edit Dashboard (2026-10-10); Extras shows in its place');
+    assert.true(layoutPresentation(user, 'focused', {}).vis.extras,
+      'focused shows Extras');
     // Even when a caller hands in live UI state that says otherwise.
-    assert.false(layoutPresentation(user, 'focused', { vis: { extras: true } }).vis.extras,
-      'a checkbox cannot re-enable Extras on Focused View');
+    assert.false(layoutPresentation(user, 'focused', { vis: { editdashboard: true } }).vis.editdashboard,
+      'a checkbox cannot re-enable Edit Dashboard on Focused View');
   });
 
   test('live UI state wins over saved preferences when supplied', function(assert) {
@@ -447,5 +471,128 @@ module('Unit | Utility | dashboard sections layoutPresentation', function() {
     assert.strictEqual(pres.layout, 'gentle', 'the retired "balanced" value falls back');
     assert.strictEqual(pres.bodyClass, null, 'and carries no focused body class');
     assert.deepEqual(pres.grid.areas, layoutPresentation(fakeUser({}), 'gentle', {}).grid.areas);
+  });
+});
+
+/* FOCUSED, ABOVE 1024px: CREATE A BOARD AND EDIT DASHBOARD STACK BESIDE THE SPEAK HERO (2026-10-10).
+ *
+ * Requested: "make the let's communicate button only fill the first column on the home page, and
+ * stack the create board and edit dashboard buttons to its right (one on top of the other)", with
+ * any other action cards (Account, Reports) shown "below the boards div (where the create board and
+ * edit dashboard buttons currently are)". Below 1025px the grid is a flex column ordered by
+ * `orderIndices` (the `--ord-*` properties), and that order must NOT change: it is read from the
+ * stacked layout, not from the side-by-side areas.
+ */
+module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero', function() {
+  function isRectangular(areas) {
+    var width = areas[0].split(' ').length, cells = {};
+    var sameWidth = areas.every(function(row) { return row.split(' ').length === width; });
+    areas.forEach(function(row, r) {
+      row.split(' ').forEach(function(tok, c) {
+        if (tok === '.') { return; }
+        (cells[tok] = cells[tok] || []).push([r, c]);
+      });
+    });
+    var rect = Object.keys(cells).every(function(tok) {
+      var rs = cells[tok].map(function(p) { return p[0]; }), cs = cells[tok].map(function(p) { return p[1]; });
+      var h = Math.max.apply(null, rs) - Math.min.apply(null, rs) + 1, w = Math.max.apply(null, cs) - Math.min.apply(null, cs) + 1;
+      return h * w === cells[tok].length;
+    });
+    return sameWidth && rect;
+  }
+
+  test('the beside layout is flagged for the stylesheet, and only that layout', function(assert) {
+    var beside = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras']), null, 'focused');
+    assert.notStrictEqual(beside.classes.indexOf('md-grid--speak-beside'), -1);
+    var plain = gridLayoutState(visFor(['speak', 'boards', 'account']), null, 'focused');
+    assert.strictEqual(plain.classes.indexOf('md-grid--speak-beside'), -1, 'no stack, no flag');
+    var gentle = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras']), null, 'gentle');
+    assert.strictEqual(gentle.classes.indexOf('md-grid--speak-beside'), -1, 'never in Gentle');
+  });
+
+  /* DEFAULT SMALL-SCREEN ORDER FOLLOWS THE WIDE LAYOUT (2026-10-10, requested: "the default view for
+     modern focused should then show create board and extras below the speak mode button on 1024px
+     and smaller (unless the user changes the layout on their Display design)"). */
+  test('by default the small-screen order matches the wide layout: Speak, the pair, then Boards', function(assert) {
+    var state = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras']), null, 'focused');
+    // Areas updated 2026-10-12 (approved): one row of three. The order indices are unchanged.
+    assert.deepEqual(state.areas.slice(0, 2), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards']);
+    assert.deepEqual(state.orderIndices, { speak: 0, createboard: 1, extras: 2, boards: 3 },
+      'the --ord-* values read Speak, Create a Board, Extras, Boards');
+  });
+
+  test('a saved Dashboard Design order still decides the small-screen order', function(assert) {
+    var saved = ['boards', 'speak', 'createboard', 'extras'];
+    var state = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras']), saved, 'focused');
+    assert.deepEqual(state.orderIndices, { boards: 0, speak: 1, createboard: 2, extras: 3 },
+      'the user put Boards first, so Boards comes first');
+    assert.notStrictEqual(state.classes.indexOf('md-grid--speak-beside'), -1, 'wide screens still stack the pair beside Speak');
+  });
+
+  test('one of the pair hidden: the other sits beside Speak, half each', function(assert) {
+    var state = gridLayoutState(visFor(['speak', 'boards', 'extras']), null, 'focused');
+    // Updated 2026-10-12 (approved): side by side at equal width, half each of six columns.
+    assert.deepEqual(state.areas.slice(0, 2), ['speak speak speak extras extras extras', 'boards boards boards boards boards boards']);
+    assert.strictEqual(state.columns, 'repeat(6, 1fr)');
+  });
+
+  test('both of the pair hidden: Speak keeps the full row, as before', function(assert) {
+    var state = gridLayoutState(visFor(['speak', 'boards', 'account']), null, 'focused');
+    assert.strictEqual(state.areas[0], 'speak');
+    assert.strictEqual(state.areas.indexOf('account'), 2, 'Account keeps its own row after Boards');
+  });
+
+  test('a lone other action card spans the full row below Boards', function(assert) {
+    var state = gridLayoutState(visFor(['speak', 'boards', 'createboard', 'extras', 'reports']), null, 'focused');
+    // Updated 2026-10-12 (approved): the row of three, then Boards, then Reports across all six columns.
+    assert.deepEqual(state.areas.slice(0, 3), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards', 'reports reports reports reports reports reports']);
+  });
+
+  test('org hero untouched; caseload hero now uses the six-column beside grid, utility cards still one row', function(assert) {
+    var vis = visFor(['caseload', 'account', 'createboard', 'boards', 'speak', 'reports', 'editdashboard']);
+    var caseload = gridLayoutState(vis, null, 'focused', 'caseload');
+    // 2026-10-13 (approved): the caseload hero now shares its lead row with Speak on a six-column grid
+    // (md-grid--caseload-beside), so the utility cards share one SIX-column row rather than a three-
+    // column one. Still one row, in SUPERVISOR_DEFAULT_ORDER, without Edit Dashboard.
+    assert.notStrictEqual(caseload.areas.indexOf('account account createboard createboard reports reports'), -1, 'one six-column utility row, without Edit Dashboard');
+    var org = gridLayoutState(visFor(['org', 'caseload', 'speak', 'account', 'createboard', 'boards', 'extras', 'reports']), null, 'focused', 'org');
+    assert.false(org.areas.some(function(row) { return row.indexOf('speak createboard') !== -1; }), 'no pair beside Speak on an org dashboard');
+  });
+
+  test('every visibility combination and hero builds a valid grid (rectangular areas)', function(assert) {
+    var heroes = ['speak', null, 'caseload', 'org'], bad = [];
+    for (var m = 0; m < (1 << ALL_KEYS.length); m++) {
+      var on = ALL_KEYS.filter(function(k, i) { return !!(m & (1 << i)); });
+      heroes.forEach(function(hero) {
+        var state = gridLayoutState(visFor(on), null, 'focused', hero);
+        if (!isRectangular(state.areas)) { bad.push(hero + ' ' + on.join(',') + ' => ' + state.areas.join(' / ')); }
+      });
+    }
+    assert.deepEqual(bad.slice(0, 3), [], 'no ragged rows or split areas');
+  });
+
+  // extrasBesideSpeak moves Extras up beside Speak Mode, but only when BOTH are shown. With Speak
+  // Mode hidden in Dashboard Design, Extras keeps its own place (last, as on develop) instead of
+  // jumping to the top of the page.
+  test('Gentle with Speak Mode hidden: Extras keeps its place instead of leading the page', function(assert) {
+    var vis = visFor(['account', 'extras', 'boards', 'createboard', 'reports', 'editdashboard']);
+    var areas = gridLayoutState(vis, null, 'gentle').areas;
+    assert.strictEqual(areas[0], 'boards boards', 'Boards leads, as it does without Speak Mode');
+    var extrasRow = areas.findIndex(function(a) { return a.split(' ').indexOf('extras') !== -1; });
+    var reportsRow = areas.findIndex(function(a) { return a.split(' ').indexOf('reports') !== -1; });
+    assert.true(extrasRow >= reportsRow, 'Extras comes after Reports, at the end');
+  });
+
+  // The Dashboard Design editor seeds every drag from defaultOrderFor (display-style.js
+  // getDefaultOrder -> reorderInsert). With Speak Mode hidden it must place Extras where the live
+  // grid does, or dragging ANY card saves Extras ahead of Boards.
+  test('the editor\'s drag seed agrees with the live grid when Speak Mode is hidden', function(assert) {
+    var vis = visFor(['account', 'extras', 'boards', 'createboard', 'reports', 'editdashboard']);
+    var seed = defaultOrderFor(null, 'gentle', vis);
+    assert.true(seed.indexOf('extras') > seed.indexOf('boards'), 'Extras is not pulled up beside the hidden Speak');
+    var dragged = reorderInsert(null, 'reports', 'account', false, seed);
+    assert.true(dragged.indexOf('extras') > dragged.indexOf('boards'), 'moving Reports does not move Extras');
+    var full = defaultOrderFor(null, 'gentle');
+    assert.strictEqual(full[full.indexOf('speak') + 1], 'extras', 'without vis (every card) Extras still pairs with Speak');
   });
 });
