@@ -115,7 +115,8 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 ```
 
 - Open a PR from that `release/develop-into-staging-*` branch to `staging`. Do **not** open the PR from live `develop`.
-- **Scot must approve** the PR to staging.
+- **Approval from any one senior dev** is required: Traci is primary, Scot is
+  secondary, and Melissa is backup when Traci is unavailable.
 - Use a **merge commit** (not squash) so the history stays in sync.
 - Delete the freeze branch after merge.
 - `staging` auto-deploys to lingolinq-staging.
@@ -125,12 +126,16 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 After staging has been validated:
 
 - A team member opens a PR from `staging` to `main`.
-- **Scot must approve** the PR to production, and either senior dev (Melissa or
-  Traci) must agree. A senior dev agrees by opening the release PR, which covers
-  the commits it held when it was opened, or by an approving GitHub review on
-  the head being merged. A chat message does not count. If commits are added to
-  the release branch after it is opened, a senior dev agrees again with an
-  approving review on the new head.
+- **Two people must agree:** Scot and a senior dev (Melissa or Traci).
+  Self-approval never counts. When a senior dev opens the release PR, Scot
+  approves it. When the PR is opened under Scot's account, Traci approves it and
+  Scot records his agreement by merging it himself.
+- Agreement needs explicit human intent: opening the release PR by hand, which
+  covers the commits it held when it was opened, or an approving GitHub review
+  on the head being merged. A release PR that an agent opens under a dev's
+  account does not count as that dev's agreement, and a chat message does not
+  count. If commits are added to the release branch after it is opened, the
+  senior dev agrees again with an approving review on the new head.
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 
@@ -139,7 +144,8 @@ After staging has been validated:
 For urgent production issues:
 
 1. Branch from `main`: `hotfix/yourname-description` or `yourname/hotfix/description`
-2. Open a PR directly against `main`. **Scot must approve.**
+2. Open a PR directly against `main`. **Approval from any one senior dev**
+   (Traci, Scot or Melissa) is required.
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
 
@@ -148,9 +154,9 @@ For urgent production issues:
 | Target Branch | Who Can Approve | Merge Strategy |
 |---|---|---|
 | `develop` | Any team member | Squash merge |
-| `staging` | Melissa (Scot backup) | Merge commit |
-| `main` | Scot + either senior dev (Melissa or Traci) agree | Merge commit |
-| `main` (hotfix) | Scot or Melissa | Merge commit |
+| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup) | Merge commit |
+| `main` | Scot + a senior dev (Melissa or Traci), no self-approval | Merge commit |
+| `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa | Merge commit |
 
 ## Branch Protection Rules
 
