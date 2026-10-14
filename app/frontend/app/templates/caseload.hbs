@@ -22,8 +22,9 @@
       </header>
 
       <div class="md-caseload">
-        {{!-- MODERN FOCUSED header (controllers/caseload.js#focusedCaseload). The page title with the communicator count, and a "Needs attention"
-             toggle that narrows the list to those communicators (listedSupervisees). --}}
+        {{!-- MODERN FOCUSED header (controllers/caseload.js#focusedCaseload). The page title with the communicator count, and a read-only
+             "Needs attention" count (the label, divider and count only; the filter toggle was removed 2026-10-13 by request). The list
+             always shows everyone now: attentionOnly has no control to set it, so listedSupervisees just returns filteredSupervisees. --}}
         {{#if (and this.focusedCaseload this.supervisees.length)}}
           <div class="md-cl-head">
             {{!-- Two-toned page icon, the same idiom as the other page labels (teal + gray strokes,
@@ -32,9 +33,9 @@
             <h2 class="md-cl-head__title">{{t "Caseload" key="caseload"}}</h2>
             <span class="md-cl-head__count">{{t "communicator" count=this.supervisees.length key="slp_communicators"}}</span>
             {{#if this.attentionSupervisees.length}}
-              <button type="button" class="md-cl-head__filter {{if this.attentionOnly "is-on"}}" aria-pressed={{if this.attentionOnly "true" "false"}} {{on "click" (this.ctrlAction "toggleAttentionOnly")}}>
+              <span class="md-cl-head__filter">
                 {{t "Needs attention" key="needs_attention"}} &middot; {{this.attentionSupervisees.length}}
-              </button>
+              </span>
             {{/if}}
           </div>
         {{/if}}
