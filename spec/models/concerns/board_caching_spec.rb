@@ -712,6 +712,55 @@ describe BoardCaching, :type => :model do
       # A run that ran within the hour for a user with more than 500 viewable boards is parked 30
       # minutes out. A retry rescheduled by the stale check always ran within the hour, so for those
       # users the retry bound never applied: each retry was parked instead of running.
+      # A refused store (the access this run read changed meanwhile) reschedules the refresh. That
+      # retry ran with stale_retries 0, so for a user with more than 500 viewable boards it hit the
+      # 60-minute parking the refused run's own 'generated' stamp had just armed.
+      describe "a refused store's retry" do
+        def large_list_user
+          u = User.create
+          u.settings['available_private_board_ids'] = {'view' => (1..501).map{|i| "1_#{900000 + i}" }, 'edit' => [], 'generated' => 2.hours.ago.to_i}
+          u.save
+          u.reload
+        end
+
+        it "runs instead of being parked for a user with more than 500 viewable boards" do
+          u = large_list_user
+          checks = 0
+          allow_any_instance_of(User).to receive(:available_boards_inputs_current?) { checks += 1; checks > 1 }
+
+          u.update_available_boards
+          expect(User.find(u.id).private_viewable_board_ids.length).to eq(501)
+          Worker.process_queues
+
+          expect(User.find(u.id).private_viewable_board_ids).to eq([])
+          expect(checks).to be >= 2
+        end
+
+        # A store refused every time (continuous churn) must not recompute in a loop. A cap would
+        # drop the refresh and could leave a revoked board viewable, so after a few immediate retries
+        # the row waits with backoff instead, and the hourly batch picks it up.
+        it "stops retrying at once after a few refusals and leaves the row due later" do
+          u = User.create
+          checks = 0
+          allow_any_instance_of(User).to receive(:available_boards_inputs_current?) { checks += 1; false }
+
+          Worker.flush_queues
+          u.update_available_boards
+          # the queued retries alone (Worker.process_queues also dispatches every row, due or not)
+          while (job = Resque.pop('default'))
+            Worker.perform(*job['args'])
+          end
+          # the hourly batch dispatches only due rows
+          Uploader.remote_remove_batch
+          expect(Resque.size('slow')).to eq(0)
+
+          expect(checks).to eq(1 + BoardCaching::REFUSED_STORE_RETRIES)
+          rows = RemoteAction.where(path: u.global_id, action: 'update_available_boards')
+          expect(rows.count).to eq(1)
+          expect(rows.first.act_at).to be > 50.minutes.from_now
+        end
+      end
+
       describe "a user with more than 500 viewable boards" do
         def large_list_user
           u, b = shared_board_user

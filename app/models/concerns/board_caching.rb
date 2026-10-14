@@ -19,7 +19,13 @@ module BoardCaching
   # next run stores its result without that check.
   STALE_REFRESH_RETRIES = 3
 
-  def update_available_boards(stale_retries=0)
+  # How many times a run whose store was refused (the access it read changed meanwhile) is retried
+  # at once. Past that the outbox row waits with backoff (RemoteAction#retry_later_with_backoff) for
+  # the hourly batch: a cap would drop the refresh, and the list it leaves can still grant access
+  # that was removed.
+  REFUSED_STORE_RETRIES = 3
+
+  def update_available_boards(stale_retries=0, refused_retries=0)
     # TODO: sharding
     # Outbox release point. RemoteAction rows requesting this refresh are cleared
     # when the work is DONE, not when a job was accepted onto the queue --
@@ -35,9 +41,9 @@ module BoardCaching
     # extra) is this run, so a row this run leaves behind may be dispatched again.
     RemoteAction.where(path: self.global_id, action: 'update_available_boards').where.not(extra: nil).update_all(extra: nil)
 
-    # A retry (stale_retries > 0) is not parked: the stale check rescheduled it within the hour by
-    # definition, so parking it meant the retry bound never applied to these users.
-    if stale_retries == 0 && self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i
+    # A retry (stale_retries or refused_retries > 0) is not parked: the run it retries set
+    # 'generated' within the hour by definition, so parking it meant the retry never ran in time.
+    if stale_retries == 0 && refused_retries == 0 && self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i
       # Schedule for later if already run recently
       if (self.settings['available_private_board_ids']['view'] ||[]).length > 500
         ra_cnt = RemoteAction.where(path: self.global_id, action: 'update_available_boards').count
@@ -133,9 +139,9 @@ module BoardCaching
       # activity signal (subscription.rb), which a no-op refresh must not reset
       touch: lists_changed)
     if stored == false
-      # Refused: the stored list is left for a run that reads the current access. The row is due
-      # now and this run does not clear it, so the hourly batch retries a lost job.
-      User.schedule_board_cache_refresh(self, true)
+      # Refused: the stored list is left for a run that reads the current access. The row stays
+      # (this run does not clear it), so the hourly batch retries a lost job.
+      retry_refused_store(refused_retries)
       return
     end
     # if the lists changed, schedule this same update for all users
@@ -156,6 +162,20 @@ module BoardCaching
     self.schedule_once(:update_available_boards, stale_retries + 1)
   end
   
+  def retry_refused_store(refused_retries)
+    if refused_retries < REFUSED_STORE_RETRIES
+      User.persist_board_cache_refresh(self, true)
+      user = self
+      ActiveRecord.after_all_transactions_commit do
+        user.schedule_once(:update_available_boards, 0, refused_retries + 1)
+      end
+    else
+      User.persist_board_cache_refresh(self, false)
+      RemoteAction.where(path: self.global_id, action: 'update_available_boards').each(&:retry_later_with_backoff)
+    end
+  end
+  private :retry_refused_store
+
   # Writes only available_private_board_ids entries (and boards_updated_at) onto a locked fresh
   # copy (User#update_settings_locked): settings is written whole, and this copy was loaded before
   # the walk, so saving it reverted settings saved meanwhile, including touch: false writes that
