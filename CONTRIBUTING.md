@@ -115,7 +115,8 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 ```
 
 - Open a PR from that `release/develop-into-staging-*` branch to `staging`. Do **not** open the PR from live `develop`.
-- **Scot must approve** the PR to staging.
+- **Approval from any one senior dev** is required: Traci is primary, Scot is
+  secondary, and Melissa is backup when Traci is unavailable.
 - Use a **merge commit** (not squash) so the history stays in sync.
 - Delete the freeze branch after merge.
 - `staging` auto-deploys to lingolinq-staging.
@@ -125,7 +126,30 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 After staging has been validated:
 
 - A team member opens a PR from `staging` to `main`.
-- **Scot must approve** the PR to production.
+- **Two people must agree:** Scot and a senior dev (Melissa or Traci). One
+  person never counts as both, and self-approval never counts.
+- When Melissa or Traci opens the release PR, Scot approves it. When it is
+  opened under Scot's account, Traci approves it, and Scot records his
+  agreement by merging it himself after her approval, on the head she approved.
+  For a release opened under Scot's account, if Traci is unavailable, the
+  release waits for her. If Traci is unavailable and the release is an
+  emergency, Scot may override and merge on his own agreement, stating the
+  emergency and the reason in the PR.
+- Agreement needs explicit human intent on the PR itself: opening it by hand,
+  an approving GitHub review on the head being merged, or, for Scot, merging
+  it. A release PR that an agent opens does not count as the opener's
+  agreement. An agent approving or merging under a dev's account counts only
+  when that dev explicitly asked for that specific action. Anything an agent
+  does on its own initiative does not count, auto-merge never counts, and a
+  chat message on its own is not agreement. Do not turn on auto-merge for a
+  release PR; if it is on, turn it off before anyone approves.
+- Opening covers the commits the PR held when it was opened. If the head
+  changes after anyone has agreed, each earlier agreement is given again on the
+  new head. GitHub does not let a PR's author approve it, so when an agent
+  opened the PR, or the head changed after the opener agreed, the opener either
+  closes it and opens a new release PR by hand, or the other of Melissa and
+  Traci approves instead. When Scot opened it, his merge on the new head is his
+  agreement.
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 
@@ -134,7 +158,8 @@ After staging has been validated:
 For urgent production issues:
 
 1. Branch from `main`: `hotfix/yourname-description` or `yourname/hotfix/description`
-2. Open a PR directly against `main`. **Scot must approve.**
+2. Open a PR directly against `main`. **Approval from any one senior dev**
+   (Traci, Scot or Melissa) is required.
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
 
@@ -143,9 +168,9 @@ For urgent production issues:
 | Target Branch | Who Can Approve | Merge Strategy |
 |---|---|---|
 | `develop` | Any team member | Squash merge |
-| `staging` | Melissa (Scot backup) | Merge commit |
-| `main` | Melissa + Scot agree | Merge commit |
-| `main` (hotfix) | Scot or Melissa | Merge commit |
+| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup) | Merge commit |
+| `main` | Scot + Melissa or Traci (Traci when Scot opens); no self-approval | Merge commit |
+| `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa | Merge commit |
 
 ## Branch Protection Rules
 
