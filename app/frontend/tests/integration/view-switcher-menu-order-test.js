@@ -53,11 +53,13 @@ QUnit.module('Integration | view-switcher menu order', function(hooks) {
   }
 
   QUnit.test('each group leads with the option carrying its badge', async function(assert) {
-    assert.expect(5);
+    assert.expect(6);
     await render(hbs`<ViewSwitcher />`);
 
     var items = document.querySelectorAll('.ll-viewswitch__item');
-    assert.strictEqual(items.length, 4, 'both axes render both of their options');
+    // Five since 2026-10-13: the two axes (Modern/Basic, Focused/Gentle) plus the DISPLAY group's
+    // single Display Design item (disabled, "Coming Soon"), which shows in both Basic and Modern.
+    assert.strictEqual(items.length, 5, 'both axes render both of their options, plus the Display group item');
 
     var names = labels('.ll-viewswitch__item-label');
     // The badge text is nested inside the label span, so the badged rows are matched by
@@ -66,6 +68,7 @@ QUnit.module('Integration | view-switcher menu order', function(hooks) {
     assert.strictEqual(names[1], 'Basic View', 'Basic View follows it');
     assert.strictEqual(names[2].indexOf('Focused Style'), 0, 'Style leads with Focused Style');
     assert.strictEqual(names[3], 'Gentle Style', 'Gentle Style follows it');
+    assert.strictEqual(names[4].indexOf('Display Design'), 0, 'the Display group item follows, with its Coming Soon badge');
   });
 
   QUnit.test('the Default badge belongs to Focused, and Recommended to Modern', async function(assert) {
