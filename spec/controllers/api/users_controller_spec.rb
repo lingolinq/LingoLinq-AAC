@@ -3629,6 +3629,87 @@ describe Api::UsersController, :type => :controller do
       expect(json['revisions'][b2.global_id]).to eq(b2.reload.current_revision)
     end
 
+    # A home board the user did not write (an SLP's board set as a family's home board) is the
+    # common case. A board it links to, which the user could view and then could not, must still be
+    # reported: the root's own JSON sends its buttons' board ids to every viewer.
+    it "should report a board unshared from the user below a root the user cannot delete" do
+      token_user
+      slp = User.create
+      child = Board.create(:user => slp, :public => false)
+      root = Board.create(:user => slp, :public => true)
+      root.settings['buttons'] = [{'id' => 1, 'label' => 'x', 'load_board' => {'id' => child.global_id, 'key' => child.key}}]
+      root.save
+      @user.reload
+      @user.settings['preferences']['home_board'] = {'id' => root.global_id, 'key' => root.key}
+      @user.save
+      child.share_with(@user.reload)
+      Worker.process_queues
+      expect(root.reload.downstream_board_ids).to eq([child.global_id])
+      expect(root.allows?(@user, 'delete')).to eq(false)
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(JSON.parse(response.body)['revisions']).to have_key(child.global_id)
+
+      child.reload.unshare_with(@user.reload)
+      Worker.process_queues
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+
+      json = JSON.parse(response.body)
+      expect(json['revisions']).not_to have_key(child.global_id)
+      expect(json['revoked_ids']).to eq([child.global_id])
+    end
+
+    # Only boards linked from a board the user can view are disclosed: one reached only through a
+    # board the user cannot view stays hidden, though the board it hangs from is reported.
+    it "should not report a board linked only from a board the user cannot view" do
+      token_user
+      publisher = User.create
+      stranger = User.create
+      deep = Board.create(:user => stranger, :public => false)
+      middle = Board.create(:user => stranger, :public => false)
+      middle.settings['buttons'] = [{'id' => 1, 'label' => 'x', 'load_board' => {'id' => deep.global_id, 'key' => deep.key}}]
+      middle.save
+      root = Board.create(:user => publisher, :public => true)
+      root.settings['buttons'] = [{'id' => 1, 'label' => 'x', 'load_board' => {'id' => middle.global_id, 'key' => middle.key}}]
+      root.save
+      @user.reload
+      @user.settings['preferences']['home_board'] = {'id' => root.global_id, 'key' => root.key}
+      @user.save
+      Worker.process_queues
+      Worker.process_queues
+      expect(root.reload.downstream_board_ids.sort).to eq([middle.global_id, deep.global_id].sort)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([middle.global_id])
+      expect(json['revisions']).not_to have_key(deep.global_id)
+    end
+
+    # board JSON sends downstream_board_ids to admin support (lib/json_api/board.rb), so a support
+    # caller's sync is told of every revoked board in the tree.
+    it "should report every revoked board in the tree to an admin support caller" do
+      token_user
+      o = Organization.create(:admin => true, :settings => {'total_licenses' => 1})
+      o.add_manager(@user.user_name, true)
+      synced = User.create
+      publisher = User.create
+      stranger = User.create
+      hidden = Board.create(:user => stranger, :public => false)
+      root = Board.create(:user => publisher, :public => true)
+      synced.settings['preferences']['home_board'] = {'id' => root.global_id, 'key' => root.key}
+      synced.save
+      Worker.process_queues
+      root.reload.settings['downstream_board_ids'] = [hidden.global_id]
+      root.save
+      expect(@user.reload.allows?(@user, 'admin_support_actions')).to eq(true)
+      expect(root.reload.allows?(@user, 'delete')).to eq(false)
+
+      get 'board_revisions', params: {:user_id => synced.global_id, :include_revoked => '1'}
+
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['revoked_ids']).to eq([hidden.global_id])
+    end
+
     # Board revocation is a fix, not a feature: it has no off switch (owner decision,
     # 2026-10-13). The environment variable the switch used to read changes nothing.
     env_wrap('BOARD_REVOCATION_DISABLED' => 'true') do

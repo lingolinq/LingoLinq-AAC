@@ -771,19 +771,21 @@ class Api::UsersController < ApplicationController
     end
     all_ids = []
     disclosed_ids = Set.new
+    support_caller = @api_user.allows?(@api_user, 'admin_support_actions')
     roots.compact.each do |root|
       all_ids << root.global_id
       all_ids += root.downstream_board_ids
-      disclosed_ids |= [root.global_id] + ((root.user_id == @api_user.id || root.allows?(@api_user, 'delete')) ? root.downstream_board_ids : [])
+      disclosed_ids |= [root.global_id] + ((support_caller || root.user_id == @api_user.id || root.allows?(@api_user, 'delete')) ? root.downstream_board_ids : [])
     end
     all_ids.uniq!
     include_revoked = params['include_revoked'] == '1' || params['include_revoked'] == 'true'
-    # Only boards the synced user can still view get a revision (and key). revoked_ids lists only
-    # ids already disclosed to the caller: the roots (the user's own preferences) and the
-    # downstream_board_ids of roots the caller may delete (board JSON sends those to them only), so
-    # a viewable public root does not reveal the private boards below it. check_ids are ignored.
+    # Only boards the synced user can still view get a revision (and key). revoked_ids lists only ids
+    # board JSON already sends the caller: the roots, the downstream_board_ids of roots it may delete
+    # (or of any root, for admin support), and boards linked from a tree board the user can view; one
+    # reached only through boards the user cannot view stays hidden. check_ids are ignored.
     res = {}
     revoked_ids = []
+    viewable_ids, undisclosed_ids = [], []
     boards = Board.select('id, key, current_revision, public, user_id, updated_at').find_all_by_global_id(all_ids)
     ActiveRecord::Associations::Preloader.new(records: boards.reject{|b| b.public }, associations: :user).call
     boards.each do |brd|
@@ -793,12 +795,14 @@ class Api::UsersController < ApplicationController
       # unshare. A shallow clone keeps allows? (its sub-user's list decides) and is never revoked.
       viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || (shallow ? brd.allows?(user, 'view') : board_viewable_now?(brd, user))
       if viewable
+        viewable_ids << brd.global_id
         res[brd.global_id] = brd.current_revision
         res[brd.key] = brd.current_revision
-      elsif !shallow && disclosed_ids.include?(brd.global_id)
-        revoked_ids << brd.global_id
+      elsif !shallow
+        (disclosed_ids.include?(brd.global_id) ? revoked_ids : undisclosed_ids) << brd.global_id
       end
     end
+    revoked_ids += BoardRevisionsAccess.linked_from(viewable_ids, undisclosed_ids)
     # Older clients read the flat id => revision map, so the revoked list is
     # only sent, in a wrapped shape, to clients that ask for it.
     if include_revoked
@@ -830,13 +834,9 @@ class Api::UsersController < ApplicationController
   # shared_with? would rebuild it once per board while it is stale), and the owner fallback is
   # checked once per owner, however many boards of the tree that owner has.
   #
-  # The fallback is the only per-board permission lookup left, and it runs only for boards that
-  # neither the caseload owns nor a share covers. Shallow clones never reach this method:
-  # board_revisions keeps allows? for them, since their sub-user's cached list also decides.
-  #
-  # This method and its comment keep the lines the inline version held, so the line numbers
-  # cited below this point (the compliance memos and the findings register) do not move.
-  # Called only from board_revisions.
+  # The fallback runs only for boards that neither the caseload owns nor a share covers. Shallow
+  # clones never reach this method (their sub-user's cached list also decides). board_revisions
+  # and this method keep a fixed line count, so the line numbers cited below do not move.
   def board_viewable_now?(board, user)
     (@board_revisions_access ||= BoardRevisionsAccess.new(user)).viewable?(board)
   end
