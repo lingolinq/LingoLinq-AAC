@@ -106,6 +106,21 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     assert.strictEqual(keys.indexOf('editdashboard'), -1, 'Edit Dashboard is not on the Focused home (2026-10-10)');
   });
 
+  // A supervisor's Speak is PINNED beside My Caseload (2026-10-14 request) — the hide toggle must not
+  // drop it and leave Caseload a lone card. Scoped to non-org supervisors; an org manager keeps no Speak.
+  test('a supervisor who hid Speak still gets it pinned beside Caseload, on both layouts', function(assert) {
+    assert.expect(5);
+    var slp = stubUser({ supporter_role: true, supervisees: [], supervised_units: [], 'preferences.dashboard_sections': { speak: false } });
+    var focused = layoutPresentation(slp, 'focused');
+    assert.true(focused.vis.speak, 'Speak is pinned visible in Focused even though the toggle hid it');
+    assert.ok(focused.grid.areas.some(function(r) { return r.split(' ').indexOf('speak') !== -1; }), 'and Focused places Speak');
+    var gentle = layoutPresentation(slp, 'gentle');
+    assert.true(gentle.vis.speak, 'pinned in Gentle too');
+    assert.notStrictEqual(gentle.grid.classes.indexOf('md-grid--caseload-row'), -1, 'so the Gentle Caseload | Speak row forms');
+    var orgSlp = stubUser({ supporter_role: true, supervisees: [], organizations: [{ type: 'manager', restricted: false }] });
+    assert.notOk(layoutPresentation(orgSlp, 'focused').vis.speak, 'an org manager still has no Speak (pin is scoped to non-org supervisors)');
+  });
+
   test('Gentle View offers every section available to the user', function(assert) {
     var shapeNames = Object.keys(SHAPES);
     assert.expect(shapeNames.length);

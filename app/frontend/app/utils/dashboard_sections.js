@@ -972,6 +972,13 @@ function layoutPresentation(user, layout, opts) {
       vis[s.key] = !sectionHidden(user, s.key);
     });
   }
+  // A SUPERVISOR (supporter, not an org manager) ALWAYS shows Speak beside My Caseload (2026-10-14
+  // request: the SLP's Caseload lead row is Caseload | Speak, styled like the communicator's Speak
+  // button). Pin Speak visible so the hide toggle cannot drop it and leave Caseload a lone, full-size
+  // card. Scoped to supporter && !org && caseload: an org manager (hero-org) keeps NO Speak (the
+  // availability gate), and a communicator is unaffected (Speak is their hero, already shown). Applied
+  // for a caller-supplied vis too, so the home grid and the Getting Started / Display Style previews agree.
+  if (user && user.get && user.get('supporter_role') && !hasOrgManagement(user) && vis.caseload) { vis.speak = true; }
   // Focused View never shows Edit Dashboard (since 2026-10-10; it showed Extras' slot before).
   // Forced here so the grid matrix and the per-card hiding agree; a card left
   // visible but unnamed in the areas lands in an implicit row of its own.
