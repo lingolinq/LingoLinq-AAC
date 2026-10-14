@@ -313,6 +313,14 @@ const GuidedTour = Component.extend({
     return !!this.get('tourBuilder');
   }),
 
+  // Communicator = account role is not 'supporter' (user.js#supporter_role). The tour
+  // trigger and the login auto-open are gated on this (2026-10-13 request): a user who
+  // is not a communicator neither auto-starts the tour on login nor sees the home-page
+  // "Take a tour" button. The component stays mounted as a headless consumer.
+  isCommunicator: computed('appState.currentUser.supporter_role', function() {
+    return !this.get('appState.currentUser.supporter_role');
+  }),
+
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
@@ -765,16 +773,12 @@ const GuidedTour = Component.extend({
       return;
     }
     this._clearAutoOpenStorageTwin();
-    // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
-    // `supporter_role`) tour the HOME page (2026-10-12, requested: "on an slp user,
-    // start their tour on the home page instead"; they toured the caseload before).
-    // Home is also where routes/index.js `_land_on_default` sends everyone with no
-    // remembered page. They get NO board-picker handoff — that exists so a
-    // newly-registered COMMUNICATOR still completes the must-have home-board pick,
-    // and a supporter has no board of their own to pick; the builder drops the
-    // welcome's board choices for them too (utils/tours/home.js welcomeStep).
+    // NON-COMMUNICATORS (supporters — SLPs/therapists/teachers/parents, all collapse to
+    // `supporter_role`) no longer auto-start the tour on login (2026-10-13 request:
+    // "on any user that is not a communicator, disable the tour process upon login").
+    // The signal is already consumed above, so the user simply lands on their page with
+    // no tour. Previously this ran `_startSupporterHomeAutoOpen` (the supporter home tour).
     if (supporter) {
-      this._startSupporterHomeAutoOpen();
       return;
     }
     this._startHomeAutoOpen();

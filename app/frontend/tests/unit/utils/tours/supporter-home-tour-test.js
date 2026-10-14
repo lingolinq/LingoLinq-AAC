@@ -42,7 +42,11 @@ module('Unit | Utility | tours | supporter home tour', function(hooks) {
     }
   });
 
-  test('the first-login auto-open starts the home tour for a supporter, never the caseload', function(assert) {
+  test('the first-login auto-open starts NO tour for a non-communicator (supporter)', function(assert) {
+    // SPEC CHANGE (2026-10-13 request: "on any user that is not a communicator, disable the
+    // tour process upon login"). A supporter's auto-open signal is consumed and then starts
+    // neither the supporter-home nor the communicator-home path. Previously it ran the
+    // supporter home tour.
     this.owner.setupRouter();
     var appState = this.owner.lookup('service:app-state');
     appState.set('auto_open_home_tour', false);
@@ -53,9 +57,7 @@ module('Unit | Utility | tours | supporter home tour', function(hooks) {
     comp._startSupporterHomeAutoOpen = function() { calls.push('supporter-home'); };
     comp._startHomeAutoOpen = function() { calls.push('communicator-home'); };
     comp._startAutoOpen();
-    assert.deepEqual(calls, ['supporter-home'], 'the supporter path');
-    assert.false(comp._autoOpenRouteAllowed('caseload', true), 'the caseload page no longer hosts the auto-open');
-    assert.true(comp._autoOpenRouteAllowed('user.home', true), 'the home page does');
+    assert.deepEqual(calls, [], 'a non-communicator starts no tour path');
     comp.destroy();
   });
 });

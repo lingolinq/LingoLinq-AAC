@@ -14,7 +14,7 @@
      design, which is the opposite of what is wanted here. The component is `tagName: ''` and
      reads nothing from its own DOM, so with the button suppressed it is a working headless
      consumer. --}}
-{{#if this.hasTour}}{{#unless @triggerless}}
+{{#if this.isCommunicator}}{{#if this.hasTour}}{{#unless @triggerless}}
 <button
   type="button"
   class="md-tour__trigger"
@@ -40,4 +40,4 @@
     <span class="sr-only">{{t "Tour completed" key="home_tour_seen_sr"}}</span>
   {{/if}}
 </button>
-{{/unless}}{{/if}}
+{{/unless}}{{/if}}{{/if}}
