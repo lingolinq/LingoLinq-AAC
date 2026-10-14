@@ -393,7 +393,11 @@ var eat_events = function(event) {
   // in speak_mode (so eat_events fires), and its Start/Settings/nav are
   // {{action}}-bound <button>s that need the synthesized click — without this
   // carve-out the eval can't be started on touch devices.
-  if($(event.target).closest('.board-detail-view, .md-board-detail-grid, .md-eval-intro').length > 0) { return; }
+  // The guided-tour popover (.shepherd-element) is portaled to <body> (outside
+  // .board-detail-view), so in speak_mode it is NOT already carved out: without
+  // this, eat_events preventDefault()s taps on the tour's Back/Next/Got it buttons
+  // on mobile and the speak-mode board tour cannot be advanced (2026-10-14).
+  if($(event.target).closest('.board-detail-view, .md-board-detail-grid, .md-eval-intro, .shepherd-element').length > 0) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
