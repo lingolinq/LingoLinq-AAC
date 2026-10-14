@@ -156,7 +156,7 @@ describe SupervisorConsentService, :type => :model do
       service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: other.global_id)
       rel = SupervisorRelationship.last
       expect(rel.communicator_user).to eq(communicator)
-      expect(rel.organization_id).not_to eq(other.id)
+      expect(rel.organization_id).to eq(nil)
       mail = SupervisorMailer.consent_request(rel.global_id)
       expect(mail.html_part.body.to_s).not_to include('Other District')
       expect(mail.text_part.body.to_s).not_to include('Other District')
