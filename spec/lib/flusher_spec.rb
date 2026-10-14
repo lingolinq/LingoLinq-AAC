@@ -618,6 +618,10 @@ describe Flusher do
       u.settings['subscription']['last_deletion_attempts'] = 2
       u.save
       before_sweep.call(u) if before_sweep
+      # Creating a user queues jobs (track_boards on :slow) that save the user. Run them now, so
+      # they cannot count as use after the sweep: process_queues takes the queues in Redis set
+      # order, which is not fixed.
+      Worker.process_queues
       User.where(id: u.id).update_all(updated_at: 13.months.ago)
       allow(SubscriptionMailer).to receive(:deliver_message)
       User.check_for_subscription_updates
