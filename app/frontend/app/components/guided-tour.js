@@ -321,6 +321,17 @@ const GuidedTour = Component.extend({
     return !this.get('appState.currentUser.supporter_role');
   }),
 
+  // Whether to render the "Take a tour" trigger button. The isCommunicator gate applies ONLY to the
+  // home-page trigger (the 2026-10-13 request was about the home button + login auto-open). The
+  // board-edit (editHost) and speak-mode (speakHost) instances host their OWN tours for whoever is
+  // editing or speaking — usually a supporter — so they must NOT be hidden by the communicator gate
+  // (board-detail.hbs:302 is the edit tour's only entry point; the speak host's button is CSS-hidden
+  // but stays a headless runner). The login auto-open keeps its own separate supporter gate
+  // (_startHomeAutoOpen), so loosening the button here does not re-raise the tour on login.
+  showTrigger: computed('isCommunicator', 'editHost', 'speakHost', function() {
+    return !!(this.get('editHost') || this.get('speakHost') || this.get('isCommunicator'));
+  }),
+
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
