@@ -2626,7 +2626,14 @@ class User < ApplicationRecord
         add_processing_error("blocked email address")
         return false
       end
-      self.settings['email'] = process_string(new_email)
+      processed_email = process_string(new_email)
+      # A different mailbox gets a fresh start: email_disabled was set for the OLD address
+      # (UserMailer.bounce_email, from an SES bounce or complaint). Compared by email hash so a
+      # case or whitespace edit of the same mailbox does not re-enable it.
+      if User.generate_email_hash(processed_email) != User.generate_email_hash(self.settings['email'])
+        self.settings.delete('email_disabled')
+      end
+      self.settings['email'] = processed_email
     end
     # Determine up front whether this is a VALID organization-authored creation (a
     # school/district manager creating a managed user under the FERPA school-official

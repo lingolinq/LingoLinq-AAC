@@ -2433,7 +2433,36 @@ describe User, :type => :model do
       u.process({'preferences' => {'home_board' => {'id' => b.global_id, 'key' => b.key}}})
     end
   end
-  
+
+  # UserMailer.bounce_email sets email_disabled when SES reports a permanent bounce or a
+  # complaint. Changing to a different address must clear it, or a user who fixes a typo
+  # stays without mail (and without password reset, users_controller#forgot_password) forever.
+  describe "email_disabled on email change" do
+    it "clears email_disabled when the email changes to a different address" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      expect(u.reload.settings['email_disabled']).to eq(true)
+      u.process({'email' => 'fred@example.com'})
+      expect(u.reload.settings['email_disabled']).to eq(nil)
+    end
+
+    it "keeps email_disabled when the address only changes case or whitespace" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      u.reload
+      u.process({'email' => 'Bob@Example.com'})
+      expect(u.reload.settings['email_disabled']).to eq(true)
+    end
+
+    it "keeps email_disabled when an update does not touch the email" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      u.reload
+      u.process({'name' => 'Bob'})
+      expect(u.reload.settings['email_disabled']).to eq(true)
+    end
+  end
+
   describe "board_set_ids" do
     it "should include the user's home board and all sub-boards" do
       u = User.create
