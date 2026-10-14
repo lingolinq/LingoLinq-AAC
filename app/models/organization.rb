@@ -884,22 +884,22 @@ class Organization < ApplicationRecord
   
   def self.sponsored?(user)
     links = UserLink.links_for(user)
-    !!links.detect{|l| l['type'] == 'org_user' && l['user_id'] == user.global_id && l['state']['sponsored'] }
+    existing_record_codes(links.select{|l| l['type'] == 'org_user' && l['user_id'] == user.global_id && l['state']['sponsored'] }.map{|l| l['record_code'] }).any?
   end
   
   def self.managed?(user)
     links = UserLink.links_for(user)
-    !!links.detect{|l| l['type'] == 'org_user' }
+    existing_record_codes(links.select{|l| l['type'] == 'org_user' }.map{|l| l['record_code'] }).any?
   end
   
   def self.supervisor?(user, premium=false)
     links = UserLink.links_for(user)
-    !!links.detect{|l| l['type'] == 'org_supervisor' && (!premium || l['state']['premium'])}
+    existing_record_codes(links.select{|l| l['type'] == 'org_supervisor' && (!premium || l['state']['premium'])}.map{|l| l['record_code'] }).any?
   end
   
   def self.manager?(user)
     links = UserLink.links_for(user)
-    res = !!links.detect{|l| l['type'] == 'org_manager' }
+    res = existing_record_codes(links.select{|l| l['type'] == 'org_manager' }.map{|l| l['record_code'] }).any?
     if res && !user.settings['possible_admin']
       user.schedule(:update_setting, 'possible_admin', true)
     end

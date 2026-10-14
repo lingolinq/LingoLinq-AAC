@@ -329,6 +329,31 @@ describe Organization, :type => :model do
   end
   
   describe "user types" do
+    # A destroyed organization keeps its membership links; the class-level checks (billing and
+    # role) count only organizations that still exist.
+    it "should not count memberships of a destroyed organization" do
+      o = Organization.create(:settings => {'total_licenses' => 2, 'total_supervisor_licenses' => 2})
+      live = Organization.create(:settings => {'total_licenses' => 2, 'total_supervisor_licenses' => 2})
+      u = User.create
+      s = User.create
+      m = User.create
+      u2 = User.create
+      s2 = User.create
+      m2 = User.create
+      o.add_user(u.user_name, false, true)
+      o.add_supervisor(s.user_name, false, true)
+      o.add_manager(m.user_name, true)
+      live.add_user(u2.user_name, false, true)
+      live.add_supervisor(s2.user_name, false, true)
+      live.add_manager(m2.user_name, true)
+      expect([Organization.sponsored?(User.find(u.id)), Organization.managed?(User.find(u.id)), Organization.supervisor?(User.find(s.id)), Organization.supervisor?(User.find(s.id), true), Organization.manager?(User.find(m.id))]).to eq([true, true, true, true, true])
+
+      o.reload.destroy
+
+      expect([Organization.sponsored?(User.find(u.id)), Organization.managed?(User.find(u.id)), Organization.supervisor?(User.find(s.id)), Organization.supervisor?(User.find(s.id), true), Organization.manager?(User.find(m.id))]).to eq([false, false, false, false, false])
+      expect([Organization.sponsored?(User.find(u2.id)), Organization.managed?(User.find(u2.id)), Organization.supervisor?(User.find(s2.id)), Organization.supervisor?(User.find(s2.id), true), Organization.manager?(User.find(m2.id))]).to eq([true, true, true, true, true])
+    end
+
     it "should correctly identify sponsored_user?" do
       o = Organization.create(:settings => {:total_licenses => 1})
       u = User.create
