@@ -158,8 +158,8 @@ export default Controller.extend({
     // a later list update re-run this. Never invent a selection for an unknown name.
     if (!match) { return; }
     this.set('_deepLinkAppliedFor', name);
-    /* A stale roster filter, or the Needs attention toggle when this communicator needs none, can
-       hide the very row we are deep-linking to, which made the arrival silently do nothing. */
+    /* A stale roster filter, or a lingering attentionOnly value when this communicator needs none,
+       can hide the very row we are deep-linking to, which made the arrival silently do nothing. */
     this.setProperties({ superviseeFilter: '', attentionOnly: !!this.get('attentionOnly') && !!attentionBadgeFor(match) });
     if (match.modeling_only) {
       this.set('highlightedSupervisee', name);
@@ -668,12 +668,6 @@ export default Controller.extend({
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
       });
-    },
-
-    // The Compact header's "Needs attention" pill: show only the communicators who need
-    // attention, or everyone again.
-    toggleAttentionOnly: function() {
-      this.toggleProperty('attentionOnly');
     }
   },
 
@@ -684,15 +678,18 @@ export default Controller.extend({
            this.get('appState.effective_view_style') === 'modern';
   }),
 
+  /* Dormant since the Needs attention filter toggle was removed (2026-10-13): no UI sets this true
+     any more, so it stays false and listedSupervisees always returns the full list. Kept, with the
+     deep-link reset below, so the deep-link behaviour (and its tests) still have a value to clamp. */
   attentionOnly: false,
 
   attentionSupervisees: computed('supervisees.[]', function() {
     return (this.get('supervisees') || []).filter(function(s) { return !!attentionBadgeFor(s); });
   }),
 
-  /* The rows the list renders: the text filter's result, narrowed to the communicators who
-     need attention while the header's toggle is on. Outside Modern Focused the toggle does not
-     exist, so this is exactly filteredSupervisees. */
+  /* The rows the list renders: the text filter's result. attentionOnly is dormant (the Needs
+     attention filter toggle was removed 2026-10-13), so this is now always filteredSupervisees;
+     the narrowing branch is retained for the deep-link path that can still set attentionOnly. */
   listedSupervisees: computed('filteredSupervisees.[]', 'attentionOnly', 'focusedCaseload', function() {
     var list = this.get('filteredSupervisees') || [];
     if (!this.get('focusedCaseload') || !this.get('attentionOnly')) { return list; }

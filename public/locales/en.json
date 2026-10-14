@@ -744,6 +744,7 @@
   "n_sessions": "0 sessions || 1 session || %{n} sessions",
   "need_online_for_copying": "You must be connected to the Internet to make copies of boards.",
   "sticky_board_notice": "Board lock is enabled, disable to leave this board.",
+  "word_prediction_save_failed": "Couldn't save the Prediction setting. Please try again.",
   "none_set": "None Set",
   "n_boards": "0 boards || 1 board || %{n} boards",
   "extra_fee_at_purchase": "(requires extra fee after trial period)",

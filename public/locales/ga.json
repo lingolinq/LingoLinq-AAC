@@ -2249,6 +2249,7 @@
   "predict": "*** Predict",
   "yes_abbr": "*** Y",
   "no_abbr": "*** N",
+  "word_prediction_save_failed": "*** Couldn't save the Prediction setting. Please try again.",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "Níor aimsíodh íomhá bhailí [[ No valid image found",
   "no_valid_sound_found": "Níor aimsíodh aon fhuaim bhailí [[ No valid sound found",

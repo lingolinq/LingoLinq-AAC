@@ -9654,5 +9654,6 @@
   "view_group_display": "*** Display",
   "view_coming_soon": "*** Coming Soon",
   "view_desc_display_style": "*** Choose and arrange your home page board shortcuts.",
-  "attention_card_sub_short": "*** Follow up needed"
+  "attention_card_sub_short": "*** Follow up needed",
+  "word_prediction_save_failed": "*** Couldn't save the Prediction setting. Please try again."
 }

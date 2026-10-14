@@ -1201,8 +1201,18 @@ export default Controller.extend({
       var apply = function() {
         prefUser.set('preferences.word_suggestions', !!on);
         if(prefUser.save) {
+          // CREATE the device container first: set('preferences.device.updated') THROWS on a
+          // record whose preferences carry no `device` key (components/view-switcher.js:186).
+          if(!prefUser.get('preferences.device')) { prefUser.set('preferences.device', {}); }
           prefUser.set('preferences.device.updated', true);
-          prefUser.save();
+          prefUser.save().then(null, function() {
+            // Save failed (offline, or a supervisor without write access to the communicator):
+            // put the control back to the stored value and say so, rather than leaving it showing
+            // a change the server never received.
+            if(prefUser.isDestroyed || prefUser.isDestroying) { return; }
+            prefUser.set('preferences.word_suggestions', !on);
+            modal.error(i18n.t('word_prediction_save_failed', "Couldn't save the Prediction setting. Please try again."));
+          });
         }
       };
       var ready = this.get('app_state').open_speak_mode_exit_pin('none');
