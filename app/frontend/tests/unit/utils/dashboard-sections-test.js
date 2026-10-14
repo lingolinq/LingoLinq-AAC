@@ -268,17 +268,17 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     assert.strictEqual(f.indexOf('speak'), f.indexOf('caseload') + 1, 'focused: speak sits immediately after caseload (the paired row)');
   });
 
-  test('focused drops Speak when it is not the hero', function(assert) {
-    // Regression lock for the supervisor Focused View: Speak has no non-hero
-    // presentation there (app.scss hides .md-card--speak-as-button in focused), so
-    // leaving its key in would reserve a full-width row for an invisible card.
+  test('focused places Speak beside the Caseload hero for a supporter', function(assert) {
+    // Updated 2026-10-13 (approved): a supporter's Focused view now PLACES Speak beside the Caseload
+    // hero (Caseload | Speak). Before, Speak was dropped for a non-speak hero; now the caseload hero
+    // keeps it as the right-hand card of the lead row. Still present when Speak is itself the hero.
     var vis = visFor(['caseload', 'account', 'boards', 'speak']);
     var supervisor = gridLayoutState(vis, null, 'focused', 'caseload');
-    assert.notOk(supervisor.areasValue.includes('speak'),
-      'no speak row for a caseload hero');
+    assert.ok(supervisor.areasValue.includes('speak'),
+      'Speak is placed beside the Caseload hero');
     var communicator = gridLayoutState(vis, null, 'focused', 'speak');
     assert.ok(communicator.areasValue.includes('speak'),
-      'but Speak IS present when it is the hero');
+      'and Speak IS present when it is the hero');
   });
 
   test('focused keeps the utility cards contiguous in one row', function(assert) {
@@ -296,8 +296,12 @@ module('Unit | Utility | dashboard sections layout engine', function() {
     var vis = visFor(['caseload', 'account', 'boards', 'speak']);
     var state = gridLayoutState(vis, null, 'focused', 'caseload');
     var first = state.areas[0].split(' ');
-    assert.ok(first.every(function(t) { return t === AREA_CASELOAD; }),
-      'caseload hero occupies the whole first row for a supervisor');
+    // Updated 2026-10-13 (approved): the Caseload hero still leads the top row but now shares it with
+    // Speak (Caseload fills the left half, Speak the right); before, Caseload spanned the whole row.
+    assert.ok(first.slice(0, 3).every(function(t) { return t === AREA_CASELOAD; }),
+      'the Caseload hero fills the left half of the first row');
+    assert.ok(first.slice(3).every(function(t) { return t === 'speak'; }),
+      'Speak fills the right half');
   });
 
   test('a communicator\'s focused layout is unchanged by the shared-order switch', function(assert) {
@@ -544,10 +548,13 @@ module('Unit | Utility | dashboard sections: Focused pair beside the Speak hero'
     assert.deepEqual(state.areas.slice(0, 3), ['speak speak createboard createboard extras extras', 'boards boards boards boards boards boards', 'reports reports reports reports reports reports']);
   });
 
-  test('caseload and org heroes are untouched: the utility cards still share one row', function(assert) {
+  test('org hero untouched; caseload hero now uses the six-column beside grid, utility cards still one row', function(assert) {
     var vis = visFor(['caseload', 'account', 'createboard', 'boards', 'speak', 'reports', 'editdashboard']);
     var caseload = gridLayoutState(vis, null, 'focused', 'caseload');
-    assert.notStrictEqual(caseload.areas.indexOf('account createboard reports'), -1, 'one row, in SUPERVISOR_DEFAULT_ORDER, without Edit Dashboard');
+    // 2026-10-13 (approved): the caseload hero now shares its lead row with Speak on a six-column grid
+    // (md-grid--caseload-beside), so the utility cards share one SIX-column row rather than a three-
+    // column one. Still one row, in SUPERVISOR_DEFAULT_ORDER, without Edit Dashboard.
+    assert.notStrictEqual(caseload.areas.indexOf('account account createboard createboard reports reports'), -1, 'one six-column utility row, without Edit Dashboard');
     var org = gridLayoutState(visFor(['org', 'caseload', 'speak', 'account', 'createboard', 'boards', 'extras', 'reports']), null, 'focused', 'org');
     assert.false(org.areas.some(function(row) { return row.indexOf('speak createboard') !== -1; }), 'no pair beside Speak on an org dashboard');
   });

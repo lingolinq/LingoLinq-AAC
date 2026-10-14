@@ -391,7 +391,7 @@ function defaultOrderFor(user, layout, vis) {
      takes it above and only promotes its hero -- so the Edit-Dashboard-beside-Create-a-Board
      move has to happen on this side of that branch, not inside it. Putting it in the shared
      function reordered Focused's utility row too, which the request did not ask for. */
-  return caseloadRowFirst(extrasBesideSpeak(editBesideCreate(base), vis), vis);
+  return caseloadRowFirst(extrasBesideSpeak(editBesideCreate(base), vis), vis, caseloadRowPartnersFor(vis));
 }
 
 // The visible section keys in display order: start from the saved order (or the
@@ -440,9 +440,26 @@ function extrasBesideSpeak(base, vis) {
    them as one row. Without `vis` (the editor's full default order) all three move. A user with no
    caseload, or with neither partner visible, keeps the order unchanged. */
 var CASELOAD_ROW_PARTNERS = ['speak', 'extras'];
-function caseloadRowFirst(base, vis) {
+/* A SUPPORTER (a caseload + Speak, not an org manager) leads with Caseload | Speak ONLY; Extras
+   leaves the lead row and packs lower (2026-10-13 request: "the button to the right of the main
+   button should be Speak, not Extras ... just the supporter accounts"). This reverses the
+   2026-10-12 Caseload | Speak | Extras equal-thirds row for supporters.
+   Keyed on `vis`, not a role object (these functions take no `user`): the exclusion fires only
+   when Speak is a caseload-row partner, and Speak is a partner only for a supporter — an admin/org
+   manager (`vis.org`) has no Speak (availability gate, HOME_SECTIONS ~38), and a communicator has no
+   caseload row. `!vis.org` keeps the admin Caseload | Extras row (even a synthetic org+speak vis)
+   unchanged. Threaded into BOTH caseloadRowFirst (order) and packOrder (packing) so they agree, and
+   because packOrder is the only enforcer for a saved drag order (caseloadRowFirst leaves saved
+   orders untouched), threading it there also makes the rule symmetric: Extras never joins the
+   caseload run whatever the saved order. */
+function caseloadRowPartnersFor(vis) {
+  if (vis && vis.caseload && vis.speak && !vis.org) { return ['speak']; }
+  return CASELOAD_ROW_PARTNERS;
+}
+function caseloadRowFirst(base, vis, rowPartners) {
   if (base.indexOf('caseload') === -1 || (vis && !vis.caseload)) { return base; }
-  var partners = CASELOAD_ROW_PARTNERS.filter(function(k) { return base.indexOf(k) !== -1 && (!vis || vis[k]); });
+  rowPartners = rowPartners || CASELOAD_ROW_PARTNERS;
+  var partners = rowPartners.filter(function(k) { return base.indexOf(k) !== -1 && (!vis || vis[k]); });
   if (!partners.length) { return base; }
   var lead = ['caseload'].concat(partners);
   var rest = base.filter(function(k) { return lead.indexOf(k) === -1; });
@@ -466,7 +483,8 @@ function editBesideCreate(base) {
   return out;
 }
 
-function packOrder(keys, extraFull) {
+function packOrder(keys, extraFull, caseloadPartners) {
+  caseloadPartners = caseloadPartners || CASELOAD_ROW_PARTNERS;
   var a = function(k) { return AREA[k]; };
   var rows = [], pending = null;
   // Boards is always its own full-width row; Caseload, Rooms, Attention and the
@@ -500,7 +518,7 @@ function packOrder(keys, extraFull) {
     // The caseload row (caseloadRowFirst): Caseload, then the partners that directly follow it, as
     // ONE row of two or three cells. dashboardLayout widens the grid when it has three.
     var partners = [];
-    while (key === 'caseload' && CASELOAD_ROW_PARTNERS.indexOf(keys[i + 1 + partners.length]) !== -1) { partners.push(keys[i + 1 + partners.length]); }
+    while (key === 'caseload' && caseloadPartners.indexOf(keys[i + 1 + partners.length]) !== -1) { partners.push(keys[i + 1 + partners.length]); }
     if (partners.length) {
       if (pending) { rows.push(a(pending) + ' .'); pending = null; }
       rows.push([key].concat(partners).map(a).join(' '));
@@ -549,7 +567,8 @@ function dashboardLayout(vis, order) {
      order has to be added in BOTH places or the dashboard and its editor disagree. That is
      exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
      alone: the preview reordered and the real page did not. */
-  var def = caseloadRowFirst(extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)), vis), vis);
+  var clPartners = caseloadRowPartnersFor(vis);
+  var def = caseloadRowFirst(extrasBesideSpeak(editBesideCreate(vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER)), vis), vis, clPartners);
   /* NO SMALL CARD GETS A FULL-WIDTH ROW ANY MORE (requested 2026-10-09: "do not allow any of
      the buttons to span the full row"). This was `supervisor ? ['speak'] : ['speak','extras']`,
      which made Speak -- and Extras for a communicator -- full-width showcase rows.
@@ -557,7 +576,7 @@ function dashboardLayout(vis, order) {
      caseload, rooms, attention and org unconditionally. Those are panels, not buttons, and the
      request was about the buttons. */
   var extraFull = [];
-  var body = packOrder(orderedVisible(vis, order, def), extraFull);
+  var body = packOrder(orderedVisible(vis, order, def), extraFull, clPartners);
   // A three-cell caseload row needs thirds, so the grid becomes SIX columns (as Focused's Speak row
   // does): every row's cells widen evenly, three tracks per half and two per third.
   if (!body.some(function(row) { return row.split(' ').length === 3; })) { return framed(body); }
@@ -627,7 +646,10 @@ function focusedLayout(vis, order, heroKey) {
      render Speak with no grid area at all — it was auto-placed into invented columns and
      squashed the whole grid. Keeping it in `rest` gives it a real area again. */
   var orgPair = heroKey === 'org' && !!vis.speak && !!vis.caseload;
-  if (heroKey && heroKey !== 'speak' && !orgPair) { rest.speak = false; }
+  // Keep Speak for a SUPPORTER (caseload hero with Speak): it becomes the right half of the
+  // Caseload | Speak beside row below (2026-10-13). Every other non-speak hero still drops it;
+  // orgPair already keeps it for the admin Caseload | Speak pair.
+  if (heroKey && heroKey !== 'speak' && !orgPair && !(heroKey === 'caseload' && vis.speak)) { rest.speak = false; }
   // Same base order Gentle uses, so a card sits in the same relative place in both
   // views. Classified off `vis` exactly like dashboardLayout does, because this
   // function has no `user` — using availability here instead would drift for a
@@ -685,9 +707,16 @@ function focusedLayout(vis, order, heroKey) {
      show my caseload to the left of extras (like it does on gentle view)"): a supervisor (Caseload hero)
      and an admin (org hero), with Extras on its right. Not with the org Caseload | Speak pair, which
      already gives Caseload its row. */
-  if (!beside.length && !orgPair && heroKey && heroKey !== 'speak' && keys.indexOf('caseload') !== -1 && keys.indexOf('extras') !== -1) {
-    beside = ['extras'];
-    lead = 'caseload';
+  if (!beside.length && !orgPair && heroKey && heroKey !== 'speak' && keys.indexOf('caseload') !== -1) {
+    // SUPPORTER (caseload hero with Speak): Caseload | Speak, equal halves; Extras falls to the
+    // FOCUSED_ACTION_KEYS row (2026-10-13). An admin (org hero, no Speak) keeps Caseload | Extras.
+    if (heroKey === 'caseload' && keys.indexOf('speak') !== -1) {
+      beside = ['speak'];
+      lead = 'caseload';
+    } else if (keys.indexOf('extras') !== -1) {
+      beside = ['extras'];
+      lead = 'caseload';
+    }
   }
   if (beside.length) {
     /* SIDE BY SIDE AT EQUAL WIDTH (2026-10-12, requested: "make the width of the buttons evenly split
@@ -698,8 +727,13 @@ function focusedLayout(vis, order, heroKey) {
      Focused home) split their row the same way, and full-width cards span all six. */
     var GRID_COLS = 6;
     var spanRow = function(rowKeys) {
-      var each = GRID_COLS / rowKeys.length, cells = [];
+      // Math.floor + pad to exactly GRID_COLS so the areas string is always valid even when the
+      // visible count does not divide 6 (a safety net for a future re-enabled action card; today the
+      // reachable counts are 1/2/3/6, which divide evenly and pad to nothing). An invalid column
+      // count would otherwise emit a malformed grid-template-areas row.
+      var each = Math.floor(GRID_COLS / rowKeys.length), cells = [];
       rowKeys.forEach(function(k) { for (var i = 0; i < each; i++) { cells.push(a(k)); } });
+      while (cells.length < GRID_COLS) { cells.push(a(rowKeys[rowKeys.length - 1])); }
       return cells.join(' ');
     };
     var others = actionKeys.filter(function(k) { return beside.indexOf(k) === -1; });

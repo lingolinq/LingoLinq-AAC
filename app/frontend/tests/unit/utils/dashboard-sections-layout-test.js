@@ -79,19 +79,23 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     });
   });
 
-  test('Focused View does not offer Speak when Speak is not the hero', function(assert) {
+  // Updated 2026-10-13 (approved): a SUPPORTER's Focused view now PLACES Speak beside the Caseload hero
+  // (dashboard-focused-caseload-beside-test), so Focused offers the Speak toggle to a supervisor. An org
+  // manager (hero-org) still has no Speak on either layout ("on an admin user, hide the speak button").
+  test('Focused View offers Speak to a supervisor (placed beside Caseload) but not to an org manager', function(assert) {
     assert.expect(4);
     var supervisor = SHAPES['a supervisor'];
     var orgOnly = SHAPES['an org manager who does not supervise'];
-    [['a supervisor', supervisor], ['an org manager who does not supervise', orgOnly]].forEach(function(pair) {
-      var keys = sectionsForLayout(pair[1], 'focused').map(function(s) { return s.key; });
-      assert.strictEqual(keys.indexOf('speak'), -1, 'Focused hides the Speak toggle for ' + pair[0]);
-      var gentle = sectionsForLayout(pair[1], 'gentle').map(function(s) { return s.key; });
-      // Updated 2026-10-12 (approved): an admin (org manager) has no Speak on either layout ("on an admin
-      // user, hide the speak button on the home page"); a supervisor still gets it on Gentle.
-      var gentleOffersSpeak = pair[1] !== orgOnly;
+    [['a supervisor', supervisor, true], ['an org manager who does not supervise', orgOnly, false]].forEach(function(trio) {
+      var focusedOffersSpeak = trio[2];
+      var keys = sectionsForLayout(trio[1], 'focused').map(function(s) { return s.key; });
+      assert.strictEqual(keys.indexOf('speak') !== -1, focusedOffersSpeak,
+        'Focused ' + (focusedOffersSpeak ? 'offers' : 'hides') + ' the Speak toggle for ' + trio[0]);
+      var gentle = sectionsForLayout(trio[1], 'gentle').map(function(s) { return s.key; });
+      // An admin (org manager) has no Speak on either layout; a supervisor gets it on Gentle too.
+      var gentleOffersSpeak = trio[1] !== orgOnly;
       assert.strictEqual(gentle.indexOf('speak') !== -1, gentleOffersSpeak,
-        'Gentle ' + (gentleOffersSpeak ? 'still offers' : 'does not offer') + ' it to ' + pair[0]);
+        'Gentle ' + (gentleOffersSpeak ? 'still offers' : 'does not offer') + ' it to ' + trio[0]);
     });
   });
 
@@ -124,9 +128,10 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     // anchored the utility row near the top; now Extras alone does, at its own (last) order slot.
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'focused').map(function(s) { return s.key; }),
-      // Updated later on 2026-10-12 (approved): Extras sits beside Caseload on the first row.
-      ['caseload', 'extras', 'attention', 'rooms'],
-      'Extras is listed beside Caseload, where it renders'
+      // Updated 2026-10-13 (approved): a supporter's Focused lead row is Caseload | Speak; Extras moves to
+      // the action row, last.
+      ['caseload', 'speak', 'attention', 'rooms', 'extras'],
+      'Speak is listed beside Caseload, where it renders; Extras moves to the action row'
     );
     // Updated 2026-10-12 (approved): an admin has no Speak, so there is no Caseload | Speak bottom pair;
     // Caseload is a full row at its order slot, directly after the My Organizations hero.
@@ -149,8 +154,9 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     assert.expect(2);
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'gentle').map(function(s) { return s.key; }),
-      // Updated 2026-10-12 (approved): Caseload, Speak and Extras share the top row (caseloadRowFirst).
-      ['caseload', 'speak', 'extras', 'attention', 'rooms'],
+      // Updated 2026-10-13 (approved): a supporter's Caseload row is Caseload | Speak only; Extras drops
+      // out of the lead row and packs last.
+      ['caseload', 'speak', 'attention', 'rooms', 'extras'],
       'Gentle reads in its default order'
     );
     assert.deepEqual(
