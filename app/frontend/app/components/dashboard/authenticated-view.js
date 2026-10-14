@@ -30,9 +30,10 @@ import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates
    runs its background fetch and overwrites both the lists and this cache. Because the fetch is
    never skipped, a created/copied/deleted board shows one fetch-window late rather than "until
    reload" — the staleness the prior inline note (~_fetchRemainingForCount) warned a plain cache
-   would cause. Module-scoped (not a service) is the smallest thing that survives the component;
-   it clears naturally on a full reload. */
-var _previewBoardCache = {};
+   would cause. The cache lives in utils/preview_board_cache so it survives the component AND is
+   cleared by app-state.js#clear_user_state on logout (board names/urls must not outlive a session
+   on a shared device); see that module. */
+import previewBoardCache from '../../utils/preview_board_cache';
 
 const AuthenticatedView = Component.extend({
   tagName: '',
@@ -1131,7 +1132,7 @@ const AuthenticatedView = Component.extend({
     // SEED the Boards card from the cross-navigation cache so it paints instantly on return; the
     // background fetch below still runs (the guard is instance state) and overwrites with fresh
     // data + refreshes the cache (stale-while-revalidate).
-    var cached = _previewBoardCache[userId];
+    var cached = previewBoardCache.get(userId);
     if (cached && !_this.get('_fetchedPreviewBoards')) {
       _this.set('_fetchedPreviewBoards', cached.preview);
       if (cached.full) { _this.set('_fetchedBoards', cached.full); }
@@ -1149,14 +1150,14 @@ const AuthenticatedView = Component.extend({
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', A(results));
-      _previewBoardCache[userId] = _previewBoardCache[userId] || {};
-      _previewBoardCache[userId].preview = A(results);
+      var entry = previewBoardCache.ensure(userId);
+      entry.preview = A(results);
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
         _this._fetchRemainingForCount(userId, meta.next_offset, results);
       } else {
         _this.set('_fetchedBoards', A(results));
-        _previewBoardCache[userId].full = A(results);
+        entry.full = A(results);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
@@ -1197,8 +1198,7 @@ const AuthenticatedView = Component.extend({
         _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
         _this.set('_fetchedBoards', A(combined));
-        _previewBoardCache[userId] = _previewBoardCache[userId] || {};
-        _previewBoardCache[userId].full = A(combined);
+        previewBoardCache.ensure(userId).full = A(combined);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }

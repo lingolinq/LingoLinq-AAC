@@ -28,6 +28,7 @@ import LingoLinq from '../app';
 import editManager from '../utils/edit_manager';
 import word_suggestions from '../utils/word_suggestions';
 import boardDetailCache from '../utils/board_detail_cache';
+import previewBoardCache from '../utils/preview_board_cache';
 import sessionHistory from '../utils/session_history';
 import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
@@ -2251,6 +2252,9 @@ export default Service.extend({
     // In-memory board JSON / ordered_buttons / image-warm state must not
     // leak across users on SPA sign-out (full reload clears module state).
     try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
+    // Dashboard Boards-card preview cache (names + image urls) is module-scoped and survives the
+    // component; drop it so it does not linger in memory on a shared device after sign-out.
+    try { previewBoardCache.reset(); } catch(e) { /* non-critical */ }
     // Boards-page Mine list snapshots are per-user localStorage; drop them
     // on sign-out so a shared device never shows another user's tiles.
     try { boardsPageListCache.clearAll(); } catch(e) { /* non-critical */ }
