@@ -1477,7 +1477,7 @@ module Subscription
       ConfigurationSetSendingPausedException MailFromDomainNotVerifiedException
       AccessDenied AccessDeniedException NotAuthorized OptInRequired ExpiredToken ExpiredTokenException
       IncompleteSignature InvalidClientTokenId SignatureDoesNotMatch MissingAuthenticationToken
-      UnrecognizedClientException
+      UnrecognizedClientException RequestExpired InvalidAccessKeyId
     ).freeze
 
     INACTIVITY_MAIL_SETUP_REJECTION = /not verified|paused|suspended|sandbox/i

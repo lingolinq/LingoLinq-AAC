@@ -2849,6 +2849,15 @@ describe Subscription, :type => :model do
           end
         end
 
+        %w(RequestExpired InvalidAccessKeyId).each do |code|
+          it "treats #{code} as a setup error" do
+            failed, later, sent = halting_run(Aws::SES::Errors.error_class(code).new(nil, 'x'))
+
+            expect_halted(failed, later, sent)
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error \(Aws::SES::Errors::#{code}/).once
+          end
+        end
+
         it "treats an SES error code not seen before as transient" do
           failed, later, sent = halting_run(Aws::SES::Errors.error_class('SomethingNew').new(nil, 'x'))
 
