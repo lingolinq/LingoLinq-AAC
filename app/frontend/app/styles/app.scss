@@ -47127,7 +47127,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 7px !important;
+  gap: 6px !important; /* match the Change Home Board button's column-gap (user computed) */
   /* Nudged 16px to the right of the header title block. */
   margin-left: 16px !important;
   /* 32px tall (requested 2026-10-13): the Create and View All Boards buttons on the Modern
@@ -47148,10 +47148,10 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   background: linear-gradient(135deg, rgb(220, 228, 236) 0%, rgb(196, 208, 223) 100%) !important;
   border-color: rgba($la-navy, 0.18) !important; /* computed rgba(27, 54, 93, 0.18) */
   color: var(--md-ink) !important;
+  /* Box-shadow copied verbatim from the Change Home Board button's computed style (user inspector). */
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 1px 2px rgba($la-navy, 0.12),
-    0 6px 14px rgba($la-navy, 0.22) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba($la-navy, 0.14) !important;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add-icon {
@@ -47161,7 +47161,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add-text {
   font-size: 14px !important; /* 15 -> 14px (requested 2026-10-13) */
-  font-weight: 700 !important;
+  font-weight: 600 !important; /* match the Change Home Board button (user computed) */
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:hover,
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:focus-visible {
@@ -47813,6 +47813,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 
 }
 .md-card__icon--speak { background: rgba(44, 183, 176, 0.12); }
+/* The Gentle Speak card's "no home board" fallback image (speak-circle-light, 2026-10-13): it carries
+   its OWN round frame, so — unlike .md-card__icon-board-img — NO added silver picture frame here. It
+   fills the tile, and the tile's teal tint is dropped so only the circle badge shows. */
+.md-card__icon--speak:has(> .md-card__icon-circle-img) { background: transparent !important; }
+.md-card__icon-circle-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 /* The board the Speak card opens (authenticated-view.js#speakBoardImage, requested 2026-10-13), in a
    ROUND SILVER PICTURE FRAME (requested the same day): a circle on white, the ring a brushed-metal
    gradient drawn in the transparent border (border-box) behind the white fill (padding-box), with a thin
