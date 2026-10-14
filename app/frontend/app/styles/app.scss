@@ -39374,12 +39374,18 @@ $gentle-caseload-row: '.md-grid.md-grid--dashboard.md-grid--layout-gentle.md-gri
 #{$gentle-caseload-row} > .md-card.md-card--caseload-as-button,
 #{$gentle-caseload-row} > .md-card.md-card--speak-as-button,
 #{$gentle-caseload-row} > .md-card.md-card--extras.md-card--as-button {
-  height: clamp(84px, calc(12vw - 24px), 120px) !important;
+  /* 12px taller (requested 2026-10-14): 84->96 floor, 120->132 ceiling, and the vw middle term +12
+     (-24 -> -12) so the whole curve lifts by 12px. */
+  height: clamp(96px, calc(12vw - 12px), 132px) !important;
   min-height: 0 !important;
   margin: 0 !important;
   padding-top: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
   padding-bottom: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
   box-sizing: border-box !important;
+  /* Centre the content (the icon + titles head) vertically in the taller card. */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
 }
 #{$gentle-caseload-row} > .md-card.md-card--caseload-as-button .md-card__icon,
 #{$gentle-caseload-row} > .md-card.md-card--speak-as-button .md-card__icon,
