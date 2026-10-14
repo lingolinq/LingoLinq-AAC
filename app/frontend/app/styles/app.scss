@@ -46647,12 +46647,17 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 /* Focused: show the hero bar (the whole thing is the button), hide the standard
    card it replaces. WHICH card is the hero comes from md-grid--hero-<key>
    (focusedHeroKey: 'caseload' for supervisors, 'speak' for communicators).
-   The speak selectors are scoped with :not(.md-grid--hero-caseload) rather than a
+   The speak selectors are scoped with :not(.md-grid--hero-org) rather than a
    positive .md-grid--hero-speak, because gridClassString — and therefore the hero
    class — is only applied on the home tab (see authenticated-view.hbs), so a
-   positive scope would silently drop the Speak hero everywhere else. */
+   positive scope would silently drop the Speak hero everywhere else.
+   SHOWN UNDER hero-caseload TOO SINCE 2026-10-13: a supporter's Focused lead row is
+   Caseload | Speak (utils/dashboard_sections.js focusedLayout, beside=['speak']), so the
+   Speak hero renders as the right-hand 120px bar, equal to the Caseload hero on its left.
+   Only hero-org still excludes it (an org manager has no Speak; its area is the --speak-action
+   pair instead). */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-focused,
 .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
   display: flex !important;
   flex-direction: row !important;
@@ -46715,7 +46720,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    the speak mode on modern focused", for the supervisor hero and the admin's card alike). It was
    220px tall here, with a 144x148 image and a 25px title; it now takes Speak's sizes throughout. */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-focused,
 .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
   min-height: 120px !important;
   padding: 12px 32px !important;
@@ -46723,7 +46728,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 /* Hover: a clear "press me" cue — lift 2px, deepen the drop shadow, and bloom a
    faint brand-blue glow around the whole card so it reads as interactive. */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button:hover,
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused:hover,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-focused:hover,
 .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused:hover {
   transform: translateY(-2px) !important;
   box-shadow:
@@ -46737,7 +46742,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 /* Active: PRESS — depress down, collapse the drop shadow + invert to an inset
    "pushed-in" shadow (the decisive "it's a button" cue). */
 .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button:active,
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused:active,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-focused:active,
 .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused:active {
   transform: translateY(2px) !important;
   box-shadow:
@@ -46822,7 +46827,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    the justify-center group shifts left 8px). Small screens keep their centering. */
 @media (min-width: 1025px) {
   .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
-  .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
+  .md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-focused,
   .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
     padding-left: 24px !important;
     padding-right: 40px !important;
@@ -46928,7 +46933,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    After the full-size rules above (same selectors, same !important), so these win below 1200px. */
 @media (max-width: 1200px) {
   .md-grid.md-grid--layout-focused .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
-  .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
+  .md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-focused,
   .md-grid.md-grid--layout-focused .md-card.md-card--caseload-focused {
     min-height: clamp(84px, calc(12vw - 24px), 120px) !important;
     padding-top: clamp(8px, calc(1.3333vw - 4px), 12px) !important;
@@ -46993,10 +46998,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    `.md-grid--dashboard .md-card--boards .md-btn--*` rules. */
 .md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide,
 .md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide:hover,
-.md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide:focus-visible,
-.md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add,
-.md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:hover,
-.md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:focus-visible {
+.md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide:focus-visible {
   color: $focus-on-dark !important;
   border-color: rgba($focus-on-dark, 0.18) !important;
   /* Desaturated Dusty Denim "glossy button" — top stop is the muted brand swatch
@@ -47070,7 +47072,10 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  min-height: 40px !important;
+  /* 32px tall, 14px label (requested 2026-10-13), matching the Create pill beside it. Was 40px. */
+  min-height: 32px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important; /* not bold (requested 2026-10-13); overrides the .md-btn 850 base */
   padding: 0 20px !important;
 }
 /* Focused View — the Boards card sizes to its CONTENT. The 400px min-height +
@@ -47090,6 +47095,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-card--boards__add { display: none; }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card__head--between {
   grid-template-columns: auto auto 1fr !important;
+  /* Center the Create pill vertically against the View All Boards button beside it (requested
+     2026-10-13): the header's grid items align to their row's centre rather than stretching/top. */
+  align-items: center !important;
 }
 /* 500px AND BELOW: THE TWO BUTTONS SHARE A SECOND ROW (requested 2026-10-10: "on 500px and smaller,
    wrap the create and boards buttons to a new row together"). The title block takes the whole first
@@ -47122,7 +47130,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   gap: 7px !important;
   /* Nudged 16px to the right of the header title block. */
   margin-left: 16px !important;
-  height: 40px !important;
+  /* 32px tall (requested 2026-10-13): the Create and View All Boards buttons on the Modern
+     communicator home are 32px tall with 14px labels. Was 40px. */
+  height: 32px !important;
   padding: 0 18px 0 15px !important;
   border-radius: 999px !important;
   border-width: 1px !important;
@@ -47130,14 +47140,19 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   font-weight: 700 !important;
   white-space: nowrap !important;
   text-decoration: none !important;
-  /* Same RAISED shadow as the View All (.md-btn--primary) button so the two
-     match — the "+" isn't a .md-btn so it doesn't inherit it otherwise. */
+  /* MATCHES THE "CHANGE HOME BOARD" PILL as it RENDERS in Focused View Modern
+     (button.ub-boards-page__set-home-btn), EXCEPT the height (kept 32px per the 2026-10-13 request).
+     Values taken from that button's COMPUTED styles (user inspector): a light denim/slate gradient,
+     a navy-tinted rim, and dark var(--md-ink) ink (#1B365D). Not the teal->blue glass nor the hero
+     radial — those are other set-home-btn states that were not what renders here. */
+  background: linear-gradient(135deg, rgb(220, 228, 236) 0%, rgb(196, 208, 223) 100%) !important;
+  border-color: rgba($la-navy, 0.18) !important; /* computed rgba(27, 54, 93, 0.18) */
+  color: var(--md-ink) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    inset 0 -1px 0 rgba($focus-accent, 0.18),
-    0 1px 2px rgba($focus-shadow-ink, 0.08),
-    0 6px 16px rgba($focus-accent, 0.20) !important;
-  transition: transform 0.14s ease, box-shadow 0.14s ease !important;
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba($la-navy, 0.12),
+    0 6px 14px rgba($la-navy, 0.22) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add-icon {
   font-size: 22px !important;
@@ -47145,11 +47160,19 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   margin-top: -2px !important;
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add-text {
-  font-size: 15px !important;
+  font-size: 14px !important; /* 15 -> 14px (requested 2026-10-13) */
   font-weight: 700 !important;
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:hover,
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:focus-visible {
+  /* Hover: a touch darker denim + the pill's lift (the set-home-btn's own hover is a subtle deepen). */
+  background: linear-gradient(135deg, rgb(208, 218, 230) 0%, rgb(182, 196, 214) 100%) !important;
+  border-color: rgba($la-navy, 0.26) !important;
+  color: var(--md-ink) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 2px 4px rgba($la-navy, 0.14),
+    0 10px 22px rgba($la-navy, 0.28) !important;
   transform: translateY(-1px) !important;
   outline: none !important;
 }
@@ -48258,6 +48281,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      split the row evenly and line up. The grid's row gap is left alone here: the panels below them
      (Attention, Rooms) keep their spacing. */
   .md-grid.md-grid--layout-focused.md-grid--caseload-beside .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
+  .md-grid.md-grid--layout-focused.md-grid--caseload-beside > .md-card.md-card--speak-focused,
   .md-grid.md-grid--layout-focused.md-grid--caseload-beside > .md-card.md-card--caseload-focused {
     margin: 0 !important;
   }
@@ -48631,6 +48655,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-size: 14px !important;
   padding-top: 6px !important;
   padding-bottom: 6px !important;
+  /* 32px tall, matching the Gentle View All Boards button beside it (requested 2026-10-13);
+     overrides the 44px .md-btn base. Focused hides this pill, so this is effectively Gentle-only. */
+  min-height: 32px !important;
 }
 .md-grid--dashboard .md-card--boards .md-btn--pill:hover {
   background: rgba(44, 183, 176, 0.30) !important;
@@ -54031,6 +54058,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   align-self: center !important;
   padding: 6px calc(12px + 0.25rem) !important;
   font-size: 14px !important;
+  min-height: 32px !important; /* 32px tall (requested 2026-10-13), matching Focused */
+  /* Gentle View All stays BOLD (requested 2026-10-13, reverting the un-bold); only Focused's is 400. */
 
 }
 .md-grid--dashboard .md-card--extras,
@@ -57668,6 +57697,7 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside:not(.md-grid--hero-caseload):not(.md-grid--hero-org) > .md-card.md-card--speak-focused,
   .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--speak-beside .md-card.md-card--extras.md-card--extras-focused.md-card--as-button,
   .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--caseload-beside > .md-card.md-card--caseload-focused,
+  .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--caseload-beside > .md-card.md-card--speak-focused,
   .md-grid.md-grid--dashboard.md-grid--layout-focused.md-grid--caseload-beside .md-card.md-card--extras.md-card--extras-focused.md-card--as-button {
     margin: 0 !important;
   }
@@ -94554,7 +94584,10 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 .shepherd-element .md-tour__body-btn--primary:not(:disabled):hover {
   color: #fff;
   border-color: transparent;
-  background: linear-gradient(180deg, color.adjust($brand-verdigris-aa, $lightness: 4%), $brand-verdigris-aa);
+  /* Match the Modern Focused Speak hero bg (requested 2026-10-13): the same oklab navy radial as
+     .md-card--speak-focused / .md-card--caseload-focused, via the shared mixin so it cannot drift.
+     White ink measures 6.95:1 at the lit centre. */
+  @include focus-hero-background();
 }
 .shepherd-element .md-tour__body-btn--primary .md-tour__body-btn-note {
   color: #fff;
@@ -98067,3 +98100,83 @@ body.ll-layout-focused .md-stats-compare-filter-group__badge {
     padding: 4px 10px !important;
   }
 }
+
+/* "Predict" Y|N toggle in the speak-mode sidebars (2026-10-13 request): turns word prediction in
+   Speak Mode on/off. Shared across the classic sidebar (.sidebar__predict-*) and the Modern
+   board-detail inline sidebar (.md-board-detail-inline-sidebar__predict-*).
+   LEFT-ALIGNED, with a small "Predict" label over a SLIM Y|N pill (single-letter options so it fits
+   the very narrow sidebars: classic #sidebar is ~100px and the inline sidebar is var(--bd-sidebar-w)
+   down to 53px). Full "Yes"/"No" live on each option's aria-label.
+   The classic sidebar is light (#fff) by default but SLATE in board-alt speak mode
+   (#within_ember.board-alt-view #sidebar), and the inline sidebar has a .md-board-detail--dark
+   variant, so dark-context overrides below keep the label and control readable there.
+   On board-detail it sits above the Edit row; the margin below is the requested spacing. */
+.sidebar__predict-row,
+.md-board-detail-inline-sidebar__predict-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* centered in the sidebar div (requested 2026-10-13) */
+  gap: 5px;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px 4px 0;
+  border-top: 1px solid rgba($la-navy, 0.12);
+}
+.sidebar__predict-label,
+.md-board-detail-inline-sidebar__predict-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-align: center;
+  color: $la-navy;
+}
+/* On the very narrow inline sidebar (var(--bd-sidebar-w) down to 53px at <=768px), shrink the
+   label so "Predict" still fits without clipping; wider screens keep the 14px above. */
+@media (max-width: 768px) {
+  .md-board-detail-inline-sidebar__predict-label { font-size: 11px; }
+}
+/* Slim Y|N pill — compact (not full width), centered, short. */
+.sidebar__predict-seg,
+.md-board-detail-inline-sidebar__predict-seg {
+  display: inline-flex;
+  align-self: center;
+  border: 1px solid rgba($la-navy, 0.30);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.sidebar__predict-opt,
+.md-board-detail-inline-sidebar__predict-opt {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba($la-navy, 0.80);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 22px;
+  padding: 4px 8px;
+  min-height: 22px;
+  text-align: center;
+  cursor: pointer;
+}
+.sidebar__predict-opt + .sidebar__predict-opt,
+.md-board-detail-inline-sidebar__predict-opt + .md-board-detail-inline-sidebar__predict-opt {
+  border-left: 1px solid rgba($la-navy, 0.22);
+}
+.sidebar__predict-opt--on,
+.md-board-detail-inline-sidebar__predict-opt--on {
+  background: $brand-dusty-denim;
+  color: #fff;
+}
+/* The classic sidebar is SLATE in board-alt speak mode — light text + borders there. */
+#within_ember.board-alt-view #sidebar .sidebar__predict-label { color: rgba(#fff, 0.92); }
+#within_ember.board-alt-view #sidebar .sidebar__predict-row { border-top-color: rgba(#fff, 0.18); }
+#within_ember.board-alt-view #sidebar .sidebar__predict-seg { border-color: rgba(#fff, 0.34); }
+#within_ember.board-alt-view #sidebar .sidebar__predict-opt { color: rgba(#fff, 0.85); }
+#within_ember.board-alt-view #sidebar .sidebar__predict-opt + .sidebar__predict-opt { border-left-color: rgba(#fff, 0.24); }
+.md-board-detail--dark .md-board-detail-inline-sidebar__predict-label { color: rgba(#fff, 0.92); }
+.md-board-detail--dark .md-board-detail-inline-sidebar__predict-row { border-top-color: rgba(#fff, 0.16); }
+.md-board-detail--dark .md-board-detail-inline-sidebar__predict-opt { color: rgba(#fff, 0.82); }
+.md-board-detail--dark .md-board-detail-inline-sidebar__predict-seg { border-color: rgba(#fff, 0.30); }
+.md-board-detail--dark .md-board-detail-inline-sidebar__predict-opt + .md-board-detail-inline-sidebar__predict-opt { border-left-color: rgba(#fff, 0.22); }
