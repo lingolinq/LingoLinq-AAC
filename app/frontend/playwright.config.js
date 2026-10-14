@@ -57,5 +57,12 @@ module.exports = defineConfig({
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
     },
+    // The board page edit tour (2026-10-12).
+    {
+      name: 'board-edit-tour',
+      testMatch: /board-edit-tour\.spec\.js/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
+    },
   ],
 });

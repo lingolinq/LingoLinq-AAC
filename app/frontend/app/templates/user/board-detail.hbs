@@ -620,26 +620,26 @@
            Hidden in edit mode by `.md-shell--board-detail-edit
            .md-board-detail-sentence-row { display: none }` in app.scss; the
            editing state is shown by the session bar in the header instead. --}}
+      <TrialBar @board={{this.model}} @view="modern" @mark={{this.try_origin_board}} @onExit={{this.ctrlAction "try_back_to_picker"}} @onClose={{this.ctrlAction "exit_to_home"}} />
       <div id="speak" class="md-board-detail-sentence-row {{this.sentence_bar_height_class}} {{this.symbol_background_class}} {{if this.hide_speak_bar 'md-board-detail-sentence-row--hide-bar'}}">
       {{!-- Left nav column: Home on top; inside a folder the back button
            drops beneath it (styled like the right-side sidebar dropdown
            button) instead of sitting inside the sentence bar, so the row
            reads as symmetric stacked-controls | bar | stacked-controls. --}}
-      {{!-- "Try this Board" return path. Sits to the LEFT of the nav stack (so
-           left of Home) and is deliberately larger than the other nav controls,
-           with a glow: it is a temporary way out of a trial rather than part of
-           the permanent chrome, and should read as the obvious thing to press if
-           the board is not what they wanted. Shows only while the trial marker
-           names THIS board, and is cleared on any exit from board-detail (see
-           routes/user/board-detail#resetController). --}}
-      {{#if this.show_try_back_nav}}
-        <button type="button" class="md-board-detail-try-back" data-bd-action="try_back_to_picker" {{on "click" (this.ctrlAction "try_back_to_picker")}} aria-label={{t "Back to board picker" key="board_detail_try_back_aria"}} title={{t "Back to board picker" key="board_detail_try_back_aria"}}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-          <span class="md-board-detail-try-back__label">{{t "Back" key="board_detail_try_back"}}</span>
-        </button>
-      {{/if}}
+      {{!-- "Try this Board" (2026-10-12): the trial now shows the TRIAL BAR above this row
+           (<TrialBar> just before `#speak`, components/trial-bar.js), not the Back button that sat
+           here. Requested: "Trying a board shows a trial bar, and 'Use this board' opens Speak Mode
+           on it". The bar reads "Trying: <board name>" with "Use this board" (makes it the home
+           board, then Speak Mode on their copy) and "Exit" (back to the board picker, as Back did).
+           Modern's board page is always the speaking page, so the trial is this page plus the bar.
+           It shows while the trial marker names THIS board (`try_origin_board`), and the marker is
+           cleared on any exit from board-detail (routes/user/board-detail#resetController).
+           The bar's Exit is `try_back_to_picker` (controllers/user/board-detail.js), as Back was; the
+           old button's styles were deleted with it.
+           A full-width bar cannot sit inside this flex row of stacked controls | bar | stacked
+           controls, which is why it moved above it. The line count of this note matches what it
+           replaced, so the line-anchored template-lint baseline below keeps its rows.
+           --}}
       <div class="md-board-detail-nav-stack">
         {{!-- Home and the modeling control share one COLUMN so modeling sits
              directly under Home at the same width; Back stays a sibling of the
@@ -869,10 +869,10 @@
           {{#unless this.immersive_tools}}
           <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-label={{t "Speak sentence" key="board_detail_speak_sentence"}} data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
+              {{!-- The speaker (2026-10-13): a microphone read as voice input; same glyph as the Speak Mode card. --}}
+              <path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/>
+              <path d="M15.6 8.5a5 5 0 0 1 0 7"/>
+              <path d="M18.7 5.8a9 9 0 0 1 0 12.4"/>
             </svg>
           </button>
           {{/unless}}
@@ -915,10 +915,10 @@
           <div class="md-board-detail-sentence-bar__quick-actions" role="menu" aria-label={{t "Sentence actions" key="board_detail_sentence_actions"}}>
             <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="23"/>
-                <line x1="8" y1="23" x2="16" y2="23"/>
+                {{!-- The speaker (2026-10-13): a microphone read as voice input; same glyph as the Speak Mode card. --}}
+                <path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/>
+                <path d="M15.6 8.5a5 5 0 0 1 0 7"/>
+                <path d="M18.7 5.8a9 9 0 0 1 0 12.4"/>
               </svg>
             <span>{{t "Speak" key="board_detail_speak"}}</span>
           </button>
@@ -2231,6 +2231,17 @@
                 </button>
               {{/if}}
             {{/each}}
+            {{!-- "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off,
+                 saved to preferences.word_suggestions (the pref the prediction rail is gated on).
+                 Sits at the BOTTOM of the sidebar content, ABOVE the Edit row (spacing in SCSS).
+                 set_word_prediction gates the change on the active speak-mode PIN. --}}
+            <div class="md-board-detail-inline-sidebar__predict-row">
+              <span class="md-board-detail-inline-sidebar__predict-label">{{t "Predict" key="predict"}}</span>
+              <div class="md-board-detail-inline-sidebar__predict-seg" role="group" aria-label={{t "Predict" key="predict"}}>
+                <button type="button" class="md-board-detail-inline-sidebar__predict-opt {{if this.word_prediction_on 'md-board-detail-inline-sidebar__predict-opt--on'}}" aria-pressed={{if this.word_prediction_on "true" "false"}} aria-label={{t "Yes" key="yes"}} data-bd-action="set_word_prediction" {{on "click" (this.ctrlAction "set_word_prediction" true)}}>{{t "Y" key="yes_abbr"}}</button>
+                <button type="button" class="md-board-detail-inline-sidebar__predict-opt {{unless this.word_prediction_on 'md-board-detail-inline-sidebar__predict-opt--on'}}" aria-pressed={{unless this.word_prediction_on "true" "false"}} aria-label={{t "No" key="no"}} data-bd-action="set_word_prediction" {{on "click" (this.ctrlAction "set_word_prediction" false)}}>{{t "N" key="no_abbr"}}</button>
+              </div>
+            </div>
             {{!-- Edit — opens the inline sidebar-editor panel. Sits at the BOTTOM of
                  the sidebar content, styled like the boards-page "Create New Board"
                  pill (aria-label keeps the full "Edit Sidebar" intent for SRs).

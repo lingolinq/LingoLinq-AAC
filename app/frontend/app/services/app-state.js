@@ -20,6 +20,7 @@ import $ from 'jquery';
 // stashes now injected as service
 // persistence now injected as service
 import boundClasses from '../utils/bound_classes';
+import { clear_user_reload } from '../utils/reload_intent';
 import utterance from '../utils/utterance';
 import modal from '../utils/modal';
 import LingoLinq from '../app';
@@ -27,6 +28,7 @@ import LingoLinq from '../app';
 import editManager from '../utils/edit_manager';
 import word_suggestions from '../utils/word_suggestions';
 import boardDetailCache from '../utils/board_detail_cache';
+import previewBoardCache from '../utils/preview_board_cache';
 import sessionHistory from '../utils/session_history';
 import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
@@ -595,7 +597,7 @@ export default Service.extend({
             } else {
               error = i18n.t('session_expired', "This session has expired, please log back in");
             }
-            if(_this.session && typeof _this.session.force_logout === 'function') {
+            if(_this.session && typeof _this.session.force_logout === 'function' && !logout_already_under_way(_this.session)) { // the ajax layer may have started it for this same failure (2026-10-13)
               _this.session.force_logout(error);
             }
           } else if(is_timeout && !last_try) {
@@ -744,7 +746,7 @@ export default Service.extend({
       }
     }, controller && controller.updateTitle ? 0 : 500);
     
-    modal.close();
+    if(!this.keeps_force_logout_open(transition)) { modal.close(); }
     if (!this.get('board_picker_pick_in_progress')) {
       modal.close_board_preview();
     }
@@ -784,9 +786,9 @@ export default Service.extend({
   finish_global_transition: function() {
     var _this = this;
     this.set('already_homed', true);
-    this.record_session_location();
+    // Recorded on the next tick, inside runNext below (2026-10-12): see record_session_location.
     runNext(function() {
-      var target = _this.get('current_route');
+      _this.record_session_location(); var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
       // footer is now a computed on application controller (from currentBoardState)
       if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards' && _this.get('to_target') != 'board-picker') {
@@ -805,10 +807,10 @@ export default Service.extend({
     }
   },
   // Remember, per user and per device, the page this session is currently on so
-  // routes/index.js can return the user here on their next login. Called from
-  // finish_global_transition (routes/application.js#didTransition), which is the
-  // only point where router.currentURL is the settled post-transition URL —
-  // global_transition runs on routeWillChange, where it is still the OLD url.
+  // routes/index.js can return the user here on their next login. Called from the
+  // runNext in finish_global_transition (routes/application.js#didTransition): in
+  // Ember 5.12 that action runs BEFORE the router service reports the new route, so a
+  // synchronous read saved the page being LEFT (measured 2026-10-12: user.home for /caseload).
   // Recording is unconditional; the `session_resume` feature flag gates the
   // RESTORE, so flipping the flag on takes effect immediately instead of waiting
   // for users to build up new history.
@@ -2191,7 +2193,7 @@ export default Service.extend({
        a previous account's record surviving a logout is exactly what this method
        exists to prevent. */
     this.set('page_user', null);
-    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null }); // Basic Try marker + home-page handoffs: per-user, must not reach the next account (2026-10-01)
+    this.setProperties({ pairing: null, basic_try_home: null, pending_index_nav: null, pending_open_extras: null, pending_open_supervisee: null, board_picker_recent: null, board_picker_return: null, board_picker_category: null, board_picker_restore: false, home_copy_pending: null, board_alt_tour_pending: null, tour_offer_visible: false, tour_offer_user: null, board_detail_try_origin: null, board_detail_nav_history: null }); // Basic Try marker + home-page handoffs (2026-10-01), and the trial, picker and tour-offer state (2026-10-13): per-user, must not reach the next account. board_detail_try_origin/nav_history (the Modern trial marker + trail, which carry the trial subject's id/name) added 2026-10-14 (adversary review) so they do not survive to the next account on a shared device
 
     // Per-user route memory (next route transition would overwrite anyway,
     // but clearing here removes stale "previous user" context from any
@@ -2236,6 +2238,10 @@ export default Service.extend({
     try {
       if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
     } catch(e) { /* sessionStorage unavailable */ }
+    /* The reload marker, cleared for the same reason: it is keyed by URL, not by user id, so on a
+       shared clinic device an unconsumed one would otherwise suppress the next person's landing.
+       Its own module owns the key and the in-memory latch (utils/reload_intent.js). */
+    clear_user_reload();
 
     // Per-user transient UI overlays / refresh timers
     this.set('loading_overlay_message', null);
@@ -2246,6 +2252,9 @@ export default Service.extend({
     // In-memory board JSON / ordered_buttons / image-warm state must not
     // leak across users on SPA sign-out (full reload clears module state).
     try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
+    // Dashboard Boards-card preview cache (names + image urls) is module-scoped and survives the
+    // component; drop it so it does not linger in memory on a shared device after sign-out.
+    try { previewBoardCache.reset(); } catch(e) { /* non-critical */ }
     // Boards-page Mine list snapshots are per-user localStorage; drop them
     // on sign-out so a shared device never shows another user's tiles.
     try { boardsPageListCache.clearAll(); } catch(e) { /* non-critical */ }
@@ -3258,7 +3267,7 @@ export default Service.extend({
             // guided tour IS the speak-mode intro, so the legacy modal would otherwise
             // race it and render dimmed behind the tour card. The tour clears the flag
             // once it opens, after which normal (no-tour) entry shows the modal again.
-            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
+            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak') && !this.get('board_alt_tour_pending')) {
               if(modal.route && !modal.is_open('speak-mode-intro')) {
                 modal.open('speak-mode-intro');
               }
@@ -5451,27 +5460,21 @@ export default Service.extend({
     this.updateFavicon();
   },
 
-  /* Compressed View: stamp `body.ll-density-compressed` from the feature flag AND the session
-     user's own preference (utils/compressed_view_state.js). Watches RAW paths, not a computed,
-     because an observer on a computed only fires once something consumes it (see
-     sync_view_scope above); `currentUser.feature_flags` is the input to `feature_flags`. With no
-     session user (signed out) the class comes off, so the sign-in page and the next account
-     start at full size. Kept at the end of this service so it shifts no line of the
-     line-anchored ESLint baseline (.eslint-todo). */
-  sync_density_scope: observer('sessionUser', 'sessionUser.preferences.compressed_view', 'currentUser.feature_flags', function() {
-    var on = !!this.get('sessionUser') &&
-             compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
-    if(window.LingoLinq && window.LingoLinq.set_density_scope) {
-      window.LingoLinq.set_density_scope(on);
-    }
-  }),
-
-  /* The same answer for templates and components that change STRUCTURE in Compressed View
-     (the account rail, the Modern home page), so they and the body class cannot disagree. */
-  compressed_view_active: computed('sessionUser', 'sessionUser.preferences.compressed_view', 'feature_flags.compressed_view', function() {
-    return !!this.get('sessionUser') &&
-           compressedViewActive(this.get('feature_flags.compressed_view'), this.get('sessionUser.preferences.compressed_view'));
-  })
+  /* READ by global_transition before its modal.close(). Every route change closes every
+     modal, which let the Back button (or any link) dismiss the "Please Log Back In" dialog with
+     nothing re-prompting, leaving the user on pages whose requests all fail. While the logout is
+     under way (session.logout_under_way(): torn down, not signed back in) that one dialog stays.
+     Not on the way to `login`, which has its own form; and invalidate() closes it explicitly
+     before its own SPA transition (services/session.js). Placed last so the ESLint baseline's
+     line anchors above do not shift. */
+  keeps_force_logout_open: function(transition) {
+    // The login page has its own form (`login` has child routes, so it arrives as `login.index` or
+    // `login.device`; same match as routes/index.js); the others are the dialog's own links
+    // (components/login-form.hbs "need help?", "forgot password", "sign up", "basic access").
+    var to_route = (transition && transition.to_route) || '';
+    if(/^login(\.|$)/.test(to_route) || ['forgot_login', 'forgot_password', 'register', 'offline_boards'].indexOf(to_route) !== -1) { return false; }
+    return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
+  }
 });
 
 // ScrollTopRoute exported separately for backward compatibility
@@ -5485,6 +5488,11 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
-// Placed last for the same reason as sync_density_scope: an import at the top would shift
-// every line of the ESLint baseline. Imports are hoisted, so position does not matter at runtime.
-import { compressedViewActive } from '../utils/compressed_view_state';
+
+/* A DEAD SESSION AT BOOT LOGS OUT ONCE (final review, 2026-10-13). The ajax layer (utils/extras.js) calls
+   force_logout for the failed user lookup, and the same rejection then reaches find_user's handler above; a
+   second force_logout reopened the dialog and re-ran the teardown, which then cleared the shared stored login
+   whoever owned it. Skipped when the session says a logout is already under way (services/session.js). */
+export function logout_already_under_way(session) {
+  return !!(session && typeof session.logout_under_way === 'function' && session.logout_under_way());
+}

@@ -735,6 +735,116 @@ describe('session', function() {
       });
     });
 
+    // A check that was in flight when another failure already tore the session down (utils/extras.js)
+    // must not run the logout a second time: by then the token it checked is no longer stored.
+    it('does not log out again when the checked token was already torn down', function() {
+      modal.route = null;
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() { invalidated = true; });
+      var stored = {access_token: 'happy_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      var settled = false;
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        stored = {};
+        return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(true).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled; });
+      runs(function() {
+        expect(invalidated).toEqual(false);
+      });
+    });
+
+    // The user signed back in (a new token) while a check of the OLD token was in flight: its answer
+    // must not mark the new session expired (sync skips its token check on that flag).
+    it('ignores the answer for a token this tab has already replaced', function() {
+      modal.route = null;
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() { invalidated = true; });
+      var stored = {access_token: 'happy_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      session.set('access_token', 'happy_token');
+      var settled = false;
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        stored = {access_token: 'new_token'};
+        session.set('access_token', 'new_token');
+        session.set('invalid_token', false);
+        return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(true).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled; });
+      runs(function() {
+        expect(invalidated).toEqual(false);
+        expect(session.get('invalid_token')).toEqual(false);
+      });
+    });
+
+    // Another tab logged out while this tab's check was in flight: this tab's token is dead and the
+    // shared stored login is gone, so this tab logs out too instead of showing the old user's data.
+    it('still logs out when another tab cleared the stored login', function() {
+      modal.route = null;
+      var invalidated = false;
+      stub(sessionTarget(), 'invalidate', function() { invalidated = true; });
+      var stored = {access_token: 'happy_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      session.set('access_token', 'happy_token');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        stored = {};
+        return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(true);
+      waitsFor(function() { return invalidated; });
+      runs(function() {
+        expect(invalidated).toEqual(true);
+      });
+    });
+
+    // Another tab signed in as someone else: this tab's requests already carry that token
+    // (capabilities.sync_access_token copies the stored login every 2s), so the answer for it is
+    // NOT stale. It must be accepted, as on develop, so this tab switches to the new user instead of
+    // showing the old user's screens while acting as the new one.
+    it('accepts the answer for the token this tab is sending after another tab signed in', function() {
+      var stored = {access_token: 'b_token'};
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return stored; }
+      });
+      session.set('access_token', 'a_token');
+      var refreshed = false;
+      stub(app_state, 'refresh_session_user', function() { refreshed = true; });
+      var original_caps_token = capabilities.access_token;
+      capabilities.access_token = 'b_token';
+      var settled = false;
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        return RSVP.resolve({authenticated: true, user_name: 'b_user', user_id: '1_2', meta: {fakeXHR: {browserToken: 'jorb'}}});
+      });
+      session.check_token(false).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled && refreshed; });
+      runs(function() {
+        capabilities.access_token = original_caps_token;
+        expect(session.get('user_name')).toEqual('b_user');
+        expect(refreshed).toEqual(true);
+      });
+    });
+
+    // Tearing down this tab's dead session must not erase a login another tab has just saved.
+    it("the teardown leaves another tab's newer stored login alone", function() {
+      var persisted = [];
+      stub(sessionTarget(), 'persist', function(data) { persisted.push(data); });
+      stub(stashesTarget(), 'get_object', function(key, bool) {
+        if(key == 'auth_settings') { return {access_token: 'other_tab_token'}; }
+      });
+      session.set('access_token', 'happy_token');
+      session._tear_down_dead_session();
+      expect(persisted).toEqual([]);
+      expect(session.get('isAuthenticated')).toEqual(false);
+    });
+
     it('should not invalidate the session if not allowed', function() {
       var invalidated = false;
       stub(sessionTarget(), 'invalidate', function() {
@@ -820,5 +930,42 @@ describe('session', function() {
       expect(session.get('invalid_token')).toEqual(true);
       expect(invalidated).toEqual(false);
     });
+
+    /* BEFORE THE MODAL ROUTE EXISTS (early boot, or any time after an SPA logout, which calls
+       clear_user_state -> modal.reset) force_logout falls back to alert + invalidate(true). That
+       branch skipped the teardown, so neither flag changed synchronously, the ajax layer's
+       de-dupe (utils/extras.js, keyed on logout_under_way) never held, and every concurrent
+       dead-session 400 raised its own blocking alert and its own invalidate. */
+    it('stale-token: tears down synchronously before the modal route exists, so later failures are de-duped', function() {
+      modal.route = null;
+      var alerts = 0;
+      var invalidates = 0;
+      stub(sessionTarget(), 'alert', function() { alerts++; });
+      stub(sessionTarget(), 'invalidate', function() { invalidates++; });
+      stub(sessionTarget(), 'persist', function() { return RSVP.resolve(); });
+      session.set('isAuthenticated', true);
+      session.set('invalid_token', false);
+      session.force_logout('session expired');
+      expect(session.logout_under_way()).toEqual(true);
+      expect(alerts).toEqual(1);
+      expect(invalidates).toEqual(1);
+    });
+  });
+
+  /* A NEW SIGN-IN ENDS THE DEAD SESSION'S FLAG. `invalid_token` was reset only by an async
+     check_token success, so after an in-place re-login (or an SPA logout then login, which never
+     reloads) it stayed true on a healthy session: the "!" session-expired badge stayed lit,
+     sync skipped its token check (services/persistence.js:2222), and login.js:29 would not redirect. */
+  describe('confirm_authentication', function() {
+    it('stale-token: clears invalid_token once a new token is installed', function() {
+      stub(sessionTarget(), 'persist', function() { return RSVP.resolve(); });
+      stub(persistenceTarget(), 'store', function() { return RSVP.resolve(); });
+      session.set('invalid_token', true);
+      session.confirm_authentication({access_token: 'fresh-token', user_name: 'bob', user_id: '1_1'});
+      expect(session.get('invalid_token')).toEqual(false);
+    });
   });
 });
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import capabilities from '../../utils/capabilities';

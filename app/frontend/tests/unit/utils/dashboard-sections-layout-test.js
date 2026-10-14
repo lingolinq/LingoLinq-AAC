@@ -6,7 +6,7 @@ import { sectionsForLayout, availableHomeSections, layoutPresentation, gridLayou
  * "Choose what appears on your home page" was built from `availableHomeSections(user)`, which
  * takes no layout — so it offered every section the USER has, whether or not the SELECTED view
  * places it. Focused View structurally drops two:
- *   - `extras`, always (dashboard_sections.js#focusedLayout: `Object.assign({}, vis, {extras:false})`)
+ *   - `editdashboard`, always (focusedLayout; Extras took its place on 2026-10-10)
  *   - `speak`, whenever Speak is not the role hero and the org caseload+speak pair does not
  *     apply (same function, `if (heroKey && heroKey !== 'speak' && !orgPair) rest.speak = false`)
  * A section dropped from the areas is not merely unplaced: `gridLayoutState` flags it and
@@ -79,15 +79,23 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     });
   });
 
-  test('Focused View does not offer Speak when Speak is not the hero', function(assert) {
+  // Updated 2026-10-13 (approved): a SUPPORTER's Focused view now PLACES Speak beside the Caseload hero
+  // (dashboard-focused-caseload-beside-test), so Focused offers the Speak toggle to a supervisor. An org
+  // manager (hero-org) still has no Speak on either layout ("on an admin user, hide the speak button").
+  test('Focused View offers Speak to a supervisor (placed beside Caseload) but not to an org manager', function(assert) {
     assert.expect(4);
     var supervisor = SHAPES['a supervisor'];
     var orgOnly = SHAPES['an org manager who does not supervise'];
-    [['a supervisor', supervisor], ['an org manager who does not supervise', orgOnly]].forEach(function(pair) {
-      var keys = sectionsForLayout(pair[1], 'focused').map(function(s) { return s.key; });
-      assert.strictEqual(keys.indexOf('speak'), -1, 'Focused hides the Speak toggle for ' + pair[0]);
-      var gentle = sectionsForLayout(pair[1], 'gentle').map(function(s) { return s.key; });
-      assert.notStrictEqual(gentle.indexOf('speak'), -1, 'Gentle still offers it to ' + pair[0]);
+    [['a supervisor', supervisor, true], ['an org manager who does not supervise', orgOnly, false]].forEach(function(trio) {
+      var focusedOffersSpeak = trio[2];
+      var keys = sectionsForLayout(trio[1], 'focused').map(function(s) { return s.key; });
+      assert.strictEqual(keys.indexOf('speak') !== -1, focusedOffersSpeak,
+        'Focused ' + (focusedOffersSpeak ? 'offers' : 'hides') + ' the Speak toggle for ' + trio[0]);
+      var gentle = sectionsForLayout(trio[1], 'gentle').map(function(s) { return s.key; });
+      // An admin (org manager) has no Speak on either layout; a supervisor gets it on Gentle too.
+      var gentleOffersSpeak = trio[1] !== orgOnly;
+      assert.strictEqual(gentle.indexOf('speak') !== -1, gentleOffersSpeak,
+        'Gentle ' + (gentleOffersSpeak ? 'still offers' : 'does not offer') + ' it to ' + trio[0]);
     });
   });
 
@@ -95,7 +103,37 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     assert.expect(2);
     var keys = sectionsForLayout(SHAPES['a communicator'], 'focused').map(function(s) { return s.key; });
     assert.notStrictEqual(keys.indexOf('speak'), -1, 'Speak is the communicator hero, so the toggle stays');
-    assert.strictEqual(keys.indexOf('extras'), -1, 'Extras is never rendered on Focused View');
+    assert.strictEqual(keys.indexOf('editdashboard'), -1, 'Edit Dashboard is not on the Focused home (2026-10-10)');
+  });
+
+  // A supervisor's Speak is PINNED beside My Caseload (2026-10-14 request) — the hide toggle must not
+  // drop it and leave Caseload a lone card. Scoped to non-org supervisors; an org manager keeps no Speak.
+  test('a supervisor who hid Speak still gets it pinned beside Caseload, on both layouts', function(assert) {
+    assert.expect(5);
+    var slp = stubUser({ supporter_role: true, supervisees: [], supervised_units: [], 'preferences.dashboard_sections': { speak: false } });
+    var focused = layoutPresentation(slp, 'focused');
+    assert.true(focused.vis.speak, 'Speak is pinned visible in Focused even though the toggle hid it');
+    assert.ok(focused.grid.areas.some(function(r) { return r.split(' ').indexOf('speak') !== -1; }), 'and Focused places Speak');
+    var gentle = layoutPresentation(slp, 'gentle');
+    assert.true(gentle.vis.speak, 'pinned in Gentle too');
+    assert.notStrictEqual(gentle.grid.classes.indexOf('md-grid--caseload-row'), -1, 'so the Gentle Caseload | Speak row forms');
+    var orgSlp = stubUser({ supporter_role: true, supervisees: [], organizations: [{ type: 'manager', restricted: false }] });
+    assert.notOk(layoutPresentation(orgSlp, 'focused').vis.speak, 'an org manager still has no Speak (pin is scoped to non-org supervisors)');
+  });
+
+  // Gentle must pull Speak beside Caseload even when a SAVED drag order separated them (2026-10-14).
+  // dashboard_drag_layout is forced on, so a saved order is almost always present; without this the
+  // Gentle row silently failed to form and Caseload rendered as a lone full-width showcase, while
+  // Focused (which force-places Speak) looked fine.
+  test('Gentle keeps Caseload | Speak together despite a saved order that separated them', function(assert) {
+    assert.expect(2);
+    var slp = stubUser({ supporter_role: true, supervisees: [{ org_status: { state: 'unchecked' } }], supervised_units: [1] });
+    var vis = { caseload: true, speak: true, attention: true, rooms: true, extras: true };
+    var order = ['attention', 'caseload', 'rooms', 'speak', 'extras'];
+    var pres = layoutPresentation(slp, 'gentle', { vis: vis, order: order, dragEnabled: true });
+    var hasRow = pres.grid.areas.some(function(r) { var t = r.split(' '); return t.indexOf('caseload') !== -1 && t.indexOf('speak') !== -1; });
+    assert.true(hasRow, 'Caseload | Speak share a row despite the saved order');
+    assert.notStrictEqual(pres.grid.classes.indexOf('md-grid--caseload-row'), -1, 'and the caseload-row class is emitted');
   });
 
   test('Gentle View offers every section available to the user', function(assert) {
@@ -116,18 +154,21 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
    */
   test('Focused View lists sections in the order the page renders them', function(assert) {
     assert.expect(2);
-    // Edit Dashboard shares the utility row with Create a Board near the TOP of the page, so
-    // it comes before Attention and Rooms. Ranking by SUPERVISOR_DEFAULT_ORDER put it last.
+    // Updated 2026-10-12 (approved): Create a Board and Edit Dashboard are retired. Create a Board
+    // anchored the utility row near the top; now Extras alone does, at its own (last) order slot.
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'focused').map(function(s) { return s.key; }),
-      ['caseload', 'createboard', 'editdashboard', 'attention', 'rooms'],
-      'the collapsed utility row is listed at its rendered position'
+      // Updated 2026-10-13 (approved): a supporter's Focused lead row is Caseload | Speak; Extras moves to
+      // the action row, last.
+      ['caseload', 'speak', 'attention', 'rooms', 'extras'],
+      'Speak is listed beside Caseload, where it renders; Extras moves to the action row'
     );
-    // The org caseload+speak PAIR is emitted as the bottom row, after the utility row.
+    // Updated 2026-10-12 (approved): an admin has no Speak, so there is no Caseload | Speak bottom pair;
+    // Caseload is a full row at its order slot, directly after the My Organizations hero.
     assert.deepEqual(
       sectionsForLayout(SHAPES['an org manager who also supervises'], 'focused').map(function(s) { return s.key; }),
-      ['org', 'createboard', 'editdashboard', 'caseload', 'speak'],
-      'the bottom pair row is listed last'
+      ['org', 'caseload', 'extras'],
+      'no Speak, so Caseload follows the hero and the utility row is last'
     );
   });
 
@@ -138,16 +179,20 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
    * These expectations are updated to the NEW specification, not relaxed to accommodate the
    * change: they are still exact `deepEqual`s on the full reading order, and the supervisor
    * case still pins every other key's relative position. */
-  test('Gentle View reads in its default order, with Edit Dashboard beside Create a Board', function(assert) {
+  // Updated 2026-10-12 (approved): Create a Board and Edit Dashboard are retired from the home grid.
+  test('Gentle View reads in its default order', function(assert) {
     assert.expect(2);
     assert.deepEqual(
       sectionsForLayout(SHAPES['a supervisor with rooms and attention'], 'gentle').map(function(s) { return s.key; }),
-      ['caseload', 'createboard', 'editdashboard', 'attention', 'rooms', 'speak', 'extras'],
-      'Gentle reads in its default order, Edit Dashboard now paired with Create a Board'
+      // Updated 2026-10-13 (approved): a supporter's Caseload row is Caseload | Speak only; Extras drops
+      // out of the lead row and packs last.
+      ['caseload', 'speak', 'attention', 'rooms', 'extras'],
+      'Gentle reads in its default order'
     );
     assert.deepEqual(
       sectionsForLayout(SHAPES['a communicator'], 'gentle').map(function(s) { return s.key; }),
-      ['speak', 'boards', 'createboard', 'editdashboard', 'extras'],
+      // `extras` moved up beside `speak` (extrasBesideSpeak, 2026-10-09 request).
+      ['speak', 'extras', 'boards'],
       'and for a communicator'
     );
   });
@@ -157,7 +202,9 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
    * pair, a communicator with Account visible packed `account createboard` and then
    * `editdashboard reports`, and the two cards the request is about never shared a row.
    * This pins the row itself rather than the order, which is the thing that was asked for. */
-  test('Create a Board and Edit Dashboard share a row whatever else is visible', function(assert) {
+  // Rewritten 2026-10-12 (approved): the pair this pinned was retired, so it now pins that neither
+  // card is placed in any row, for the same three users.
+  test('Create a Board and Edit Dashboard are in no row, whatever else is visible', function(assert) {
     var cases = [
       ['a supervisor with rooms and attention', SHAPES['a supervisor with rooms and attention']],
       ['a communicator', SHAPES['a communicator']],
@@ -170,9 +217,8 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
       availableHomeSections(pair[1]).forEach(function(s) { vis[s.key] = true; });
       var state = gridLayoutState(vis, null, 'gentle');
       var areas = (state && state.areas) || [];
-      var row = areas.filter(function(r) { return r.indexOf('createboard') !== -1; })[0] || '';
-      assert.strictEqual(row, 'createboard editdashboard',
-        pair[0] + ': Create a Board shares its row with Edit Dashboard');
+      var placed = areas.filter(function(r) { return /\b(createboard|editdashboard)\b/.test(r); });
+      assert.deepEqual(placed, [], pair[0] + ': neither card is placed');
     });
   });
 

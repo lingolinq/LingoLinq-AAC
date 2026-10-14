@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 
@@ -149,5 +150,22 @@ export default Component.extend({
   activeRow: computed('router.currentRouteName', 'app_state.current_route', function() {
     var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
     return ROW_FOR_ROUTE[route] || null;
+  }),
+  // The page this menu is on, for the <=900px dropdown's "<page> Menu" (2026-10-12): the active
+  // row's own title, same keys and defaults as account-rail's rows in classic-account-rail.hbs.
+  menuPageLabel: computed('activeRow', function() {
+    var labels = {
+      account: i18n.t('my_account', "My Account"),
+      stats: i18n.t('reports', "Reports"),
+      goals: i18n.t('goals', "Goals"),
+      lessons: i18n.t('trainings', "Trainings"),
+      recordings: i18n.t('recordings', "Recordings"),
+      edit: i18n.t('profile_lower', "Profile"),
+      preferences: i18n.t('preferences_lower', "Settings"),
+      subscription: i18n.t('my_subscription', "Subscription"),
+      supervision: i18n.t('supervisors', "Supervisors"),
+      logs: i18n.t('logs_and_messages', "Logs & Messages")
+    };
+    return labels[this.get('activeRow')] || null;
   })
 });

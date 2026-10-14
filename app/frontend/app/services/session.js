@@ -89,6 +89,11 @@ export default Service.extend({
       }
     }
     
+    // A new token ends the dead session's flag. Otherwise only an async check_token success
+    // reset it, so after an in-place re-login it stayed true on a healthy session (session
+    // expired badge, sync skipping its token check at services/persistence.js:2222).
+    this.set('invalid_token', false);
+
     var promises = [];
     promises.push(this.persist({
       access_token: response.access_token,
@@ -270,7 +275,7 @@ export default Service.extend({
          force_logout/persistence calls, which a destroyed service must not make either.
          Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
          async leak". */
-      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
+      if(!_this || _this.isDestroyed || _this.isDestroying || !_this._checked_token_is_current(store_data.access_token)) { return RSVP.resolve({ success: false }); }
       var _vb = (window.LingoLinq || {}).verboseDebug;
       if (_vb) {
         console.log('[check_token] Token check succeeded', {
@@ -361,7 +366,7 @@ export default Service.extend({
          force_logout/persistence calls, which a destroyed service must not make either.
          Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
          async leak". */
-      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
+      if(!_this || _this.isDestroyed || _this.isDestroying || !_this._checked_token_is_current(store_data.access_token)) { return RSVP.resolve({ success: false }); }
       var onlineStatus = _this.persistence ? _this.persistence.get('online') : false;
       var _vb = (window.LingoLinq || {}).verboseDebug;
       
@@ -637,6 +642,33 @@ export default Service.extend({
     }
   },
 
+  /* IS THIS RESPONSE A DEAD SESSION? Read by the ajax layer's failure branch
+     (utils/extras.js) so a token that has gone stale ends in a login prompt rather than in
+     whatever each route does with a rejected model.
+     KEYED ON `invalid_token`, NEVER ON THE MESSAGE. `allowed?` answers EVERY permission denial
+     with 400 and the message "Not authorized" (app/controllers/application_controller.rb:282,
+     238 call sites) — matching text would log a healthy user out for opening an org page or a
+     shared utterance they lack rights to. `invalid_token` is set only where the token itself is
+     rejected (app/models/device.rb:350, propagated at application_controller.rb:158), so the two
+     cannot be confused. `unauthorized: true` is the denial's own marker and is deliberately not
+     consulted here. */
+  dead_session_response: function(xhr) {
+    if(!xhr || xhr.status != 400) { return false; }
+    var body = xhr.responseJSON;
+    return !!(body && body.invalid_token);
+  },
+
+  /* HAS THE LOGOUT ALREADY BEGUN? True only once `_tear_down_dead_session` has run: it is the one
+     writer that sets `invalid_token` AND clears `isAuthenticated` together, synchronously.
+     `invalid_token` ALONE does not mean that. check_token(false) — sync's token check
+     (services/persistence.js:2224) — sets it on a dead token WITHOUT tearing down (check_token
+     only force-logs-out when `allow_invalidate` is set), and after an in-place re-login
+     restore() sets `isAuthenticated` back while `invalid_token` stays until a new token is
+     installed. Read by the ajax layer's force_logout de-dupe (utils/extras.js). */
+  logout_under_way: function() {
+    return !!(this.get('invalid_token') && !this.get('isAuthenticated'));
+  },
+
   // READ by app-state setup_controller find_user to decide force_logout.
   // extras.js already calls force_logout when result.invalid_token is set and
   // speak mode is off; this helper covers the Ember Data reject shapes that
@@ -644,6 +676,18 @@ export default Service.extend({
   is_logout_worthy_auth_error: function(err) {
     if(!err) { return false; }
     if(err.invalid_token || (err.result && err.result.invalid_token)) { return true; }
+    /* THE SHAPE THE AJAX LAYER ACTUALLY REJECTS WITH: `{fakeXHR, message, result}` where `result`
+       is the error STRING (utils/extras.js:380-393), optionally wrapped as `_result`
+       (the form app/app.js:55 already copes with). Neither `err.status` nor `err.result.status`
+       exists there, so every branch below missed it and this predicate returned false for the
+       very errors it lists by name.
+       Matched on `invalid_token` ALONE rather than on the message, unlike the older shapes
+       below: this path is new, and a permission denial arrives here with the identical status
+       and a "Not authorized" message, so message-matching would end a healthy session. The older
+       branches keep their message list because existing behaviour is pinned by
+       tests/utils/session-test.js:783-788. */
+    var xhr = err.fakeXHR || (err._result && err._result.fakeXHR);
+    if(xhr && this.dead_session_response(xhr)) { return true; }
     var err_msg = err.error || (err.result && err.result.error);
     if(err.errors && err.errors[0] && !err_msg) {
       err_msg = err.errors[0].error || err.errors[0].detail || err.errors[0];
@@ -663,6 +707,7 @@ export default Service.extend({
   // or SPA-transition and hide that modal.
   _tear_down_dead_session: function() {
     this._logout_landing = true;
+    var own_token = this.get('access_token');
     this.set('token_validated', false);
     this.set('invalid_token', true);
     this.set('isAuthenticated', false);
@@ -671,15 +716,50 @@ export default Service.extend({
     if(capabilities) {
       capabilities.access_token = null;
     }
-    try {
-      this.persist({});
-    } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }
+    // Clear the stored login only when it is this tab's (or already empty): another tab may have
+    // signed in since, and every tab shares it. A NULL own_token is "not provably mine", so it must
+    // NOT clear a stored token another tab just installed (adversary review 2026-10-14): only an empty
+    // stored login or an exact match may be cleared.
+    var stored = this.stashes.get_object('auth_settings', true) || {};
+    if(!stored.access_token || stored.access_token === own_token) {
+      try {
+        this.persist({});
+      } catch(e) { /* persist is best-effort; in-memory flags already dropped */ }
+    }
+  },
+
+  // Is the token a check_token request was sent with still one this tab is using? If not, its answer
+  // is stale and is ignored (check_token's response guards): this tab already tore the session down
+  // (another failure landed while the request was in flight), or signed in again with a new token.
+  // "Using" is either this tab's own token OR the one its requests carry: capabilities.access_token
+  // follows the stored login, which every tab shares (capabilities.sync_access_token), so after
+  // another tab signs in this tab is already sending that token, and the answer for it must be taken,
+  // as on develop, so this tab switches to that user instead of showing the old one while acting as
+  // the new one. Neither set yet (before restore(), or after a teardown): the stored login decides.
+  // No token: not stale.
+  _checked_token_is_current: function(token) {
+    if(!token || token === 'none') { return true; }
+    var mine = this.get('access_token');
+    var sending = capabilities && capabilities.access_token;
+    if(mine || (sending && sending !== 'none')) { return token === mine || token === sending; }
+    var stored = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
+    return stored.access_token === token;
   },
 
   force_logout: function(message) {
     var full_invalidate = true;
     if(full_invalidate) {
       if(!modal.route) {
+        /* No modal route (early boot, or after an SPA logout's clear_user_state -> modal.reset):
+           tear down FIRST, synchronously, so logout_under_way() is already true when the next
+           concurrent failure reaches the ajax layer's de-dupe (utils/extras.js). invalidate
+           clears isAuthenticated only after stashes.flush and a runloop delay, and window.alert
+           blocks in between, so without this every failure raised its own alert and invalidate.
+           `logout_without_dialog`: routes/user.js holds error pages back while a logout is landing,
+           and here there is no force-logout dialog to key that on. invalidate's SPA landing clears
+           it; a reload drops it. */
+        this.set('logout_without_dialog', true);
+        this._tear_down_dead_session();
         this.alert(message);
         this.invalidate(true);
       } else {
@@ -782,12 +862,16 @@ export default Service.extend({
             // reading destroyed Ember Data records.
             try {
               if(_this.router && typeof _this.router.transitionTo === 'function') {
+                // The force-logout dialog survives navigation while a logout is under way
+                // (app-state keeps_force_logout_open); this IS the logout, so close it here.
+                modal.close();
                 var promise = _this.router.transitionTo('index');
                 if(promise && typeof promise.then === 'function') {
                   promise.then(function() {
                     // Transition complete — dashboard route is unmounted.
                     // NOW it is safe to null user records and per-user appState.
                     // SPEC R5 cleanup happens here, not before transition.
+                    _this.set('logout_without_dialog', false);
                     try {
                       if(_this.appState && typeof _this.appState.clear_user_state === 'function') {
                         _this.appState.clear_user_state();
