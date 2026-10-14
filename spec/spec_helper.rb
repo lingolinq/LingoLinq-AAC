@@ -7,6 +7,10 @@ dotenv_paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|
   path if File.exist?(path)
 end.compact
 Dotenv.load(*dotenv_paths) unless dotenv_paths.empty?
+# Started before the app loads, so files required while Rails boots (initializers, models they
+# reference) are measured too.
+require 'simplecov'
+SimpleCov.start 'rails'
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
 # Specs never reach the internet: a request to anything but localhost fails with the URL it tried
@@ -15,7 +19,6 @@ require 'rspec/rails'
 # answers for side-effect calls live in spec/support/outside_services.rb.
 require 'webmock/rspec'
 WebMock.disable_net_connect!(allow_localhost: true)
-require 'simplecov'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
@@ -27,8 +30,6 @@ Dir[Rails.root.join("spec/support/**/*.rb")].each { |f| require f }
 if defined?(ActiveRecord::Migration)
   ActiveRecord::Migration.check_all_pending!
 end
-
-SimpleCov.start 'rails'
 
 # Every example starts from empty test Redis namespaces, as it starts from a rolled-back database
 # (cleared before the run and before each example). Test runs leave keys there (job-scheduling
