@@ -788,6 +788,72 @@ describe BoardCaching, :type => :model do
           expect(rows.count).to eq(1)
           expect(rows.first.act_at).to be > 50.minutes.from_now
         end
+
+        def run_queued_refreshes(limit=40)
+          ran = 0
+          while ran < limit && (job = Resque.pop('default'))
+            Worker.perform(*job['args'])
+            ran += 1
+          end
+          ran
+        end
+
+        # Each kind of retry used to reset the other's count, so stores that were refused and found
+        # stale in turn were retried at once, unparked, without end.
+        it "stops retrying at once when refusals and stale rows alternate" do
+          u = large_list_user
+          finals = 0
+          allow_any_instance_of(User).to receive(:store_available_board_ids).and_wrap_original do |m, entries, **kw|
+            if kw[:inputs_read]
+              finals += 1
+              raise ActiveRecord::StaleObjectError if finals.odd?
+              false
+            else
+              m.call(entries, **kw)
+            end
+          end
+          Worker.flush_queues
+
+          u.update_available_boards
+          run_queued_refreshes
+
+          expect(Resque.size('default')).to eq(0)
+          expect(finals).to be <= 1 + BoardCaching::STALE_REFRESH_RETRIES + BoardCaching::REFUSED_STORE_RETRIES
+        end
+
+        # A revocation that commits while the last immediate retry runs pulls the row forward and
+        # queues its own refresh. Backing that row off with the others delayed it by up to a day,
+        # and its own refresh was parked by the refused run's fresh 'generated' stamp.
+        it "leaves a revocation that arrives during the last refused run due, and runs its refresh" do
+          u = large_list_user
+          checks = 0
+          revocation_at = nil
+          allow_any_instance_of(User).to receive(:available_boards_inputs_current?) do
+            checks += 1
+            if checks == 1 + BoardCaching::REFUSED_STORE_RETRIES
+              User.persist_board_cache_refresh(u, true)
+              revocation_at = Time.now
+            end
+            checks > 1 + BoardCaching::REFUSED_STORE_RETRIES
+          end
+          Worker.flush_queues
+          RemoteAction.where(path: u.global_id).delete_all
+          RemoteAction.create!(path: u.global_id, action: 'update_available_boards', act_at: 1.minute.ago, created_at: 3.days.ago)
+
+          u.update_available_boards
+          run_queued_refreshes
+          expect(checks).to eq(1 + BoardCaching::REFUSED_STORE_RETRIES)
+          rows = RemoteAction.where(path: u.global_id, action: 'update_available_boards')
+          expect(rows.count).to eq(1)
+          expect(rows.first.act_at).to be <= Time.now
+
+          # the revocation's own refresh (schedule_board_cache_refresh queues it with no arguments)
+          User.find(u.id).update_available_boards
+
+          expect(checks).to eq(2 + BoardCaching::REFUSED_STORE_RETRIES)
+          expect(User.find(u.id).private_viewable_board_ids).to eq([])
+          expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(0)
+        end
       end
 
       # The capped retry stores without the stale_after check. A run that read a supervision link,

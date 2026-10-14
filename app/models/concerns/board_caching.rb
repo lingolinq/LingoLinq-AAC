@@ -43,7 +43,9 @@ module BoardCaching
 
     # A retry (stale_retries or refused_retries > 0) is not parked: the run it retries set
     # 'generated' within the hour by definition, so parking it meant the retry never ran in time.
-    if stale_retries == 0 && refused_retries == 0 && self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i
+    # Nor is a run with a row requested since the last run started (a revocation pulls its row
+    # forward, persist_board_cache_refresh): that request was not seen by any run yet.
+    if stale_retries == 0 && refused_retries == 0 && self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i && !refresh_requested_since?(self.settings['available_private_board_ids']['generated'])
       # Schedule for later if already run recently
       if (self.settings['available_private_board_ids']['view'] ||[]).length > 500
         ra_cnt = RemoteAction.where(path: self.global_id, action: 'update_available_boards').count
@@ -141,7 +143,7 @@ module BoardCaching
     if stored == false
       # Refused: the stored list is left for a run that reads the current access. The row stays
       # (this run does not clear it), so the hourly batch retries a lost job.
-      retry_refused_store(refused_retries)
+      retry_refused_store(stale_retries, refused_retries, started_at)
       return
     end
     # if the lists changed, schedule this same update for all users
@@ -158,20 +160,40 @@ module BoardCaching
     RemoteAction.where(path: self.global_id, action: 'update_available_boards')
       .where('act_at <= ?', started_at).delete_all
   rescue ActiveRecord::StaleObjectError
-    # Failed run: the row stays, so the fallback still fires.
-    self.schedule_once(:update_available_boards, stale_retries + 1)
+    # Failed run: the row stays, so the fallback still fires. Both counts are carried, so neither
+    # kind of retry resets the other's bound: at most STALE_REFRESH_RETRIES + REFUSED_STORE_RETRIES
+    # immediate retries. (stale_after is not passed once the stale count is spent, so a raise past
+    # it is counted as a refusal.) The arguments keep their old shape while nothing was refused.
+    if stale_retries < STALE_REFRESH_RETRIES
+      args = refused_retries > 0 ? [stale_retries + 1, refused_retries] : [stale_retries + 1]
+      self.schedule_once(:update_available_boards, *args)
+    else
+      retry_refused_store(stale_retries, refused_retries, started_at || Time.now)
+    end
   end
-  
-  def retry_refused_store(refused_retries)
+
+  # Whether an update_available_boards row due now was requested at or after the given
+  # 'generated' stamp (whole seconds, so the same second counts as after).
+  def refresh_requested_since?(generated)
+    RemoteAction.where(path: self.global_id, action: 'update_available_boards')
+      .where('act_at >= ? AND act_at <= ?', Time.at(generated.to_i), Time.now).exists?
+  end
+  private :refresh_requested_since?
+
+  def retry_refused_store(stale_retries, refused_retries, started_at)
+    rows = RemoteAction.where(path: self.global_id, action: 'update_available_boards')
     if refused_retries < REFUSED_STORE_RETRIES
       User.persist_board_cache_refresh(self, true)
       user = self
       ActiveRecord.after_all_transactions_commit do
-        user.schedule_once(:update_available_boards, 0, refused_retries + 1)
+        user.schedule_once(:update_available_boards, stale_retries, refused_retries + 1)
       end
     else
-      User.persist_board_cache_refresh(self, false)
-      RemoteAction.where(path: self.global_id, action: 'update_available_boards').each(&:retry_later_with_backoff)
+      # Only rows this run saw wait with backoff. A row requested while it ran (a revocation pulls
+      # its row forward and queues its own refresh) stays due, and that refresh is not parked
+      # (refresh_requested_since?).
+      RemoteAction.create(path: self.global_id, action: 'update_available_boards', act_at: started_at) unless rows.exists?
+      rows.where('act_at <= ?', started_at).each(&:retry_later_with_backoff)
     end
   end
   private :retry_refused_store
