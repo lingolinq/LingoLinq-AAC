@@ -31,6 +31,9 @@ module BoardCaching
     # still collapsing the double recompute, for every producer of these rows
     # rather than only the supervising ones.
     started_at = Time.now
+    # The queued copy the hourly batch dispatched (RemoteAction#process_action stamps its time in
+    # extra) is this run, so a row this run leaves behind may be dispatched again.
+    RemoteAction.where(path: self.global_id, action: 'update_available_boards').where.not(extra: nil).update_all(extra: nil)
 
     # A retry (stale_retries > 0) is not parked: the stale check rescheduled it within the hour by
     # definition, so parking it meant the retry bound never applied to these users.

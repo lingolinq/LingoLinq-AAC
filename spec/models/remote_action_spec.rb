@@ -168,6 +168,62 @@ describe RemoteAction, :type => :model do
   
 
 
+  # A kept update_available_boards row is due every hour until its refresh completes. schedule_once
+  # stops looking for an already queued job once the queue holds more than 500 entries (boy_band
+  # scheduled_for?), so each hourly batch queued another copy of the same refresh.
+  describe "a kept update_available_boards row" do
+    def queued_refreshes(user)
+      Worker.scheduled_actions('slow').select{|a| a['args'][2].is_a?(Hash) && a['args'][2]['id'] == user.id && a['args'][2]['method'] == 'update_available_boards' }
+    end
+
+    it "is dispatched once, not once per hourly batch, while the slow queue is long" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow(Worker).to receive(:queue_size).and_return(600)
+
+      Uploader.remote_remove_batch
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+      expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
+    end
+
+    # A row the run leaves behind (written after the run started) needs another dispatch, so the
+    # run clears the stamp the batch left for the copy it was.
+    it "can be dispatched again as soon as the dispatched refresh has started" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow(Worker).to receive(:queue_size).and_return(600)
+      Uploader.remote_remove_batch
+      expect(ra.reload.extra).not_to eq(nil)
+      # stands in for a change recorded on the row while the refresh runs
+      ra.update_column(:act_at, 1.hour.from_now)
+
+      User.find(u.id).update_available_boards
+
+      expect(ra.reload.extra).to eq(nil)
+    end
+
+    it "is dispatched again once the earlier dispatch is old enough to count as lost" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow(Worker).to receive(:queue_size).and_return(600)
+
+      Uploader.remote_remove_batch
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).update_all(extra: (RemoteAction::REFRESH_REDISPATCH_AFTER + 1.minute).ago.to_i.to_s)
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+    end
+  end
+
   describe "process_all" do
     it "should process all remote requests" do
       a = OpenStruct.new

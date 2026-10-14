@@ -1,4 +1,8 @@
 class RemoteAction < ApplicationRecord
+  # A kept update_available_boards row is dispatched again only once its last dispatch is this old:
+  # the job is then taken as lost (eviction, failover, a killed worker).
+  REFRESH_REDISPATCH_AFTER = 3.hours
+
   def process_action
     ra = self
     if ra.action == 'delete'
@@ -36,10 +40,16 @@ class RemoteAction < ApplicationRecord
     elsif ra.action == 'update_available_boards'
       user = User.find_by_path(ra.path)
       if user
-        user.schedule_once_for(:slow, :update_available_boards)
         # Kept until update_available_boards completes: it deletes the rows due when it started
-        # (board_caching.rb), so act_at stays put; an unfinished refresh is enqueued again each
-        # hour, deduped by schedule_once.
+        # (board_caching.rb), so act_at stays put. extra (unused otherwise for this action) holds
+        # the last dispatch time until that job starts (it clears it), and while it is set the
+        # hourly batch dispatches again only after REFRESH_REDISPATCH_AFTER. schedule_once alone did
+        # not dedupe: it stops looking for a queued copy once the queue holds more than 500 jobs
+        # (boy_band scheduled_for?).
+        dispatched_at = ra.extra.to_s.match?(/\A\d+\z/) ? Time.at(ra.extra.to_i) : nil
+        return :keep if dispatched_at && dispatched_at > REFRESH_REDISPATCH_AFTER.ago
+        user.schedule_once_for(:slow, :update_available_boards)
+        ra.persisted? ? ra.update_column(:extra, Time.now.to_i.to_s) : ra.extra = Time.now.to_i.to_s
         return :keep
       end
     elsif ra.action == 'clean_up_destroyed_org'
