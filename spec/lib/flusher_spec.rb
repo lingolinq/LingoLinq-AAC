@@ -734,6 +734,21 @@ describe Flusher do
       expect(User.find_by(id: u.id)).not_to eq(nil)
     end
 
+    it "keeps an account whose app uses a token issued before the sweep scheduled its deletion" do
+      token = nil
+      u = swept_for_deletion do |user|
+        d = Device.create(user: user, developer_key_id: 0, device_key: 'default', settings: {'app' => true})
+        d.generate_token!(true)
+        token = d.reload.settings['keys'][-1]['value']
+      end
+      # the token was last used long ago and is not in the token cache
+      travel(2.hours) { expect(Device.check_token(token, nil)[:user]).not_to eq(nil) }
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).not_to eq(nil)
+    end
+
     it "still flushes a deletion the user requested, after an SSO sign-in" do
       u = User.create
       u.schedule_deletion_at = 36.hours.from_now
