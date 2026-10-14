@@ -102,5 +102,10 @@ describe 'scheduler:dispatch rake task' do
       expect(AiApiLog).not_to receive(:redact_old_ip_addresses!)
       Rake::Task['scheduler:dispatch'].invoke
     end
+
+    it 'drains the SES events queue on every hourly run' do
+      expect(SesEventsWorker).to receive(:perform).and_return({received: 0, disabled_addresses: 0, malformed: 0, failed: 0})
+      Rake::Task['scheduler:dispatch'].invoke
+    end
   end
 end
