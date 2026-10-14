@@ -35,6 +35,11 @@ var INDEX_KEY = 'revokedBoards';
 // Per root user: the supervisees their last settled sync covered, and the user
 // names of supervisees removed since (see removed_owners).
 var SYNCED_KEY = 'revocationSyncedSupervisees';
+// The user JSON carries at most this many supervisees (lib/json_api/user.rb,
+// supervisees[0, 10], sorted by user_name), and a sync reloads the root user
+// from it. A shorter list is the whole list; one at the cap may be cut short,
+// so a supervisee missing from it may still be supervised.
+var SUPERVISEE_CAP = 10;
 var deferred_marks = null;
 // The decision guard (see decision_guard) the held-back marks were made under.
 var deferred_guard = null;
@@ -143,6 +148,7 @@ export function fetch_revisions(persist, user, request) {
     // Anything the server says about a board after this moment postdates the
     // root user's verdict (see decision_guard).
     state.decided_at = tick();
+    state.supervisees_complete = (user.get('supervisees') || []).length < SUPERVISEE_CAP;
     state.supervisees = (user.get('supervisees') || []).filter(function(s) { return s && s.id; }).map(function(s) {
       return {id: s.id, user_name: s.user_name};
     });
@@ -247,7 +253,7 @@ export function settled_decision(progress, root_user_id, errors) {
       return e.viewable[id] || (key && e.viewable[key]) || e.protected[id] || (key && e.protected[key]);
     });
   });
-  return {ids: ids, at: state.decided_at, local: state.local, root: state.root, supervisees: state.supervisees || [], entries: entries};
+  return {ids: ids, at: state.decided_at, local: state.local, root: state.root, supervisees: state.supervisees || [], supervisees_complete: !!state.supervisees_complete, entries: entries};
 }
 
 // What a settled decision's marks are checked against when they are written:
@@ -408,6 +414,7 @@ export function finish_sync(persist, root_user_id, errors) {
 export function settle(decision) {
   return load_synced().then(function(synced) {
     var removed = removed_owners(decision, synced[decision.root]);
+    var to_mark = decision.supervisees_complete ? removed : [];
     // The board on screen is left alone, like a home or sidebar board.
     var on_screen = app_state.get ? app_state.get('currentBoardState.id') : null;
     return RSVP.resolve(decision.local).then(function(local) {
@@ -418,13 +425,13 @@ export function settle(decision) {
         var kept = decision.entries.some(function(e) {
           return refs.some(function(ref) { return e.viewable[ref] || e.protected[ref]; });
         });
-        if(owner && removed.indexOf(owner) !== -1 && !kept && rec.id != on_screen && ids.indexOf(rec.id) === -1) {
+        if(owner && to_mark.indexOf(owner) !== -1 && !kept && rec.id != on_screen && ids.indexOf(rec.id) === -1) {
           ids.push(rec.id);
         }
       });
       return apply_revocations(ids, decision).then(function() {
         var next = Object.assign({}, synced);
-        next[decision.root] = {supervisees: decision.supervisees, removed: removed};
+        next[decision.root] = {supervisees: decision.supervisees, complete: decision.supervisees_complete, removed: removed};
         return save_synced(next);
       }).then(function() { return ids; });
     });
@@ -433,9 +440,15 @@ export function settle(decision) {
 
 // User names of the root user's supervisees that are gone: those the last
 // settled sync covered and this one does not, and those already gone before,
-// unless they are supervisees again. previous is null for a root user this
-// device has not settled a sync for, so nothing counts as removed.
+// unless they are supervisees again. A name counts as gone only when both lists
+// were complete (SUPERVISEE_CAP); while this sync's list may be cut short, the
+// names already gone are kept but settle marks nothing for them. previous is
+// null for a root user this device has not settled a sync for, and a record
+// without the completeness flag (written before it existed) is not trusted:
+// either way nothing counts as removed.
 function removed_owners(decision, previous) {
+  if(!previous || typeof previous.complete !== 'boolean') { return []; }
+  if(!decision.supervisees_complete) { return (previous.removed || []).slice(); }
   var ids = {};
   var names = {};
   decision.supervisees.forEach(function(s) {
@@ -443,10 +456,10 @@ function removed_owners(decision, previous) {
     if(s.user_name) { names[s.user_name] = true; }
   });
   var removed = {};
-  ((previous && previous.removed) || []).forEach(function(name) {
+  (previous.removed || []).forEach(function(name) {
     if(!names[name]) { removed[name] = true; }
   });
-  ((previous && previous.supervisees) || []).forEach(function(s) {
+  (previous.complete ? (previous.supervisees || []) : []).forEach(function(s) {
     if(s && !ids[s.id] && s.user_name && !names[s.user_name]) { removed[s.user_name] = true; }
   });
   return Object.keys(removed);

@@ -514,4 +514,45 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.notOk(this.db.board['2_8'].raw.revoked, 'a sidebar board in use is never marked');
     assert.notOk(this.db.board['2_9'].raw.revoked, 'nor the board on screen');
   });
+  // The user JSON carries at most 10 supervisees (lib/json_api/user.rb, supervisees[0, 10], sorted by
+  // user_name), so a list of 10 may be cut short: a supervisee missing from it may still be supervised.
+  async function settledSync(root_id, names) {
+    var sups = names.map(function(name) { return {id: 'u_' + name, user_name: name}; });
+    var persist = persistFor(root_id);
+    await boardRevocation.fetch_revisions(persist, EmberObject.create({id: root_id, supervisees: sups}), answer({}, []));
+    for(var idx = 0; idx < sups.length; idx++) {
+      await boardRevocation.fetch_revisions(persist, user(sups[idx].id), answer({}, []));
+    }
+    return boardRevocation.settle(boardRevocation.settled_decision(persist.get('sync_progress'), root_id, []));
+  }
+
+  function ownedBoard(db, id, key) {
+    db.board[id] = {id: id, key: key, raw: {id: id, key: key, current_revision: 'r1'}};
+  }
+
+  test('a supervisee pushed out of a capped list of 10 is not treated as removed; a real removal from a complete list still is', async function(assert) {
+    ownedBoard(this.db, '2_1', 'j/home');
+    ownedBoard(this.db, '2_2', 'c/talk');
+    var ten = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+    await settledSync('u1', ten);
+    // An eleventh supervisee sorts first, so the capped list now ends at i.
+    await settledSync('u1', ['aa'].concat(ten.slice(0, 9)));
+    assert.notOk(this.db.board['2_1'].raw.revoked, 'pushed out of the capped list: not marked');
+    // The capped list and a full list can alternate between syncs.
+    await settledSync('u1', ten);
+    assert.notOk(this.db.board['2_1'].raw.revoked, 'still not marked');
+
+    await settledSync('u2', ['a', 'b', 'c']);
+    await settledSync('u2', ['a', 'b']);
+    assert.true(this.db.board['2_2'].raw.revoked, 'control: removed from a complete list: marked');
+  });
+
+  test('a removed name stored before lists were checked for completeness is dropped', async function(assert) {
+    ownedBoard(this.db, '2_1', 'j/home');
+    this.db.settings.revocationSyncedSupervisees = {id: 'revocationSyncedSupervisees', storageId: 'revocationSyncedSupervisees',
+      raw: {by_root: {u1: {supervisees: [{id: 'u_a', user_name: 'a'}], removed: ['j']}}}};
+    await settledSync('u1', ['a']);
+    assert.notOk(this.db.board['2_1'].raw.revoked, 'not marked');
+    assert.deepEqual(this.db.settings.revocationSyncedSupervisees.raw.by_root.u1.removed, [], 'no longer stored as removed');
+  });
 });
