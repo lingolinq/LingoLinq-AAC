@@ -131,21 +131,25 @@ After staging has been validated:
 - When Melissa or Traci opens the release PR, Scot approves it. When it is
   opened under Scot's account, Traci approves it, and Scot records his
   agreement by merging it himself after her approval, on the head she approved.
-  If Traci is unavailable, the release waits for her. In an emergency Scot may
-  override and merge on his own agreement, stating the emergency and the reason
-  in the PR.
+  For a release opened under Scot's account, if Traci is unavailable, the
+  release waits for her. If Traci is unavailable and the release is an
+  emergency, Scot may override and merge on his own agreement, stating the
+  emergency and the reason in the PR.
 - Agreement needs explicit human intent on the PR itself: opening it by hand,
   an approving GitHub review on the head being merged, or, for Scot, merging
   it. A release PR that an agent opens does not count as the opener's
   agreement. An agent approving or merging under a dev's account counts only
   when that dev explicitly asked for that specific action. Anything an agent
   does on its own initiative does not count, auto-merge never counts, and a
-  chat message on its own is not agreement.
+  chat message on its own is not agreement. Do not turn on auto-merge for a
+  release PR; if it is on, turn it off before anyone approves.
 - Opening covers the commits the PR held when it was opened. If the head
   changes after anyone has agreed, each earlier agreement is given again on the
-  new head. GitHub does not let a PR's author approve it, so the opener either
-  closes the PR and opens a new release PR by hand, or the other senior dev
-  approves instead.
+  new head. GitHub does not let a PR's author approve it, so when an agent
+  opened the PR, or the head changed after the opener agreed, the opener either
+  closes it and opens a new release PR by hand, or the other of Melissa and
+  Traci approves instead. When Scot opened it, his merge on the new head is his
+  agreement.
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 
@@ -165,7 +169,7 @@ For urgent production issues:
 |---|---|---|
 | `develop` | Any team member | Squash merge |
 | `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup) | Merge commit |
-| `main` | Scot + a senior dev (Melissa or Traci), no self-approval | Merge commit |
+| `main` | Scot + Melissa or Traci (Traci when Scot opens); no self-approval | Merge commit |
 | `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa | Merge commit |
 
 ## Branch Protection Rules
