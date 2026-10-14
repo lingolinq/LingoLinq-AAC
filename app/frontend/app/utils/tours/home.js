@@ -8,7 +8,7 @@
 // four topics (buildHomeMenuSteps). `layout` only adds the Focused skin class.
 
 import i18n from '../i18n';
-import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, doneCelebration } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, liveTarget, waitForElement, doneCelebration } from './shared';
 
 // THE COMMUNICATOR WELCOME (2026-10-12, tour redesign: docs/task-management/2026-10-12_tour-redesign.md).
 // One clear choice. Requested: "a primary Start talking now button with the board picture and 'We'll set
@@ -21,7 +21,7 @@ import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIden
 var STARTER_IMAGE = '/images/vocal-flair-60.png';
 // `hasHome`: they already have a home board (a manual "Take a tour"), so the buttons open THAT board
 // (start_talking.js) and the card says so rather than promising to set up Vocal Flair 60.
-function communicatorWelcomeStep(classic, hasHome) {
+function communicatorWelcomeStep(classic, hasHome, homeTour) {
   var p = classic ? 'ch' : 'md';
   var start = hasHome ?
     tourBodyButton(i18n.t('tour_welcome_start_talking', "Start talking now"), 'speak',
@@ -33,8 +33,17 @@ function communicatorWelcomeStep(classic, hasHome) {
       { classes: 'md-tour__body-btn--primary md-tour__body-btn--starter', note: i18n.t('tour_welcome_start_talking_note', "We'll set up Vocal Flair 60. You can change it anytime.") }
     );
   var choose = tourBodyButton(i18n.t('tour_welcome_choose_board', "Choose a different board"), 'picker', { classes: 'md-tour__body-btn--secondary' });
-  var quick = '<div class="md-tour__quick-tour"><button type="button" class="md-tour__quick-tour-link" data-tour-action="speak_tour">' +
-    i18n.t('tour_welcome_quick_tour', "Take a quick tour (1 min)") + '</button></div>';
+  // The SPEAK-page tour link (speak_tour -> the board tour, via _welcomeAction). The HOME-page tour link
+  // (next -> the communicatorHomeSteps appended after this welcome) is added only when `homeTour` is set:
+  // buildHomeSteps (Modern) appends those steps; Basic's buildClassicHomeSteps does not, so Basic gets no
+  // dead "next" link.
+  var homeLink = homeTour ? ('<button type="button" class="md-tour__quick-tour-link md-tour__quick-tour-link--home" data-tour-action="next">' +
+    i18n.t('tour_welcome_quick_tour_home', "Take a quick tour of my home page (1 min)") + '</button>') : '';
+  var quick = '<div class="md-tour__quick-tour">' +
+    '<button type="button" class="md-tour__quick-tour-link" data-tour-action="speak_tour">' +
+    i18n.t('tour_welcome_quick_tour', "Take a quick tour of the speak page (1 min)") + '</button>' +
+    homeLink +
+    '</div>';
   return {
     id: 'home_tour_welcome',
     title: decoratedTitle('home_tour_welcome_title', "Welcome to LingoLinq", classic ? { classic: true } : undefined),
@@ -48,6 +57,72 @@ function communicatorWelcomeStep(classic, hasHome) {
       }
     ]
   };
+}
+
+// THE COMMUNICATOR'S HOME-PAGE TOUR (2026-10-14, requested): four DOM-driven spotlights over the
+// communicator's Modern home cards, reached from the welcome card's "Take a quick tour of my home page"
+// link (data-tour-action="next" advances from the welcome into these). Each topic is SKIPPED when its
+// target is not on screen (visibleEl); the last one finishes the tour. Mirrors utils/tours/communicator-board.js.
+function communicatorHomeSteps(layout) {
+  // Order (requested 2026-10-14): Speak, then Extras (right after Speak), then Boards, then the nav.
+  var topics = [
+    { id: 'comm_home_tour_speak', sel: '.md-card--speak', on: 'bottom',
+      title: i18n.t('comm_home_tour_speak_title', "Start talking"),
+      text: tourChecklist([
+        i18n.t('comm_home_tour_speak_b1', "Open this to start talking"),
+        i18n.t('comm_home_tour_speak_b2', "Your words appear and speak out loud")
+      ]) },
+    // Extras bullets NAME the actual cards on the Extras tab (components/dashboard/authenticated-view.js
+    // extrasItems) that a communicator sees: Reports, Goals, New Note, Supervisors, Sync, My Account.
+    { id: 'comm_home_tour_extras', sel: '.md-card--extras', on: 'top',
+      title: i18n.t('comm_home_tour_extras_title', "Extras"),
+      text: tourChecklist([
+        i18n.t('comm_home_tour_extras_b1', "Reports, Goals and progress Notes"),
+        i18n.t('comm_home_tour_extras_b2', "Supervisors, Sync and My Account")
+      ]) },
+    { id: 'comm_home_tour_boards', sel: '.md-card--boards', on: 'top',
+      title: i18n.t('comm_home_tour_boards_title', "Your boards"),
+      text: tourChecklist([
+        i18n.t('comm_home_tour_boards_b1', "All your boards live here"),
+        i18n.t('comm_home_tour_boards_b2', "Open or browse them anytime")
+      ]) },
+    { id: 'comm_home_tour_nav', sel: '.md-pillnav', on: 'bottom', padded: true, last: true,
+      title: i18n.t('comm_home_tour_nav_title', "Getting around"),
+      text: tourChecklist([
+        i18n.t('comm_home_tour_nav_b1', "Move between your pages here"),
+        i18n.t('comm_home_tour_nav_b2', "A grown-up can change settings")
+      ]) }
+  ];
+  var steps = [];
+  topics.forEach(function(cfg) {
+    var el = visibleEl(cfg.sel);
+    if (!el) { return; }
+    var buttons = standardButtons();
+    if (cfg.last) {
+      buttons = [buttons[0], {
+        text: i18n.t('home_tour_done', "Got it"),
+        classes: 'md-tour__btn md-tour__btn--primary',
+        action: function() { return this.complete(); }
+      }];
+    }
+    var step = {
+      id: cfg.id,
+      attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
+      beforeShowPromise: waitForElement(cfg.sel),
+      title: cfg.title,
+      text: cfg.text,
+      classes: 'md-tour__step' + (layout === 'focused' ? ' md-tour__step--focused' : ''),
+      buttons: buttons,
+      scrollBlock: 'center'
+    };
+    if (cfg.padded) {
+      step.modalOverlayOpeningPadding = 8;
+      step.modalOverlayOpeningRadius = 16;
+      step.matchTargetRadius = false;
+    }
+    steps.push(step);
+  });
+  return steps;
 }
 
 // THE SUPPORTER WELCOME (SLPs and others with `supporter_role`). Centered, no attachTo: one "Take a tour"
@@ -357,11 +432,13 @@ function buildHomeMenuSteps(layout, options) {
 // for the topic MENU; if no topic resolves it falls back to the linear tour.
 function buildHomeSteps(layout, options) {
   options = options || {};
-  // A COMMUNICATOR (not a supporter) gets the one-card welcome; their tour runs on their board (2026-10-12).
+  // A COMMUNICATOR (not a supporter) gets the welcome card, then a 4-step home-page tour reached from
+  // the welcome's "Take a quick tour of my home page" link (2026-10-14). Their SPEAK-page tour still runs
+  // on their board (welcome's speak_tour link -> _welcomeAction).
   if (!options.supporter) {
-    var welcome = communicatorWelcomeStep(false, !!options.hasHome);
+    var welcome = communicatorWelcomeStep(false, !!options.hasHome, true);
     if (layout === 'focused') { welcome.classes += ' md-tour__step--focused'; }
-    return [welcome];
+    return [welcome].concat(communicatorHomeSteps(layout));
   }
   if (options.menu) {
     var menuSteps = buildHomeMenuSteps(layout, options);

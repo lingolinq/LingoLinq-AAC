@@ -20,15 +20,17 @@ module('Unit | Utility | tours | communicator welcome', function(hooks) {
     return Array.prototype.map.call(d.querySelectorAll('[data-tour-action]'), function(b) { return b.getAttribute('data-tour-action'); });
   };
 
-  test('Modern: one card with Start talking now, Choose a different board and the quick-tour link', function(assert) {
-    var steps = buildHomeSteps('gentle', {});
-    assert.strictEqual(steps.length, 1, 'the welcome is the whole home tour for a communicator');
-    var html = steps[0].text;
-    assert.deepEqual(actions(html), ['speak', 'picker', 'speak_tour'], 'primary, secondary, then the link');
+  test('Modern: Start talking now, Choose a different board, and the two quick-tour links', function(assert) {
+    // Updated 2026-10-14 (requested): the welcome's quick-tour link is now the SPEAK-page tour, relabelled
+    // "...of the speak page (1 min)", and a second HOME-page tour link ("...of my home page (1 min)",
+    // data-tour-action="next") advances into the 4-step communicator home tour appended below.
+    var html = buildHomeSteps('gentle', {})[0].text;
+    assert.deepEqual(actions(html), ['speak', 'picker', 'speak_tour', 'next'], 'primary, secondary, speak-page link, home-page link');
     assert.true(text(html).includes('Start talking now'), 'primary label');
     assert.true(text(html).includes("We'll set up Vocal Flair 60. You can change it anytime."), 'its note');
     assert.true(text(html).includes('Choose a different board'), 'secondary');
-    assert.true(text(html).includes('Take a quick tour (1 min)'), 'the link');
+    assert.true(text(html).includes('Take a quick tour of the speak page (1 min)'), 'the speak-page link');
+    assert.true(text(html).includes('Take a quick tour of my home page (1 min)'), 'the home-page link');
     assert.true(html.includes('/images/vocal-flair-60.png'), 'with the board picture');
   });
 
@@ -119,10 +121,53 @@ module('Unit | Utility | tours | communicator welcome', function(hooks) {
   test('the card for someone with a home board does not promise to set up Vocal Flair 60', function(assert) {
     assert.expect(8);
     [buildHomeSteps('gentle', { hasHome: true })[0].text, buildClassicHomeSteps({ hasHome: true })[0].text].forEach(function(html) {
-      assert.deepEqual(actions(html), ['speak', 'picker', 'speak_tour'], 'the same three choices');
+      // Modern adds a 4th "next" (home-page tour) link; Basic has only the three. Check the shared three.
+      assert.deepEqual(actions(html).slice(0, 3), ['speak', 'picker', 'speak_tour'], 'the same three choices');
       assert.false(text(html).includes('Vocal Flair 60'), 'no Vocal Flair 60 note');
       assert.false(html.includes('/images/vocal-flair-60.png'), 'no Vocal Flair 60 picture');
       assert.true(text(html).includes('Opens your home board.'), 'says what it does');
     });
+  });
+
+  /* THE COMMUNICATOR HOME-PAGE TOUR (2026-10-14, requested): the welcome plus four DOM-driven spotlights
+     over the Modern home cards, reached from the welcome's home-page link. Targets are injected so the
+     count is the tour's own, not a missing target's (mirrors board-detail-four-steps-test). */
+  test('Modern: the home-page tour is the welcome plus four spotlights over the home cards', function(assert) {
+    assert.expect(1);
+    var added = [];
+    ['md-card--speak', 'md-card--boards', 'md-card--extras', 'md-pillnav'].forEach(function(cls) {
+      var el = document.createElement('div'); el.className = cls; el.style.height = '20px'; el.textContent = 'x';
+      document.body.appendChild(el); added.push(el);
+    });
+    try {
+      var ids = buildHomeSteps('gentle', {}).map(function(s) { return s.id; });
+      assert.deepEqual(ids,
+        ['home_tour_welcome', 'comm_home_tour_speak', 'comm_home_tour_extras', 'comm_home_tour_boards', 'comm_home_tour_nav'],
+        'welcome, then Speak, Extras (right after Speak), Boards, nav');
+    } finally {
+      added.forEach(function(e) { e.remove(); });
+    }
+  });
+
+  test('a home card not on screen is skipped (the tour is DOM-driven)', function(assert) {
+    assert.expect(1);
+    var added = [];
+    ['md-card--speak', 'md-pillnav'].forEach(function(cls) {
+      var el = document.createElement('div'); el.className = cls; el.style.height = '20px'; el.textContent = 'x';
+      document.body.appendChild(el); added.push(el);
+    });
+    try {
+      var ids = buildHomeSteps('gentle', {}).map(function(s) { return s.id; });
+      assert.deepEqual(ids, ['home_tour_welcome', 'comm_home_tour_speak', 'comm_home_tour_nav'],
+        'only the welcome and the two present targets');
+    } finally {
+      added.forEach(function(e) { e.remove(); });
+    }
+  });
+
+  test('Basic: no home-page tour link and no appended home steps', function(assert) {
+    var steps = buildClassicHomeSteps({});
+    assert.strictEqual(steps.length, 1, 'just the welcome, no appended home steps in Basic');
+    assert.false(actions(steps[0].text).includes('next'), 'and no home-page (next) link');
   });
 });
