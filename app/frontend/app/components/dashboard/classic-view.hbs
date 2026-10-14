@@ -239,7 +239,9 @@
                 {{#if this.loggingWithGeo}}
                   <span class="ch-row__title">{{t "Logging is enabled" key="classic_logging_full"}}</span>
                 {{else}}
-                  <span class="ch-row__title">{{t "Logging is enabled (no geo)" key="classic_logging_no_geo"}}</span>
+                  <span class="ch-row__title">{{t "Logging is enabled" key="classic_logging_enabled"}}</span>
+                  {{!-- "(no geo)" suffix commented out 2026-10-13 (may re-add later): the prior label was
+                       {{t "Logging is enabled (no geo)" key="classic_logging_no_geo"}} --}}
                 {{/if}}
                 <span class="ch-row__sub">{{t "Notifications & recent sessions" key="classic_notifications_and_sessions"}}</span>
               </span>
@@ -1149,52 +1151,12 @@
               <span class="ch-tile__rule" aria-hidden="true"></span>
             </span>
           </LinkTo>
-          <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
-          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-            <span class="ch-tile__info">
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
-              <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "My Account" key="my_account"}}</span>
-                <span class="ch-tile__more">{{t "Name, password, subscription and the devices signed in to this account." key="classic_more_account"}}</span>
-              </span>
-            </span>
-            <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "Account Profile" key="classic_sub_account_profile"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-            </span>
-          </LinkTo>
-          <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "newBoard")}}>
-          {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
-                 The children used to be five siblings — chip, label, sub, rule, more — laid out as
-                 one centred column, so the description was announced and read AFTER the action
-                 text. Grouping them puts identity first and the action last, which is both the
-                 requested visual composition and a correct Meaningful Sequence (WCAG 1.3.2):
-                 visual order and DOM order now agree, so nothing relies on CSS `order`.
-                 THE CARD IS STILL THE ONLY INTERACTIVE ELEMENT. `.ch-tile__cta` is a <span>, not
-                 a button or a link — nesting one inside this control would be invalid and would
-                 add a second tab stop. It is the visual action indicator for the card that
-                 contains it. Class names, text, actions and ARIA are unchanged. --}}
-            <span class="ch-tile__info">
-              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2.5" y1="8.5" x2="15" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#2A9D8F"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#2A9D8F"/></svg></span>
-              <span class="ch-tile__text">
-                <span class="ch-tile__label">{{t "New Board" key="new_board"}}</span>
-                <span class="ch-tile__more">{{t "Start an empty board, choose its grid size, then add buttons." key="classic_more_new_board"}}</span>
-              </span>
-            </span>
-            <span class="ch-tile__cta">
-              <span class="ch-tile__sub">{{t "Create Board" key="classic_sub_create_board"}}</span>
-              <span class="ch-tile__rule" aria-hidden="true"></span>
-            </span>
-          </button>
+          {{!-- My Account and New Board silver tiles REMOVED from the Basic home (2026-10-13 request:
+               "remove the my account and new board buttons from the home page"). Both were
+               ch-tile--big ch-tile--silver here. Their destinations are untouched and still reachable:
+               My Account via the rail identity card (ch-rail__identity -> route 'user.account') and the
+               Create a New Board rail row; New Board via that rail row and the Boards tab's
+               ch-boards__create button (:715, action 'newBoard'). --}}
           <LinkTo @route="user.recordings" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
           {{!-- TWO ZONES, and the ORDER HERE IS THE READING ORDER (restructured 2026-09-14).
                  The children used to be five siblings — chip, label, sub, rule, more — laid out as

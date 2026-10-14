@@ -394,7 +394,9 @@
               {{#if this.loggingWithGeo}}
                 <span class="ch-row__title">{{t "Logging is enabled" key="classic_logging_full"}}</span>
               {{else}}
-                <span class="ch-row__title">{{t "Logging is enabled (no geo)" key="classic_logging_no_geo"}}</span>
+                <span class="ch-row__title">{{t "Logging is enabled" key="classic_logging_enabled"}}</span>
+                {{!-- "(no geo)" suffix commented out 2026-10-13 (may re-add later): the prior label was
+                     {{t "Logging is enabled (no geo)" key="classic_logging_no_geo"}} --}}
               {{/if}}
               <span class="ch-row__sub">{{t "Notifications & recent sessions" key="classic_notifications_and_sessions"}}</span>
             </span>

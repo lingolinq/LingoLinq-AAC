@@ -4714,6 +4714,13 @@ body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace > .md-main
   body.ll-layout-focused .ch-rail--account .ch-rail__item + .ch-rail__item {
     padding-top: 0;
   }
+  /* THE BASIC HOME (dashboard) RAIL TIGHTENS TOO (requested 2026-10-13): reduce its row gap by 4px
+     at 1024 and below, on the COLLAPSED rail only (the state it auto-collapses into at <=1024).
+     Base is 6px (.ch-rail__list:914), so 2px here. `.ch-rail.ch-rail--collapsed` per the specificity
+     note at :458; scoped away from the account and org rails, which carry their own 4px rule above. */
+  .ch-rail.ch-rail--collapsed:not(.ch-rail--account):not(.ch-rail--org) .ch-rail__list {
+    gap: 2px;
+  }
 }
 
 /* THE ORG RAIL SAYS "YOU ARE HERE" THE SAME WAY (2026-09-25, requested: "Show Organizations as
