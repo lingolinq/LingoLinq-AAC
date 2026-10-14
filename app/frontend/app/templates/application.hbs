@@ -1716,6 +1716,16 @@
         {{/if}}
       {{/if}}
     {{/if}}
+    {{!-- "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off, saved to
+         preferences.word_suggestions (the pref the prediction rail is gated on). At the BOTTOM of the
+         classic sidebar; set_word_prediction gates the change on the active speak-mode PIN. --}}
+    <div class="sidebar__predict-row">
+      <span class="sidebar__predict-label">{{t "Predict" key="predict"}}</span>
+      <div class="sidebar__predict-seg" role="group" aria-label={{t "Predict" key="predict"}}>
+        <button type="button" class="sidebar__predict-opt {{if this.word_prediction_on 'sidebar__predict-opt--on'}}" aria-pressed={{if this.word_prediction_on "true" "false"}} aria-label={{t "Yes" key="yes"}} {{on "click" (this.ctrlAction "set_word_prediction" true)}}>{{t "Y" key="yes_abbr"}}</button>
+        <button type="button" class="sidebar__predict-opt {{unless this.word_prediction_on 'sidebar__predict-opt--on'}}" aria-pressed={{unless this.word_prediction_on "true" "false"}} aria-label={{t "No" key="no"}} {{on "click" (this.ctrlAction "set_word_prediction" false)}}>{{t "N" key="no_abbr"}}</button>
+      </div>
+    </div>
   </div>
 {{else}}
   <SidebarTease />

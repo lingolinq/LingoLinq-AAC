@@ -2231,6 +2231,17 @@
                 </button>
               {{/if}}
             {{/each}}
+            {{!-- "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off,
+                 saved to preferences.word_suggestions (the pref the prediction rail is gated on).
+                 Sits at the BOTTOM of the sidebar content, ABOVE the Edit row (spacing in SCSS).
+                 set_word_prediction gates the change on the active speak-mode PIN. --}}
+            <div class="md-board-detail-inline-sidebar__predict-row">
+              <span class="md-board-detail-inline-sidebar__predict-label">{{t "Predict" key="predict"}}</span>
+              <div class="md-board-detail-inline-sidebar__predict-seg" role="group" aria-label={{t "Predict" key="predict"}}>
+                <button type="button" class="md-board-detail-inline-sidebar__predict-opt {{if this.word_prediction_on 'md-board-detail-inline-sidebar__predict-opt--on'}}" aria-pressed={{if this.word_prediction_on "true" "false"}} aria-label={{t "Yes" key="yes"}} data-bd-action="set_word_prediction" {{on "click" (this.ctrlAction "set_word_prediction" true)}}>{{t "Y" key="yes_abbr"}}</button>
+                <button type="button" class="md-board-detail-inline-sidebar__predict-opt {{unless this.word_prediction_on 'md-board-detail-inline-sidebar__predict-opt--on'}}" aria-pressed={{unless this.word_prediction_on "true" "false"}} aria-label={{t "No" key="no"}} data-bd-action="set_word_prediction" {{on "click" (this.ctrlAction "set_word_prediction" false)}}>{{t "N" key="no_abbr"}}</button>
+              </div>
+            </div>
             {{!-- Edit — opens the inline sidebar-editor panel. Sits at the BOTTOM of
                  the sidebar content, styled like the boards-page "Create New Board"
                  pill (aria-label keeps the full "Edit Sidebar" intent for SRs).

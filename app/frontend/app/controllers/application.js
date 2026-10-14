@@ -684,6 +684,13 @@ export default Controller.extend({
     return htmlSafe(s);
   }),
 
+  // Drives the sidebar "Predict" Yes/No control (2026-10-13). Reads the live preference on the
+  // on-screen user (referenced_user in Speak Mode, else currentUser); set_word_prediction writes it.
+  word_prediction_on: computed('app_state.referenced_user.preferences.word_suggestions', 'app_state.currentUser.preferences.word_suggestions', function() {
+    var u = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+    return !!(u && u.get('preferences.word_suggestions') === true);
+  }),
+
   actions: {
     toggleEvalPause: function() {
       if(obf.eval && obf.eval.toggle_pause) { obf.eval.toggle_pause(); }
@@ -1178,6 +1185,32 @@ export default Controller.extend({
     alert: function() {
       utterance.alert({button_triggered: true});
       this.send('hide_temporary_sidebar');
+    },
+    // The sidebar "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off
+    // by setting preferences.word_suggestions, the same preference board/index.js#166 and
+    // user/board-detail.js gate the prediction rail on. SETS a value (not a flip) so the segmented
+    // Yes/No control is idempotent; clicking the already-selected side is a no-op and never prompts.
+    // Gated by the ACTIVE speak-mode PIN: open_speak_mode_exit_pin resolves {correct_pin:true}
+    // immediately when no PIN is active (app-state.js), so the no-PIN case applies with no prompt.
+    // Dirty-bits preferences.device.updated so the raw preferences blob ships (Ember Data won't mark
+    // a nested set dirty on its own).
+    set_word_prediction: function(on) {
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
+      var apply = function() {
+        prefUser.set('preferences.word_suggestions', !!on);
+        if(prefUser.save) {
+          prefUser.set('preferences.device.updated', true);
+          prefUser.save();
+        }
+      };
+      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
+      if(ready && ready.then) {
+        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
+      } else {
+        apply();
+      }
     },
     special: function(opts) {
       // sidebar actions (opts is often an EmberObject from sidebar_boards_with_fallbacks)

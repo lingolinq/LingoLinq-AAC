@@ -7110,6 +7110,13 @@ const BoardDetailController = Controller.extend(prefClasses, {
     }
   },
 
+  // Drives the inline-sidebar "Predict" Yes/No control (2026-10-13). Reads the live preference on the
+  // on-screen user (referenced_user in Speak Mode, else currentUser); set_word_prediction writes it.
+  word_prediction_on: computed('app_state.referenced_user.preferences.word_suggestions', 'app_state.currentUser.preferences.word_suggestions', function() {
+    var u = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+    return !!(u && u.get('preferences.word_suggestions') === true);
+  }),
+
   actions: {
     toggle_category_order: function() {
       this.set('category_order_open', !this.get('category_order_open'));
@@ -8366,6 +8373,28 @@ const BoardDetailController = Controller.extend(prefClasses, {
       if(prefUser.save) {
         prefUser.set('preferences.device.updated', true);
         prefUser.save();
+      }
+    },
+    // The inline-sidebar "Predict" Yes/No toggle (2026-10-13). Unlike the edit-sidebar's flip above,
+    // this SETS a value so the segmented control is idempotent (clicking the selected side is a no-op
+    // and never prompts), and it is gated by the ACTIVE speak-mode PIN (open_speak_mode_exit_pin
+    // resolves immediately when no PIN is active). Same preference + dirty-bit + save as above.
+    set_word_prediction: function(on) {
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
+      var apply = function() {
+        prefUser.set('preferences.word_suggestions', !!on);
+        if(prefUser.save) {
+          prefUser.set('preferences.device.updated', true);
+          prefUser.save();
+        }
+      };
+      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
+      if(ready && ready.then) {
+        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
+      } else {
+        apply();
       }
     },
     toggle_word_prediction_position_dropdown: function() {
