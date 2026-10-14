@@ -3409,7 +3409,8 @@ describe Api::UsersController, :type => :controller do
 
     # Sets the tree directly: board_revisions reads root.downstream_board_ids, and building
     # it through the tracking jobs made a second tree in one example come back empty about
-    # one run in six (a setup race in upstream_downstream.rb, outside this endpoint).
+    # one run in six. That was the in-process test worker keeping a stale scheduled stamp on
+    # the job class (fixed in lib/worker.rb, 7dda2aa29); production forks a worker per job.
     def link_board_revisions_tree(user, boards)
       root = Board.create(:user => user)
       user.settings['preferences']['home_board'] = {'id' => root.global_id, 'key' => root.key}
