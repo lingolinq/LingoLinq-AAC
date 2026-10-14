@@ -167,7 +167,8 @@ his own PR in an emergency and Traci is unavailable:
 3. He temporarily lowers the review requirement in `main`'s branch protection
    (required approvals and code-owner review). He leaves admin enforcement and
    every required status check on, so CI still has to pass. While it is
-   lowered, he merges only the emergency PR.
+   lowered, he merges only the emergency PR, and nobody else merges to `main`
+   or turns on auto-merge there until the settings are restored and checked.
 4. As soon as the merge completes, or the attempt is abandoned for any reason,
    he restores the saved settings, then reads them back and confirms they
    match the saved copy.
@@ -194,7 +195,7 @@ For urgent production issues:
 | Target Branch | Who Can Approve | Merge Strategy |
 |---|---|---|
 | `develop` | Any team member | Squash merge |
-| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup); a senior dev who opened it may merge it alone when necessary | Merge commit |
+| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup); a senior dev who opened it may merge it alone when necessary, once required checks pass | Merge commit |
 | `main` | Scot + Melissa or Traci (Traci when Scot opens; Melissa in an emergency); no merge without another person's approval except the emergency override (section 6) | Merge commit |
 | `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa; emergency override (section 6) for a hotfix Scot opens | Merge commit |
 
