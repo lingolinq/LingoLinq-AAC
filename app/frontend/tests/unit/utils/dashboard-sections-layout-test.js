@@ -121,6 +121,21 @@ module('Unit | Utility | dashboard sections: per-layout availability', function(
     assert.notOk(layoutPresentation(orgSlp, 'focused').vis.speak, 'an org manager still has no Speak (pin is scoped to non-org supervisors)');
   });
 
+  // Gentle must pull Speak beside Caseload even when a SAVED drag order separated them (2026-10-14).
+  // dashboard_drag_layout is forced on, so a saved order is almost always present; without this the
+  // Gentle row silently failed to form and Caseload rendered as a lone full-width showcase, while
+  // Focused (which force-places Speak) looked fine.
+  test('Gentle keeps Caseload | Speak together despite a saved order that separated them', function(assert) {
+    assert.expect(2);
+    var slp = stubUser({ supporter_role: true, supervisees: [{ org_status: { state: 'unchecked' } }], supervised_units: [1] });
+    var vis = { caseload: true, speak: true, attention: true, rooms: true, extras: true };
+    var order = ['attention', 'caseload', 'rooms', 'speak', 'extras'];
+    var pres = layoutPresentation(slp, 'gentle', { vis: vis, order: order, dragEnabled: true });
+    var hasRow = pres.grid.areas.some(function(r) { var t = r.split(' '); return t.indexOf('caseload') !== -1 && t.indexOf('speak') !== -1; });
+    assert.true(hasRow, 'Caseload | Speak share a row despite the saved order');
+    assert.notStrictEqual(pres.grid.classes.indexOf('md-grid--caseload-row'), -1, 'and the caseload-row class is emitted');
+  });
+
   test('Gentle View offers every section available to the user', function(assert) {
     var shapeNames = Object.keys(SHAPES);
     assert.expect(shapeNames.length);

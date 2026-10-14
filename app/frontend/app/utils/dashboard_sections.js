@@ -576,7 +576,13 @@ function dashboardLayout(vis, order) {
      caseload, rooms, attention and org unconditionally. Those are panels, not buttons, and the
      request was about the buttons. */
   var extraFull = [];
-  var body = packOrder(orderedVisible(vis, order, def), extraFull, clPartners);
+  // Pull Caseload + its partner (Speak for a supervisor) adjacent in the FINAL visible order too, not
+  // just in the default `def`. A SAVED drag order (dashboard_drag_layout is forced on, so one is almost
+  // always present) otherwise leaves Speak wherever the user dropped it, and packOrder only attaches it
+  // as Caseload's row-partner when it directly follows Caseload — so the Gentle Caseload | Speak row
+  // silently failed to form and Caseload rendered as a lone full-width showcase. Focused already forces
+  // Speak beside the Caseload hero regardless of order (focusedLayout); this makes Gentle agree (2026-10-14).
+  var body = packOrder(caseloadRowFirst(orderedVisible(vis, order, def), vis, clPartners), extraFull, clPartners);
   // A three-cell caseload row needs thirds, so the grid becomes SIX columns (as Focused's Speak row
   // does): every row's cells widen evenly, three tracks per half and two per third.
   if (!body.some(function(row) { return row.split(' ').length === 3; })) { return framed(body); }
