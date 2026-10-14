@@ -1135,6 +1135,52 @@ describe OrganizationUnit, :type => :model do
       expect(removal_rows.count).to eq(0)
     end
 
+    # The pair is decided under the supervisee's lock, from the room's membership read under it:
+    # a re-add (or a removal) that lands after the job read the room, before it takes the lock,
+    # is what the pair's link follows. The other side's change is run where it would land, as the
+    # job is about to take the lock.
+    def on_first_lock(&change)
+      fired = false
+      allow(User).to receive(:with_supervision_lock).and_wrap_original do |orig, *args, &blk|
+        unless fired
+          fired = true
+          change.call
+        end
+        orig.call(*args, &blk)
+      end
+    end
+
+    it "keeps the supervision of a member re-added while the removal job runs" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      Worker.flush_queues
+      on_first_lock do
+        OrganizationUnit.find(ou.id).add_communicator(comm.user_name)
+        OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+      end
+
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'remove_communicator' => comm.user_name})
+
+      expect(OrganizationUnit.find(ou.id).communicator?(User.find(comm.id))).to eq(true)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "does not link a member removed while the add job runs" do
+      o, ou, sup, comm = room_members
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(comm.id), ou.global_id)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      on_first_lock do
+        OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+        OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'remove_communicator' => comm.user_name})
+      end
+
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+
+      expect(OrganizationUnit.find(ou.id).communicator?(User.find(comm.id))).to eq(false)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+    end
+
     # a re-add whose room link was not saved has not put the member back: the pending removal stays
     it "keeps the pending removal when the re-add is not saved" do
       o, ou, sup, comm = room_members

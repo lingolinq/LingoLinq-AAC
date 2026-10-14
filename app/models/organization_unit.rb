@@ -362,11 +362,11 @@ class OrganizationUnit < ApplicationRecord
     supervisors = User.find_all_by_global_id(supervisor_ids)
 
     # a member put back in the room since the removal was queued keeps the room's supervision:
-    # the removal only completes its row (membership read fresh above)
+    # the removal only completes its row (decided per pair under the lock, unlink_room_pair)
     if opts['remove_supervisor']
       unless supervisor_ids.include?(ref_user.global_id)
         communicators.each do |user|
-          User.unlink_supervisor_from_user(ref_user, user, self.global_id)
+          unlink_room_pair(ref_user, user, ref_user, 'org_unit_supervisor')
         end
       end
       member_removal_done(ref_user, 'supervisor')
@@ -374,7 +374,7 @@ class OrganizationUnit < ApplicationRecord
       self.schedule(:assert_goal)
       unless communicator_ids.include?(ref_user.global_id)
         supervisors.each do |user|
-          User.unlink_supervisor_from_user(user, ref_user, self.global_id)
+          unlink_room_pair(user, ref_user, ref_user, 'org_unit_communicator')
         end
       end
       member_removal_done(ref_user, 'communicator')
@@ -397,11 +397,31 @@ class OrganizationUnit < ApplicationRecord
   # before it (or its district) was deleted must not put it back on a link after the cleanup took
   # it off. The cleanup takes the same lock per pair, so either it runs after this link (and
   # strips it) or this reads the committed deletion.
+  #
+  # Both must also still be in the room, read fresh under the lock: a removal that landed after
+  # the job read the room is followed (its own job, taking the same lock, unlinks either before
+  # this reads or after this links).
   def link_room_pair(supervisor, communicator, edit_permission)
     User.with_supervision_lock(communicator) do
       next false unless OrganizationUnit.where(id: self.id).exists? && Organization.where(id: self.organization_id).exists?
+      next false unless room_member?(supervisor, 'org_unit_supervisor') && room_member?(communicator, 'org_unit_communicator')
       User.link_supervisor_to_user(supervisor, communicator, nil, edit_permission, self.global_id)
     end
+  end
+
+  # Takes this room off a supervisor-communicator link for a member taken out of the room
+  # (removed: that member, kind: their room link type), under the supervisee's lock, unless the
+  # member is back in the room, read fresh under the lock: a re-add that landed after the job
+  # read the room keeps the room's supervision (its add job, taking the same lock, links after).
+  def unlink_room_pair(supervisor, communicator, removed, kind)
+    User.with_supervision_lock(communicator) do
+      next false if room_member?(removed, kind)
+      User.unlink_supervisor_from_user(supervisor, communicator, self.global_id)
+    end
+  end
+
+  def room_member?(user, kind)
+    UserLink.links_for(self, true).any?{|l| l['type'] == kind && l['user_id'] == user.global_id }
   end
 
   # A member taken out of a room leaves the room's links at once (remove_supervisor,
