@@ -418,6 +418,7 @@ const AuthenticatedView = Component.extend({
     var _this = this;
     if(this.get('isGenerated')) { return; } // Ember testing check equivalent?
     persistenceService.find_recent('board').then(function(boards) {
+      if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the find resolved
       if(boards && boards.slice) {
         boards = boards.slice(0, 12);
       }
@@ -554,6 +555,7 @@ const AuthenticatedView = Component.extend({
           var p = _this.get && _this.get('persistence');
           if(p && typeof p.find_recent === 'function') {
             p.find_recent('board').then(function(boards) {
+            if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the find resolved
             if(boards && boards.slice) {
               boards = boards.slice(0, 12);
             }
@@ -578,9 +580,11 @@ const AuthenticatedView = Component.extend({
             _this.set(list, {loading: true});
           }
           _this.get('store').query('board', opts).then(function(data) {
+            if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the query resolved
             _this.set(list, data);
             _this.checkForBlankSlate();
           }, function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
             _this.set(list, {error: true});
           });
           _this.checkForBlankSlate();
@@ -612,13 +616,16 @@ const AuthenticatedView = Component.extend({
         controller.set('logs', {loading: true});
       }
       this.get('store').query('log', find_args).then(function(list) {
+        if(controller.isDestroyed || controller.isDestroying) { return; } // navigated away before the query resolved
         controller.set('logs', list.slice());
       }, function() {
+        if(controller.isDestroyed || controller.isDestroying) { return; }
         if(!(controller.get('logs') || {}).length) {
           controller.set('logs', {error: true});
         }
       });
       this.get('store').query('badge', {user_id: model.get('id'), recent: 1}).then(function(badges) {
+        if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the query resolved
         var for_users = {};
         badges.forEach(function(badge) {
           for_users[badge.get('user_id')] = for_users[badge.get('user_id')] || []
