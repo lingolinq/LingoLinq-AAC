@@ -436,6 +436,9 @@ module Supervising
         }.merge((actor || {}).slice('deleted_by', 'deleted_as')))
       elsif remaining != listed
         link.data['state']['organization_unit_ids'] = remaining
+        # judged room-made here but kept for other rooms: recorded, so that a later district's
+        # deletion (whose membership may postdate the link) still removes it
+        link.data['origin'] = 'room' if room_made && link.data['origin'].nil?
         link.save!
       end
       true

@@ -1426,6 +1426,39 @@ describe Organization, :type => :model do
         expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)
       end
 
+      # A legacy link judged room-made by one district but kept because another district's room
+      # still lists it is recorded as room-made, so the second district's deletion removes it
+      # (that district's membership alone postdates the link).
+      it "removes a legacy room-made link once both districts listing it are destroyed" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        link = legacy_link!(sup, comm)
+        UserLink.where(id: link.id).update_all(created_at: 2.hours.ago)
+        UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o)).update_all(created_at: 3.hours.ago)
+        o2 = Organization.create
+        ou2 = OrganizationUnit.create(:organization => o2)
+        o2.add_supervisor(sup.user_name, false)
+        o2.add_user(comm.user_name, false, false)
+        ou2.add_supervisor(sup.user_name)
+        ou2.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['origin']).to eq(nil)
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id, ou2.global_id])
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou2.global_id])
+        expect(supervision_link(sup, comm).data['origin']).to eq('room')
+
+        o2.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
       # The membership links are not removed by the destroy (no dependent: option), so the job can
       # still read them when the captured copy on the cleanup row is missing.
       it "reads the district staff from the membership links when the cleanup row has no copy" do
