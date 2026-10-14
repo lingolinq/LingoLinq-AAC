@@ -224,6 +224,67 @@ describe RemoteAction, :type => :model do
     end
   end
 
+  # A revocation pulls the row forward; the dispatch stamp of an earlier copy must not hold the
+  # batch back for REFRESH_REDISPATCH_AFTER when that copy and the revocation's own enqueue are lost.
+  describe "a kept update_available_boards row on revocation" do
+    def queued_refreshes(user)
+      Worker.scheduled_actions('slow').select{|a| a['args'][2].is_a?(Hash) && a['args'][2]['id'] == user.id && a['args'][2]['method'] == 'update_available_boards' }
+    end
+
+    it "is dispatched by the next batch even though an earlier copy was dispatched recently" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.hour.from_now, extra: 10.minutes.ago.to_i.to_s)
+
+      User.persist_board_cache_refresh(u, true)
+      expect(ra.reload.extra).to eq(nil)
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+    end
+
+    it "is dispatched by the next batch after a bulk revocation too" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.hour.from_now, extra: 10.minutes.ago.to_i.to_s)
+
+      User.persist_board_cache_refreshes([u.id])
+      expect(ra.reload.extra).to eq(nil)
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+    end
+  end
+
+  # The batch stamps a dispatch before it enqueues: a job that starts at once clears the stamp
+  # (board_caching.rb), and a stamp written after that would hold back the next dispatch.
+  describe "dispatching a kept update_available_boards row" do
+    it "leaves no stamp when the dispatched job starts before process_action returns" do
+      u = User.create
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow_any_instance_of(User).to receive(:schedule_once_for) do
+        # the job starting at once, as another worker can
+        RemoteAction.where(path: u.global_id, action: 'update_available_boards').update_all(extra: nil)
+      end
+
+      expect(ra.process_action).to eq(:keep)
+
+      expect(ra.reload.extra).to eq(nil)
+    end
+
+    it "clears its stamp when the enqueue fails" do
+      u = User.create
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow_any_instance_of(User).to receive(:schedule_once_for).and_raise(Redis::CannotConnectError)
+
+      expect { ra.process_action }.to raise_error(Redis::CannotConnectError)
+
+      expect(ra.reload.extra).to eq(nil)
+    end
+  end
+
   # A kept clean_up_destroyed_org row was re-queued every hour for as long as its job kept failing.
   # The wait now grows with the row's age (doubling per retry), from an hour to a day.
   describe "a kept clean_up_destroyed_org row" do

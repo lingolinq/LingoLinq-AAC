@@ -328,7 +328,9 @@ module Supervising
       paths = User.where(id: user_ids).select(:id).map(&:global_id)
       return if paths.empty?
       scope = RemoteAction.where(path: paths, action: 'update_available_boards')
-      scope.update_all(act_at: now)
+      # extra is the batch's dispatch stamp (RemoteAction#process_action): cleared, so the next
+      # batch dispatches the row even if the copy it stamped is lost
+      scope.update_all(act_at: now, extra: nil)
       existing = scope.pluck(:path)
       rows = (paths - existing).uniq.map{|path| {path: path, action: 'update_available_boards', act_at: now, created_at: now, updated_at: now} }
       RemoteAction.insert_all(rows) if rows.length > 0
@@ -339,7 +341,8 @@ module Supervising
       return unless path
       scope = RemoteAction.where(path: path, action: 'update_available_boards')
       if revoked
-        return if scope.update_all(act_at: Time.now) > 0
+        # extra cleared as in persist_board_cache_refreshes
+        return if scope.update_all(act_at: Time.now, extra: nil) > 0
       elsif scope.exists?
         return
       end

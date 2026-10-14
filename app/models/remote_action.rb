@@ -53,8 +53,15 @@ class RemoteAction < ApplicationRecord
         # (boy_band scheduled_for?).
         dispatched_at = ra.extra.to_s.match?(/\A\d+\z/) ? Time.at(ra.extra.to_i) : nil
         return :keep if dispatched_at && dispatched_at > REFRESH_REDISPATCH_AFTER.ago
-        user.schedule_once_for(:slow, :update_available_boards)
-        ra.persisted? ? ra.update_column(:extra, Time.now.to_i.to_s) : ra.extra = Time.now.to_i.to_s
+        # Stamped before the enqueue: the job can start at once and clear the stamp, and a stamp
+        # written after that would hold back the next dispatch. A failed enqueue clears it again.
+        stamp_dispatch(Time.now.to_i.to_s)
+        begin
+          user.schedule_once_for(:slow, :update_available_boards)
+        rescue StandardError
+          stamp_dispatch(nil)
+          raise
+        end
         return :keep
       end
     elsif ra.action == 'clean_up_destroyed_org'
@@ -100,6 +107,11 @@ class RemoteAction < ApplicationRecord
       return :keep
     end
   end
+
+  def stamp_dispatch(value)
+    self.persisted? ? self.update_column(:extra, value) : self.extra = value
+  end
+  private :stamp_dispatch
 
   # For a kept cleanup row whose job is lost or keeps failing: the next attempt waits as long as the
   # row has existed (so the wait doubles with each failed attempt), from an hour to a day. extra can
