@@ -2849,11 +2849,48 @@ describe Subscription, :type => :model do
           end
         end
 
-        it "treats an unknown error as transient" do
-          failed, later, sent = halting_run(RuntimeError.new('something else'))
+        it "treats an SES error code not seen before as transient" do
+          failed, later, sent = halting_run(Aws::SES::Errors.error_class('SomethingNew').new(nil, 'x'))
 
           expect_halted(failed, later, sent)
-          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error \(RuntimeError/).once
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error \(Aws::SES::Errors::SomethingNew/).once
+        end
+
+        it "treats a network timeout as transient" do
+          failed, later, sent = halting_run(Net::ReadTimeout.new)
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error \(Net::ReadTimeout/).once
+        end
+
+        # An error from outside SES and the network (a template or code failure for one account)
+        # undoes that account's step and the run goes on; only several of them in one run stop it.
+        it "undoes the step of an account whose mail raised an error outside SES, and goes on" do
+          failed, later, sent = halting_run(ArgumentError.new('per-account render failure'))
+
+          stored = User.find(failed.id)
+          expect((stored.settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+          expect((stored.settings['subscription'] || {})['inactivity_mail_failures']).to eq(nil)
+          expect(sent).to eq([failed.global_id, later.global_id])
+          expect(User.find(later.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(Rails.logger).not_to have_received(:error).with(/mail stopped for this run/)
+        end
+
+        it "stops the run after 3 accounts raise errors outside SES" do
+          broken = 3.times.map { inactive_account_to_warn }
+          fine = inactive_account_to_warn
+          sent = []
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            sent << id
+            raise ArgumentError, 'per-account render failure' unless id == fine.global_id
+          end
+          allow(Rails.logger).to receive(:error).and_call_original
+
+          User.check_for_subscription_updates
+
+          expect(sent).to eq(broken.map(&:global_id))
+          expect((User.find(fine.id).settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: other error \(ArgumentError; 3 accounts failed/).once
         end
 
         it "stops the run's inactivity mail on a setup error and says it needs an operator" do

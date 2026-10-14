@@ -1304,6 +1304,7 @@ module Subscription
       # Until a mail is accepted, rejections are held so they can be taken back if SES turns out
       # to be refusing every message: [user id, previous fields, fields after, kept audit or nil].
       mail_accepted = false
+      other_errors = 0
       held_rejections = []
       release_held = lambda do
         held_rejections.each { |*, kept| AuditEvent.log_command('system', kept) if kept }
@@ -1395,6 +1396,12 @@ module Subscription
               held_rejections.clear
               kind = :setup
             end
+            if kind == :other
+              other_errors += 1
+              Rails.logger.error("[inactivity sweep] #{mail} mail failed (#{e.class}); step #{outcome}")
+              next if other_errors < INACTIVITY_MAIL_OTHER_ERROR_LIMIT
+              reason = "; #{other_errors} accounts failed with errors outside SES"
+            end
             # An outage, throttling or a setup problem would fail for every account: send no more
             # inactivity mail this run, and start the next run from the oldest account, since the
             # accounts left unprocessed here sit anywhere relative to the cursors.
@@ -1458,8 +1465,10 @@ module Subscription
     # - :message, SES rejected this one message (MessageRejected): counted against the account.
     # - :setup, sending is misconfigured for every account (paused sending, configuration set,
     #   MAIL FROM domain, an unverified identity, credentials or permissions): needs an operator.
-    # - :transient, anything else, including throttling, ServiceUnavailable, InternalFailure,
-    #   network errors, timeouts and unknown errors.
+    # - :transient, any other AWS or SDK error (throttling, ServiceUnavailable, InternalFailure,
+    #   codes not seen before), network errors and timeouts.
+    # - :other, anything else (a code or template failure for this account): undone and the run
+    #   goes on, until INACTIVITY_MAIL_OTHER_ERROR_LIMIT of them stop it.
     # A dead mailbox or a suppressed address does not raise here: SES accepts the message and
     # reports a bounce later. InvalidParameterValue never reaches the sweep: deliver_message
     # (app/mailers/concerns/general.rb) logs it and returns, so the step is kept as if sent.
@@ -1472,6 +1481,17 @@ module Subscription
     ).freeze
 
     INACTIVITY_MAIL_SETUP_REJECTION = /not verified|paused|suspended|sandbox/i
+
+    # Network failures reaching SES: transient, like an SES outage.
+    INACTIVITY_MAIL_NETWORK_ERRORS = [
+      Seahorse::Client::NetworkingError, Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout,
+      Timeout::Error, SocketError, OpenSSL::SSL::SSLError, Errno::ECONNREFUSED, Errno::ECONNRESET,
+      Errno::ETIMEDOUT, Errno::EHOSTUNREACH, Errno::ENETUNREACH
+    ].freeze
+
+    # Errors from outside SES and the network (:other, a code or template failure for one
+    # account) in one run after which the sweep stops the run rather than repeat it for everyone.
+    INACTIVITY_MAIL_OTHER_ERROR_LIMIT = 3
 
     # Rejections in one run, with no mail accepted before them, after which the sweep takes SES
     # to be refusing all mail whatever the wording: the run stops and its counts are taken back.
@@ -1489,7 +1509,9 @@ module Subscription
         return :transient
       end
       return :setup if error.is_a?(Aws::Errors::MissingCredentialsError) || error.is_a?(Aws::Errors::MissingRegionError) || error.is_a?(Aws::Errors::NoSuchProfileError)
-      :transient
+      return :transient if INACTIVITY_MAIL_NETWORK_ERRORS.any? { |klass| error.is_a?(klass) }
+      return :transient if error.class.name.to_s.start_with?('Aws::', 'Seahorse::')
+      :other
     end
 
     # Consecutive inactivity mails that may fail for an account, over at least the period, before
