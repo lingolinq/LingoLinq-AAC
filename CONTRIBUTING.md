@@ -125,7 +125,12 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 After staging has been validated:
 
 - A team member opens a PR from `staging` to `main`.
-- **Scot must approve** the PR to production.
+- **Scot must approve** the PR to production, and either senior dev (Melissa or
+  Traci) must agree. A senior dev agrees by opening the release PR, which covers
+  the commits it held when it was opened, or by an approving GitHub review on
+  the head being merged. A chat message does not count. If commits are added to
+  the release branch after it is opened, a senior dev agrees again with an
+  approving review on the new head.
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 
@@ -144,7 +149,7 @@ For urgent production issues:
 |---|---|---|
 | `develop` | Any team member | Squash merge |
 | `staging` | Melissa (Scot backup) | Merge commit |
-| `main` | Melissa + Scot agree | Merge commit |
+| `main` | Scot + either senior dev (Melissa or Traci) agree | Merge commit |
 | `main` (hotfix) | Scot or Melissa | Merge commit |
 
 ## Branch Protection Rules
