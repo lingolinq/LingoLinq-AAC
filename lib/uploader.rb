@@ -331,11 +331,11 @@ module Uploader
   end
 
   # Rows RemoteAction#process_action keeps until their job completes, other than delete retries.
-  KEPT_REMOTE_ACTIONS = ['clean_up_destroyed_org', 'update_available_boards'].freeze
+  KEPT_REMOTE_ACTIONS = RemoteAction::KEPT_UNTIL_DONE_ACTIONS
 
-  # A kept row still present after 3 months is work that never finished (an organization's
-  # cleanup, a board-access refresh): report the counts (no paths, they identify a user or an
-  # organization) at error level and as a system AuditEvent before the purge drops them.
+  # A kept row still present after 3 months is work that never finished (a cleanup, a room
+  # member's removal, a board-access refresh): report the counts (no paths, they identify a user, a
+  # room or an organization) at error level and as a system AuditEvent before the purge drops them.
   def self.report_purged_kept_remote_actions(purge_before)
     counts = RemoteAction.where(action: KEPT_REMOTE_ACTIONS).where(['created_at < ?', purge_before]).group(:action).count
     return if counts.empty?

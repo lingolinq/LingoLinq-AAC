@@ -3,6 +3,11 @@ class RemoteAction < ApplicationRecord
   # the job is then taken as lost (eviction, failover, a killed worker).
   REFRESH_REDISPATCH_AFTER = 3.hours
 
+  # Actions whose row process_action keeps (:keep) until their job deletes it on completion, other
+  # than the delete retries (Uploader::REMOTE_DELETE_RETRY_ACTIONS). The 3-month purge reports
+  # these (Uploader.report_purged_kept_remote_actions).
+  KEPT_UNTIL_DONE_ACTIONS = ['clean_up_destroyed_org', 'clean_up_destroyed_unit', 'room_member_removal', 'update_available_boards'].freeze
+
   def process_action
     ra = self
     if ra.action == 'delete'
@@ -54,23 +59,18 @@ class RemoteAction < ApplicationRecord
       end
     elsif ra.action == 'clean_up_destroyed_org'
       Organization.schedule(:clean_up_destroyed, ra.path.to_i)
-      # Kept until Organization.clean_up_destroyed deletes it on completion. Retried after a wait
-      # as long as the row has existed (so it doubles with each failed retry), from an hour to a
-      # day: extra holds the cleanup's captured data, so there is no attempt count to read. Rows
-      # older than 3 months are dropped, and reported, by the batch (Uploader.remote_remove_batch).
-      wait = (Time.now - ra.created_at).seconds.clamp(1.hour, 1.day)
-      ra.update_column(:act_at, Time.now + wait)
+      # Kept until Organization.clean_up_destroyed deletes it on completion.
+      ra.retry_later_with_backoff
       return :keep
     elsif ra.action == 'clean_up_destroyed_unit'
       OrganizationUnit.schedule(:clean_up_destroyed, ra.path)
-      # Kept until OrganizationUnit.clean_up_destroyed deletes it on completion, like
-      # clean_up_destroyed_org above.
-      ra.update_column(:act_at, 1.hour.from_now)
+      # Kept until OrganizationUnit.clean_up_destroyed deletes it on completion.
+      ra.retry_later_with_backoff
       return :keep
     elsif ra.action == 'room_member_removal'
       OrganizationUnit.schedule(:complete_member_removal, ra.path)
       # Kept until the removal completes (OrganizationUnit#member_removal_done).
-      ra.update_column(:act_at, 1.hour.from_now)
+      ra.retry_later_with_backoff
       return :keep
     elsif ra.action == 'update_library_cache'
       cache = LibraryCache.find_by_global_id(ra.path)
@@ -99,6 +99,15 @@ class RemoteAction < ApplicationRecord
       Rails.logger.error("RemoteAction#process_action: unknown action #{ra.action}, row #{ra.id} kept")
       return :keep
     end
+  end
+
+  # For a kept cleanup row whose job is lost or keeps failing: the next attempt waits as long as the
+  # row has existed (so the wait doubles with each failed attempt), from an hour to a day. extra can
+  # hold the job's own data (clean_up_destroyed_org), so the row's age stands in for an attempt
+  # count. Rows older than 3 months are dropped, and reported, by Uploader.remote_remove_batch.
+  def retry_later_with_backoff
+    wait = (Time.now - self.created_at).seconds.clamp(1.hour, 1.day)
+    self.update_column(:act_at, Time.now + wait)
   end
 
   # process_action returns :keep for a row that its job deletes when it completes, and for a row
