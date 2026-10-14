@@ -1267,4 +1267,68 @@ describe OrganizationUnit, :type => :model do
       expect(link.data['origin']).to eq(nil)
     end
   end
+
+  # A room's add job (assert_supervision add_*) can have read the room, its organization and its
+  # members before the room or its district was deleted and cleaned up; the link it then makes
+  # must not put the deleted room back on the pair's supervision. Simulated with a copy of the
+  # room loaded (and its links read) before the deletion, as the job would hold it.
+  describe "a queued room link after the room is gone" do
+    def room_pair
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      stale = OrganizationUnit.find(ou.id)
+      stale.organization
+      UserLink.links_for(stale)
+      [o, ou, sup, comm, stale]
+    end
+
+    def supervision_link(sup, comm)
+      UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+    end
+
+    it "does not link again once the room is deleted and cleaned up" do
+      o, ou, sup, comm, stale = room_pair
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+      expect(supervision_link(sup, comm)).to eq(nil)
+
+      stale.assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+
+      expect(supervision_link(sup, comm)).to eq(nil)
+    end
+
+    it "does not link again once the district is deleted and cleaned up" do
+      o, ou, sup, comm, stale = room_pair
+      o.reload.destroy
+      Worker.process_queues
+      Worker.process_queues
+      expect(supervision_link(sup, comm)).to eq(nil)
+
+      stale.assert_supervision({'user_id' => sup.global_id, 'add_supervisor' => sup.user_name})
+
+      expect(supervision_link(sup, comm)).to eq(nil)
+    end
+
+    it "leaves a direct link without the deleted room" do
+      o, ou, sup, comm, stale = room_pair
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([])
+
+      stale.assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([])
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+  end
 end

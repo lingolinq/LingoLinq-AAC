@@ -343,7 +343,7 @@ class OrganizationUnit < ApplicationRecord
     supervisors.each do |sup|
       edit_permission = !!supervisor_links.detect{|l| l['user_id'] == sup.global_id && l['state'] && l['state']['edit_permission'] }
       communicators.each do |comm|
-        User.link_supervisor_to_user(sup, comm, nil, !!edit_permission, self.global_id)
+        link_room_pair(sup, comm, !!edit_permission)
       end
     end
   end
@@ -376,14 +376,26 @@ class OrganizationUnit < ApplicationRecord
     elsif opts['add_supervisor']
       edit_permission = !!supervisor_links.detect{|l| l['user_id'] == ref_user.global_id && l['state'] && l['state']['edit_permission'] }
       communicators.each do |user|
-        User.link_supervisor_to_user(ref_user, user, nil, edit_permission, self.global_id)
+        link_room_pair(ref_user, user, edit_permission)
       end
     elsif opts['add_communicator']
       self.schedule(:assert_goal)
       supervisors.each do |user|
         edit_permission = !!supervisor_links.detect{|l| l['user_id'] == user.global_id && l['state'] && l['state']['edit_permission'] }
-        User.link_supervisor_to_user(user, ref_user, nil, edit_permission, self.global_id)
+        link_room_pair(user, ref_user, edit_permission)
       end
+    end
+  end
+
+  # Links a supervisor to a communicator for this room, under the supervisee's lock and only while
+  # the room and its organization still exist, read under that lock: a job that loaded the room
+  # before it (or its district) was deleted must not put it back on a link after the cleanup took
+  # it off. The cleanup takes the same lock per pair, so either it runs after this link (and
+  # strips it) or this reads the committed deletion.
+  def link_room_pair(supervisor, communicator, edit_permission)
+    User.with_supervision_lock(communicator) do
+      next false unless OrganizationUnit.where(id: self.id).exists? && Organization.where(id: self.organization_id).exists?
+      User.link_supervisor_to_user(supervisor, communicator, nil, edit_permission, self.global_id)
     end
   end
 
