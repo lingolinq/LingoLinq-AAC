@@ -1446,7 +1446,7 @@ describe Supervising, :type => :model do
     end
 
     after(:each) do
-      return unless @pre_user_ids && @pre_link_ids && @pre_ra_ids && @pre_audit_ids
+      next unless @pre_user_ids && @pre_link_ids && @pre_ra_ids && @pre_audit_ids
       UserLink.where.not(id: @pre_link_ids).delete_all
       RemoteAction.where.not(id: @pre_ra_ids).delete_all
       AuditEvent.where.not(id: @pre_audit_ids).delete_all
@@ -1459,7 +1459,8 @@ describe Supervising, :type => :model do
     end
 
     # Runs the block in a transaction on its own connection that first locks the supervisee's
-    # row, and returns once the block has run; the transaction commits ~1.5s later.
+    # row, and returns once the block has run; the transaction commits ~1.5s later. The thread's
+    # :committing_at is taken just before that commit.
     def change_under_lock(comm, &block)
       held = Queue.new
       thread = Thread.new do
@@ -1469,11 +1470,23 @@ describe Supervising, :type => :model do
             block.call
             held << :held
             sleep 1.5
+            Thread.current[:committing_at] = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           end
         end
       end
       held.pop
       thread
+    end
+
+    # Runs the block on this thread and checks it could finish only after the other transaction
+    # was about to commit, i.e. that it waited on the supervisee's lock rather than passing on a
+    # sleep that happened to be long enough.
+    def expect_waited_for(other, &block)
+      block.call
+      finished_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      other.join(20)
+      expect(other[:committing_at]).not_to eq(nil)
+      expect(finished_at).to be > other[:committing_at]
     end
 
     it "removes a room-made link when two district cleanups each take their own room off it" do
@@ -1487,8 +1500,9 @@ describe Supervising, :type => :model do
       other = change_under_lock(comm) do
         User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_b'])
       end
-      User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
-      other.join(20)
+      expect_waited_for(other) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      end
 
       expect(supervision_link(sup, comm)).to eq(nil)
     end
@@ -1502,8 +1516,9 @@ describe Supervising, :type => :model do
       other = change_under_lock(comm) do
         User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
       end
-      User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
-      other.join(20)
+      expect_waited_for(other) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      end
 
       link = supervision_link(sup, comm)
       expect(link).not_to eq(nil)
@@ -1520,8 +1535,9 @@ describe Supervising, :type => :model do
       other = change_under_lock(comm) do
         User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
       end
-      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
-      other.join(20)
+      expect_waited_for(other) do
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      end
 
       link = supervision_link(sup, comm)
       expect(link).not_to eq(nil)
