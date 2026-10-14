@@ -187,6 +187,74 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
   host on the nonprod topic (staging and dev share one database). Convert_* still logs
   and returns false when the Role is unset.
 
+### SES events and alarms
+
+- **Pipeline.** Every environment sets `SES_CONFIGURATION_SET=lingolinq-transactional`
+  (`APP_ENV_VARS_STATIC` in `deploy-cloudrun.yml`), so `SesConfigurationSetInterceptor`
+  (`config/initializers/amazon_ses.rb`) tags all mail, staging included. The configuration
+  set publishes SEND, REJECT, BOUNCE, COMPLAINT, DELIVERY and DELIVERY_DELAY through SNS
+  topic `lingolinq-ses-events` to SQS queue `lingolinq-ses-events` (us-west-2, 14-day
+  retention, no raw delivery). Provisioned by `scripts/gcp/phase5-ses-config-set-setup.sh`.
+- **Consumer.** `SesEventsWorker` (`app/workers/ses_events_worker.rb`) runs in the hourly
+  block of `scheduler:dispatch`. Up to 100 receives of 10 messages per run. Permanent
+  bounces (every subtype, including `OnAccountSuppressionList`) call
+  `UserMailer.bounce_email`, which sets `email_disabled` on every user with that address
+  (PaperTrail whodunnit `system:ses-events`). Complaints are counted but not acted on (an
+  owner decision: disabling would also block password reset for every account on that
+  address). Transient bounces and all other events, including Send and Delivery, are
+  deleted without action, so the queue is no longer a long-lived per-message delivery
+  record. Malformed messages are counted and deleted. A message whose handling raised stays
+  on the queue for the next run, and the task then fails so the execution goes red. Logs
+  carry counts and event types only. Parsing:
+  `app/models/ses_event.rb`. Changing a user's email to a different address clears
+  `email_disabled` (`User#process_params`).
+- **Env var.** `SES_EVENTS_QUEUE_URL` (GitHub environment variable
+  `APP_SES_EVENTS_QUEUE_URL`), optional; unset means the worker is a no-op. Set it in the
+  **production** environment only: staging events share the queue, and two consumers would
+  split it. A production consumer acting on a staging bounce is accepted, because a
+  permanent bounce is a property of the mailbox. Value:
+  `https://sqs.us-west-2.amazonaws.com/239044785114/lingolinq-ses-events`. Never set it by
+  hand on the service or Job; the next deploy's `--set-env-vars` removes it.
+- **IAM.** `scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json` statement
+  `SQSConsumeSesEventsQueue` grants `sqs:ReceiveMessage`, `sqs:DeleteMessage` (also covers
+  `DeleteMessageBatch`) and `sqs:GetQueueAttributes` on that queue to
+  `lingolinq-cloudrun-prod`. The repo file is a mirror; apply it as a new policy version.
+- **Alarms.** `scripts/gcp/ses-reputation-alarms.sh` (`--dry-run`, `--apply`, `--check`)
+  creates SNS topic `lingolinq-ses-alarms` with an email subscription (recipient from
+  `ALARM_EMAIL` or `--email`) and three CloudWatch alarms: `Reputation.BounceRate >= 0.02`
+  (AWS reviews at 5%, may pause at 10%), `Reputation.ComplaintRate >= 0.0005` (AWS reviews
+  at 0.1%, may pause at 0.5%), and `ApproximateAgeOfOldestMessage >= 3h` on the queue
+  (the consumer is not draining it). The subscription delivers nothing until its
+  confirmation link is clicked.
+- **What `email_disabled` suppresses** (unchanged by this work): every mail sent through
+  `General#mail_message` via `Notifiable#channels_for`, except `password_changed`,
+  `email_changed`, `email_changed_prior_address` and `forgot_password`; and
+  `Api::UsersController#forgot_password` skips disabled users entirely, so they get no reset
+  mail. Mail sent with `mail(...)` directly (parental consent, `login_no_user`,
+  `utterance_share`, `lesson_assigned`, admin mail) is not gated. Full list:
+  `docs/task-management/2026-10-14_ses-bounce-handling.md`.
+
+**Production rollout order** (each step only after the one before it is verified):
+
+1. Apply the IAM policy as a new default version of `lingolinq-cloudrun-s3-ses` (admin
+   principal with MFA; see `scripts/gcp/iam/README.md`). Diff the live default version
+   against the repo file first, then
+   `aws iam create-policy-version --policy-arn arn:aws:iam::239044785114:policy/lingolinq-cloudrun-s3-ses --policy-document file://lingolinq-cloudrun-s3-ses-policy.json --set-as-default`.
+   A managed policy keeps at most five versions; delete the oldest non-default one first if
+   needed.
+2. Merge and release the code to `main`. With the variable unset, the scheduler logs
+   `process_ses_events ... skipped`.
+3. Set GitHub variable `APP_SES_EVENTS_QUEUE_URL` in the `production` environment, then
+   deploy (a release or a re-run of the deploy workflow) so the scheduler Job picks it up.
+4. Watch the next hourly execution's `[process_ses_events]` and `[SES events]` lines. The
+   first runs drain up to 14 days of backlog at up to 1000 messages per run; real bounces in
+   it will disable those users. `failed` should be 0. A missing IAM grant raises
+   `AccessDenied`, which fails the `process_ses_events` task and therefore the execution
+   (`PROD Cloud Run job execution FAILED`).
+5. When `ApproximateNumberOfMessagesVisible` is near zero, run
+   `ALARM_EMAIL=<address> scripts/gcp/ses-reputation-alarms.sh --dry-run`, then `--apply`,
+   click the confirmation link, and run `--check`.
+
 ## Background jobs (Resque)
 
 Queues: `priority` (board downloads/exports, Progress actions, translations), `default`,

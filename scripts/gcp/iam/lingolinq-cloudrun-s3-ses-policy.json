@@ -50,6 +50,16 @@
           "aws:RequestedRegion": "us-west-2"
         }
       }
+    },
+    {
+      "Sid": "SQSConsumeSesEventsQueue",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "arn:aws:sqs:us-west-2:239044785114:lingolinq-ses-events"
     }
   ]
 }
