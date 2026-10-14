@@ -83,8 +83,8 @@ function communicatorHomeSteps(layout) {
     { id: 'comm_home_tour_boards', sel: '.md-card--boards', on: 'top',
       title: i18n.t('comm_home_tour_boards_title', "Your boards"),
       text: tourChecklist([
-        i18n.t('comm_home_tour_boards_b1', "All your boards live here"),
-        i18n.t('comm_home_tour_boards_b2', "Open or browse them anytime")
+        i18n.t('comm_home_tour_boards_b1', "A few of your boards show here"),
+        i18n.t('comm_home_tour_boards_b2', "Tap View All Boards to see the rest")
       ]) },
     { id: 'comm_home_tour_nav', sel: '.md-pillnav', on: 'bottom', padded: true, last: true,
       title: i18n.t('comm_home_tour_nav_title', "Getting around"),
