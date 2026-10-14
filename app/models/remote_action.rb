@@ -54,9 +54,12 @@ class RemoteAction < ApplicationRecord
       end
     elsif ra.action == 'clean_up_destroyed_org'
       Organization.schedule(:clean_up_destroyed, ra.path.to_i)
-      # Kept until Organization.clean_up_destroyed deletes it on completion: retried an hour
-      # later if the job is lost (rows older than 3 months are dropped by the batch).
-      ra.update_column(:act_at, 1.hour.from_now)
+      # Kept until Organization.clean_up_destroyed deletes it on completion. Retried after a wait
+      # as long as the row has existed (so it doubles with each failed retry), from an hour to a
+      # day: extra holds the cleanup's captured data, so there is no attempt count to read. Rows
+      # older than 3 months are dropped, and reported, by the batch (Uploader.remote_remove_batch).
+      wait = (Time.now - ra.created_at).seconds.clamp(1.hour, 1.day)
+      ra.update_column(:act_at, Time.now + wait)
       return :keep
     elsif ra.action == 'clean_up_destroyed_unit'
       OrganizationUnit.schedule(:clean_up_destroyed, ra.path)

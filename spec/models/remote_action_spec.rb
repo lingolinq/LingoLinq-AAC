@@ -224,6 +224,51 @@ describe RemoteAction, :type => :model do
     end
   end
 
+  # A kept clean_up_destroyed_org row was re-queued every hour for as long as its job kept failing.
+  # The wait now grows with the row's age (doubling per retry), from an hour to a day.
+  describe "a kept clean_up_destroyed_org row" do
+    def processed_row(age)
+      allow(Organization).to receive(:schedule)
+      ra = RemoteAction.create!(action: 'clean_up_destroyed_org', path: '123', act_at: 1.minute.ago)
+      ra.update_column(:created_at, age.ago)
+      expect(ra.process_action).to eq(:keep)
+      ra.reload
+    end
+
+    it "is retried an hour later while it is new" do
+      ra = processed_row(10.minutes)
+      expect(ra.act_at).to be_within(2.minutes).of(1.hour.from_now)
+    end
+
+    it "waits as long as it has existed once retries have failed for a while" do
+      ra = processed_row(6.hours)
+      expect(ra.act_at).to be_within(2.minutes).of(6.hours.from_now)
+    end
+
+    it "waits at most a day" do
+      ra = processed_row(20.days)
+      expect(ra.act_at).to be_within(2.minutes).of(1.day.from_now)
+    end
+  end
+
+  # The 3-month purge drops every old row. Rows kept until their job completes stand for work that
+  # never finished (an organization's cleanup, a board-access refresh), so they are reported.
+  describe "the 3-month purge of rows kept until their job completes" do
+    it "reports them by count, without paths" do
+      allow(Rails.logger).to receive(:error)
+      RemoteAction.create!(action: 'clean_up_destroyed_org', path: '987', act_at: 1.day.from_now, created_at: 4.months.ago)
+      RemoteAction.create!(action: 'update_available_boards', path: '1_987', act_at: 1.day.from_now, created_at: 4.months.ago)
+      RemoteAction.create!(action: 'update_available_boards', path: '1_988', act_at: 1.day.from_now, created_at: 1.day.ago)
+      expect(AuditEvent).to receive(:log_command).with('system', {'type' => 'kept_remote_actions_purged', 'counts' => {'clean_up_destroyed_org' => 1, 'update_available_boards' => 1}})
+
+      Uploader.remote_remove_batch
+
+      expect(RemoteAction.where(created_at: ...3.months.ago).count).to eq(0)
+      expect(Rails.logger).to have_received(:error).with(/purging 2 unfinished kept actions older than 3 months: /)
+      expect(Rails.logger).to_not have_received(:error).with(/987|988/)
+    end
+  end
+
   describe "process_all" do
     it "should process all remote requests" do
       a = OpenStruct.new

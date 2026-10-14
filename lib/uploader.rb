@@ -313,6 +313,7 @@ module Uploader
     end
     purge_before = 3.months.ago
     report_purged_remote_delete_retries(purge_before)
+    report_purged_kept_remote_actions(purge_before)
     RemoteAction.where(['created_at < ?', purge_before]).delete_all
     total
   end
@@ -324,6 +325,19 @@ module Uploader
     return if counts.empty?
     Rails.logger.error("Uploader.remote_remove_batch: purging #{counts.values.sum} delete retries older than 3 months without S3 credentials: #{counts.to_json}")
     AuditEvent.log_command('system', {'type' => 'remote_delete_retries_purged', 'counts' => counts})
+  end
+
+  # Rows RemoteAction#process_action keeps until their job completes, other than delete retries.
+  KEPT_REMOTE_ACTIONS = ['clean_up_destroyed_org', 'update_available_boards'].freeze
+
+  # A kept row still present after 3 months is work that never finished (an organization's
+  # cleanup, a board-access refresh): report the counts (no paths, they identify a user or an
+  # organization) at error level and as a system AuditEvent before the purge drops them.
+  def self.report_purged_kept_remote_actions(purge_before)
+    counts = RemoteAction.where(action: KEPT_REMOTE_ACTIONS).where(['created_at < ?', purge_before]).group(:action).count
+    return if counts.empty?
+    Rails.logger.error("Uploader.remote_remove_batch: purging #{counts.values.sum} unfinished kept actions older than 3 months: #{counts.to_json}")
+    AuditEvent.log_command('system', {'type' => 'kept_remote_actions_purged', 'counts' => counts})
   end
 
   # Transcoder thumbnails are <video_key>.mp4.<count>.<fmt>: five digits
