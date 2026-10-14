@@ -3064,7 +3064,23 @@ button.ch-tile--silver:focus-visible {
 // re-declare the layout it wants rather than inherit one.
 .ch-comm__extras-panel.is-open {
   display: grid;
+  // ALL tiles share the TALLEST tile's height when one wraps (requested 2026-10-13): equal grid
+  // rows, so a two-line label (e.g. "Quick Assessment") lifts every tile to match. The grid items
+  // are the <li>s; the tile inside has to fill them (rules below), or it kept its content height
+  // and the row looked uneven.
+  grid-auto-rows: 1fr;
 }
+.ch-comm__extras-panel > li { display: flex; } // let the tile stretch to the equalised row height
+.ch-comm__extras-panel .ch-menu__item {
+  height: 100%; // fill the stretched <li>
+  // Contents centred (requested 2026-10-13): the base .ch-menu__item is text-align:left; the tiles
+  // are already flex-centred (justify/align center), so this centres the wrapped label lines too.
+  text-align: center;
+  // Remote Modeling and its "Limited" badge sit closer (requested 2026-10-13): tighten the tile's
+  // flex gap (and drop the badge's own left margin below) so the badge hugs the label.
+  gap: 5px;
+}
+.ch-comm__extras-panel .md-limited-badge { margin-left: 0; }
 
 .ch-comm__badge { margin-top: 2px; }
 
