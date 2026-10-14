@@ -77,12 +77,16 @@ Admission rule for an entry in this file:
 - **`BoardCloner` copies only allowlisted settings keys.** A new `settings` key is silently dropped from
   every copy until it is added to the allowlist. Cite `app/cloners/board_cloner.rb`.
 
+- **"Default for new accounts" is not the `preference_defaults` bucket.** `generate_defaults` is a
+  `before_save` with no `new_record?` guard around the bucket loops, so every bucket entry is
+  backfilled onto EVERY existing user on their next routine save — flipping one silently changes
+  accounts that never chose it, and persists the new value as an explicit choice. Seed the
+  new-account value inside the `if self.new_record?` block, which runs BEFORE the loops, so the
+  bucket's `== nil` test skips it and existing users still fall to the old value. Pin both halves.
+  Symbol: `generate_defaults` in `app/models/user.rb`.
+
 ## Ember reactivity and data
 
-- **Ember Data 5.3 relationship and query arrays are native Proxies.** `firstObject` is silently
-  `undefined`, `toArray` is gone (use `Array.from`), `.sortBy`/`.pushObject` throw, and results refuse
-  in-place mutation (`.slice()` first). Only `A()`-wrapped plain arrays take Ember array methods.
-  Symbol: `EXTEND_PROTOTYPES` in `app/frontend/config/environment.js`.
 - **`store.push` does not overwrite a dirty `attr('raw')`, and in-place mutation does not dirty it.**
   Clone the array (and nested objects) before `set`, or the follow-up `save()` is skipped. Symbol:
   `sync_changed` in `app/frontend/app/utils/persistence.js`.
@@ -127,6 +131,13 @@ Admission rule for an entry in this file:
   heuristics reclassify boards and `LIKE '%/name'` misses copies. Classify a copy by
   `parent_board_key`. Cite `app/frontend/app/utils/board-brands.js`.
 
+- **A nav-precedence computed can make a whole template branch unreachable.** `templates/user.hbs`
+  tested `accountRailContext` first and `homeNavContext` second; once the first grew to include
+  `user.logs`, the second branch could never run, so the entire "arrived from the home pill-nav"
+  case was dead while its computed still looked correct in isolation. When two computeds gate
+  sibling branches, assert the PAIR on the one route both can claim, never each one alone.
+  Cite `app/frontend/tests/unit/controllers/user-nav-context-test.js`.
+
 ## Templates, i18n and modals
 
 - **`i18n_generator.rb` is a static, single-line parser.** Dynamic `{{t bound key=bound}}` keys are
@@ -136,8 +147,6 @@ Admission rule for an entry in this file:
 - **`{{t "text" key="k"}}` renders the locale value when `k` already exists, and `%%` is not
   unescaped.** Reusing a key makes the inline text dead, and a locale value without the leading `*** `
   marker counts as already translated. Cite `app/frontend/app/utils/i18n.js`.
-- **There is no `eq` helper; use `is_equal`.** `(eq ...)` throws at render and aborts the template.
-  Cite `app/frontend/app/helpers/is_equal.js`.
 - **Strict-mode templates resolve bare names as helpers.** Write `this.prop`; template-lint misses
   `no-implicit-this` in several large legacy templates, so grep for bare `{{snake_case}}` too. Cite
   `app/frontend/.template-lintrc.js`.
@@ -148,6 +157,14 @@ Admission rule for an entry in this file:
 - **`raw_events` synthesizes clicks inside modals, so a modern `{{on "click"}}` handler fires twice.**
   Idempotent actions hide it; creates double-post. Symbol: `dispatchPassThroughClick` in
   `app/frontend/app/utils/raw_events.js`.
+
+- **Widening where a nav renders turns its literal `is-active` into a lie.** A row hardcoded
+  `class="… is-active" aria-current="page"` is right while the nav renders on one page and wrong on
+  every other the moment it moves to a shared template; nothing catches it, since both states render
+  and lint clean. Let `<LinkTo @activeClass="is-active">` compute it — supported in 5.12, and it
+  leaves the existing SCSS selector alone. Two things it will not do: it never sets `aria-current`,
+  and `@route` names one route, so a page reachable under two names needs `@current-when`.
+  Cite `app/frontend/app/components/account-rail.hbs`.
 
 ## Board rendering and scanning (AAC input paths)
 
@@ -162,13 +179,9 @@ Admission rule for an entry in this file:
   `:space`, `:shift` are actions, not words; one localize-then-save pass wiped every keyboard key on a
   board. Reproduce save bugs through the in-app control, not the URL. Symbol:
   `_localized_button_fields` in `app/frontend/app/controllers/user/board-detail.js`.
-- **Speak-bar edits must mutate `rawButtonList`, never only the chip mirror.** The spoken, logged and
-  synced sentence derives from it. Symbol: `set_button_list` in `app/frontend/app/utils/utterance.js`.
 - **Find-a-button on a sub-board must search from the navigation root, and client-built button sets key
   on numeric `global_id`, never the ED `id`.** Symbol: `_resolveSearchRoot` in
   `app/frontend/app/components/find-button.js`.
-- **`store.peekAll('buttonset')` can yield unmaterialized entries.** Guard `bs && bs.get` at every
-  iteration site. Symbol: `load_button_set` in `app/frontend/app/models/buttonset.js`.
 - **Modal scanning needs both `.modal_targets .btn` markup AND `{ scannable: true }`.** Either alone
   strands the switch user; and any new `scanner.find_elem` call in `start()` must be null-guarded
   because the specs stub that seam. Symbol: `scannableTargets` in `app/frontend/app/services/modal.js`.
@@ -176,12 +189,17 @@ Admission rule for an entry in this file:
   empty defeats `next_element`'s zero-box recovery; `escape()` keeps a class allow-list on purpose so the
   switch user always has an exit; `scanner.started` is set in `start()` and never cleared, so a guard
   keyed on it collapses to its other term. Symbol: `escape` in `app/frontend/app/utils/scanner.js`.
-- **`buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress.** It is never
-  nulled in button dwell mode. Symbol: `last_dwell_linger` in `app/frontend/app/utils/raw_events.js`.
 - **A cancellation that resolves lands on the success path.** The prediction cancel resolved `[]`,
   indistinguishable from "no words", and blanked the panel under a live dwell. Keep stale predictions
   visible until the new set arrives; never swap under a dwell. Symbol: `_pending_reject` in
   `app/frontend/app/utils/ai_word_predictor.js`.
+- **Render-check the Classic speak bar on `/<user>/board/<name>`.**
+  `application.hbs` wraps the whole global header, `#speak` included, in `{{#unless this.on_board_detail}}`,
+  so on a `/board-detail/` route the Classic bar is absent by design. Board-detail renders its own
+  `id="speak"` sentence row, so probe a selector it does not render (`.speak-bar__button-list-wrap`), not
+  `#speak`. In-app navigation lands on board-detail unless the user's board view style is classic. A
+  hard load of the Classic URL also works since #1037. Symbol: `on_board_detail` in
+  `app/frontend/app/controllers/application.js`.
 
 ## SCSS and layout
 
@@ -208,11 +226,21 @@ Admission rule for an entry in this file:
   kills descendant `position: sticky`; `overscroll-behavior: contain` on a non-overflowing scroll box
   swallows the wheel; `cqmin` under `container-type: inline-size` resolves to the viewport; percentage
   padding resolves against width on all sides. Symbol: `overflow-x: hidden !important` in `app/frontend/app/styles/app.scss`.
-- **The modern symbol card also carries class `.button`, so every classic `.button` rule leaks onto
-  it.** Symbol: `md-board-detail-symbol-card` in `app/frontend/app/components/board-detail-grid.hbs`.
+- **Lint, build and the acceptance suite cannot see a containing-block change.** Moving an absolutely
+  positioned node out of a `position: relative` parent re-anchors it to the next positioned ancestor; the
+  Classic speak-bar Intro button left its bar (`offsetParent` became `HEADER`) with every gate green. Before moving
+  a node, check the old parent's `position` and compare `offsetParent` and the rect before and after; only
+  a targeted computed-style test holds it. Symbol: `.speak-bar__button-list-wrap` in `app/frontend/app/styles/app.scss`.
 - **Sprockets rewrites `url(#id)` fragment refs inside CSS data-URI SVGs in production.** Gradient fills
   go transparent on deploy only; keep gradients out of embedded SVGs. Symbol: `Sprockets` comment in
   `app/frontend/app/styles/app.scss`.
+
+- **"Hide the page header in this view" is only safe if the header is decoration.** Four selectors
+  were hidden as one group on the stated reasoning that each "holds only the icon + title, no action
+  controls". True for three of them; the logs `<h2>` also holds every filter link the page has, so
+  hiding it removed the only route to them. Read the markup behind each selector before adding it to
+  a shared hide group, and re-read the group's justification comment — it was written about the
+  members that existed then. Cite `app/frontend/app/styles/_focused-view.scss`.
 
 ## Tests and CI
 
@@ -227,12 +255,16 @@ Admission rule for an entry in this file:
   test waiters and hangs every acceptance test; Mirage 3 calls the default export with its config and
   expects a server back, and a 2.x-style zero-arg export throws in `beforeEach`. Symbol: `refresh_user`
   in `app/frontend/app/services/app-state.js`.
+- **A unit test never waits with `settled()`; wait on its own outcome.** `settled()` waits for EVERY
+  run-loop timer in the app. An earlier test can leave the stashes 15-minute flush timer armed, and then
+  every `settled()` hits the 15s timeout, intermittently, depending on how earlier tests race (#1094: 13
+  tests, then 10 more). A timed-out test never runs its `finally`, so a global stub restored there leaks
+  into later tests. Use `waitUntil(() => <own result>)`, the code's own promise, or animation frames, and
+  restore globals in afterEach. Reproduce with `later(() => {}, 20 * 60 * 1000)` from `QUnit.begin`.
+  Symbol: `setupRestoreOnTeardown` in `app/frontend/tests/helpers/restore-on-teardown.js`.
 - **`Worker.scheduled?` flakes repo-wide off BoyBand's 30-second `sizeof/<queue>` cache.** One example
   that pushes a queue past 500 makes every later `scheduled?` a false negative for 30 wall-clock
   seconds; the cache keys are deleted in `before(:each)`. Cite `spec/spec_helper.rb`.
-- **Unscoped global counts fail on rows left by earlier runs.** `AuditEvent.count`, `Board.count` and
-  `LogSession.count` assertions need a file-scoped `delete_all`; "order-dependent" is usually orphaned
-  committed rows in `lingolinq-test`. Cite `spec/models/user_spec.rb`.
 - **Two clock reads are a flake, and there is no Timecop here.** A spec that rebuilds a stamped value
   from a second `Time.now` (or `N.ago.to_i`) fails at any boundary; capture once and reuse. Run
   date-window specs under `TZ=UTC`; `Date.today` is local. Symbol: `decorate_completion` in
@@ -241,15 +273,38 @@ Admission rule for an entry in this file:
   whole file makes stubs inert; a negative assertion passes when its selector matches nothing; a hang
   test must assert on the spawn option, not hang the suite; curated examples miss the byte the author
   did not think of. Cite `spec/lib/image_magick_runner_spec.rb`.
-- **Both lint baselines are line-anchored append logs.** `.eslint-todo` shows a storm of "new" findings
-  after any edit to a grandfathered file (compare `file|rule|hash` net deltas; never `--update-todo`
-  without diffing rule identity). `.lint-todo` is `add`/`remove` rows, and a plain
-  `ember-template-lint` run rewrites it; pass `--no-clean-todo` for read-only checks. Cite
-  `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.eslint-todo` is line-anchored: fix a shifted finding only if the fix cannot change behaviour.** The fingerprint is
+  `file|rule|line|column|severity|messageHash`, so inserts make old findings "new". Any fix that needs a test to prove it safe changes
+  behaviour (a partial list: `ember/no-runloop` and the inline-function finding on its line, computed dependencies, `_super`, orphaned
+  actions, duplicate keys) and goes in its own tested PR; in tests, rewriting an assertion is a test change needing approval. Placing
+  new code to keep rows still is fine; deleting or compressing old lines is not. `npm run lint:js:todo` absorbs every finding, so it
+  needs approval and its own commit. Read-only evidence: `npm run lint:js:ci` `findings=` plus the findings you cleared equals the base
+  branch's; higher means a real new finding. Pair every "new" row (the gate prints 50; `npx eslint . --ext .js,.mjs --format json`
+  lists all) on the fingerprint minus line; check added lines for a same-shape swap. Cite `app/frontend/scripts/eslint-todo-gate.js`.
+- **`.lint-todo` can fuzzy-match a shifted todo by source hash, and a plain run can append to it.** An exact
+  match (rule, range and hash) runs first, then rule plus hash with the range ignored. That is weak where a
+  rule hashes only an attribute (`require-context-role` hashes just `role="..."`) or a file has several
+  same-rule, same-hash rows: the first unmatched row wins, so a new violation can take over a fixed one's
+  todo. An edit inside the hashed span (the node, or the attribute or parent `<label>` a rule hashes
+  instead) orphans it; an insert can orphan a `<form>` hundreds of lines above. `--clean-todo` defaults on
+  outside CI (`--fix` forces it) and appends `remove|` rows for resolved AND expired todos alike, so the
+  file no longer says which; an expired violation still errors that run. Use `--no-clean-todo` to read. Cite `app/frontend/.lint-todo`.
 - **Browser probes lie in three ways.** Puppeteer `page.click` delivers nothing inside the nested modal
   scroll containers; Playwright e2e specs write the signed-in user's real device prefs and poison later
   runs; a fixed sleep tests the old bundle, so poll the built asset for a marker. Cite
   `app/frontend/e2e/helpers.js`.
+
+- **Menu ORDER is invisible to every check except a test.** Reordering two near-identical `<li>`
+  blocks lints clean, builds clean and passes every existing test in both orders — and it is the
+  edit most likely to leave a stale `{{if}}`/`{{unless}}` pairing that ticks the option the user is
+  NOT on. Assert the label SEQUENCE, each badge's containment within its own row (a document-wide
+  query for a shared pill class passes with the badge on the wrong row), and `aria-checked` per row.
+  Cite `app/frontend/tests/integration/view-switcher-menu-order-test.js`.
+- **Tell an `.eslint-todo` line shift from a real finding before touching the baseline.** Editing a
+  legacy file moves its grandfathered entries and the gate reports them as new. It is a SHIFT when
+  rule, column and message hash all match and every moved entry shares one constant offset — then
+  re-anchor those specific lines. Regenerating the whole file instead rewrites the timestamp and
+  folds in any other session's uncommitted state. Cite `scripts/eslint-todo-gate.js`.
 
 ## Compliance registers and legal docs
 
@@ -263,8 +318,15 @@ Admission rule for an entry in this file:
   re-validates a dismissed finding as a routine `reseen`. Symbol: `SCOT_OWNED_CLOSED` in
   `scripts/audit-merge.rb`.
 - **A finding id is `SHA256(ruleKey|file)`, and evidence must match per source line.** Rescoping a row's
-  file in place, or a register-adding script with a looser snippet matcher, reddens the local
-  citation-check later. Cite `scripts/audit-merge.rb`.
+  file in place reddens `register-lint.rb` in CI (it recomputes and requires the derived id) and the
+  local citation-check; a register-adding script with a looser snippet matcher reddens the local
+  citation-check later. Cite
+  `scripts/audit-merge.rb`. The id half does not hold for a row whose ruleKey is the
+  self-referencing withheld form (`minimized-finding-` + its own id, lowercased), which register-lint
+  allows only on a row listed in `audit-reports/SELF-REFERENCING-RULEKEY-IDS.json`: on a listed row in
+  that form neither script recomputes the id (citation-check skips every row in the form; register-lint
+  skips only a listed one, and refuses an unlisted one anyway), so an in-place rescope there shows no id
+  mismatch (the snippet check still runs) and needs review instead.
 - **Register merges are unions, then regenerate; never `json.dumps` the file.** Keep both sides' unique
   rows and the longer notes trail, and edit prose by exact text replace, since a Python dump escapes
   `§` across every note. Cite `scripts/regenerate-register.sh`.
@@ -292,3 +354,10 @@ Admission rule for an entry in this file:
   be `100755`: `git update-index --chmod=+x <path>`. Cite `scripts/tests`.
 - **`npm ci --dry-run` deletes `node_modules` first.** There is no check-only mode; the `patch-package`
   postinstall then fails on an empty tree. Cite `app/frontend/package.json`.
+- **A default change orphans the comments that justified the old default.** Comments asserting which
+  side is the default are risk documentation, not prose: one file opened "NOT THE DEFAULT … every
+  rule here reaches only users who deliberately chose it", written to tell the next editor how safe
+  a rule in it was. Flipping the default inverted that sentence without touching the file. Grep the
+  preference KEY and its old value across `.scss`, `.js` and `.rb` before finishing; three comments
+  were wrong here and only one was in a file the change otherwise touched.
+  Cite `app/frontend/app/styles/_focused-view.scss`.

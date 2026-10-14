@@ -1,0 +1,68 @@
+{{!-- THE CATEGORIZE PANEL WHILE THE FEATURE IS IN PROGRESS (requested 2026-09-28).
+     `board_category_grouping` is out of every flag list (lib/feature_flags.rb), so the edit page's
+     Categorize button opens this instead of the grouping controls
+     (templates/user/board-detail.hbs, `md-board-category-order`). It is a pitch, not a setting:
+     nothing here can turn grouping on.
+     EVERY CLAIM IS ONE THE HELD-BACK PANEL ALREADY WIRES, so the pitch cannot promise more than the
+     feature does: the colour groups and their names (utils/board_categories.js BOARD_CATEGORIES),
+     the category order list, the move-a-button picker that recolours it, the scrolling and
+     category-label options, the live preview, and the keyboard exemption
+     (board-detail-grid.js#groupingEnabled). The category chips reuse the registry's own label keys.
+     Template-only: `@onDone` closes the panel, and there is no state. --}}
+<div class="md-categorize-soon">
+  <div class="md-categorize-soon__inner">
+    <header class="md-categorize-soon__hero">
+      <span class="md-categorize-soon__badge">{{t "Coming soon" key="categorize_soon_badge"}}</span>
+      <h2 class="md-categorize-soon__title">{{t "Every word, right where you expect it" key="categorize_soon_title"}}</h2>
+      <p class="md-categorize-soon__lead">{{t "We're building Categories, a brand new way to organize your board. Your buttons gather into color-coded groups, so the right word is always easy to find and conversations keep flowing." key="categorize_soon_lead"}}</p>
+      <ul class="md-categorize-soon__chips" aria-label={{t "Example categories" key="categorize_soon_chips_label"}}>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--people">{{t "People" key="board_category_people"}}</li>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--actions">{{t "Actions" key="board_category_actions"}}</li>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--describe">{{t "Describe" key="board_category_describe"}}</li>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--places">{{t "Places" key="board_category_places"}}</li>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--questions">{{t "Questions" key="board_category_questions"}}</li>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--social">{{t "Social" key="board_category_social"}}</li>
+        <li class="md-categorize-soon__chip md-categorize-soon__chip--things">{{t "Things" key="board_category_things"}}</li>
+      </ul>
+    </header>
+
+    <ul class="md-categorize-soon__features">
+      <li class="md-categorize-soon__feature md-categorize-soon__feature--actions">
+        <h3 class="md-categorize-soon__feature-title">{{t "Color-coded groups" key="categorize_soon_groups_title"}}</h3>
+        <p class="md-categorize-soon__feature-body">{{t "Buttons sort themselves into groups like People, Actions, Describe and Questions, each wearing its familiar Fitzgerald Key color." key="categorize_soon_groups_body"}}</p>
+      </li>
+      <li class="md-categorize-soon__feature md-categorize-soon__feature--people">
+        <h3 class="md-categorize-soon__feature-title">{{t "Your order, your way" key="categorize_soon_order_title"}}</h3>
+        <p class="md-categorize-soon__feature-body">{{t "Choose which categories come first, and put the words you reach for most right up front." key="categorize_soon_order_body"}}</p>
+      </li>
+      <li class="md-categorize-soon__feature md-categorize-soon__feature--social">
+        <h3 class="md-categorize-soon__feature-title">{{t "Move any word" key="categorize_soon_move_title"}}</h3>
+        <p class="md-categorize-soon__feature-body">{{t "Want a word in a different group? Move it in a couple of taps and it picks up that group's color." key="categorize_soon_move_body"}}</p>
+      </li>
+      <li class="md-categorize-soon__feature md-categorize-soon__feature--describe">
+        <h3 class="md-categorize-soon__feature-title">{{t "Made to fit" key="categorize_soon_fit_title"}}</h3>
+        <p class="md-categorize-soon__feature-body">{{t "Size the board to your screen or let bigger vocabularies scroll. Show category labels, or hide them to give your buttons more room." key="categorize_soon_fit_body"}}</p>
+      </li>
+      <li class="md-categorize-soon__feature md-categorize-soon__feature--questions">
+        <h3 class="md-categorize-soon__feature-title">{{t "Preview as you go" key="categorize_soon_preview_title"}}</h3>
+        <p class="md-categorize-soon__feature-body">{{t "Watch your newly organized board come together in a live preview while you make changes." key="categorize_soon_preview_body"}}</p>
+      </li>
+      <li class="md-categorize-soon__feature md-categorize-soon__feature--things">
+        <h3 class="md-categorize-soon__feature-title">{{t "Built for motor planning" key="categorize_soon_motor_title"}}</h3>
+        <p class="md-categorize-soon__feature-body">{{t "Nothing moves until you choose to turn it on, and keyboards always keep their familiar letter layout." key="categorize_soon_motor_body"}}</p>
+      </li>
+    </ul>
+
+    <footer class="md-categorize-soon__footer">
+      <p class="md-categorize-soon__outro">{{t "We're putting the finishing touches on Categories right now, and we can't wait to share it with you!" key="categorize_soon_outro"}}</p>
+      {{!-- Wears the edit bar's SAVE styling, as the real panel's Done does, so the way out
+           looks the same whichever panel is showing. --}}
+      <button type="button" class="md-categorize-soon__done md-board-edit-session__btn md-board-edit-session__btn--save" {{on "click" @onDone}}>
+        <span class="md-board-edit-session__btn-badge" aria-hidden="true">
+          <svg class="md-board-edit-session__btn-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5" stroke="#cdd6e3"/><path d="M10 17.5 19 7" stroke="#8fe4df"/></svg>
+        </span>
+        <span class="md-board-edit-session__btn-label">{{t "Back to editing" key="categorize_soon_done"}}</span>
+      </button>
+    </footer>
+  </div>
+</div>

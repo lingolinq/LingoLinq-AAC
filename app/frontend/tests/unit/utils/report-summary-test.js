@@ -104,7 +104,7 @@ module('Unit | Utility | report summary', function() {
     assert.equal(res.comparisonPeriodLabel, 'Jun 1 – Jun 14', 'earlier half named by its dates');
     assert.equal(
       res.comparisonBasis,
-      'Every change below compares the later half of the selected period (Jun 15 – Jun 28) with its earlier half (Jun 1 – Jun 14).',
+      'Changes compare Jun 15 – Jun 28 with Jun 1 – Jun 14.',
       'both halves spelled out under the KPI row'
     );
 

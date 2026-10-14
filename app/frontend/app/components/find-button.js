@@ -587,7 +587,7 @@ export default Component.extend({
         }, interval);
       } else {
         this.set('loading', false);
-        this.set('error', i18n.t('button_set_not_found', 'Button set not downloaded, please try syncing or going online and reopening this board'));
+        this.set('error', i18n.t('button_set_not_found', "Button set not downloaded, please try syncing or going online and reopening this board"));
       }
     } else {
       this.set('results', null);

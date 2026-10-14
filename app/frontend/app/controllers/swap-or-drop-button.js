@@ -21,7 +21,7 @@ export default modal.ModalController.extend({
       var a = this.get('model.button.id');
       var b = this.get('model.folder.id');
       var button = this.get('model.button');
-      this.set('status', {message: i18n.t('moving_button', 'Moving button...')});
+      this.set('status', {message: i18n.t('moving_button', "Moving button...")});
       var _this = this;
       editManager.move_button(a, b, decision).then(function(res) {
         _this.set('status', null);

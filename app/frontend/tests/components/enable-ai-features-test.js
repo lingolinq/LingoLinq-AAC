@@ -92,4 +92,40 @@ describe('EnableAiFeaturesComponent', 'component:enable-ai-features', function()
     expect(aiFeatureGate.prefExplicitlyEnabled(user, 'ai_board_generation')).toEqual(false);
     expect(closedWith).toEqual(false);
   });
+
+  describe('when no account was passed to the modal', function() {
+    function otherAccount() {
+      var other = EmberObject.create({ preferences: {}, saves: 0, rollbacks: 0 });
+      other.save = function() { other.set('saves', other.get('saves') + 1); return RSVP.resolve(); };
+      other.rollbackAttributes = function() { other.set('rollbacks', other.get('rollbacks') + 1); };
+      return other;
+    }
+
+    function makeUnboundComponent(other) {
+      var c = testOwner.factoryFor('component:enable-ai-features').create();
+      c.set('appState', { currentUser: other, get: function(key) { return key === 'currentUser' ? other : null; } });
+      c.set('model', { triggeredPref: 'ai_board_generation' });
+      return c;
+    }
+
+    itAsync('does not turn AI on for whichever account the app is showing', async function() {
+      var other = otherAccount();
+      var c = makeUnboundComponent(other);
+      var fn = (c.actions && c.actions.enable) || c.enable;
+      await fn.call(c);
+      expect(other.get('saves')).toEqual(0);
+      expect(other.get('preferences')).toEqual({});
+      expect(c.get('save_error')).toEqual(true);
+      expect(closedWith).toEqual(undefined);
+    });
+
+    it('does not roll back another account when closed', function() {
+      var other = otherAccount();
+      var c = makeUnboundComponent(other);
+      var fn = (c.actions && c.actions.close) || c.close;
+      fn.call(c);
+      expect(other.get('rollbacks')).toEqual(0);
+      expect(closedWith).toEqual(false);
+    });
+  });
 });

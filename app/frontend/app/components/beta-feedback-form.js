@@ -567,16 +567,16 @@ export default Component.extend({
     }
     var online = navigator.onLine;
     var onlineStr = online
-      ? i18n.t('beta_feedback_context_online_yes', 'yes')
-      : i18n.t('beta_feedback_context_online_no', 'no');
-    var na = i18n.t('beta_feedback_auto_context_na', '—');
+      ? i18n.t('beta_feedback_context_online_yes', "yes")
+      : i18n.t('beta_feedback_context_online_no', "no");
+    var na = i18n.t('beta_feedback_auto_context_na', "—");
     var lines = [
-      i18n.t('beta_feedback_auto_context_header', '--- Auto (submission) ---'),
-      i18n.t('beta_feedback_auto_context_viewport', 'Viewport: %{w}×%{h} (%{dpr} dppx)', { w: vw, h: vh, dpr: dpr }),
-      i18n.t('beta_feedback_auto_context_timezone', 'Time zone: %{tz}', { tz: tz || na }),
-      i18n.t('beta_feedback_auto_context_route', 'Route: %{route}', { route: route || na }),
-      i18n.t('beta_feedback_auto_context_path', 'Path: %{path}', { path: path || na }),
-      i18n.t('beta_feedback_auto_context_online', 'Online: %{online}', { online: onlineStr })
+      i18n.t('beta_feedback_auto_context_header', "--- Auto (submission) ---"),
+      i18n.t('beta_feedback_auto_context_viewport', "Viewport: %{w}×%{h} (%{dpr} dppx)", { w: vw, h: vh, dpr: dpr }),
+      i18n.t('beta_feedback_auto_context_timezone', "Time zone: %{tz}", { tz: tz || na }),
+      i18n.t('beta_feedback_auto_context_route', "Route: %{route}", { route: route || na }),
+      i18n.t('beta_feedback_auto_context_path', "Path: %{path}", { path: path || na }),
+      i18n.t('beta_feedback_auto_context_online', "Online: %{online}", { online: onlineStr })
     ];
     return lines.join('\n');
   },
@@ -607,7 +607,7 @@ export default Component.extend({
     if (u.length <= userBudget) {
       return combined;
     }
-    var ellipsis = i18n.t('beta_feedback_auto_context_truncation_ellipsis', '…');
+    var ellipsis = i18n.t('beta_feedback_auto_context_truncation_ellipsis', "…");
     if (userBudget <= ellipsis.length) {
       return u.substring(0, userBudget) + sep + auto;
     }

@@ -54,25 +54,25 @@ export default Controller.extend({
     };
 
     this.set('feedbackTypeOptions', [
-      { id: '', label: i18n.t('beta_feedback_admin_filter_all_types', 'All categories') },
-      { id: 'hidden', label: i18n.t('beta_feedback_admin_filter_hidden', 'Hidden') },
-      { id: 'crash', label: i18n.t('beta_feedback_type_crash', 'Crash or freeze') },
-      { id: 'speak_mode', label: i18n.t('beta_feedback_type_speak_mode', 'Speak mode or speech / TTS') },
-      { id: 'boards', label: i18n.t('beta_feedback_type_boards', 'Boards or editing') },
+      { id: '', label: i18n.t('beta_feedback_admin_filter_all_types', "All categories") },
+      { id: 'hidden', label: i18n.t('beta_feedback_admin_filter_hidden', "Hidden") },
+      { id: 'crash', label: i18n.t('beta_feedback_type_crash', "Crash or freeze") },
+      { id: 'speak_mode', label: i18n.t('beta_feedback_type_speak_mode', "Speak mode or speech / TTS") },
+      { id: 'boards', label: i18n.t('beta_feedback_type_boards', "Boards or editing") },
       { id: 'editing', label: i18n.t('beta_feedback_type_editing', "Editing") },
-      { id: 'sync', label: i18n.t('beta_feedback_type_sync', 'Sync, offline, or data') },
-      { id: 'account', label: i18n.t('beta_feedback_type_account', 'Login or account') },
-      { id: 'performance', label: i18n.t('beta_feedback_type_performance', 'Performance or loading') },
-      { id: 'accessibility', label: i18n.t('beta_feedback_type_accessibility', 'Accessibility or UI') },
-      { id: 'feature', label: i18n.t('beta_feedback_type_feature', 'Feature idea') },
-      { id: 'other', label: i18n.t('beta_feedback_type_other', 'Other') }
+      { id: 'sync', label: i18n.t('beta_feedback_type_sync', "Sync, offline, or data") },
+      { id: 'account', label: i18n.t('beta_feedback_type_account', "Login or account") },
+      { id: 'performance', label: i18n.t('beta_feedback_type_performance', "Performance or loading") },
+      { id: 'accessibility', label: i18n.t('beta_feedback_type_accessibility', "Accessibility or UI") },
+      { id: 'feature', label: i18n.t('beta_feedback_type_feature', "Feature idea") },
+      { id: 'other', label: i18n.t('beta_feedback_type_other', "Other") }
     ]);
     this.set('severityOptions', [
-      { id: '', label: i18n.t('beta_feedback_admin_filter_all_severities', 'All severities') },
-      { id: 'blocker', label: i18n.t('beta_feedback_severity_blocker', 'Blocker — cannot complete key tasks') },
-      { id: 'major', label: i18n.t('beta_feedback_severity_major', 'Major — serious problem with a workaround') },
-      { id: 'minor', label: i18n.t('beta_feedback_severity_minor', 'Minor — small issue or polish') },
-      { id: 'suggestion', label: i18n.t('beta_feedback_severity_suggestion', 'Suggestion — idea or enhancement') }
+      { id: '', label: i18n.t('beta_feedback_admin_filter_all_severities', "All severities") },
+      { id: 'blocker', label: i18n.t('beta_feedback_severity_blocker', "Blocker — cannot complete key tasks") },
+      { id: 'major', label: i18n.t('beta_feedback_severity_major', "Major — serious problem with a workaround") },
+      { id: 'minor', label: i18n.t('beta_feedback_severity_minor', "Minor — small issue or polish") },
+      { id: 'suggestion', label: i18n.t('beta_feedback_severity_suggestion', "Suggestion — idea or enhancement") }
     ]);
     this.set('priorityOptions', [
       { id: '', label: i18n.t('beta_feedback_admin_filter_all_priorities', "All priorities") },

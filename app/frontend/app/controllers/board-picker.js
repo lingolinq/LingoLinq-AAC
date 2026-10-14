@@ -3,16 +3,26 @@ import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import openRecommendedHomeBoard from '../utils/recommended_home_board';
 import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
+import { after_pick_for_other } from '../utils/board_picker_landing';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
 
 // Standalone home-board picker. Mirrors setup's `user_id` / `setup_user` resolution so
 // supervisors can pick a communicatee's home board without the setup wizard.
 export default Controller.extend({
   router: service('router'),
   appState: service('app-state'),
+  store: service('store'),
   persistence: service('persistence'),
+  /* Basic brings its own page chrome, so `showGlobalChrome` (controllers/application.js)
+     deliberately returns false there and the Modern rail never renders. This is what mounts the
+     `ch-` rail instead, the same pattern controllers/organizations.js:20 uses. */
+  isBasicView: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
+
   queryParams: ['user_id'],
   user_id: null,
   setup_user: null,
@@ -179,7 +189,7 @@ export default Controller.extend({
     };
   },
 
-  _afterHomeBoardAssigned: function(user) {
+  _afterHomeBoardAssigned: function(user, home) {
     var _this = this;
     if (_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
       _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
@@ -190,14 +200,38 @@ export default Controller.extend({
     }
     modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
     var userName = user && user.get && user.get('user_name');
-    if (userName) {
+    // The new home board, as utils/assign-vocal-flair-home.js hands it to `onSuccess`.
+    var homeKey = home && home.get && home.get('key');
+    if (userName && homeKey) {
+      /* By view (2026-09-30), as the overlay's "Pick this Board" does: Modern opens their boards
+         list, Basic their new home board (utils/board_picker_landing.js). */
+      after_pick_for_other(_this.get('router'), homeKey, userName, _this.appState.get('effective_view_user'));
+    } else if (userName) {
       _this.get('router').transitionTo('user.boards', userName);
     } else {
       _this.appState.return_to_index();
     }
   },
 
+  // "Recently tried" chips (2026-10-13): the boards tried this session, newest first
+  // (utils/board_picker_trials.js#remember_trial).
+  recentTries: computed('appState.board_picker_recent.[]', function() {
+    return this.get('appState.board_picker_recent') || [];
+  }),
+
   actions: {
+    // A "Recently tried" chip opens that board's preview again (Try this Board / Set as Home Board), as its
+    // picker tile does. The preview's own buttons do the rest (components/board-preview-overlay.js).
+    open_recent: function(key) {
+      var _this = this;
+      if (!key) { return; }
+      return this.get('store').findRecord('board', key).then(function(board) {
+        if (!board) { return; }
+        modal.board_preview(board, board.get('preview_locale') || _this.get('appState.label_locale'), false, function() {});
+      }, function() {
+        modal.error(i18n.t('board_picker_recent_failed', "That board couldn't be opened. Please try again."));
+      });
+    },
     /* "Browse Board Categories", the close chip and Escape all land here: the
        picker is already rendered behind the overlay, so dismissing IS browsing.
        No route change, which is why the overlay can be reopened without a
@@ -224,9 +258,9 @@ export default Controller.extend({
       _this.set('assigning_home_board', true);
       assignVocalFlair84AsHome(user, {
         locale: _this.appState.get('label_locale'),
-        onSuccess: function() {
+        onSuccess: function(home) {
           _this.set('assigning_home_board', false);
-          _this._afterHomeBoardAssigned(user);
+          _this._afterHomeBoardAssigned(user, home);
         }
       }).catch(function() {
         _this.set('assigning_home_board', false);

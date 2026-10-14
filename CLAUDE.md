@@ -7,8 +7,9 @@ is kept under 200 lines. Everything else loads on demand:
 |---|---|---|
 | `app/frontend/CLAUDE.md` | you read files under `app/frontend/` | Ember commands, test-run discipline, 5.12 gotchas, frontend map |
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
-| `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations | the Tier 1 data boundary |
+| `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
+| `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
 | `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
@@ -86,6 +87,13 @@ everything else in this file.
     goes green, and merging with `--admin`. Stop, name the test and the verified reason it
     fails, and wait. Rewriting a test is legitimate only when the specification it
     encodes actually changed and the approval you were given says so.
+15. **Agents never add the `synthetic-data` label.** That label is a person's
+    statement that they looked at every changed data file and none of it is real. Agents
+    run under a person's GitHub account, so the `data-bearing-paths` check cannot tell
+    an agent from that person: never add the label (including `gh pr create --label` or
+    `gh pr edit --add-label`), never post a `data-bearing-approval/*` status, and never
+    ask for either to be done on your behalf. When a PR needs it, say so and let the
+    reviewer add it after reading the data.
 
 ## Branching (mandatory before any code change)
 
@@ -200,14 +208,30 @@ Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
 `/adversary-review` (red team). A Critical or High finding from either blocks the PR.
 The senior-dev pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
-`gh pr diff <n> --name-only | bash ~/ai-company-brain/scripts/codex-review-guard.sh -`
-(with `set -o pipefail`); for a branch or the working tree,
-`bash ~/ai-company-brain/scripts/codex-review-guard.sh <base-ref>`. Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
-the flagged paths rather than sending anything. The `<base-ref>` form run against a PR
-number guards the wrong diff and records a pass it did not earn. That guard lives at a
+`bash ~/ai-company-brain/scripts/review-preflight.sh pr <n> lingolinq/LingoLinq-AAC`;
+for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> <head>`;
+for the working tree, `bash ~/ai-company-brain/scripts/review-preflight.sh working <base>`.
+Proceed only on exit 0. Any other exit, including 3 (nothing was checked), means stop. Report
+the flagged paths rather than sending anything. On exit 0, review only the `DIFF_FILE` the
+preflight prints (never fetch the diff again by another route) and record the full `REVIEWED=`
+line verbatim with the verdict. The `range` or `working` form run against a PR number guards the
+wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
-Codex-specific invocation detail lives in `AGENTS.md`. Copilot code review runs automatically on every PR to `develop`.
+Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
+A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
+or the check's own files fails the `data-bearing-paths/<base>` status until a reviewer with
+write access confirms every changed data file is synthetic (and has looked at any workflow
+change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
+approval as a commit status on the current head commit for that base, and the label is
+removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
+changes that never went through `develop`; a merge commit counts only for what it adds
+beyond its parents, so a release merge of `develop` does not trip again. The author may
+approve their own PR, and anyone with write access can get past the check deliberately (it
+guards against mistakes and fork PRs). This repo is public: never push real user data,
+since a pushed branch is published whether or not it merges.
 
 ## Audit and compliance system
 

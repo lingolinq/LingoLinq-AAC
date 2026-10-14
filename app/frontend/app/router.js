@@ -133,6 +133,7 @@ Router.map(function() {
     this.route('edit');
     this.route('preferences');
     this.route('subscription');
+    this.route('supervision');
     this.route('stats');
     this.route('goals');
     this.route('goal', { path: '/goals/:goal_id' });

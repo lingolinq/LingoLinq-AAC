@@ -1,4 +1,27 @@
 {{#if this.session.isAuthenticated}}
+  {{!-- PAGE HEADER (2026-09-25, requested: "add a Training header and icon just like the Goals
+       page has (but make the icon appropriate to Training)"). This was a bare `<h2>` with no
+       icon and no rule — the only page in the account section with neither.
+       THE GLYPH IS THE RAIL'S TRAININGS GLYPH, not a new drawing: the mortarboard in
+       components/dashboard/classic-account-rail.hbs's Trainings row, which is already how this
+       destination is drawn in the nav that reaches it. Two-tone to the section's convention —
+       charcoal structure, teal accent — and re-sized from the rail's 22/1.6 to 28/1.5 to match
+       the other headers in this family.
+       `.md-lessons__*` JOINS THE SHARED FAMILY in app.scss beside `.md-billing__header`, per
+       that rule's own instruction, rather than borrowing the Goals page's classes: `md-goals`
+       on the Trainings page would be a lie, and the family is what Subscription, Supervision,
+       Reports and Account already use. No `.md-extras-card__svg-icon` either — the family sizes
+       its own `> svg`, which is the reason it says so.
+       FIRST THING ON THE PAGE (2026-09-25, requested straight after: "move the header and
+       divider to the top of the page"). It first went in where the `<h2>` already sat, BELOW the
+       org-manager notice, which put the page's own title under an alert for managers and 116px
+       further down the page than the Goals title it was asked to match. The header and its
+       divider now open the page for everyone and the notice reads as the first item under them,
+       which is also the order every other page in the section uses. --}}
+  <div class="md-lessons__header">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5-9 4.5Z" stroke="#46505F"/><path d="M7 11v5c0 1.5 2.2 2.5 5 2.5s5-1 5-2.5v-5" stroke="#2A9D8F"/></svg>
+    <h2 class="md-lessons__title">{{t "Current Trainings" key="current_trainings"}}</h2>
+  </div>
   {{#if this.show_org_trainings_admin}}
     <div class="alert alert-info" style="margin-bottom: 1.25rem;">
       <p style="margin-bottom: 0.75rem;">{{t "As an organization manager, you can add trainings, assign them to staff, and track completion from your organization's trainings page." key="org_manager_trainings_cta"}}</p>
@@ -11,9 +34,6 @@
       </ul>
     </div>
   {{/if}}
-  <h2>
-    {{t "Current Trainings" key="current_trainings"}}
-  </h2>
   {{#if this.styled_lessons}}
     {{#each this.styled_lessons as |lesson|}}
       <div class={{if lesson.completed_ts "well lesson done" "well lesson"}}>

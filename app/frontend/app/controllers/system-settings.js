@@ -5,6 +5,7 @@ import { observer } from '@ember/object';
 import { getOwner } from '@ember/application';
 import Utils from '../utils/misc';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
 
 export default Controller.extend({
   app_state: service('app-state'),
@@ -13,6 +14,13 @@ export default Controller.extend({
   org_id: 'default',
   orgsLoading: false,
   orgRecords: null,
+
+  /* Basic view gets the `ch-` rail beside every System Settings page (the parent template
+     mounts it once). Same reader as controllers/organizations.js: utils/view_style#is_classic
+     against `effective_view_user`. */
+  isBasicView: computed('app_state.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('app_state.effective_view_user'));
+  }),
 
   init() {
     this._super(...arguments);
@@ -89,18 +97,18 @@ export default Controller.extend({
     var groups = [];
     if (this.get('showFeatureGroups') && this.get('canEditSiteWide')) {
       groups.push({
-        label: i18n.t('system_settings_scope_site_groups', 'Site & feature groups'),
+        label: i18n.t('system_settings_scope_site_groups', "Site & feature groups"),
         options: [
-          {id: 'default', name: i18n.t('system_settings_default_org', 'Default (LingoLinq)')},
-          {id: 'group:canary', name: i18n.t('system_settings_group_canary', 'Canary')},
-          {id: 'group:beta', name: i18n.t('system_settings_group_beta', 'Beta opt-in')}
+          {id: 'default', name: i18n.t('system_settings_default_org', "Default (LingoLinq)")},
+          {id: 'group:canary', name: i18n.t('system_settings_group_canary', "Canary")},
+          {id: 'group:beta', name: i18n.t('system_settings_group_beta', "Beta opt-in")}
         ]
       });
     } else if (this.get('canEditSiteWide')) {
       groups.push({
-        label: i18n.t('system_settings_org_label', 'Organization'),
+        label: i18n.t('system_settings_org_label', "Organization"),
         options: [
-          {id: 'default', name: i18n.t('system_settings_default_org', 'Default (LingoLinq)')}
+          {id: 'default', name: i18n.t('system_settings_default_org', "Default (LingoLinq)")}
         ]
       });
     }
@@ -115,7 +123,7 @@ export default Controller.extend({
     });
     if (orgOptions.length) {
       groups.push({
-        label: i18n.t('system_settings_scope_organizations', 'Organizations'),
+        label: i18n.t('system_settings_scope_organizations', "Organizations"),
         options: orgOptions
       });
     }

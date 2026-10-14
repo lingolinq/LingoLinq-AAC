@@ -15,6 +15,7 @@ import Stats from '../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import { board_edit_route } from '../utils/board_view';
 
 var order = ['intro', 'usage', 'board_category', 'core', 'access', 'voice', 'logging', 'supervisors', 'extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-logs', 'extra-done'];
 // Critical-only subset used when `mode=critical` query param is set
@@ -355,7 +356,7 @@ export default Controller.extend({
       arasaac: i18n.t('arasaac', "ARASAAC free symbols"),
       tawasol: i18n.t('tawasol_library', "Tawasol"),
       lessonpix: i18n.t('lessonpix_library', "LessonPix symbol library"),
-      symbolstix: i18n.t('symbolstix_images', 'SymbolStix Symbols'),
+      symbolstix: i18n.t('symbolstix_images', "SymbolStix Symbols"),
       pcs: i18n.t('pcs', "PCS Symbols by Tobii Dynavox")
     };
     if(this.get('symbols.original')) { return labels.original; }
@@ -374,9 +375,9 @@ export default Controller.extend({
     opts.push({ value: 'original', label: i18n.t('use_original_symbols', "Default symbols") });
     opts.push({ value: 'opensymbols', label: i18n.t('opensymbols', "Opensymbols.org") });
     if(this.get('setup_user') && this.get('setup_user.subscription.extras_enabled')) {
-      opts.push({ value: 'lessonpix', label: i18n.t('lessonpix_library', "LessonPix symbol library"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
-      opts.push({ value: 'symbolstix', label: i18n.t('symbolstix_images', 'SymbolStix Symbols'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
-      opts.push({ value: 'pcs', label: i18n.t('pcs', "PCS Symbols by Tobii Dynavox"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
+      opts.push({ value: 'lessonpix', label: i18n.t('lessonpix_library', "LessonPix symbol library"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', "(requires extra fee after trial period)") : null });
+      opts.push({ value: 'symbolstix', label: i18n.t('symbolstix_images', "SymbolStix Symbols"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', "(requires extra fee after trial period)") : null });
+      opts.push({ value: 'pcs', label: i18n.t('pcs', "PCS Symbols by Tobii Dynavox"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', "(requires extra fee after trial period)") : null });
     }
     if(this.get('showing_more_symbols')) {
       opts.push({ value: 'twemoji', label: i18n.t('twemoji', "Emoji icons (authored by Twitter)") });
@@ -402,29 +403,29 @@ export default Controller.extend({
   }),
   skin_option_list: computed(function() {
     return [
-      { value: 'mix', label: i18n.t('mix_of_skin_tones', 'Mix of Tones'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f308.svg' },
-      { value: 'dark', label: i18n.t('dark_skin_tone', 'Dark'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3ff-200d-1f9b2.svg' },
-      { value: 'medium-dark', label: i18n.t('medium_dark_skin_tone', 'Medium-Dark'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fe-200d-1f9b2.svg' },
-      { value: 'medium', label: i18n.t('medium_skin_tone', 'Medium'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fd-200d-1f9b2.svg' },
-      { value: 'medium-light', label: i18n.t('medium_light_skin_tone', 'Medium-Light'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fc-200d-1f9b2.svg' },
-      { value: 'light', label: i18n.t('light_skin_tone', 'Light'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg' },
-      { value: 'default', label: i18n.t('default_skin_tones', 'Pale'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg', image_class: 'setup-symbols-pill__img--pale' },
-      { value: 'limit', label: i18n.t('limit_tones_to', 'Limit Tones To...'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2705.svg' }
+      { value: 'mix', label: i18n.t('mix_of_skin_tones', "Mix of Tones"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f308.svg' },
+      { value: 'dark', label: i18n.t('dark_skin_tone', "Dark"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3ff-200d-1f9b2.svg' },
+      { value: 'medium-dark', label: i18n.t('medium_dark_skin_tone', "Medium-Dark"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fe-200d-1f9b2.svg' },
+      { value: 'medium', label: i18n.t('medium_skin_tone', "Medium"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fd-200d-1f9b2.svg' },
+      { value: 'medium-light', label: i18n.t('medium_light_skin_tone', "Medium-Light"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fc-200d-1f9b2.svg' },
+      { value: 'light', label: i18n.t('light_skin_tone', "Light"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg' },
+      { value: 'default', label: i18n.t('default_skin_tones', "Pale"), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg', image_class: 'setup-symbols-pill__img--pale' },
+      { value: 'limit', label: i18n.t('limit_tones_to', "Limit Tones To..."), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2705.svg' }
     ];
   }),
   skin_label: computed('skin', function() {
     var s = this.get('skin');
-    if(!s) { return i18n.t('default_skin_tones', 'Pale'); }
-    if(s.default) { return i18n.t('default_skin_tones', 'Pale'); }
-    if(s.mix) { return i18n.t('mix_of_skin_tones', 'Mix of Tones'); }
-    if(s.dark) { return i18n.t('dark_skin_tone', 'Dark'); }
-    if(s['medium-dark']) { return i18n.t('medium_dark_skin_tone', 'Medium-Dark'); }
-    if(s.medium) { return i18n.t('medium_skin_tone', 'Medium'); }
-    if(s['medium-light']) { return i18n.t('medium_light_skin_tone', 'Medium-Light'); }
-    if(s.light) { return i18n.t('light_skin_tone', 'Light'); }
-    if(s.limit) { return i18n.t('limit_tones_to', 'Limit Tones To...'); }
-    if(s.prefer) { return i18n.t('show_tones_preference_for', 'Show Preference For...'); }
-    return i18n.t('default_skin_tones', 'Pale');
+    if(!s) { return i18n.t('default_skin_tones', "Pale"); }
+    if(s.default) { return i18n.t('default_skin_tones', "Pale"); }
+    if(s.mix) { return i18n.t('mix_of_skin_tones', "Mix of Tones"); }
+    if(s.dark) { return i18n.t('dark_skin_tone', "Dark"); }
+    if(s['medium-dark']) { return i18n.t('medium_dark_skin_tone', "Medium-Dark"); }
+    if(s.medium) { return i18n.t('medium_skin_tone', "Medium"); }
+    if(s['medium-light']) { return i18n.t('medium_light_skin_tone', "Medium-Light"); }
+    if(s.light) { return i18n.t('light_skin_tone', "Light"); }
+    if(s.limit) { return i18n.t('limit_tones_to', "Limit Tones To..."); }
+    if(s.prefer) { return i18n.t('show_tones_preference_for', "Show Preference For..."); }
+    return i18n.t('default_skin_tones', "Pale");
   }),
   premium_but_not_allowed: computed(
     'setup_user.subscription.extras_enabled',
@@ -831,7 +832,10 @@ export default Controller.extend({
       if (board_key) {
         var parts = board_key.split('/');
         if (parts.length === 2) {
-          this.router.transitionTo('user.board-detail.edit', parts[0], parts[1]).then(function() {
+          // View-aware edit destination — see utils/board_view.js#board_edit_route.
+          // Classic users land on their own board; edit mode is not auto-entered
+          // for them (known gap, Cluster C).
+          this.router.transitionTo(board_edit_route(this.get('appState.effective_view_user')), parts[0], parts[1]).then(function() {
             _this.appState.set('board_layout_mode', null);
           });
         } else {
@@ -984,7 +988,7 @@ export default Controller.extend({
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'skip', 'Extra Setup Pursued');
       }
-      this.router.transitionTo('home-boards');
+      this.router.transitionTo('board-picker');
     },
     done: function() {
       this.appState.return_to_index();

@@ -12,8 +12,10 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import actionLock from '../utils/action-lock';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import { ensureAiBoardGenerationAccess } from '../utils/ai_board_generation_access';
 import article50Gate from '../utils/article50_gate';
 import buildEventAction from '../utils/event_action';
+import { board_view_route } from '../utils/board_view';
 
 /**
  * New Board Modal Component
@@ -145,12 +147,15 @@ export default Component.extend({
     return this.get('model.for_user_id');
   }),
 
-  ai_board_generation_enabled: computed(
-    'appState.feature_flags.ai_board_generation',
-    'appState.currentUser.preferences.ai_features_enabled',
-    'appState.currentUser.preferences.ai_board_generation',
+  // Shown whenever AI board generation is available for the account; the click
+  // goes through the turn-on step or a reason first (generateWithAi).
+  ai_board_generation_offered: computed(
+    'appState.sessionUser.feature_flags.ai_board_generation',
+    'appState.sessionUser.preferences.ai_features_enabled',
+    'appState.sessionUser.preferences.ai_board_generation',
+    'appState.sessionUser.permissions',
     function() {
-      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+      return aiFeatureGate.boardGenerationOffered(this.appState);
     }
   ),
 
@@ -175,7 +180,7 @@ export default Component.extend({
 
   locales: computed(function() {
     var list = i18n.get('locales');
-    var res = [{name: i18n.t('choose_locale', '[Choose a Language]'), id: ''}];
+    var res = [{name: i18n.t('choose_locale', "[Choose a Language]"), id: ''}];
     for(var key in list) {
       res.push({name: list[key], id: key});
     }
@@ -335,7 +340,7 @@ export default Component.extend({
   }),
 
   key_placeholder: computed(function() {
-    return i18n.t('board_key_placeholder', 'board-key');
+    return i18n.t('board_key_placeholder', "board-key");
   }),
 
   updatePreview: observer('model.grid.rows', 'model.grid.columns', function() {
@@ -418,17 +423,30 @@ export default Component.extend({
       // component state for the same reason -- `standalone` is captured up front.
       var standalone = this.get('standalone');
       var modalService = this.get('modal');
-      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
-        if(!standalone) {
-          modalService.close();
-        }
-        modalUtil.open('generate-board');
-      }, function() {
-        // Gate not acknowledged (bumped by another modal). Do not open
-        // generate-board. The disclosure modal is what the user is looking at,
-        // or another modal took over; either way this is fail-closed by design
-        // and needs no separate error surface here.
-      });
+      var appState = this.get('appState');
+      var openGenerator = function() {
+        article50Gate.presentBlockingGate(appState).then(function() {
+          if(!standalone) {
+            modalService.close();
+          }
+          modalUtil.open('generate-board');
+        }, function() {
+          // Gate not acknowledged (bumped by another modal). Do not open
+          // generate-board. The disclosure modal is what the user is looking at,
+          // or another modal took over; either way this is fail-closed by design
+          // and needs no separate error surface here.
+        });
+      };
+      // AI not on yet: the turn-on step or a reason first (utils/ai_board_generation_access.js).
+      // On the standalone create-board page it opens over the page, so typed fields stay;
+      // nothing after it reads component state, in case new-board is ever modal-hosted.
+      if(aiFeatureGate.boardGenerationEntry(appState) !== 'allowed') {
+        ensureAiBoardGenerationAccess(appState).then(function(result) {
+          if(result && result.proceed) { openGenerator(); }
+        });
+        return;
+      }
+      openGenerator();
     },
     opening: function() {
       if (this.get('standalone')) { return; }
@@ -758,7 +776,10 @@ export default Component.extend({
           // Debounced "Preparing your Board" mask for the post-create board load.
           _this.appState.arm_board_load_overlay(_this.get('router'));
           if (parts.length >= 2) {
-            return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+            // Honor the user's view preference (utils/board_view.js) instead of
+            // hardcoding the modern shell — a classic user who creates/imports a board
+            // must land on their own board view, not be pushed into modern.
+            return _this.get('router').transitionTo(board_view_route(_this.appState.get('effective_view_user')), parts[0], parts.slice(1).join('/'));
           } else {
             return _this.get('router').transitionTo('board', key);
           }

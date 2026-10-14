@@ -10,14 +10,39 @@
     </div>
   {{/if}}
 
-  {{!-- Sub-navigation pills for people sections --}}
-  <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
-    <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>{{t "Communicators" key="communicators"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
-  </nav>
+  {{!-- Sub-navigation for the people sections, in two forms.
+
+       BASIC VIEW GETS THE `ch-` TAB STRIP (requested 2026-09-23), the same one the Basic home
+       page uses. It carries the classes `ch-tabs` / `ch-tab` rather than a copy of their rules:
+       those classes are already styled for BOTH Basic layouts -- gentle in _classic-home.scss,
+       focused in _focused-view.scss -- so reusing them is what makes this strip match the home
+       page in each layout automatically, and a copied ruleset would have had to duplicate both
+       and would drift from them. `ch-organizations-tabs` is an additional hook, carrying only
+       what is specific to this page: the count under each label.
+
+       EACH TAB CARRIES ITS SECTION'S HEADLINE NUMBER, which is the same figure the section
+       itself prints below -- the managers count, the supervisor count, the user count, and the
+       used/allotted ratios for evals and symbols. Bare numerals need no translation; the words
+       that make them meaningful are added for screen readers with the EXISTING keys those
+       sections already use, so this introduces no new strings in 13 locales.
+
+       Modern keeps its pills below, untouched. --}}
+  {{!-- THE BASIC TAB STRIP MOVED UP TO templates/organization.hbs (2026-09-25, requested:
+       "the ch-tabs need to be: Admin, Managers, Supervisors, Communicators, Evals, Symbols").
+       It is the SAME five tabs with the same counts, now sitting in the org strip beside an
+       Admin tab, so this page would have rendered a second identical strip under the first.
+       MODERN'S PILLS STAY HERE, untouched: the org strip only replaces the Basic one, and
+       Modern's org nav is a different element with its own reasoning (controllers/organization.js).
+       Both still drive the same `pick` action, which now writes the `section` query param. --}}
+  {{#unless this.isBasicView}}
+    <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
+      <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>{{t "Communicators" key="communicators"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
+      <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
+    </nav>
+  {{/unless}}
 
   {{!-- Managers --}}
   {{#if this.show_managers}}

@@ -196,7 +196,7 @@
     {{/if}}
     <h3>{{t "Assessment Types" key="assessment_types"}}</h3>
       <!-- access settings (eye gaze/scanning/touch settings during assessment) -->
-    <div class="table-reponsive">
+    <div class="table-responsive">
       <!-- accuracy scores for different assessment types -->
 
       <table class="table table-hover table-bordered table-striped">
@@ -414,7 +414,7 @@
         </div>
       </div>
     </div>
-    <div class="table-reponsive">
+    <div class="table-responsive">
       <table class="table table-hover table-bordered">
         <thead>
           <tr>
@@ -565,7 +565,7 @@
   {{/if}}
 
   <div class="row" style="margin-bottom: 20px;">
-    {{#if this.model.geo}}
+    {{#if (and this.model.geo this.appState.feature_flags.location_maps)}}
       <div class="col-sm-8">
         <MapWithMarkers @action="marker_link_select" />
       </div>
@@ -575,7 +575,7 @@
         <dt>{{t "Location" key="location"}}</dt>
           <dd>
           {{#if this.model.geo}}
-            {{t "See map" key="see_map"}}
+            {{#if this.appState.feature_flags.location_maps}}{{t "See map" key="see_map"}}{{/if}}
           {{else}}
             {{t "Not Available" key="not_available_upper"}}
           {{/if}}

@@ -1,244 +1,270 @@
+{{!-- ADMIN ACTIONS (site-admin organisation only). Restyled 2026-10-02 (requested: "needs to be
+     styled with our modern styles") from Bootstrap rows, `form-control` inputs and `btn-default`
+     buttons onto the org Settings page's own primitives (templates/organization/settings.hbs):
+     `md-org-settings-card` per section with an icon title, `md-org-settings-field__row` for an
+     input and its button, `md-org-settings-input`, `md-org-btn--outline`. Lists use
+     `md-org-admin-list` (app.scss, beside the Settings rules). Every binding, action and condition
+     is unchanged; only markup and classes moved. --}}
 {{#if this.model.admin}}
   {{#if this.model.permissions.manage}}
-    <h2>{{t "Admin Actions" key="admin_actions"}}</h2>
-    <div class='row'>
-      <div class='col-sm-6'>
-        <h4>{{t "Blocked Emails" key="blocked_emails"}}</h4>
-        {{#if this.blocked_emails.loading}}
-          <p>{{t "Loading..." key="loading"}}</p>
-        {{else if this.blocked_emails.error}}
-          <p>{{t "There was an error loading blocked emails" key="error_loading_blocked_emails"}}</p>
-        {{else if this.blocked_emails}}
-          <div class='list-group' style='max-width: 400px; margin-bottom: 5px; max-height: 200px; overflow: auto;'>
-            {{#each this.blocked_emails as |email|}}
-              <a href="#" class='list-group-item'>{{email}}</a>
-            {{/each}}
-          </div>
-        {{else}}
-          <p>{{t "No data available" key="no_data_available"}}</p>
-        {{/if}}
-        <div>
-          <input value={{this.blocked_email_address}} placeholder="email address" aria-label={{t "Blocked email address" key="blocked_email_address"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "blocked_email_address")}} />
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "block_email")}}>{{t "Block Email Address" key="block_email_address"}}</button>
-        </div>
-      </div>
-      <div class='col-sm-6'>
-        <h4>{{t "Sale End Date" key="sale_date"}}</h4>
-        <div style='margin-bottom: 30px;'>
-          <input value={{this.sale_cutoff_date}} placeholder="YYYY-MM-DD" aria-label={{t "Sale End Date" key="sale_date"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "sale_cutoff_date")}} />
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "update_sale_date")}}>{{t "Update" key="update"}}</button>
-        </div>
+    <h3 class="md-org-section-title" style="text-align: center; margin-bottom: 24px;">{{t "Admin Actions" key="admin_actions"}}</h3>
+    <div class="md-org-settings-form">
 
-        <h4>{{t "Start Code Lookup" key="start_code_lookup"}}</h4>
-        <div style='margin-bottom: 30px;'>
-          <input value={{this.start_code}} placeholder="start code" aria-label={{t "Start Code Lookup" key="start_code_lookup"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "start_code")}} />
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "start_code_lookup")}}>{{t "Lookup" key="lookup"}}</button>
+      <section class="md-org-settings-card">
+        <h4 class="md-org-settings-card__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/><path d="M4 20 20 4"/></svg>
+          {{t "Blocked Emails" key="blocked_emails"}}
+        </h4>
+        <div class="md-org-settings-field">
+          {{#if this.blocked_emails.loading}}
+            <span class="md-org-settings-field__hint">{{t "Loading..." key="loading"}}</span>
+          {{else if this.blocked_emails.error}}
+            <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">{{t "There was an error loading blocked emails" key="error_loading_blocked_emails"}}</span>
+          {{else if this.blocked_emails}}
+            <ul class="md-org-admin-list">
+              {{#each this.blocked_emails as |email|}}
+                <li class="md-org-admin-list__item">{{email}}</li>
+              {{/each}}
+            </ul>
+          {{else}}
+            <span class="md-org-settings-field__hint">{{t "No data available" key="no_data_available"}}</span>
+          {{/if}}
         </div>
+        <div class="md-org-settings-field__row">
+          <input value={{this.blocked_email_address}} placeholder="email address" aria-label={{t "Blocked email address" key="blocked_email_address"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "blocked_email_address")}} />
+          <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "block_email")}}>{{t "Block Email Address" key="block_email_address"}}</button>
+        </div>
+      </section>
 
-        <h4>{{t "Blocked Cells" key="blocked_cells"}}</h4>
+      <section class="md-org-settings-card">
+        <h4 class="md-org-settings-card__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          {{t "Sale End Date" key="sale_date"}}
+        </h4>
+        <div class="md-org-settings-field__row">
+          <input value={{this.sale_cutoff_date}} placeholder="YYYY-MM-DD" aria-label={{t "Sale End Date" key="sale_date"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "sale_cutoff_date")}} />
+          <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "update_sale_date")}}>{{t "Update" key="update"}}</button>
+        </div>
+      </section>
+
+      <section class="md-org-settings-card">
+        <h4 class="md-org-settings-card__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          {{t "Start Code Lookup" key="start_code_lookup"}}
+        </h4>
+        <div class="md-org-settings-field__row">
+          <input value={{this.start_code}} placeholder="start code" aria-label={{t "Start Code Lookup" key="start_code_lookup"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "start_code")}} />
+          <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "start_code_lookup")}}>{{t "Lookup" key="lookup"}}</button>
+        </div>
+      </section>
+
+      <section class="md-org-settings-card">
+        <h4 class="md-org-settings-card__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M4 20 20 4"/></svg>
+          {{t "Blocked Cells" key="blocked_cells"}}
+        </h4>
         {{#if this.blocked_cells.loading}}
-          <p>{{t "Loading..." key="loading"}}</p>
+          <span class="md-org-settings-field__hint">{{t "Loading..." key="loading"}}</span>
         {{else if this.blocked_cells.error}}
-          <p>{{t "There was an error loading blocked cells" key="error_loading_blocked_cells"}}</p>
+          <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">{{t "There was an error loading blocked cells" key="error_loading_blocked_cells"}}</span>
         {{else if this.blocked_cells}}
-          <div class='list-group' style='max-width: 400px; margin-bottom: 5px; max-height: 200px; overflow: auto;'>
+          <ul class="md-org-admin-list">
             {{#each this.blocked_cells as |cell|}}
-              <div class='list-group-item'>{{cell}}</div>
+              <li class="md-org-admin-list__item">{{cell}}</li>
             {{/each}}
-          </div>
+          </ul>
         {{else}}
-          <p>{{t "No data available" key="no_data_available"}}</p>
+          <span class="md-org-settings-field__hint">{{t "No data available" key="no_data_available"}}</span>
         {{/if}}
+      </section>
 
-        <h4 style='margin-top: 20px;'>{{t "Word Data Import" key="word_data_import"}}</h4>
-        <div style='margin-bottom: 30px;'>
-          <input value={{this.word_data_url}} placeholder="URL" aria-label={{t "Word Data Import" key="word_data_import"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "word_data_url")}} />
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "word_data_import")}}>{{t "Import" key="import"}}</button>
+      <section class="md-org-settings-card">
+        <h4 class="md-org-settings-card__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+          {{t "Word Data Import" key="word_data_import"}}
+        </h4>
+        <div class="md-org-settings-field__row">
+          <input value={{this.word_data_url}} placeholder="URL" aria-label={{t "Word Data Import" key="word_data_import"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "word_data_url")}} />
+          <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "word_data_import")}}>{{t "Import" key="import"}}</button>
         </div>
+      </section>
 
-      </div>
-    </div>
-    <h4 style='margin-top: 20px;'>{{t "Custom Purchases" key="custom_purchases"}}</h4>
-    {{#if this.gifts.loading}}
-      <p>{{t "Loading..." key="loading"}}</p>
-    {{else if this.gifts.error}}
-      <p>{{t "Error loading custom purchases" key="error_loading_gifts"}}</p>
-    {{else}}
-      {{#if this.gifts.length}}
-      <div style='max-width: 400px; margin-bottom: 2px;'>
-        <input value={{this.code_lookup}} type="text" placeholder="Find code" aria-label={{t "Find code" key="find_code"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "code_lookup")}} />
-        <button {{on "click" (this.ctrlAction "find_code")}} class='btn btn-default'>{{t "Find" key="find"}}</button>
-      </div>
-      <div class='list-group' style='max-width: 400px; margin-bottom: 5px;'>
-        {{#each this.gifts as |gift|}}
-          <div class='list-group-item'>
-            <span style='float: left; font-size: 30px; padding-right: 10px;'>
-              {{#if gift.gift_types.bulk_purchase}}
-                {{#if gift.active}}
-                  <span class='glyphicon glyphicon-usd'></span>
-                {{else}}
-                  <span class='glyphicon glyphicon-ok'></span>
-                {{/if}}
-              {{else if gift.gift_types.multi_code}}
-                {{#if gift.active}}
-                  <span class='glyphicon glyphicon-th'></span>
-                {{else}}
-                  <span class='glyphicon glyphicon-ok'></span>
-                {{/if}}
-              {{else if gift.gift_types.discount}}
-                {{#if gift.active}}
-                  <span class='glyphicon glyphicon-scissors'></span>
-                {{else}}
-                  <span class='glyphicon glyphicon-ok'></span>
-                {{/if}}
-              {{else}}
-                {{#if gift.active}}
-                  <span class='glyphicon glyphicon-heart'></span>
-                {{else}}
-                  <span class='glyphicon glyphicon-ok'></span>
-                {{/if}}
-              {{/if}}
-            </span>
-            {{#if gift.gift_types.bulk_purchase}}
-              <a href="/purchase/{{gift.code}}">
-                {{#if gift.organization}}{{gift.organization}}<br>{{/if}}
-                {{t "$" key="dollar_sign"}}{{delimit gift.amount "full"}}
-                {{t "license" count=gift.licenses key="n_licenses"}}
-              </a>
-              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
-                {{#if gift.active}}
-                  {{t "pending," key="pending_comma"}}
-                {{else}}
-                  {{t "purchased," key="purchased_comma"}}
-                {{/if}}
-                {{t "created" key="created_lower"}}
-                {{date gift.created "day"}}
-              </div>
-            {{else if gift.gift_types.multi_code}}
-              <a href="/purchase/{{gift.code}}">
-                {{#if gift.organization}}{{gift.organization}}<br>{{/if}}
-                {{t "code" count=gift.total_codes key="n_codes"}}
-                {{#if gift.org_connected}}
-                  {{t "(org-connected)" key="org_connected"}}
-                {{/if}}
-              </a>
-              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
-                {{#if gift.active}}
-                  {{gift.redeemed_codes}} {{t "redeemed" key="redeemed_lower"}}
-                {{else}}
-                  {{t "fully redeemed," key="fully_redeemed"}}
-                {{/if}}
-                {{t "created" key="created_lower"}}
-                {{date gift.created "day"}}
-              </div>
-            {{else if gift.gift_types.discount}}
-              <a href="/purchase/{{gift.id}}">
-                {{gift.code}}
-                ({{gift.organization}})<br>
-                {{#if gift.discount}}{{gift.discount_hundred}}% {{t "off" key="off"}}{{/if}}
-                {{#if gift.expires}}{{t "exp" key="expires_abbreviated"}} {{date gift.expires "day"}}{{/if}}
-              </a>
-              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
-                {{#if gift.active}}
-                  {{gift.activated_discounts}}{{#if gift.limit}} / {{gift.limit}}{{/if}} {{t "redeemed" key="redeemed_lower"}}
-                {{else}}
-                  {{t "fully redeemed," key="fully_redeemed"}}
-                {{/if}}
-                {{t "created" key="created_lower"}}
-                {{date gift.created "day"}}
-              </div>
-            {{else}}
-              {{#if gift.gift_name}}{{gift.gift_name}}{{else}}{{t "User-generated Gift" key="user_generated_gift"}}{{/if}}<br>
-              {{gift.code}} - {{gift.duration}}
-              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
-                {{#if gift.active}}
-                  {{t "pending," key="pending_comma"}}
-                {{else}}
-                  {{t "redeemed," key="redeemed_comma"}}
-                {{/if}}
-                {{t "created" key="created_lower"}}
-                {{date gift.created "day"}}
-              </div>
-            {{/if}}
-          </div>
-        {{/each}}
-      </div>
-      {{else}}
-        <p>{{t "No custom purchases yet." key="no_custom_purchases_yet"}}</p>
-      {{/if}}
-      <label>{{t "Create a Gift or Bulk Purchase" key="create_a_gift_or_bulk_purchase"}}</label>
-      <div style='width: 300px;'>
-        <BoundSelect @select_class="form-control" @select_id="license" @content={{this.gift_types}} @selection={{this.gift_type}} @action={{mut this.gift_type}} />
-      </div>
-      {{#if this.current_gift_type.user_gift}}
-        <div style='margin-top: 15px;'>
-          <input value={{this.gift_name}} placeholder="gift name" aria-label={{t "Gift name" key="gift_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "gift_name")}} />
-          <input value={{this.duration}} placeholder="# of years" aria-label={{t "Number of years" key="number_of_years"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "duration")}} />
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "gift")}}>{{t "Create Gift Code" key="create_gift_code"}}</button>
-        </div>
-      {{else if this.current_gift_type.bulk_purchase}}
-        <div style='margin-top: 15px;'>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.org}} placeholder="client name" aria-label={{t "Client name" key="client_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
-            <input value={{this.email}} placeholder="client email" aria-label={{t "Client email" key="client_email"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
-          </div>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.amount}} placeholder="dollars" aria-label={{t "Amount in dollars" key="amount_dollars"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "amount")}} />
-            <input value={{this.licenses}} placeholder="# of licenses" aria-label={{t "Number of licenses" key="number_of_licenses"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "licenses")}} />
-          </div>
-          <div style='margin-top: -15px;'>
-            <div class="checkbox big_checkbox">
-              <label>
-                <input type="checkbox" checked={{this.include_extras}} {{on "change" (set-field this "include_extras" "checkbox")}} />
-                {{t "include premium symbols" key="include_premium_symbols"}}
-              </label>
+      <section class="md-org-settings-card">
+        <h4 class="md-org-settings-card__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>
+          {{t "Custom Purchases" key="custom_purchases"}}
+        </h4>
+        {{#if this.gifts.loading}}
+          <span class="md-org-settings-field__hint">{{t "Loading..." key="loading"}}</span>
+        {{else if this.gifts.error}}
+          <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">{{t "Error loading custom purchases" key="error_loading_gifts"}}</span>
+        {{else}}
+          {{#if this.gifts.length}}
+          <div class="md-org-settings-field">
+            <div class="md-org-settings-field__row">
+              <input value={{this.code_lookup}} type="text" placeholder="Find code" aria-label={{t "Find code" key="find_code"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "code_lookup")}} />
+              <button type="button" {{on "click" (this.ctrlAction "find_code")}} class="md-org-btn md-org-btn--outline md-org-btn--sm">{{t "Find" key="find"}}</button>
             </div>
           </div>
-          <span style='display: inline-block; width: 304px;'>
-            <input value={{this.memo}} placeholder="memo" aria-label={{t "Memo" key="memo"}} class="form-control inline input-sm" {{on "input" (set-field this "memo")}} />
-          </span>
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "purchase")}}>{{t "Create Purchase Page" key="create_purchase_page"}}</button>
-        </div>
-      {{else if this.current_gift_type.discount}}
-        <div style='margin-top: 15px;'>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.org}} placeholder="org name" aria-label={{t "Organization name" key="organization_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
-            <input value={{this.email}} placeholder="org email" aria-label={{t "Organization email" key="organization_email"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
+          <ul class="md-org-admin-list md-org-admin-list--gifts">
+            {{#each this.gifts as |gift|}}
+              <li class="md-org-admin-list__item md-org-admin-gift">
+                <span class="md-org-admin-gift__icon" aria-hidden="true">
+                  {{#if gift.gift_types.bulk_purchase}}
+                    {{#if gift.active}}
+                      <span class='glyphicon glyphicon-usd'></span>
+                    {{else}}
+                      <span class='glyphicon glyphicon-ok'></span>
+                    {{/if}}
+                  {{else if gift.gift_types.multi_code}}
+                    {{#if gift.active}}
+                      <span class='glyphicon glyphicon-th'></span>
+                    {{else}}
+                      <span class='glyphicon glyphicon-ok'></span>
+                    {{/if}}
+                  {{else if gift.gift_types.discount}}
+                    {{#if gift.active}}
+                      <span class='glyphicon glyphicon-scissors'></span>
+                    {{else}}
+                      <span class='glyphicon glyphicon-ok'></span>
+                    {{/if}}
+                  {{else}}
+                    {{#if gift.active}}
+                      <span class='glyphicon glyphicon-heart'></span>
+                    {{else}}
+                      <span class='glyphicon glyphicon-ok'></span>
+                    {{/if}}
+                  {{/if}}
+                </span>
+                <span class="md-org-admin-gift__body">
+                {{#if gift.gift_types.bulk_purchase}}
+                  <a href="/purchase/{{gift.code}}">
+                    {{#if gift.organization}}{{gift.organization}}<br>{{/if}}
+                    {{t "$" key="dollar_sign"}}{{delimit gift.amount "full"}}
+                    {{t "license" count=gift.licenses key="n_licenses"}}
+                  </a>
+                  <span class="md-org-admin-gift__meta">
+                    {{#if gift.active}}
+                      {{t "pending," key="pending_comma"}}
+                    {{else}}
+                      {{t "purchased," key="purchased_comma"}}
+                    {{/if}}
+                    {{t "created" key="created_lower"}}
+                    {{date gift.created "day"}}
+                  </span>
+                {{else if gift.gift_types.multi_code}}
+                  <a href="/purchase/{{gift.code}}">
+                    {{#if gift.organization}}{{gift.organization}}<br>{{/if}}
+                    {{t "code" count=gift.total_codes key="n_codes"}}
+                    {{#if gift.org_connected}}
+                      {{t "(org-connected)" key="org_connected"}}
+                    {{/if}}
+                  </a>
+                  <span class="md-org-admin-gift__meta">
+                    {{#if gift.active}}
+                      {{gift.redeemed_codes}} {{t "redeemed" key="redeemed_lower"}}
+                    {{else}}
+                      {{t "fully redeemed," key="fully_redeemed"}}
+                    {{/if}}
+                    {{t "created" key="created_lower"}}
+                    {{date gift.created "day"}}
+                  </span>
+                {{else if gift.gift_types.discount}}
+                  <a href="/purchase/{{gift.id}}">
+                    {{gift.code}}
+                    ({{gift.organization}})<br>
+                    {{#if gift.discount}}{{gift.discount_hundred}}% {{t "off" key="off"}}{{/if}}
+                    {{#if gift.expires}}{{t "exp" key="expires_abbreviated"}} {{date gift.expires "day"}}{{/if}}
+                  </a>
+                  <span class="md-org-admin-gift__meta">
+                    {{#if gift.active}}
+                      {{gift.activated_discounts}}{{#if gift.limit}} / {{gift.limit}}{{/if}} {{t "redeemed" key="redeemed_lower"}}
+                    {{else}}
+                      {{t "fully redeemed," key="fully_redeemed"}}
+                    {{/if}}
+                    {{t "created" key="created_lower"}}
+                    {{date gift.created "day"}}
+                  </span>
+                {{else}}
+                  {{#if gift.gift_name}}{{gift.gift_name}}{{else}}{{t "User-generated Gift" key="user_generated_gift"}}{{/if}}<br>
+                  {{gift.code}} - {{gift.duration}}
+                  <span class="md-org-admin-gift__meta">
+                    {{#if gift.active}}
+                      {{t "pending," key="pending_comma"}}
+                    {{else}}
+                      {{t "redeemed," key="redeemed_comma"}}
+                    {{/if}}
+                    {{t "created" key="created_lower"}}
+                    {{date gift.created "day"}}
+                  </span>
+                {{/if}}
+                </span>
+              </li>
+            {{/each}}
+          </ul>
+          {{else}}
+            <span class="md-org-settings-field__hint">{{t "No custom purchases yet." key="no_custom_purchases_yet"}}</span>
+          {{/if}}
+          <div class="md-org-settings-field md-org-admin-actions__create">
+            <label for="license" class="md-org-settings-field__label">{{t "Create a Gift or Bulk Purchase" key="create_a_gift_or_bulk_purchase"}}</label>
+            <BoundSelect @select_class="md-org-report-select" @select_id="license" @content={{this.gift_types}} @selection={{this.gift_type}} @action={{mut this.gift_type}} />
           </div>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.code}} placeholder="code" aria-label={{t "Code" key="code"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "code")}} />
-            <input value={{this.discount_pct}} placeholder="10%" aria-label={{t "Discount percent" key="discount_percent"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "discount_pct")}} />
-          </div>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.limit}} placeholder="limit # of uses" aria-label={{t "Limit number of uses" key="limit_number_of_uses"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "limit")}} />
-          </div>
-          <span style='display: inline-block; width: 304px;'>
-            <span style='width: 150px; display: inline-block; text-align: right; padding-right: 5px;'>{{t "expires (optional)" key="expires_optional"}}</span>
-            <input value={{this.expires}} type="date" placeholder="(optional)" aria-label={{t "Expiration date" key="expiration_date"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "expires")}} />
-          </span>
-          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "discount")}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
-        </div>
-      {{else if this.current_gift_type.multi_code}}
-        <div style='margin-top: 15px;'>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.org}} placeholder="org name" aria-label={{t "Organization name" key="organization_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
-            <input value={{this.email}} placeholder="org email" aria-label={{t "Organization email" key="organization_email"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
-          </div>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.total_codes}} placeholder="# of codes" aria-label={{t "Number of codes" key="number_of_codes"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "total_codes")}} />
-            <input value={{this.years}} placeholder="years" aria-label={{t "Years" key="years"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "years")}} />
-          </div>
-          <div style='margin-bottom: 5px;'>
-            <input value={{this.org_id}} placeholder="org_id" aria-label={{t "Organization ID" key="organization_id"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org_id")}} />
-            <input value={{this.memo}} placeholder="memo" aria-label={{t "Memo" key="memo"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "memo")}} />
-            <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "multi_code")}}>{{t "Create Multi-Code Batch" key="create_multi_code_batch"}}</button>
-          </div>
-        </div>
-      {{/if}}
-    {{/if}}
+          {{#if this.current_gift_type.user_gift}}
+            <div class="md-org-settings-field__row">
+              <input value={{this.gift_name}} placeholder="gift name" aria-label={{t "Gift name" key="gift_name"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "gift_name")}} />
+              <input value={{this.duration}} placeholder="# of years" aria-label={{t "Number of years" key="number_of_years"}} class="md-org-settings-input md-org-settings-input--sm" {{on "input" (set-field this "duration")}} />
+              <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_gift" "gift")}}>{{t "Create Gift Code" key="create_gift_code"}}</button>
+            </div>
+          {{else if this.current_gift_type.bulk_purchase}}
+            <div class="md-org-admin-actions__grid">
+              <input value={{this.org}} placeholder="client name" aria-label={{t "Client name" key="client_name"}} class="md-org-settings-input" {{on "input" (set-field this "org")}} />
+              <input value={{this.email}} placeholder="client email" aria-label={{t "Client email" key="client_email"}} class="md-org-settings-input" {{on "input" (set-field this "email")}} />
+              <input value={{this.amount}} placeholder="dollars" aria-label={{t "Amount in dollars" key="amount_dollars"}} class="md-org-settings-input" {{on "input" (set-field this "amount")}} />
+              <input value={{this.licenses}} placeholder="# of licenses" aria-label={{t "Number of licenses" key="number_of_licenses"}} class="md-org-settings-input" {{on "input" (set-field this "licenses")}} />
+            </div>
+            <label class="md-org-settings-toggle md-org-admin-actions__check">
+              <input type="checkbox" class="md-org-settings-toggle__input" checked={{this.include_extras}} {{on "change" (set-field this "include_extras" "checkbox")}} />
+              <span class="md-org-settings-toggle__label">{{t "include premium symbols" key="include_premium_symbols"}}</span>
+            </label>
+            <div class="md-org-settings-field__row">
+              <input value={{this.memo}} placeholder="memo" aria-label={{t "Memo" key="memo"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "memo")}} />
+              <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_gift" "purchase")}}>{{t "Create Purchase Page" key="create_purchase_page"}}</button>
+            </div>
+          {{else if this.current_gift_type.discount}}
+            <div class="md-org-admin-actions__grid">
+              <input value={{this.org}} placeholder="org name" aria-label={{t "Organization name" key="organization_name"}} class="md-org-settings-input" {{on "input" (set-field this "org")}} />
+              <input value={{this.email}} placeholder="org email" aria-label={{t "Organization email" key="organization_email"}} class="md-org-settings-input" {{on "input" (set-field this "email")}} />
+              <input value={{this.code}} placeholder="code" aria-label={{t "Code" key="code"}} class="md-org-settings-input" {{on "input" (set-field this "code")}} />
+              <input value={{this.discount_pct}} placeholder="10%" aria-label={{t "Discount percent" key="discount_percent"}} class="md-org-settings-input" {{on "input" (set-field this "discount_pct")}} />
+              <input value={{this.limit}} placeholder="limit # of uses" aria-label={{t "Limit number of uses" key="limit_number_of_uses"}} class="md-org-settings-input" {{on "input" (set-field this "limit")}} />
+            </div>
+            <div class="md-org-settings-field">
+              <label class="md-org-settings-field__label" for="discount-expires">{{t "expires (optional)" key="expires_optional"}}</label>
+              <div class="md-org-settings-field__row">
+                <input value={{this.expires}} id="discount-expires" type="date" placeholder="(optional)" aria-label={{t "Expiration date" key="expiration_date"}} class="md-org-settings-input md-org-admin-actions__input" {{on "input" (set-field this "expires")}} />
+                <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_gift" "discount")}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
+              </div>
+            </div>
+          {{else if this.current_gift_type.multi_code}}
+            <div class="md-org-admin-actions__grid">
+              <input value={{this.org}} placeholder="org name" aria-label={{t "Organization name" key="organization_name"}} class="md-org-settings-input" {{on "input" (set-field this "org")}} />
+              <input value={{this.email}} placeholder="org email" aria-label={{t "Organization email" key="organization_email"}} class="md-org-settings-input" {{on "input" (set-field this "email")}} />
+              <input value={{this.total_codes}} placeholder="# of codes" aria-label={{t "Number of codes" key="number_of_codes"}} class="md-org-settings-input" {{on "input" (set-field this "total_codes")}} />
+              <input value={{this.years}} placeholder="years" aria-label={{t "Years" key="years"}} class="md-org-settings-input" {{on "input" (set-field this "years")}} />
+              <input value={{this.org_id}} placeholder="org_id" aria-label={{t "Organization ID" key="organization_id"}} class="md-org-settings-input" {{on "input" (set-field this "org_id")}} />
+              <input value={{this.memo}} placeholder="memo" aria-label={{t "Memo" key="memo"}} class="md-org-settings-input" {{on "input" (set-field this "memo")}} />
+            </div>
+            <div class="md-org-settings-field__row">
+              <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_gift" "multi_code")}}>{{t "Create Multi-Code Batch" key="create_multi_code_batch"}}</button>
+            </div>
+          {{/if}}
+        {{/if}}
+      </section>
+
+    </div>
   {{else}}
-    <p>{{t "Not authorized" key="not_authorized"}}</p>
+    <p class="md-org-error">{{t "Not authorized" key="not_authorized"}}</p>
   {{/if}}
 {{else}}
-  {{t "No information available" key="no_information_available"}}
+  <p class="md-org-settings-field__hint">{{t "No information available" key="no_information_available"}}</p>
 {{/if}}

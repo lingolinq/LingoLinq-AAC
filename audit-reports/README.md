@@ -63,7 +63,12 @@ whenever the snippet happens to sit on the same line in both commits. Use `--no-
 ### Structural validation
 
 `scripts/register-lint.rb` validates the register's SHAPE (field types, enum membership, id
-uniqueness) and is gated in CI's `audit-artifacts-integrity`. It is complementary to
+uniqueness), recomputes each row's id from its ruleKey and evidence file, and is gated in CI's
+`audit-artifacts-integrity`. The recomputation skips three kinds of row: one that is on the closed
+list in `SELF-REFERENCING-RULEKEY-IDS.json` (the only rows allowed to carry the self-referencing
+ruleKey form) AND carries exactly that form, since being listed alone or being in the form alone does
+not exempt a row; one whose id or ruleKey is not a non-blank string; and one whose evidence is present
+but not an object. The last two are refused by their own rules. It is complementary to
 `citation-check.rb`, which validates EVIDENCE (snippet exists at the cited file:line@sha) and needs
 git history, so it is deliberately not a CI job. Run both; neither subsumes the other.
 

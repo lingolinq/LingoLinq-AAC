@@ -1,0 +1,8 @@
+{{!-- The Rooms page's Focused label markup (templates/organization.hbs, `md-compact-head--rooms`),
+     so the two read as one family: the caller's icon (the yield), then the title. --}}
+{{#if this.show}}
+  <div class="md-compact-head">
+    {{yield}}
+    <h2 class="md-compact-head__title">{{@title}}</h2>
+  </div>
+{{/if}}

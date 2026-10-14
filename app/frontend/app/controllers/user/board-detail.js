@@ -12,7 +12,6 @@ import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
-import paint_view_switch_overlay from '../../utils/view_switch_overlay';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
@@ -40,6 +39,7 @@ import { pick_aac_color, resolve_labels_pos } from '../../utils/parts_of_speech'
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
 import buildEventAction from '../../utils/event_action';
+import { is_copy_decision } from '../../utils/copy_decision';
 
 // Catalog of speak-mode options-menu entries the user can show/hide
 // via the "Customize Menu" preference (right panel → Board Settings).
@@ -138,7 +138,7 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('switch_communicators', "Switch Communicators");
 }
 
-export default Controller.extend(prefClasses, {
+const BoardDetailController = Controller.extend(prefClasses, {
   app_state: service('app-state'),
   /* Session-wide dismissal of the screen-recommendation overlays, shared with
      create-board-new and the Display Style step so "Continue Anyway" here silences the
@@ -209,49 +209,61 @@ export default Controller.extend(prefClasses, {
      `true` and the template still reads as one arrangement. The stored order itself is
      untouched and still drives the panel layout when scrolling is on.
 
-     BEFORE FLIPPING THIS TO `true`, FIX THE ORDER PATH. It is not merely waiting — three
-     places disagree about where a board's category order comes from, and the disagreement
-     is unreachable today only because this flag is off:
+     THE ORDER PATH IS NOW CONSISTENT (2026-09-18). Category order is PER BOARD, so each
+     board can be arranged independently, and all three readers resolve it the same way:
 
-       * the RENDERED board reads the ACCOUNT-WIDE order directly
-         (`components/board-detail-grid.js:200-201`), and no template has ever passed
-         `@categoryOrder` — so a per-board order never reaches the grid at all;
-       * the PANEL reads the PER-BOARD resolution, via `board_category_settings`
-         (`category_order_list`, :6362);
-       * `move_category` (:6630) READS the account-wide order and WRITES the per-board slot,
-         so reordering on a board with its own entry permutes the wrong list.
+       * the PANEL reads `board_category_settings` (via `category_order_list`);
+       * `move_category` reads the same resolution and writes the board's own slot. It used
+         to READ the account-wide order while WRITING per-board, so the arrows permuted a
+         list nobody was looking at -- and because no UI path ever changes the account-wide
+         order, every move recomputed from the same frozen list and discarded the one
+         before it;
+       * the RENDERED grid takes `@categoryOrder` from the controller's resolution, the way
+         it already takes `@categoryEnabled`. It used to resolve the order itself from the
+         account-wide preference, so a per-board order never reached the drawn board at all.
+         Note the argument could not simply be added to the template: the component is
+         classic, and the receiving property was a getter-only computed of the same name, so
+         passing it threw "Cannot override the computed property".
+
+     Pinned by tests/unit/controllers/user-board-detail-category-order-test.js and
+     tests/unit/components/board-detail-grid-category-order-test.js.
 
      How it happened: the grid's account-wide read dates from the original grouping feature
      (e9370fd4a, 2026-08-17), when order was account-wide and that was correct. Per-board
      resolution was retrofitted onto `board_category_settings` two days after this flag was
      parked (3895e6a0a, 2026-08-26), and every consumer of that computed inherited it
-     silently — except the grid, which has its own reader. This flag has never been `true`,
-     so no reachable control could ever expose the split. */
+     silently, except the grid, which had its own reader. This flag has never been `true`,
+     so no reachable control ever exposed the split.
+
+     THIS FLAG STAYS OFF for its ORIGINAL reason, which was never the order path: the
+     ordering UI needs its own design pass before it earns the space, and in compact mode
+     the packing decides placement anyway. Flipping it is a UI decision, not a correctness
+     one, and it no longer carries a known defect with it. */
   category_ordering_available: false,
 
   show_board_back_nav: computed('board_detail_history.[]', function() {
     return (this.get('board_detail_history') || []).length > 0;
   }),
 
-  /* "Try this Board" from the board picker sets app_state.board_detail_try_origin.
-     While it is set AND names the board actually on screen, board-detail offers a
-     prominent way back to the picker.
-
-     Matched on KEY rather than treated as a bare boolean, deliberately: a user who
-     tries a board and then navigates deeper (into a folder, or to another board
-     entirely) is no longer "trying" the thing they came to try, and a Back button
-     that silently returns them to the picker from three boards away would be a
-     trap. The marker is cleared outright when they leave board-detail -- see the
-     route's resetController. */
+  /* "Try this Board" from the board picker sets app_state.board_detail_try_origin; while it is
+     set, the trial bar (Trying / Use this board / Exit) shows on the tried board AND on every
+     board reached from it by its folders (tablet report, 2026-10-13: the bar, the only way out,
+     vanished in a folder). "Reached from it" is read off this page's own trail: the tried board is
+     in `board_detail_nav_history` (pushed on each folder; a new trial starts it empty, see
+     components/board-preview-overlay.js#try_board). A board the trial never led to does not match,
+     so a stale marker cannot put the bar on an unrelated board. Home, during a trial, returns to
+     the tried board's main page (`_trial_home`, end of this file). The marker is still cleared
+     outright when they leave board-detail -- see the route's resetController.
+     (trial_includes is at the end of this file.) */
   try_origin_board: computed(
     'app_state.board_detail_try_origin',
     'user.user_name',
-    'boardname',
+    'boardname', 'app_state.board_detail_nav_history.[]',
     function() {
       var origin = this.get('app_state.board_detail_try_origin');
       if(!origin || !origin.key) { return null; }
       var here = (this.get('user.user_name') || '') + '/' + (this.get('boardname') || '');
-      return origin.key === here ? origin : null;
+      return trial_includes(origin, here, this.get('app_state.board_detail_nav_history')) ? origin : null;
     }
   ),
   show_try_back_nav: computed('try_origin_board', function() {
@@ -1846,7 +1858,7 @@ export default Controller.extend(prefClasses, {
       var fallback = this.get('sentence_speak_text');
       if(!fallback) { return; }
       speecher.stop('text');
-      speecher.speak_text(fallback);
+      speecher.speak_text(fallback); maybe_offer_tour(this.get('app_state')); // vocalize_list makes the offer on the path above (utils/tours/tour_offer.js)
     }
     var text = this.get('sentence_speak_text');
     if(text) {
@@ -4782,9 +4794,9 @@ export default Controller.extend(prefClasses, {
      while standing on the home board is a no-op the user has to open a modal to
      discover. Gates only the options-menu row on the speak page (the sole
      consumer of this property); the edit-panel row is separately gated and
-     unaffected. */
-  can_set_as_home: computed('app_state.sessionUser', 'is_subject_home_board', function() {
-    if(!this.get('app_state.sessionUser')) { return false; }
+     unaffected. Withheld in a trial (2026-10-13): in a folder it set the FOLDER; the trial bar's "Use this board" adopts the tried board. */
+  can_set_as_home: computed('app_state.sessionUser', 'is_subject_home_board', 'try_origin_board', function() {
+    if(!this.get('app_state.sessionUser') || this.get('try_origin_board')) { return false; }
     return !this.get('is_subject_home_board');
   }),
 
@@ -6555,7 +6567,7 @@ export default Controller.extend(prefClasses, {
       title: this.get('title')
     });
     // Cap at 20 entries
-    if(history.length > 20) { history = history.slice(history.length - 20); }
+    if(history.length > 20) { history = this.get('try_origin_board') ? [history[0]].concat(history.slice(history.length - 19)) : history.slice(history.length - 20); } // in a trial the first entry, the tried board, stays (2026-10-13)
     this.set('app_state.board_detail_nav_history', history);
   },
 
@@ -7098,6 +7110,13 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  // Drives the inline-sidebar "Predict" Yes/No control (2026-10-13). Reads the live preference on the
+  // on-screen user (referenced_user in Speak Mode, else currentUser); set_word_prediction writes it.
+  word_prediction_on: computed('app_state.referenced_user.preferences.word_suggestions', 'app_state.currentUser.preferences.word_suggestions', function() {
+    var u = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+    return !!(u && u.get('preferences.word_suggestions') === true);
+  }),
+
   actions: {
     toggle_category_order: function() {
       this.set('category_order_open', !this.get('category_order_open'));
@@ -7147,7 +7166,17 @@ export default Controller.extend(prefClasses, {
        chosen. So up/down is the whole model — there is no honest meaning for
        left/right, and it would behave differently at each breakpoint. */
     move_category: function(key, direction) {
-      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
+      /* The PER-BOARD resolution, the same one the panel renders from
+         (`category_order_list`) and the same slot `_save_category_grouping` writes to.
+         This read used to be account-wide while the write was per-board, so on a board
+         carrying its own entry the arrows permuted a list nobody was looking at. Worse,
+         no UI path ever changes the account-wide order (`_save_category_grouping` always
+         rewrites it as `normalizeCategoryOrder(all.order)`), so every move recomputed from
+         the same unchanging list and silently discarded the move before it.
+         `board_category_settings` falls back to the account-wide hash when this board has
+         no entry of its own, so that case is unchanged. Pinned by
+         tests/unit/controllers/user-board-detail-category-order-test.js. */
+      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
       var idx = order.indexOf(key);
       if(idx === -1) { return; }
       var target = direction === 'up' ? idx - 1 : idx + 1;
@@ -7476,7 +7505,7 @@ export default Controller.extend(prefClasses, {
                     for_editing: true
                   });
                 }).then(function(opts) {
-                  if(opts === false) { return RSVP.resolve(); }
+                  if(!is_copy_decision(opts)) { return RSVP.resolve(); }
                   return appController.copy_board(opts, true, null, finish_copy);
                 }).then(finish_copy, function() { });
               }
@@ -7497,9 +7526,9 @@ export default Controller.extend(prefClasses, {
        Clears the marker first: the button is gone the moment it is used, and the
        picker route re-arms its own state on entry. */
     try_back_to_picker: function() {
-      this.set('app_state.board_detail_try_origin', null);
-      this.set('show_options_menu', false);
-      this.get('router').transitionTo('board-picker');
+      var _this = this; var go = function() { _this.set('app_state.board_detail_try_origin', null); _this.set('app_state.board_picker_restore', true); _this.get('router').transitionTo('board-picker'); }; // the picker returns to its place (components/board-picker.js)
+      this.set('show_options_menu', false); var pin = this.get('app_state.open_speak_mode_exit_pin');
+      if(typeof pin !== 'function') { go(); } else { RSVP.resolve(pin.call(this.get('app_state'), 'none')).then(function(res) { if(res && res.correct_pin) { go(); } }); } // the Speak Mode PIN when set, as Close asks (exit_to_home) (2026-10-13)
     },
 
     exit_to_home: function() {
@@ -7631,55 +7660,6 @@ export default Controller.extend(prefClasses, {
       }
     },
 
-    // "Classic View" button on the board-detail EDIT page: persist the
-    // user's preference to 'classic' (so future logins land in the
-    // classic view) AND navigate to the board-alt page in normal mode.
-    // Uses the same dirty-bit trick as set_display_pref: Ember Data
-    // doesn't reliably mark the raw `preferences` blob dirty on a
-    // nested set, so we also poke `preferences.device.updated` to
-    // force the full blob to ship.
-    //
-    // Loading mask: reuse the same view-switch overlay that the
-    // Classic → Modern direction uses (controllers/board/index.js
-    // go_to_modern → utils/view_switch_overlay.js). Pass
-    // accentLight:true so the parenthesized clarifier in the title
-    // renders at a lighter font-weight on this direction, per the
-    // design ask.
-    go_to_classic: function() {
-      var user = this.get('user');
-      var boardname = this.get('boardname');
-      var prefUser = this.get('app_state.currentUser');
-      if(prefUser) {
-        prefUser.set('preferences.board_view_style', 'classic');
-        if(prefUser.save) {
-          prefUser.set('preferences.device.updated', true);
-          prefUser.save();
-        }
-      }
-      if(!user || !boardname) { return; }
-      var userName = user.get('user_name');
-      var routerSvc = this.get('router');
-      // Theme detection mirrors go_to_modern: prefer the user's explicit
-      // light signal, otherwise default dark so the mockup matches the
-      // destination's typical theme.
-      var appStateService = this.get('app_state');
-      var isDark = true;
-      if (appStateService && typeof appStateService.get === 'function') {
-        var themeMode = appStateService.get('themeMode');
-        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
-          isDark = false;
-        }
-      }
-      paint_view_switch_overlay({
-        routerSvc: routerSvc,
-        isDark: isDark,
-        accentLight: true,
-        transition: function() {
-          return routerSvc.transitionTo('user.board-alt', userName, boardname);
-        }
-      });
-    },
-
     toggle_board_collapsed: function() {
       this.toggleProperty('board_collapsed');
     },
@@ -7798,7 +7778,7 @@ export default Controller.extend(prefClasses, {
     },
 
     go_home: function() {
-      this.set('show_options_menu', false);
+      this.set('show_options_menu', false); if(this._trial_home()) { return; } // during a trial: the tried board (end of this file)
       // Home is a board-to-board exit like any other and was entirely unguarded
       // — it even cleared board_detail_nav_history on the way out.
       if(this.board_lock_blocks_exit()) { return; }
@@ -8384,7 +8364,7 @@ export default Controller.extend(prefClasses, {
     // Prediction section. Reads/writes referenced_user (the board's user,
     // matching the speak-mode display gate). Dirty-bits preferences.device.updated
     // so the raw preferences blob ships (Ember Data won't mark a nested set dirty
-    // on its own — same trick as go_to_classic / set_display_pref).
+    // on its own — same trick as set_display_pref).
     toggle_word_suggestions: function() {
       var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
       if(!prefUser) { return; }
@@ -8393,6 +8373,38 @@ export default Controller.extend(prefClasses, {
       if(prefUser.save) {
         prefUser.set('preferences.device.updated', true);
         prefUser.save();
+      }
+    },
+    // The inline-sidebar "Predict" Yes/No toggle (2026-10-13). Unlike the edit-sidebar's flip above,
+    // this SETS a value so the segmented control is idempotent (clicking the selected side is a no-op
+    // and never prompts), and it is gated by the ACTIVE speak-mode PIN (open_speak_mode_exit_pin
+    // resolves immediately when no PIN is active). Same preference + dirty-bit + save as above.
+    set_word_prediction: function(on) {
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
+      var apply = function() {
+        prefUser.set('preferences.word_suggestions', !!on);
+        if(prefUser.save) {
+          // CREATE the device container first: set('preferences.device.updated') THROWS on a
+          // record whose preferences carry no `device` key (components/view-switcher.js:186).
+          if(!prefUser.get('preferences.device')) { prefUser.set('preferences.device', {}); }
+          prefUser.set('preferences.device.updated', true);
+          prefUser.save().then(null, function() {
+            // Save failed (offline, or a supervisor without write access to the communicator):
+            // put the control back to the stored value and say so, rather than leaving it showing
+            // a change the server never received.
+            if(prefUser.isDestroyed || prefUser.isDestroying) { return; }
+            prefUser.set('preferences.word_suggestions', !on);
+            modal.error(i18n.t('word_prediction_save_failed', "Couldn't save the Prediction setting. Please try again."));
+          });
+        }
+      };
+      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
+      if(ready && ready.then) {
+        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
+      } else {
+        apply();
       }
     },
     toggle_word_prediction_position_dropdown: function() {
@@ -8435,7 +8447,7 @@ export default Controller.extend(prefClasses, {
         return;
       }
       modal.open('copy-board', {board: board}).then(function(opts) {
-        if(opts === false) { return RSVP.resolve(); }
+        if(!is_copy_decision(opts)) { return RSVP.resolve(); }
         return appController.copy_board(opts, false);
       }).then(function(res) {
         if(res && res.id && res.key && !_this.isDestroyed && !_this.isDestroying) {
@@ -9488,7 +9500,7 @@ export default Controller.extend(prefClasses, {
       // returns false immediately when stashes.sticky_board is unset.
       if(this.board_lock_blocks_exit()) { return; }
       board = board || this._sidebar_board_by_key(key);
-      this._push_nav_history();
+      this._push_nav_history(); this.set('app_state.board_detail_try_origin', null); // a sidebar board leaves any trial (2026-10-13)
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
         appController.send('jump', key, 'sidebar', board);
@@ -10450,3 +10462,34 @@ export default Controller.extend(prefClasses, {
     }
   }
 });
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { maybe_offer_tour } from '../../utils/tours/tour_offer';
+
+/* A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13, see `try_origin_board` above). True on the
+   tried board itself, and on any board whose trail (`board_detail_nav_history`, the boards navigated FROM)
+   includes it. */
+function trial_includes(origin, here, history) {
+  if(!origin || !origin.key) { return false; }
+  if(origin.key === here) { return true; }
+  return (history || []).some(function(h) { return h && (h.user_name + '/' + h.boardname) === origin.key; });
+}
+
+BoardDetailController.reopen({
+  // Home during a trial goes to the tried board's main page, not the user's own home board, and the trail
+  // starts again there. Returns true when it handled Home. Board lock is checked first, as go_home does.
+  // Also while a home board chosen with the trial bar's "Use this board" is still being copied
+  // (`home_copy_pending`, components/trial-bar.js#use): Home goes to that board, not the old home board.
+  _trial_home: function() {
+    var origin = this.get('try_origin_board') || this.get('app_state.home_copy_pending');
+    if(!origin || !origin.key) { return false; }
+    if(this.board_lock_blocks_exit()) { return true; }
+    this.set('app_state.board_detail_nav_history', []);
+    this.get('app_state').restore_session_locale_override();
+    var parts = origin.key.split('/');
+    this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+    return true;
+  }
+});
+
+export default BoardDetailController;

@@ -477,6 +477,48 @@ describe User, :type => :model do
       expect(u.settings['preferences']['word_suggestion_images']).to eq(true)
     end
 
+    # Focused is the style NEW accounts land on. It is seeded under `new_record?` rather than
+    # added to the `any_user` preference_defaults bucket on purpose: that bucket loop
+    # (`generate_defaults`, no new_record? guard) backfills EVERY existing user on their next
+    # routine save, which would silently restyle accounts that have been on Gentle for months.
+    # Same trap, and the same remedy, as word_suggestions directly below.
+    it "should default dashboard_layout to focused for new users only, never backfilling existing users" do
+      u = User.new
+      u.generate_defaults
+      expect(u.settings['preferences']['dashboard_layout']).to eq('focused')
+
+      # An existing user with no stored value falls to the `any_user` bucket default, which
+      # stays 'gentle' — their style must not change underneath them.
+      u2 = User.new
+      u2.settings = {'preferences' => {}}
+      allow(u2).to receive(:new_record?).and_return(false)
+      u2.generate_defaults
+      expect(u2.settings['preferences']['dashboard_layout']).to eq('gentle')
+
+      # An explicit choice always wins, on a new record included — registration flows and the
+      # Dashboard Design step can both set it before the first save.
+      u3 = User.new
+      u3.settings = {'preferences' => {'dashboard_layout' => 'gentle'}}
+      u3.generate_defaults
+      expect(u3.settings['preferences']['dashboard_layout']).to eq('gentle')
+    end
+
+    # The block above calls generate_defaults directly. This one goes through a REAL create,
+    # so it also pins that the `before_save` actually fires for a registration and that
+    # sanitize_dashboard_preferences! does not strip the seeded value back out again on the
+    # way to the database -- neither of which a direct call would catch.
+    it "persists focused as the dashboard_layout of an actually-created user" do
+      u = User.create
+      expect(u.settings['preferences']['dashboard_layout']).to eq('focused')
+      expect(u.reload.settings['preferences']['dashboard_layout']).to eq('focused')
+    end
+
+    it "should keep the any_user dashboard_layout default at gentle so no existing user is restyled" do
+      # If this bucket entry became 'focused', the generate_defaults bucket loop would flip
+      # every existing user who has never been saved since the key was introduced.
+      expect(User.preference_defaults['any_user']['dashboard_layout']).to eq('gentle')
+    end
+
     it "should default word_suggestions ON for new users only, never backfilling existing users" do
       # New users (new_record?) get word prediction ON by default at registration.
       u = User.new
@@ -651,6 +693,13 @@ describe User, :type => :model do
       u.reload.settings['preferences']['board_category_grouping']
     end
 
+    # These rebuild a hash with `enabled` on, which only a user who has the
+    # board_category_grouping flag may store. The guard itself has its own block below.
+    before(:each) do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('board_category_grouping', anything).and_return(true)
+    end
+
     it "defaults show_category_names and vertical_scroll to true" do
       expect(User.preference_defaults['any_user']['board_category_grouping']['show_category_names']).to eq(true)
       expect(User.preference_defaults['any_user']['board_category_grouping']['vertical_scroll']).to eq(true)
@@ -681,6 +730,59 @@ describe User, :type => :model do
     it "still strips unknown category keys from order" do
       g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category', 'people']})
       expect(g['order']).to eq(['people'])
+    end
+  end
+
+  describe "board_category_grouping guard" do
+    def stored_grouping(enabled)
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {'enabled' => enabled, 'vertical_scroll' => false}}}, {})
+      u.save
+      u.reload.settings['preferences']['board_category_grouping']
+    end
+
+    # NEW USERS START WITH CATEGORIES OFF (2026-10-01, requested: "ensure that every newly
+    # registered user's categories is turned off by default"). generate_defaults backfills
+    # User.preference_defaults onto a new account before its first save.
+    it "is off for a newly registered user" do
+      u = User.create
+      expect(u.reload.settings['preferences']['board_category_grouping']['enabled']).to eq(false)
+    end
+
+    it "stores enabled as off for a user without the flag, whatever truthy shape arrives" do
+      [true, 'true', 1, '1'].each do |value|
+        g = stored_grouping(value)
+        expect(g['enabled']).to eq(false), "#{value.inspect} was stored as #{g['enabled'].inspect}"
+        expect(g['vertical_scroll']).to eq(false)
+      end
+    end
+
+    it "lets a user with the flag turn it on" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('board_category_grouping', anything).and_return(true)
+      expect(stored_grouping(true)['enabled']).to eq(true)
+    end
+
+    it "does not look up the flag when enabled arrives off" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      expect(FeatureFlags).not_to receive(:feature_enabled_for?).with('board_category_grouping', anything)
+      expect(stored_grouping(false)['enabled']).to eq(false)
+      end
+    end
+
+  describe "compressed_view preference (removed 2026-10-10)" do
+    # Compressed View was removed from the project, so its preference is no longer accepted: an
+    # old or cached client that still sends it must not store it. (Its earlier tests, for the
+    # boolean coercion, went with the feature; approved 2026-10-10.)
+    it "is not an accepted preference" do
+      expect(User::PREFERENCE_PARAMS).not_to include('compressed_view')
+    end
+
+    it "is not stored when a client sends it" do
+      u = User.create
+      u.process({'preferences' => {'compressed_view' => true}}, {})
+      u.save
+      expect(u.reload.settings['preferences']).not_to have_key('compressed_view')
     end
   end
 
@@ -5717,6 +5819,206 @@ describe User, :type => :model do
       u.reload
       expect(u.settings['ai_consent']).to be_a(Hash)
       expect(u.settings['ai_consent']['granted_at']).to be_present
+    end
+  end
+
+  describe "effective_data_policy with more than one sponsoring organization" do
+    # A communicator may be supported by more than one organization at once. Resolution used to
+    # pick a single organization via managing_organization, which returns the first sponsored
+    # link UserLink.links_for happens to yield, and that query carries no ORDER BY.
+    it "takes the strictest value from every sponsoring organization" do
+      u = User.create
+      hospital = Organization.create(:settings => {'total_licenses' => 1})
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      # Set both policies through the supported API. An earlier version of this example passed
+      # nil as the updater and rescued the resulting NoMethodError into a direct settings write,
+      # which meant update_data_policy was never exercised at all and the example would have
+      # passed even if that method were deleted.
+      hospital_manager = User.create
+      hospital.add_manager(hospital_manager.user_name, true)
+      hospital.reload.update_data_policy({
+        'logging_allowed' => false, 'retention_months' => 1, 'max_logging_cutoff_hours' => 4
+      }, hospital_manager)
+      hospital.save!
+
+      district_manager = User.create
+      district.add_manager(district_manager.user_name, true)
+      district.reload.update_data_policy({
+        'logging_allowed' => true, 'retention_months' => 36, 'max_logging_cutoff_hours' => 720
+      }, district_manager)
+      district.save!
+      License.create!(organization: hospital, seat_type: 'student', status: 'active')
+      License.create!(organization: district, seat_type: 'student', status: 'active')
+
+      hospital.claim_user(u)
+      district.claim_user(u.reload)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id).sort).to eq([hospital.id, district.id].sort)
+
+      # Assert the merge in BOTH orders. UserLink.links_for carries no ORDER BY, so relying on the
+      # natural order makes this a ~50% detector: replacing the merge with `policies.first` passes
+      # whenever the hospital happens to come back first, which presents as a flake rather than a
+      # defect. Stubbing the order takes the nondeterminism out of the test and proves the
+      # intersection rather than the row order.
+      [[hospital, district], [district, hospital]].each do |ordered|
+        fresh = User.find_by(id: u.id)
+        allow(fresh).to receive(:policy_governing_organizations).and_return(ordered)
+        policy = fresh.effective_data_policy
+        expect(policy['logging_allowed']).to eq(false)
+        expect(policy['retention_months']).to eq(1)
+        expect(policy['max_logging_cutoff_hours']).to eq(4)
+        expect(fresh.effective_logging_allowed?).to eq(false)
+      end
+    end
+
+    it "still applies an UNSPONSORED organization's policy floor" do
+      # Organizations attach communicators unsponsored via add_unsponsored_user / add_external_user
+      # and via gift-code redemption. The single-org resolver this replaced fell back to any
+      # non-pending org, so an unsponsored clinic's policy still governed. Filtering on
+      # 'sponsored' returned an empty policy, and an empty policy is PERMISSIVE: LogSession reads
+      # logging_allowed != false.
+      u = User.create
+      clinic = Organization.create(:settings => {'total_licenses' => 1})
+      manager = User.create
+      clinic.add_manager(manager.user_name, true)
+      clinic.reload.update_data_policy({'logging_allowed' => false, 'geo_logging_allowed' => false}, manager)
+      clinic.save!
+
+      # Unsponsored, accepted attachment: sponsored = false.
+      clinic.add_user(u.user_name, false, false, false)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id)).to eq([clinic.id])
+      expect(u.effective_data_policy['logging_allowed']).to eq(false)
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "applies an accepted unsponsored organization alongside the sponsor" do
+      # A sponsored district plus an accepted unsponsored clinic (gift-code redemption attaches
+      # this way). The single-org resolver this replaced applied only the sponsor's policy, so
+      # the clinic's settings were ignored for this student. Both now govern.
+      u = User.create
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      district_manager = User.create
+      district.add_manager(district_manager.user_name, true)
+      district.reload.update_data_policy({'logging_allowed' => true, 'retention_months' => 24}, district_manager)
+      district.save!
+      License.create!(organization: district, seat_type: 'student', status: 'active')
+
+      clinic = Organization.create(:settings => {'total_licenses' => 1})
+      clinic_manager = User.create
+      clinic.add_manager(clinic_manager.user_name, true)
+      clinic.reload.update_data_policy({'logging_allowed' => false, 'retention_months' => 6}, clinic_manager)
+      clinic.save!
+
+      district.claim_user(u)
+      # Unsponsored, accepted attachment: pending = false, sponsored = false.
+      clinic.add_user(u.reload.user_name, false, false, false)
+      u.reload
+
+      expect(u.policy_governing_organizations.map(&:id).sort).to eq([district.id, clinic.id].sort)
+
+      # Both orders, because UserLink.links_for carries no ORDER BY.
+      [[district, clinic], [clinic, district]].each do |ordered|
+        fresh = User.find_by(id: u.id)
+        allow(fresh).to receive(:policy_governing_organizations).and_return(ordered)
+        policy = fresh.effective_data_policy
+        expect(policy['logging_allowed']).to eq(false)
+        expect(policy['retention_months']).to eq(6)
+      end
+    end
+
+    it "is unchanged for a single sponsoring organization" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      org_manager = User.create
+      org.add_manager(org_manager.user_name, true)
+      org.reload.update_data_policy({'logging_allowed' => true, 'retention_months' => 24}, org_manager)
+      org.save!
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+
+      org.claim_user(u)
+      u.reload
+
+      expect(u.effective_data_policy['retention_months']).to eq(24)
+      expect(u.effective_data_policy).to eq(org.reload.effective_data_policy)
+    end
+  end
+
+  describe "effective_data_policy numeric limits across organizations" do
+    # Stored values are written straight into settings because update_data_policy casts on
+    # write; a policy saved through an earlier write path can still hold a String.
+    def governing_org(policy, user)
+      o = Organization.create(:settings => {'total_licenses' => 1})
+      o.settings['data_policy'] = policy
+      o.save!
+      # Unsponsored, accepted attachment, which governs (see policy_governing_organizations).
+      o.add_user(user.reload.user_name, false, false, false)
+      o
+    end
+
+    it "compares a stored whole-number string with an integer as numbers, and a log still saves" do
+      u = User.create
+      governing_org({'retention_months' => '3', 'max_logging_cutoff_hours' => 48}, u)
+      governing_org({'retention_months' => 12, 'max_logging_cutoff_hours' => '6'}, u)
+      u.reload
+      expect(u.policy_governing_organizations.length).to eq(2)
+
+      session = LogSession.create(user: u, author: u, device: Device.create(user: u))
+      expect(session).to be_persisted
+
+      policy = User.find_by(id: u.id).effective_data_policy
+      expect(policy['retention_months']).to eq(3)
+      expect(policy['max_logging_cutoff_hours']).to eq(6)
+    end
+
+    it "compares two stored whole-number strings as numbers" do
+      u = User.create
+      governing_org({'retention_months' => '10', 'max_logging_cutoff_hours' => '100'}, u)
+      governing_org({'retention_months' => '3', 'max_logging_cutoff_hours' => '24'}, u)
+      u.reload
+
+      policy = User.find_by(id: u.id).effective_data_policy
+      expect(policy['retention_months']).to eq(3)
+      expect(policy['max_logging_cutoff_hours']).to eq(24)
+    end
+
+    it "never takes a looser limit from another organization's malformed stored value" do
+      u = User.create
+      governing_org({'retention_months' => 'abc', 'max_logging_cutoff_hours' => -1}, u)
+      governing_org({'retention_months' => 6, 'max_logging_cutoff_hours' => 48}, u)
+      u.reload
+
+      policy = User.find_by(id: u.id).effective_data_policy
+      expect(policy['retention_months']).to eq(6)
+      expect(policy['max_logging_cutoff_hours']).to eq(1)
+    end
+
+    it "takes the other organization's retention_months when one stores 0" do
+      u = User.create
+      governing_org({'retention_months' => 0}, u)
+      governing_org({'retention_months' => 12}, u)
+      u.reload
+
+      expect(User.find_by(id: u.id).effective_data_policy['retention_months']).to eq(12)
+    end
+
+    it "returns a stored whole-number string cutoff as an integer number of hours" do
+      u = User.create
+      governing_org({'max_logging_cutoff_hours' => '24'}, u)
+      viewer = User.create
+
+      cutoff = User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)
+      expect(cutoff).to eq(24)
+    end
+
+    it "returns a one-hour cutoff for a malformed stored cutoff" do
+      u = User.create
+      governing_org({'max_logging_cutoff_hours' => 'abc'}, u)
+      viewer = User.create
+
+      expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(1)
     end
   end
 end

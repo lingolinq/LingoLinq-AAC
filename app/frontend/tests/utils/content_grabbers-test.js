@@ -811,6 +811,71 @@ describe("contentGrabbers", function() {
       });
       expect(message).toEqual("Unrecognized drop type");
     });
+
+    // 2026-10-02 (requested: drag and drop to replace a button's image on board-alt AND
+    // board-detail). board-alt used to open the button-settings modal for a dropped image.
+    it("applies a dropped image straight to the button on the Basic board page (board-alt)", function() {
+      stashes.set('current_mode', 'edit');
+      app_state.set('currentBoardState', {});
+      app_state.set('current_route', 'user.board-alt.index');
+      var applied = null, modal_flow = null;
+      stub(contentGrabbers, 'apply_dropped_image_to_button', function(id, image) { applied = [id, image]; return RSVP.resolve(); });
+      stub(contentGrabbers, 'file_dropped', function() { modal_flow = arguments; });
+      contentGrabbers.content_dropped('abc', { files: [{ type: 'image/png' }] });
+      expect(applied).toEqual(['abc', { type: 'image/png' }]);
+      expect(modal_flow).toEqual(null);
+      app_state.set('current_route', null);
+    });
+  });
+
+  /* THE SPINNER (2026-10-02, requested: "after the user drops the image, add a spinner indicating
+     it is working on replacing the image"). The button shows an overlay while the upload runs,
+     which goes when it settles; a failed upload says so. */
+  describe("apply_dropped_image_to_button", function() {
+    function makeButton() {
+      var el = document.createElement('a');
+      el.className = 'button';
+      el.setAttribute('data-id', 'drop-btn');
+      document.body.appendChild(el);
+      return el;
+    }
+
+    it("shows a spinner on the button while uploading, and removes it when done", function() {
+      var el = makeButton();
+      var finish = null, changed = null;
+      stub(pictureGrabber, 'save_image_preview', function() {
+        return new RSVP.Promise(function(resolve) { finish = function() { resolve(EmberObject.create({ id: 'img1', url: 'http://x/img.png' })); }; });
+      });
+      stub(editManager, 'change_button', function(id, attrs) { changed = [id, attrs.image_id]; });
+      var done = false;
+      contentGrabbers.apply_dropped_image_to_button('drop-btn', { url: 'http://x/img.png' }).then(function() { done = true; });
+      waitsFor(function() { return finish; });
+      runs(function() {
+        expect(el.querySelector('.ll-drop-uploading')).not.toEqual(null);
+        finish();
+      });
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(changed).toEqual(['drop-btn', 'img1']);
+        expect(document.querySelector('.ll-drop-uploading')).toEqual(null);
+        el.remove();
+      });
+    });
+
+    it("removes the spinner and tells the user when the upload fails", function() {
+      var el = makeButton();
+      var errors = [];
+      stub(pictureGrabber, 'save_image_preview', function() { return RSVP.reject({ error: 'nope' }); });
+      stub(window.modal, 'error', function(m) { errors.push(m); });
+      var settled = false;
+      contentGrabbers.apply_dropped_image_to_button('drop-btn', { url: 'http://x/img.png' }).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return settled; });
+      runs(function() {
+        expect(document.querySelector('.ll-drop-uploading')).toEqual(null);
+        expect(errors).toEqual(['Upload failed']);
+        el.remove();
+      });
+    });
   });
 
   describe("read_file", function() {

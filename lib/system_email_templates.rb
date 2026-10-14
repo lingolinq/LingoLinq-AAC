@@ -169,8 +169,44 @@ module SystemEmailTemplates
       default = I18n.t(key, default: '')
       next if stripped == default
 
+      validate_i18n_placeholders!(key, stripped, entry) if entry
       memo[key.to_s] = stripped
     end
+  end
+
+  # Raised when an admin's consent-email override would not send as written.
+  class InvalidOverride < ArgumentError; end
+
+  # Only blocks listed in SystemEmailRegistry i18n_blocks are editable, and, by policy, only
+  # the plain %{name} form of a placeholder that block lists. SystemEmailI18n.resolve
+  # interpolates only when the mailer passes values. For those blocks an unknown or
+  # pipe-suffixed name raises I18n::MissingInterpolationArgument at send time (the consent
+  # email is not sent), a reserved name raises ReservedInterpolationKey, and %<name>d on a
+  # string raises ArgumentError. A malformed token (%{ name }, %{name, %{}, %%{name}) is
+  # sent to parents as literal text, as is any token in a block the mailer does not
+  # interpolate.
+  def self.validate_i18n_placeholders!(key, text, entry)
+    block = (entry[:i18n_blocks] || []).find { |b| (b[:key] || b['key']).to_s == key.to_s }
+    raise InvalidOverride, "#{key} is not an editable part of this email" unless block
+
+    label = block[:label] || block['label'] || key
+    allowed = Array(block[:placeholders] || block['placeholders']).map(&:to_s)
+    allowed_list = allowed.any? ? allowed.map { |name| "%{#{name}}" }.join(', ') : 'none'
+    pattern = Regexp.union(I18n.config.interpolation_patterns)
+    text.scan(pattern) do
+      token = Regexp.last_match[0]
+      name = Regexp.last_match[1]
+      if token == '%%'
+        next if allowed.any?
+        raise InvalidOverride, "#{label}: write a single % here (this field takes no placeholders)"
+      end
+      next if name && allowed.include?(name)
+
+      raise InvalidOverride, "#{label}: #{token} is not a placeholder this field supports. Allowed: #{allowed_list}"
+    end
+    return unless text.match?(/%%[{<]/) || text.gsub(pattern, '').match?(/%[{<]/)
+
+    raise InvalidOverride, "#{label}: has a malformed placeholder. Write it exactly as %{name}. Allowed: #{allowed_list}"
   end
 
   def self.render_string(template_string, mailer_binding, validate: true)

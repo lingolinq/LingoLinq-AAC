@@ -47,10 +47,10 @@ var ai_word_predictor = {
     // RSVP.resolve([]) with no AJAX call, so the caller falls back to the
     // existing non-AI prediction path with no dialog, error, or indicator of
     // any kind. Acknowledging at any other gated surface (or at session
-    // entry) flips article_50_disclosure_shown, and this check re-evaluates
-    // per call, so prediction re-enables automatically with no extra wiring.
+    // entry) flips article_50_disclosure_shown, re-evaluated per call (after any pause).
+    // Both must allow AI: the current user (whose taps are sent) and the signed-in person (words_controller.rb).
     if(needsAcknowledgement(state)) { return false; }
-    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction');
+    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction') && aiFeatureGate.authoringFeatureEnabled(state, 'ai_word_prediction');
   },
 
   predict: function(sentence, options) {
@@ -134,13 +134,26 @@ var ai_word_predictor = {
         _this._cache_put(sentence, words, locale);
         resolve(words);
       }, function(xhr) {
-        if(xhr && xhr.status === 429) {
-          // Back off — stop sending requests for a while
+        if(_this._should_pause(xhr)) {
           _this._backoff_until = Date.now() + BACKOFF_MS;
         }
         resolve([]);
       });
     });
+  },
+
+  // Pause after a rate limit (429), a 403, or the 400 words_controller.rb
+  // sends when AI word prediction is off for the signed-in person. Reads the
+  // shapes the app's $.ajax wrapper (utils/extras.js) rejects with: { fakeXHR,
+  // result: message }, or, for ApplicationCache clients the server answers
+  // with 200, { fakeXHR: { status: 200 }, result: { error, status } }.
+  _should_pause: function(err) {
+    if(!err) { return false; }
+    var body = (err.result && typeof err.result === 'object') ? err.result : null;
+    var status = (body && body.status) || (err.fakeXHR && err.fakeXHR.status) || err.status;
+    var message = body ? body.error : err.result;
+    if(status === 429 || status === 403) { return true; }
+    return status === 400 && message === 'ai_word_prediction is not enabled for this user';
   },
 
   _cache_put: function(sentence, words, locale) {

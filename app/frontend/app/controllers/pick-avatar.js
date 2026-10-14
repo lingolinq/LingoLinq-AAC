@@ -46,14 +46,14 @@ export default modal.ModalController.extend({
     function() {
       var res = [];
       if(this.get('model.user.avatar_url')) {
-        res.push({selected: true, alt: i18n.t('current_avatar', 'current pic'), url: this.get('model.user.avatar_url')});
+        res.push({selected: true, alt: i18n.t('current_avatar', "current pic"), url: this.get('model.user.avatar_url')});
       }
       (this.get('model.user.prior_avatar_urls') || []).forEach(function(url, idx) {
         res.push({alt: i18n.t('prior_idx', "prior pic %{idx}", {idx: idx}), url: url});
       });
       res = res.concat(this.get('avatar_examples'));
       if(this.get('model.user.fallback_avatar_url')) {
-        res.push({alt: i18n.t('fallback', 'fallback'), url: this.get('model.user.fallback_avatar_url')});
+        res.push({alt: i18n.t('fallback', "fallback"), url: this.get('model.user.fallback_avatar_url')});
       }
       res.forEach(function(option) {
         var url = option.url.replace(/\(/, '\\(').replace(/\)/, '\\)'); //Ember.Handlebars.Utils.escapeExpression(option.url).replace(/\(/, '\\(').replace(/\)/, '\\)');

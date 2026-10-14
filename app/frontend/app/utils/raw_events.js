@@ -393,7 +393,11 @@ var eat_events = function(event) {
   // in speak_mode (so eat_events fires), and its Start/Settings/nav are
   // {{action}}-bound <button>s that need the synthesized click — without this
   // carve-out the eval can't be started on touch devices.
-  if($(event.target).closest('.board-detail-view, .md-board-detail-grid, .md-eval-intro').length > 0) { return; }
+  // The guided-tour popover (.shepherd-element) is portaled to <body> (outside
+  // .board-detail-view), so in speak_mode it is NOT already carved out: without
+  // this, eat_events preventDefault()s taps on the tour's Back/Next/Got it buttons
+  // on mobile and the speak-mode board tour cannot be advanced (2026-10-14).
+  if($(event.target).closest('.board-detail-view, .md-board-detail-grid, .md-eval-intro, .shepherd-element').length > 0) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
@@ -539,20 +543,20 @@ $(document).on('mousedown touchstart', function(event) {
     focusedMenuBtn.click();
     return;
   }
-  // Classic speak bar: the board-intro button is <div role="button" tabindex="0"
-  // class="extra-btn"> (templates/application.hbs) with only an {{on "click"}}
-  // handler. A div gets no native click from Space/Enter and matches none of the
-  // delegated keyup targets above, so a keyboard user could focus it, never fire it.
-  // Guards mirror the letter-typing branch below: `return` leaves only THIS listener
-  // and preventDefault stops none, so without them the select key (default 32/Space)
-  // also reaches the scanning handler, and a held key re-opens the intro every repeat.
+  // Classic speak bar: the board-intro <div role="button" class="extra-btn"> has only an {{on "click"}},
+  // which Space/Enter never fire on a div, so they click it here. The SENTENCE BAR (#button_list) is spoken
+  // by the keyup handler above, but with keyboard_listen on, the typing branch below turned Enter/Space into
+  // a typed space and activate_button blurred the bar before keyup (2026-10-13), so for the bar they only
+  // stop here, held repeats included. Guards mirror the typing branch: `return` leaves only THIS listener
+  // and preventDefault stops none, so without them the select key (default 32/Space) also reaches the
+  // scanning handler, and a held key re-opens the intro every repeat.
   var focusedExtraBtn = (event.target && event.target.closest) ?
-    event.target.closest('[role="button"].extra-btn') : null;
-  if(focusedExtraBtn && !event.repeat && !buttonTracker.check('scanning_enabled') && !dwell_key && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.target.closest('[role="button"].extra-btn, #button_list') : null;
+  if(focusedExtraBtn && (!event.repeat || focusedExtraBtn.id === 'button_list') && !buttonTracker.check('scanning_enabled') && !dwell_key && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
     event.preventDefault();
-    focusedExtraBtn.click();
+    if(focusedExtraBtn.id !== 'button_list') { focusedExtraBtn.click(); }
     return;
-  }
+  } else if(focusedExtraBtn && focusedExtraBtn.id === 'button_list' && bar_keys_belong_to_scanner(event) && (event.key === 'Enter' || event.keyCode === 13)) { event.preventDefault(); } // no click on the bar from a scan key (2026-10-13)
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open() && !typing_into_a_field(event.target)) {
     // add letter to the sentence box
     var key = "+" + event.key;
@@ -728,8 +732,8 @@ $(document).on('mousedown touchstart', function(event) {
     $(this).trigger('click');
   }
 }).on('keyup', '#button_list', function(event) {
-  if(event.keyCode == 13 || event.keyCode == 32 || event.code == 'Enter' || event.code == 'Space') {
-    $(this).trigger('select');
+  if((event.keyCode == 13 || event.keyCode == 32 || event.code == 'Enter' || event.code == 'Space') && !bar_keys_belong_to_scanner(event)) { // scanning/dwell keep their keys (2026-10-13)
+    fire_select(this); // native, so {{on "select"}} hears it (utils/select_event.js)
   }
 }).on('drop', '.button,.board_drop', function(event) {
   event.preventDefault();
@@ -957,7 +961,7 @@ var buttonTracker = EmberObject.extend({
       // Eye gaze users can't just tap again to make stuck things
       // go away, so this is a backup patch in case things get weird
       // so that they don't lose the ability to select
-      runLater(function() {
+      setTimeout(function() {
         if(buttonTracker.triggerEvent && buttonTracker.triggerEvent.key == key) {
           buttonTracker.triggerEvent = null;
         }
@@ -1702,7 +1706,7 @@ var buttonTracker = EmberObject.extend({
             runLater(function() {
               $elem.removeClass('focus');
             }, 500);
-            $elem.trigger('select');
+            fire_select(elem_wrap.dom); // native, so {{on "select"}} hears it (utils/select_event.js)
           } else if($(elem_wrap.dom).closest('#pin').length > 0 && (elem_wrap.dom.tagName == 'A' || elem_wrap.dom.tagName == 'BUTTON')) {
             if(event_source === 'click' && event.type === 'mouseup') {
               // Mouse: the native click propagates straight to Ember via the #pin
@@ -3410,3 +3414,16 @@ export default buttonTracker;
       n - flip text
       s - share big button
 */
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { fire_select } from './select_event';
+
+/* SCANNING AND DWELL-KEY USERS KEEP THEIR KEYS AT THE SENTENCE BAR (final review, 2026-10-13). Space and Enter
+   are the scanner's (or the dwell select key's) keys; when the bar held focus, its keyup handler spoke the
+   whole sentence on top of the scan action, and Enter's native click on the <a> spoke it again. The same test
+   the bar's keydown guard uses (scanning_enabled, or dwell with button selection on the select key). */
+function bar_keys_belong_to_scanner(event) {
+  if(buttonTracker.check('scanning_enabled')) { return true; }
+  var select_code = buttonTracker.check('select_keycode') || -1;
+  return !!(buttonTracker.check('dwell_enabled') && (event.keyCode == select_code || event.code == select_code) && buttonTracker.check('dwell_selection') == 'button');
+}

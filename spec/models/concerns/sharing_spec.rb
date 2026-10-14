@@ -815,7 +815,7 @@ describe Sharing, :type => :model do
       
       b.reload.share_with(u2.reload, true, true)
       expect(b.reload.settings['downstream_board_ids']).to eq([b2.global_id, b3.global_id])
-      expect(Board.all_shared_board_ids_for(u2.reload).sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(Board.all_shared_board_ids_for(u2.reload).sort).to eq([b.global_id, b2.global_id, b3.global_id].sort)
     end
     
     it "should return only edit shares if specified" do

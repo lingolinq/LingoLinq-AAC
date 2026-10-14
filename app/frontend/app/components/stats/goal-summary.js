@@ -54,11 +54,11 @@ export default Component.extend({
         var data = new window.google.visualization.DataTable();
         var label = null;
         if(level == 'daily') {
-          label = i18n.t('day_of', 'Day of');
+          label = i18n.t('day_of', "Day of");
         } else if(level == 'weekly') {
-          label = i18n.t('week_of', 'Week of');
+          label = i18n.t('week_of', "Week of");
         } else {
-          label = i18n.t('month_of', 'Month of');
+          label = i18n.t('month_of', "Month of");
         }
         data.addColumn('string', label);
         data.addColumn('number', i18n.t('positive_measurements', "Positive Measurements"));

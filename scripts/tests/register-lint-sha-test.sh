@@ -35,14 +35,14 @@ fail() { printf '  FAIL %s\n' "$1"; fails=$((fails + 1)); }
 
 FULL_SHA="4a0c0ea0389f40c3def95794de1978a3ef25176b"
 
-# build <path> <evidence-json>
+# build <path> <evidence-json> [id]
 build() {
   cat > "$1" <<JSON
 {
   "meta": { "schemaVersion": "1.1" },
   "findings": [
     {
-      "id": "LL-0000000000",
+      "id": "${3:-LL-0000000000}",
       "ruleKey": "fixture-rule",
       "title": "fixture",
       "severity": "low",
@@ -61,11 +61,13 @@ build() {
 JSON
 }
 
-# expect_pass <label> <evidence-json>
+# expect_pass <label> <evidence-json> [id]
 # expect_fail <label> <evidence-json> [must-mention]
 # Default must-mention is the sha rule. Pass a pattern when asserting a different branch.
+# A passing row needs an id derived from its ruleKey and evidence file (register-lint
+# recomputes it), so the controls pass one; failing rows keep the default id.
 expect_pass() {
-  build "$TMP/f.json" "$2"
+  build "$TMP/f.json" "$2" "${3:-}"
   if ruby "$LINT" "$TMP/f.json" >/dev/null 2>&1; then pass "$1"; else
     fail "$1 (expected clean, got: $(ruby "$LINT" "$TMP/f.json" 2>&1 | tail -1))"; fi
 }
@@ -83,10 +85,10 @@ expect_fail() {
 echo "register-lint evidence.sha contract:"
 
 # Control: the shapes that must stay legal.
-expect_pass "code row with a full 40-hex sha"        "{\"type\":\"code\",\"file\":\"Gemfile\",\"line\":1,\"snippet\":\"x\",\"sha\":\"$FULL_SHA\"}"
-expect_pass "doc row with a full 40-hex sha"         "{\"type\":\"doc\",\"file\":\"README.md\",\"line\":1,\"snippet\":\"x\",\"sha\":\"$FULL_SHA\"}"
-expect_pass "runtime row with a BLANK sha"           '{"type":"runtime","sha":""}'
-expect_pass "attestation row with NO sha key"        '{"type":"attestation"}'
+expect_pass "code row with a full 40-hex sha"        "{\"type\":\"code\",\"file\":\"Gemfile\",\"line\":1,\"snippet\":\"x\",\"sha\":\"$FULL_SHA\"}" "LL-e273f50c31"
+expect_pass "doc row with a full 40-hex sha"         "{\"type\":\"doc\",\"file\":\"README.md\",\"line\":1,\"snippet\":\"x\",\"sha\":\"$FULL_SHA\"}" "LL-b5cc79acee"
+expect_pass "runtime row with a BLANK sha"           '{"type":"runtime","sha":""}' "LL-5728954b50"
+expect_pass "attestation row with NO sha key"        '{"type":"attestation"}' "LL-5728954b50"
 
 # Rule 1: checkable evidence must be anchored. citation-check falls back to the working
 # tree on a blank sha, so an unanchored code/doc row validates against whatever is checked out.

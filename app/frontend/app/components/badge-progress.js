@@ -7,7 +7,13 @@ import { computed } from '@ember/object';
 export default Component.extend({
   didInsertElement: function() {
   },
-  badge_container_style: computed('big', function() {
+  // `modern` opts a call site into the styles the badge modal uses: a 999px progress track
+  // with a verdigris fill, and the badge-in-progress artwork. It works by SUPPRESSING the
+  // inline styles below so the stylesheet can reach these elements at all — an inline style
+  // outranks any rule. Only classic-view's communicator cards pass it; the caseload page and
+  // the app-chrome inline variant keep the legacy look untouched.
+  badge_container_style: computed('big', 'inline', 'modern', function() {
+    if(this.get('modern')) { return htmlSafe(''); }
     var res = '';
     if(this.get('big')) {
       res = 'width: 300px; clear: both; margin-left: 5px;';
@@ -18,7 +24,8 @@ export default Component.extend({
     }
     return htmlSafe(res);
   }),
-  image_style: computed('big', function() {
+  image_style: computed('big', 'modern', function() {
+    if(this.get('modern')) { return htmlSafe(''); }
     var res = '';
     if(this.get('big')) {
       res = 'height: 50px; width: 50px; float: left; margin-right: 5px; object-fit: contain; object-position: center;';
@@ -27,7 +34,8 @@ export default Component.extend({
     }
     return htmlSafe(res);
   }),
-  progress_container_style: computed('big', 'inline', function() {
+  progress_container_style: computed('big', 'inline', 'modern', function() {
+    if(this.get('modern')) { return htmlSafe(''); }
     var res = '';
     if(this.get('big')) {
       res = 'height: 50px; font-size: 40px; border-radius: 10px; border: 2px solid rgba(0, 0, 0, 0.5);';

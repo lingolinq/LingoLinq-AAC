@@ -1,0 +1,36 @@
+// =============================================================================
+// Colour fallbacks for browsers without CSS Color 4 (2026-10-01, adversarial review M8)
+// =============================================================================
+// The Focused layout's dark surfaces use `color-mix(in oklch|oklab, ...)`, `oklch()` and
+// gradients interpolated `in oklab`. Safari before 16.2 and Chrome before 111 cannot parse them,
+// so the declaration is dropped and white text lands on a light ground. AAC users often run older
+// iPads, so each such declaration is preceded by a plain sRGB one: an old browser keeps the plain
+// one, a new browser uses the later modern one, so modern rendering is unchanged.
+//
+// These helpers recompute the SAME colours natively in Sass, from the same source colours, so a
+// fallback cannot drift from the token it stands in for:
+//   CSS color-mix(in oklch, A, B N%)   ->  cf-oklch-mix(A, B, 100 - N)
+//   CSS color-mix(in oklch, A N%, B)   ->  cf-oklch-mix(A, B, N)
+//   CSS color-mix(in oklab, A N%, B)   ->  cf-oklab-mix(A, B, N)
+// Sass treats gray / white / black as having no hue, as CSS does, so a mix keeps A's hue
+// (checked with Dart Sass 1.97.1: navy 257.7deg mixed with gray stays 257.7deg).
+// Chain the unrounded Sass colours and call cf-srgb() only when emitting a value.
+@use "sass:color";
+@use "sass:math";
+
+@function cf-oklch-mix($a, $b, $weight) {
+  @return color.mix($a, $b, $weight, $method: oklch);
+}
+
+@function cf-oklab-mix($a, $b, $weight) {
+  @return color.mix($a, $b, $weight, $method: oklab);
+}
+
+// To sRGB, CLIPPED into gamut (what browsers draw for an out-of-gamut colour, as measured in
+// _focused-view.scss's hero notes), rounded to whole channels so it emits as plain hex.
+@function cf-srgb($c) {
+  $r: color.to-gamut(color.to-space($c, rgb), $method: clip);
+  @return rgb(math.round(color.channel($r, 'red', $space: rgb)),
+              math.round(color.channel($r, 'green', $space: rgb)),
+              math.round(color.channel($r, 'blue', $space: rgb)));
+}

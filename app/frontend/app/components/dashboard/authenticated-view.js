@@ -9,8 +9,10 @@ import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { mark_user_reload } from '../../utils/reload_intent';
 import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
+import { badge_snapshot } from '../../utils/badge_display';
 import Log from '../../models/log';
 import session from '../../utils/session';
 import modal from '../../utils/modal';
@@ -19,9 +21,21 @@ import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
-import { homePillLabel } from '../../helpers/home-pill-label';
+import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates';
 
-export default Component.extend({
+/* STALE-WHILE-REVALIDATE cache for the Boards card previews, keyed by user id, OUTLIVING the
+   component (which is rebuilt on every home/extras/index arrival, so instance state re-fetched
+   from scratch — the "several seconds" the Boards div took to fill). `_loadPreviewBoards` seeds
+   `_fetchedPreviewBoards`/`_fetchedBoards` from here so the card paints instantly, then ALWAYS
+   runs its background fetch and overwrites both the lists and this cache. Because the fetch is
+   never skipped, a created/copied/deleted board shows one fetch-window late rather than "until
+   reload" — the staleness the prior inline note (~_fetchRemainingForCount) warned a plain cache
+   would cause. The cache lives in utils/preview_board_cache so it survives the component AND is
+   cleared by app-state.js#clear_user_state on logout (board names/urls must not outlive a session
+   on a shared device); see that module. */
+import previewBoardCache from '../../utils/preview_board_cache';
+
+const AuthenticatedView = Component.extend({
   tagName: '',
   
   router: service(),
@@ -124,20 +138,13 @@ export default Component.extend({
     });
   }),
 
-  // "Reports" appears in the primary pill-nav (and its responsive dropdown) for
-  // EVERYONE — supporters and communicators alike, on every layout including Focused
-  // View. Communicators ALSO keep a Reports card in Extras (see extrasItems), so for
-  // them it's reachable from both places. Constant for now; left as a named hook so
-  // the template guards stay in place if visibility ever needs gating again.
-  showReportsPill: true,
+  // (`showReportsPill` is gone with the pill it gated — Reports left the primary nav on
+  // 2026-09-18. Removed rather than left as an always-true hook: a flag no template reads
+  // is a trap for the next person, who cannot tell from here that nothing consults it.)
 
   // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
   // identity dropdown).
-  showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'focused';
-  }),
-
   // Visibility map for the home dashboard cards, keyed by section key
   // (boards/speak/extras/caseload/org). A key is present+true only when the
   // section is BOTH available to this user type AND not hidden by their saved
@@ -276,9 +283,7 @@ export default Component.extend({
   activeTab: 'home',
   /** When set (e.g. on user.extras), open this tab on load */
   initialActiveTab: null,
-  isSearchOpen: false,
   showNewBoardForm: false,
-  pillnavDropdownOpen: false,
 
   init() {
     this._super(...arguments);
@@ -305,25 +310,19 @@ export default Component.extend({
       self.send.apply(self, [action].concat(args));
     };
     this.onGoTab = function(tab) { send('goTab', tab); };
-    this.onSelectTab = function(tab) { send('selectTab', tab); };
     this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
     this.onGo = function(dest) { send('go', dest); };
     this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
-    this.onGoAndCloseSearch = function(dest) { send('goAndCloseSearch', dest); };
     this.onExtraAction = function(name) { send('extraAction', name); };
     this.onHomeInSpeakMode = function(boardForUserId, keepAsSelf) {
       send('homeInSpeakMode', boardForUserId, keepAsSelf);
     };
     this.onRecordNoteFor = function(supervisee) { send('recordNoteFor', supervisee); };
     this.onQuickAssessmentFor = function(supervisee) { send('quickAssessmentFor', supervisee); };
-    this.onTogglePillnavDropdown = function() { send('togglePillnavDropdown'); };
     this.onGettingStarted = function() { send('getting_started'); };
     this.onGoOrganizations = function() { send('goOrganizations'); };
     this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
     this.onEditDashboard = function() { send('editDashboard'); };
-    this.onCloseSearch = function() { send('closeSearch'); };
-    this.onOpenExtrasTab = function() { send('openExtrasTab'); };
-    this.onSearchKeydown = function(event) { send('onSearchKeydown', event); };
   },
   didInsertElement() {
     this._super(...arguments);
@@ -431,6 +430,7 @@ export default Component.extend({
     var _this = this;
     if(this.get('isGenerated')) { return; } // Ember testing check equivalent?
     persistenceService.find_recent('board').then(function(boards) {
+      if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the find resolved
       if(boards && boards.slice) {
         boards = boards.slice(0, 12);
       }
@@ -524,27 +524,18 @@ export default Component.extend({
       return res;
     }
   ),
+  /* The arithmetic moved to utils/pending_updates (2026-09-14) when the modern pill-nav
+     started showing the same counter — one definition, two callers, so the two badges
+     cannot come to disagree about what the number means. Behaviour here is unchanged.
+     NOTE the dependent keys now also include `parsed_notifications` and
+     `read_notifications`, which this computed READ but never WATCHED: a notification
+     arriving, or the user marking them read, did not recompute the badge until something
+     else on the list changed. That was a real bug and PENDING_UPDATE_KEYS fixes it for
+     both callers at once. */
   pending_updates: computed(
-    'appState.currentUser.pending_org',
-    'appState.currentUser.pending_supervision_org',
-    'appState.currentUser.pending_board_shares',
-    'appState.currentUser.unread_messages',
+    ...PENDING_UPDATE_KEYS.map(function(k) { return 'appState.currentUser.' + k; }),
     function() {
-      var important = this.appState.get('currentUser.pending_org') ||
-                  this.appState.get('currentUser.pending_supervision_org') ||
-                  (this.appState.get('currentUser.pending_board_shares') || []).length > 0 ||
-                  this.appState.get('currentUser.unread_messages');
-      var normal_new = this.appState.get('currentUser.unread_messages.length') || 0;
-      var unread_notifications = (this.appState.get('currentUser.parsed_notifications') || []).filter(function(n) { return n.unread; }).length;
-      normal_new = normal_new + (unread_notifications || 0);
-
-      if(normal_new && !this.appState.get('currentUser.read_notifications')) {
-        return {count: normal_new};
-      } else if(important) {
-        return true;
-      } else {
-        return null;
-      }
+      return pendingUpdates(this.appState.get('currentUser'));
     }
   ),
   update_selected: observer('selected', 'persistence.online', function() {
@@ -576,6 +567,7 @@ export default Component.extend({
           var p = _this.get && _this.get('persistence');
           if(p && typeof p.find_recent === 'function') {
             p.find_recent('board').then(function(boards) {
+            if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the find resolved
             if(boards && boards.slice) {
               boards = boards.slice(0, 12);
             }
@@ -600,9 +592,11 @@ export default Component.extend({
             _this.set(list, {loading: true});
           }
           _this.get('store').query('board', opts).then(function(data) {
+            if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the query resolved
             _this.set(list, data);
             _this.checkForBlankSlate();
           }, function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
             _this.set(list, {error: true});
           });
           _this.checkForBlankSlate();
@@ -634,13 +628,16 @@ export default Component.extend({
         controller.set('logs', {loading: true});
       }
       this.get('store').query('log', find_args).then(function(list) {
+        if(controller.isDestroyed || controller.isDestroying) { return; } // navigated away before the query resolved
         controller.set('logs', list.slice());
       }, function() {
+        if(controller.isDestroyed || controller.isDestroying) { return; }
         if(!(controller.get('logs') || {}).length) {
           controller.set('logs', {error: true});
         }
       });
       this.get('store').query('badge', {user_id: model.get('id'), recent: 1}).then(function(badges) {
+        if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the query resolved
         var for_users = {};
         badges.forEach(function(badge) {
           for_users[badge.get('user_id')] = for_users[badge.get('user_id')] || []
@@ -683,8 +680,16 @@ export default Component.extend({
             b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id)
           }
         }
-        emberSet(model, 'current_badge', b);
-        emberSet(model, 'earned_badge', eb);
+        /* SNAPSHOTS, NOT RECORDS (2026-09-25). See utils/badge_display.js for the defect: a live
+           Badge record written into a JSON payload takes the Ember Data Store with it and the
+           payload stops being serializable.
+           These two write onto the user RECORD rather than onto `attr('raw')` data, so they were
+           not part of the crash. They are snapshotted anyway because a grep of app/ and tests/
+           found NO reader of `model.current_badge` or `model.earned_badge` -- so there is nothing
+           to break -- and leaving them as records would give one field name two shapes depending
+           on which object carries it, which is the trap the next reader falls into. */
+        emberSet(model, 'current_badge', badge_snapshot(b));
+        emberSet(model, 'earned_badge', badge_snapshot(eb));
       }
       var sups = [];
       // Use known_supervisees from currentUser first (since that's what we check for tab visibility), then sessionUser
@@ -698,10 +703,20 @@ export default Component.extend({
       }
       supervisees_list.forEach(function(sup) {
         if(for_users[emberGet(sup, 'id')] && emberGet(sup, 'premium')) {
+          /* THE CRASH SITE. `sup` is an element of `user.supervisees`, which is `attr('raw')`
+             (models/user.js:183) and is handed to local storage by reference
+             (services/persistence.js:706 -> utils/dbman.js:158 -> JSON.stringify). The value
+             here used to be the live Badge record returned by `Badge.best_next_badge`
+             (models/badge.js:319), whose `.store` closes a circle through
+             `store.notifications.store`, so every write of the user record threw
+             "Converting circular structure to JSON" and the record never reached local storage.
+             Decorating these entries for display is established practice -- `online`
+             (models/user.js:877), `local_avatar_url` below, `goal` -- and every other decoration
+             is a JSON-safe value. These two now are as well. */
           var b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id);
-          emberSet(sup, 'current_badge', b);
+          emberSet(sup, 'current_badge', badge_snapshot(b));
           var eb = _this.earned_badge(for_users[emberGet(sup, 'id')]);
-          emberSet(sup, 'earned_badge', eb);
+          emberSet(sup, 'earned_badge', badge_snapshot(eb));
         }
         if(LingoLinq.remote_url(sup.avatar_url) && !sup.local_avatar_url) {
           _this.persistence.find_url(sup.avatar_url, 'image').then(function(url) {
@@ -905,21 +920,6 @@ export default Component.extend({
   // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
   sectionBorderMode: 'off',
 
-  // Feeds the responsive .md-pillnav-dropdown trigger, so the label it shows for
-  // the home tab has to match the pill itself — supporters read "Dashboard" —
-  // hence the shared homePillLabel rather than a second copy of that rule.
-  // (Defaults are double-quoted per the i18n convention: a single-quoted default
-  // is silently DELETED by the next i18n_generator.rb run.)
-  // `has_management_responsibility` is READ below and must be a dependent key, or the
-  // dropdown trigger keeps a stale label when org-manager status resolves after first
-  // render (late org payload, or a role change in-session) — the pill row beside it
-  // would say "Home" while this said "Dashboard", the exact disagreement homePillLabel
-  // exists to prevent.
-  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
-    var tab = this.get('activeTab');
-    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role'), this.get('appState.currentUser.has_management_responsibility')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
-    return labels[tab] || labels.home;
-  }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
   boardsEmbedUser: computed('model', 'appState.currentUser', function() {
     return this.get('model') || this.get('appState.currentUser');
@@ -1006,7 +1006,6 @@ export default Component.extend({
       // / LEARNINGS "visible-tile counts need root clustering".
       var pool = this.get('_fetchedBoards') || this.get('_fetchedPreviewBoards') || [];
       var fetched = filterRootBoards(pool, this.get('appState.currentUser.id'));
-      var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
       // When a board's display name falls back to its key (no `name`
@@ -1078,21 +1077,20 @@ export default Component.extend({
       // dependent-keys comment above for why.
       var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
       var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
-      // Cap the home + middle section at 4 (home board + up to 3 favourites,
-      // falling back to 3 others from the collection) so that, with the Crisis
-      // board appended below, the strip shows exactly FIVE tiles total.
+      // How many show is utils/preview-boards.js#capPreviewBoards (up to 12 with the Crisis
+      // board, since 2026-10-10; it was 5). Every board is added here in order and the cap is
+      // applied once, below, so the order rule and the count rule live in one place each.
+      // (That module is imported at the end of this file: see the note there.)
       starredAlpha.forEach(function(board) {
-        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
       othersAlpha.forEach(function(board) {
-        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
 
-      var top = ordered.slice(0, 4);
-      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as the
-      // 5th/last tile — same key/name/image the sidebar uses.
+      // The system "Crisis Vocabulary" board (on everyone's sidebar) is always the last
+      // tile — same key/name/image the sidebar uses.
+      var crisisItem = null;
       try {
         var sidebars = this.appState.get('sidebar_boards') || [];
         var crisis = null;
@@ -1101,33 +1099,39 @@ export default Component.extend({
           if (ck && ck.split('/').pop() === 'crisis-vocabulary') { crisis = sidebars[ci]; break; }
         }
         if (crisis) {
-          var crisisKey = emberGet(crisis, 'key');
-          if (!top.some(function(it) { return it.key === crisisKey; })) {
-            top = top.concat([{
-              board: null,
-              name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
-              imageUrl: emberGet(crisis, 'image') || '',
-              key: crisisKey,
-              languageLabel: null,
-              isHome: false,
-              // The system Crisis/Emergency board — flagged so the strip can keep
-              // showing it (alongside the home board) when the small-screen rule
-              // hides the other tiles (see ≤1024px rule in app.scss).
-              isEmergency: true
-            }]);
-          }
+          crisisItem = {
+            board: null,
+            name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
+            imageUrl: emberGet(crisis, 'image') || '',
+            key: emberGet(crisis, 'key'),
+            languageLabel: null,
+            isHome: false,
+            // The system Crisis/Emergency board — flagged so the small-screen limit in
+            // app.scss keeps showing it while it hides the boards past the fifth.
+            isEmergency: true
+          };
         }
       } catch (e) { /* crisis tile is a best-effort append — never block the strip */ }
-      return top.map(function(item, idx) {
-        item.thumbClass = thumbClasses[idx % thumbClasses.length];
-        return item;
-      });
+      return capPreviewBoards(ordered, crisisItem);
     }
   ),
+  // 5 or fewer boards in the card: the Boards page's full-size cards instead of its compact rows.
+  previewBoardsFull: computed('previewBoards.length', function() {
+    return previewUsesFullCards(this.get('previewBoards.length'));
+  }),
   _loadPreviewBoards: observer('appState.currentUser.id', function() {
     var _this = this;
     var user = _this.get('appState.currentUser');
     if (!user || !user.get('id')) { return; }
+    var userId = user.get('id');
+    // SEED the Boards card from the cross-navigation cache so it paints instantly on return; the
+    // background fetch below still runs (the guard is instance state) and overwrites with fresh
+    // data + refreshes the cache (stale-while-revalidate).
+    var cached = previewBoardCache.get(userId);
+    if (cached && !_this.get('_fetchedPreviewBoards')) {
+      _this.set('_fetchedPreviewBoards', cached.preview);
+      if (cached.full) { _this.set('_fetchedBoards', cached.full); }
+    }
     if (_this.get('_previewBoardsLoaded')) { return; }
     _this.set('_previewBoardsLoaded', true);
     // Fetch preview boards (5) and total count in parallel
@@ -1137,24 +1141,51 @@ export default Component.extend({
     // partition (starred vs not) something real to sort. Board count
     // follow-up (_fetchRemainingForCount) is unaffected — it just sees
     // a larger first page before paging the rest for the total count.
-    _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
+    _this.get('store').query('board', { user_id: userId, per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', A(results));
+      var entry = previewBoardCache.ensure(userId);
+      entry.preview = A(results);
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
+        _this._fetchRemainingForCount(userId, meta.next_offset, results);
       } else {
         _this.set('_fetchedBoards', A(results));
+        entry.full = A(results);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedPreviewBoards', A([]));
+      // A FAILED revalidation must not wipe cache-seeded previews to empty (they would flash then
+      // vanish offline). Only clear to empty when there was nothing seeded, so a first-load failure
+      // still resolves the loading state to "no boards".
+      if (!(_this.get('_fetchedPreviewBoards') || []).length) {
+        _this.set('_fetchedPreviewBoards', A([]));
+      }
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
     var _this = this;
-    _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
+    // `per_page: 50` — the server's MAX_PAGE for boards (lib/json_api/board.rb:10; anything
+    // larger is clamped there, so 50 is the ceiling rather than a guess). Without it these
+    // follow-up pages take DEFAULT_PAGE = 25, so walking a large library costs twice the
+    // round-trips it needs to.
+    //
+    // THIS IS A COST REDUCTION, NOT A FIX for the real problem: `_previewBoardsLoaded` is
+    // instance state and this component is rebuilt on every home/extras/index arrival, so the
+    // whole walk re-runs per navigation. The fix for THAT is a cache outliving the component,
+    // which was deliberately NOT done — nothing invalidates a board list on create/copy/delete
+    // (searched for a signal; `boardsPageListCache` only clears on sign-out), so a cache would
+    // show a stale count and stale preview tiles until reload. Halving the requests is the
+    // largest change available here that cannot alter what the user sees.
+    //
+    // Safe at 50, checked rather than assumed: the per-board N+1 this endpoint used to have is
+    // eager-loaded away (`includes(:board_content, :parent_board)`,
+    // app/controllers/api/boards_controller.rb:51, with a regression spec), so a bigger page
+    // does the same total work in fewer requests; and the endpoint's Redis cache only engages
+    // for public search (`['locale','q','sort']`), never for this `user_id`+`offset` shape, so
+    // there is no cache key to mismatch.
+    _this.get('store').query('board', { user_id: userId, offset: offset, per_page: 50 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var combined = accumulated.concat(boards.map(function(b) { return b; }));
       var meta = _this.get('persistence').meta('board', boards);
@@ -1162,6 +1193,7 @@ export default Component.extend({
         _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
         _this.set('_fetchedBoards', A(combined));
+        previewBoardCache.ensure(userId).full = A(combined);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
@@ -1193,9 +1225,12 @@ export default Component.extend({
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
     var supporterRole = user && user.get('supporter_role');
-    // Communicators keep a Reports card in Extras IN ADDITION to the pill-nav (which
-    // now shows Reports for everyone — see showReportsPill), so they can reach it from
-    // either place. Supporters get Reports in the pill only, not duplicated in Extras.
+    // Communicators reach Reports from THIS card. It used to be "in addition to the
+    // pill-nav"; the nav entry went on 2026-09-18, so for a communicator this card is now
+    // the home page's only route to Reports.
+    // SUPPORTERS still do not get the card (`!supporterRole`), which is deliberate and
+    // unchanged: their Reports lives per-communicator on the caseload, and account-wide on
+    // the account rail's Reports row. Both survive the nav removal.
     var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
@@ -1279,7 +1314,7 @@ export default Component.extend({
         if(parts.length === 2) {
           // Open in the user's preferred view: board-detail (modern) by default,
           // board-alt (classic) only when board_view_style === 'classic'.
-          this.get('router').transitionTo(board_view_route(this.get('appState.currentUser')), parts[0], parts[1]);
+          this.get('router').transitionTo(board_view_route(this.get('appState.effective_view_user')), parts[0], parts[1]);
         } else {
           // Canonical /key route — routes/board.js already redirects by preference.
           this.get('router').transitionTo('board', boardKey);
@@ -1300,27 +1335,6 @@ export default Component.extend({
       var mode = this.get('sectionBorderMode');
       var next = mode === 'off' ? 'thin' : (mode === 'thin' ? 'thick' : 'off');
       this.set('sectionBorderMode', next);
-    },
-    openSearch: function() {
-      this.set('isSearchOpen', true);
-      // Move focus to the search field once the overlay renders (replaces the
-      // `autofocus` attribute, which reduces accessibility and is unreliable in an SPA).
-      runLater(function() {
-        var el = document.querySelector('.md-searchOverlay__input');
-        if(el) { el.focus(); }
-      }, 50);
-    },
-    closeSearch: function() {
-      this.set('isSearchOpen', false);
-    },
-    onSearchKeydown: function(event) {
-      if (event && event.key === 'Escape') {
-        if (this.get('pillnavDropdownOpen')) {
-          this.set('pillnavDropdownOpen', false);
-        } else {
-          this.set('isSearchOpen', false);
-        }
-      }
     },
     goTab: function(tab) {
       if (tab === 'reports') {
@@ -1363,30 +1377,27 @@ export default Component.extend({
       }
       this.set('activeTab', tab);
     },
-    togglePillnavDropdown: function() {
-      this.set('pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
-    },
     toggleOrgDropdown: function() {
       this.toggleProperty('orgDropdownOpen');
-    },
-    selectTab: function(tab) {
-      this.send('goTab', tab);
-      this.set('pillnavDropdownOpen', false);
     },
     go: function(dest) {
       if (dest === 'speak') {
         var user = this.appState.get('currentUser');
-        var homeBoard = user && user.get('preferences.home_board');
-        var lastBoard = this.stashes.get('root_board_state');
-        if (!lastBoard || !lastBoard.key) {
-          lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
-        }
-        // Continue Speaking: prefer the user's home board; fall back to last board in board-detail
-        var target = (homeBoard && homeBoard.key) ? homeBoard : ((lastBoard && lastBoard.key) ? lastBoard : null);
+        // Continue Speaking: the user's home board, else their last board, else their boards list.
+        // speak_target (end of this file) decides, and the Speak card shows that same board's
+        // picture (speakBoardImage), so the card and where it goes always agree (2026-10-13).
+        // The decision used to be written out here; it moved to that shared function, and these
+        // lines keep the count it had, so the line-anchored .eslint-todo rows below this point
+        // keep their lines.
+        var target = speak_target(user, this.stashes);
         if (target && target.key) {
           var parts = target.key.split('/');
           if(parts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+            // Route by the user's view preference, not hardcoded to the modern shell —
+            // same resolution `goToBoard` above already uses. A classic-preference user
+            // tapping Continue Speaking was landing in `user.board-detail`, the exact
+            // ejection utils/board_view.js exists to prevent.
+            this.get('router').transitionTo(board_view_route(user), parts[0], parts[1]);
           } else {
             this.get('router').transitionTo('board', target.key);
             this.appState.toggle_mode('speak', {force: true, override_state: target});
@@ -1409,7 +1420,8 @@ export default Component.extend({
         if (lb && lb.key) {
           var lbp = lb.key.split('/');
           if (lbp.length === 2) {
-            this.get('router').transitionTo('user.board-detail', lbp[0], lbp[1]);
+            // View-preference routing, as in `goToBoard` and the 'speak' branch above.
+            this.get('router').transitionTo(board_view_route(u2), lbp[0], lbp[1]);
           } else {
             this.get('router').transitionTo('board', lb.key);
             this.appState.toggle_mode('speak', {force: true, override_state: lb});
@@ -1431,15 +1443,6 @@ export default Component.extend({
         var ux2 = this.appState.get('currentUser.user_name');
         if (ux2) { this.get('router').transitionTo('user.extras', ux2); }
       }
-    },
-    goAndCloseSearch: function(dest) {
-      this.set('isSearchOpen', false);
-      this.send('go', dest);
-    },
-    openExtrasTab: function() {
-      this.set('isSearchOpen', false);
-      var ue = this.appState.get('currentUser.user_name');
-      if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
       var _this = this;
@@ -1467,7 +1470,9 @@ export default Component.extend({
     editDashboard: function() {
       var opener = this.get('appState.dashboard_design_opener');
       if (opener) {
-        opener('display_style_display');
+        // The style-chooser page was removed 2026-09-20 (components/display-style.js);
+        // this opener now lands on the customize page, which is the whole flow.
+        opener('display_style_layout');
       } else {
         this.get('appState').set('open_dashboard_design', 'display');
       }
@@ -1554,6 +1559,12 @@ export default Component.extend({
       }
     },
     reload: function() {
+      /* Records that THIS page is the one the user asked to reload, so the boot that follows is not
+         classified as a login / app launch and does not re-land them somewhere else
+         (utils/reload_intent.js; the classification itself is routes/index.js:37). Must run before
+         `location.reload()`, which tears down every bit of in-memory state — which is why the
+         marker goes to sessionStorage and not to app_state. */
+      mark_user_reload();
       location.reload();
     },
     searchBoards: function() {
@@ -1594,16 +1605,9 @@ export default Component.extend({
           user = this.appState.get('currentUser');
         }
       }
-      this.appState.check_for_currently_premium(user, 'eval', false, true).then(function() {
-        this.appState.set_speak_mode_user(emberGet(user, 'id'), false, false, 'obf/eval');
-      }.bind(this));
-    },
-    remote_model: function(user) {
-      if(user.premium || emberGet(user, 'currently_premium')) {
-        modal.open('modals/remote-model', {user_id: user.id});
-      } else {
-        modal.open('premium-required', {user_name: user.user_name, action: 'evaluation', reason: 'not_currently_premium'});
-      }
+      this._eval_user_record(user).then((record) => this.appState.check_for_currently_premium(record, 'eval', false, true).then(() => {
+        this.appState.set_speak_mode_user(emberGet(record, 'id'), false, false, 'obf/eval');
+      }), () => { modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user")); });
     },
     support: function() {
       modal.open('support');
@@ -1666,9 +1670,6 @@ export default Component.extend({
         }
       }
       this.set('index_nav_state', nav);
-    },
-    toggle_extras: function() {
-      this.set('show_main_extras', !this.get('show_main_extras'));
     },
     intro_video: function(id) {
       if(window.ga) {
@@ -1845,5 +1846,89 @@ export default Component.extend({
     home_board: function(key) {
       this.get('router').transitionTo('board', key);
     }
+  },
+
+  /* The Need Attention card lists the first few flagged communicators (requested 2026-09-29), and
+     "View all communicators" links to the caseload for the rest. */
+  attentionShown: computed('attentionCommunicators.[]', function() {
+    return (this.get('attentionCommunicators') || []).slice(0, ATTENTION_ROWS);
+  }),
+  attentionOverflow: computed('attentionCommunicators.[]', 'attentionShown.[]', function() {
+    return (this.get('attentionCommunicators') || []).length > (this.get('attentionShown') || []).length;
+  }),
+
+  /* THE USER RECORD FOR RUN EVALUATION (fixed 2026-09-30). The Basic Communicators card passes a
+     supervisee ENTRY, a plain object from `known_supervisees` (models/user.js, the raw
+     `supervisees` attribute), and `appState.check_for_currently_premium` reads computeds only a
+     user record has (`currently_premium`, `currently_premium_or_premium_supporter`), through
+     `.get` -- a TypeError on the plain object, so the eval never started. A record is used as
+     it is; an entry is loaded by id first, as controllers/caseload.js#run_eval does. Kept last
+     so no line of the line-anchored ESLint baseline shifts. */
+  _eval_user_record(user) {
+    if(user && typeof user.get === 'function') { return Promise.resolve(user); }
+    return this.get('store').findRecord('user', emberGet(user, 'id'));
   }
 });
+
+// Rows the Need Attention card shows before "View all communicators".
+const ATTENTION_ROWS = 3;
+
+// Imported HERE, not with the imports at the top: ES imports are hoisted, so it is available
+// everywhere above, and placing it at the end keeps the line-anchored lint baseline (.eslint-todo)
+// for this file from shifting (2026-10-10).
+import { capPreviewBoards, previewUsesFullCards } from '../../utils/preview-boards';
+
+/* WHERE THE SPEAK CARD GOES, AND ITS PICTURE (requested 2026-10-13: "on the speak mode card, instead of
+   showing the image that is on that card, show the board's image for the board it will take the user
+   to"). The card opens the user's home board, else the last board they used (root_board_state, then
+   session history), else their boards list (`go('speak')` above). `speakBoardImage` is that board's
+   picture (Board#icon_url_with_fallback, as the Boards card uses), or null, when the card keeps its own
+   image: no board to go to, or a board not loaded yet and not loadable (offline). The record is read
+   from the store, and fetched once by key when it is not there. */
+function speak_target(user, stashes) {
+  var homeBoard = user && user.get('preferences.home_board');
+  if (homeBoard && homeBoard.key) { return homeBoard; }
+  var lastBoard = stashes && stashes.get('root_board_state');
+  if (!lastBoard || !lastBoard.key) {
+    lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
+  }
+  return (lastBoard && lastBoard.key) ? lastBoard : null;
+}
+
+AuthenticatedView.reopen({
+  _speakBoardTick: 0,
+  init: function() {
+    this._super(...arguments);
+    this._loadSpeakBoard();
+  },
+  _speakTargetChanged: observer('appState.currentUser.preferences.home_board.key', function() { this._loadSpeakBoard(); }),
+  _findSpeakBoard: function(target) {
+    var store = this.get('store');
+    if (!store || !target || !target.key) { return null; }
+    var rec = null;
+    try { rec = target.id ? store.peekRecord('board', target.id) : null; } catch (e) { rec = null; }
+    if (!rec && store.peekAll) {
+      rec = store.peekAll('board').find(function(b) { return b.get('key') === target.key; }) || null;
+    }
+    return rec;
+  },
+  _loadSpeakBoard: function() {
+    var _this = this;
+    var target = speak_target(this.get('appState.currentUser'), this.get('stashes'));
+    if (!target || this._findSpeakBoard(target)) { return; }
+    var store = this.get('store');
+    if (!store || !store.findRecord) { return; }
+    this._speakBoardRequested = this._speakBoardRequested || {};
+    if (this._speakBoardRequested[target.key]) { return; }
+    this._speakBoardRequested[target.key] = true;
+    store.findRecord('board', target.key).then(function() {
+      if (!_this.isDestroyed && !_this.isDestroying) { _this.incrementProperty('_speakBoardTick'); }
+    }, function() { /* offline or gone: the card keeps its own image */ });
+  },
+  speakBoardImage: computed('_speakBoardTick', 'appState.currentUser.preferences.home_board.{id,key}', function() {
+    var rec = this._findSpeakBoard(speak_target(this.get('appState.currentUser'), this.get('stashes')));
+    return (rec && rec.get('icon_url_with_fallback')) || null;
+  })
+});
+
+export default AuthenticatedView;

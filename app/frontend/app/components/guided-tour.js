@@ -5,6 +5,7 @@ import { observer, computed } from '@ember/object';
 import { scheduleOnce, later as runLater, cancel as runCancel } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
+import { is_classic } from '../utils/view_style';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 import modal from '../utils/modal';
 import article50Gate from '../utils/article50_gate';
@@ -194,14 +195,24 @@ function _onTourStepShow() {
           if (!tour) { return; }
           if (spec.indexOf('show:') === 0) { tour.show(spec.slice(5)); }
           else if (spec === 'next') { tour.next(); }
+          else if (spec === 'home_tour') {
+            // The communicator welcome's "Take a quick tour of my home page" link: advance into the
+            // home-page steps, but mark the tour's end as taken over so finishing it does NOT hand the
+            // user off to the board picker (the home-page tour is not a "go pick a board" path).
+            // _speakHandoffActive is the same flag the other welcome buttons set; handoffBlocked() reads
+            // it, and it is reset at the start of every tour run.
+            var homeComp = tour && tour._llGuidedTour;
+            if (homeComp && homeComp.set) { homeComp.set('_speakHandoffActive', true); }
+            tour.next();
+          }
           else if (spec === 'complete') { tour.complete(); }
           else if (spec === 'cancel') { tour.cancel(); }
-          else if (spec === 'speak') {
-            // Home-tour "I'd like to start speaking" — route to the user's own
-            // board copy in speak mode (see _startSpeakingHandoff on the component,
-            // reached via the tourObject bridge set in _startTour).
+          else if (spec === 'speak' || spec === 'speak_tour' || spec === 'picker') {
+            // The communicator welcome (2026-10-12): Start talking now, Take a quick tour, Choose a
+            // different board -- handled by _welcomeAction (the reopen at the end of this file),
+            // reached via the tourObject bridge set in _startTour.
             var comp = tour && tour._llGuidedTour;
-            if (comp && typeof comp._startSpeakingHandoff === 'function') { comp._startSpeakingHandoff(); }
+            if (comp && typeof comp._welcomeAction === 'function') { comp._welcomeAction(spec); }
           }
         });
       });
@@ -275,7 +286,7 @@ function _scrollTourToTop() {
 // inner-header button pulls a PAGE-SPECIFIC tour. The component renders only
 // the trigger; Shepherd portals the step popovers and modal overlay into
 // <body> at run time.
-export default Component.extend({
+const GuidedTour = Component.extend({
   tagName: '',
 
   appState: service('app-state'),
@@ -295,8 +306,16 @@ export default Component.extend({
 
   // The step-builder for the current page/layout, or null when no tour exists
   // here. Drives both the trigger visibility (hasTour) and _startTour.
-  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
-    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
+  // `isClassic` is the fourth axis the registry needs. It is read HERE rather than in the
+  // registry so that module stays a pure function of its arguments — see its comment.
+  // Depends on the preference key itself, so flipping view style re-resolves the builder
+  // without a reload.
+  isClassicView: computed('appState.effective_view_user.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.effective_view_user'));
+  }),
+
+  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {
+    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'), this.get('isClassicView'));
   }),
 
   // Only show the trigger when the current page actually has a tour.
@@ -304,11 +323,30 @@ export default Component.extend({
     return !!this.get('tourBuilder');
   }),
 
+  // Communicator = account role is not 'supporter' (user.js#supporter_role). The tour
+  // trigger and the login auto-open are gated on this (2026-10-13 request): a user who
+  // is not a communicator neither auto-starts the tour on login nor sees the home-page
+  // "Take a tour" button. The component stays mounted as a headless consumer.
+  isCommunicator: computed('appState.currentUser.supporter_role', function() {
+    return !this.get('appState.currentUser.supporter_role');
+  }),
+
+  // Whether to render the "Take a tour" trigger button. The isCommunicator gate applies ONLY to the
+  // home-page trigger (the 2026-10-13 request was about the home button + login auto-open). The
+  // board-edit (editHost) and speak-mode (speakHost) instances host their OWN tours for whoever is
+  // editing or speaking — usually a supporter — so they must NOT be hidden by the communicator gate
+  // (board-detail.hbs:302 is the edit tour's only entry point; the speak host's button is CSS-hidden
+  // but stays a headless runner). The login auto-open keeps its own separate supporter gate
+  // (_startHomeAutoOpen), so loosening the button here does not re-raise the tour on login.
+  showTrigger: computed('isCommunicator', 'editHost', 'speakHost', function() {
+    return !!(this.get('editHost') || this.get('speakHost') || this.get('isCommunicator'));
+  }),
+
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
-  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
-    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
+  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {
+    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'), this.get('isClassicView'));
   }),
 
   // Whether THIS page+view's tour has been completed at least once — drives the
@@ -348,10 +386,37 @@ export default Component.extend({
   // `_scheduleAutoOpen` binds afterComplete → board-picker on cancel/complete, so
   // a speak-tour Skip/X would yank the user off their board.
   _autoOpenWatcher: observer('appState.auto_open_home_tour', function() {
-    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (this.get('speakHost') || this.get('editHost') || this.get('boardAltHost')) { return; }
     if (this.get('appState.auto_open_home_tour')) {
       this._consumeAutoOpenSignal();
     }
+  }),
+
+  // A PLAIN, USER-REQUESTED TOUR — what the navbar trigger does, reachable by a page that
+  // renders its own button instead. The classic home page is the only caller today: it offers
+  // the tour from a rail row and from its intro card
+  // (components/dashboard/classic-view.js#start_tour), and has no handle on this component.
+  //
+  // IT IS DELIBERATELY NOT `auto_open_home_tour`, which is what classic used to raise and why
+  // its buttons misbehaved even once an instance was mounted. That flag is the
+  // NEWLY-REGISTERED-USER signal, and consuming it does two things a "Take a tour" button must
+  // never do: it binds `afterComplete` → `transitionTo('board-picker')`, so ANY ending of the
+  // tour (finish or cancel) yanks the user off the page they asked to be shown around
+  // (_startHomeAutoOpen), and for a supporter it may hop to the home page first
+  // (_startAutoOpen's supporter branch). This path has neither: it starts the tour for the
+  // page the user is actually on and leaves them there.
+  //
+  // Cleared on consumption so a second click re-fires — an observer only runs on CHANGE, and
+  // a flag left true would make the button work exactly once per page load.
+  _manualStartWatcher: observer('appState.start_home_tour', function() {
+    if (this.get('speakHost') || this.get('editHost') || this.get('boardAltHost')) { return; }
+    if (!this.get('appState.start_home_tour')) { return; }
+    this.get('appState').set('start_home_tour', false);
+    // Nothing to start if this page has no tour. The button that raised the flag is expected
+    // to hide itself in that case (classic gates its row on the same feature flag), but a
+    // guard here keeps a stray signal from throwing inside the builder.
+    if (!this.get('tourBuilder')) { return; }
+    this._startTour();
   }),
 
   // True only when THIS instance is the board-detail EDIT tour (edit mode on a
@@ -657,7 +722,7 @@ export default Component.extend({
   _scheduleAutoOpen: function() {
     // Belt-and-suspenders: never attach the board-picker handoff from a
     // board-detail host (see _autoOpenWatcher).
-    if (this.get('speakHost') || this.get('editHost')) { return; }
+    if (this.get('speakHost') || this.get('editHost') || this.get('boardAltHost')) { return; }
     // init and _autoOpenWatcher can both call this; run one chain at a time.
     if (this._autoOpenDeferring) { return; }
     this._autoOpenDeferring = true;
@@ -710,12 +775,12 @@ export default Component.extend({
   // index) are where every writer either raises the flag or lands via
   // return_to_index (app-state.js:909-917), and `current_route` already names the
   // destination at afterRender because routeWillChange fires synchronously inside
-  // transitionTo (routes/application.js:110-139 -> app-state.js:745). A supporter
-  // who boots straight to caseload (routes/index.js:70-75) consumes there and gets
-  // the caseload tour. Anything else means the user has moved on: cancel.
-  _autoOpenRouteAllowed: function(route, supporter) {
+  // transitionTo (routes/application.js:110-139 -> app-state.js:745). The caseload
+  // page is not one of them since 2026-10-12: it has no tour, and a supporter tours
+  // the home page. Anything else means the user has moved on: cancel.
+  _autoOpenRouteAllowed: function(route) {
     if (route === 'user.home' || route === 'index' || route === 'bento') { return true; }
-    return !!supporter && route === 'caseload';
+    return false;
   },
 
   _startAutoOpen: function() {
@@ -729,16 +794,19 @@ export default Component.extend({
       return;
     }
     this._clearAutoOpenStorageTwin();
-    // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
-    // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
-    // routes/index.js `_land_on_default` already sends them on every subsequent
-    // login; the only reason they are sitting on the dashboard right now is that
-    // the terms-agree session gate had to run there first (see
-    // `_session_entry_gate_pending` in that route). They also get NO board-picker
-    // handoff — that exists so a newly-registered COMMUNICATOR still completes the
-    // must-have home-board pick, and a supporter has no board of their own to pick.
+    // NON-COMMUNICATORS (supporters — SLPs/therapists/teachers/parents, all collapse to
+    // `supporter_role`) no longer auto-start the tour on login (2026-10-13 request:
+    // "on any user that is not a communicator, disable the tour process upon login").
+    // The signal is already consumed above, so the user simply lands on their page with
+    // no tour. Previously this ran `_startSupporterHomeAutoOpen` (the supporter home tour).
     if (supporter) {
-      this._startCaseloadAutoOpen();
+      return;
+    }
+    // Switch-scanning / eye-gaze (dwell) communicators cannot operate the full-screen welcome card
+    // (its in-body buttons are no scanner target and in no dwell region; only Esc rescues a keyboard
+    // user) — the same population the post-message tour offer already excludes (tours/tour_offer.js:54).
+    // Skip the auto-open welcome for them rather than trap them in it (adversary review 2026-10-14).
+    if (this.get('appState.currentUser.preferences.device.scanning') || this.get('appState.currentUser.preferences.device.dwell')) {
       return;
     }
     this._startHomeAutoOpen();
@@ -758,37 +826,41 @@ export default Component.extend({
     // the default Focused View, whose tour isn't built yet), skip the tour but
     // STILL run the handoff so the home-board pick is never lost.
     if (!this.get('tourBuilder')) { handoff(); return; }
-    this._startTour({ afterComplete: handoff });
+    // `armBoardPickerTour` so the picker's own tour opens when the user LANDS there, the way
+    // the manual first-time finish already did via `onPickBoard` (:1119). Without it this
+    // path — the one a newly-registered user actually takes — navigated to /board-picker and
+    // left the page tour-less, which is the asymmetry this flag closes.
+    this._startTour({ afterComplete: handoff, armBoardPickerTour: true });
   },
 
-  // Route a supporter to their caseload and start the CASELOAD tour there.
-  // The route hop means this instance's `tourBuilder`/`tourKey` recompute from
-  // `appState.current_route`, which settles a microtask or two AFTER the
-  // transition promise resolves — so poll for the caseload tour to become current
-  // rather than firing at a single afterRender (LEARNINGS.md: "a guided-tour
-  // auto-open flag consumed at a single afterRender misses when the gating state
-  // resolves on a promise microtask — poll the condition"). Same bound as the
-  // board-detail consumers: ~3s (20 x 150ms). If it never becomes current we
-  // simply don't fire — the user is left on their caseload with the "Take a tour"
-  // trigger right there, which is a safe outcome rather than a wrong tour.
+  // Start a supporter's HOME tour (2026-10-12; this started the caseload tour before).
+  // A page that already has a home tour (`home_gentle`/`home_focused` on user.home,
+  // `home_classic` on the Basic home) starts at once; otherwise (a modern supporter
+  // held on `index` by a session gate) hop to user.home. `tourKey` recomputes from
+  // `appState.current_route` a microtask or two AFTER the transition resolves, so
+  // poll for it (LEARNINGS.md: "a guided-tour auto-open flag consumed at a single
+  // afterRender misses when the gating state resolves on a promise microtask — poll
+  // the condition"). Same bound as the board-detail consumers: ~3s (20 x 150ms). If
+  // it never becomes current we simply don't fire — the user is on their home page
+  // with the "Take a tour" trigger right there, a safe outcome rather than a wrong tour.
   // The navbar GuidedTour instance is persistent across in-app transitions, so
   // `this` survives the hop; the isDestroyed guard covers a logout mid-poll.
-  _startCaseloadAutoOpen: function() {
+  _startSupporterHomeAutoOpen: function() {
     var _this = this;
     var attempts = 0;
     var tryStart = function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      if ((_this.get('tourKey') || '').indexOf('caseload') === 0) {
+      if ((_this.get('tourKey') || '').indexOf('home') === 0) {
         _this._startTour();
         return;
       }
       if (attempts++ < 20) { runLater(_this, tryStart, 150); }
     };
     var go = function() { scheduleOnce('afterRender', _this, tryStart); };
-    if (this.get('appState.current_route') === 'caseload') { go(); return; }
+    if ((this.get('tourKey') || '').indexOf('home') === 0) { go(); return; }
     // Route errors resolve to the same poll: if the transition is superseded the
     // poll just times out harmlessly rather than leaving a dangling promise.
-    var t = this.router.transitionTo('caseload');
+    var t = this.router.transitionTo('user.home', this.get('appState.currentUser.user_name'));
     if (t && t.then) { t.then(go, go); } else { go(); }
   },
 
@@ -1053,11 +1125,20 @@ export default Component.extend({
     });
 
     // The board-picker handoff, returning-user topic MENU, and post-registration
-    // setup handoff are all HOME-tour concepts. Scope them to the home tour so
+    // setup handoff are all MODERN HOME-tour concepts. Scope them to that tour so
     // OTHER tours built on this runner (board-picker, board-detail edit) get a
-    // plain linear walkthrough with no cross-page handoff. (Home behavior is
-    // unchanged: isHomeTour is true there.)
-    var isHomeTour = (this.get('appState.current_route') === 'user.home');
+    // plain linear walkthrough with no cross-page handoff.
+    //
+    // `!isClassicView` IS LOAD-BEARING, not belt-and-braces. The classic home page
+    // renders at `user.home` too (routes/user/home.js sets templateName 'index', and
+    // routes/index.js#_land_on_default sends everyone there), so a route-only test was
+    // true for classic as well — and utils/tours/classic-home.js#doneStep states the
+    // opposite contract: "No handoff — unlike the modern home tour there is no
+    // board-picker step to pass to." A first-time classic user pressing "Got it" on an
+    // outro that says the tour can be retaken from the rail was instead transitioned to
+    // the board picker, which then auto-opened a second, unrequested tour.
+    var isHomeTour = (this.get('appState.current_route') === 'user.home') &&
+                     !this.get('isClassicView');
     // A user who has NOT completed THIS page+layout's tour is "first time" —
     // however the tour was launched (post-registration auto-open OR a manual
     // "Take a tour"). First-timers get the linear walkthrough whose outro previews
@@ -1082,18 +1163,27 @@ export default Component.extend({
     //  • manual first-time finish: send them to the standalone board picker, bound
     //    to COMPLETE only — finishing means "now go pick a board"; skipping/closing
     //    the tour should NOT yank them away.
-    var firstTimeNav = (isHomeTour && !options.afterComplete && firstTime) ? onPickBoard : null;
+    var firstTimeNav = (isHomeTour && !options.afterComplete && firstTime && !this.get('appState.currentUser.supporter_role')) ? onPickBoard : null; // no board to pick for a supporter (2026-10-12)
     // Options the builder reads:
     //  • handoff — first-time outro: preview the board-picker next step (the green
     //    forward animation + "Pick my board") instead of a dead-end "Finish".
     //  • menu — returning user: swap the linear walkthrough for the topic MENU.
     //  • onPickBoard — the menu-mode outro's "Go to your board picker" link (the
     //    component owns the router, so navigation is supplied here, not in step data).
+    // The board-picker tour's welcome step offers a way BACK to the home page, for a user who
+    // was handed here by the home tour and is not ready to choose yet. Supplied from here for
+    // the same reason `onPickBoard` is: the component owns the router.
+    // `index` rather than `user.home` directly — routes/index.js#_land_on_default resolves the
+    // user name itself, so this cannot drift from wherever Home actually lives. The transition
+    // carries a `from`, so index does not treat the arrival as a login entry.
+    var onReturnHome = function() {
+      _this.router.transitionTo('index');
+    };
     var builtSteps = builder(isHomeTour ? {
-      handoff: firstTime,
+      handoff: firstTime && !this.get('appState.currentUser.supporter_role'), supporter: !!this.get('appState.currentUser.supporter_role'), hasHome: !!this.get('appState.currentUser.preferences.home_board.key'),
       menu: menuMode,
-      onPickBoard: onPickBoard
-    } : {});
+      onPickBoard: this.get('appState.currentUser.supporter_role') ? null : onPickBoard
+    } : (this._isBoardPickerTour() ? { onReturnHome: onReturnHome } : { supporter: !!this.get('appState.currentUser.supporter_role'), hasHome: !!this.get('appState.currentUser.preferences.home_board.key') }));
     // Smooth "scroll then show" for every attached step (runner-level, so all
     // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
     // steps with the injected beforeShowPromise + scrollTo:false. `tour` is
@@ -1171,18 +1261,41 @@ export default Component.extend({
         tour.tourObject.on('complete', function() { _this._unlockTourScroll(); });
         tour.tourObject.on('cancel', function() { _this._unlockTourScroll(); });
       }
+      // ONE GUARD, SHARED BY BOTH HANDOFF BRANCHES BELOW — it was written out twice,
+      // identically, and a third copy was about to be added for the arming listener.
+      // Refuse the handoff when the "start speaking" body button took over (it routes to
+      // the user's board in speak mode instead of the board picker; _startSpeakingHandoff
+      // sets _speakHandoffActive before cancelling the tour), and once the user is already
+      // on board-detail: a stale home-tour cancel/complete must never yank them back to
+      // /board-picker after "Pick this Board" (Skip/X on the speak tour).
+      var handoffBlocked = function() {
+        if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return true; }
+        var route = _this.get('appState.current_route') || '';
+        return route.indexOf('user.board-detail') === 0;
+      };
       if (options.afterComplete && tour.tourObject) {
-        // Auto-open handoff (critical-mode setup) — fire however the tour ends,
-        // UNLESS the "start speaking" body button took over (it routes to the
-        // user's board in speak mode instead of the board picker; _startSpeakingHandoff
-        // sets _speakHandoffActive before cancelling the tour).
-        // Also refuse once the user is already on board-detail: a stale home-tour
-        // cancel/complete must never yank them back to /board-picker after
-        // "Pick this Board" (Skip/X on the speak tour).
+        // ARM THE BOARD-PICKER TOUR — bound to `complete` ONLY, unlike the handoff below.
+        //
+        // The handoff itself fires however the tour ends, because a newly-registered user
+        // must reach the picker even if they skip. The TOUR must not: auto-opening one for
+        // someone who just skipped a tour is the "second, unrequested tour" recorded as a
+        // past defect in the note above `isHomeTour`. Finishing is the only ending that
+        // means "I'm ready for the next step".
+        //
+        // Registered BEFORE `afterCompleteGuarded` so the flag is set before that handler
+        // transitions — `_consumePendingBoardPickerTour` (:471) reads it once the route and
+        // tourKey settle, so a flag set after the transition would arrive too late to be
+        // observed as a change. Takes the same guard, so a suppressed handoff cannot leave
+        // the flag standing for some later visit to /board-picker.
+        if (options.armBoardPickerTour) {
+          tour.tourObject.on('complete', function() {
+            if (handoffBlocked()) { return; }
+            _this.appState.set('board_picker_tour_pending', true);
+          });
+        }
+        // Auto-open handoff (critical-mode setup) — fire however the tour ends.
         var afterCompleteGuarded = function() {
-          if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return; }
-          var route = _this.get('appState.current_route') || '';
-          if (route.indexOf('user.board-detail') === 0) { return; }
+          if (handoffBlocked()) { return; }
           options.afterComplete();
         };
         tour.tourObject.on('complete', afterCompleteGuarded);
@@ -1190,13 +1303,10 @@ export default Component.extend({
       } else if (firstTimeNav && tour.tourObject) {
         // Manual first-time finish — hand off to the board picker on FINISH only
         // (not on skip/close), and not when "start speaking" took over.
-        var firstTimeNavGuarded = function() {
-          if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return; }
-          var route = _this.get('appState.current_route') || '';
-          if (route.indexOf('user.board-detail') === 0) { return; }
+        tour.tourObject.on('complete', function() {
+          if (handoffBlocked()) { return; }
           firstTimeNav();
-        };
-        tour.tourObject.on('complete', firstTimeNavGuarded);
+        });
       }
       _this._lockTourScroll();
       tour.start();
@@ -1387,7 +1497,7 @@ export default Component.extend({
 
     // Home auto-open signals — navbar/home only (never speak/edit hosts; those
     // would bind afterComplete → board-picker onto the wrong tour).
-    if (!this.get('speakHost') && !this.get('editHost')) {
+    if (!this.get('speakHost') && !this.get('editHost') && !this.get('boardAltHost')) {
       if (this.get('appState.auto_open_home_tour')) {
         this._consumeAutoOpenSignal();
       } else {
@@ -1413,3 +1523,61 @@ export default Component.extend({
     }
   }
 });
+
+/* THE COMMUNICATOR WELCOME'S ACTIONS (2026-10-12, tour redesign: docs/task-management/2026-10-12_tour-redesign.md).
+   Added with `reopen` so the line-anchored .eslint-todo rows above keep their lines. Each one takes over the
+   tour's end (`_speakHandoffActive`, as the old "start speaking" did) so the first-login board-picker
+   handoff bound to complete/cancel does not also fire, then closes the tour.
+   - speak       Start talking now: Vocal Flair 60 becomes the home board, then Speak Mode (start_talking.js).
+   - speak_tour  Take a quick tour (1 min): the same, then the communicator tour on that board.
+   - picker      Choose a different board: the board picker, with its own tour armed as the old handoff did. */
+GuidedTour.reopen({
+  _welcomeAction: function(spec) {
+    var _this = this;
+    var appState = this.get('appState');
+    this.set('_speakHandoffActive', true);
+    try {
+      var to = this.get('tour.tourObject');
+      if (to && typeof to.cancel === 'function') { to.cancel(); }
+    } catch (e) { /* best-effort */ }
+    if (spec === 'picker') {
+      appState.set('board_picker_tour_pending', true);
+      return this.get('router').transitionTo('board-picker');
+    }
+    return start_talking_now({ appState: appState, router: _this.get('router'), withTour: spec === 'speak_tour' });
+  }
+});
+
+/* BASIC'S BOARD-PAGE TOUR (2026-10-12 redesign). Basic's board page (templates/board/index.hbs) mounts one
+   instance as `@boardAltHost`; it starts the communicator board tour (utils/tours/communicator-board.js,
+   registered for board-alt in registry.js) when `board_alt_tour_pending` names the board on screen. Set by
+   "Take a quick tour" (utils/tours/start_talking.js) and by the first-message offer. The board is drawn
+   after the route settles, so it waits (bounded, ~6s) for the board before building the steps, which
+   are resolved from the DOM. */
+GuidedTour.reopen({
+  boardAltHost: false,
+  init: function() {
+    this._super(...arguments);
+    if (this.get('boardAltHost')) { this._consumeBoardAltTour(0); }
+  },
+  _boardAltTourWatcher: observer('appState.board_alt_tour_pending', 'appState.currentBoardState.key', 'tourKey', function() {
+    if (this.get('boardAltHost')) { this._consumeBoardAltTour(0); }
+  }),
+  _consumeBoardAltTour: function(attempt) {
+    var _this = this;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var pending = this.get('appState.board_alt_tour_pending');
+    if (!pending || this.get('appState.currentBoardState.key') !== pending) { return; }
+    if (this.get('tourKey') !== 'board_alt_speak' || !document.querySelector('.board')) {
+      if (attempt < 30) { window.setTimeout(function() { _this._consumeBoardAltTour(attempt + 1); }, 200); } else { this.set('appState.board_alt_tour_pending', null); } // gave up: drop it (adversary review, 2026-10-13)
+      return;
+    }
+    this.set('appState.board_alt_tour_pending', null);
+    this._startTour();
+  }
+});
+
+export default GuidedTour;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { start_talking_now } from '../utils/tours/start_talking';

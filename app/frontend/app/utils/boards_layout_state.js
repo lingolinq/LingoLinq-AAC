@@ -23,9 +23,20 @@ export const BOARDS_LAYOUT_KEY = 'll_boards_layout';
 export const SIDE_BY_SIDE = 'side-by-side';
 export const TOP_DOWN = 'top-down';
 
+/* Test seam. Unit tests supply a stand-in storage object here instead of replacing the
+   page-global window.localStorage: other page-level code reads that global on its own
+   timers (capabilities' 2s auth-sync tick calls localStorage.getItem), so a stub without
+   getItem installed on window made that tick throw into whichever test was running.
+   Always null in the app. Call storage() only inside the try blocks below, because
+   reading window.localStorage can itself throw (sandboxed iframes). */
+var storageOverride = null;
+function storage() { return storageOverride || window.localStorage; }
+export function setStorageForTesting(store) { storageOverride = store || null; }
+
 export function readStoredLayout() {
   try {
-    var stored = window.localStorage && window.localStorage[BOARDS_LAYOUT_KEY];
+    var s = storage();
+    var stored = s && s[BOARDS_LAYOUT_KEY];
     return stored === TOP_DOWN ? TOP_DOWN : SIDE_BY_SIDE;
   } catch (e) {
     return SIDE_BY_SIDE;
@@ -34,12 +45,14 @@ export function readStoredLayout() {
 
 export function writeStoredLayout(mode) {
   try {
-    if (window.localStorage) { window.localStorage[BOARDS_LAYOUT_KEY] = mode; }
+    var s = storage();
+    if (s) { s[BOARDS_LAYOUT_KEY] = mode; }
   } catch (e) { /* preference simply does not persist; the toggle still works this session */ }
 }
 
 export function clearStoredLayout() {
   try {
-    if (window.localStorage) { window.localStorage.removeItem(BOARDS_LAYOUT_KEY); }
+    var s = storage();
+    if (s) { s.removeItem(BOARDS_LAYOUT_KEY); }
   } catch (e) { /* nothing to clear if storage is unavailable */ }
 }

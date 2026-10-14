@@ -297,6 +297,17 @@ describe Api::IntegrationsController, :type => :controller do
   end
 
   describe "focus_generate_words" do
+    # AI features default to off (2026-09-30). These examples exercise the endpoint
+    # for an account that has turned board generation on, so each gate under test
+    # is the one that refuses.
+    def token_user(*args)
+      result = super
+      @user.settings['preferences']['ai_features_enabled'] = true
+      @user.settings['preferences']['ai_board_generation'] = true
+      @user.save!
+      result
+    end
+
     before(:each) do
       allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
       allow(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
@@ -311,6 +322,16 @@ describe Api::IntegrationsController, :type => :controller do
     it 'should reject when the AI feature gate is off' do
       token_user
       expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(false)
+      post 'focus_generate_words', params: { prompt: 'grinch lesson' }
+      expect(response).to have_http_status(403)
+      expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+    end
+
+    it 'should 403 for an account that never turned AI features on' do
+      token_user
+      User::EU_AI_PREF_KEYS.each { |k| @user.settings['preferences'].delete(k) }
+      @user.save!
+      expect(AiBoardGenerator).not_to receive(:generate_focus_words)
       post 'focus_generate_words', params: { prompt: 'grinch lesson' }
       expect(response).to have_http_status(403)
       expect(JSON.parse(response.body)['error']).to eq('Feature not available')

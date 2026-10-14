@@ -13,6 +13,7 @@ import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { readFoldersExpanded } from '../../utils/folders_panel_state';
+import { display_name_for } from '../../utils/display_name';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import {
@@ -54,7 +55,25 @@ function allTaggedGlobalIds(map) {
   return s;
 }
 
-export default Controller.extend({
+var UserIndexController = Controller.extend({
+
+  /* The username as the profile header DISPLAYS it, with a leading "@".
+     Display-only: `model.user_name` is never modified, because it is the account's real
+     identifier (it appears in board keys, urls and the API). A value that already carries an
+     "@" is passed through rather than doubled, and a missing username yields nothing at all
+     rather than a bare "@" floating under the name. */
+  at_username: computed('model.user_name', 'model.name', function() {
+    var handle = this.get('model.user_name');
+    if(!handle) { return null; }
+    /* SUPPRESSED when the heading is already the handle. Signup collects no name, so `name`
+       is absent on most accounts (see utils/display_name.js), and `display-name` then falls
+       back to `user_name` -- which rendered the handle twice, once as the title and again as
+       "@handle" directly beneath it. Asking the shared rule rather than re-testing `name`
+       here also covers the "No name" server sentinel it strips. */
+    if(display_name_for(this.get('model')) === handle) { return null; }
+    handle = String(handle);
+    return (handle.charAt(0) === '@') ? handle : ('@' + handle);
+  }),
   /* Folder drill-in lives in the URL as `?folder=<tag>`.
      WHY A QUERY PARAM rather than a popstate listener: drilling into a folder is a
      view change the user reads as navigation, so the browser Back button has to undo
@@ -669,7 +688,7 @@ export default Controller.extend({
     'model.id',
     'model.board_tag_map',
     'mineTagFolderDrillIn',
-    'mineFoldersPanelExpanded',
+    'mineFoldersPanelOpen',
     'model.my_boards',
     'model.prior_home_boards',
     'model.public_boards',
@@ -917,7 +936,7 @@ export default Controller.extend({
             });
             // Children stay nested under their root, exactly as in the
             // main boards grid — no flattening, no second render.
-          } else if (this.get('mineFoldersEnabled') && this.get('mineFoldersPanelExpanded')) {
+          } else if (this.get('mineFoldersEnabled') && this.get('mineFoldersPanelOpen')) {
             /* Foldered boards are held out of the main grid ONLY while the folders
                panel is open — filing a board into a folder MOVES it there, so showing a
                second loose copy in the grid would defeat the point.
@@ -1599,7 +1618,7 @@ export default Controller.extend({
       this.set('parent_object', obj);
     },
     /* Boards-page tile click — open the board the user actually clicked,
-       respecting `currentUser.preferences.board_view_style`:
+       respecting `effective_view_user.preferences.board_view_style`:
          - 'classic'  → user.board-alt.index  (the modern speak grid)
          - 'modern'   → user.board-detail.index  (the panelled view)
        Default is 'modern' (per board/index.js#board_view_style).
@@ -1616,7 +1635,7 @@ export default Controller.extend({
       if(!key) { return; }
       var parts = key.split('/');
       if(parts.length !== 2) { return; }
-      var pref = this.get('appState.currentUser.preferences.board_view_style');
+      var pref = this.get('appState.effective_view_user.preferences.board_view_style');
       var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
       /* Show full-viewport loading overlay so the click registers
          visually while the route resolves the board record + tree.
@@ -1857,5 +1876,32 @@ export default Controller.extend({
     retry_board_list: function() {
       this.update_selected();
     }
-  }
+  },
+
+  /* WHOSE ACCOUNT THIS IS, for the header's subtitle (2026-10-01, requested: it read "View your
+     account details" on someone else's account too). The SESSION user, never `currentUser`, which
+     is the communicator while modeling; by id or user_name, since a cold load's session record
+     has id 'self'. Placed last so the line-anchored ESLint baseline above does not shift. */
+  isSelf: computed('model.id', 'model.user_name', 'appState.sessionUser.id', 'appState.sessionUser.user_name', function() {
+    var me = this.get('appState.sessionUser');
+    if(!me) { return false; }
+    return me.get('id') === this.get('model.id') || me.get('user_name') === this.get('model.user_name');
+  })
 });
+
+/* Is the folders panel showing? Always in side-by-side (requested 2026-10-11), otherwise the
+   user's stored choice. Reads the SAME flag as components/available-boards-section.js#foldersOpen
+   (utils/folders_panel_state.js#foldersLayout), so the two agree on whether foldered boards are
+   held out of the main grid. Added with reopen, after the class, so the `.eslint-todo` rows above
+   keep their lines. */
+UserIndexController.reopen({
+  foldersLayout: foldersLayout,
+  mineFoldersPanelOpen: computed('mineFoldersPanelExpanded', 'foldersLayout.sideBySide', function() {
+    return !!(this.get('foldersLayout.sideBySide') || this.get('mineFoldersPanelExpanded'));
+  })
+});
+
+export default UserIndexController;
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import { foldersLayout } from '../../utils/folders_panel_state';

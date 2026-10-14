@@ -68,7 +68,7 @@ export default Component.extend({
         list.push({ id: sup.id, name: display_name_for(sup) + ' (' + sup.user_name + ')' });
       });
     }
-    list.push({ id: 'custom', name: i18n.t('other_account', 'Other Account') });
+    list.push({ id: 'custom', name: i18n.t('other_account', "Other Account") });
     return list;
   }),
 
@@ -131,7 +131,7 @@ export default Component.extend({
         data: { message: message }
       }).then(function() {
         _this.set('disabled', false);
-        modal.success(i18n.t('message_delivered', 'Message sent! Thank you for reaching out!'));
+        modal.success(i18n.t('message_delivered', "Message sent! Thank you for reaching out!"));
         modal.close();
       }, function() {
         _this.set('error', true);

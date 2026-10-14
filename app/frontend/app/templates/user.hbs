@@ -1,70 +1,81 @@
 {{#if this.bareUserOutletLayout}}
+  {{!-- BARE ROUTES bring their own shell, so they skip the `.md-shell--user` wrapper below --
+       Reports (user.stats) renders `.md-shell--reports-view` instead. Reports is still an
+       account-section page and still wants the nav, so the rail renders here too, and the
+       gutter it needs is carried by a wrapper of its own rather than by `.md-shell--user-rail`
+       (which this branch never gets).
+       Gated on the SAME `accountRailContext` as the other branch, so the two can never
+       disagree about which pages have a rail. Boards and the board routes are also bare but
+       are not in that list, so they fall through to the plain outlet unchanged. --}}
+  {{!-- Chrome (rail + pill nav) is mounted ONCE in templates/application.hbs as of
+         2026-09-21, so it persists across transitions instead of being rebuilt here. --}}
   {{outlet}}
 {{else}}
 <div class="md-user-layout hide_print">
   <div class="md-shell md-shell--user">
-    <div class="md-workspace">
-      <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>
-        <LinkTo @route="index" class="md-pillnav__pill md-pillnav__pill--home">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
-          {{t "Home" key="home"}}
-        </LinkTo>
-        <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-pillnav__pill {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">{{t "Account" key="account_lower"}}</LinkTo>
-        {{#if this.model.permissions.edit}}
-          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "Profile" key="profile_lower"}}</LinkTo>
-          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "Settings" key="preferences_lower"}}</LinkTo>
-        {{/if}}
-        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all"}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">{{t "Logs" key="logs"}}</LinkTo>
-      </nav>
-      {{!-- ≤460px primary nav: the .md-pillnav--user pill row above is hidden at
-           this breakpoint and this dropdown drawer takes its place, mirroring the
-           home page's md-pillnav-dropdown. Native <details>/<summary> so the
-           open/close state needs no controller wiring (same pattern as the
-           caseload page). The trigger label reflects the current section. --}}
-      <details class="md-pillnav-dropdown md-pillnav-dropdown--user" aria-label={{t "User menu" key="user_menu"}}>
-        <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
-          <span class="md-pillnav-dropdown__label">
-            <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            {{#if (is-equal this.app_state.current_route 'user.edit')}}{{t "Profile" key="profile_lower"}}{{else if (is-equal this.app_state.current_route 'user.preferences')}}{{t "Settings" key="preferences_lower"}}{{else if (is-equal this.app_state.current_route 'user.logs')}}{{t "Logs" key="logs"}}{{else}}{{t "Account" key="account_lower"}}{{/if}}
-          </span>
-          <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
-        </summary>
-        <ul class="md-pillnav-dropdown__list">
-          <li>
-            <LinkTo @route="index" class="md-pillnav-dropdown__option">
-              <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
-              {{t "Home" key="home"}}
-            </LinkTo>
-          </li>
-          <li>
-            <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-pillnav-dropdown__option {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">
-              <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              {{t "Account" key="account_lower"}}
-            </LinkTo>
-          </li>
-          {{#if this.model.permissions.edit}}
-            <li>
-              <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav-dropdown__option {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">
-                <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-                {{t "Profile" key="profile_lower"}}
-              </LinkTo>
-            </li>
-            <li>
-              <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav-dropdown__option {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">
-                <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H1a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V1a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H23a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                {{t "Settings" key="preferences_lower"}}
-              </LinkTo>
-            </li>
-          {{/if}}
-          <li>
-            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all"}} class="md-pillnav-dropdown__option {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">
-              <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              {{t "Logs" key="logs"}}
-            </LinkTo>
-          </li>
-        </ul>
-      </details>
-      <main class="md-main md-main--user">
+    {{!-- BASIC VIEW'S SECTION NAV (2026-09-25, requested). Modern's rail is mounted in the app
+         shell; Basic has none, so it is rendered here.
+         A DIRECT CHILD OF `.md-shell`, following templates/organizations.hbs, and for the same
+         two reasons given at that call site: `.md-shell` carries the page's background, so a
+         rail outside it would sit on bare page while the gradient covered only the content
+         column; and `.md-shell > .md-workspace` is a DIRECT-CHILD selector, so a flex wrapper
+         between the two would silently stop it applying and change Modern's layout for a
+         Basic-only feature. `.md-shell` is already `display: flex`; Basic only turns it to a
+         row (_classic-home.scss), and Modern keeps the column, untouched. --}}
+    {{#if this.showClassicAccountRail}}
+      <Dashboard::ClassicAccountRail @user={{this.model}} />
+    {{/if}}
+    {{!-- THE ACCOUNT SECTION NAV (2026-09-18). One instance here serves every page in the
+         section: it used to live inside templates/user/index.hbs, so only the account page
+         had it. `accountRailContext` (controllers/user.js) decides WHICH routes get it, and
+         `md-shell--user-rail` above reserves the 208px the fixed panel occupies -- the two
+         are driven by the same flag, so a page can never get the panel without the gutter or
+         the gutter without the panel. --}}
+    {{!-- `md-workspace--homenav` is gone (2026-09-21). It marked the logs page reached from
+         the Updates pill, for 64px of extra headroom that cleared a nav which no longer
+         renders inside the page -- the app shell clears the hoisted nav for every
+         destination now. See the note left at that rule's old site in app.scss. --}}
+    <div class="md-workspace {{if this.flushTopWorkspace "md-workspace--flush-top"}}">
+      {{!-- WHICH NAV, DECIDED BY WHERE THE USER CAME FROM (requested 2026-09-14).
+           `homeNavContext` (controllers/user.js) is true only on the logs page and only when it
+           was reached from the home page's Updates pill, which says so with `nav=home` in the
+           URL. In that one case the HOME menu stays on screen with Updates active, so the user
+           keeps the menu they were navigating with. Every other page in the section gets the
+           account rail, mounted above.
+
+           THIS WAS A THREE-WAY BRANCH until 2026-09-21: `accountRailContext` first (rendering
+           nothing, because the rail is mounted above), `homeNavContext` second, and a final
+           else carrying the `.md-pillnav--user` account pill row plus its collapsed drawer.
+
+           THAT PILL ROW IS RETIRED, and the rail is what replaced it. The rail carries all five
+           of its links -- Home, Account, Profile, Settings, Logs -- with the same
+           `permissions.edit` gate on Profile and Settings, applied to the same record (both were
+           handed `this.model`). The rail's Logs row also drops the pill's `?type=all`, which was
+           not free: controllers/user/logs.js normalises 'all' to null, that write is observed by
+           `refresh_on_params_change`, and routes/user/logs.js has already called `refresh` in
+           setupController -- so arriving with the param cost a SECOND store.query('log') on one
+           of the heavier endpoints in the app.
+
+           COLLAPSED TO A SINGLE IF rather than left as an empty else: `accountRailContext`
+           returns false whenever `homeNavContext` is true (controllers/user.js), so the first
+           branch could never preempt the second, and with the third deleted both remaining
+           non-home branches rendered nothing at all. This is exactly equivalent output.
+
+           THE PAGES THAT USED TO REACH THE DELETED BRANCH now get the rail instead -- see the
+           six route names added to `accountRailContext`, and the matching ROW_FOR_ROUTE keys in
+           components/account-rail.js, which have to move together.
+
+           `user.password_reset` and `user.confirm_registration` deliberately get NO nav: they
+           are single-task pages reached from an email, they carry their own exit, and the
+           global header in application.hbs renders for signed-out visitors too. --}}
+      {{!-- `md-main--updates-arrival` marks the logs page reached from the home pill-nav's
+           Updates, so its header can centre there (app.scss). Driven by the same
+           `homeNavContext` the nav choice uses, so the two can never disagree about which
+           arrival this is.
+           A NEW NAME, not the retired `md-workspace--homenav`: that one existed for headroom
+           that a since-removed in-page nav needed, and reviving it would imply this is the
+           same concern. It is not — this is purely the header's alignment. --}}
+      <main class="md-main md-main--user {{if this.homeNavContext "md-main--updates-arrival"}}">
         {{outlet}}
       </main>
     </div>

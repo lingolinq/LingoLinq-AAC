@@ -613,7 +613,7 @@ function ensureUserReload(user) {
 }
 
 function primeSyncHarness() {
-  lingoLinqExtras.ready = true;
+  lingoLinqExtras.set('ready', true);
   window.lingoLinqExtras = lingoLinqExtras;
   LingoLinq.sync_testing = true;
   LingoLinq.all_wait = true;

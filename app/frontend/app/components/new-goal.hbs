@@ -303,7 +303,13 @@
       {{!-- Indeterminate progress bar pinned to the bottom of the
            footer while the save round-trip is in flight. Visual
            feedback for slower connections where the button text
-           alone isn't enough to signal "work is happening". --}}
+           alone isn't enough to signal "work is happening".
+           NO `aria-valuenow`, AND NO `aria-valuemin`/`aria-valuemax`, deliberately: there is
+           nothing to measure here, and ARIA says an indeterminate progressbar omits the value
+           rather than reporting a false one. `aria-busy` plus the label is the whole contract.
+           Every other progressbar in the app carries `aria-valuenow`; this is the exception,
+           not one that was missed. See copying-board.hbs:50 for the hybrid case, which
+           supplies the value only once it becomes measurable. --}}
       <div class="md-modal-progress" role="progressbar" aria-label={{t "Saving goal" key="saving_goal"}} aria-busy="true">
         <span class="md-modal-progress__bar"></span>
       </div>

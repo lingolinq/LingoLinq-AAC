@@ -101,8 +101,8 @@ when the Electron shell is refreshed in Phase 4:
 ## 6. Browser-standard APIs (no native plugin; verify under WKWebView)
 
 IndexedDB (`dbman.js:525-545`), `getUserMedia`, `MediaRecorder` (polyfilled,
-`media_recorder.js`), `speechSynthesis` (polyfilled via `vendor/speech/speech.js` +
-`services/speech-output.js:23-82`), `navigator.vibrate`, `Notification`. These work in the
+`media_recorder.js`), `speechSynthesis` (polyfilled via `vendor/speech/speech.js`),
+`navigator.vibrate`, `Notification`. These work in the
 Capacitor WKWebView but should be smoke-tested; Capacitor's WKWebView generally handles
 IndexedDB better than Cordova's old webview.
 

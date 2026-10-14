@@ -843,8 +843,8 @@ export default Component.extend({
           setTimeout(function() {
             var t = document.getElementById('ll-pre-reload-overlay__title');
             var s = document.getElementById('ll-pre-reload-overlay__sub');
-            if(t) { t.textContent = i18n.t('still_working_loading', 'Still working…'); }
-            if(s) { s.textContent = i18n.t('large_board_sets_take_longer', 'Large board sets can take a little longer to prepare.'); }
+            if(t) { t.textContent = i18n.t('still_working_loading', "Still working…"); }
+            if(s) { s.textContent = i18n.t('large_board_sets_take_longer', "Large board sets can take a little longer to prepare."); }
           }, 3000);
         }
       }
@@ -1380,5 +1380,13 @@ export default Component.extend({
         _this.set('coppa_submit_parent_notice', i18n.t('coppa_parent_email_submit_failed', "Could not send the approval email. Check your username, password, and the parent email, then try again."));
       });
     }
-  }
+  },
+
+  // "basic access" (the public boards, no sign-in) behind the `emergency_boards` flag: on the login
+  // page, and in the "Please Log Back In" dialog too (decided 2026-10-11), which cannot be dismissed,
+  // so a communicator who does not know the password still has a way back to speaking. Not in the
+  // re-authentication prompt. Placed after `actions` so the `.eslint-todo` rows above keep their lines.
+  showBasicAccess: computed('prompt', 'app_state.feature_flags.emergency_boards', function() {
+    return !this.get('prompt') && !!this.get('app_state.feature_flags.emergency_boards');
+  })
 });
