@@ -276,6 +276,16 @@
   white-space: nowrap;
 }
 
+// "Coming Soon" — a yellow/amber variant of the item tag (2026-10-13 request). Reuses the base
+// tag's shape, size and weight; only the palette changes, so it reads as the same system as
+// the Recommended/Default tags while standing out as a not-yet state. Dark amber ink on a 0.45
+// honey wash composites to ~5.83:1 on the near-white menu (the measured recipe at
+// _variables.scss:727, $caseload-badge-attn-ink), above the 4.5:1 AAC floor.
+.ll-viewswitch__item-tag--soon {
+  background: rgba($brand-honey-bronze, 0.45);
+  color: $caseload-badge-attn-ink;
+}
+
 // Reuses the 0.72 alpha proved against this same near-white menu surface for
 // `.ll-viewswitch__group` above: it composites to 5.14:1, so the description is held to
 // the 4.5:1 text floor rather than treated as decoration. Do not lower it without

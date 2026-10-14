@@ -108,19 +108,18 @@
       </button>
     </li>
     {{!-- DISPLAY (requested 2026-10-13: "move the display design link inside the view dropdown under a
-         DISPLAY header"): the Display Design page, which had its own navbar button. Only where that page
-         is available (`canDisplayStyle`). A plain `menuitem`: it opens a page rather than choosing a state. --}}
-    {{#if this.canDisplayStyle}}
-      <li role="separator" class="ll-viewswitch__sep"></li>
-      <li role="none" class="ll-viewswitch__group">{{t "Display" key="view_group_display"}}</li>
-      <li role="none">
-        <button type="button" role="menuitem" class="ll-viewswitch__item"
-                {{on "click" (this.ctrlAction "open_display_style")}}>
-          <span class="ll-viewswitch__item-label">{{t "Display Design" key="display_design"}}</span>
-          <span class="ll-viewswitch__item-desc">{{t "Choose and arrange your home page cards." key="view_desc_display_style"}}</span>
-        </button>
-      </li>
-    {{/if}}
+         DISPLAY header"). Shown in BOTH Basic and Modern views (requested 2026-10-13): the item is a
+         disabled COMING SOON placeholder that links nowhere, so it no longer depends on the Display
+         Style opener being registered (`canDisplayStyle`, kept with `open_display_style` as the dormant
+         wiring for when the page is re-enabled). --}}
+    <li role="separator" class="ll-viewswitch__sep"></li>
+    <li role="none" class="ll-viewswitch__group">{{t "Display" key="view_group_display"}}</li>
+    <li role="none">
+      <button type="button" role="menuitem" class="ll-viewswitch__item" disabled>
+        <span class="ll-viewswitch__item-label">{{t "Display Design" key="display_design"}}<span class="ll-viewswitch__item-tag ll-viewswitch__item-tag--soon">{{t "Coming Soon" key="view_coming_soon"}}</span></span>
+        <span class="ll-viewswitch__item-desc">{{t "Choose and arrange your home page board shortcuts." key="view_desc_display_style"}}</span>
+      </button>
+    </li>
   </ul>
 </div>
 {{/if}}

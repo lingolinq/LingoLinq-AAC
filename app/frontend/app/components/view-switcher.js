@@ -146,6 +146,11 @@ export default Component.extend({
 
     // Opens the page the old button opened, through the same opener as the phone drawer
     // (app-navbar-authenticated-inner.js#openDisplayStyle).
+    // DORMANT (2026-10-13): the Display Design item is a disabled "Coming Soon" placeholder in
+    // view-switcher.hbs, so this action and `canDisplayStyle` are intentionally not wired to a
+    // control right now. They are retained (with coverage in view-switcher-display-style-test.js) as
+    // the re-enable path for when Display Design ships. Disable the orphaned-action rule for this one.
+    // eslint-disable-next-line lingolinq/no-orphaned-action
     open_display_style: function() {
       this.set('menu_open', false);
       var opener = this.get('appState.dashboard_design_opener');
