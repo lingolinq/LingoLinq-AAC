@@ -93,7 +93,10 @@ module Uploader
       owner_class_name, owner_global_id = extra.to_s.split('::', 2)
       res = remote_remove_thumbnail_family(path, owner_class_name, owner_global_id)
     end
-    RemoteAction.where(action: action, path: path).delete_all
+    # A family removal answers false when a key delete failed (each is rescued and logged there):
+    # the row stays, pushed out a day by RemoteAction#process_action, so the family is retried.
+    family_incomplete = action == 'delete_thumbnail_family_retry' && res == false
+    RemoteAction.where(action: action, path: path).delete_all unless family_incomplete
     res
   end
 
@@ -434,6 +437,8 @@ module Uploader
     ]
   end
 
+  # Answers false when any key delete failed (rescued and logged below), true otherwise, and nil
+  # when deletes are not set up (remote_delete_ready?).
   def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)
     # One retry for the whole family. Without this guard the guessed fallback below would defer
     # every guessed key separately through remote_remove.
@@ -449,6 +454,7 @@ module Uploader
       # when the family may hold more.
       Rails.logger.error("Uploader.remote_remove_thumbnail_family enumeration failed owner=#{owner} stem=#{stem}; falling back to a bounded guessed-sequence delete")
       deleted = 0
+      failed = 0
       fallback_thumbnail_counts.each do |counts|
         counts.each do |count|
           found_this_index = false
@@ -469,30 +475,34 @@ module Uploader
               # guess sequence on a transient blip, defeating the whole point
               # of this fallback (see the enumeration-failure log line above).
               errored_this_index = true
+              failed += 1
               Rails.logger.error("Uploader.remote_remove_thumbnail_family fallback delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
             end
           end
           break if !found_this_index && !errored_this_index
         end
       end
-      Rails.logger.info("Uploader.remote_remove_thumbnail_family fallback owner=#{owner} stem=#{stem} deleted=#{deleted}")
-      return
+      Rails.logger.info("Uploader.remote_remove_thumbnail_family fallback owner=#{owner} stem=#{stem} deleted=#{deleted} failed=#{failed}")
+      return failed == 0
     end
     strict = /\A#{Regexp.escape(stem)}\.(?:\d{5}|\d{7})\.(jpg|png)\z/
     matched = found.select { |k| k.match?(strict) }
     if matched.empty?
       Rails.logger.info("Uploader.remote_remove_thumbnail_family found no matching objects owner=#{owner} stem=#{stem}")
-      return
+      return true
     end
     deleted = 0
+    failed = 0
     matched.each do |key|
       begin
         deleted += 1 if remote_remove(key)
       rescue StandardError => e
+        failed += 1
         Rails.logger.error("Uploader.remote_remove_thumbnail_family delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
       end
     end
-    Rails.logger.info("Uploader.remote_remove_thumbnail_family owner=#{owner} stem=#{stem} matched=#{matched.length} deleted=#{deleted}")
+    Rails.logger.info("Uploader.remote_remove_thumbnail_family owner=#{owner} stem=#{stem} matched=#{matched.length} deleted=#{deleted} failed=#{failed}")
+    failed == 0
   end
 
   def self.remote_remove(url, checksum=nil)

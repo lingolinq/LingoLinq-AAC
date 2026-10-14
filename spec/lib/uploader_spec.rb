@@ -2658,6 +2658,58 @@ describe Uploader do
       expect(RemoteAction.where(id: ra.id).count).to eq(0)
     end
 
+    # The family removal rescues and logs each failed key delete, so a retry whose deletes failed
+    # used to complete and drop its row, leaving those thumbnails in S3 with nothing to retry them.
+    describe "a thumbnail family retry whose key deletes fail" do
+      let(:stem) { 'videos/1/2/3/1_5-familyv1723500000.mp4' }
+      let(:s3_client) { instance_double(Aws::S3::Client) }
+
+      def family_retry_with_listing
+        ra = RemoteAction.create!(action: 'delete_thumbnail_family_retry', path: stem, extra: 'UserVideo::1_5', act_at: 1.hour.ago)
+        allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+        allow(s3_client).to receive(:list_objects_v2).and_return(
+          Aws::S3::Types::ListObjectsV2Output.new(contents: [
+            Aws::S3::Types::Object.new(key: "#{stem}.00001.png"),
+            Aws::S3::Types::Object.new(key: "#{stem}.00002.jpg")
+          ])
+        )
+        allow(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+        allow(Rails.logger).to receive(:error)
+        ra
+      end
+
+      it "keeps its row when one key delete fails" do
+        ra = family_retry_with_listing
+        allow(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_return(true)
+        allow(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.jpg").and_raise(Aws::S3::Errors::ServiceError.new(nil, 'throttled'))
+
+        expect(Uploader.retry_remote_delete('delete_thumbnail_family_retry', stem, 'UserVideo::1_5', ra.created_at.to_i)).to eq(false)
+
+        expect(RemoteAction.where(id: ra.id).count).to eq(1)
+      end
+
+      it "keeps its row when a guessed delete fails after listing fails" do
+        ra = family_retry_with_listing
+        allow(s3_client).to receive(:list_objects_v2).and_raise(Aws::S3::Errors::ServiceError.new(nil, 'denied'))
+        allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'absent'))
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_return(Aws::S3::Types::HeadObjectOutput.new)
+        allow(s3_client).to receive(:delete_object).and_raise(Aws::S3::Errors::ServiceError.new(nil, 'throttled'))
+
+        Uploader.retry_remote_delete('delete_thumbnail_family_retry', stem, 'UserVideo::1_5', ra.created_at.to_i)
+
+        expect(RemoteAction.where(id: ra.id).count).to eq(1)
+      end
+
+      it "drops its row when every key delete succeeds" do
+        ra = family_retry_with_listing
+        allow(s3_client).to receive(:delete_object).and_return(true)
+
+        expect(Uploader.retry_remote_delete('delete_thumbnail_family_retry', stem, 'UserVideo::1_5', ra.created_at.to_i)).to eq(true)
+
+        expect(RemoteAction.where(id: ra.id).count).to eq(0)
+      end
+    end
+
     it "keeps a due thumbnail family retry row through the hourly batch until the family removal completes" do
       stem = 'videos/1/2/3/1_5-familyv1723500000.mp4'
       ra = RemoteAction.create!(action: 'delete_thumbnail_family_retry', path: stem, extra: 'UserVideo::1_5', act_at: 1.hour.ago)
