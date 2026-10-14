@@ -2560,6 +2560,77 @@ describe Subscription, :type => :model do
 
       # A scheduled account keeps its schedule: the sweep's rewind of its activity time leaves an
       # expired trial in the trial scope, so it must not be scheduled and mailed again each run.
+      # An address that always fails would otherwise be undone on every run and never reach
+      # deletion. After repeated failures over a week the step is kept without the notice (as for
+      # an account with no address, which gets no mail), and that is audited.
+      describe "mail that keeps failing" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        # created long ago, so the recently-registered reminder does not touch it on later days
+        def run_daily(days)
+          User.update_all(created_at: 2.years.ago)
+          days.times { |d| travel(d.days) { User.check_for_subscription_updates } }
+        end
+
+        def kept_events(u)
+          AuditEvent.where(user_key: 'system').to_a.select { |e| e.data['type'] == 'inactivity_step_kept_without_notice' && e.data['user_id'] == u.global_id }
+        end
+
+        it "keeps the warning step once the mail has failed on runs spanning a week" do
+          failed = inactive_account_to_warn
+          failing_mail_for(failed)
+
+          run_daily(8)
+
+          stored = User.find(failed.id)
+          expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(stored.settings['subscription']['inactivity_mail_failures']['count']).to be >= 3
+          ev = kept_events(failed)
+          expect(ev.length).to eq(1)
+          expect(ev[0].data.keys.sort).to eq(['mail_failures', 'step', 'type', 'user_id'])
+          expect(ev[0].data['step']).to eq('deletion_warning')
+        end
+
+        it "keeps the deletion schedule once the deletion mail has failed on runs spanning a week" do
+          failed = inactive_account_on_final_warning
+          failing_mail_for(failed)
+
+          run_daily(8)
+
+          expect(User.find(failed.id).schedule_deletion_at).not_to eq(nil)
+          expect(kept_events(failed).map { |e| e.data['step'] }).to eq(['account_deleted'])
+        end
+
+        it "still undoes the step while the failures span less than a week" do
+          failed = inactive_account_to_warn
+          failing_mail_for(failed)
+
+          run_daily(4)
+
+          stored = User.find(failed.id)
+          expect(stored.settings['subscription']['last_deletion_attempts']).to eq(nil)
+          expect(stored.settings['subscription']['inactivity_mail_failures']['count']).to eq(4)
+          expect(kept_events(failed)).to eq([])
+        end
+
+        it "starts the failure count again after a mail goes out" do
+          u = inactive_account_to_warn
+          failing = true
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            raise RuntimeError, 'mail delivery failed' if failing && id == u.global_id
+          end
+          run_daily(2)
+          expect(User.find(u.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(2)
+          failing = false
+
+          travel(2.days) { User.check_for_subscription_updates }
+
+          stored = User.find(u.id)
+          expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(stored.settings['subscription']['inactivity_mail_failures']).to eq(nil)
+        end
+      end
+
       describe "accounts already scheduled for deletion" do
         include ActiveSupport::Testing::TimeHelpers
 

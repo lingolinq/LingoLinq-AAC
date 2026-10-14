@@ -1330,6 +1330,8 @@ module Subscription
             retry_point = 12.months.ago + 3.weeks
             fresh.settings['subscription'] ||= {}
             previous = inactivity_step_fields(fresh)
+            # a mail that goes out ends a run of failures; a failed one puts the count back
+            fresh.settings['subscription'].delete('inactivity_mail_failures')
             if attempts > 2
               fresh.schedule_deletion_at = 36.hours.from_now
               # Marks this schedule as the sweep's, so use of the account cancels it (Flusher).
@@ -1345,7 +1347,8 @@ module Subscription
           next unless taken
           # The step is saved before its mail goes out. When the mail fails (production raises
           # delivery errors), the step is undone so the account is not counted as warned or left
-          # scheduled without being told, and the run goes on to the next account.
+          # scheduled without being told, and the run goes on to the next account. After repeated
+          # failures over a week the step is kept without the notice (settle_failed_inactivity_step).
           begin
             if attempts > 2
               SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
@@ -1353,8 +1356,12 @@ module Subscription
               SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
             end
           rescue StandardError => e
-            undone = undo_inactivity_step(user.id, *step)
-            Rails.logger.error("[inactivity sweep] #{attempts > 2 ? 'account_deleted' : 'deletion_warning'} mail failed (#{e.class}); step #{undone ? 'undone' : 'kept, account changed since'}")
+            mail = attempts > 2 ? 'account_deleted' : 'deletion_warning'
+            outcome, failures = settle_failed_inactivity_step(user.id, *step)
+            Rails.logger.error("[inactivity sweep] #{mail} mail failed (#{e.class}); step #{outcome}#{failures ? " after #{failures} failures" : ''}")
+            if outcome == :kept_without_notice
+              AuditEvent.log_command('system', {'type' => 'inactivity_step_kept_without_notice', 'user_id' => user.global_id, 'step' => mail, 'mail_failures' => failures})
+            end
             next
           end
           alerts[:pending_deletes] += 1 unless attempts > 2
@@ -1393,25 +1400,48 @@ module Subscription
         'last_deletion_warning' => sub['last_deletion_warning'],
         'last_deletion_attempts' => sub['last_deletion_attempts'],
         'inactivity_deletion' => sub['inactivity_deletion'],
+        'inactivity_mail_failures' => sub['inactivity_mail_failures'],
         'schedule_deletion_at' => user.schedule_deletion_at&.utc&.iso8601(6),
         'updated_at' => user.updated_at&.utc&.iso8601(6)
       }
     end
 
-    # Puts back the fields an inactivity step changed, under a row lock, only while the row still
-    # holds what the step wrote (an account used or changed since keeps its newer state).
-    def undo_inactivity_step(user_id, previous, written)
-      res = User.update_settings_locked(user_id, touch: false) do |fresh|
+    # Consecutive inactivity mails that may fail for an account, over at least the period, before
+    # its step is kept without the notice. The sweep runs daily, so this is three or more failed
+    # runs spread over a week: long enough to ride out a delivery outage (which an admin sees in
+    # the error log meanwhile), short enough that a dead address cannot hold off the retention
+    # rule. An account with no address already gets no mail and proceeds the same way.
+    INACTIVITY_MAIL_FAILURE_LIMIT = 3
+    INACTIVITY_MAIL_FAILURE_PERIOD = 1.week
+
+    # Settles an inactivity step whose mail failed, under a row lock, only while the row still
+    # holds what the step wrote (an account used or changed since keeps its newer state): counts
+    # the failure in settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at'})
+    # and either puts back the fields the step changed or, once the failures reach the limit over
+    # the period, keeps the step. Returns [outcome, failure count]: outcome is :undone,
+    # :kept_without_notice, or :left_as_changed (nil count).
+    def settle_failed_inactivity_step(user_id, previous, written)
+      outcome, count = :left_as_changed, nil
+      User.update_settings_locked(user_id, touch: false) do |fresh|
         next false unless inactivity_step_fields(fresh) == written
         sub = fresh.settings['subscription'] ||= {}
+        prior = previous['inactivity_mail_failures'].is_a?(Hash) ? previous['inactivity_mail_failures'] : {}
+        count = prior['count'].to_i + 1
+        first_at = (Time.iso8601(prior['first_at'].to_s) rescue nil) || Time.now
+        sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601}
+        if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
+          outcome = :kept_without_notice
+          next true
+        end
         %w(last_deletion_warning last_deletion_attempts inactivity_deletion).each do |key|
           previous[key].nil? ? sub.delete(key) : sub[key] = previous[key]
         end
         fresh.schedule_deletion_at = previous['schedule_deletion_at'] && Time.iso8601(previous['schedule_deletion_at'])
         fresh.updated_at = Time.iso8601(previous['updated_at'])
+        outcome = :undone
         true
       end
-      !!res
+      [outcome, count]
     end
 
     # Where the next run of inactive_deletion_candidate_ids resumes, as [updated_at, id], or nil to
