@@ -1136,5 +1136,45 @@ describe OrganizationUnit, :type => :model do
       expect(removal_rows.count).to eq(0)
       expect(User.find(comm.id).supervisor_user_ids).to eq([])
     end
+
+    # The queued removal is skipped once its room is gone (the job's record is not found), and the
+    # room no longer lists the member, so the room's deletion completes the removal.
+    it "removes the pair's room supervision when the room is deleted before the removal runs" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "keeps a direct link without the room when the room is deleted before the removal runs" do
+      o, ou, sup, comm = room_members
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      link = UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "completes a removal from its row when the room was deleted and its cleanup is done" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      Worker.flush_queues
+      OrganizationUnit.where(id: ou.id).delete_all
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
   end
 end

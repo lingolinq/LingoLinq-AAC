@@ -209,7 +209,21 @@ class OrganizationUnit < ApplicationRecord
       staff_since = Organization.staff_since_for(org_code, supervisors.map(&:id)).transform_values{|at| Time.iso8601(at) }
       User.strip_rooms_from_pairs(supervisors.product(communicators), [unit_id], staff_since, org_id, data['actor'] || {}, reason: 'organization_unit_deleted')
     end
+    # members taken out of the room whose removal had not run yet: the room no longer lists them
+    member_rows = RemoteAction.where(action: 'room_member_removal').where('path LIKE ?', "#{ActiveRecord::Base.sanitize_sql_like(unit_id)}::%")
+    error = nil
+    member_rows.each do |row|
+      _, user_id, kind = row.path.split(/::/)
+      user = User.find_by_global_id(user_id)
+      begin
+        strip_deleted_room_member(unit_id, user, kind, org_id, data['actor'] || {}) if user
+      rescue StandardError => e
+        error ||= e
+      end
+    end
+    raise error if error
     links.each(&:destroy)
+    member_rows.delete_all
     rows.delete_all
     true
   end
@@ -430,9 +444,36 @@ class OrganizationUnit < ApplicationRecord
     if user && unit
       # releases the row when it completes
       unit.assert_supervision({'user_id' => user.global_id, "remove_#{kind}" => true})
+    elsif user && RemoteAction.where(path: unit_id, action: 'clean_up_destroyed_unit').exists?
+      # the deleted room's cleanup completes it (clean_up_destroyed) and releases the row
     else
+      if user
+        data = rows.map{|r| JSON.parse(r.extra) rescue nil }.compact.first || {}
+        strip_deleted_room_member(unit_id, user, kind, data['organization_id'], {})
+      end
       rows.delete_all
     end
     true
+  end
+
+  # Completes the removal of a member taken out of a room that was deleted before the removal ran:
+  # the room's id (and, when the organization is gone too, its other rooms' ids) comes off the
+  # member's supervision links, the same origin-aware way the cleanups strip.
+  def self.strip_deleted_room_member(unit_id, user, kind, org_id, actor)
+    unit_ids = [unit_id]
+    if org_id && Organization.where(id: org_id).exists?
+      reason = 'organization_unit_deleted'
+      pairs = removed_member_pairs(user, kind, unit_ids)
+      org_code = "Organization:#{Organization.new(id: org_id).global_id}"
+      staff_since = Organization.staff_since_for(org_code, pairs.map{|sup, comm| sup.id }.uniq).transform_values{|at| Time.iso8601(at) }
+    else
+      reason = 'organization_deleted'
+      unit_ids += OrganizationUnit.where(organization_id: org_id).map(&:global_id) if org_id
+      pairs = removed_member_pairs(user, kind, unit_ids)
+      staff_since, org_actor = org_id ? Organization.destroyed_org_cleanup_context(org_id) : [{}, {}]
+      actor = org_actor if actor.blank?
+    end
+    return true if pairs.empty?
+    User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor || {}, reason: reason)
   end
 end
