@@ -56,6 +56,20 @@ module Sharing
     res
   end
   
+  # A deep share's cached shared-board list includes this board's downstream_board_ids
+  # (all_shared_board_ids_for), and is served while its stamp is >= the user's boards_updated_at.
+  # When tracking changes downstream_board_ids, move that column for every user whose list reads
+  # them: the author (the sharer_id branch) and each include_downstream sharee, pending ones too,
+  # as the viewing list includes them (downstream_share_ids leaves pending shares out). Only the
+  # column moves (update_all), not settings, so no row lock, settings version or sync.
+  def expire_deep_shared_lists!
+    links = UserLink.links_for(self).select{|l| l['type'] == 'board_share' && l['state'] && l['state']['include_downstream'] }
+    user_ids = links.map{|l| l['user_id'] }
+    user_ids << self.related_global_id(self.user_id) if self.user_id
+    local_ids = User.local_ids(user_ids.uniq)
+    User.where(id: local_ids).update_all(boards_updated_at: Time.now) if local_ids.length > 0
+  end
+
   def author_ids(plus_downstream_editing=false, skip_cache=false)
     if !skip_cache && self.settings['author_ids']
       return self.settings['author_ids'][plus_downstream_editing ? 'editing' : 'viewing']

@@ -951,6 +951,73 @@ describe Sharing, :type => :model do
     # A rebuild reads the user's links, walks the shared boards (seconds for a large set), then
     # stamps and saves the list. An unshare that commits during the walk must not be hidden by
     # that stamp: the next read, and the background jobs the unshare queues, must drop the board.
+    # A deep share's list includes the shared board's downstream_board_ids, which tracking fills in
+    # after the share. The refresh the share queues can run first and store the list without the
+    # sub-boards; tracking then only schedules a refresh 30 minutes out, and that refresh moves
+    # boards_updated_at only when private access changed. So the stored list stayed current to every
+    # plain read (board search, shared_with?, board_revisions) while it lacked the sub-boards.
+    describe "a deep-shared board whose downstream boards are tracked after the share" do
+      def deep_share_with_sub_boards(public)
+        author = User.create
+        sharee = User.create
+        b = Board.create(:user => author, :public => public)
+        b.share_with(sharee, true)
+        b2 = Board.create(:user => author, :public => public)
+        b.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]
+        b.save
+        b3 = Board.create(:user => author, :public => public)
+        b2.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}]
+        b2.save
+        Worker.process_queues
+        expect(b.reload.downstream_board_ids.sort).to eq([b2.global_id, b3.global_id].sort)
+        [sharee, b, b2, b3]
+      end
+
+      it "includes the public sub-boards in the next plain read" do
+        sharee, b, b2, b3 = deep_share_with_sub_boards(true)
+
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id)).sort).to eq([b.global_id, b2.global_id, b3.global_id].sort)
+        expect(b3.reload.shared_with?(User.find(sharee.id))).to eq(true)
+      end
+
+      it "includes a sub-board linked after the share was already listed" do
+        sharee, b, b2, b3 = deep_share_with_sub_boards(true)
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b3.global_id)
+        # linked from the shared board itself, so its own track updates the list (propagating up
+        # from a deeper board is timing-dependent within one second: complete_stream_checks)
+        b4 = Board.create(:user => b.user, :public => true)
+        b.reload.settings['buttons'] = b.settings['buttons'] + [{'id' => 2, 'load_board' => {'id' => b4.global_id, 'key' => b4.key}}]
+        b.save
+        Worker.process_queues
+        expect(b.reload.downstream_board_ids).to include(b4.global_id)
+
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b4.global_id)
+      end
+
+      # update_setting defers the tracking write to a job when the board row moved meanwhile
+      # (processable.rb); the lists are expired when that write lands, not before it.
+      it "expires the lists when a deferred tracking write lands" do
+        sharee, b, b2, b3 = deep_share_with_sub_boards(true)
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b3.global_id)
+        b4 = Board.create(:user => b.user, :public => true)
+        stale = Board.find(b.id)
+        Board.where(id: b.id).update_all(updated_at: 1.minute.from_now)
+        # only the deferred write runs below, not another track that recomputes the list
+        Worker.flush_queues
+        RemoteAction.delete_all
+        stamp = Board.boards_updated_stamp(User.find(sharee.id))
+
+        res = stale.update_setting({'downstream_board_ids' => stale.downstream_board_ids + [b4.global_id]}, nil, :save_tracked_downstream)
+
+        expect(res).to eq('pending')
+        expect(Board.boards_updated_stamp(User.find(sharee.id))).to eq(stamp)
+        Worker.process_queues
+        expect(b.reload.downstream_board_ids).to include(b4.global_id)
+        expect(Board.boards_updated_stamp(User.find(sharee.id))).to be > stamp
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b4.global_id)
+      end
+    end
+
     describe "an unshare that commits while the list is being rebuilt" do
       it "is not served afterwards as a fresh list" do
         b, u2 = shared_board_setup

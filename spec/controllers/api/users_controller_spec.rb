@@ -3606,6 +3606,29 @@ describe Api::UsersController, :type => :controller do
       expect(json['revoked_ids']).to eq([unshared.global_id])
     end
 
+    # Tracking fills a deep-shared board's downstream_board_ids after the share's refresh stored the
+    # user's shared-board list, so the stored list lacked the sub-boards while reading as current, and
+    # a sub-board the user can view was reported revoked.
+    it "should not call a sub-board of a deep-shared board revoked once tracking has run" do
+      token_user
+      other = User.create
+      b = Board.create(:user => other, :public => false)
+      b2 = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [b, b2])
+      b.reload.share_with(@user.reload, true)
+      b.reload.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]
+      b.save
+      # one pass, as production runs it: the refresh tracking schedules is 30 minutes out
+      Worker.process_queues
+      expect(b.reload.downstream_board_ids).to eq([b2.global_id])
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([])
+      expect(json['revisions'][b2.global_id]).to eq(b2.reload.current_revision)
+    end
+
     # Board revocation is a fix, not a feature: it has no off switch (owner decision,
     # 2026-10-13). The environment variable the switch used to read changes nothing.
     env_wrap('BOARD_REVOCATION_DISABLED' => 'true') do
