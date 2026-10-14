@@ -1300,7 +1300,9 @@ module Subscription
       inactive_id_set = to_be_deleted_ids.to_set
       trial_id_set = trial_to_be_deleted_ids.to_set
       to_be_deleted = User.where(id: (to_be_deleted_ids + trial_to_be_deleted_ids).uniq)
+      mail_stopped = false
       to_be_deleted.find_in_batches(batch_size: 25) do |batch|
+        break if mail_stopped
         batch.each do |user|
           if user.user_name.match(/^testing/) && user.settings['email'] == 'testing@example.com'
             user.touch
@@ -1357,8 +1359,12 @@ module Subscription
             end
           rescue StandardError => e
             mail = attempts > 2 ? 'account_deleted' : 'deletion_warning'
-            outcome, failures = settle_failed_inactivity_step(user.id, *step)
-            Rails.logger.error("[inactivity sweep] #{mail} mail failed (#{e.class}); step #{outcome}#{failures ? " after #{failures} failures" : ''}")
+            kind = inactivity_mail_error_kind(e)
+            # only a rejection of this one message counts against the account
+            outcome, failures = settle_failed_inactivity_step(user.id, *step, count_failure: kind == :message)
+            if kind == :message
+              Rails.logger.error("[inactivity sweep] #{mail} mail rejected (#{e.class}); step #{outcome}#{failures ? " after #{failures} failures" : ''}")
+            end
             if outcome == :undone
               # put it back in front of the cursor, so the next run retries it
               at = Time.iso8601(step[0]['updated_at'])
@@ -1367,7 +1373,16 @@ module Subscription
             elsif outcome == :kept_without_notice
               AuditEvent.log_command('system', {'type' => 'inactivity_step_kept_without_notice', 'user_id' => user.global_id, 'step' => mail, 'mail_failures' => failures})
             end
-            next
+            next if kind == :message
+            # An outage, throttling or a setup problem would fail for every account: send no more
+            # inactivity mail this run, and start the next run from the oldest account, since the
+            # accounts left unprocessed here sit anywhere relative to the cursors.
+            RedisInit.default.del('inactivity_sweep_cursor/inactive')
+            RedisInit.default.del('inactivity_sweep_cursor/trial')
+            note = kind == :setup ? '; sending is misconfigured and needs an operator' : ''
+            Rails.logger.error("[inactivity sweep] mail stopped for this run: #{kind} error (#{e.class}#{e.respond_to?(:code) ? " #{e.code}" : ''})#{note}")
+            mail_stopped = true
+            break
           end
           alerts[:pending_deletes] += 1 unless attempts > 2
         end
@@ -1411,6 +1426,38 @@ module Subscription
       }
     end
 
+    # How a mail error raised by the :ses delivery method (Aws::Rails::SesMailer, SES v1
+    # SendRawEmail) bears on the sweep:
+    # - :message, SES rejected this one message (MessageRejected): counted against the account.
+    # - :setup, sending is misconfigured for every account (paused sending, configuration set,
+    #   MAIL FROM domain, an unverified identity, credentials or permissions): needs an operator.
+    # - :transient, anything else, including throttling, ServiceUnavailable, InternalFailure,
+    #   network errors, timeouts and unknown errors.
+    # A dead mailbox or a suppressed address does not raise here: SES accepts the message and
+    # reports a bounce later. InvalidParameterValue never reaches the sweep: deliver_message
+    # (app/mailers/concerns/general.rb) logs it and returns, so the step is kept as if sent.
+    INACTIVITY_MAIL_SETUP_ERRORS = %w(
+      AccountSendingPausedException ConfigurationSetDoesNotExist ConfigurationSetDoesNotExistException
+      ConfigurationSetSendingPausedException MailFromDomainNotVerifiedException
+      AccessDenied AccessDeniedException NotAuthorized OptInRequired ExpiredToken ExpiredTokenException
+      IncompleteSignature InvalidClientTokenId SignatureDoesNotMatch MissingAuthenticationToken
+      UnrecognizedClientException
+    ).freeze
+
+    def inactivity_mail_error_kind(error)
+      if error.is_a?(Aws::Errors::ServiceError)
+        names = [error.class.name.to_s.split('::').last, error.code.to_s]
+        return :setup if (names & INACTIVITY_MAIL_SETUP_ERRORS).any?
+        if names.include?('MessageRejected')
+          # SES words a send from (or, in the sandbox, to) an unverified identity this way
+          return error.message.to_s =~ /not verified/i ? :setup : :message
+        end
+        return :transient
+      end
+      return :setup if error.is_a?(Aws::Errors::MissingCredentialsError) || error.is_a?(Aws::Errors::MissingRegionError) || error.is_a?(Aws::Errors::NoSuchProfileError)
+      :transient
+    end
+
     # Consecutive inactivity mails that may fail for an account, over at least the period, before
     # its step is kept without the notice. The sweep runs daily, so this is three or more failed
     # runs spread over a week: long enough to ride out a delivery outage (which an admin sees in
@@ -1420,25 +1467,30 @@ module Subscription
     INACTIVITY_MAIL_FAILURE_PERIOD = 1.week
 
     # Settles an inactivity step whose mail failed, under a row lock, only while the row still
-    # holds what the step wrote (an account used or changed since keeps its newer state): counts
-    # the failure in settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at'})
-    # and either puts back the fields the step changed or, once the failures reach the limit over
-    # the period, keeps the step. Returns [outcome, failure count]: outcome is :undone,
-    # :kept_without_notice, or :left_as_changed (nil count).
-    def settle_failed_inactivity_step(user_id, previous, written)
+    # holds what the step wrote (an account used or changed since keeps its newer state). With
+    # count_failure (SES rejected this one message), counts the failure in
+    # settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at'}) and, once the
+    # failures reach the limit over the period, keeps the step; otherwise, and for any other
+    # error, puts back the fields the step changed (the count as it was). Returns
+    # [outcome, failure count]: outcome is :undone, :kept_without_notice, or :left_as_changed.
+    def settle_failed_inactivity_step(user_id, previous, written, count_failure: true)
       outcome, count = :left_as_changed, nil
       User.update_settings_locked(user_id, touch: false) do |fresh|
         next false unless inactivity_step_fields(fresh) == written
         sub = fresh.settings['subscription'] ||= {}
-        prior = previous['inactivity_mail_failures'].is_a?(Hash) ? previous['inactivity_mail_failures'] : {}
-        count = prior['count'].to_i + 1
-        first_at = (Time.iso8601(prior['first_at'].to_s) rescue nil) || Time.now
-        sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601}
-        if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
-          outcome = :kept_without_notice
-          next true
+        if count_failure
+          prior = previous['inactivity_mail_failures'].is_a?(Hash) ? previous['inactivity_mail_failures'] : {}
+          count = prior['count'].to_i + 1
+          first_at = (Time.iso8601(prior['first_at'].to_s) rescue nil) || Time.now
+          sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601}
+          if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
+            outcome = :kept_without_notice
+            next true
+          end
         end
-        %w(last_deletion_warning last_deletion_attempts inactivity_deletion).each do |key|
+        restored = %w(last_deletion_warning last_deletion_attempts inactivity_deletion)
+        restored << 'inactivity_mail_failures' unless count_failure
+        restored.each do |key|
           previous[key].nil? ? sub.delete(key) : sub[key] = previous[key]
         end
         fresh.schedule_deletion_at = previous['schedule_deletion_at'] && Time.iso8601(previous['schedule_deletion_at'])

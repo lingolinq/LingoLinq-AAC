@@ -2508,11 +2508,16 @@ describe Subscription, :type => :model do
 
       # The warning or deletion record is saved before the mail goes out. When the mail fails,
       # the step is undone (only if nothing changed the account since) and the run goes on.
-      def failing_mail_for(target, &before_raise)
+      # SES rejecting this one message (MessageRejected) is the failure that lets the run go on.
+      def message_rejected
+        Aws::SES::Errors::MessageRejected.new(nil, 'Address blacklisted.')
+      end
+
+      def failing_mail_for(target, error = message_rejected, &before_raise)
         allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
           if id == target.global_id
             before_raise.call if before_raise
-            raise RuntimeError, 'mail delivery failed'
+            raise error
           end
         end
       end
@@ -2617,7 +2622,7 @@ describe Subscription, :type => :model do
           u = inactive_account_to_warn
           failing = true
           allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
-            raise RuntimeError, 'mail delivery failed' if failing && id == u.global_id
+            raise message_rejected if failing && id == u.global_id
           end
           run_daily(2)
           expect(User.find(u.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(2)
@@ -2670,6 +2675,90 @@ describe Subscription, :type => :model do
 
           expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
           expect(User.find(second.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+      end
+
+      # A send error that is not about this one message (an SES outage or throttling, a network
+      # failure, or a setup problem such as paused sending or bad credentials) would fail for every
+      # account: the step is undone without counting it against the account, no further inactivity
+      # mail is sent this run, and one error line says which kind it was.
+      describe "mail errors that are not about one message" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        def throttling
+          Aws::SES::Errors.error_class('Throttling').new(nil, 'Maximum sending rate exceeded.')
+        end
+
+        def halting_run(error)
+          failed = inactive_account_to_warn
+          later = inactive_account_to_warn
+          sent = []
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            sent << id
+            raise error if id == failed.global_id
+          end
+          allow(Rails.logger).to receive(:error).and_call_original
+          User.check_for_subscription_updates
+          [failed, later, sent]
+        end
+
+        def expect_halted(failed, later, sent)
+          stored = User.find(failed.id)
+          expect((stored.settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+          expect((stored.settings['subscription'] || {})['inactivity_mail_failures']).to eq(nil)
+          expect(sent).to eq([failed.global_id])
+          expect((User.find(later.id).settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+          expect(User.find(later.id).updated_at).to be < 12.months.ago
+        end
+
+        it "stops the run's inactivity mail on a transient SES error, and the next run goes on" do
+          failed, later, sent = halting_run(throttling)
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/\[inactivity sweep\] mail stopped for this run: transient error/).once
+
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          travel(1.day) { User.check_for_subscription_updates }
+          expect(User.find(failed.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(User.find(later.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+
+        it "treats a network failure as transient" do
+          failed, later, sent = halting_run(Seahorse::Client::NetworkingError.new(Net::OpenTimeout.new('execution expired')))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error/).once
+        end
+
+        it "treats an unknown error as transient" do
+          failed, later, sent = halting_run(RuntimeError.new('something else'))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error \(RuntimeError/).once
+        end
+
+        it "stops the run's inactivity mail on a setup error and says it needs an operator" do
+          failed, later, sent = halting_run(Aws::SES::Errors::AccountSendingPausedException.new(nil, 'Sending paused for this account.'))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error .*needs an operator/).once
+        end
+
+        it "treats a rejection for an unverified identity as a setup error" do
+          failed, later, sent = halting_run(Aws::SES::Errors::MessageRejected.new(nil, 'Email address is not verified. The following identities failed the check'))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error/).once
+        end
+
+        it "starts the next run from the oldest account after a stopped run" do
+          stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+          stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+          failed, later, sent = halting_run(throttling)
+
+          expect(sent).to eq([failed.global_id])
+          # the window held only the failed account, so the cursor was left at it before the stop
+          expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
         end
       end
 
