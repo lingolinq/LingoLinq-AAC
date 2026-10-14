@@ -205,11 +205,7 @@ class OrganizationUnit < ApplicationRecord
     if supervisors.length > 0 && communicators.length > 0
       org_code = "Organization:#{Organization.new(id: org_id).global_id}"
       staff_since = Organization.staff_since_for(org_code, supervisors.map(&:id)).transform_values{|at| Time.iso8601(at) }
-      supervisors.each do |sup|
-        communicators.each do |comm|
-          User.strip_rooms_from_supervision(sup, comm, [unit_id], staff_since[sup.id.to_s], org_id, data['actor'] || {}, reason: 'organization_unit_deleted')
-        end
-      end
+      User.strip_rooms_from_pairs(supervisors.product(communicators), [unit_id], staff_since, org_id, data['actor'] || {}, reason: 'organization_unit_deleted')
     end
     links.each(&:destroy)
     rows.delete_all
@@ -389,9 +385,6 @@ class OrganizationUnit < ApplicationRecord
     end
     return true if pairs.empty?
     staff_since, actor = Organization.destroyed_org_cleanup_context(org_id)
-    pairs.each do |sup, comm|
-      User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor)
-    end
-    true
+    User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor)
   end
 end

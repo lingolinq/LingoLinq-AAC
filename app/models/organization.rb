@@ -1797,14 +1797,14 @@ class Organization < ApplicationRecord
     units = OrganizationUnit.where(organization_id: org_id).to_a
     unit_ids = units.map(&:global_id)
     staff_since, actor = units.empty? ? [{}, {}] : destroyed_org_cleanup_context(org_id)
+    pairs = []
     units.each do |unit|
       links = UserLink.links_for(unit)
       supervisors = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_supervisor' }.map{|l| l['user_id'] }.uniq)
       communicators = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq)
-      supervisors.each do |sup|
-        communicators.each{|comm| User.strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor) }
-      end
+      pairs += supervisors.product(communicators)
     end
+    User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor)
     # The rooms' own links go last, once every pair read from them is stripped (an error above
     # leaves them for the retry). Removing them ends the rooms' supervisor permissions
     # (OrganizationUnit supervisor?) and their listing (supervised_units), and moves each room's

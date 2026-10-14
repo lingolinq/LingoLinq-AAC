@@ -1558,6 +1558,40 @@ describe Organization, :type => :model do
         expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
       end
 
+      # One pair that cannot be stripped must not hold back the others: they are stripped, the
+      # failure is logged by ids, and the row (and the rooms' links) stay for the retry.
+      it "strips the other pairs when one pair fails, and keeps the cleanup row" do
+        o, ou, sup, comm = room_with_members
+        sup2 = User.create
+        o.add_supervisor(sup2.user_name, false)
+        ou.add_supervisor(sup.user_name)
+        ou.add_supervisor(sup2.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        o.reload.destroy
+        Worker.flush_queues
+        logged = []
+        allow(Rails.logger).to receive(:error){|msg| logged << msg }
+        allow(User).to receive(:strip_rooms_from_supervision).and_wrap_original do |orig, s, *args, **kw|
+          raise ActiveRecord::StatementInvalid.new('strip failed') if s.id == sup.id
+          orig.call(s, *args, **kw)
+        end
+
+        expect { Organization.clean_up_destroyed(o.id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+        expect(supervision_link(sup2, comm)).to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+        expect(UserLink.where(record_code: Webhook.get_record_code(ou)).count).to eq(3)
+        expect(logged.join("\n")).to include(sup.global_id)
+        expect(logged.join("\n")).not_to include(sup.user_name)
+
+        allow(User).to receive(:strip_rooms_from_supervision).and_call_original
+        Organization.clean_up_destroyed(o.id)
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(0)
+      end
+
       # Consents are created through the real flow (SupervisorConsentService#request_access), then
       # marked approved without re-linking, as consents approved before origins were recorded are.
       def consent_through_request_access(sup, comm, organization_id: nil)

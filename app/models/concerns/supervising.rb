@@ -387,6 +387,24 @@ module Supervising
       end
     end
 
+    # strip_rooms_from_supervision for each [supervisor, supervisee] pair. A pair that fails is
+    # logged (ids only) and the others still run; the first error is raised once all have run, so
+    # the caller keeps its retry row (and anything it removes only after a complete pass).
+    # staff_since maps a supervisor's local id (string) to when they joined the organization.
+    def strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor, reason: 'organization_deleted')
+      error = nil
+      pairs.uniq{|sup, comm| [sup.id, comm.id] }.each do |sup, comm|
+        begin
+          strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor, reason: reason)
+        rescue StandardError => e
+          error ||= e
+          Rails.logger.error("supervising: room strip failed for supervisor #{sup.global_id}, supervisee #{comm.global_id}: #{e.class}")
+        end
+      end
+      raise error if error
+      true
+    end
+
     # The supervisee's row lock, taken by every read-decide-write of its supervision links
     # (strip_rooms_from_supervision, link_supervisor_to_user): unlocked, two district cleanups each
     # wrote back the other's room, and a cleanup could remove a direct grant made while it ran.
