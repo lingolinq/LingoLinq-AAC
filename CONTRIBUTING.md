@@ -126,16 +126,26 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 After staging has been validated:
 
 - A team member opens a PR from `staging` to `main`.
-- **Two people must agree:** Scot and a senior dev (Melissa or Traci).
-  Self-approval never counts. When a senior dev opens the release PR, Scot
-  approves it. When the PR is opened under Scot's account, Traci approves it and
-  Scot records his agreement by merging it himself.
-- Agreement needs explicit human intent: opening the release PR by hand, which
-  covers the commits it held when it was opened, or an approving GitHub review
-  on the head being merged. A release PR that an agent opens under a dev's
-  account does not count as that dev's agreement, and a chat message does not
-  count. If commits are added to the release branch after it is opened, the
-  senior dev agrees again with an approving review on the new head.
+- **Two people must agree:** Scot and a senior dev (Melissa or Traci). One
+  person never counts as both, and self-approval never counts.
+- When Melissa or Traci opens the release PR, Scot approves it. When it is
+  opened under Scot's account, Traci approves it, and Scot records his
+  agreement by merging it himself after her approval, on the head she approved.
+  If Traci is unavailable, the release waits for her. In an emergency Scot may
+  override and merge on his own agreement, stating the emergency and the reason
+  in the PR.
+- Agreement needs explicit human intent on the PR itself: opening it by hand,
+  an approving GitHub review on the head being merged, or, for Scot, merging
+  it. A release PR that an agent opens does not count as the opener's
+  agreement. An agent approving or merging under a dev's account counts only
+  when that dev explicitly asked for that specific action. Anything an agent
+  does on its own initiative does not count, auto-merge never counts, and a
+  chat message on its own is not agreement.
+- Opening covers the commits the PR held when it was opened. If the head
+  changes after anyone has agreed, each earlier agreement is given again on the
+  new head. GitHub does not let a PR's author approve it, so the opener either
+  closes the PR and opens a new release PR by hand, or the other senior dev
+  approves instead.
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 

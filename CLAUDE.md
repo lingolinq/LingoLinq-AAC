@@ -106,9 +106,9 @@ everything else in this file.
   (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
   `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` with
-  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
-  approves), and is merged back to `develop` immediately afterwards. Hotfix and release
-  branches are made by hand, not by the launcher. See `CONTRIBUTING.md`.
+  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (any one senior
+  dev approves; see `CONTRIBUTING.md` section 7), and is merged back to `develop` at once.
+  Hotfix and release branches are made by hand, not by the launcher.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
