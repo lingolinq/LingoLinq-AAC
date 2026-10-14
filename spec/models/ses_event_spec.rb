@@ -47,16 +47,23 @@ describe SesEvent do
     expect(r.action).to eq(:ignore)
   end
 
-  it 'disables the recipients of a complaint' do
+  # Complaints are counted, not acted on: disabling would also block password reset for every
+  # account on that address (users_controller#forgot_password). Owner decision; see ses_event.rb.
+  it 'counts a complaint without disabling anyone' do
     r = SesEvent.classify(sns_body(complaint(['a@example.com'])))
-    expect(r.action).to eq(:disable)
-    expect(r.addresses).to eq(['a@example.com'])
+    expect(r.action).to eq(:ignore)
+    expect(r.addresses).to eq([])
     expect(r.label).to eq('Complaint')
   end
 
-  it 'ignores a not-spam complaint, which is a correction' do
+  it 'labels a not-spam complaint separately' do
     r = SesEvent.classify(sns_body(complaint(['a@example.com'], 'not-spam')))
     expect(r.action).to eq(:ignore)
+    expect(r.label).to eq('Complaint:not-spam')
+  end
+
+  it 'raises Malformed for a complaint without a complaint object' do
+    expect { SesEvent.classify(sns_body({'eventType' => 'Complaint'})) }.to raise_error(SesEvent::Malformed)
   end
 
   %w[Send Delivery DeliveryDelay Reject].each do |type|

@@ -12,11 +12,15 @@
 # - A message is deleted only after it was handled (or found malformed).
 # - Malformed messages are counted and deleted so they cannot loop until retention expires.
 # - A message whose handling raised is NOT deleted. It becomes visible again after
-#   VISIBILITY_TIMEOUT and is retried on a later run; bounce_email is idempotent.
+#   VISIBILITY_TIMEOUT (300s, passed on every receive; the queue's own default is 30s) and is
+#   retried on the next hourly run; bounce_email is idempotent. After the whole run, any such
+#   failure raises HandlingFailed, so `scheduler:dispatch` records the task as failed and the
+#   execution goes red instead of the failure being only a count in a log line.
 #
 # PII: logs carry counts and event-type labels only (SesEvent::Result#label). Never an
-# address, a user id or the payload. The settings change itself is versioned by PaperTrail
-# (app/models/user.rb has_paper_trail on settings).
+# address, a user id or the payload. The settings change is versioned by PaperTrail with
+# whodunnit WHODUNNIT: User only versions settings when whodunnit is set and does not start
+# with "job" (app/models/user.rb:44-45), and the scheduler sets none.
 module SesEventsWorker
   @queue = :default
 
@@ -24,6 +28,9 @@ module SesEventsWorker
   BATCH_SIZE = 10          # the SQS maximum for ReceiveMessage
   WAIT_TIME_SECONDS = 1    # long poll, so an empty answer means the queue is really empty
   VISIBILITY_TIMEOUT = 300 # longer than one run spends on a batch
+  WHODUNNIT = 'system:ses-events'
+
+  class HandlingFailed < StandardError; end
 
   def self.perform(max_batches: MAX_BATCHES)
     queue_url = ENV['SES_EVENTS_QUEUE_URL'].to_s.strip
@@ -44,6 +51,7 @@ module SesEventsWorker
     Rails.logger.info("[SES events] received=#{counts[:received]} disabled_addresses=#{counts[:disabled_addresses]} " \
       "ignored=#{counts[:ignored]} malformed=#{counts[:malformed]} failed=#{counts[:failed]} " \
       "deleted=#{counts[:deleted]} delete_failed=#{counts[:delete_failed]} by_type=#{counts[:by_type].to_json}")
+    raise HandlingFailed, "#{counts[:failed]} SES event(s) failed and were left on the queue" if counts[:failed] > 0
     counts
   end
 
@@ -52,7 +60,7 @@ module SesEventsWorker
     result = SesEvent.classify(message.body)
     counts[:by_type][result.label] += 1
     if result.action == :disable
-      result.addresses.each { |address| UserMailer.bounce_email(address) }
+      with_whodunnit { result.addresses.each { |address| UserMailer.bounce_email(address) } }
       counts[:disabled_addresses] += result.addresses.length
     else
       counts[:ignored] += 1
@@ -66,6 +74,14 @@ module SesEventsWorker
     counts[:failed] += 1
     Rails.logger.error("[SES events] handling failed: #{e.class}")
     false
+  end
+
+  def self.with_whodunnit
+    prior = PaperTrail.request.whodunnit
+    PaperTrail.request.whodunnit = WHODUNNIT
+    yield
+  ensure
+    PaperTrail.request.whodunnit = prior
   end
 
   def self.delete(client, queue_url, messages, counts)

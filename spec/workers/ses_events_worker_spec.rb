@@ -90,14 +90,38 @@ describe SesEventsWorker do
     expect(deleted_handles).to match_array(['rh-1', 'rh-2'])
   end
 
-  it 'does not delete a message whose handling raised, and keeps going' do
+  it 'does not delete a message whose handling raised, keeps going, then fails the run' do
     with_queue_url(queue_url)
     stub_batches([message('1', permanent_bounce('a@example.com')), message('2', permanent_bounce('b@example.com'))])
     allow(UserMailer).to receive(:bounce_email).and_call_original
     allow(UserMailer).to receive(:bounce_email).with('a@example.com').and_raise(ActiveRecord::ConnectionNotEstablished)
-    res = SesEventsWorker.perform
+    expect { SesEventsWorker.perform }.to raise_error(SesEventsWorker::HandlingFailed, /1 SES event/)
     expect(deleted_handles).to eq(['rh-2'])
-    expect(res[:failed]).to eq(1)
+  end
+
+  it 'attributes the settings change to the SES events worker, then restores whodunnit' do
+    with_queue_url(queue_url)
+    stub_batches([message('1', permanent_bounce('a@example.com'))])
+    seen = nil
+    allow(UserMailer).to receive(:bounce_email) { seen = PaperTrail.request.whodunnit }
+    PaperTrail.request.whodunnit = 'before'
+    SesEventsWorker.perform
+    expect(seen).to eq('system:ses-events')
+    expect(PaperTrail.request.whodunnit).to eq('before')
+  ensure
+    PaperTrail.request.whodunnit = nil
+  end
+
+  it 'deletes a complaint without disabling anyone' do
+    with_queue_url(queue_url)
+    u = User.create(:settings => {'email' => 'grumpy@example.com'})
+    body = sns_body({'eventType' => 'Complaint', 'complaint' => {'complaintFeedbackType' => 'abuse',
+      'complainedRecipients' => [{'emailAddress' => 'grumpy@example.com'}]}})
+    stub_batches([message('1', body)])
+    res = SesEventsWorker.perform
+    expect(u.reload.settings['email_disabled']).to eq(nil)
+    expect(deleted_handles).to eq(['rh-1'])
+    expect(res[:by_type]).to eq({'Complaint' => 1})
   end
 
   it 'handles a message before deleting it' do

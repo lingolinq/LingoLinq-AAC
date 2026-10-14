@@ -10,7 +10,12 @@
 #
 # Decisions (docs/task-management/2026-10-14_ses-bounce-handling.md):
 # - Permanent bounce, every subtype including OnAccountSuppressionList: disable.
-# - Complaint: disable, except complaintFeedbackType "not-spam", which is a correction.
+# - Complaint: counted, NOT acted on. Disabling on a complaint would also block self-serve
+#   password reset (Api::UsersController#forgot_password skips email_disabled users) for every
+#   account sharing that address, and anyone can register an account with someone else's
+#   address. That is an account-recovery policy call for the owner. If the SES account-level
+#   suppression list covers complaints, the next send to that address comes back as an
+#   OnAccountSuppressionList bounce and is handled as a permanent bounce.
 # - Transient and Undetermined bounces, Send, Delivery, DeliveryDelay, Reject and anything
 #   else: ignore.
 #
@@ -65,11 +70,8 @@ class SesEvent
 
   def self.classify_complaint(complaint)
     raise Malformed, 'complaint without a complaint object' unless complaint.is_a?(Hash)
-    if complaint['complaintFeedbackType'] == 'not-spam'
-      Result.new(action: :ignore, label: 'Complaint:not-spam', addresses: [])
-    else
-      Result.new(action: :disable, label: 'Complaint', addresses: addresses(complaint['complainedRecipients']))
-    end
+    label = complaint['complaintFeedbackType'] == 'not-spam' ? 'Complaint:not-spam' : 'Complaint'
+    Result.new(action: :ignore, label: label, addresses: [])
   end
   private_class_method :classify_complaint
 
