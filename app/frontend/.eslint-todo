@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-10-14T04:34:07.873Z
+# Generated: 2026-10-14T05:02:58.768Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -141,25 +141,25 @@ app/components/dashboard-supervisors-modal.js|ember/no-runloop|64|7|2|5addc21703
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|77|7|2|5addc2170315
 app/components/dashboard-user-boards.js|ember/no-runloop|74|7|2|9ccbb762d93a
 app/components/dashboard-user-boards.js|lingolinq/no-orphaned-action|131|5|1|1cdbed739db1
-app/components/dashboard/authenticated-view.js|ember/no-runloop|1521|11|2|5addc2170315
-app/components/dashboard/authenticated-view.js|ember/no-runloop|1597|11|2|5addc2170315
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|203|20|1|7bc964be3126
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|356|15|1|51a7a47cf59c
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|463|21|1|51a7a47cf59c
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|950|18|1|366050fc9f63
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1302|5|1|ad62f3bf1f5c
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1306|5|1|6c080a4a9406
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1309|5|1|8486faa2b452
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1355|5|1|7d97ff0d7d85
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1434|5|1|6cf79e47aca2
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1620|5|1|da3e5efab5ee
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1649|5|1|1235033b4830
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1681|5|1|eb5748141f94
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1684|5|1|457deb2abd9e
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1691|5|1|cc6f2105738b
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1756|5|1|0770e3b67e3b
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1759|5|1|c7788eeba7d6
-app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1769|5|1|e24205fb5210
+app/components/dashboard/authenticated-view.js|ember/no-runloop|1551|11|2|5addc2170315
+app/components/dashboard/authenticated-view.js|ember/no-runloop|1627|11|2|5addc2170315
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|214|20|1|7bc964be3126
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|367|15|1|51a7a47cf59c
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|474|21|1|51a7a47cf59c
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|961|18|1|366050fc9f63
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1332|5|1|ad62f3bf1f5c
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1336|5|1|6c080a4a9406
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1339|5|1|8486faa2b452
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1385|5|1|7d97ff0d7d85
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1464|5|1|6cf79e47aca2
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1650|5|1|da3e5efab5ee
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1679|5|1|1235033b4830
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1711|5|1|eb5748141f94
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1714|5|1|457deb2abd9e
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1721|5|1|cc6f2105738b
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1786|5|1|0770e3b67e3b
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1789|5|1|c7788eeba7d6
+app/components/dashboard/authenticated-view.js|lingolinq/no-orphaned-action|1799|5|1|e24205fb5210
 app/components/display-style.js|ember/require-super-in-lifecycle-hooks|1460|3|1|04fd54f45db7
 app/components/dwell-tracker.js|ember/no-runloop|271|11|2|5addc2170315
 app/components/dwell-tracker.js|ember/no-runloop|325|11|2|5addc2170315
@@ -1122,6 +1122,8 @@ tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/no-assert-e
 tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/no-assert-equal|79|5|1|8b9cc9ba7f61
 tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/no-assert-equal|83|7|1|8b9cc9ba7f61
 tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/require-expect|30|3|1|053cb64234aa
+tests/unit/components/dashboard-preview-boards-cache-test.js|qunit/no-assert-equal-boolean|49|5|1|5860ab713f62
+tests/unit/components/dashboard-preview-boards-cache-test.js|qunit/no-assert-logical-expression|63|24|1|975b4139d652
 tests/unit/components/tour-board-picker-init-test.js|ember/no-runloop|101|5|2|513c0395fe72
 tests/unit/components/tour-board-picker-init-test.js|ember/no-runloop|118|5|2|513c0395fe72
 tests/unit/components/tour-board-picker-init-test.js|ember/no-runloop|43|5|2|513c0395fe72
