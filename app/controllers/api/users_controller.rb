@@ -770,16 +770,18 @@ class Api::UsersController < ApplicationController
       roots += Board.find_all_by_path(user.settings['starred_board_ids'] || [])
     end
     all_ids = []
+    disclosed_ids = Set.new
     roots.compact.each do |root|
       all_ids << root.global_id
       all_ids += root.downstream_board_ids
+      disclosed_ids |= [root.global_id] + ((root.user_id == @api_user.id || root.allows?(@api_user, 'delete')) ? root.downstream_board_ids : [])
     end
     all_ids.uniq!
     include_revoked = params['include_revoked'] == '1' || params['include_revoked'] == 'true'
-    # Only boards the synced user can still view get a revision (and key): a
-    # board that was unshared must not leak its key or revision. Only the synced
-    # tree is checked; ids the client sends (check_ids) are ignored, so this can
-    # not be used to probe which board ids exist or who owns them.
+    # Only boards the synced user can still view get a revision (and key). revoked_ids lists only
+    # ids already disclosed to the caller: the roots (the user's own preferences) and the
+    # downstream_board_ids of roots the caller may delete (board JSON sends those to them only), so
+    # a viewable public root does not reveal the private boards below it. check_ids are ignored.
     res = {}
     revoked_ids = []
     boards = Board.select('id, key, current_revision, public, user_id, updated_at').find_all_by_global_id(all_ids)
@@ -788,14 +790,12 @@ class Api::UsersController < ApplicationController
       shallow = !!brd.instance_variable_get('@sub_id')
       # Own boards first (the owner always views them, board.rb:84-100). Another user's private
       # board is decided by its current shares and owner, not allows?, whose cached list lags an
-      # unshare. A shallow clone's access also depends on its sub-user, so it keeps allows?.
+      # unshare. A shallow clone keeps allows? (its sub-user's list decides) and is never revoked.
       viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || (shallow ? brd.allows?(user, 'view') : board_viewable_now?(brd, user))
       if viewable
         res[brd.global_id] = brd.current_revision
         res[brd.key] = brd.current_revision
-      elsif !shallow
-        # A shallow clone's access also depends on its sub-user's cached list,
-        # so it is left out of the revisions without being called revoked.
+      elsif !shallow && disclosed_ids.include?(brd.global_id)
         revoked_ids << brd.global_id
       end
     end

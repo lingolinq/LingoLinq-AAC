@@ -3572,6 +3572,39 @@ describe Api::UsersController, :type => :controller do
       expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
     end
 
+    # revoked_ids lists only ids already disclosed to the caller: a public root anyone can sync
+    # must not reveal the ids of the private boards below it, which its JSON sends only to users
+    # who may delete it. A board unshared from the user's own tree is still reported.
+    it "should not report another user's private board below a public root the user cannot edit" do
+      token_user
+      other = User.create
+      unshared = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [unshared])
+      unshared.share_with(@user)
+      unshared.reload.unshare_with(@user)
+      publisher = User.create
+      stranger = User.create
+      hidden = Board.create(:user => stranger, :public => false)
+      public_root = Board.create(:user => publisher, :public => true)
+      @user.reload
+      @user.settings['preferences']['sidebar_boards'] = [{'key' => public_root.key}]
+      @user.save
+      Worker.process_queues
+      # set after the queued jobs, which recompute downstream_board_ids from the buttons
+      public_root.reload.settings['downstream_board_ids'] = [hidden.global_id]
+      public_root.save
+      expect(public_root.reload.downstream_board_ids).to eq([hidden.global_id])
+      expect(public_root.allows?(@user, 'delete')).to eq(false)
+      expect(@user.reload.sidebar_boards.map{|b| b['key'] }).to include(public_root.key)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revisions'][public_root.global_id]).to eq(public_root.reload.current_revision)
+      expect(json['revisions']).not_to have_key(hidden.global_id)
+      expect(json['revoked_ids']).to eq([unshared.global_id])
+    end
+
     # Board revocation is a fix, not a feature: it has no off switch (owner decision,
     # 2026-10-13). The environment variable the switch used to read changes nothing.
     env_wrap('BOARD_REVOCATION_DISABLED' => 'true') do
