@@ -2,6 +2,9 @@
 paths:
   - "spec/**"
   - ".rspec"
+  - "config/application.rb"
+  - ".env.op.template"
+  - ".github/workflows/ci.yml"
 ---
 
 # RSpec: external services, credentials, shared state
