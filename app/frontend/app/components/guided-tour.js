@@ -195,6 +195,16 @@ function _onTourStepShow() {
           if (!tour) { return; }
           if (spec.indexOf('show:') === 0) { tour.show(spec.slice(5)); }
           else if (spec === 'next') { tour.next(); }
+          else if (spec === 'home_tour') {
+            // The communicator welcome's "Take a quick tour of my home page" link: advance into the
+            // home-page steps, but mark the tour's end as taken over so finishing it does NOT hand the
+            // user off to the board picker (the home-page tour is not a "go pick a board" path).
+            // _speakHandoffActive is the same flag the other welcome buttons set; handoffBlocked() reads
+            // it, and it is reset at the start of every tour run.
+            var homeComp = tour && tour._llGuidedTour;
+            if (homeComp && homeComp.set) { homeComp.set('_speakHandoffActive', true); }
+            tour.next();
+          }
           else if (spec === 'complete') { tour.complete(); }
           else if (spec === 'cancel') { tour.cancel(); }
           else if (spec === 'speak' || spec === 'speak_tour' || spec === 'picker') {

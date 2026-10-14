@@ -37,7 +37,7 @@ function communicatorWelcomeStep(classic, hasHome, homeTour) {
   // (next -> the communicatorHomeSteps appended after this welcome) is added only when `homeTour` is set:
   // buildHomeSteps (Modern) appends those steps; Basic's buildClassicHomeSteps does not, so Basic gets no
   // dead "next" link.
-  var homeLink = homeTour ? ('<button type="button" class="md-tour__quick-tour-link md-tour__quick-tour-link--home" data-tour-action="next">' +
+  var homeLink = homeTour ? ('<button type="button" class="md-tour__quick-tour-link md-tour__quick-tour-link--home" data-tour-action="home_tour">' +
     i18n.t('tour_welcome_quick_tour_home', "Take a quick tour of my home page (1 min)") + '</button>') : '';
   var quick = '<div class="md-tour__quick-tour">' +
     '<button type="button" class="md-tour__quick-tour-link" data-tour-action="speak_tour">' +

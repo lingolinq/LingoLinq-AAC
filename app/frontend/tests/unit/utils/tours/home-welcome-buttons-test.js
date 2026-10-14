@@ -25,7 +25,7 @@ module('Unit | Utility | tours | communicator welcome', function(hooks) {
     // "...of the speak page (1 min)", and a second HOME-page tour link ("...of my home page (1 min)",
     // data-tour-action="next") advances into the 4-step communicator home tour appended below.
     var html = buildHomeSteps('gentle', {})[0].text;
-    assert.deepEqual(actions(html), ['speak', 'picker', 'speak_tour', 'next'], 'primary, secondary, speak-page link, home-page link');
+    assert.deepEqual(actions(html), ['speak', 'picker', 'speak_tour', 'home_tour'], 'primary, secondary, speak-page link, home-page link');
     assert.true(text(html).includes('Start talking now'), 'primary label');
     assert.true(text(html).includes("We'll set up Vocal Flair 60. You can change it anytime."), 'its note');
     assert.true(text(html).includes('Choose a different board'), 'secondary');
@@ -168,6 +168,6 @@ module('Unit | Utility | tours | communicator welcome', function(hooks) {
   test('Basic: no home-page tour link and no appended home steps', function(assert) {
     var steps = buildClassicHomeSteps({});
     assert.strictEqual(steps.length, 1, 'just the welcome, no appended home steps in Basic');
-    assert.false(actions(steps[0].text).includes('next'), 'and no home-page (next) link');
+    assert.false(actions(steps[0].text).includes('home_tour'), 'and no home-page tour link');
   });
 });
