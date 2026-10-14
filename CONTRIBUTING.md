@@ -116,7 +116,9 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 
 - Open a PR from that `release/develop-into-staging-*` branch to `staging`. Do **not** open the PR from live `develop`.
 - **Approval from any one senior dev** is required: Traci is primary, Scot is
-  secondary, and Melissa is backup when Traci is unavailable.
+  secondary, and Melissa is backup when Traci is unavailable. Normally the
+  senior dev who opened the PR talks it over with another one first, but when
+  it is necessary they may merge it themselves without another review.
 - Use a **merge commit** (not squash) so the history stays in sync.
 - Delete the freeze branch after merge.
 - `staging` auto-deploys to lingolinq-staging.
@@ -133,8 +135,7 @@ After staging has been validated:
   agreement by merging it himself after her approval, on the head she approved.
   For a release opened under Scot's account, if Traci is unavailable, the
   release waits for her. If Traci is unavailable and the release is an
-  emergency, Scot may override and merge on his own agreement, stating the
-  emergency and the reason in the PR.
+  emergency, Scot may override (see "Emergency override" below).
 - Agreement needs explicit human intent on the PR itself: opening it by hand,
   an approving GitHub review on the head being merged, or, for Scot, merging
   it. A release PR that an agent opens does not count as the opener's
@@ -153,13 +154,25 @@ After staging has been validated:
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 
+**Emergency override.** `main` needs an approving review from someone other
+than the PR's author, and that applies to admins too. When Scot needs to merge
+his own PR in an emergency and Traci is unavailable:
+
+1. If Melissa is available, she approves it, and the merge goes ahead normally.
+2. Otherwise Scot temporarily lowers the review requirement in `main`'s branch
+   protection (required approvals and code-owner review). He leaves admin
+   enforcement and every required status check on, so CI still has to pass.
+3. He merges, then restores the review requirement straight away.
+4. He records the emergency, the reason, and both protection changes in the PR.
+
 ### 7. Hotfixes
 
 For urgent production issues:
 
 1. Branch from `main`: `hotfix/yourname-description` or `yourname/hotfix/description`
 2. Open a PR directly against `main`. **Approval from any one senior dev**
-   (Traci, Scot or Melissa) is required.
+   (Traci, Scot or Melissa) is required. For a hotfix Scot opens, the
+   emergency override in section 6 applies when no one else can approve it.
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
 
@@ -168,8 +181,8 @@ For urgent production issues:
 | Target Branch | Who Can Approve | Merge Strategy |
 |---|---|---|
 | `develop` | Any team member | Squash merge |
-| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup) | Merge commit |
-| `main` | Scot + Melissa or Traci (Traci when Scot opens); no self-approval | Merge commit |
+| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup); the opener may merge alone when necessary | Merge commit |
+| `main` | Scot + Melissa or Traci (Traci when Scot opens); no self-approval except the emergency override (section 6) | Merge commit |
 | `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa | Merge commit |
 
 ## Branch Protection Rules
