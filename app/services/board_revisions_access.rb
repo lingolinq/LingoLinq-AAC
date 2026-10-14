@@ -3,9 +3,10 @@
 # allows?(user, 'view') reads the user's cached available_private_board_ids and a 30-minute
 # permission cache, both rebuilt lazily (minutes to hours after a share change), so a board just
 # shared reads as hidden and one just unshared as viewable. Another user's private board is
-# decided here instead: owned by or shared with the user, their supervisees or their supervisees'
-# supervisees (as in board_caching#update_available_boards), or its owner grants the user model
-# or edit permission (board.rb add_permissions). Stale caches never decide either way.
+# decided here instead: owned by or shared with the user or anyone down their supervision chain
+# (board_caching#update_available_boards adds each supervisee's list, which holds that
+# supervisee's own supervisees' boards, so the cached lists are transitive), or its owner grants
+# the user model or edit permission (board.rb add_permissions). Stale caches never decide either way.
 #
 # Read-only, for a sync GET: each user's shared-board set is computed once per request and never
 # stored (all_shared_board_ids_for store: false), since storing it takes that user's row lock and
@@ -27,17 +28,27 @@ class BoardRevisionsAccess
 
   def access
     @access ||= begin
-      users = [@user]
-      @user.supervisees.each do |sup|
-        users << sup
-        users += sup.supervisees
-      end
-      users = users.uniq(&:id)
+      users = supervision_chain
       {
         owner_ids: users.map(&:id),
         shared_ids: users.map{|u| Board.all_shared_board_ids_for(u, false, false, store: false) }.flatten.compact.to_set
       }
     end
+  end
+
+  # The user and everyone down their supervision chain, one user query per level. Chains can loop
+  # (a supervisee who also supervises their supervisor), so each user is visited once.
+  def supervision_chain
+    users = [@user]
+    seen = [@user.global_id].to_set
+    level = [@user]
+    while level.any?
+      ids = level.flat_map(&:supervised_user_ids).uniq.reject{|id| seen.include?(id) }
+      seen.merge(ids)
+      level = ids.empty? ? [] : User.find_all_by_global_id(ids)
+      users += level
+    end
+    users
   end
 
   def owner_grants?(owner)

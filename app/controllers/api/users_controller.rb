@@ -818,7 +818,7 @@ class Api::UsersController < ApplicationController
   # permission cache, both rebuilt lazily (minutes to hours after a share change), so a board just
   # shared reads as hidden and one just unshared as viewable. Another user's private board is
   # decided instead by BoardRevisionsAccess (app/services/board_revisions_access.rb): owned by or
-  # shared with the user or their supervisees (as in board_caching#update_available_boards), or
+  # shared with anyone in the user's supervision chain (board_caching#update_available_boards), or
   # its owner grants the user model or edit permission (board.rb add_permissions).
   #
   # It is read-only. This is a sync GET that every device calls on every sync, so it takes no

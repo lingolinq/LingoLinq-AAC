@@ -3549,6 +3549,29 @@ describe Api::UsersController, :type => :controller do
       expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
     end
 
+    # The cached lists are transitive (each supervisor's list includes its supervisees' lists), so
+    # the live check follows the whole supervision chain, not two levels of it. Chains can loop.
+    it "should not call a board revoked when it is shared three supervision levels down, through a loop" do
+      token_user
+      other = User.create
+      board = Board.create(:user => other, :public => false)
+      link_board_revisions_tree(@user, [board])
+      chain = 3.times.map{ User.create }
+      User.link_supervisor_to_user(@user.reload, chain[0])
+      User.link_supervisor_to_user(chain[0].reload, chain[1])
+      User.link_supervisor_to_user(chain[1].reload, chain[2])
+      # the last one supervises the first supervisor again
+      User.link_supervisor_to_user(chain[2].reload, @user.reload)
+      board.share_with(chain[2].reload)
+      make_private_board_cache_stale(@user)
+
+      get 'board_revisions', params: {:user_id => @user.global_id, :include_revoked => '1'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['revoked_ids']).to eq([])
+      expect(json['revisions'][board.global_id]).to eq(board.reload.current_revision)
+    end
+
     # Board revocation is a fix, not a feature: it has no off switch (owner decision,
     # 2026-10-13). The environment variable the switch used to read changes nothing.
     env_wrap('BOARD_REVOCATION_DISABLED' => 'true') do
