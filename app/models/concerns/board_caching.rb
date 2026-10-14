@@ -24,6 +24,9 @@ module BoardCaching
   # the hourly batch: a cap would drop the refresh, and the list it leaves can still grant access
   # that was removed.
   REFUSED_STORE_RETRIES = 3
+  # extra of a row backed off after refusals: not a dispatch stamp (RemoteAction#process_action reads
+  # only digits), and a later run that stores deletes it.
+  REFUSED_BACKOFF_MARK = 'refused'
 
   def update_available_boards(stale_retries=0, refused_retries=0)
     # TODO: sharding
@@ -39,7 +42,7 @@ module BoardCaching
     started_at = Time.now
     # The queued copy the hourly batch dispatched (RemoteAction#process_action stamps its time in
     # extra) is this run, so a row this run leaves behind may be dispatched again.
-    RemoteAction.where(path: self.global_id, action: 'update_available_boards').where.not(extra: nil).update_all(extra: nil)
+    RemoteAction.where(path: self.global_id, action: 'update_available_boards').where.not(extra: [nil, REFUSED_BACKOFF_MARK]).update_all(extra: nil)
 
     # A retry (stale_retries or refused_retries > 0) is not parked: the run it retries set
     # 'generated' within the hour by definition, so parking it meant the retry never ran in time.
@@ -157,8 +160,10 @@ module BoardCaching
     # Only rows that were already pending when this run STARTED are satisfied by
     # it. A row written while the recompute was in flight represents a change this
     # pass did not see, so it must survive to trigger another one.
+    # Rows backed off by refusals (REFUSED_BACKOFF_MARK) stand for requests older than this run, so
+    # they are satisfied too, though their act_at is in the future.
     RemoteAction.where(path: self.global_id, action: 'update_available_boards')
-      .where('act_at <= ?', started_at).delete_all
+      .where('act_at <= ? OR extra = ?', started_at, REFUSED_BACKOFF_MARK).delete_all
   rescue ActiveRecord::StaleObjectError
     # Failed run: the row stays, so the fallback still fires. Both counts are carried, so neither
     # kind of retry resets the other's bound: at most STALE_REFRESH_RETRIES + REFUSED_STORE_RETRIES
@@ -193,7 +198,10 @@ module BoardCaching
       # its row forward and queues its own refresh) stays due, and that refresh is not parked
       # (refresh_requested_since?).
       RemoteAction.create(path: self.global_id, action: 'update_available_boards', act_at: started_at) unless rows.exists?
-      rows.where('act_at <= ?', started_at).each(&:retry_later_with_backoff)
+      rows.where('act_at <= ?', started_at).each do |ra|
+        ra.retry_later_with_backoff
+        ra.update_column(:extra, REFUSED_BACKOFF_MARK)
+      end
     end
   end
   private :retry_refused_store

@@ -798,6 +798,26 @@ describe BoardCaching, :type => :model do
           ran
         end
 
+        # A row backed off by refusals stands for requests a later successful run satisfies; left in
+        # the future it survived that run (which deletes rows due when it started) and recomputed
+        # once more, up to a day later.
+        it "is cleared by the next run that stores" do
+          u = User.create
+          refuse = true
+          allow_any_instance_of(User).to receive(:available_boards_inputs_current?) { !refuse }
+          Worker.flush_queues
+          u.update_available_boards
+          run_queued_refreshes
+          rows = RemoteAction.where(path: u.global_id, action: 'update_available_boards')
+          expect(rows.count).to eq(1)
+          expect(rows.first.act_at).to be > 50.minutes.from_now
+
+          refuse = false
+          User.find(u.id).update_available_boards
+
+          expect(rows.count).to eq(0)
+        end
+
         # Each kind of retry used to reset the other's count, so stores that were refused and found
         # stale in turn were retried at once, unparked, without end.
         it "stops retrying at once when refusals and stale rows alternate" do
