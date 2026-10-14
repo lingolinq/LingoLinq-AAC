@@ -2730,6 +2730,88 @@ describe Subscription, :type => :model do
           expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error/).once
         end
 
+        # SES words an account-level pause or suspension, and sandbox limits, as MessageRejected.
+        ['Sending paused for this account.', 'Account is paused.', 'Sending suspended for this account.', 'Your account is in the sandbox.'].each do |text|
+          it "treats a rejection saying #{text.inspect} as a setup error" do
+            failed, later, sent = halting_run(Aws::SES::Errors::MessageRejected.new(nil, text))
+
+            expect_halted(failed, later, sent)
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error/).once
+          end
+        end
+
+        # Rejections of every message in a run, whatever their wording, mean SES is refusing all
+        # mail: after 3 accounts rejected with no mail accepted, the run stops and the failures
+        # it counted are taken back.
+        describe "every message rejected" do
+          def unknown_rejection
+            Aws::SES::Errors::MessageRejected.new(nil, 'Rejected for a reason not seen before.')
+          end
+
+          def rejecting_all(accounts, accepted = [])
+            sent = []
+            allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+              sent << id
+              raise unknown_rejection unless accepted.include?(id)
+            end
+            allow(Rails.logger).to receive(:error).and_call_original
+            sent
+          end
+
+          it "stops the run and takes back the failures it counted" do
+            accounts = 4.times.map { inactive_account_to_warn }
+            sent = rejecting_all(accounts)
+
+            User.check_for_subscription_updates
+
+            expect(sent).to eq(accounts.first(3).map(&:global_id))
+            accounts.each do |a|
+              sub = User.find(a.id).settings['subscription'] || {}
+              expect(sub['inactivity_mail_failures']).to eq(nil)
+              expect(sub['last_deletion_attempts']).to eq(nil)
+            end
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error .*3 messages rejected and none accepted/).once
+          end
+
+          it "keeps no step without notice over a week of runs that reject every message" do
+            accounts = 2.times.map { inactive_account_to_warn } + [inactive_account_to_warn]
+            User.update_all(created_at: 2.years.ago)
+            rejecting_all(accounts)
+
+            8.times { |d| travel(d.days) { User.check_for_subscription_updates } }
+
+            accounts.each { |a| expect((User.find(a.id).settings['subscription'] || {})['last_deletion_attempts']).to eq(nil) }
+          end
+
+          it "takes back a step kept in the same run before the run stopped" do
+            kept = inactive_account_to_warn
+            fresh = User.find(kept.id)
+            fresh.settings['subscription'] = {'inactivity_mail_failures' => {'count' => 2, 'first_at' => 8.days.ago.utc.iso8601, 'last_at' => 1.day.ago.utc.iso8601}}
+            fresh.save
+            User.where(id: kept.id).update_all(updated_at: 13.months.ago)
+            others = 2.times.map { inactive_account_to_warn }
+            rejecting_all([kept] + others)
+
+            User.check_for_subscription_updates
+
+            sub = User.find(kept.id).settings['subscription']
+            expect(sub['last_deletion_attempts']).to eq(nil)
+            expect(sub['inactivity_mail_failures']['count']).to eq(2)
+            expect(AuditEvent.where(user_key: 'system').to_a.select { |e| e.data['type'] == 'inactivity_step_kept_without_notice' && e.data['user_id'] == kept.global_id }).to eq([])
+          end
+
+          it "counts rejections once a message in the run was accepted" do
+            accepted = inactive_account_to_warn
+            accounts = 3.times.map { inactive_account_to_warn }
+            rejecting_all(accounts, [accepted.global_id])
+
+            User.check_for_subscription_updates
+
+            expect(User.find(accepted.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+            accounts.each { |a| expect(User.find(a.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(1) }
+          end
+        end
+
         it "treats an unknown error as transient" do
           failed, later, sent = halting_run(RuntimeError.new('something else'))
 

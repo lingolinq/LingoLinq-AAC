@@ -1301,6 +1301,14 @@ module Subscription
       trial_id_set = trial_to_be_deleted_ids.to_set
       to_be_deleted = User.where(id: (to_be_deleted_ids + trial_to_be_deleted_ids).uniq)
       mail_stopped = false
+      # Until a mail is accepted, rejections are held so they can be taken back if SES turns out
+      # to be refusing every message: [user id, previous fields, fields after, kept audit or nil].
+      mail_accepted = false
+      held_rejections = []
+      release_held = lambda do
+        held_rejections.each { |*, kept| AuditEvent.log_command('system', kept) if kept }
+        held_rejections.clear
+      end
       to_be_deleted.find_in_batches(batch_size: 25) do |batch|
         break if mail_stopped
         batch.each do |user|
@@ -1360,8 +1368,9 @@ module Subscription
           rescue StandardError => e
             mail = attempts > 2 ? 'account_deleted' : 'deletion_warning'
             kind = inactivity_mail_error_kind(e)
+            reason = nil
             # only a rejection of this one message counts against the account
-            outcome, failures = settle_failed_inactivity_step(user.id, *step, count_failure: kind == :message)
+            outcome, failures, after = settle_failed_inactivity_step(user.id, *step, count_failure: kind == :message)
             if kind == :message
               Rails.logger.error("[inactivity sweep] #{mail} mail rejected (#{e.class}); step #{outcome}#{failures ? " after #{failures} failures" : ''}")
             end
@@ -1370,23 +1379,41 @@ module Subscription
               at = Time.iso8601(step[0]['updated_at'])
               rewind_inactivity_sweep_cursor('inactivity_sweep_cursor/inactive', at, user.id) if inactive_id_set.include?(user.id)
               rewind_inactivity_sweep_cursor('inactivity_sweep_cursor/trial', at, user.id) if trial_id_set.include?(user.id)
-            elsif outcome == :kept_without_notice
-              AuditEvent.log_command('system', {'type' => 'inactivity_step_kept_without_notice', 'user_id' => user.global_id, 'step' => mail, 'mail_failures' => failures})
             end
-            next if kind == :message
+            kept = outcome == :kept_without_notice ? {'type' => 'inactivity_step_kept_without_notice', 'user_id' => user.global_id, 'step' => mail, 'mail_failures' => failures} : nil
+            if kind == :message
+              if mail_accepted
+                AuditEvent.log_command('system', kept) if kept
+                next
+              end
+              held_rejections << [user.id, step[0], after, kept] if after
+              next if held_rejections.length < INACTIVITY_MAIL_REJECTION_LIMIT
+              # Every message so far rejected: SES is refusing all mail (a pause, a suspension or
+              # a limit in words not recognised). Take back what these rejections counted or kept.
+              held_rejections.each { |id, previous, held_after, _| settle_failed_inactivity_step(id, previous, held_after, count_failure: false) }
+              reason = "; #{held_rejections.length} messages rejected and none accepted"
+              held_rejections.clear
+              kind = :setup
+            end
             # An outage, throttling or a setup problem would fail for every account: send no more
             # inactivity mail this run, and start the next run from the oldest account, since the
             # accounts left unprocessed here sit anywhere relative to the cursors.
             RedisInit.default.del('inactivity_sweep_cursor/inactive')
             RedisInit.default.del('inactivity_sweep_cursor/trial')
             note = kind == :setup ? '; sending is misconfigured and needs an operator' : ''
-            Rails.logger.error("[inactivity sweep] mail stopped for this run: #{kind} error (#{e.class}#{e.respond_to?(:code) ? " #{e.code}" : ''})#{note}")
+            Rails.logger.error("[inactivity sweep] mail stopped for this run: #{kind} error (#{e.class}#{e.respond_to?(:code) ? " #{e.code}" : ''}#{reason})#{note}")
             mail_stopped = true
             break
+          end
+          unless mail_accepted
+            mail_accepted = true
+            release_held.call
           end
           alerts[:pending_deletes] += 1 unless attempts > 2
         end
       end
+      # the run did not stop on its rejections: they stand
+      release_held.call
       alerts
     end
 
@@ -1444,13 +1471,20 @@ module Subscription
       UnrecognizedClientException
     ).freeze
 
+    INACTIVITY_MAIL_SETUP_REJECTION = /not verified|paused|suspended|sandbox/i
+
+    # Rejections in one run, with no mail accepted before them, after which the sweep takes SES
+    # to be refusing all mail whatever the wording: the run stops and its counts are taken back.
+    INACTIVITY_MAIL_REJECTION_LIMIT = 3
+
     def inactivity_mail_error_kind(error)
       if error.is_a?(Aws::Errors::ServiceError)
         names = [error.class.name.to_s.split('::').last, error.code.to_s]
         return :setup if (names & INACTIVITY_MAIL_SETUP_ERRORS).any?
         if names.include?('MessageRejected')
-          # SES words a send from (or, in the sandbox, to) an unverified identity this way
-          return error.message.to_s =~ /not verified/i ? :setup : :message
+          # SES words an unverified identity (sender, or recipient in the sandbox), an account
+          # pause ("Account is paused", "Sending paused for this account") or suspension this way
+          return error.message.to_s =~ INACTIVITY_MAIL_SETUP_REJECTION ? :setup : :message
         end
         return :transient
       end
@@ -1472,33 +1506,35 @@ module Subscription
     # settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at'}) and, once the
     # failures reach the limit over the period, keeps the step; otherwise, and for any other
     # error, puts back the fields the step changed (the count as it was). Returns
-    # [outcome, failure count]: outcome is :undone, :kept_without_notice, or :left_as_changed.
+    # [outcome, failure count, the row's step fields after this write]: outcome is :undone,
+    # :kept_without_notice, or :left_as_changed. Calling it again with the step's previous fields,
+    # those after-fields and no count_failure takes this settlement back.
     def settle_failed_inactivity_step(user_id, previous, written, count_failure: true)
-      outcome, count = :left_as_changed, nil
+      outcome, count, after = :left_as_changed, nil, nil
       User.update_settings_locked(user_id, touch: false) do |fresh|
         next false unless inactivity_step_fields(fresh) == written
         sub = fresh.settings['subscription'] ||= {}
+        outcome = :undone
         if count_failure
           prior = previous['inactivity_mail_failures'].is_a?(Hash) ? previous['inactivity_mail_failures'] : {}
           count = prior['count'].to_i + 1
           first_at = (Time.iso8601(prior['first_at'].to_s) rescue nil) || Time.now
           sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601}
-          if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
-            outcome = :kept_without_notice
-            next true
+          outcome = :kept_without_notice if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
+        end
+        if outcome == :undone
+          restored = %w(last_deletion_warning last_deletion_attempts inactivity_deletion)
+          restored << 'inactivity_mail_failures' unless count_failure
+          restored.each do |key|
+            previous[key].nil? ? sub.delete(key) : sub[key] = previous[key]
           end
+          fresh.schedule_deletion_at = previous['schedule_deletion_at'] && Time.iso8601(previous['schedule_deletion_at'])
+          fresh.updated_at = Time.iso8601(previous['updated_at'])
         end
-        restored = %w(last_deletion_warning last_deletion_attempts inactivity_deletion)
-        restored << 'inactivity_mail_failures' unless count_failure
-        restored.each do |key|
-          previous[key].nil? ? sub.delete(key) : sub[key] = previous[key]
-        end
-        fresh.schedule_deletion_at = previous['schedule_deletion_at'] && Time.iso8601(previous['schedule_deletion_at'])
-        fresh.updated_at = Time.iso8601(previous['updated_at'])
-        outcome = :undone
+        after = inactivity_step_fields(fresh)
         true
       end
-      [outcome, count]
+      [outcome, count, after]
     end
 
     # Where the next run of inactive_deletion_candidate_ids resumes, as [updated_at, id], or nil to
