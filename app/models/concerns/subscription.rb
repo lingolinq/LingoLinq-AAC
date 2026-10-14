@@ -1108,10 +1108,10 @@ module Subscription
     # walked past by (updated_at, id) rather than restamped: updated_at keys cached permissions
     # and is the 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows.
     #
-    # cursor_key: a Redis key holding the (updated_at, id) a run stopped at when the scan limit
-    # cut it short, so the next run resumes there and more exempt accounts than the limit cannot
-    # starve the sweep. It is cleared when a run reaches the end or fills its window, so the next
-    # run starts from the oldest again.
+    # cursor_key: a Redis key holding the (updated_at, id) the next run resumes after: the last row
+    # scanned when the scan limit cut a run short, or the last account returned when a run filled
+    # its window, so exempt rows at the head are not walked every cycle nor starve the sweep. It is
+    # cleared only when a run reaches the end of the scope, so the next run starts from the oldest.
     #
     # Each page is found by its keyset columns alone; the rows are then loaded only with the
     # columns the check needs: id, updated_at and settings for the default exemption check
@@ -1120,10 +1120,10 @@ module Subscription
     def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, &accept)
       columns = accept ? nil : [:id, :updated_at, :settings]
       accept ||= lambda{|u| !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil? }
-      ids = []
+      accepted = {}
       scanned = 0
       last_at, last_id = inactivity_sweep_cursor(cursor_key)
-      while ids.length < window && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
+      while accepted.length < window && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
         page = scope.order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
         page = page.where('(updated_at, id) > (?, ?)', last_at, last_id) if last_id
         keys = page.pluck(:id, :updated_at)
@@ -1131,21 +1131,21 @@ module Subscription
         rows = User.where(id: keys.map(&:first))
         rows = rows.select(*columns) if columns
         by_id = rows.index_by(&:id)
-        keys.each do |id, _|
+        keys.each do |id, at|
           u = by_id[id]
-          ids << id if u && accept.call(u)
+          accepted[id] = at if u && accept.call(u)
         end
         scanned += keys.length
         last_id, last_at = keys[-1]
       end
-      if cursor_key
-        if ids.length < window && scanned >= INACTIVITY_SWEEP_SCAN_LIMIT && last_id
-          Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{last_at.utc.iso8601(6)}|#{last_id}")
-        else
-          RedisInit.default.del(cursor_key)
-        end
+      ids = accepted.keys.first(window)
+      stop_at, stop_id = cursor_key && inactivity_sweep_stop(scope, accepted, ids, window, scanned, last_at, last_id)
+      if stop_id
+        Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{stop_at.utc.iso8601(6)}|#{stop_id}")
+      elsif cursor_key
+        RedisInit.default.del(cursor_key)
       end
-      ids.first(window)
+      ids
     end
 
     def inactivity_sweep_cursor(cursor_key)
@@ -1406,6 +1406,19 @@ module Subscription
         true
       end
       !!res
+    end
+
+    # Where the next run of inactive_deletion_candidate_ids resumes, as [updated_at, id], or nil to
+    # start from the oldest: after the last account returned when the window filled (unless that
+    # was the last row in the scope), after the last row scanned when the scan limit was reached.
+    def inactivity_sweep_stop(scope, accepted, ids, window, scanned, last_at, last_id)
+      if ids.length >= window && ids.any?
+        stop_at = accepted[ids[-1]]
+        return nil unless scope.where('(updated_at, id) > (?, ?)', stop_at, ids[-1]).exists?
+        [stop_at, ids[-1]]
+      elsif scanned >= INACTIVITY_SWEEP_SCAN_LIMIT && last_id
+        [last_at, last_id]
+      end
     end
 
     # Recorded under settings['subscription']['inactivity_deletion'] when the inactivity sweep

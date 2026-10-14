@@ -2654,6 +2654,34 @@ describe Subscription, :type => :model do
         expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
         waiting.each { |w| expect(User.find(w.id).settings['subscription']['last_deletion_attempts']).to eq(1) }
       end
+
+      # A run that fills its window resumes the next run after the last account it returned, so
+      # exempt accounts at the head of the scope are not walked again every cycle; the cursor is
+      # cleared only once a run reaches the end of the scope.
+      it "resumes after the last account returned when a run fills its window" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+        2.times do |i|
+          k = User.create
+          k.settings['preferences']['never_delete'] = true
+          k.save
+          User.where(id: k.id).update_all(updated_at: (15.months.ago + i.minutes))
+        end
+        first = inactive_account_to_warn
+        User.where(id: first.id).update_all(updated_at: 14.months.ago)
+        first_at = User.find(first.id).updated_at
+        second = inactive_account_to_warn
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+        expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq("#{first_at.utc.iso8601(6)}|#{first.id}")
+
+        User.check_for_subscription_updates
+        expect(User.find(second.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        # the run returned the last account in the scope, so the next run starts from the oldest
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
+      end
     end
 
     it "should notify recently-created inactive users" do
