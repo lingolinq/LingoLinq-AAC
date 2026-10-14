@@ -1100,6 +1100,21 @@ describe OrganizationUnit, :type => :model do
       RemoteAction.where(action: 'room_member_removal')
     end
 
+    # A member put back in the room before a lost removal ran keeps the room's supervision: the
+    # pending removal row is dropped when they are re-added, so its retry does not strip them.
+    it "keeps the supervision of a supervisor re-added before a lost removal runs" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      Worker.flush_queues
+      OrganizationUnit.find(ou.id).add_supervisor(sup.user_name)
+      expect(removal_rows.count).to eq(0)
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(OrganizationUnit.find(ou.id).supervisor?(User.find(sup.id))).to eq(true)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
     it "completes a removal from its row when the job is lost" do
       o, ou, sup, comm = room_members
       OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
