@@ -93,9 +93,8 @@ class OrganizationUnit < ApplicationRecord
     link = UserLink.generate(user, self, 'org_unit_supervisor')
     link.data['state']['user_name'] = user.user_name
     link.data['state']['edit_permission'] = true if edit_permission
-    link.save
     # back in the room: a removal still pending for them is dropped (room_member_removal)
-    member_removal_done(user, 'supervisor')
+    member_removal_done(user, 'supervisor') if link.save
 #     assert_list('supervisors', user.global_id)
 #     self.settings['supervisors'] << {
 #       'user_id' => user.global_id,
@@ -143,9 +142,8 @@ class OrganizationUnit < ApplicationRecord
     return false unless user && org && org.managed_user?(user) && !org.pending_user?(user)
     link = UserLink.generate(user, self, 'org_unit_communicator')
     link.data['state']['user_name'] = user.user_name
-    link.save
     # back in the room: a removal still pending for them is dropped (room_member_removal)
-    member_removal_done(user, 'communicator')
+    member_removal_done(user, 'communicator') if link.save
 #     assert_list('communicators', user.global_id)
 #     self.settings['communicators'] << {
 #       'user_id' => user.global_id,

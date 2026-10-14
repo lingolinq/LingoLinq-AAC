@@ -1135,6 +1135,20 @@ describe OrganizationUnit, :type => :model do
       expect(removal_rows.count).to eq(0)
     end
 
+    # a re-add whose room link was not saved has not put the member back: the pending removal stays
+    it "keeps the pending removal when the re-add is not saved" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      expect(removal_rows.count).to eq(2)
+      allow_any_instance_of(UserLink).to receive(:save).and_return(false)
+
+      OrganizationUnit.find(ou.id).add_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).add_communicator(comm.user_name)
+
+      expect(removal_rows.count).to eq(2)
+    end
+
     it "completes a removal from its row when the job is lost" do
       o, ou, sup, comm = room_members
       OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
