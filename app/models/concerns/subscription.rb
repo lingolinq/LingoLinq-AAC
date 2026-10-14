@@ -1499,11 +1499,16 @@ module Subscription
     # rule. An account with no address already gets no mail and proceeds the same way.
     INACTIVITY_MAIL_FAILURE_LIMIT = 3
     INACTIVITY_MAIL_FAILURE_PERIOD = 1.week
+    # Failures further apart than this do not add up. An undone step is retried on the next daily
+    # run, and the next warning comes 3 weeks after a kept one, so failures in one run of them are
+    # at most about 3 weeks apart; a count left from an earlier inactivity period (12 months or
+    # more ago) starts again.
+    INACTIVITY_MAIL_FAILURE_GAP = 30.days
 
     # Settles an inactivity step whose mail failed, under a row lock, only while the row still
     # holds what the step wrote (an account used or changed since keeps its newer state). With
     # count_failure (SES rejected this one message), counts the failure in
-    # settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at'}) and, once the
+    # settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at', 'last_at'}) and, once the
     # failures reach the limit over the period, keeps the step; otherwise, and for any other
     # error, puts back the fields the step changed (the count as it was). Returns
     # [outcome, failure count, the row's step fields after this write]: outcome is :undone,
@@ -1517,9 +1522,12 @@ module Subscription
         outcome = :undone
         if count_failure
           prior = previous['inactivity_mail_failures'].is_a?(Hash) ? previous['inactivity_mail_failures'] : {}
+          last_at = (Time.iso8601((prior['last_at'] || prior['first_at']).to_s) rescue nil)
+          # a count whose last failure is older than the gap is not part of this run of failures
+          prior = {} unless last_at && last_at > INACTIVITY_MAIL_FAILURE_GAP.ago
           count = prior['count'].to_i + 1
           first_at = (Time.iso8601(prior['first_at'].to_s) rescue nil) || Time.now
-          sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601}
+          sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601, 'last_at' => Time.now.utc.iso8601}
           outcome = :kept_without_notice if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
         end
         if outcome == :undone

@@ -2618,6 +2618,43 @@ describe Subscription, :type => :model do
           expect(kept_events(failed)).to eq([])
         end
 
+        # A count left from an earlier inactivity period is not a run of consecutive failures.
+        def with_failures(record)
+          u = inactive_account_to_warn
+          fresh = User.find(u.id)
+          fresh.settings['subscription'] = {'inactivity_mail_failures' => record}
+          fresh.save
+          User.where(id: u.id).update_all(updated_at: 13.months.ago)
+          u
+        end
+
+        it "starts the count again when the last counted failure is over 30 days old" do
+          u = with_failures({'count' => 2, 'first_at' => 2.years.ago.utc.iso8601})
+          v = with_failures({'count' => 2, 'first_at' => 40.days.ago.utc.iso8601, 'last_at' => 31.days.ago.utc.iso8601})
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            raise message_rejected if [u.global_id, v.global_id].include?(id)
+          end
+
+          User.check_for_subscription_updates
+
+          [u, v].each do |a|
+            sub = User.find(a.id).settings['subscription']
+            expect(sub['last_deletion_attempts']).to eq(nil)
+            expect(sub['inactivity_mail_failures']['count']).to eq(1)
+          end
+        end
+
+        it "keeps counting a run of failures whose last one is recent" do
+          u = with_failures({'count' => 2, 'first_at' => 8.days.ago.utc.iso8601, 'last_at' => 1.day.ago.utc.iso8601})
+          failing_mail_for(u)
+
+          User.check_for_subscription_updates
+
+          sub = User.find(u.id).settings['subscription']
+          expect(sub['last_deletion_attempts']).to eq(1)
+          expect(sub['inactivity_mail_failures']['count']).to eq(3)
+        end
+
         it "starts the failure count again after a mail goes out" do
           u = inactive_account_to_warn
           failing = true
