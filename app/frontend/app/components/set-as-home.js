@@ -111,9 +111,10 @@ export default Component.extend({
     const board_user_name = this.get('model.board.user_name');
     let user_name = 'nobody';
     const current_id = this.get('currently_selected_id');
-    if (current_id === 'self') {
-      user_name = appState.get('sessionUser.user_name');
-    } else if (current_id === appState.get('sessionUser.user_id')) {
+    // Nobody picked (null from Basic's setAsHome, undefined from board-detail and Board Actions),
+    // 'self', or your own id: it is you. sessionUser has `id`, not `user_id`; the old controller's
+    // loose `==` against that missing property hid this until the component conversion's `===`.
+    if (current_id == null || current_id === 'self' || current_id === appState.get('sessionUser.id')) {
       user_name = appState.get('sessionUser.user_name');
     } else {
       (appState.get('sessionUser.known_supervisees') || []).forEach(function(sup) {

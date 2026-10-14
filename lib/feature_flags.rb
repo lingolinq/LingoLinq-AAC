@@ -126,13 +126,13 @@ module FeatureFlags
               # ENABLED until rollout. The recipient has no account; the
               # communicator's flag gates their invite links.
               'sms_recipient_consent', 'updates_pill', 'multilingual_grammar', 'location_maps', # location_maps: session-location maps on the stats and log pages; AVAILABLE-only and in DISABLED_CANARY_FEATURES, so OFF for everyone including canary users. multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
-              # Compressed View: a per-user density preference (preferences.compressed_view),
-              # toggled from the View menu (components/view-switcher.hbs). With it on, the
-              # app shell and the Modern home page use tighter spacing and a shorter layout
-              # (body.ll-density-compressed). Board pages (board-detail, board-alt) are
-              # never compressed. The flag gates the toggle AND the class, so turning the
-              # flag off un-compresses everyone. See utils/compressed_view_state.js.
-              'compressed_view']
+              # 'compressed_view' (Compressed View, a per-user density preference toggled from
+              # the View menu) was registered here until 2026-10-10, when the feature was removed
+              # from the project. The stored preference is cleared by
+              # lib/tasks/backfill_remove_compressed_view_preference.rake. These lines stay as a
+              # note so the line numbers below, which docs/legal/CAPABILITY_LEDGER.md cites, do
+              # not move.
+              ]
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -156,7 +156,7 @@ module FeatureFlags
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
               # IN PROGRESS (2026-09-28): 'board_category_grouping' is no longer forced ON; it is off for everyone. See the note in AVAILABLE_FRONTEND_FEATURES above.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'compressed_view', # TEMPORARY (2026-09-29): forced ON for everyone so Traci can evaluate the Compressed View toggle in the browser. The preference itself defaults OFF, so nobody's page changes until they flip it. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              # 'compressed_view' was forced ON here for evaluation until 2026-10-10, when the feature was removed (see the note in AVAILABLE_FRONTEND_FEATURES). Kept as a line so the numbers below do not move.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'updates_pill'] # TEMPORARY (2026-09-14): forced ON for everyone so the Card-view Updates pill (primary nav -> the user's notes log, with the unread counter classic already shows on its Updates tab) is visible without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the pill stops rendering, the nav returns to its current item set, and `?nav=home` on the logs page no longer marks a rail row as current, which is the pre-existing behaviour. Read by components/user-pill-nav.hbs, the one primary nav (the home dashboard's own nav was retired 2026-09-21), and by the account rail's current-row logic (components/account-rail.js:232, controllers/application.js:2338).
   DISABLED_CANARY_FEATURES = ['location_maps']

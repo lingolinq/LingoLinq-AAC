@@ -1,0 +1,90 @@
+<ModalDialog @action={{this.onClose}} @uncloseable={{this.isBusy}}>
+  <div class="modal-header md-modal-header">
+    {{#unless this.isBusy}}
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
+    {{/unless}}
+    <h3 class="md-modal-title">
+      {{#if this.isDone}}
+        {{t "Home board set" key="set_home_mode_done"}}
+      {{else}}
+        {{t "Set Home Board" key="set_home_board"}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg>
+      </div>
+    </div>
+    {{#if this.isAsk}}
+      <p class="md-modal-message">
+        {{#if this.forSomeoneElse}}
+          {{t "%{board} doesn't belong to %{user_name}, so it can't be set as their home board as it is." board=this.boardName user_name=this.userName key="set_home_copy_not_theirs"}}
+        {{else}}
+          {{t "%{board} doesn't belong to you, so it can't be set as your home board as it is." board=this.boardName key="set_home_copy_not_yours"}}
+        {{/if}}
+      </p>
+      <p class="md-modal-hint">{{t "Would you like to make a copy of it to finish setting the home board?" key="set_home_copy_question"}}</p>
+    {{else if this.isCopying}}
+      <p class="md-modal-message" role="status">
+        <span class="md-modal-spinner" aria-hidden="true"></span>
+        {{this.progressMessage}}
+      </p>
+      {{#if this.waitedLong}}
+        <p class="md-modal-hint">{{t "This is taking longer than usual. You can close this; it keeps working, and your home board is set when it finishes." key="set_home_copy_slow_close"}}</p>
+      {{/if}}
+    {{else if this.isCancelling}}
+      <p class="md-modal-message" role="status">
+        <span class="md-modal-spinner" aria-hidden="true"></span>
+        {{t "Cancelling and removing the copy..." key="set_home_copy_cancelling"}}
+      </p>
+      {{#if this.waitedLong}}
+        <p class="md-modal-hint">{{t "This is taking longer than usual. You can close this; the copy is still removed when it finishes." key="set_home_copy_slow_close_cancel"}}</p>
+      {{/if}}
+    {{else if this.isCancelled}}
+      <p class="md-modal-message" role="status">{{t "Cancelled. Your home board wasn't changed." key="set_home_copy_cancelled"}}</p>
+    {{else if this.isDone}}
+      <p class="md-modal-message" role="status">
+        {{#if this.copied}}
+          {{t "The copy of %{board} is now the home board." board=this.boardName key="set_home_copy_done_message"}}
+        {{else}}
+          {{t "%{board} is now the home board." board=this.boardName key="set_home_done_message"}}
+        {{/if}}
+      </p>
+      <p class="md-modal-hint">{{t "Would you like to open the new home board?" key="set_home_copy_open_question"}}</p>
+    {{else if this.isError}}
+      <p class="md-modal-message md-modal-message--warn" role="alert">{{this.error}}</p>
+    {{/if}}
+  </div>
+  {{#if this.isCopying}}
+    {{#if (or this.canCancel this.waitedLong)}}
+      <div class="modal-footer md-modal-footer">
+        {{#if this.canCancel}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "cancelCopy")}}>{{t "Cancel" key="cancel"}}</button>
+        {{/if}}
+        {{#if this.waitedLong}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{else if this.isCancelling}}
+    {{#if this.waitedLong}}
+      <div class="modal-footer md-modal-footer">
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+      </div>
+    {{/if}}
+  {{else}}
+    <div class="modal-footer md-modal-footer">
+      {{#if this.isAsk}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>{{t "Yes, make a copy" key="set_home_copy_yes"}}</button>
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "No" key="set_home_copy_no"}}</button>
+      {{else if this.isDone}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "openBoard")}}>{{t "Open my new home board" key="set_home_copy_open"}}</button>
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Not now" key="not_now"}}</button>
+      {{else}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+      {{/if}}
+    </div>
+  {{/if}}
+</ModalDialog>

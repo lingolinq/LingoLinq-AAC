@@ -1,6 +1,7 @@
 # Codex review pipeline
 
-> **Status 2026-09-26: live again, not yet required.** Dispatch stopped after
+> **Status: disabled since 2026-09-27 (`codex-review.yml` is disabled in Actions), not
+> required.** Dispatch stopped after
 > 2026-08-04 because W1's `Debounce Delay` was a Code node sleeping 300s, equal
 > to n8n's 300s task-runner timeout, so every reviewable event timed out there.
 > On 2026-09-26 it was replaced with a native n8n Wait node (same 5-minute
@@ -11,7 +12,7 @@
 > the sticky comment); (4) re-add `codex-review/deep-pass` to branch protection
 > on develop and staging: OPEN, the check is still not in the required set on
 > develop, staging or main; (5) decide the canary variables (see Evidence
-> modes): OPEN. Until (4) a failing deep pass does not block merge, and the
+> modes): OPEN. Revival requires internal privacy and security sign-off. Until (4) a failing deep pass does not block merge, and the
 > `--admin` exception policy in `docs/process/deep-pass-admin-exception-policy.md`
 > has nothing to override. Known gap: simultaneous PR events (for example
 > `opened` plus auto `review_requested`) can each dispatch before W1's

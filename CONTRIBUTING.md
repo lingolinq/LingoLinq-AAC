@@ -17,8 +17,8 @@
 
 | Role | Who | Preview Deploys | PR Review By |
 |---|---|---|---|
-| **Core team** | Added as org collaborators | No per-PR previews; `develop` deploys to the dev environment on Cloud Run | Copilot code review (auto) + human reviewer |
-| **External contributors** | Anyone via fork | No preview deploy | Copilot code review (auto) + core team reviewer |
+| **Core team** | Added as org collaborators | No per-PR previews; `develop` deploys to the dev environment on Cloud Run | Core team reviewer, plus the dual-reviewer pass where required |
+| **External contributors** | Anyone via fork | No preview deploy | Core team reviewer, plus the dual-reviewer pass (run by the core team) where required |
 
 External contributors: fork the repo, branch from `develop`, and open a PR back
 to `develop`. A core team member will review your PR and may request changes.
@@ -82,16 +82,16 @@ There are no per-PR preview deployments. Merging to `develop` deploys the shared
 dev environment on Cloud Run (`dev.lingolinq.com`); test there after merge, or
 run the app locally before opening the PR.
 
-### 3. Automated AI Review
+### 3. AI Review
 
-Every PR against `develop` automatically receives a **Copilot code review**
-(enabled by a repository ruleset). It will:
-- Post a summary of your changes
-- Leave inline code suggestions
-- Flag potential issues
+The Codex GitHub connector is set to review every PR automatically, and a core team
+member may request another review by commenting `@codex review`. No repository rule
+requests a Copilot code review, though an author whose own Copilot plan has automatic
+review turned on may still get one.
 
-Please read and address Copilot's feedback before requesting human review. You do
-not need to accept every suggestion, but each one should be acknowledged.
+If your PR receives AI review comments, read and address them before requesting
+human review. You do not need to accept every suggestion, but each one should be
+acknowledged.
 
 AI-generated code (from Copilot, Claude, or other tools) is held to the same
 standard as human-written code. The person who opens the PR is responsible for
@@ -149,17 +149,19 @@ For urgent production issues:
 
 ## Branch Protection Rules
 
-The following protections are enforced at the repository level:
+The following protections are enforced at the repository level and apply to
+everyone, including admins:
 
 - **`main`**: Requires PR, requires 1 approval, no direct pushes, no force push
-- **`staging`**: Requires PR, requires approval from Scot
+- **`staging`**: Requires PR, no direct pushes, no force push
 - **`develop`**: Requires PR, no direct pushes
 
-These rules apply to all contributors, including admins.
+The approval summary above is team policy, and everyone is expected to follow it
+even where GitHub would allow the merge without it.
 
 ## Dual-Reviewer Policy (Phase 1)
 
-In addition to the automated Copilot code review, certain PRs require a
+In addition to core team review, certain PRs require a
 **dual-reviewer pass** before merge: one senior-dev review and one adversary
 (red-team) review.
 

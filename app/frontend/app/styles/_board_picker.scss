@@ -574,13 +574,16 @@ $bp-target: 44px;
      search field beside it, so the toolbar reads as two heights rather than one. 32px
      still clears the WCAG 2.2 AA 24px minimum target size — it is the AAA 44px guidance
      that is given up. Restore `min-height: $bp-target` to undo. */
-  min-height: 32px;
-  padding: 0 16px;
+  /* Height, side padding and text size read from variables so a page can size its copy of the
+     control without an override block; the defaults are this control's own values. The Boards
+     page sets them smaller (app.scss, `.bp-segmented.ub-boards-page__density`). */
+  min-height: var(--bp-seg-h, 32px);
+  padding: 0 var(--bp-seg-px, 16px);
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: rgba(75, 78, 92, 0.85);
-  font-size: 14px;
+  font-size: var(--bp-seg-fs, 14px);
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
@@ -867,9 +870,44 @@ $bp-target: 44px;
   /* Each control takes a full row rather than shrinking below a usable size. */
   .bp-search { flex: 1 1 100%; width: 100%; }
   .bp-segmented { flex: 1 1 100%; width: 100%; }
-  .bp-segmented__option { flex: 1 1 50%; padding: 0 $bp-space-md; }
+  .bp-segmented__option { flex: 1 1 50%; padding: 0 var(--bp-seg-px-narrow, #{$bp-space-md}); }
   .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon img {
     width: 50px !important;
     height: 50px !important;
   }
 }
+
+// "Recently tried" chips above the picker (2026-10-13, templates/board-picker.hbs): the boards tried this
+// session; a chip opens its preview again. 44px targets, wrapping on narrow screens.
+.bp-recent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.bp-recent__label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: $la-navy;
+  margin-right: 4px;
+}
+.bp-recent__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 16px 4px 6px;
+  border: 1.5px solid rgba($la-navy, 0.25);
+  border-radius: 999px;
+  background: #fff;
+  color: $la-navy;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bp-recent__chip:hover { background: rgba($la-navy, 0.05); }
+.bp-recent__chip:focus-visible { outline: 3px solid $brand-verdigris-aa; outline-offset: 2px; }
+.bp-recent__img { width: 32px; height: 32px; border-radius: 8px; object-fit: contain; background: #fff; }

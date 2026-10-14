@@ -770,37 +770,19 @@ describe User, :type => :model do
       end
     end
 
-  describe "compressed_view preference" do
-    # Compressed View is a per-user display choice read with `=== true` on the client
-    # (utils/compressed_view_state.js). Stored only as a real boolean, so a string or number
-    # sent by an old or hand-built client can never compress someone's page.
-    def stored_compressed(value)
+  describe "compressed_view preference (removed 2026-10-10)" do
+    # Compressed View was removed from the project, so its preference is no longer accepted: an
+    # old or cached client that still sends it must not store it. (Its earlier tests, for the
+    # boolean coercion, went with the feature; approved 2026-10-10.)
+    it "is not an accepted preference" do
+      expect(User::PREFERENCE_PARAMS).not_to include('compressed_view')
+    end
+
+    it "is not stored when a client sends it" do
       u = User.create
-      u.process({'preferences' => {'compressed_view' => value}}, {})
+      u.process({'preferences' => {'compressed_view' => true}}, {})
       u.save
-      u.reload.settings['preferences']['compressed_view']
-    end
-
-    it "is an accepted preference" do
-      expect(User::PREFERENCE_PARAMS).to include('compressed_view')
-    end
-
-    it "stores true and false as booleans, including their string forms" do
-      expect(stored_compressed(true)).to eq(true)
-      expect(stored_compressed('true')).to eq(true)
-      expect(stored_compressed(false)).to eq(false)
-      expect(stored_compressed('false')).to eq(false)
-    end
-
-    it "stores anything else as off" do
-      expect(stored_compressed(1)).to eq(false)
-      expect(stored_compressed('yes')).to eq(false)
-      expect(stored_compressed({'a' => 1})).to eq(false)
-    end
-
-    it "has no server default, so existing users are not backfilled" do
-      expect(User.preference_defaults['any_user']).not_to have_key('compressed_view')
-      expect(User.create.settings['preferences']).not_to have_key('compressed_view')
+      expect(u.reload.settings['preferences']).not_to have_key('compressed_view')
     end
   end
 
@@ -5961,6 +5943,82 @@ describe User, :type => :model do
 
       expect(u.effective_data_policy['retention_months']).to eq(24)
       expect(u.effective_data_policy).to eq(org.reload.effective_data_policy)
+    end
+  end
+
+  describe "effective_data_policy numeric limits across organizations" do
+    # Stored values are written straight into settings because update_data_policy casts on
+    # write; a policy saved through an earlier write path can still hold a String.
+    def governing_org(policy, user)
+      o = Organization.create(:settings => {'total_licenses' => 1})
+      o.settings['data_policy'] = policy
+      o.save!
+      # Unsponsored, accepted attachment, which governs (see policy_governing_organizations).
+      o.add_user(user.reload.user_name, false, false, false)
+      o
+    end
+
+    it "compares a stored whole-number string with an integer as numbers, and a log still saves" do
+      u = User.create
+      governing_org({'retention_months' => '3', 'max_logging_cutoff_hours' => 48}, u)
+      governing_org({'retention_months' => 12, 'max_logging_cutoff_hours' => '6'}, u)
+      u.reload
+      expect(u.policy_governing_organizations.length).to eq(2)
+
+      session = LogSession.create(user: u, author: u, device: Device.create(user: u))
+      expect(session).to be_persisted
+
+      policy = User.find_by(id: u.id).effective_data_policy
+      expect(policy['retention_months']).to eq(3)
+      expect(policy['max_logging_cutoff_hours']).to eq(6)
+    end
+
+    it "compares two stored whole-number strings as numbers" do
+      u = User.create
+      governing_org({'retention_months' => '10', 'max_logging_cutoff_hours' => '100'}, u)
+      governing_org({'retention_months' => '3', 'max_logging_cutoff_hours' => '24'}, u)
+      u.reload
+
+      policy = User.find_by(id: u.id).effective_data_policy
+      expect(policy['retention_months']).to eq(3)
+      expect(policy['max_logging_cutoff_hours']).to eq(24)
+    end
+
+    it "never takes a looser limit from another organization's malformed stored value" do
+      u = User.create
+      governing_org({'retention_months' => 'abc', 'max_logging_cutoff_hours' => -1}, u)
+      governing_org({'retention_months' => 6, 'max_logging_cutoff_hours' => 48}, u)
+      u.reload
+
+      policy = User.find_by(id: u.id).effective_data_policy
+      expect(policy['retention_months']).to eq(6)
+      expect(policy['max_logging_cutoff_hours']).to eq(1)
+    end
+
+    it "takes the other organization's retention_months when one stores 0" do
+      u = User.create
+      governing_org({'retention_months' => 0}, u)
+      governing_org({'retention_months' => 12}, u)
+      u.reload
+
+      expect(User.find_by(id: u.id).effective_data_policy['retention_months']).to eq(12)
+    end
+
+    it "returns a stored whole-number string cutoff as an integer number of hours" do
+      u = User.create
+      governing_org({'max_logging_cutoff_hours' => '24'}, u)
+      viewer = User.create
+
+      cutoff = User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)
+      expect(cutoff).to eq(24)
+    end
+
+    it "returns a one-hour cutoff for a malformed stored cutoff" do
+      u = User.create
+      governing_org({'max_logging_cutoff_hours' => 'abc'}, u)
+      viewer = User.create
+
+      expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(1)
     end
   end
 end

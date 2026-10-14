@@ -535,16 +535,18 @@
                     </a>
                   {{/unless}}
                 {{/if}}
-                {{#unless (or this.app_state.current_board_is_home (basic-try-home "other"))}}
-                  {{#if (or (basic-try-home "self") (not this.app_state.currentUser.preferences.home_board))}}
-                    <a class="btn btn-default" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>
-                      <span class="wide">{{t "Set as Home" key="set_as_home"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
-                    </a>
-                  {{/if}}
-                {{/unless}}
+                {{!-- Same condition as the phone menu's "Set as Home" below (requested 2026-10-12: desktop has no
+                     hamburger, so the option shows here whenever the phone offers it). Replaces the 2026-10-01
+                     rule of showing it only to someone with no home board. A try for someone else still shows
+                     only the trial bar (components/trial-bar.js). --}}
+                {{#if (and this.app_state.current_board_not_home_or_supervising (not (basic-try-home "other")) (not (basic-try-home "self")))}}
+                  <a class="btn btn-default" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>
+                    <span class="wide">{{t "Set as Home" key="set_as_home"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
+                  </a>
+                {{/if}}
                 {{!-- After a "Try this Board" (Basic): ONE home button. A try for yourself shows the grey "Set as
                      Home" above, even with a home board; a try for someone else shows only this one (2026-10-01). --}}
-                <BasicTryHomeButton @board={{this.board.model}} />
+                {{!-- (2026-10-12) the old Basic trial button left: the trial bar on the board page (components/trial-bar.js) offers "Use this board". --}}
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}
@@ -720,7 +722,7 @@
         </span>
         <span id="board_id">
           {{#if this.app_state.current_board_is_home}}
-            <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" style="height: 17px; width: 17px; vertical-align: bottom;">
+            <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" class="board-id__home-icon" alt="" style="height: 17px; width: 17px; vertical-align: bottom;">
           {{else}}
             {{#if this.board.model.image_url}}
               <img src={{this.board.model.image_url}} style="width: 17px; height: 17px; vertical-align: bottom;">
@@ -1608,7 +1610,6 @@
          the nav's own `{{#if}}` below, so the clearance and the thing it clears can never
          disagree -- see `--ll-nav-clearance` in app.scss. --}}
     <div class="ll-appshell {{unless this.showPillNav "ll-appshell--no-nav"}}">
-      <AccountRail @user={{this.globalChromeUser}} />
       <div class="ll-appshell__main">
         {{!-- THE PILL NAV IS THE HOME SECTION'S, NOT THE APP'S (requested 2026-09-21). The rail
              above renders on all 22 chrome routes because it genuinely belongs on them; this
@@ -1623,6 +1624,10 @@
             <UserPillNav @active={{this.globalNavActive}} @userName={{this.globalChromeUser.user_name}} />
           </div>
         {{/if}}
+        {{!-- THE RAIL SITS BETWEEN THE NAV AND THE PAGE (2026-10-11) so keyboard and screen-reader
+             order match what is drawn: at 900px and below the rail is a dropdown drawn below the
+             pill nav. Above 900px it is a fixed panel, so where it sits here does not move it. --}}
+        <AccountRail @user={{this.globalChromeUser}} />
         <div class="ll-appshell__content">
           {{ outlet }}
         </div>
@@ -1711,6 +1716,16 @@
         {{/if}}
       {{/if}}
     {{/if}}
+    {{!-- "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off, saved to
+         preferences.word_suggestions (the pref the prediction rail is gated on). At the BOTTOM of the
+         classic sidebar; set_word_prediction gates the change on the active speak-mode PIN. --}}
+    <div class="sidebar__predict-row">
+      <span class="sidebar__predict-label">{{t "Predict" key="predict"}}</span>
+      <div class="sidebar__predict-seg" role="group" aria-label={{t "Predict" key="predict"}}>
+        <button type="button" class="sidebar__predict-opt {{if this.word_prediction_on 'sidebar__predict-opt--on'}}" aria-pressed={{if this.word_prediction_on "true" "false"}} aria-label={{t "Yes" key="yes"}} {{on "click" (this.ctrlAction "set_word_prediction" true)}}>{{t "Y" key="yes_abbr"}}</button>
+        <button type="button" class="sidebar__predict-opt {{unless this.word_prediction_on 'sidebar__predict-opt--on'}}" aria-pressed={{unless this.word_prediction_on "true" "false"}} aria-label={{t "No" key="no"}} {{on "click" (this.ctrlAction "set_word_prediction" false)}}>{{t "N" key="no_abbr"}}</button>
+      </div>
+    </div>
   </div>
 {{else}}
   <SidebarTease />
@@ -1723,6 +1738,7 @@
   <BoardPreviewOverlay />
 {{/if}}
 <FlashOutlet />
+<TourOffer />
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
   <PageFooter @support={{this.support}} @language={{this.language}} />

@@ -8,7 +8,24 @@ const CHROME_ROUTES = [
   'user.boards', 'user.extras', 'user.logs', 'user.log',
   'user.index', 'user.account', 'user.goals', 'user.goal', 'user.badges',
   'user.edit', 'user.recordings', 'user.stats', 'user.preferences',
-  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus'
+  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus',
+  /* The standalone home-board picker (2026-10-09). It is a top-level route, so it received
+     neither the Modern rail nor Basic's -- a user handed off here at the end of the home tour
+     had no navigation at all. It maps to no pill (utils/primary_nav.js), so `globalNavActive`
+     stays null and only the RAIL renders; the page keeps its own `md-pillnav` breadcrumb and
+     does not get a second nav. Basic view is unaffected by this list -- `showGlobalChrome`
+     returns false for it below, and the `ch-` rail is mounted in the page's own template. */
+  'board-picker',
+  /* Three more destinations the Modern dashboard links to directly but which were never in this
+     list, so they rendered with no account rail at all (2026-10-09 audit):
+       create-board-new  — the "Create a New Board" card
+       search            — `transitionTo('search')` from the dashboard
+       offline_boards    — `transitionTo('offline_boards')`
+     The rail is part of the app shell wrapping the outlet (templates/application.hbs), not of
+     each page's own markup, so a page needs no `md-shell` of its own to receive it — `search`
+     has none. None of the three maps to a pill (utils/primary_nav.js), so `globalNavActive`
+     stays null and they get the rail WITHOUT a second nav, exactly as board-picker does. */
+  'create-board-new', 'search', 'offline_boards'
 ];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
@@ -667,6 +684,13 @@ export default Controller.extend({
     return htmlSafe(s);
   }),
 
+  // Drives the sidebar "Predict" Yes/No control (2026-10-13). Reads the live preference on the
+  // on-screen user (referenced_user in Speak Mode, else currentUser); set_word_prediction writes it.
+  word_prediction_on: computed('app_state.referenced_user.preferences.word_suggestions', 'app_state.currentUser.preferences.word_suggestions', function() {
+    var u = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+    return !!(u && u.get('preferences.word_suggestions') === true);
+  }),
+
   actions: {
     toggleEvalPause: function() {
       if(obf.eval && obf.eval.toggle_pause) { obf.eval.toggle_pause(); }
@@ -995,7 +1019,7 @@ export default Controller.extend({
           if(option == 'starting') {
             board = _this.stashes.get('root_board_state') || _this.get('board').get('model');
           }
-          var board_user_name = emberGet(board, 'key').split(/\//)[1];
+          var board_user_name = emberGet(board, 'key').split(/\//)[0]; // the OWNER is before the slash (was [1], the slug, 2018-2026)
           var preferred_symbols = user.get('preferences.preferred_symbols') || 'original';
           var needs_confirmation = user.get('supervisees') || preferred_symbols != 'original' || board_user_name != user.get('user_name');
           var done = function(sync) {
@@ -1015,7 +1039,7 @@ export default Controller.extend({
             } else {
               if(_this.get('setup_footer')) {
                 _this.send('setup_go', 'forward');
-              }          
+              } else if(sync) { modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true); } // saved; auto-sync off or offline: still say so
             }
           }
           if(needs_confirmation && !option) {
@@ -1161,6 +1185,42 @@ export default Controller.extend({
     alert: function() {
       utterance.alert({button_triggered: true});
       this.send('hide_temporary_sidebar');
+    },
+    // The sidebar "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off
+    // by setting preferences.word_suggestions, the same preference board/index.js#166 and
+    // user/board-detail.js gate the prediction rail on. SETS a value (not a flip) so the segmented
+    // Yes/No control is idempotent; clicking the already-selected side is a no-op and never prompts.
+    // Gated by the ACTIVE speak-mode PIN: open_speak_mode_exit_pin resolves {correct_pin:true}
+    // immediately when no PIN is active (app-state.js), so the no-PIN case applies with no prompt.
+    // Dirty-bits preferences.device.updated so the raw preferences blob ships (Ember Data won't mark
+    // a nested set dirty on its own).
+    set_word_prediction: function(on) {
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
+      var apply = function() {
+        prefUser.set('preferences.word_suggestions', !!on);
+        if(prefUser.save) {
+          // CREATE the device container first: set('preferences.device.updated') THROWS on a
+          // record whose preferences carry no `device` key (components/view-switcher.js:186).
+          if(!prefUser.get('preferences.device')) { prefUser.set('preferences.device', {}); }
+          prefUser.set('preferences.device.updated', true);
+          prefUser.save().then(null, function() {
+            // Save failed (offline, or a supervisor without write access to the communicator):
+            // put the control back to the stored value and say so, rather than leaving it showing
+            // a change the server never received.
+            if(prefUser.isDestroyed || prefUser.isDestroying) { return; }
+            prefUser.set('preferences.word_suggestions', !on);
+            modal.error(i18n.t('word_prediction_save_failed', "Couldn't save the Prediction setting. Please try again."));
+          });
+        }
+      };
+      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
+      if(ready && ready.then) {
+        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
+      } else {
+        apply();
+      }
     },
     special: function(opts) {
       // sidebar actions (opts is often an EmberObject from sidebar_boards_with_fallbacks)

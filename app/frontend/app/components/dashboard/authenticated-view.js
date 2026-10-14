@@ -9,6 +9,7 @@ import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { mark_user_reload } from '../../utils/reload_intent';
 import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
 import { badge_snapshot } from '../../utils/badge_display';
@@ -22,7 +23,19 @@ import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 import { pendingUpdates, PENDING_UPDATE_KEYS } from '../../utils/pending_updates';
 
-export default Component.extend({
+/* STALE-WHILE-REVALIDATE cache for the Boards card previews, keyed by user id, OUTLIVING the
+   component (which is rebuilt on every home/extras/index arrival, so instance state re-fetched
+   from scratch — the "several seconds" the Boards div took to fill). `_loadPreviewBoards` seeds
+   `_fetchedPreviewBoards`/`_fetchedBoards` from here so the card paints instantly, then ALWAYS
+   runs its background fetch and overwrites both the lists and this cache. Because the fetch is
+   never skipped, a created/copied/deleted board shows one fetch-window late rather than "until
+   reload" — the staleness the prior inline note (~_fetchRemainingForCount) warned a plain cache
+   would cause. The cache lives in utils/preview_board_cache so it survives the component AND is
+   cleared by app-state.js#clear_user_state on logout (board names/urls must not outlive a session
+   on a shared device); see that module. */
+import previewBoardCache from '../../utils/preview_board_cache';
+
+const AuthenticatedView = Component.extend({
   tagName: '',
   
   router: service(),
@@ -144,14 +157,14 @@ export default Component.extend({
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
     'appState.currentUser.managing_supervision_orgs',
-    'appState.currentUser.supervisees', 'appState.compressed_view_active',
+    'appState.currentUser.supervisees',
     function() {
       // Derived by the shared layout description, which the two preview surfaces
       // also call — so a section the previews hide is a section this page hides.
       // (That includes Focused View's forced-off Extras: Speak takes the focal
       // full-width hero slot, and a visible-but-unplaced card would land in an
       // implicit grid row of its own.)
-      return this._compressVisibility(layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis);
+      return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis;
     }
   ),
 
@@ -262,15 +275,14 @@ export default Component.extend({
   // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
   // GREETING hero — on the Extras tab the same <header> is the page header, which
   // the toggle must never hide.
-  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', 'compressedHomeLabel', function() {
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', function() {
     if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
-    return (this.get('compressedHomeLabel') || sectionHidden(this.get('appState.currentUser'), 'hero')) ? htmlSafe('display: none !important;') : htmlSafe('');
+    return sectionHidden(this.get('appState.currentUser'), 'hero') ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
   /** When set (e.g. on user.extras), open this tab on load */
   initialActiveTab: null,
-  isSearchOpen: false,
   showNewBoardForm: false,
 
   init() {
@@ -301,7 +313,6 @@ export default Component.extend({
     this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
     this.onGo = function(dest) { send('go', dest); };
     this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
-    this.onGoAndCloseSearch = function(dest) { send('goAndCloseSearch', dest); };
     this.onExtraAction = function(name) { send('extraAction', name); };
     this.onHomeInSpeakMode = function(boardForUserId, keepAsSelf) {
       send('homeInSpeakMode', boardForUserId, keepAsSelf);
@@ -312,9 +323,6 @@ export default Component.extend({
     this.onGoOrganizations = function() { send('goOrganizations'); };
     this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
     this.onEditDashboard = function() { send('editDashboard'); };
-    this.onCloseSearch = function() { send('closeSearch'); };
-    this.onOpenExtrasTab = function() { send('openExtrasTab'); };
-    this.onSearchKeydown = function(event) { send('onSearchKeydown', event); };
   },
   didInsertElement() {
     this._super(...arguments);
@@ -422,6 +430,7 @@ export default Component.extend({
     var _this = this;
     if(this.get('isGenerated')) { return; } // Ember testing check equivalent?
     persistenceService.find_recent('board').then(function(boards) {
+      if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the find resolved
       if(boards && boards.slice) {
         boards = boards.slice(0, 12);
       }
@@ -558,6 +567,7 @@ export default Component.extend({
           var p = _this.get && _this.get('persistence');
           if(p && typeof p.find_recent === 'function') {
             p.find_recent('board').then(function(boards) {
+            if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the find resolved
             if(boards && boards.slice) {
               boards = boards.slice(0, 12);
             }
@@ -582,9 +592,11 @@ export default Component.extend({
             _this.set(list, {loading: true});
           }
           _this.get('store').query('board', opts).then(function(data) {
+            if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the query resolved
             _this.set(list, data);
             _this.checkForBlankSlate();
           }, function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
             _this.set(list, {error: true});
           });
           _this.checkForBlankSlate();
@@ -616,13 +628,16 @@ export default Component.extend({
         controller.set('logs', {loading: true});
       }
       this.get('store').query('log', find_args).then(function(list) {
+        if(controller.isDestroyed || controller.isDestroying) { return; } // navigated away before the query resolved
         controller.set('logs', list.slice());
       }, function() {
+        if(controller.isDestroyed || controller.isDestroying) { return; }
         if(!(controller.get('logs') || {}).length) {
           controller.set('logs', {error: true});
         }
       });
       this.get('store').query('badge', {user_id: model.get('id'), recent: 1}).then(function(badges) {
+        if(_this.isDestroyed || _this.isDestroying) { return; } // navigated away before the query resolved
         var for_users = {};
         badges.forEach(function(badge) {
           for_users[badge.get('user_id')] = for_users[badge.get('user_id')] || []
@@ -991,7 +1006,6 @@ export default Component.extend({
       // / LEARNINGS "visible-tile counts need root clustering".
       var pool = this.get('_fetchedBoards') || this.get('_fetchedPreviewBoards') || [];
       var fetched = filterRootBoards(pool, this.get('appState.currentUser.id'));
-      var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
       // When a board's display name falls back to its key (no `name`
@@ -1063,21 +1077,20 @@ export default Component.extend({
       // dependent-keys comment above for why.
       var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
       var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
-      // Cap the home + middle section at 4 (home board + up to 3 favourites,
-      // falling back to 3 others from the collection) so that, with the Crisis
-      // board appended below, the strip shows exactly FIVE tiles total.
+      // How many show is utils/preview-boards.js#capPreviewBoards (up to 12 with the Crisis
+      // board, since 2026-10-10; it was 5). Every board is added here in order and the cap is
+      // applied once, below, so the order rule and the count rule live in one place each.
+      // (That module is imported at the end of this file: see the note there.)
       starredAlpha.forEach(function(board) {
-        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
       othersAlpha.forEach(function(board) {
-        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
 
-      var top = ordered.slice(0, 4);
-      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as the
-      // 5th/last tile — same key/name/image the sidebar uses.
+      // The system "Crisis Vocabulary" board (on everyone's sidebar) is always the last
+      // tile — same key/name/image the sidebar uses.
+      var crisisItem = null;
       try {
         var sidebars = this.appState.get('sidebar_boards') || [];
         var crisis = null;
@@ -1086,33 +1099,39 @@ export default Component.extend({
           if (ck && ck.split('/').pop() === 'crisis-vocabulary') { crisis = sidebars[ci]; break; }
         }
         if (crisis) {
-          var crisisKey = emberGet(crisis, 'key');
-          if (!top.some(function(it) { return it.key === crisisKey; })) {
-            top = top.concat([{
-              board: null,
-              name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
-              imageUrl: emberGet(crisis, 'image') || '',
-              key: crisisKey,
-              languageLabel: null,
-              isHome: false,
-              // The system Crisis/Emergency board — flagged so the strip can keep
-              // showing it (alongside the home board) when the small-screen rule
-              // hides the other tiles (see ≤1024px rule in app.scss).
-              isEmergency: true
-            }]);
-          }
+          crisisItem = {
+            board: null,
+            name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
+            imageUrl: emberGet(crisis, 'image') || '',
+            key: emberGet(crisis, 'key'),
+            languageLabel: null,
+            isHome: false,
+            // The system Crisis/Emergency board — flagged so the small-screen limit in
+            // app.scss keeps showing it while it hides the boards past the fifth.
+            isEmergency: true
+          };
         }
       } catch (e) { /* crisis tile is a best-effort append — never block the strip */ }
-      return top.map(function(item, idx) {
-        item.thumbClass = thumbClasses[idx % thumbClasses.length];
-        return item;
-      });
+      return capPreviewBoards(ordered, crisisItem);
     }
   ),
+  // 5 or fewer boards in the card: the Boards page's full-size cards instead of its compact rows.
+  previewBoardsFull: computed('previewBoards.length', function() {
+    return previewUsesFullCards(this.get('previewBoards.length'));
+  }),
   _loadPreviewBoards: observer('appState.currentUser.id', function() {
     var _this = this;
     var user = _this.get('appState.currentUser');
     if (!user || !user.get('id')) { return; }
+    var userId = user.get('id');
+    // SEED the Boards card from the cross-navigation cache so it paints instantly on return; the
+    // background fetch below still runs (the guard is instance state) and overwrites with fresh
+    // data + refreshes the cache (stale-while-revalidate).
+    var cached = previewBoardCache.get(userId);
+    if (cached && !_this.get('_fetchedPreviewBoards')) {
+      _this.set('_fetchedPreviewBoards', cached.preview);
+      if (cached.full) { _this.set('_fetchedBoards', cached.full); }
+    }
     if (_this.get('_previewBoardsLoaded')) { return; }
     _this.set('_previewBoardsLoaded', true);
     // Fetch preview boards (5) and total count in parallel
@@ -1122,19 +1141,27 @@ export default Component.extend({
     // partition (starred vs not) something real to sort. Board count
     // follow-up (_fetchRemainingForCount) is unaffected — it just sees
     // a larger first page before paging the rest for the total count.
-    _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
+    _this.get('store').query('board', { user_id: userId, per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', A(results));
+      var entry = previewBoardCache.ensure(userId);
+      entry.preview = A(results);
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
+        _this._fetchRemainingForCount(userId, meta.next_offset, results);
       } else {
         _this.set('_fetchedBoards', A(results));
+        entry.full = A(results);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedPreviewBoards', A([]));
+      // A FAILED revalidation must not wipe cache-seeded previews to empty (they would flash then
+      // vanish offline). Only clear to empty when there was nothing seeded, so a first-load failure
+      // still resolves the loading state to "no boards".
+      if (!(_this.get('_fetchedPreviewBoards') || []).length) {
+        _this.set('_fetchedPreviewBoards', A([]));
+      }
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
@@ -1166,6 +1193,7 @@ export default Component.extend({
         _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
         _this.set('_fetchedBoards', A(combined));
+        previewBoardCache.ensure(userId).full = A(combined);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
@@ -1308,26 +1336,6 @@ export default Component.extend({
       var next = mode === 'off' ? 'thin' : (mode === 'thin' ? 'thick' : 'off');
       this.set('sectionBorderMode', next);
     },
-    openSearch: function() {
-      this.set('isSearchOpen', true);
-      // Move focus to the search field once the overlay renders (replaces the
-      // `autofocus` attribute, which reduces accessibility and is unreliable in an SPA).
-      runLater(function() {
-        var el = document.querySelector('.md-searchOverlay__input');
-        if(el) { el.focus(); }
-      }, 50);
-    },
-    closeSearch: function() {
-      this.set('isSearchOpen', false);
-    },
-    onSearchKeydown: function(event) {
-      // Escape used to close the pill-nav dropdown FIRST and the search only if the
-      // dropdown was shut. That dropdown now belongs to UserPillNav, which is a native
-      // <details> and closes itself on Escape, so this only has the search to handle.
-      if (event && event.key === 'Escape') {
-        this.set('isSearchOpen', false);
-      }
-    },
     goTab: function(tab) {
       if (tab === 'reports') {
         var u = this.appState.get('currentUser.user_name');
@@ -1375,13 +1383,13 @@ export default Component.extend({
     go: function(dest) {
       if (dest === 'speak') {
         var user = this.appState.get('currentUser');
-        var homeBoard = user && user.get('preferences.home_board');
-        var lastBoard = this.stashes.get('root_board_state');
-        if (!lastBoard || !lastBoard.key) {
-          lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
-        }
-        // Continue Speaking: prefer the user's home board; fall back to last board in board-detail
-        var target = (homeBoard && homeBoard.key) ? homeBoard : ((lastBoard && lastBoard.key) ? lastBoard : null);
+        // Continue Speaking: the user's home board, else their last board, else their boards list.
+        // speak_target (end of this file) decides, and the Speak card shows that same board's
+        // picture (speakBoardImage), so the card and where it goes always agree (2026-10-13).
+        // The decision used to be written out here; it moved to that shared function, and these
+        // lines keep the count it had, so the line-anchored .eslint-todo rows below this point
+        // keep their lines.
+        var target = speak_target(user, this.stashes);
         if (target && target.key) {
           var parts = target.key.split('/');
           if(parts.length === 2) {
@@ -1435,15 +1443,6 @@ export default Component.extend({
         var ux2 = this.appState.get('currentUser.user_name');
         if (ux2) { this.get('router').transitionTo('user.extras', ux2); }
       }
-    },
-    goAndCloseSearch: function(dest) {
-      this.set('isSearchOpen', false);
-      this.send('go', dest);
-    },
-    openExtrasTab: function() {
-      this.set('isSearchOpen', false);
-      var ue = this.appState.get('currentUser.user_name');
-      if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
       var _this = this;
@@ -1560,6 +1559,12 @@ export default Component.extend({
       }
     },
     reload: function() {
+      /* Records that THIS page is the one the user asked to reload, so the boot that follows is not
+         classified as a login / app launch and does not re-land them somewhere else
+         (utils/reload_intent.js; the classification itself is routes/index.js:37). Must run before
+         `location.reload()`, which tears down every bit of in-memory state — which is why the
+         marker goes to sessionStorage and not to app_state. */
+      mark_user_reload();
       location.reload();
     },
     searchBoards: function() {
@@ -1665,9 +1670,6 @@ export default Component.extend({
         }
       }
       this.set('index_nav_state', nav);
-    },
-    toggle_extras: function() {
-      this.set('show_main_extras', !this.get('show_main_extras'));
     },
     intro_video: function(id) {
       if(window.ga) {
@@ -1846,35 +1848,8 @@ export default Component.extend({
     }
   },
 
-  /* COMPRESSED VIEW (services/app-state.js#compressed_view_active). Kept at the end of the
-     component so no line of the line-anchored ESLint baseline shifts.
-
-     On the home tab the greeting hero, the My Caseload card and the Create a Board / Edit
-     Dashboard cards give way to one heading row with those actions as a toolbar
-     (authenticated-view.hbs, `md-compact-head`). The three cards are removed from the grid
-     through the same visibility map the Dashboard Design preferences use, so the shared layout
-     engine reflows the rest (Need Attention, then Rooms) exactly as if the user had hidden them;
-     they stay in the DOM, hidden, like any turned-off card. */
-  compressedHome: computed('appState.compressed_view_active', 'activeTab', function() {
-    return this.get('appState.compressed_view_active') === true && this.get('activeTab') === 'home';
-  }),
-
-  /* The Dashboard page label in place of the greeting hero: Compressed View in FOCUSED only.
-     Compressed Gentle keeps the same "Welcome back" hero as Gentle without Compressed View
-     (requested 2026-09-30); the rest of compressedHome's changes still apply there. */
-  compressedHomeLabel: computed('compressedHome', 'effectiveLayout', function() {
-    return this.get('compressedHome') === true && this.get('effectiveLayout') === 'focused';
-  }),
-
-  _compressVisibility: function(vis) {
-    if (!this.get('appState.compressed_view_active') || !vis) { return vis; }
-    var out = Object.assign({}, vis);
-    ['caseload', 'createboard', 'editdashboard'].forEach(function(k) { out[k] = false; });
-    return out;
-  },
-
-  /* The Need Attention card lists the first few flagged communicators, in Compressed View or not
-     (requested 2026-09-29), and "View all communicators" links to the caseload for the rest. */
+  /* The Need Attention card lists the first few flagged communicators (requested 2026-09-29), and
+     "View all communicators" links to the caseload for the rest. */
   attentionShown: computed('attentionCommunicators.[]', function() {
     return (this.get('attentionCommunicators') || []).slice(0, ATTENTION_ROWS);
   }),
@@ -1897,3 +1872,63 @@ export default Component.extend({
 
 // Rows the Need Attention card shows before "View all communicators".
 const ATTENTION_ROWS = 3;
+
+// Imported HERE, not with the imports at the top: ES imports are hoisted, so it is available
+// everywhere above, and placing it at the end keeps the line-anchored lint baseline (.eslint-todo)
+// for this file from shifting (2026-10-10).
+import { capPreviewBoards, previewUsesFullCards } from '../../utils/preview-boards';
+
+/* WHERE THE SPEAK CARD GOES, AND ITS PICTURE (requested 2026-10-13: "on the speak mode card, instead of
+   showing the image that is on that card, show the board's image for the board it will take the user
+   to"). The card opens the user's home board, else the last board they used (root_board_state, then
+   session history), else their boards list (`go('speak')` above). `speakBoardImage` is that board's
+   picture (Board#icon_url_with_fallback, as the Boards card uses), or null, when the card keeps its own
+   image: no board to go to, or a board not loaded yet and not loadable (offline). The record is read
+   from the store, and fetched once by key when it is not there. */
+function speak_target(user, stashes) {
+  var homeBoard = user && user.get('preferences.home_board');
+  if (homeBoard && homeBoard.key) { return homeBoard; }
+  var lastBoard = stashes && stashes.get('root_board_state');
+  if (!lastBoard || !lastBoard.key) {
+    lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
+  }
+  return (lastBoard && lastBoard.key) ? lastBoard : null;
+}
+
+AuthenticatedView.reopen({
+  _speakBoardTick: 0,
+  init: function() {
+    this._super(...arguments);
+    this._loadSpeakBoard();
+  },
+  _speakTargetChanged: observer('appState.currentUser.preferences.home_board.key', function() { this._loadSpeakBoard(); }),
+  _findSpeakBoard: function(target) {
+    var store = this.get('store');
+    if (!store || !target || !target.key) { return null; }
+    var rec = null;
+    try { rec = target.id ? store.peekRecord('board', target.id) : null; } catch (e) { rec = null; }
+    if (!rec && store.peekAll) {
+      rec = store.peekAll('board').find(function(b) { return b.get('key') === target.key; }) || null;
+    }
+    return rec;
+  },
+  _loadSpeakBoard: function() {
+    var _this = this;
+    var target = speak_target(this.get('appState.currentUser'), this.get('stashes'));
+    if (!target || this._findSpeakBoard(target)) { return; }
+    var store = this.get('store');
+    if (!store || !store.findRecord) { return; }
+    this._speakBoardRequested = this._speakBoardRequested || {};
+    if (this._speakBoardRequested[target.key]) { return; }
+    this._speakBoardRequested[target.key] = true;
+    store.findRecord('board', target.key).then(function() {
+      if (!_this.isDestroyed && !_this.isDestroying) { _this.incrementProperty('_speakBoardTick'); }
+    }, function() { /* offline or gone: the card keeps its own image */ });
+  },
+  speakBoardImage: computed('_speakBoardTick', 'appState.currentUser.preferences.home_board.{id,key}', function() {
+    var rec = this._findSpeakBoard(speak_target(this.get('appState.currentUser'), this.get('stashes')));
+    return (rec && rec.get('icon_url_with_fallback')) || null;
+  })
+});
+
+export default AuthenticatedView;

@@ -17,6 +17,8 @@
  * guarded and falls back to the same default the component declares.
  */
 
+import EmberObject from '@ember/object';
+
 export const FOLDERS_EXPANDED_KEY = 'ub-boards-folders-expanded';
 export const FOLDERS_EXPANDED_DEFAULT = false;
 
@@ -45,3 +47,27 @@ export function clearFoldersExpanded() {
     localStorage.removeItem(FOLDERS_EXPANDED_KEY);
   } catch (e) { /* nothing to clear if storage is unavailable */ }
 }
+
+/* SIDE-BY-SIDE MEANS OPEN (requested 2026-10-11). Above 1200px the boards page puts folders and
+ * boards in two columns and hides the expand caret (app.scss, the folders chevron rule, and the
+ * split rule's `max-width: 1200px` fallback -- the same boundary as this query; move them
+ * together). A collapsed panel there was an empty column with no New folder / Tag a board
+ * buttons and nothing on screen to open it with, so in side-by-side the panel is always open.
+ *
+ * ONE tracked flag, read by BOTH sides (the component's `foldersOpen` and the controller's
+ * `mineFoldersPanelOpen`), so they cannot disagree about whether foldered boards are held out of
+ * the main grid -- the drift the removed auto-expand caused (components/available-boards-section.js,
+ * the "NO AUTOMATIC EXPAND/COLLAPSE" note). The stored preference is NOT changed by the layout: it
+ * stays the user's choice for the stacked layout, written only by their own toggle. The flag
+ * changes on a matchMedia event, never during render. */
+export const SIDE_BY_SIDE_QUERY = '(min-width: 1201px)';
+
+export const foldersLayout = EmberObject.create({ sideBySide: false });
+
+(function trackSideBySide() {
+  if (typeof window === 'undefined' || !window.matchMedia) { return; }
+  var mql = window.matchMedia(SIDE_BY_SIDE_QUERY);
+  foldersLayout.set('sideBySide', !!mql.matches);
+  var update = function(e) { foldersLayout.set('sideBySide', !!e.matches); };
+  if (mql.addEventListener) { mql.addEventListener('change', update); } else if (mql.addListener) { mql.addListener(update); }
+})();

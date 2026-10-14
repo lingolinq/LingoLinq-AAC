@@ -14,7 +14,7 @@
      (_classic-home.scss); Modern keeps the column and renders exactly as before. --}}
 <div class="md-shell md-shell--org md-shell--org-directory">
   {{#if this.isBasicView}}
-    <Dashboard::ClassicRail />
+    <Dashboard::ClassicRail @menuLabel={{t "My Organizations" key="my_organizations"}} />
   {{/if}}
   <div class="md-workspace">
     {{!-- Shared user-level pill-nav (Home / Organizations / Boards / Reports /

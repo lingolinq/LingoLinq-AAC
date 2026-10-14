@@ -86,10 +86,6 @@ module('Unit | Utility | dashboard sections: retired cards', function() {
 
   // Guard the neighbours: Create a Board sits between the two retired keys in the registry and
   // in every default order, so an off-by-one deletion would take it out silently.
-  test('Create a Board and Edit Dashboard are untouched', function(assert) {
-    assert.expect(2);
-    var keys = availableHomeSections(stubUser({})).map((s) => s.key);
-    assert.notStrictEqual(keys.indexOf('createboard'), -1, 'Create a Board still available');
-    assert.notStrictEqual(keys.indexOf('editdashboard'), -1, 'Edit Dashboard still available');
-  });
+  // "Create a Board and Edit Dashboard are untouched" was removed 2026-10-12 with Traci's approval:
+  // both were retired that day (dashboard-sections-retired-createboard-test.js covers them).
 });

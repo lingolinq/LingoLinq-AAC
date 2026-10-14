@@ -25,4 +25,26 @@ module('Unit | Service | app-state clear_user_state handoffs', function(hooks) {
     assert.notOk(appState.get('pending_open_extras'), 'Extras handoff');
     assert.notOk(appState.get('pending_open_supervisee'), 'communicator handoff');
   });
+
+  /* FINAL REVIEW (2026-10-13): the trial, picker and tour-offer state added that day is per user too. With the
+     in-app logout, the next person on a shared device saw the last user's "Recently tried" chips. */
+  test('the trial, picker and tour-offer state is cleared', function(assert) {
+    assert.expect(8);
+    var appState = this.owner.lookup('service:app-state');
+    appState.setProperties({
+      board_picker_recent: [{ key: 'aiden_parker/private', name: 'Private' }],
+      board_picker_return: { category: 'available_boards', scrollTop: 294 },
+      board_picker_category: 'available_boards',
+      board_picker_restore: true,
+      home_copy_pending: { id: '1_40', key: 'lingolinq/vocal-flair-40' },
+      board_alt_tour_pending: 'aiden_parker/vocal-flair-60',
+      tour_offer_visible: true,
+      tour_offer_user: '1_7'
+    });
+    try { appState.clear_user_state(); } catch (e) { /* unrelated teardown in a bare test owner */ }
+    ['board_picker_recent', 'board_picker_return', 'board_picker_category', 'board_picker_restore', 'home_copy_pending',
+      'board_alt_tour_pending', 'tour_offer_visible', 'tour_offer_user'].forEach(function(k) {
+      assert.notOk(appState.get(k), k);
+    });
+  });
 });

@@ -2520,11 +2520,11 @@ class User < ApplicationRecord
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
       'board_dark_mode',
-      # Compressed View (feature flag compressed_view): tighter app shell and Modern home
-      # page. Boolean, no server default (absent = off), coerced in
-      # sanitize_dashboard_preferences!. Read with `=== true` in
-      # app/frontend/app/utils/compressed_view_state.js.
-      'compressed_view',
+      # 'compressed_view' (Compressed View) was accepted here until 2026-10-10, when the
+      # feature was removed. It is no longer a preference, so a client sending it is ignored;
+      # lib/tasks/backfill_remove_compressed_view_preference.rake clears stored values.
+      # These lines are kept so the line numbers below, which audit findings and compliance
+      # docs cite, do not move.
       # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
       # or 'top-down' (the original stacked order). Persisted per USER, not per
       # device, so the choice follows the user to a new login/browser — localStorage
@@ -3429,11 +3429,11 @@ class User < ApplicationRecord
       prefs.delete('dashboard_layout')
     end
 
-    # compressed_view: a real boolean. The PREFERENCE_PARAMS loop already turns 'true' and
-    # 'false' into booleans; anything else is stored as off.
-    if prefs.has_key?('compressed_view')
-      prefs['compressed_view'] = (prefs['compressed_view'] == true)
-    end
+    # (compressed_view was coerced to a boolean here until 2026-10-10. Compressed View was
+    # removed then and the key is no longer in PREFERENCE_PARAMS, so it cannot be written;
+    # stored values are cleared by lib/tasks/backfill_remove_compressed_view_preference.rake.
+    # Kept as five lines so the line numbers below, which audit findings and compliance docs
+    # cite, do not move.)
 
     # dashboard_sections: { known_key => boolean }.
     if prefs.has_key?('dashboard_sections')

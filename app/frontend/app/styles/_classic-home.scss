@@ -124,13 +124,36 @@
    THE CONTENT KEEPS ITS INSET -- `.md-hero--org` carries its own top padding (20px, and 28px
    above 1200px where more room was asked for earlier the same week), so removing the
    workspace's padding moves the block up without pushing the title against the card edge. */
-body.ll-view-basic .md-shell--org-directory {
+/* `.la-system-settings .la-main` ADDED 2026-10-10, when System Settings gained the rail. Its
+   page has no `.md-shell`; `main.la-main` is the flex column the rail and the workspace share,
+   and `.la-system-settings` appears only in templates/system-settings.hbs, so nothing else moves.
+   `--board-picker` ADDED 2026-10-09, when that page gained the same rail. Stated as a second
+   selector rather than generalised to `.md-shell:has(> .ch-rail)`, which would read better but
+   would ALSO newly match templates/organization.hbs -- it carries `md-shell--org` (not
+   `--org-directory`) and mounts a rail, so a generic selector would change that page's layout
+   too, which nobody asked for. */
+body.ll-view-basic .md-shell--org-directory,
+body.ll-view-basic .md-shell--board-picker {
   flex-direction: row !important;
   align-items: flex-start;
   gap: 24px;
   padding: 80px 28px 24px !important;
 }
-body.ll-view-basic .md-shell--org-directory > .md-workspace {
+/* SYSTEM SETTINGS: the same row, its own top. Its page is `.la-wrapper`, a FIXED full-viewport
+   overlay that starts at y=0 under the app header, where the shells above flow BELOW it. The rail
+   sits header + 24px down on Organizations at every width (measured 2026-10-10: 70+24=94 from
+   768px up, 114+24=138 at 767px and below), so this main's top is header + 36: the 24px gap plus
+   the rail's own -12px top margin. The header height is 70px / 114px either side of 768px; the
+   <=767px step is in the media block below. */
+body.ll-view-basic .la-system-settings .la-main {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 106px 28px 24px !important;
+}
+body.ll-view-basic .md-shell--org-directory > .md-workspace,
+body.ll-view-basic .md-shell--board-picker > .md-workspace,
+body.ll-view-basic .la-system-settings .la-main > .md-workspace {
   flex: 1 1 auto !important;
   min-width: 0;
   margin-top: 0 !important;
@@ -216,13 +239,24 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-main--org {
    126 -> 90). The 80px above now holds at every width, as `.ch-page`'s own does. */
 /* Stacks at the same width `.ch-page` stacks. */
 @media (max-width: 900px) {
-  body.ll-view-basic .md-shell--org-directory {
+  body.ll-view-basic .md-shell--org-directory,
+  body.ll-view-basic .la-system-settings .la-main {
     flex-direction: column !important;
   }
 }
 /* Sides narrow with `.ch-page`'s, top left alone. */
 @media (max-width: 767px) {
   body.ll-view-basic .md-shell--org-directory {
+    padding-right: 22px !important;
+    padding-left: 22px !important;
+    padding-bottom: 28px !important;
+  }
+}
+/* System Settings at <=767px: the header is 114px here, so the top is 114 + 36 (see above);
+   sides narrow like the directory's. */
+@media (max-width: 767px) {
+  body.ll-view-basic .la-system-settings .la-main {
+    padding-top: 150px !important;
     padding-right: 22px !important;
     padding-left: 22px !important;
     padding-bottom: 28px !important;
@@ -282,6 +316,18 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-main--org {
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+// THE LEFT MENU AS A DROPDOWN AT 900px AND BELOW (requested 2026-10-12, every Basic left menu).
+// Dashboard::ClassicRailDropdown adds a trigger and wraps the menu's rows once. Above 900px the
+// trigger is not shown and the wrapper is `display: contents`, so the rows lay out exactly as
+// they did before it existed. The narrow layout is in the <=900px block below.
+.ch-rail__menu-trigger {
+  display: none;
+}
+
+.ch-rail__rows {
+  display: contents;
 }
 
 // =============================================================================
@@ -586,6 +632,120 @@ body.ll-view-basic.ll-layout-focused .md-shell--org-directory .md-main--org {
 // and 4.87:1. Both still clear WCAG AA, and the tighter of the two (the start) gains.
 $ch-gentle-identity-denim:     #5D89C6;
 $ch-gentle-identity-verdigris: #388F84;
+// THE LEFT MENU DROPDOWN AT 900px AND BELOW (2026-10-12; markup in Dashboard::ClassicRailDropdown,
+// the base `display` rules beside `.ch-rail`). Here rather than in the <=900px rail block above
+// because the trigger uses the Gentle identity colours defined just above.
+@media (max-width: 900px) {
+  // THE DROPDOWN (2026-10-12). The rail becomes a slim bar holding only the trigger; its rows
+  // stay hidden until the trigger opens them as a panel under it, over the page, rather than
+  // pushing the page down by the menu's full height (642px on a 390px phone, measured).
+  // `z-index` lifts the whole rail: its backdrop-filter makes it a stacking context, so the open
+  // panel's own z-index only counts inside it, and the page section after it (the home page's tab
+  // strip, measured) was drawn over the panel and took its clicks.
+  .ch-rail {
+    z-index: 30;
+    padding: 8px;
+  }
+
+  // Styled as the identity block it stands for (same wash; Focused takes its identity colours
+  // through _focused-view.scss). 56px tall: the trigger is the only way into the menu here, and
+  // the Basic home page keeps its controls at or above the 44px WCAG 2.5.5 target.
+  .ch-rail__menu-trigger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 14px 8px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 16px;
+    background: linear-gradient(150deg, rgba($ch-gentle-identity-denim, 0.52) 0%, rgba($ch-gentle-identity-verdigris, 0.44) 100%);
+    color: $la-navy;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 3px solid $la-navy;
+      outline-offset: 2px;
+    }
+  }
+
+  .ch-rail__menu-avatar {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
+  }
+
+  .ch-rail__menu-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .ch-rail__menu-name {
+    overflow: hidden;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // "<page> Menu": a page name can be long (the board picker's heading), so it truncates rather
+  // than wrapping the trigger to a second line.
+  .ch-rail__menu-sub {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.9; // 0.8 measured 4.27-4.44:1 on the Gentle wash at 390px, under AA's 4.5 (2026-10-13)
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ch-rail__menu-chevron {
+    flex: 0 0 auto;
+  }
+
+  .ch-rail__menu-trigger[aria-expanded="true"] .ch-rail__menu-chevron {
+    transform: rotate(180deg);
+  }
+
+  // The rows as a panel: same glass as the rail, but nearly opaque, because it sits over the
+  // page's content. Scrolls inside itself when the menu is taller than the screen allows.
+  .ch-rail__rows {
+    display: none;
+  }
+
+  .ch-rail__rows.is-open {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    display: block;
+    max-height: min(70vh, 640px);
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 22px;
+    background: rgba(250, 251, 253, 0.98);
+    box-shadow:
+      0 18px 44px rgba($brand-blue-black, 0.18),
+      0 3px 10px rgba($brand-blue-black, 0.08);
+  }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .ch-rail__menu-chevron {
+    transition: transform 0.18s ease;
+  }
+}
+
 .ch-rail__identity {
   position: relative;
   overflow: hidden;
@@ -726,6 +886,24 @@ $ch-gentle-identity-verdigris: #388F84;
   // 14 -> 10: the other 4px of the 18px trim above the first row. Below 901px the toggle is
   // hidden, so this margin is the WHOLE gap there and that breakpoint tightens by 4px too.
   margin: 10px 0 0;
+
+  // ZERO WHERE THE TOGGLE ROW RENDERS (requested 2026-10-09: remove the space below the toggle
+  // row so the rows beneath it move up). This margin IS that space — `.ch-rail__toggle-row`
+  // carries `margin: 0 -32px 0 0` (:326), i.e. no vertical margin of its own, so the 10px here
+  // is the whole of the gap between the two elements.
+  //
+  // GATED AT 901px, which is exactly where the toggle row exists: it is `display: none` below
+  // that (:567). Under 901px this margin is doing a different job — the comment above says it
+  // is the WHOLE gap above the first row there — so zeroing it at every width would close a gap
+  // that has no toggle row above it to close against.
+  //
+  // What remains above the first row at >=901px is INSIDE the toggle row, not below it: the
+  // divider is a vertically centred `::before` in a 32px row (:339, and `.ch-rail__toggle` is
+  // `height: 32px` at :375), so ~16px of that row sits under the line. That is the control's own
+  // geometry; shrinking it would resize the button rather than close a gap.
+  @media (min-width: 901px) {
+    margin-top: 0;
+  }
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -962,27 +1140,7 @@ button.ch-row--sync:focus-visible {
 
 // A rail item that hosts a GROUP (supervisees, rooms, orgs) rather than a single
 // row — it needs the tile's own padding, since its children are not .ch-row.
-.ch-rail__item--wide .ch-group {
-  position: relative;
-  overflow: hidden;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.68) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 4px 14px rgba($brand-blue-black, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
 
-.ch-group__label {
-  margin: 0 0 8px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.7;
-}
 
 // -----------------------------------------------------------------------------
 // Dropdown menu — the supervisee action list
@@ -1004,9 +1162,6 @@ button.ch-row--sync:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
-.ch-sup.is-open .ch-menu {
-  display: block;
-}
 
 .ch-menu__item {
   display: flex;
@@ -1042,62 +1197,16 @@ button.ch-row--sync:focus-visible {
   text-decoration: none;
 }
 
-.ch-menu__icon {
-  flex: 0 0 auto;
-}
 
 // A stated condition, not a control — it explains why Model/Speak are absent.
-.ch-menu__item--note {
-  cursor: default;
-  font-weight: 500;
-  font-style: italic;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.8;
-}
 
-.ch-menu__item--note:hover {
-  background: none;
-}
 
 // -----------------------------------------------------------------------------
 // Chips — rooms and org lists
 // -----------------------------------------------------------------------------
 
-.ch-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
 
-.ch-chip {
-  display: inline-flex;
-  align-items: center;
-  // Each chip is a real LinkTo into an organization, and they sit 6px apart — 5px padding
-  // on a 14px label computed to ~32px, so adjacent targets were both small AND close.
-  min-height: 44px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba($la-navy, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  color: $la-navy;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  text-decoration: none;
-  appearance: none;
-  cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease;
-}
 
-.ch-chip:hover,
-.ch-chip:focus-visible {
-  background: #fff;
-  border-color: rgba($brand-dusty-denim, 0.5);
-  color: $la-navy;
-  text-decoration: none;
-}
 
 // -----------------------------------------------------------------------------
 // Rail footer + checkbox
@@ -1162,14 +1271,8 @@ button.ch-row--sync:focus-visible {
   margin-bottom: 14px;
 }
 
-// Browse Boards title row: heading left, "Create a New Board" pushed right.
-//
-// `margin-left: auto` on the button rather than `justify-content: space-between` on the row —
-// the heading is the only other child, and auto-margin keeps the button right-aligned even if
-// a translated heading wraps to two lines, where space-between would centre it against the
-// wrapped block.
-//
-// `align-items: center` so the button sits on the heading's optical centre, not its baseline.
+// Browse Boards title row: the heading. ("Create a New Board" moved down to the subtab row,
+// `.ch-boards__head`, on 2026-10-12.)
 .ch-boards__titlerow {
   display: flex;
   flex-wrap: wrap;
@@ -1178,9 +1281,11 @@ button.ch-row--sync:focus-visible {
   margin-bottom: 12px;
 }
 
+// On the subtab row (`.ch-boards__head`). `margin-left: auto` keeps it on the right, also when the
+// row wraps and it drops to a line of its own.
 .ch-boards__create {
   margin-left: auto;
-  // Never squeezed by a long heading: the label is short and must not wrap to two lines.
+  // Never squeezed by the subtabs: the label is short and must not wrap to two lines.
   flex: 0 0 auto;
   white-space: nowrap;
 }
@@ -1191,27 +1296,46 @@ button.ch-row--sync:focus-visible {
   justify-content: flex-end;
 }
 
-// The Browse Boards header row: subtab strip on the left, boards filter on the right. Same
-// shape as `.ch-panel__head` above, which pairs the Communicators title with its filter — the
-// two filter rows on this page should not be laid out two different ways.
-//
-// The wrapper existed in the markup with NO rule at all, so it was a plain block and the
-// filter fell to the line below the tabs. `.ch-filter` is already built for a flex row
-// (`flex: 0 1 260px; min-width: 180px`), so it only needed a flex parent to sit in.
-//
-// `margin-left: auto` as well as `space-between`: the strip is a flex child that can wrap its
-// own pills, and when it does, `space-between` alone would leave the filter hanging mid-row.
+// The Browse Boards subtab row: the subtab strip, and "Create a New Board" right-aligned (both
+// 2026-10-12). The boards filter moved to the toolbar row below it (filter left, home-board button
+// right). The row wraps, so on a narrow screen the button drops to its own line, still on the right.
 .ch-boards__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px 16px;
   margin-bottom: 12px;
 }
 
-.ch-boards__head .ch-filter {
+// Filter on the LEFT, "Assign Home Board" / "Change Home Board" on the RIGHT (requested
+// 2026-10-12). `.ch-filter` is already built for a flex row (`flex: 0 1 260px; min-width:
+// 180px`). The button's wrapper takes `margin-left: auto`, so it stays right-aligned when the row
+// wraps on a narrow screen instead of hanging mid-row.
+.ch-boards__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.ch-boards__set-home-wrap {
   margin-left: auto;
+}
+
+// The button keeps `.ch-btn`'s 44px floor (WCAG 2.5.5, see `.ch-btn`): it is on the Basic home
+// page, which switch and eye-gaze users do reach. The house icon sits before the label.
+.ch-boards__set-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+// While the assign mode is on: a navy ring, so "on" is not shown by colour alone (the label
+// also has aria-pressed). The tooltip below it says what to do and carries Cancel.
+.ch-boards__set-home[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px $la-navy;
 }
 
 // Communicators filter. Deliberately quieter than a rail row: it is a tool for finding
@@ -1892,24 +2016,7 @@ body.ll-view-basic .md-hero--org:not(.md-hero--org-rooms) .md-hero__sub--meta {
    would read as a choice between equals, and one of them is where you already are. The back
    tab is an <a>, so it needs the anchor colour and underline neutralised to match the buttons
    beside it, which `.ch-tab` alone does not do. */
-.ch-tabs--breadcrumb {
-  justify-content: flex-start;
-}
-.ch-tabs--breadcrumb .ch-tab {
-  flex: 0 0 auto;
-}
-.ch-tab--back,
-.ch-tab--back:hover,
-.ch-tab--back:focus {
-  text-decoration: none;
-}
 
-.ch-organizations-tabs .ch-tab__meta {
-  font-size: 14px; // 13 -> 14px, the AAC text floor (2026-10-01)
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
 
 .ch-tab.is-active {
   background: linear-gradient(160deg, #fff 0%, rgba(255, 255, 255, 0.86) 100%);
@@ -2339,10 +2446,6 @@ button.ch-tile:hover .ch-tile__chip {
     &::before { content: "\2192"; }
   }
 
-  // Extras opens a drawer rather than navigating, so it shows a disclosure chevron in
-  // the same place and rotates it when open. That makes the inline caret redundant, so
-  // it is hidden — otherwise the affordance appears twice on the one tile.
-  .ch-tile__toggle-caret { display: none; }
 }
 
 // -----------------------------------------------------------------------------
@@ -2409,22 +2512,6 @@ a.ch-tile--big:active .ch-tile__cta,
 button.ch-tile--big:active .ch-tile__cta {
   background: rgba(255, 255, 255, 0.30);
   box-shadow: inset 0 2px 4px rgba($brand-blue-black, 0.10);
-}
-
-// Clearance for the FIXED navbar when opening the drawer scrolls this card to the top
-// (classic-view.js `toggle_extras` -> utils/scroll_below_header.js, which uses
-// `block: 'start'`). This is only the FALLBACK: the helper measures the live header and
-// overwrites `scroll-margin-top` inline, because no CSS token reports the bar's real
-// height — `--topbar-height` is 16px on authenticated layouts while the rendered bar is
-// ~88px. 100px is a safe static approximation for when that measurement fails; erring
-// high leaves a small gap rather than tucking the card under the header.
-.ch-tile--extras-toggle { scroll-margin-top: 100px; }
-
-.ch-tile--extras-toggle .ch-tile__rule::before { content: "\25BE"; }
-.ch-tile--extras-toggle.is-open .ch-tile__rule {
-  // The cue is in flow, so there is no translate for this to have to repeat — the
-  // rotation is the only transform and cannot fight the base rule's positioning.
-  transform: rotate(180deg);
 }
 
 // SUPERVISEE ROW ACTIONS -- Model / Speak / Choose Board.
@@ -2605,8 +2692,6 @@ $ch-gentle-speak-blue: #4D8DC5;
 // renders only `__icon` and `__label`.
 .ch-tile--speak { @include ch-tile-tint($ch-gentle-speak-blue, 0.52, 0.26); }
 .ch-tile--create  { @include ch-tile-tint($brand-verdigris); }
-.ch-tile--search  { @include ch-tile-tint($brand-dusty-denim); }
-.ch-tile--sup     { @include ch-tile-tint($brand-dusty-denim); }
 // Reports and Learn and Setup are deliberately IDENTICAL (2026-09-02, requested):
 // same colour, same recipe. Matching only the alphas was not enough — peach is light
 // and warm, stormy teal is dark and desaturated, so at the same 0.30 they rendered
@@ -2635,8 +2720,6 @@ $ch-gentle-speak-blue: #4D8DC5;
 // tile colour, and raising that would clear every tile at once.
 $ch-gentle-ideas-fawn: #A79A80;
 .ch-tile--ideas   { @include ch-tile-tint($ch-gentle-ideas-fawn, 0.54, 0.26); }
-.ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
-.ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
 // GLASSY SILVER ICON CHIPS on the four main Actions tiles (requested 2026-09-03).
 // Speak, Reports, Modeling Ideas and Extras now share one silver chip instead of each
@@ -2658,7 +2741,11 @@ $ch-gentle-ideas-fawn: #A79A80;
 // Three layers make the glass read: a top-weighted white gloss, a silver body with a
 // slight bottom lift so it does not look flat, and inset edges -- light along the top,
 // shadow along the bottom -- for thickness.
-.ch-grid:not(.ch-grid--extras) .ch-tile__chip {
+// THE GLASS ICON SURFACE, as one definition. A white gloss that fades out by 64% over a
+// cool-steel ramp, a softened rim, and a three-part shadow. Extracted to a mixin on 2026-10-09
+// when the "Let's Get Started" icon was asked to match the rest of the page's icons — it had a
+// flat denim tint and no shadow at all. Shared rather than copied so the two cannot drift.
+@mixin ch-glass-chip {
   background:
     linear-gradient(to bottom,
       rgba(255, 255, 255, 0.92) 0%,
@@ -2682,6 +2769,8 @@ $ch-gentle-ideas-fawn: #A79A80;
     0 4px 10px rgba($brand-blue-black, 0.10);
 }
 
+.ch-grid:not(.ch-grid--extras) .ch-tile__chip { @include ch-glass-chip; }
+
 // -----------------------------------------------------------------------------
 // Extras — the toggle tile and the row it reveals
 // -----------------------------------------------------------------------------
@@ -2690,7 +2779,23 @@ $ch-gentle-ideas-fawn: #A79A80;
 // either a brand colour would have them compete with Speak Mode and Reports.
 
 @mixin ch-tile-silver {
-  background: linear-gradient(155deg, rgba($brand-cool-steel, 0.30) 0%, rgba($brand-cool-steel, 0.13) 100%);
+  // TWO LAYERS, and the white one is the point.
+  //
+  // `background` is ONE property, so this rule REPLACED `.ch-tile`'s white base
+  // (`rgba(255,255,255,0.96 -> 0.74)`) rather than tinting it. The steel wash was therefore
+  // compositing straight onto the page ground, and every attempt to lighten the tile by
+  // lowering that alpha did the opposite of what it looked like on paper: at 0.10 the tile
+  // rendered #E6EBF1 — DARKER than the ground's own #EEF3F8 — because 90% of what showed
+  // through was the ground. Three rounds of "make it lighter" each made it more transparent.
+  //
+  // The white base is restored underneath, so the tint is a tint again. Resolved: #F4F5F7 ->
+  // #FAFBFC, genuinely lighter than the ground, with the navy label at 11.15.
+  //
+  // Anything that re-tints this tile must keep a base layer under it, or it goes see-through
+  // again rather than pale.
+  background:
+    linear-gradient(155deg, rgba($brand-cool-steel, 0.10) 0%, rgba($brand-cool-steel, 0.03) 100%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.86) 100%);
   border-color: rgba($brand-cool-steel, 0.38);
   box-shadow:
     0 6px 16px rgba($brand-blue-black, 0.08),
@@ -2699,28 +2804,16 @@ $ch-gentle-ideas-fawn: #A79A80;
 
   .ch-tile__chip {
     background: linear-gradient(160deg, rgba($brand-cool-steel, 0.16) 0%, rgba($brand-cool-steel, 0.07) 100%);
+    // A SILVER rim, not the white one the base chip carries (`rgba(255,255,255,0.9)`). On a tile
+    // this close to white a white ring has nothing to sit against and the disc loses its edge;
+    // steel at 0.45 gives it one in the tile's own hue. Matches the tile's own 0.38 border in
+    // family, a step stronger because the disc is the smaller shape.
+    border-color: rgba($brand-cool-steel, 0.45);
   }
 }
 
-// Extras is COOL SILVER again (requested 2026-09-03), reverting the denim it took on
-// 2026-09-02 to pair with Search Boards. It shares `ch-tile-silver` with the drawer it
-// opens rather than taking a hand-matched silver of its own, so the toggle and the ten
-// tiles it reveals cannot drift apart — and it restores the intent stated at the top of
-// this section: Extras is a disclosure, not an action, and should not compete with Speak
-// or Reports for attention.
-.ch-tile--extras-toggle { @include ch-tile-silver; }
 .ch-tile--silver        { @include ch-tile-silver; }
 
-// `extras-toggle` is BACK in this list (2026-09-03), and it has to be. It was removed
-// while the tile was denim, because this block's neutral blue-black hover shadow at
-// (0,2,1) outranks the hover `ch-tile-tint` installs at (0,2,0) — so a denim tile listed
-// here would have gone silver on hover while looking correct at rest. Now that the tile
-// IS silver, that reasoning inverts: leaving it out would give it no silver hover at all,
-// and it would be the one tile in the group that does not respond like its neighbours.
-a.ch-tile--extras-toggle:hover,
-a.ch-tile--extras-toggle:focus-visible,
-button.ch-tile--extras-toggle:hover,
-button.ch-tile--extras-toggle:focus-visible,
 a.ch-tile--silver:hover,
 a.ch-tile--silver:focus-visible,
 button.ch-tile--silver:hover,
@@ -2731,29 +2824,32 @@ button.ch-tile--silver:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
-// Caret sits with the label, and flips when the row is open.
-.ch-tile__toggle-caret {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-left: 7px;
-  vertical-align: middle;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid rgba($la-navy, 0.55);
-  transition: transform 0.18s ease;
-}
-
-.ch-tile--extras-toggle.is-open .ch-tile__toggle-caret {
-  transform: rotate(180deg);
-}
-
 // The revealed row sits under the main grid, separated by a hairline so it reads as
 // a disclosed group rather than more of the same grid.
 .ch-grid--extras {
   margin-top: 2px;
   padding-top: 14px;
   border-top: 1px solid rgba($brand-cool-steel, 0.30);
+
+  // TIGHTER ROWS BELOW 1025px (requested 2026-10-09). The only gap these tiles had was
+  // `.ch-grid { gap: 12px }` (:1984) — there was no extras-specific gap at any width — and the
+  // grid is TWO columns here (the `max-width: 1300px` rule, which also covers this range), so
+  // eight visible tiles make four rows and three of those gaps down the page.
+  //
+  // `row-gap`, NOT `gap`: the request was about vertical space, and the 12px between the two
+  // COLUMNS is doing a different job — it is what keeps the two tiles on a row from reading as
+  // one wide button. The resulting 8/12 asymmetry is deliberate.
+  //
+  // Scoped to `.ch-grid--extras` rather than `.ch-grid` so the four Actions cards keep their
+  // spacing. They also wrap to two rows at this width, so widening the net here would have
+  // moved them too.
+  //
+  // Beats the base 12px on SOURCE ORDER, not specificity — both selectors are (0,1,0) and this
+  // block is later in the file. Above 1024px nothing here applies and the `min-width: 1025px`
+  // block's `gap: 16px` governs, unchanged.
+  @media (max-width: 1024px) {
+    row-gap: 8px;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -2968,7 +3064,23 @@ button.ch-tile--silver:focus-visible {
 // re-declare the layout it wants rather than inherit one.
 .ch-comm__extras-panel.is-open {
   display: grid;
+  // ALL tiles share the TALLEST tile's height when one wraps (requested 2026-10-13): equal grid
+  // rows, so a two-line label (e.g. "Quick Assessment") lifts every tile to match. The grid items
+  // are the <li>s; the tile inside has to fill them (rules below), or it kept its content height
+  // and the row looked uneven.
+  grid-auto-rows: 1fr;
 }
+.ch-comm__extras-panel > li { display: flex; } // let the tile stretch to the equalised row height
+.ch-comm__extras-panel .ch-menu__item {
+  height: 100%; // fill the stretched <li>
+  // Contents centred (requested 2026-10-13): the base .ch-menu__item is text-align:left; the tiles
+  // are already flex-centred (justify/align center), so this centres the wrapped label lines too.
+  text-align: center;
+  // Remote Modeling and its "Limited" badge sit closer (requested 2026-10-13): tighten the tile's
+  // flex gap (and drop the badge's own left margin below) so the badge hugs the label.
+  gap: 5px;
+}
+.ch-comm__extras-panel .md-limited-badge { margin-left: 0; }
 
 .ch-comm__badge { margin-top: 2px; }
 
@@ -3000,9 +3112,35 @@ button.ch-tile--silver:focus-visible {
 // modifiers changes the Updates tab and nothing else; `--alert`, `--intro` and `--switch`
 // are on the Actions tab and keep the near-white glass above. A modifier rule rather than an
 // edit to `.ch-card`, matching how `--alert` and `--intro` already repaint themselves.
+// THE LIGHT CARD SURFACE (2026-10-10): the Updates cards and the Boards panel, which are to
+// match. The chip material (rim, inset shading, drop shadow) over a PALER ramp than the chip's
+// own (#EAEFF6 -> #D2DAE5, which read too dark for full-width cards — requested "lighter, with
+// less of a gradient effect"); the stops sit close together so the ramp barely reads. The rail
+// icons keep the plain chip. Every ink on these surfaces is navy, so a paler ground only raises
+// contrast. Focused paints the same two elements with its own light panel (_focused-view.scss
+// `ch-focused-light-panel`), scoped under `body.ll-layout-focused`, which outranks this.
+@mixin ch-light-card-surface {
+  @include ch-chip;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.90) 0%,
+      rgba(255, 255, 255, 0.42) 48%,
+      rgba(255, 255, 255, 0) 64%),
+    linear-gradient(160deg, #F4F7FB 0%, #E6EBF2 100%);
+}
+
+// THE BOARDS PANEL, GENTLE (2026-10-10, requested: "updates and boards divs on basic should
+// match"). Gentle had no panel styling at all, so the board tiles sat loose on the page while
+// Updates sat on cards. Geometry matches Focused's panel: 16px padding, 20px radius, 1px rim.
+.ch-boards__panel {
+  padding: 16px;
+  border-radius: 20px;
+  @include ch-light-card-surface;
+}
+
 .ch-card--list,
 .ch-card--install {
-  @include ch-chip;
+  @include ch-light-card-surface;
 
   // The shared gloss is suppressed so the ground is EXACTLY the rail icon's. `ch-chip`
   // already lays a white sheen over its top; `ch-gloss(0.45)` adds a second one across the
@@ -3077,10 +3215,11 @@ button.ch-tile--silver:focus-visible {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 24px;
-  // Overrides `.ch-card`'s 18px 20px. The panel should land ~110-150px tall, so the
-  // height comes from the content, not from padding.
-  padding: 26px 32px;
+  // FAR MORE COMPACT (2026-10-09). Was `gap: 24px; padding: 26px 32px` with a 72px icon, which
+  // landed the panel at ~110-150px — close to the height of a destination card it is only meant
+  // to introduce. The icon now sets the height and the box barely pads it.
+  gap: 16px;
+  padding: 12px 18px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.7));
   border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow:
@@ -3099,11 +3238,17 @@ button.ch-tile--silver:focus-visible {
   // 24 -> 36px on the svg in the template, so the mark keeps the same proportion inside
   // its tile. Its strokes need no adjustment: the viewBox is 0 0 24 24, so they scale
   // with the box rather than staying at their old absolute width.
-  width: 72px;
-  height: 72px;
-  border-radius: 21px;
-  background: linear-gradient(160deg, rgba($brand-dusty-denim, 0.14) 0%, rgba($brand-dusty-denim, 0.06) 100%);
-  border: 1px solid rgba($brand-cool-steel, 0.28);
+  width: 56px;
+  height: 56px;
+  border-radius: 17px;
+  // The same glass as every other icon on the page. This carried a flat denim tint and no
+  // shadow, which is what made it read as a different material beside the card chips and the
+  // rail's icon discs.
+  @include ch-glass-chip;
+  // ...but the OUTLINE follows the four main cards rather than the chip's bright white ring.
+  // Each of those is its own tint at 0.30 (`ch-tile-tint`); this takes the same alpha in a
+  // neutral, which is also where this icon's rim sat before it picked up the chip's 0.40 white.
+  border-color: rgba($brand-cool-steel, 0.30);
 }
 
 // `min-width: 0` so the grid track can actually shrink — without it the paragraph's
@@ -3118,7 +3263,9 @@ button.ch-tile--silver:focus-visible {
 // extra class outranks `.ch-card__title`'s own `!important` at (0,2,0) vs (0,1,0).
 // No mixed-unit arithmetic inside the clamp, so SassC needs no calc() wrapper here.
 .ch-card--intro .ch-card__title {
-  margin: 0 0 8px;
+  // Title nudged DOWN and the gap under it closed, so the line below rises to meet it
+  // (requested 2026-10-09). Was `0 0 8px`.
+  margin: 3px 0 3px;
   // Lexend (requested 2026-09-03, replacing Maitree). Written as the same stack the rest
   // of the app uses for it — 'Lexend', 'Nunito Sans', system-ui, sans-serif (app.scss
   // :3725, :3863, :17507 and others) — rather than a bare family name, so the fallbacks
@@ -3137,9 +3284,17 @@ button.ch-tile--silver:focus-visible {
 // Full-strength ink, not a faded grey: explanatory copy carries the whole reason to take
 // the tour, and #374151 on this glass measures well past AA.
 .ch-card--intro .ch-card__text {
-  margin: 0;
+  // Pulled UP to sit closer under the heading. Most of the remaining gap is half-leading, not
+  // margin — 16px type at line-height 1.5 carries 4px above its first line on its own.
+  margin: -2px 0 0;
   max-width: 70ch;
-  font-size: 16px;
+  // 15px, easing to 14px on a narrow screen (requested 2026-10-09). Solved rather than guessed:
+  // the middle term hits 15px at ~1400px and 14px at ~700px, and the clamp holds both ends
+  // outside that range.
+  //
+  // `calc()` around the mixed-unit term is REQUIRED, not stylistic — SassC cannot evaluate
+  // `px + vw` inside `clamp()` at compile time (docs/CSS_SCSS_GUIDELINES.md).
+  font-size: clamp(14px, calc(13px + 0.14vw), 15px);
   font-weight: 500;
   line-height: 1.5;
   color: #374151;
@@ -3151,10 +3306,18 @@ button.ch-tile--silver:focus-visible {
 // Squarer and slightly smaller than the base pill: 14px radius instead of 999px, and a
 // fixed 48px height that doubles as the touch target.
 .ch-card--intro .ch-btn {
+  // `min-height` is untouched at 48px, so the 44px WCAG 2.5.5 target does not move with the
+  // type.
   min-height: 48px;
   padding: 0 24px;
   border-radius: 14px;
-  font-size: 16px;
+  // 15px, easing to 14px on a narrow screen (requested 2026-10-09). Solved rather than guessed:
+  // the middle term hits 15px at ~1400px and 14px at ~700px, and the clamp holds both ends
+  // outside that range.
+  //
+  // `calc()` around the mixed-unit term is REQUIRED, not stylistic — SassC cannot evaluate
+  // `px + vw` inside `clamp()` at compile time (docs/CSS_SCSS_GUIDELINES.md).
+  font-size: clamp(14px, calc(13px + 0.14vw), 15px);
   font-weight: 700;
   white-space: nowrap;
   // Flat dusty denim instead of `.ch-btn--primary`'s denim->blue gradient. This is the
@@ -3481,6 +3644,14 @@ button.ch-tile--silver:focus-visible {
   display: flex;
 }
 
+// THE HOME BOARD'S MARK, DARK (2026-10-12, requested: "on basic view home board -> add our modern home
+// icon (dark) to the board that is the user's saved home board"). The same solid house Modern draws
+// before the name (BoardIcon `@flag_home`, `.board-icon__home-glyph` in app.scss), passed here from
+// classic-view.hbs. Modern colours it verdigris; Basic's is the navy ink of its card titles.
+.ch-boards__cell .board-icon__home-glyph {
+  color: $la-navy;
+}
+
 .ch-boards__actions {
   display: flex;
   flex-wrap: wrap;
@@ -3595,11 +3766,6 @@ button.ch-tile--silver:focus-visible {
   .ch-tile--speak-main    { --ch-accent: 95, 144, 186; }   // blue
   .ch-tile--reports       { --ch-accent: 66, 152, 154; }   // muted teal/sage
   .ch-tile--ideas         { --ch-accent: 169, 134, 72; }   // warm sand/gold
-  // Extras carries the SAME slate as the drawer, not the denim it used to (2026-09-03),
-  // so if the parked material above is ever restored it comes back cool silver and does
-  // not silently undo that change. Matching the drawer's existing value rather than
-  // deriving a new one also keeps it inside this set's Y = 0.26 / S = 0.40 solve.
-  .ch-tile--extras-toggle { --ch-accent: 148, 163, 184; }  // cool silver / slate
   .ch-tile--silver        { --ch-accent: 148, 163, 184; }  // drawer: neutral slate
 
   // PARKED WITH THE BLOCK ABOVE (2026-09-03) — restore the two together.
@@ -3846,67 +4012,19 @@ button.ch-tile--silver:focus-visible {
 @media (max-width: 1024px) {
 
   // ---------------------------------------------------------------------------
-  // ONBOARDING CALLOUT — three-row shape
+  // ONBOARDING CALLOUT — NO LAYOUT OVERRIDE HERE (requested 2026-10-09)
   // ---------------------------------------------------------------------------
-  // Below the desktop row the card becomes:
+  // This band used to re-shape the card into three rows (icon | header / subheader / CTA).
+  // It no longer does: the card is to look IDENTICAL to a desktop at 1024px, so the base
+  // three-column grid at :3105 carries all the way down to 901px untouched.
   //
-  //   ICON | Header
-  //        | Subheader
-  //        | ................. How To Use …   (own row, right-aligned)
+  // The one thing that still changes at this width is the CTA's trailing arrow, hidden at the
+  // end of this file (the `.ch-intro__cta-arrow` block) rather than here, since it is a
+  // single declaration shared with nothing else in this block.
   //
-  // The icon occupies row ONE only; rows two and three leave its column empty, which is what
-  // indents the copy and the CTA under the header rather than under the icon.
-  //
-  // Applies to BOTH dashboard styles. This lived in _focused-view.scss until 2026-09-14 and
-  // was moved here so Gentle and Focused share one structure on the classic page: the layout
-  // is a property of the card at this width, not of the colour scheme.
-  //
-  // `display: contents` on `.ch-intro__content` is what makes a multi-row shape possible —
-  // the title and paragraph share that one wrapper and cannot otherwise occupy different
-  // grid rows. It carries no role, so nothing leaves the accessibility tree; the <h2> and
-  // <p> keep their own semantics.
-  .ch-card--intro {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "icon title"
-      ".    text"
-      ".    cta";
-    align-items: center;
-    column-gap: 18px;
-    // Zero deliberately: the three rows want DIFFERENT spacing and `row-gap` is uniform, so
-    // the gaps are carried by the items' own margins below.
-    row-gap: 0;
-  }
-
-  .ch-card--intro .ch-intro__icon    { grid-area: icon; }
-  .ch-card--intro .ch-intro__content { display: contents; }
-
-  .ch-card--intro .ch-card__title {
-    grid-area: title;
-    margin: 0;
-  }
-
-  // Most of the gap between these two is NOT margin, which is why zeroing the title's margin
-  // alone still left it loose. Half-leading accounts for 5.65px of it: 1.65px below the title
-  // (22px at line-height 1.15 — the clamp's 1.6vw term sits under its 22px floor at every
-  // width this block covers) and 4px above the paragraph (16px at line-height 1.5). The
-  // negative top margin absorbs most of that, landing the visible gap at ~2.6px rather than
-  // ~9.6px. The leading itself is left alone: 1.5 is what makes the paragraph readable, and
-  // tightening it to close a one-off gap would cost every line in it.
-  //
-  // The open space in the stack goes at the BOTTOM, so the CTA reads as a separate action
-  // rather than as the last line of the paragraph.
-  .ch-card--intro .ch-card__text {
-    grid-area: text;
-    margin: -3px 0 20px;
-  }
-
-  // No width declaration needed: `justify-self: end` shrinks a grid item to its content and
-  // pins it to the trailing edge of its own row.
-  .ch-card--intro .ch-btn {
-    grid-area: cta;
-    justify-self: end;
-  }
+  // The one-row shape for small screens lives in the <=900px block instead, and now carries
+  // its own `display: contents` on `.ch-intro__content` — it used to borrow the declaration
+  // that stood here, and that is the only thing the removal had to re-home.
 
   // The account name drops 22px -> 18px from here down (requested 2026-09-14). The rail is
   // capped NARROWER at these widths, not wider — `max-width: 320px` from :2159 — while the
@@ -4106,41 +4224,11 @@ button.ch-tile--silver:focus-visible {
   .ch-tile--silver .ch-tile__label { font-size: 16px; }
 }
 
-// 901-1024px: the four Actions tiles stretch so the grid's bottom edge lands level with
-// the rail's (requested 2026-09-03).
-//
-// BOUNDED BELOW AT 901px ON PURPOSE. At <=900px the block right after this one turns
-// `.ch-page` into a column, so the rail sits ABOVE the panel and there is no shared
-// bottom edge to match -- stretching there would be meaningless, not merely harmless.
-//
-// Four links, all required; the chain breaks if any one is missing:
-//   1. `.ch-page` stretches rather than `align-items: flex-start`, so `.ch-panel` takes
-//      the rail's full height instead of its own content height.
-//   2. `.ch-tabpanel` grows to fill `.ch-panel`.
-//   3. `.ch-grid` grows to fill what is left under the intro card.
-//   4. `grid-auto-rows: 1fr` divides that leftover height EQUALLY. This is the link that
-//      keeps the four the same height -- without it the row still sizes to its tallest
-//      tile's content and the extra space just sits unused below the grid.
-//
-// `:not(.ch-grid--extras)` keeps the ten Extras drawer tiles out of it: when the drawer
-// is open both grids sit inside the same tabpanel, and letting the drawer grow too would
-// split the height between them instead of giving it to the four.
-//
-// SIDE EFFECT worth knowing: `align-items: stretch` cuts both ways. On a tab where the
-// PANEL is the taller of the two (Communicators with several cards), the rail's glass
-// column now stretches down to match it rather than stopping after its last row.
-@media (min-width: 901px) and (max-width: 1024px) {
-  .ch-page { align-items: stretch; }
-
-  // min-height: 0 so the panel can actually shrink to its flex basis; without it a flex
-  // item's automatic minimum size is its content, and the grid cannot claim the height.
-  .ch-tabpanel { flex: 1 1 auto; min-height: 0; }
-
-  .ch-grid:not(.ch-grid--extras) {
-    flex: 1 1 auto;
-    grid-auto-rows: 1fr;
-  }
-}
+// NO TILE STRETCH AT 901-1024px (2026-10-12). A block here made the main Actions tiles stretch
+// so the grid's bottom edge met the rail's (requested 2026-09-03, eb1d792ec): `.ch-page` stretched,
+// `.ch-tabpanel` and `.ch-grid` grew, and `grid-auto-rows: 1fr` split the height, so at 1024px
+// the tiles jumped from 90px to ~163px tall. Removed on request: the tiles keep the design they
+// have just above 1024px. Re-adding any one of those four links brings the jump back.
 
 // <=550px: four tabs no longer fit on one row even at the 767px block's reduced padding
 // and font size, so the strip is replaced by the dropdown (requested 2026-09-03). The
@@ -4149,9 +4237,15 @@ button.ch-tile--silver:focus-visible {
   .ch-tabs { display: none; }
   .ch-tabselect { display: block; }
 
-  // The callout collapses to one centred column and wraps. The title/text margins set in the
-  // 1024px block carry through, including `row-gap: 0`, so only the icon needs a gap of its
-  // own now that it occupies a row rather than a column.
+  // The callout collapses to one centred column and wraps, and needs a gap under the icon now
+  // that it occupies a row rather than a column.
+  //
+  // NOTE (2026-10-09): most of this block is already superseded. The <=900px block below is
+  // LATER in the file at the same specificity, and it re-declares `grid-template-columns`,
+  // `grid-template-areas`, the icon's `margin-bottom` and the button's `justify-self`, so at
+  // <=550px only `justify-items` and `text-align` here still reach the element. The title/text
+  // margins this comment used to credit to the <=1024px block come from the <=900px block now
+  // (`margin: 0` on the title, the paragraph hidden outright).
   .ch-card--intro {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -4180,7 +4274,41 @@ button.ch-tile--silver:focus-visible {
   // padding tightens here. The single-column stack and full-width CTA that used to live here
   // were REPLACED by that shape on 2026-09-14 — leaving them would have overridden it, since
   // this block is later in the file at the same specificity.
-  .ch-card--intro { padding: 20px; }
+  // SMALLER SCREENS: THE ICON IS THE WHOLE HEIGHT (requested 2026-10-09).
+  //
+  // Declared HERE, inside the existing <=900px block, rather than as a block of its own. This
+  // file orders its media queries 1024 -> 550 -> 900, so a separate `max-width: 900px` block
+  // placed by reading order would sit BEFORE this one and lose the padding to it — which is
+  // exactly what happened on the first attempt.
+  //
+  // SUPERSEDES TWO EARLIER SHAPES, and cannot coexist with either: the <=1024px block gives this
+  // card three rows (icon | header / subheader / CTA) and the <=550px block centres it in one
+  // column. Neither can be one icon tall. Below 900 it is a single row instead — icon, heading,
+  // action — with nothing in it taller than the 56px icon and 6px of vertical padding, so the
+  // icon is what sets the height.
+  .ch-card--intro {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "icon title cta";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 0;
+    padding: 6px 12px;
+  }
+
+  // `display: contents` is what lets the title below be a grid item at all: it sits inside
+  // `.ch-intro__content` (classic-view.hbs:894-897), not directly in the card, so without this
+  // the wrapper is the grid item and `grid-area: title` on the heading is inert. Declared here
+  // as of 2026-10-09; it previously stood in the <=1024px block, which no longer re-shapes the
+  // card. The wrapper carries no role, so nothing leaves the accessibility tree.
+  .ch-card--intro .ch-intro__content { display: contents; }
+
+  .ch-card--intro .ch-card__title { grid-area: title; margin: 0; }
+  .ch-card--intro .ch-btn         { grid-area: cta; justify-self: end; width: auto; }
+  .ch-card--intro .ch-intro__icon { grid-area: icon; margin-bottom: 0; }
+
+  // The supporting sentence is what forces the second and third rows. `display: none` takes it
+  // out of the accessibility tree with them; the card still announces its heading and its button.
+  .ch-card--intro .ch-card__text  { display: none; }
 
   // ---------------------------------------------------------------------------
   // RAIL ROWS — wrap into columns instead of one tall stack
@@ -4602,6 +4730,13 @@ body.ll-view-basic .md-shell:has(> .ch-rail--account) > .md-workspace > .md-main
   body.ll-layout-focused .ch-rail--account .ch-rail__item + .ch-rail__item {
     padding-top: 0;
   }
+  /* THE BASIC HOME (dashboard) RAIL TIGHTENS TOO (requested 2026-10-13): reduce its row gap by 4px
+     at 1024 and below, on the COLLAPSED rail only (the state it auto-collapses into at <=1024).
+     Base is 6px (.ch-rail__list:914), so 2px here. `.ch-rail.ch-rail--collapsed` per the specificity
+     note at :458; scoped away from the account and org rails, which carry their own 4px rule above. */
+  .ch-rail.ch-rail--collapsed:not(.ch-rail--account):not(.ch-rail--org) .ch-rail__list {
+    gap: 2px;
+  }
 }
 
 /* THE ORG RAIL SAYS "YOU ARE HERE" THE SAME WAY (2026-09-25, requested: "Show Organizations as
@@ -4693,4 +4828,357 @@ body.ll-view-basic .md-shell--org:not(.md-shell--org-directory) > .md-workspace 
     padding-left: 22px !important;
     padding-right: 22px !important;
   }
+}
+
+// =============================================================================
+// THE ACTIONS ZONE — compact rows, Actions row + the permanent Extras set
+// =============================================================================
+//
+// The Extras drawer used to be a disclosure: a toggle in the fourth card slot, and ten tiles
+// that appeared below it. As of 2026-10-09 it does not collapse — the tiles are always on the
+// page and that slot is a plain Account link — so this is no longer a STATE. It is the layout.
+//
+// WHAT THAT CHANGED HERE: every rule below was scoped
+// `.ch-grid:has(.ch-tile--extras-toggle.is-open)`, which detected the open drawer from inside the
+// Actions grid. There is no `.is-open` any more and nothing to detect, so the scoping is gone and
+// the compact treatment applies unconditionally. Dropping it also removes the `:has()` from the
+// hot path for every classic render.
+//
+// STILL GATED AT 1025px AND UP. Below that the Actions cards are a 2x2 in a narrow panel and the
+// drawer stacks; a single row of four would leave each card unusably thin. Those breakpoints are
+// untouched.
+// ONE compact treatment, applied to BOTH tile sets. The drawer's ten tiles are
+// `ch-tile ch-tile--big ch-tile--silver` — they carry `--big`, so they inherit the same
+// information veil and the same divider as the four Actions cards and need the same
+// corrections. A mixin rather than a selector list because the two sets also need a few
+// things that differ (the drawer's `__info` is a GRID, the Actions row's is a flex row).
+@mixin ch-compact-row {
+  // `stretch`, not `center`: both zones must fill the card's height or the veil below cannot
+  // run continuously from the icon to the arrow.
+  flex-direction: row;
+  align-items: stretch;
+  // 20% TALLER (requested 2026-10-12, "on 1500px and smaller ... about 20% taller"): every term
+  // of the old clamp(76px, 10vh, 104px) times 1.2. Only the four Actions cards are affected: the
+  // Extras drawer tiles also use this mixin but set their own `min-height` (`.ch-grid--extras
+  // .ch-tile--silver` below).
+  min-height: clamp(91px, 12vh, 125px);
+  padding: 10px 12px;
+  // 0 so the information panel and the action zone meet with no seam.
+  gap: 0;
+  --ch-zone-gap: 0;
+
+  .ch-tile__info {
+    display: flex;
+    // ROW, stated explicitly. The <=900px block turns this panel into a COLUMN
+    // (`.ch-tile--big .ch-tile__info`, :4090) so the chip sits above the text — right for the
+    // tall card that rule was written for, wrong for this one, which is a single row at every
+    // width. Without this the cards silently went columnar below 900.
+    flex-direction: row;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 4px 6px 6px;
+    gap: 12px;
+    // NO INNER SURFACE. The card's own background is the only one: this panel and the action
+    // zone beside it are both transparent, so a compact card reads as one object rather than a
+    // panel-inside-a-panel. `background` is restated as `none` rather than simply omitted
+    // because `_focused-view.scss` carries a shared base block (:4400, unscoped so Basic+Gentle
+    // get the same tile) that paints this panel at 0.08 — without this it would still show.
+    //
+    // CHECKED, because that veil was a LIGHTENING one and dark ink loses headroom when it goes.
+    // Measured on the bare card at its deepest stop: Gentle title 5.46 worst (Reports), arrow
+    // 4.40; Focused title 4.91 (Extras), arrow 3.20. The titles clear 4.5 and the arrow — which
+    // is `aria-hidden` decoration, so 3:1 under 1.4.11, not 4.5 — clears its own floor.
+    background: none;
+    box-shadow: none;
+    // THE DIVIDER GOES. It is the hairline that separates the information panel from the
+    // action bar (`rgba($la-navy, .07)` + a highlight, :2203). With the two zones merged into
+    // one veil there is nothing left for it to divide, and it would read as a stray rule
+    // through the middle of a single surface.
+    &::after { display: none; }
+  }
+
+  // THE VEIL CONTINUES THROUGH THE ARROW. The action zone takes the information panel's own
+  // fill and the mirrored corners, so the two render as one rounded surface that runs the
+  // width of the card and swallows the arrow — rather than a panel with a separate control
+  // floating beside it.
+  //
+  // Everything that made this a standalone glass bar is reset: its surface, its `ch`-based
+  // minimum width and its 44px floor all exist to align four full-width CTA bars across grid
+  // tracks, and with the action label hidden there is nothing left to align.
+  //
+  // Safe on target size, for the reason the resting rule already states: this bar is not the
+  // target. The CARD is the button, and it is still 76px tall at its smallest here.
+  .ch-tile__cta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    margin-left: 0;
+    padding: 0 12px 0 6px;
+    gap: 0;
+    // Transparent with the panel beside it — see the note there.
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  // The action label ("Start a session", "View progress") goes on every compact tile. The
+  // card's TITLE names the destination and the arrow carries the affordance, so the bar's own
+  // label repeats both. Not removed from the DOM, so it is still announced.
+  .ch-tile__sub  { display: none; }
+
+  // THE DESCRIPTION IS NOT DECIDED HERE. It is hidden at the two CALL SITES below instead,
+  // because the answer differs between them: the Extras drawer hides it at every width, the
+  // four Actions cards only below 1025px (they carry it as a subtitle above that, requested
+  // 2026-10-09). Declaring it here and re-revealing it afterwards would mean a later override
+  // winning on source order — exactly the stacking this file's cascade notes warn about — and
+  // a reveal placed in the earlier `min-width: 1025px` block would silently LOSE to this mixin,
+  // since both compile to the same (0,4,0) selector and the mixin is applied further down.
+
+  .ch-tile__chip  { width: 44px; height: 44px; border-radius: 13px; }
+  .ch-tile__icon  { width: 24px; height: 24px; }
+  .ch-tile__label { margin-top: 0; font-size: clamp(15px, calc(0.68rem + 0.42vw), 19px); line-height: 1.2; }
+  // DARK, not the #E5E5E5 the shared base block in `_focused-view.scss` (:4400) sets for this
+  // arrow. That block is unscoped — deliberately, so Basic+Gentle share the tile — but a
+  // near-white arrow was solved for a DARK card, and on Gentle's light glass it all but
+  // disappears. This is Gentle's own established value (`.ch-tile--big .ch-tile__rule`).
+  //
+  // Focused is unaffected: its own arrow rule is scoped `body.ll-layout-focused …` at (0,5,1)
+  // and still outranks this (0,4,0).
+  // The arrow's ink is a token, defaulting to the navy that suits Gentle's light fills. Focused's
+  // Actions cards are DARK, where navy vanishes (measured: navy on navy / green / charcoal); it
+  // sets `--ch-compact-arrow` for that grid (_focused-view.scss) rather than out-ranking this.
+  .ch-tile__rule  { font-size: 21px; color: var(--ch-compact-arrow, rgba(27, 54, 93, 0.88)); }
+}
+
+// COMPACT AT EVERY WIDTH. This was gated `min-width: 1025px` while the Extras drawer was a
+// disclosure: below that the cards were a 2x2 of tall tiles and a single row of four would have
+// been unusable. The drawer no longer collapses and the grids wrap to two columns below 1300
+// (next block), so the tall tile has nowhere left to be correct — the cards were simply
+// expanding again on small screens. The compact row is now the card at every width.
+// AT 1500px AND BELOW (2026-10-10). Above 1500px the four Actions cards are the tall
+// LARGE-SCREEN DESTINATION CARDS (that block, ~:3643, was never removed; this mixin, applied later
+// in the file, outranks it wherever both apply). Requested in two steps the same day: first
+// "restore the styles we originally had on full sized screens" (this was gated at 1024px), then
+// "at 1500px and smaller, switch to their view on 1024px and smaller". The Extras drawer tiles
+// stay compact at every width; only the four main cards change.
+@media (max-width: 1500px) {
+  .ch-grid:not(.ch-grid--extras) .ch-tile--big {
+    @include ch-compact-row;
+
+    // Icon + title + arrow and nothing else at this width.
+    .ch-tile__more { display: none; }
+  }
+}
+
+.ch-grid--extras .ch-tile--silver {
+    @include ch-compact-row;
+
+    // AT EVERY WIDTH for these, unlike the four Actions cards. There are nine of them; a
+    // description on each would turn the drawer back into the wall of two-line tiles the
+    // compact row replaced, and these are secondary destinations whose labels already say
+    // where they go. Still in the DOM, so a screen reader reaches it.
+    .ch-tile__more { display: none; }
+
+    // TIGHTER THAN THE MAIN CARDS. The shared mixin gives every compact tile 10px of vertical
+    // padding and a clamp(76px, 10vh, 104px) floor, sized for the four destinations; these are
+    // secondary and read better shorter.
+    //
+    // WHAT SETS THE RENDERED HEIGHT, because it is NOT the `min-height` below: `box-sizing` is
+    // `border-box` (:2001), so 56px floors the CONTENT box at 44px — and the content is taller
+    // than that already. The real stack is this padding (6+6) + `.ch-tile__info`'s own (6+6,
+    // from the mixin) + the 44px chip = 68px. The `min-height` is a safety floor that the
+    // content clears, not the number to change to make these shorter.
+    padding: 6px 12px;
+    min-height: 56px;
+
+    // SHORTER STILL BELOW 1025px (requested 2026-10-09). 6 -> 2px takes the stack above from
+    // 68px to 60px. Nested here rather than written as a separate block further down the file
+    // so both values for this one property sit together; a later block would also have to win
+    // on source order against this (0,2,0) rule, which is the cascade trap this file keeps
+    // hitting.
+    //
+    // 2px is near the floor of what is available: the 44px chip and the panel's own 6px keep
+    // the tile at 60px, and the TILE IS THE CONTROL, so it may not go under the 44px WCAG
+    // 2.5.5 target. Only the sides are left at 12px — this was asked about the top and bottom.
+    @media (max-width: 1024px) {
+      padding: 2px 12px;
+    }
+
+    // The drawer tile's `.ch-tile__info` is a GRID with a "more" row (:2366-2377), not the
+    // flex row the Actions cards use. The mixin sets `display: flex` above, which is what the
+    // chip-beside-label shape needs here too — but the grid-area assignments its children
+    // carry would then be inert, so the row/areas are cleared explicitly rather than left as
+    // dead declarations.
+    .ch-tile__info {
+      grid-template-areas: none;
+      grid-template-columns: none;
+      row-gap: 0;
+    }
+
+    // Matches the Actions cards exactly: the drawer's labels are 21px at this width and its
+    // action text 16px, both set for the two-line tile this replaces.
+    .ch-tile__label { font-size: clamp(15px, calc(0.68rem + 0.42vw), 19px); }
+  }
+
+// =============================================================================
+// DESKTOP ONLY (>1024px): MORE AIR BETWEEN SECTIONS
+// =============================================================================
+// Requested 2026-10-09, confined to screens wider than 1024px: the three stacked sections of the
+// Actions tab — Getting Started, the four cards, the Extras tiles — sit further apart.
+// (Its first part, a subtitle on the compact desktop card, went on 2026-10-10 when the four cards
+// returned to the tall destination cards above 1024px.)
+//
+// PLACED AFTER the two `ch-compact-row` call sites above, NOT in the earlier
+// `min-width: 1025px` block at ~:3590. Every selector here is (0,4,0) or narrower against the
+// mixin's own (0,4,0) output, so source order is what decides — in the earlier block these
+// rules would compile ahead of the mixin and lose to it. This file's cascade notes record the
+// same trap for its media queries; it applies to the mixin applications too.
+@media (min-width: 1025px) {
+
+  // ── 1. (REMOVED 2026-10-10) ───────────────────────────────────────────────
+  // This section sized the COMPACT card's subtitle on desktop. The four cards are the tall
+  // destination cards above 1024px again (see the `max-width: 1024px` compact block above), which
+  // carry their own description styling, so it had nothing left to style.
+
+  // ── 2. AIR BETWEEN THE THREE SECTIONS ──────────────────────────────────────
+  // `.ch-tabpanel` is a flex column with `gap: 16px` (:1154), and a margin on a flex item ADDS
+  // to that gap rather than collapsing into it. Stated as margins on these two elements rather
+  // than by raising that gap, because `.ch-tabpanel` is worn by ALL FOUR tab panels —
+  // Communicators, Boards, Settings and Actions — and only the Actions tab was asked about.
+  // Both elements below appear exactly once in the template, inside that tab.
+  .ch-card--intro { margin-bottom: 8px; }   // 16 -> 24px below Getting Started
+
+  // THE DIVIDER STAYS. `.ch-grid--extras` carries `border-top` + `padding-top` (:2784) and that
+  // is the page's section boundary — the "modern sectioning" this change was asked to keep. Only
+  // the space either side of it grows: 2 -> 10px above the rule, 14 -> 22px below it.
+  .ch-grid--extras {
+    margin-top: 10px;
+    padding-top: 22px;
+  }
+
+  // Between the tiles themselves, in BOTH grids: the four cards wrap to two rows below 1300 and
+  // the nine Extras tiles always occupy three or more, so a row gap is what spreads either set
+  // vertically. 12 -> 16px.
+  //
+  // The Extras tiles' own padding is deliberately NOT touched: it was tightened to 6px on
+  // request earlier the same day, and growing them back would undo that. Their breathing room
+  // is this gap.
+  .ch-grid { gap: 16px; }
+}
+
+// FOUR ACROSS above 1300, TWO below. `grid-auto-flow: column` for the Actions row rather than
+// four fixed tracks, because Modeling Ideas is conditional and a fixed count would leave a dead
+// column whenever it is absent; the Extras set has a known nine tiles and takes fixed tracks.
+@media (min-width: 1301px) {
+  .ch-grid:not(.ch-grid--extras) {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+
+  .ch-grid--extras { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+// TWO COLUMNS at 1300 and below. `grid-auto-flow: row` is restated because the rule above sets
+// `column` and the two bands share these elements — without it the Actions row would keep
+// flowing into a single line inside a two-track template.
+//
+// Both grids take the SAME two tracks, so an Extras button stays the width of an Actions card
+// here as it does above 1300.
+@media (max-width: 1300px) {
+  .ch-grid:not(.ch-grid--extras) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+  }
+
+  .ch-grid--extras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+// ONE PER ROW at 500px and below (requested 2026-10-12), both the main Actions tiles and the
+// Extras (silver) tiles: two tracks left each tile about 167px wide on a 390px phone. Same
+// selectors as the two bands above, written after them, so the narrowest band wins on source
+// order at equal specificity.
+@media (max-width: 500px) {
+  .ch-grid:not(.ch-grid--extras),
+  .ch-grid--extras {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// =============================================================================
+// AFFORDANCES — fewer arrows, and a different one on the Extras set
+// =============================================================================
+//
+// The page had 26 arrows competing: twelve on the rail rows, one on the identity card, four on
+// the main cards and nine on the Extras set. The rail's are the dense cluster, and they are the
+// least informative — every row is a full-width link with a label, so the arrow repeats what the
+// row already says.
+//
+// SAFE TO HIDE: each is `<span class="ch-row__arrow" aria-hidden="true">` (classic-view.hbs), so
+// it is decoration, not the affordance. The row stays a link or button with its own accessible
+// name, and `display: none` removes nothing from the accessibility tree that was ever in it.
+//
+// The identity card's single `.ch-rail__arrow` is deliberately KEPT — one arrow at the top of
+// the rail is a signpost, twelve down its length is noise.
+.ch-rail .ch-row__arrow { display: none; }
+
+// THE EXTRAS SET GETS A BADGE, NOT AN ARROW. A bare glyph was reading as the same affordance the
+// four main cards use, which made the two sets look interchangeable; these are secondary
+// destinations. A bordered circle is the modern "opens something" idiom and reads as a control
+// in its own right rather than as a direction.
+//
+// `\203A` (single right-pointing angle quotation) rather than the `\2192` arrow the main cards
+// keep, so the two sets are distinguishable at a glance.
+//
+// Specificity note: this is (0,3,0), the same as the rule the compact mixin emits for
+// `.ch-tile__rule`, so it must stay BELOW that include to win. It is at the end of the file.
+.ch-grid--extras .ch-tile--silver .ch-tile__rule {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  // A LITTLE LARGER, AND DRAWN RATHER THAN TYPED (requested 2026-10-10: "more elegant and a bit
+  // larger"). 26 -> 30px. The rim is softer and a faint drop shadow lifts it off the tile, so it
+  // reads as a small glass control rather than an outlined circle.
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba($brand-cool-steel, 0.38);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 247, 251, 0.94) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 3px rgba($brand-blue-black, 0.10);
+  font-size: 0;
+  line-height: 0;
+  // Full-strength navy on a near-white badge. It is a non-text affordance (the span is
+  // `aria-hidden`), so 3:1 is its floor under 1.4.11; this clears it many times over.
+  color: $la-navy;
+
+  // THE CHEVRON IS A STROKE, not the `\203A` glyph it used to be. A font glyph renders at the
+  // font's own weight and sits on its baseline, so it read thin and a pixel off-centre in the
+  // disc. Two borders of a rotated square give a crisp, even 1.75px chevron with rounded ends
+  // at any zoom; the -1.5px nudge puts the chevron's visual centre (not its box's) in the middle.
+  // Still the "opens something" chevron rather than the `\2192` arrow the main cards keep.
+  &::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-top: 1.75px solid currentColor;
+    border-right: 1.75px solid currentColor;
+    border-radius: 0 1.5px 0 0;
+    transform: translateX(-1.5px) rotate(45deg);
+  }
+}
+
+// The intro CTA's trailing arrow goes below 1024 (requested 2026-10-09). At that width the card
+// is already a tight shape and the button sits at the end of its own row, where the glyph costs
+// width without adding meaning — the button is labelled and is the only control in the card.
+// The span is `aria-hidden` (classic-view.hbs:908), so nothing leaves the accessibility tree.
+@media (max-width: 1024px) {
+  .ch-intro__cta-arrow { display: none; }
 }
