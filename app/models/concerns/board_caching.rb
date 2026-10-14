@@ -32,7 +32,9 @@ module BoardCaching
     # rather than only the supervising ones.
     started_at = Time.now
 
-    if self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i
+    # A retry (stale_retries > 0) is not parked: the stale check rescheduled it within the hour by
+    # definition, so parking it meant the retry bound never applied to these users.
+    if stale_retries == 0 && self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i
       # Schedule for later if already run recently
       if (self.settings['available_private_board_ids']['view'] ||[]).length > 500
         ra_cnt = RemoteAction.where(path: self.global_id, action: 'update_available_boards').count

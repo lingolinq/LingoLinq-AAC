@@ -709,6 +709,38 @@ describe BoardCaching, :type => :model do
         expect(User.find(u.id).private_viewable_board_ids).to eq([])
       end
 
+      # A run that ran within the hour for a user with more than 500 viewable boards is parked 30
+      # minutes out. A retry rescheduled by the stale check always ran within the hour, so for those
+      # users the retry bound never applied: each retry was parked instead of running.
+      describe "a user with more than 500 viewable boards" do
+        def large_list_user
+          u, b = shared_board_user
+          u.update_available_boards
+          big = User.find(u.id)
+          big.settings['available_private_board_ids'] = {'view' => (1..501).map{|i| "1_#{900000 + i}" }, 'edit' => [], 'generated' => Time.now.to_i}
+          big.save(touch: false)
+          [u, b]
+        end
+
+        it "runs a rescheduled retry instead of parking it" do
+          u, b = large_list_user
+
+          User.find(u.id).update_available_boards(1)
+
+          expect(User.find(u.id).private_viewable_board_ids).to eq([b.global_id])
+          expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').where('act_at > ?', 10.minutes.from_now).count).to eq(0)
+        end
+
+        it "still parks a first run within the hour" do
+          u, b = large_list_user
+
+          User.find(u.id).update_available_boards
+
+          expect(User.find(u.id).private_viewable_board_ids.length).to eq(501)
+          expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').where('act_at > ?', 10.minutes.from_now).count).to eq(1)
+        end
+      end
+
       # The capped retry stores without the stale_after check. A run that read a supervision link,
       # a share or an org home board which was removed while it ran, after a newer refresh had
       # already stored the revocation and cleared the outbox row, merged its older list over it
