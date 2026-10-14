@@ -377,7 +377,9 @@ module Supervising
     #
     # A legacy link is never treated as room-made while an approved SupervisorRelationship for the
     # pair exists outside the deleted district (organization_id nil or another org): that access
-    # was consented to by the family (SupervisorConsentService), not granted by the district.
+    # was consented to by the family (SupervisorConsentService), not granted by the district. When
+    # only a room is deleted (reason 'organization_unit_deleted'), the district still exists and
+    # every approved consent for the pair counts, its own included.
     #
     # reason: what is recorded as the removal's reason, 'organization_deleted' or, for a single
     # deleted room (OrganizationUnit.clean_up_destroyed), 'organization_unit_deleted'.
@@ -423,9 +425,13 @@ module Supervising
       return false unless link
       listed = (link.data['state'] || {})['organization_unit_ids'] || []
       remaining = listed - unit_ids
+      # A consent scoped to the district is set aside only when the district itself is deleted;
+      # while it exists (a single room deleted) every approved consent for the pair stands. The
+      # origin recorded below follows this same judgement.
+      consent_scope = reason == 'organization_deleted' ? org_id : nil
       room_made = link.data['origin'] == 'room' ||
         (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON &&
-          !consented_outside_org?(supervisor, user, org_id))
+          !consented_outside_org?(supervisor, user, consent_scope))
       # only a link that lists one of the deleted district's rooms is the district's to remove
       if remaining.empty? && (listed & unit_ids).any? && room_made
         state = link.data['state'] || {}

@@ -1177,4 +1177,79 @@ describe OrganizationUnit, :type => :model do
       expect(removal_rows.count).to eq(0)
     end
   end
+
+  # While the district exists, a consent the family approved for the pair still stands whatever
+  # organization it names, the district included: deleting one room must not judge a link of
+  # unknown origin (every link made before origins were recorded) room-made over it. A district's
+  # own deletion still disregards consents scoped to it (organization_spec "still removes a legacy
+  # room link when the only approved consent is scoped to the district").
+  describe "room deletion with a family consent scoped to the district" do
+    def consented_room_pair
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      link = supervision_link(sup, comm)
+      link.data.delete('origin')
+      link.save!
+      rel = SupervisorRelationship.create!(supervisor_user: sup, communicator_user: comm, status: 'approved',
+        permission_level: 'edit_boards', initiated_by: 'supervisor', creation_method: 'request_access', organization_id: o.id)
+      [o, ou, sup, comm, rel]
+    end
+
+    def supervision_link(sup, comm)
+      UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+    end
+
+    it "keeps the link, without the room, when the room is deleted" do
+      o, ou, sup, comm, rel = consented_room_pair
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(Organization.where(id: o.id).exists?).to eq(true)
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(link.data['origin']).to eq(nil)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(rel.reload.status).to eq('approved')
+    end
+
+    it "keeps the link, without the room, when a removed member's room is deleted before the removal runs" do
+      o, ou, sup, comm, rel = consented_room_pair
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(link.data['origin']).to eq(nil)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
+    it "does not record the link as room-made when another room still lists it" do
+      o, ou, sup, comm, rel = consented_room_pair
+      ou2 = OrganizationUnit.create(:organization => o)
+      ou2.add_supervisor(sup.user_name)
+      ou2.add_communicator(comm.user_name)
+      Worker.process_queues
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id, ou2.global_id])
+
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      link = supervision_link(sup, comm)
+      expect(link.data['state']['organization_unit_ids']).to eq([ou2.global_id])
+      expect(link.data['origin']).to eq(nil)
+    end
+  end
 end
