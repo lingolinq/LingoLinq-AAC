@@ -448,7 +448,7 @@ describe Lesson, :type => :model do
       expect(UserMailer).to receive(:schedule_delivery) do |a, b, c|
         expect(a).to eq(:lesson_assigned)
         expect(b).to eq(l.global_id)
-        expect(c.sort).to eq([u1.global_id, u2.global_id, u3.global_id])
+        expect(c).to match_array([u1.global_id, u2.global_id, u3.global_id])
       end
       expect(Lesson.assign(l, o, ['supervisor'], u)).to eq(true)
 

@@ -191,7 +191,7 @@ export default Route.extend({
         boardCacheDiag.mark('model:cache_hit_root_only_warm', { board_key: board_key });
         boardDetailCache.warm_full_tree_if_root_only(board_key);
       }
-      return RSVP.resolve(cached_record);
+      return _this.cached_unless_revoked(cached_record, params.boardname);
     }
 
     // Cache miss — two-phase load so large vocab trees do not block paint:
@@ -662,5 +662,18 @@ export default Route.extend({
         this.stashes.persist('current_mode', 'default');
       }
     }
+  },
+  // A cache hit serves a board without asking the server. Offline, a board whose
+  // local copy is marked as no longer viewable by any synced user resolves as
+  // this route's error state instead (the { error, boardname } shape the failed
+  // fetch uses), never as the cached copy. utils/board_revocation.js#blocks_view_route
+  // decides; it never blocks online.
+  cached_unless_revoked: function(record, boardname) {
+    var online = !!(this.persistence && this.persistence.get('online'));
+    return boardRevocation.blocks_view_route(record, this.appState, online).then(function(blocked) {
+      return blocked ? { error: true, boardname: boardname } : record;
+    });
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../../utils/board_revocation';

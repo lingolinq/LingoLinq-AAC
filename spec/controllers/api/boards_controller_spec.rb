@@ -301,7 +301,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id, :tag => 'water'}
       json = assert_success_json
       expect(json['board'].length).to eq(4)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([b1.global_id, b4.global_id, b5.global_id, b6.global_id])
+      expect(json['board'].map{|b| b['id'] }).to match_array([b1.global_id, b4.global_id, b5.global_id, b6.global_id])
     end
     
     it "should always filter by public when user_id is not provided" do
@@ -526,7 +526,7 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['board'].length).to eq(3)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(json['board'].map{|b| b['id'] }).to match_array([b.global_id, b2.global_id, b3.global_id])
     end
     
     it "should not include boards downstream of shared boards in user-search results if by a different author" do
@@ -763,7 +763,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(3)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
     end
 
@@ -818,7 +818,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(5)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b4.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b3.global_id}-#{@user.global_id}"}
@@ -854,7 +854,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(2)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b2.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b2.global_id}-#{@user.global_id}"}
@@ -867,7 +867,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(2)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b2.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b2.global_id}-#{@user.global_id}"}
@@ -933,7 +933,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(5)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b3.global_id}-#{@user.global_id}")
       expect(json['board'][2]['id']).to eq("#{b4.global_id}-#{@user.global_id}")
@@ -996,7 +996,7 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(5)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b.global_id}-#{@user.global_id}", "#{b2.global_id}-#{@user.global_id}", "#{b3.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
       expect(json['board'][1]['id']).to eq("#{b4.global_id}-#{@user.global_id}")
       s1 = json['board'].detect{|b| b['id'] == "#{b3.global_id}-#{@user.global_id}"}
@@ -1023,8 +1023,112 @@ describe Api::BoardsController, :type => :controller do
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
       expect(json['board'].length).to eq(3)
-      expect(json['board'].map{|b| b['id'] }.sort).to eq([ub.global_id, "#{b2.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
+      expect(json['board'].map{|b| b['id'] }).to match_array([ub.global_id, "#{b2.global_id}-#{@user.global_id}", "#{b4.global_id}-#{@user.global_id}"])
       expect(json['board'][0]['id']).to eq(ub.global_id)
+    end
+
+    # The shared list comes from Board.all_shared_board_ids_for, which caches it on the user
+    # (app/models/concerns/sharing.rb). An unshare, or any other settings change, that commits
+    # while a request is rebuilding that list must not survive the rebuild.
+    describe "with shared boards changing while the list is rebuilt" do
+      include SharedBoardRebuildHelpers
+
+      def board_shared_with_user
+        u = User.create
+        b = Board.create(:user => u)
+        b.share_with(@user)
+        Worker.process_queues
+        b
+      end
+
+      def index_ids(params)
+        get :index, params: {:user_id => @user.global_id}.merge(params)
+        json = assert_success_json
+        json['board'].map { |r| r['id'] }
+      end
+
+      it "lists a shared board until it is unshared" do
+        token_user
+        b = board_shared_with_user
+        expect(index_ids(:shared => 1)).to eq([b.global_id])
+
+        b.reload.unshare_with(User.find(@user.id))
+        Worker.process_queues
+
+        expect(index_ids(:shared => 1)).to eq([])
+      end
+
+      it "does not list a board unshared during the request's rebuild on the next read" do
+        token_user
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+
+        # read before the unshare's jobs run: the rebuilt list must not be served as fresh
+        expect(index_ids(:shared => 1)).to eq([])
+      end
+
+      it "drops an include_shared board unshared during the request's rebuild on the next read" do
+        token_user
+        ub = Board.create(:user => @user)
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :include_shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+
+        expect(index_ids(:include_shared => 1)).to eq([ub.global_id])
+      end
+
+      it "does not list or show a board unshared during the request's rebuild once the unshare's jobs have run" do
+        token_user
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+        Worker.process_queues
+
+        expect(index_ids(:shared => 1)).to eq([])
+        get :show, params: {:id => b.global_id}
+        assert_unauthorized
+      end
+
+      it "keeps the user's own boards and drops a board unshared during an include_shared rebuild once the unshare's jobs have run" do
+        token_user
+        ub = Board.create(:user => @user)
+        b = board_shared_with_user
+        unshare_mid_rebuild(b, @user)
+        get :index, params: {:user_id => @user.global_id, :include_shared => 1}
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+        Worker.process_queues
+
+        expect(index_ids(:include_shared => 1)).to eq([ub.global_id])
+        get :show, params: {:id => b.global_id}
+        assert_unauthorized
+      end
+
+      it "keeps a preference saved during the request's rebuild" do
+        token_user
+        b = board_shared_with_user
+        ran = false
+        during_rebuild do
+          ran = true
+          other = User.find(@user.id)
+          other.settings['preferences'] ||= {}
+          other.settings['preferences']['spec_marker'] = 'changed elsewhere'
+          other.save
+        end
+
+        expect(index_ids(:shared => 1)).to eq([b.global_id])
+
+        expect(ran).to eq(true)
+        expect(@ran_inside_rebuild).to eq(true)
+        expect(User.find(@user.id).settings['preferences']['spec_marker']).to eq('changed elsewhere')
+      end
     end
   end
 

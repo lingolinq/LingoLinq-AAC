@@ -54,7 +54,7 @@ class Api::SupervisorRelationshipsController < ApplicationController
       'type' => 'supervisor_access_request',
       'lookup_key' => lookup_key,
       'permission_level' => permission_level,
-      'organization_id' => rel_params['organization_id']
+      'organization_id' => service.requested_organization_id
     })
     render json: { meta: { message: result[:message] } }.to_json
   end

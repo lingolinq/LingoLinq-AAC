@@ -189,7 +189,7 @@ class Device < ApplicationRecord
 
     self.settings['long_token'] = long_token if long_token != nil
     key = new_access_token
-
+    touch_user_activity
   
     # Keep track of which devices were used most recently/frequently to help
     # display most-relevant ones in the UI under "user devices".
@@ -399,7 +399,7 @@ class Device < ApplicationRecord
           do_save = true
         end
       end
-      User.where(['id = ? and updated_at < ?', self.user_id, 24.hours.ago]).update_all(updated_at: Time.now)
+      touch_user_activity
     end
     if app_version && self.settings['app_version'] != app_version
       self.settings['app_version'] = app_version
@@ -410,6 +410,14 @@ class Device < ApplicationRecord
     end
     self.save if do_save
     !!(key && !key['needs_refresh'])
+  end
+
+  # Marks the device's user active (updated_at), at most once a day, when a token is issued
+  # (any sign-in: password, SSO, native long token, integration refresh) or used after 15 idle
+  # minutes. updated_at is the inactivity sweep's activity clock: use after the sweep scheduled a
+  # deletion cancels it (User.scheduled_deletion_proceeds?).
+  def touch_user_activity
+    User.where(['id = ? and updated_at < ?', self.user_id, 24.hours.ago]).update_all(updated_at: Time.now)
   end
   
   def tokens

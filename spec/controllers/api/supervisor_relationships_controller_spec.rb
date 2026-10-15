@@ -123,6 +123,25 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(SupervisorRelationship.where(communicator_user_id: u2.id).count).to eq(0)
     end
 
+    # The audit records the organization stored on the request, not the one the client sent.
+    it "should audit the stored organization rather than the one passed" do
+      token_user
+      own = Organization.create
+      other = Organization.create
+      own.add_supervisor(@user.user_name, false)
+      u2 = User.create
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      logged = []
+      allow(AuditEvent).to receive(:log_command){|_actor, data| logged << data }
+      post :create, params: {supervisor_relationship: {lookup_key: u2.user_name, permission_level: 'view_only', organization_id: other.global_id}}
+      expect(response).to be_successful
+      u3 = User.create
+      post :create, params: {supervisor_relationship: {lookup_key: u3.user_name, permission_level: 'view_only', organization_id: own.global_id}}
+      expect(response).to be_successful
+      requests = logged.select{|d| d['type'] == 'supervisor_access_request' }
+      expect(requests.map{|d| d['organization_id'] }).to eq([nil, own.global_id])
+    end
+
     it "should create a request and return generic message" do
       token_user
       u2 = User.create

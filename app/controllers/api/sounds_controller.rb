@@ -33,6 +33,7 @@ class Api::SoundsController < ApplicationController
     if !sound || sound.errored?
       api_error(400, {error: "sound creation failed", errors: sound && sound.processing_errors})
     else
+      ensure_upload_form_available!(sound)
       render json: JsonApi::Sound.as_json(sound, :wrapper => true, :permissions => @api_user).to_json
     end
   end
@@ -44,7 +45,7 @@ class Api::SoundsController < ApplicationController
     else
       remote_path = "imports/sounds/#{@api_user.global_id}/upload-#{GoSecure.nonce('filename')}.zip"
       content_type = "application/zip"
-      params = Uploader.remote_upload_params(remote_path, content_type)
+      params = Uploader.client_upload_params(remote_path, content_type)
       url = params[:upload_url] + remote_path
       params[:success_url] = "/api/v1/sounds/imports?url=#{CGI.escape(url)}"
       render json: {'remote_upload' => params}.to_json

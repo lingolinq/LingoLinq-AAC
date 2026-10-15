@@ -232,9 +232,9 @@ module Uploadable
     fn = rasterize ? "#{self.full_filename}.raster.png" : self.full_filename
     res = Uploader.remote_upload_params(fn, rasterize ? 'image/png' : self.content_type)
     res[:success_url] = "#{JsonApi::Json.current_host}/api/v1/#{self.file_type}/#{self.global_id}/upload_success?confirmation=#{self.confirmation_key}"
-    res  
+    res
   end
-  
+
   def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
     self.settings['pending_url'] = nil

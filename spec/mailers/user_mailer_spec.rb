@@ -447,6 +447,9 @@ describe UserMailer, :type => :mailer do
   end
   
   describe "new_user_registration" do
+    # examples below assign these directly; a leaked IPLOCATE_API_KEY sends later specs to the network
+    restore_env_after_each('NEW_REGISTRATION_EMAIL', 'IPLOCATE_API_KEY')
+
     it "should use the ENV recipient address" do
       u = User.create
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'

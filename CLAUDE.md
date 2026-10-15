@@ -11,6 +11,7 @@ is kept under 200 lines. Everything else loads on demand:
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
 | `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
+| `.claude/rules/testing.md` | touching `spec/**` or `.rspec` | no network in specs, test credentials, Redis state, clock-dependent examples |
 | `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
@@ -197,8 +198,10 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 - **Backend:** RSpec in `spec/` mirroring the tree. `bundle exec rspec`,
   `bundle exec rspec spec/models/user_spec.rb:42`. Local runs need the DB user in the
   environment (the `RAILS_ENV=test DB_USER=... PGPASSWORD=...` prefix in
-  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` rows commit outside the RSpec transaction
-  and the test DB can carry orphaned rows; scope any `delete_all` to the describe block.
+  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` writes on the same connection as the example
+  and rolls back with it, but rows written outside an example (a `rails runner` or console
+  against the test DB) persist, so the test DB can carry orphaned rows; scope any `delete_all`
+  to the describe block.
 - **Frontend:** QUnit via `cd app/frontend && ember test`; read the run-shape rules in
   `app/frontend/CLAUDE.md` before interpreting a failure.
 - Reconcile totals against a known-good baseline before claiming a delta.
