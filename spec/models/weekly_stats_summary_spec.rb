@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe WeeklyStatsSummary, :type => :model do
+  include ActiveSupport::Testing::TimeHelpers
   it "should error if no index defined" do
     expect { WeeklyStatsSummary.create }.to raise_error("no summary index defined")
   end
@@ -408,6 +409,47 @@ describe WeeklyStatsSummary, :type => :model do
     end
     
       
+    # The target words are written after the summary is built. The write saved the whole settings
+    # column from the copy reloaded just before it, so a save landing in between was reverted.
+    it "stores a user's target words without reverting settings saved after the user was read" do
+      # the summary is created and updated in the same week: crossing a week boundary between
+      # the two skips the target-words write this example checks
+      travel_to(Time.now.utc.beginning_of_week(:sunday) + 3.days + 12.hours) do
+        u = User.create
+        u.settings['target_words'] = {'generated' => 2.days.ago.iso8601, 'list' => [{'word' => 'like'}], 'activities' => {'list' => []}}
+        u.save
+        summary = WeeklyStatsSummary.create(user_id: u.id, weekyear: WeeklyStatsSummary.date_to_weekyear(Date.today))
+        allow(Stats).to receive(:target_words).and_return({:watchwords => {:suggestions => [{'word' => 'want'}]}})
+        wrote = false
+        loaded = User.find(u.id)
+        allow(User).to receive(:find_by).and_call_original
+        allow(User).to receive(:find_by).with(id: u.id).and_return(loaded)
+        inject = lambda do
+          next if wrote
+          wrote = true
+          other = User.find(u.id)
+          other.settings['preferences']['spec_marker'] = 'normal save'
+          other.save
+          quiet = User.find(u.id)
+          quiet.settings['spec_quiet'] = 'touch false'
+          quiet.save(touch: false)
+        end
+        # the write lands after update! has read the copy it decides from: right after the reload
+        # (a whole-copy save) or just before the locked read (update_settings_locked)
+        allow(loaded).to receive(:reload).and_wrap_original { |original, *args| res = original.call(*args); inject.call; res }
+        allow(User).to receive(:update_settings_locked).and_wrap_original { |original, *args, **opts, &blk| inject.call; original.call(*args, **opts, &blk) }
+
+        summary.update!
+
+        expect(wrote).to eq(true)
+        stored = User.find(u.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['target_words']['list']).to eq([{'word' => 'want'}])
+        expect(stored.settings['target_words']['weekyear']).to eq(summary.weekyear)
+      end
+    end
+
     it "should include goal data" do
       u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
       ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i

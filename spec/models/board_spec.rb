@@ -625,6 +625,8 @@ describe Board, :type => :model do
     
     it "should return the download URL on success" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -641,6 +643,8 @@ describe Board, :type => :model do
     
     it "should periodically update progress" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -658,6 +662,8 @@ describe Board, :type => :model do
     
     it "should allow an unauthenticated user" do
       b = Board.new
+      # generate_download asks S3 for a presigned URL; answer "not in the uploads bucket" (no S3 call)
+      allow(Uploader).to receive(:presigned_url_for_uploads).and_return(nil)
       expect(Converters::Utils).to receive(:board_to_remote).with(b, nil, {
         'file_type' => 'obf', 
         'include' => 'this', 
@@ -832,10 +838,10 @@ describe Board, :type => :model do
       b3.instance_variable_set('@buttons_changed', true)
       b3.save
       Worker.process_queues
-      expect(b1.reload.settings['downstream_board_ids'].sort).to eq([b3.global_id, b4.global_id])
-      expect(b2.reload.settings['downstream_board_ids'].sort).to eq([b3.global_id, b4.global_id])
+      expect(b1.reload.settings['downstream_board_ids']).to match_array([b3.global_id, b4.global_id])
+      expect(b2.reload.settings['downstream_board_ids']).to match_array([b3.global_id, b4.global_id])
       expect(b3.reload.settings['downstream_board_ids']).to eq([b4.global_id])
-      expect(b3.reload.settings['immediately_upstream_board_ids'].sort).to eq([b1.global_id, b2.global_id])
+      expect(b3.reload.settings['immediately_upstream_board_ids']).to match_array([b1.global_id, b2.global_id])
       expect(b4.reload.settings['immediately_upstream_board_ids'].sort).to eq([b3.global_id])
       rev = b4.current_revision
       hash1 = b1.reload.settings['full_set_revision']
@@ -1270,6 +1276,30 @@ describe Board, :type => :model do
       expect(board).to be_persisted
       hello = board.settings['buttons'].find { |b| b['label'] == 'hello' }
       expect(hello['image_id']).to be_present
+    end
+  end
+
+  # Google TTS makes one request per button, so with GOOGLE_TTS_TOKEN set the deferred sound work
+  # goes to a worker; without it (other providers) it runs inline after commit.
+  describe "enqueue_suggested_sounds_if_deferred" do
+    env_wrap('GOOGLE_TTS_TOKEN' => 'spec-tts-token') do
+      it "queues suggested sounds on a worker when Google TTS is configured" do
+        b = Board.create(user: User.create)
+        b.instance_variable_set('@defer_suggested_sounds', true)
+        expect(Progress).to receive(:schedule).with(having_attributes(id: b.id), :process_suggested_sounds_async)
+        expect_any_instance_of(Board).not_to receive(:process_suggested_sounds_async)
+        b.enqueue_suggested_sounds_if_deferred
+      end
+    end
+
+    env_wrap('GOOGLE_TTS_TOKEN' => nil) do
+      it "runs suggested sounds inline when Google TTS is not configured" do
+        b = Board.create(user: User.create)
+        b.instance_variable_set('@defer_suggested_sounds', true)
+        expect(Progress).not_to receive(:schedule)
+        expect_any_instance_of(Board).to receive(:process_suggested_sounds_async)
+        b.enqueue_suggested_sounds_if_deferred
+      end
     end
   end
 
@@ -3010,6 +3040,85 @@ describe Board, :type => :model do
       expect(b.settings['edit_description']).to eq(nil)
     end
     
+    # Board version history labels each version from its edit_description. An edit's own notes
+    # describe that save, however long after the previous edit it comes.
+    describe "with edits seconds apart" do
+      include ActiveSupport::Testing::TimeHelpers
+
+      it "keeps the description of an edit made seconds after the previous described edit" do
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u)] }
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        expect(b.settings['edit_description']['notes']).to eq(['renamed the board'])
+
+        travel_to(Time.at(1_800_000_005)) { b.process({'buttons' => [{'id' => 1, 'label' => 'hat'}]}, {'user' => u}) }
+        expect(b.settings['edit_description']['notes']).to eq(['modified buttons'])
+      end
+    end
+
+    # A label derived from @buttons_changed (rollback, translated, swapped images) describes the
+    # save it was set for, however long after the previous described edit it comes, and only that
+    # save: @buttons_changed survives a save that skips map_images (app/models/board.rb:1237, :1684).
+    describe "with a label derived from a buttons change" do
+      include ActiveSupport::Testing::TimeHelpers
+
+      it "keeps a derived label set seconds after the previous described edit" do
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u)] }
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_005)) do
+          b.instance_variable_set('@buttons_changed', 'translated')
+          b.save
+        end
+        expect(b.settings['edit_description']['notes']).to eq(['translated'])
+      end
+
+      it "describes only the save the derived label was set for" do
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u)] }
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_005)) do
+          b.instance_variable_set('@buttons_changed', 'translated')
+          b.save_without_post_processing
+        end
+        expect(b.settings['edit_description']['notes']).to eq(['translated'])
+        expect(b.instance_variable_get('@buttons_changed')).to eq('translated')
+
+        travel_to(Time.at(1_800_000_010)) { b.save }
+        expect(b.settings['edit_description']).to eq(nil)
+      end
+
+      # The one-shot check compares String identity. process_button assigns its reason from a
+      # literal in app/models/board.rb; with @map_later the reason survives between the two saves.
+      # If that literal became frozen (one shared object), the second change would lose its label.
+      it "labels each of two changes that set the same reason in the same place" do
+        # created on the same fixed clock as the edits, so no real-time value is compared with them
+        u, b = travel_to(Time.at(1_799_999_990)) { [u = User.create, Board.create(:user => u, :settings => {'buttons' => [{'id' => '123'}, {'id' => '234'}]})] }
+        b.instance_variable_set('@map_later', true)
+        travel_to(Time.at(1_800_000_000)) { b.process_button({'id' => '234', 'sound_id' => '1_1'}) }
+        expect(b.settings['edit_description']['notes']).to eq(['button updated in-place'])
+
+        travel_to(Time.at(1_800_000_005)) { b.process_button({'id' => '234', 'sound_id' => '1_2'}) }
+        expect(b.settings['buttons'][1]['sound_id']).to eq('1_2')
+        expect(b.settings['edit_description']['notes']).to eq(['button updated in-place'])
+      end
+
+      it "labels a rollback in the board's version history" do
+        u = User.create
+        PaperTrail.request.whodunnit = "user:#{u.global_id}"
+        b = travel_to(Time.at(1_799_999_990)) { Board.create(:user => u) }
+        travel_to(Time.at(1_800_000_000)) { b.process({'name' => 'good board'}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_005)) { b.process({'buttons' => [{'id' => 1, 'label' => 'hat'}]}, {'user' => u}) }
+        travel_to(Time.at(1_800_000_010)) { b.rollback_to(Time.at(1_800_000_003)) }
+
+        b.reload
+        expect(b.settings['name']).to eq('good board')
+        expect(b.settings['edit_description']['notes']).to eq(['rollback'])
+        json = JsonApi::BoardVersion.paginate({}, Board.user_versions(b.global_id))
+        expect(json['boardversion'][0]['action']).to eq('rollback')
+      end
+    end
+
     it "should set edit description when buttons are changed" do
       u = User.create
       b = Board.create(:user => u)
@@ -5699,6 +5808,8 @@ describe Board, :type => :model do
     end
 
     it "should recurse to downstream boards" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       bi = ButtonImage.create(user: u)
       expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
@@ -5722,6 +5833,8 @@ describe Board, :type => :model do
     end
 
     it "should stop at boards with a different author" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       u2 = User.create
       bi = ButtonImage.create(user: u)
@@ -5747,6 +5860,8 @@ describe Board, :type => :model do
     end
 
     it "should not get stuck in an infinite loop with circular references" do
+      # swap_images asks OpenSymbols for the library's default images; answer "none found"
+      stub_request(:post, %r{opensymbols\.org/api/v2/repositories/twemoji/defaults}).to_return(status: 200, body: '{}')
       u = User.create
       bi = ButtonImage.create(user: u)
       expect(Uploader).to receive(:find_images).at_least(:once).and_return([])

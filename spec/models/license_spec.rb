@@ -141,6 +141,48 @@ describe License, :type => :model do
       expect(a_license.reload.user_id).to be_nil
     end
 
+    # The released student's view access to the district's private home boards comes from the
+    # org_user link this removes (organization.rb attached_orgs), and nothing else refreshes it.
+    it "removes view access to the district's private home board once the seat is released" do
+      u = User.create
+      manager = User.create
+      board = Board.create(:user => manager)
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      district.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+      district.save
+      license = License.create!(organization: district, seat_type: 'student', status: 'active')
+      district.claim_user(u)
+      Worker.process_queues
+      expect(User.find(u.id).private_viewable_board_ids).to include(board.global_id)
+
+      license.reload.release_user!
+      expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
+      Worker.process_queues
+
+      expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
+    end
+
+    # A seat expiry REMOVES access, so its refresh must not wait behind the slow queue (owner
+    # decision: revocations go to the default queue, even in the nightly bulk expiry).
+    it "queues the view-access refresh on the default queue when expiry releases the seat" do
+      u = User.create
+      district = Organization.create(:settings => {'total_licenses' => 1})
+      license = License.create!(organization: district, seat_type: 'student', status: 'active', expires_at: 30.days.from_now)
+      district.claim_user(u)
+      Worker.process_queues
+      Worker.flush_queues
+      License.where(id: license.id).update_all(expires_at: 1.day.ago)
+
+      License.expire_stale_licenses!
+
+      refresh = lambda do |queue|
+        Worker.scheduled_actions(queue).select{|j| j['args'][2]['method'] == 'update_available_boards' && j['args'][2]['id'] == u.id }
+      end
+      expect(refresh.call('slow')).to eq([])
+      expect(refresh.call('default').length).to eq(1)
+      expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
+    end
+
     it "hands the account back to the family when no other organization holds a seat" do
       u = User.create
       only_org = Organization.create(:settings => {'total_licenses' => 1})

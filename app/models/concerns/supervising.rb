@@ -214,43 +214,53 @@ module Supervising
   module ClassMethods  
     def unlink_supervisor_from_user(supervisor, user, organization_unit_id=nil)
       supervisor = user if supervisor.global_id == user.global_id
-      sup = (user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id }
-      org_unit_ids = (sup || {})['organization_unit_ids'] || []
-      org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['user_id'] == user.global_id && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
-      org_unit_ids.uniq!
+      # the supervisee's lock, as link_supervisor_to_user and the room strip take it (supervisee,
+      # then supervisor): the read-decide-write of the link below is not interleaved with theirs
+      with_supervision_lock(user) do
+        sup = (user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id }
+        org_unit_ids = (sup || {})['organization_unit_ids'] || []
+        org_unit_ids += UserLink.links_for(user, true).select{|l| l['type'] == 'supervisor' && l['user_id'] == user.global_id && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
+        org_unit_ids.uniq!
       
-      user.settings['supervisors'] = (user.settings['supervisors'] || []).select{|s| s['user_id'] != supervisor.global_id }
-      do_unlink = true
-      if organization_unit_id && (org_unit_ids - [organization_unit_id]).length > 0
-        org_unit_ids -= [organization_unit_id]
-        link = UserLink.generate(user, supervisor, 'supervisor')
-        link.data['state']['organization_unit_ids'] = org_unit_ids
-        link.save!
-        do_unlink = false
-      else
-        UserLink.remove(user, supervisor, 'supervisor')
-      end
-      user.update_setting({
-        'supervisors' => user.settings['supervisors']
-      })
-      ApplicationRecord.using(:master) do
-        user.reload
-      end
-      if do_unlink
-        ApplicationRecord.using(:master) do
-          supervisor.reload
+        user.settings['supervisors'] = (user.settings['supervisors'] || []).select{|s| s['user_id'] != supervisor.global_id }
+        do_unlink = true
+        # a room taking itself off a link that was made directly only drops its id: the direct
+        # supervision stays (supervision_link_origin)
+        direct = organization_unit_id && UserLink.generate(user, supervisor, 'supervisor').data['origin'] == 'direct'
+        if organization_unit_id && ((org_unit_ids - [organization_unit_id]).length > 0 || direct)
+          org_unit_ids -= [organization_unit_id]
+          link = UserLink.generate(user, supervisor, 'supervisor')
+          link.data['state']['organization_unit_ids'] = org_unit_ids
+          link.save!
+          do_unlink = false
+        else
+          UserLink.remove(user, supervisor, 'supervisor')
         end
-        supervisor.settings['supervisees'] = (supervisor.settings['supervisees'] || []).select{|s| s['user_id'] != user.global_id }
-        # If a user was auto-subscribed for being added as a supervisor, un-subscribe them when removed
-        if supervisor.settings['supervisees'].empty? && supervisor.settings['supporter_role_auto_set']
-          supervisor.settings.delete('supporter_role_auto_set')
-          supervisor.settings['preferences']['role'] = 'communicator'
-          supervisor.save_with_sync('un-supervisor')
-        end
-        schedule_board_cache_refresh(supervisor, true)
-        supervisor.update_setting({
-          'supervisees' => supervisor.settings['supervisees']
+        user.update_setting({
+          'supervisors' => user.settings['supervisors']
         })
+        ApplicationRecord.using(:master) do
+          user.reload
+        end
+        if do_unlink
+          ApplicationRecord.using(:master) do
+            supervisor.reload
+          end
+          supervisor.settings['supervisees'] = (supervisor.settings['supervisees'] || []).select{|s| s['user_id'] != user.global_id }
+          # If a user was auto-subscribed for being added as a supervisor, un-subscribe them when removed:
+          # only once no supervisee is left, read from the links (the legacy list is no longer filled)
+          code = Webhook.get_record_code(supervisor)
+          supervisees_left = UserLink.links_for(supervisor, true).any?{|l| l['type'] == 'supervisor' && l['record_code'] == code && l['user_id'] != supervisor.global_id }
+          if supervisor.settings['supervisees'].empty? && !supervisees_left && supervisor.settings['supporter_role_auto_set']
+            supervisor.settings.delete('supporter_role_auto_set')
+            supervisor.settings['preferences']['role'] = 'communicator'
+            supervisor.save_with_sync('un-supervisor')
+          end
+          schedule_board_cache_refresh(supervisor, true)
+          supervisor.update_setting({
+            'supervisees' => supervisor.settings['supervisees']
+          })
+        end
       end
     end
     
@@ -312,16 +322,168 @@ module Supervising
       end
     end
 
+    # persist_board_cache_refresh(user, true) for many users in two statements: rows already
+    # queued are pulled forward, the rest are inserted.
+    def persist_board_cache_refreshes(user_ids, now=Time.now)
+      paths = User.where(id: user_ids).select(:id).map(&:global_id)
+      return if paths.empty?
+      scope = RemoteAction.where(path: paths, action: 'update_available_boards')
+      # extra is the batch's dispatch stamp (RemoteAction#process_action): cleared, so the next
+      # batch dispatches the row even if the copy it stamped is lost
+      scope.update_all(act_at: now, extra: nil)
+      existing = scope.pluck(:path)
+      rows = (paths - existing).uniq.map{|path| {path: path, action: 'update_available_boards', act_at: now, created_at: now, updated_at: now} }
+      RemoteAction.insert_all(rows) if rows.length > 0
+    end
+
     def persist_board_cache_refresh(supervisor, revoked=false)
       path = supervisor.global_id
       return unless path
       scope = RemoteAction.where(path: path, action: 'update_available_boards')
       if revoked
-        return if scope.update_all(act_at: Time.now) > 0
+        # extra cleared as in persist_board_cache_refreshes
+        return if scope.update_all(act_at: Time.now, extra: nil) > 0
       elsif scope.exists?
         return
       end
       RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now)
+    end
+
+    # Why a supervision link exists, kept in the link's data (outside 'state', which links_for
+    # returns): 'direct' once it was ever made directly, 'room' when only rooms (organization
+    # units) made it. nil means unknown: links made before this was recorded that already listed
+    # rooms, since a room added to a direct link only appended its id (organization_unit_ids).
+    def supervision_link_origin(link, prior_unit_ids, organization_unit_id)
+      return 'direct' unless organization_unit_id
+      return 'room' unless link.id
+      return link.data['origin'] if link.data['origin']
+      # an existing unrecorded link that no room had added: it was made directly
+      prior_unit_ids.compact.empty? ? 'direct' : nil
+    end
+
+    # Takes the rooms of a destroyed organization off a supervision link (Organization.clean_up_destroyed).
+    # The link is removed only when it is known to exist because of rooms alone (origin 'room')
+    # and no other room still lists it; a direct link, or one of unknown origin, is kept without
+    # those rooms. Owner decision: keep ambiguous links rather than risk removing a family's
+    # direct supervision.
+    #
+    # staff_since: when the supervisor joined the destroyed district as supervisor or manager
+    # (earliest such membership link, captured at the destroy), or nil if they never did. Owner
+    # decision for a link of unknown origin (nil) listing only the district's rooms: it was made
+    # by those rooms when its supervisor was district staff (room supervisors must be org
+    # supervisors, organization_unit.rb add_supervisor) and it is not older than that membership
+    # (ROOM_LINK_EPSILON allows both being made in the same request or job); it is removed then,
+    # and kept otherwise. Residual: district staff who also made a direct link to the student
+    # after joining lose it.
+    ROOM_LINK_EPSILON = 5.seconds
+
+    #
+    # A legacy link is never treated as room-made while an approved SupervisorRelationship for the
+    # pair exists outside the deleted district (organization_id nil or another org): that access
+    # was consented to by the family (SupervisorConsentService), not granted by the district. When
+    # only a room is deleted (reason 'organization_unit_deleted'), the district still exists and
+    # every approved consent for the pair counts, its own included.
+    #
+    # reason: what is recorded as the removal's reason, 'organization_deleted' or, for a single
+    # deleted room (OrganizationUnit.clean_up_destroyed), 'organization_unit_deleted'.
+    def strip_rooms_from_supervision(supervisor, user, unit_ids, staff_since=nil, org_id=nil, actor={}, reason: 'organization_deleted')
+      with_supervision_lock(user) do
+        strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor, reason)
+      end
+    end
+
+    # strip_rooms_from_supervision for each [supervisor, supervisee] pair. A pair that fails is
+    # logged (ids only) and the others still run; the first error is raised once all have run, so
+    # the caller keeps its retry row (and anything it removes only after a complete pass).
+    # staff_since maps a supervisor's local id (string) to when they joined the organization.
+    def strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor, reason: 'organization_deleted')
+      error = nil
+      pairs.uniq{|sup, comm| [sup.id, comm.id] }.each do |sup, comm|
+        begin
+          strip_rooms_from_supervision(sup, comm, unit_ids, staff_since[sup.id.to_s], org_id, actor, reason: reason)
+        rescue StandardError => e
+          error ||= e
+          Rails.logger.error("supervising: room strip failed for supervisor #{sup.global_id}, supervisee #{comm.global_id}: #{e.class}")
+        end
+      end
+      raise error if error
+      true
+    end
+
+    # The supervisee's row lock, taken by every read-decide-write of its supervision links
+    # (strip_rooms_from_supervision, link_supervisor_to_user): unlocked, two district cleanups each
+    # wrote back the other's room, and a cleanup could remove a direct grant made while it ran.
+    # Locks the row without reloading the caller's copy (with_lock refuses a copy with unsaved
+    # changes). Joins a caller's transaction; lock order is supervisee, then supervisor (the
+    # unlink and link saves that follow).
+    def with_supervision_lock(user)
+      User.transaction do
+        User.lock.where(id: user.id).pluck(:id)
+        yield
+      end
+    end
+
+    def strip_rooms_from_supervision_locked(supervisor, user, unit_ids, staff_since, org_id, actor, reason='organization_deleted')
+      link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(supervisor)).detect{|l| l.data['type'] == 'supervisor' }
+      return false unless link
+      listed = (link.data['state'] || {})['organization_unit_ids'] || []
+      remaining = listed - unit_ids
+      # A consent scoped to the district is set aside only when the district itself is deleted;
+      # while it exists (a single room deleted) every approved consent for the pair stands. The
+      # origin recorded below follows this same judgement.
+      consent_scope = reason == 'organization_deleted' ? org_id : nil
+      room_made = link.data['origin'] == 'room' ||
+        (link.data['origin'].nil? && staff_since && link.created_at >= staff_since - ROOM_LINK_EPSILON &&
+          !consented_outside_org?(supervisor, user, consent_scope))
+      # only a link that lists one of the deleted district's rooms is the district's to remove
+      if remaining.empty? && (listed & unit_ids).any? && room_made
+        state = link.data['state'] || {}
+        unlink_supervisor_from_user(supervisor, user)
+        # Recorded after the unlink, in its transaction (with_supervision_lock), and fail-closed:
+        # a failed insert rolls the unlink back and raises, so Organization.clean_up_destroyed
+        # keeps its row and retries rather than committing a removal with no record. Ids and
+        # permission flags only, no names or emails, so a wrongful removal can be found and
+        # restored; deleted_by/deleted_as are who deleted the organization, when known. The
+        # unlink's work outside the database before commit is idempotent (Redis cache
+        # invalidation, Board.regenerate_shared_board_ids from UserLink#touch_connections); the
+        # board-cache refresh is enqueued after commit (schedule_board_cache_refresh). Note the
+        # unlink can also switch an auto-set supporter with no supervisees left back to the
+        # communicator role (unlink_supervisor_from_user).
+        AuditEvent.create!(user_key: 'system', data: {
+          'type' => 'supervision_link_removed',
+          'reason' => reason,
+          'organization_id' => (org_id && Organization.new(id: org_id).global_id),
+          'supervisor_id' => supervisor.global_id,
+          'supervisee_id' => user.global_id,
+          'user_link_id' => link.id,
+          'origin' => link.data['origin'] || 'legacy',
+          'edit_permission' => !!state['edit_permission'],
+          'modeling_only' => !!state['modeling_only'],
+          'organization_unit_ids' => listed
+        }.merge((actor || {}).slice('deleted_by', 'deleted_as')))
+      elsif remaining != listed
+        link.data['state']['organization_unit_ids'] = remaining
+        # judged room-made here but kept for other rooms: recorded, so that a later district's
+        # deletion (whose membership may postdate the link) still removes it
+        link.data['origin'] = 'room' if room_made && link.data['origin'].nil?
+        link.save!
+      end
+      true
+    end
+
+    # A relationship counts as scoped to the deleted district when its organization_id is the
+    # district's database id, or the district's global id as Rails cast it into that integer
+    # column ("1_123" -> 1123): SupervisorConsentService#request_access wrote global ids until it
+    # was fixed, and those rows were not migrated (owner decision). Ambiguity left by that cast:
+    # another organization's old row whose cast id happens to equal this district's real id, or
+    # this district's old row whose cast id equals another organization's id, is misread.
+    def consented_outside_org?(supervisor, user, org_id)
+      scope = SupervisorRelationship.approved.where(supervisor_user_id: supervisor.id, communicator_user_id: user.id)
+      if org_id
+        district_ids = [org_id, ActiveModel::Type::Integer.new.cast(Organization.new(id: org_id).global_id)].compact.uniq
+        scope = scope.where('organization_id IS NULL OR organization_id NOT IN (?)', district_ids)
+      end
+      scope.exists?
     end
 
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
@@ -334,17 +496,21 @@ module Supervising
         grant_premium = true
         organization_unit_id = nil
       end
-      org_unit_ids = ((user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id } || {})['organization_unit_ids'] || []
-      org_unit_ids += UserLink.links_for(user).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
+      with_supervision_lock(user) do
+        org_unit_ids = ((user.settings['supervisors'] || []).detect{|s| s['user_id'] == supervisor.global_id } || {})['organization_unit_ids'] || []
+        # read fresh under the lock: links_for caches per copy of the user (keyed on its updated_at)
+        org_unit_ids += UserLink.links_for(user, true).select{|l| l['type'] == 'supervisor' && l['record_code'] == Webhook.get_record_code(supervisor) }.map{|l| l['state'] && l['state']['organization_unit_ids'] }.compact.flatten
 
-      link = UserLink.generate(user, supervisor, 'supervisor')
-      link.data['state']['edit_permission'] = true if type == 'edit'
-      link.data['state']['modeling_only'] = true if type == 'modeling_only'
-      link.data['state']['supervisee_user_name'] = user.user_name
-      link.data['state']['supervisor_user_name'] = supervisor.user_name
-      link.data['state']['organization_unit_ids'] = ((org_unit_ids || []) + ([organization_unit_id].compact)).uniq
-      link.secondary_user_id = supervisor.id
-      link.save!
+        link = UserLink.generate(user, supervisor, 'supervisor')
+        link.data['origin'] = supervision_link_origin(link, org_unit_ids, organization_unit_id)
+        link.data['state']['edit_permission'] = true if type == 'edit'
+        link.data['state']['modeling_only'] = true if type == 'modeling_only'
+        link.data['state']['supervisee_user_name'] = user.user_name
+        link.data['state']['supervisor_user_name'] = supervisor.user_name
+        link.data['state']['organization_unit_ids'] = ((org_unit_ids || []) + ([organization_unit_id].compact)).uniq
+        link.secondary_user_id = supervisor.id
+        link.save!
+      end
 
       ApplicationRecord.using(:master) do
         supervisor.reload

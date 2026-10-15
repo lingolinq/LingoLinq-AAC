@@ -604,6 +604,245 @@ describe Flusher do
     end
   end
 
+  # The inactivity sweep schedules a deletion and mails "Account Deleted", which tells the family
+  # to log in to recover the account. Using the account (a token or SSO session, not only a
+  # password sign-in) after that must cancel the deletion, before the flush is enqueued and when
+  # the enqueued flush runs. Deletions requested by the user and COPPA declines are not cancelled.
+  describe "deletions the inactivity sweep scheduled" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    def swept_for_deletion(&before_sweep)
+      u = User.create
+      u.settings['subscription'] ||= {}
+      u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+      u.settings['subscription']['last_deletion_attempts'] = 2
+      u.save
+      before_sweep.call(u) if before_sweep
+      # Creating a user queues jobs (track_boards on :slow) that save the user. Run them now, so
+      # they cannot count as use after the sweep: process_queues takes the queues in Redis set
+      # order, which is not fixed.
+      Worker.process_queues
+      User.where(id: u.id).update_all(updated_at: 13.months.ago)
+      allow(SubscriptionMailer).to receive(:deliver_message)
+      User.check_for_subscription_updates
+      expect(User.find(u.id).schedule_deletion_at).not_to eq(nil)
+      u
+    end
+
+    def used_now(u)
+      User.where(id: u.id).update_all(updated_at: Time.now)
+    end
+
+    def run_flush(after_enqueue = nil)
+      travel(37.hours) do
+        Flusher.flush_deleted_users
+        after_enqueue.call if after_enqueue
+        Worker.process_queues
+      end
+    end
+
+    def decline_coppa(u)
+      u.settings['coppa'] = {'pending_parent_consent' => true, 'parent_consent_token' => 'flusher-spec-token'}
+      u.save
+      expect(u.decline_parental_consent!('flusher-spec-token')).to eq(true)
+    end
+
+    def cancellation_events(u)
+      AuditEvent.where(user_key: 'system').to_a.select { |e| e.data['type'] == 'inactivity_deletion_cancelled' && e.data['user_id'] == u.global_id }
+    end
+
+    it "keeps an account used after the sweep scheduled its deletion, and audits the cancellation" do
+      u = swept_for_deletion
+      used_now(u)
+
+      run_flush
+
+      stored = User.find_by(id: u.id)
+      expect(stored).not_to eq(nil)
+      expect(stored.schedule_deletion_at).to eq(nil)
+      expect(stored.settings['subscription']['inactivity_deletion']).to eq(nil)
+      expect(stored.updated_at).to be > 1.hour.ago
+      ev = cancellation_events(u)
+      expect(ev.length).to eq(1)
+      expect(ev[0].data.keys.sort).to eq(['type', 'user_id'])
+    end
+
+    it "does not enqueue a flush for an account used after the sweep scheduled its deletion" do
+      u = swept_for_deletion
+      used_now(u)
+
+      travel(37.hours) { Flusher.flush_deleted_users }
+
+      expect(Worker.scheduled?(Flusher, :flush_user_completely, u.global_id, u.user_name)).to eq(false)
+      expect(User.find(u.id).schedule_deletion_at).to eq(nil)
+      expect(cancellation_events(u).length).to eq(1)
+    end
+
+    it "flushes an account the sweep scheduled when nobody used it" do
+      u = swept_for_deletion
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+      expect(cancellation_events(u)).to eq([])
+    end
+
+    # Signing in issues a token without a password check for SSO (SAML, Google), native app long
+    # tokens and integration refreshes, and a fresh token is then served from the token cache:
+    # issuing the token is the use that must cancel the sweep's deletion.
+    def signed_in_after_sweep(u, settings)
+      token = nil
+      travel(2.hours) do
+        d = Device.create(user: u, developer_key_id: 0, device_key: 'default', settings: settings)
+        d.generate_token!(true)
+        token = d.reload.settings['keys'][-1]['value']
+        expect(Device.check_token(token, nil)[:user]).not_to eq(nil)
+      end
+      travel(2.hours + 30.minutes) { expect(Device.check_token(token, nil)[:user]).not_to eq(nil) }
+    end
+
+    it "keeps an account signed in by SSO after the sweep scheduled its deletion" do
+      u = swept_for_deletion
+      signed_in_after_sweep(u, {'browser' => true})
+
+      run_flush
+
+      stored = User.find_by(id: u.id)
+      expect(stored).not_to eq(nil)
+      expect(stored.schedule_deletion_at).to eq(nil)
+      expect(cancellation_events(u).length).to eq(1)
+    end
+
+    it "keeps an account signed in by the native app with a long token after the sweep scheduled its deletion" do
+      u = swept_for_deletion
+      signed_in_after_sweep(u, {'app' => true})
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).not_to eq(nil)
+    end
+
+    it "keeps an account whose integration refreshed its token after the sweep scheduled its deletion" do
+      access = refresh = device = nil
+      u = swept_for_deletion do |user|
+        device = Device.create(user: user, developer_key_id: 1)
+        access, refresh = device.tokens
+      end
+      travel(2.hours) do
+        new_access, _ = Device.find(device.id).generate_from_refresh_token!(access, refresh)
+        expect(new_access).not_to eq(nil)
+      end
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).not_to eq(nil)
+    end
+
+    it "keeps an account whose app uses a token issued before the sweep scheduled its deletion" do
+      token = nil
+      u = swept_for_deletion do |user|
+        d = Device.create(user: user, developer_key_id: 0, device_key: 'default', settings: {'app' => true})
+        d.generate_token!(true)
+        token = d.reload.settings['keys'][-1]['value']
+      end
+      # the token was last used long ago and is not in the token cache
+      travel(2.hours) { expect(Device.check_token(token, nil)[:user]).not_to eq(nil) }
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).not_to eq(nil)
+    end
+
+    it "still flushes a deletion the user requested, after an SSO sign-in" do
+      u = User.create
+      u.schedule_deletion_at = 36.hours.from_now
+      u.save
+      User.where(id: u.id).update_all(updated_at: 2.days.ago)
+      signed_in_after_sweep(u, {'browser' => true})
+      expect(User.find(u.id).updated_at).to be > 1.day.ago
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+    end
+
+    it "still flushes a COPPA decline that kept the sweep's schedule, after an SSO sign-in" do
+      u = swept_for_deletion
+      decline_coppa(User.find(u.id))
+      signed_in_after_sweep(u, {'browser' => true})
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+    end
+
+    it "keeps an account used after its flush was enqueued" do
+      u = swept_for_deletion
+
+      run_flush(-> { used_now(u) })
+
+      stored = User.find_by(id: u.id)
+      expect(stored).not_to eq(nil)
+      expect(stored.schedule_deletion_at).to eq(nil)
+      expect(cancellation_events(u).length).to eq(1)
+    end
+
+    it "keeps an account whose sweep schedule was cleared after its flush was enqueued" do
+      u = swept_for_deletion
+
+      # a password sign-in clears schedule_deletion_at (Passwords#valid_password?)
+      run_flush(-> { User.where(id: u.id).update_all(schedule_deletion_at: nil) })
+
+      expect(User.find_by(id: u.id)).not_to eq(nil)
+    end
+
+    it "still flushes a deletion the user requested, after token use" do
+      u = User.create
+      u.schedule_deletion_at = 36.hours.from_now
+      u.save
+      used_now(u)
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+    end
+
+    it "still flushes a deletion the user requested after the sweep scheduled one, after token use" do
+      u = swept_for_deletion
+      requested = User.find(u.id)
+      requested.schedule_deletion_at = 36.hours.from_now
+      requested.save
+      used_now(u)
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+    end
+
+    it "still flushes a COPPA decline, after token use" do
+      u = User.create
+      decline_coppa(u)
+      expect(User.find(u.id).schedule_deletion_at).not_to eq(nil)
+      used_now(u)
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+    end
+
+    it "still flushes a COPPA decline that kept the sweep's schedule, after token use" do
+      u = swept_for_deletion
+      scheduled = User.find(u.id).schedule_deletion_at
+      decline_coppa(User.find(u.id))
+      expect(User.find(u.id).schedule_deletion_at).to be_within(1.second).of(scheduled)
+      used_now(u)
+
+      run_flush
+
+      expect(User.find_by(id: u.id)).to eq(nil)
+    end
+  end
+
   describe "flush_leftovers" do
     it "should not error when there is nothing to flush" do
       expect { Flusher.flush_leftovers }.to_not raise_error

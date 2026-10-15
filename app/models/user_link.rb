@@ -16,12 +16,22 @@ class UserLink < ApplicationRecord
     self.data ||= {}
   end
   
+  # Links that bring an organization's home boards into the user's shared-board list
+  # (sharing.rb all_shared_board_ids_for, Organization.attached_orgs).
+  ORG_BOARD_LINK_TYPES = ['org_user', 'org_manager', 'org_supervisor']
+
   def touch_connections
     simple_hash = {updated_at: Time.now}
     board_hash = {updated_at: Time.now, boards_updated_at:  Time.now, sync_stamp: Time.now}
     board_share = self.data['type'] == 'board_share'
+    # boards_updated_at is the stamp the cached shared-board list is checked against
+    # (sharing.rb boards_updated_stamp), so an org link change must move it or the list keeps a
+    # former org's home boards. sync_stamp is left alone: update_available_boards bumps it when
+    # the user's access actually changes (board_caching.rb save_with_sync).
+    user_hash = board_share ? board_hash : simple_hash
+    user_hash = simple_hash.merge(boards_updated_at: Time.now) if ORG_BOARD_LINK_TYPES.include?(self.data['type'])
     # TODO: sharding
-    User.where(id: [self.user_id, self.secondary_user_id].compact).update_all(board_share ? board_hash : simple_hash)
+    User.where(id: [self.user_id, self.secondary_user_id].compact).update_all(user_hash)
     r = self.record
     if r
       # TODO: sharding

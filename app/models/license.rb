@@ -47,6 +47,7 @@ class License < ApplicationRecord
       old_org = license.organization
       license.update!(status: 'expired')
       if license.user_id
+        # a revocation: its refresh stays on the default queue (release_user!), even in bulk
         license.release_user!
         # Not a hand-back to the family while ANOTHER organization still holds an active seat
         # for this student: skip offboarding entirely and leave school_authorization as it is.
@@ -116,6 +117,10 @@ class License < ApplicationRecord
 
     if locked_user
       locked_user.with_lock { perform_release!(locked_user, self.organization) }
+      # perform_release! removes the org_user link that gave the student this district's home
+      # boards (organization.rb attached_orgs), so view access must be recomputed. Enqueued after
+      # commit with a RemoteAction fallback (supervising.rb schedule_board_cache_refresh).
+      User.schedule_board_cache_refresh(locked_user, true)
     else
       License.transaction { perform_release!(nil, self.organization) }
     end

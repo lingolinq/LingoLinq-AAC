@@ -167,14 +167,14 @@ export default Route.extend({
         var force_fetch = !_this.appState.get('speak_mode');
         if(_this.persistence && _this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
         _this.set('load_state', {remote_reload: true});
-        reload = model.reload(force_fetch).then(null, function(err) {
+        reload = _this.remote_reload(model, force_fetch).then(null, function(err) {
           _this.set('load_state', {remote_reload_local_reload: true});
           if(!force_fetch && controller.get('has_rendered_material')) {
             // If you think you're online but you're not really,
             // then it'll barf on a failed lookup
             return RSVP.resolve(model)
           } else {
-            return model.reload(false);
+            return _this.local_reload_unless_denied(model, err);
           }
         });
         // if we're offline, then we should only reload if we absolutely have to (i.e. ordered_buttons isn't set)
@@ -281,9 +281,19 @@ export default Route.extend({
       this.appState.set('currentBoardState', null);
     },
   },
+  // The online reload and its fallback to the local copy, shared with the Basic
+  // view (utils/board_revocation.js#reload_from_server, #local_copy_unless_denied).
+  remote_reload: function(model, force_fetch) {
+    return boardRevocation.reload_from_server(model, force_fetch);
+  },
+  local_reload_unless_denied: function(model, err) {
+    return boardRevocation.local_copy_unless_denied(model, err, this.appState);
+  },
   resetController: function(controller, isExiting) {
     if (isExiting && editManager.controller === controller) {
       editManager.controller = null;
     }
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../../utils/board_revocation';

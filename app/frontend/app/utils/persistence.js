@@ -491,7 +491,7 @@ var persistence = EmberObject.extend({
         var find_local = lingoLinqExtras.storage.find_all(store, board_ids).then(function(list) {
           var res = [];
           list.forEach(function(item) {
-            if(item.data && item.data.id) {
+            if(item.data && item.data.id && !boardRevocation.is_revoked_raw(item.data.raw)) {
               // Only push to the memory cache if it's not already in
               // there, otherwise it might get overwritten if there
               // is a pending persistence.
@@ -568,7 +568,7 @@ var persistence = EmberObject.extend({
       return board_ids;
     });
 
-    var get_boards = get_board_ids.then(function(ids) {
+    var get_boards = get_board_ids.then(boardRevocation.without_revoked).then(function(ids) {
       var promises = [];
       var boards = [];
       var loaded_boards = LingoLinq.store.peekAll('board');
@@ -2406,7 +2406,7 @@ var persistence = EmberObject.extend({
           if(safeGet(getPersistence(), 'sync_progress.last_sync_stamp')) {
             safeSet(getPersistence(), 'last_sync_stamp', safeGet(getPersistence(), 'sync_progress.last_sync_stamp'));
           }
-          var errors = safeGet(getPersistence(), 'sync_progress.errors') || [];
+          var errors = safeGet(getPersistence(), 'sync_progress.errors') || []; boardRevocation.finish_sync(getPersistence(), user_id, errors);
           errors.forEach(function(error) {
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
@@ -2647,7 +2647,7 @@ var persistence = EmberObject.extend({
         });
         var complete = sync_supervisee.then(null, function(err) {
           console.log(err);
-          console.error("supervisee sync failed");
+          console.error("supervisee sync failed"); boardRevocation.note_failure(getPersistence());
           modal.warning(i18n.t('supervisee_sync_failed', "Couldn't sync boards for supervisee \"" + supervisee.user_name + "\""));
           return RSVP.resolve({});
         });
@@ -2925,7 +2925,7 @@ var persistence = EmberObject.extend({
     var allow_any_cached = false;
     var get_remote_revisions = RSVP.resolve({});
     if(user) {
-      get_remote_revisions = persistence.ajax('/api/v1/users/' + user.get('id') + '/board_revisions', {type: 'GET'}).then(function(res) {
+      get_remote_revisions = boardRevocation.fetch_revisions(getPersistence(), user, function(opts) { return persistence.ajax('/api/v1/users/' + user.get('id') + '/board_revisions', opts); }).then(function(res) {
         fresh_revisions = res;
         // Check for any missing or out-of-date boards here
         // instead of at request time, and make a batch request
@@ -3165,7 +3165,7 @@ var persistence = EmberObject.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; })) {
+          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(getPersistence(), user.get('id'), next)) {
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -4673,3 +4673,5 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
 };
 
 export default persistenceProxy;
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from './board_revocation';

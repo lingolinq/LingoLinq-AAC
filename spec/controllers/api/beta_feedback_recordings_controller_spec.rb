@@ -38,6 +38,19 @@ describe Api::BetaFeedbackRecordingsController, type: :controller do
     end
   end
 
+  describe 'create without S3 configured' do
+    # the client falls back to the server upload endpoint, which stores the file locally when S3
+    # fails (upload action below), but only once create has handed it remote_upload
+    it 'should still answer with upload parameters so the client can fall back to the server upload' do
+      allow(Uploader).to receive(:client_uploads_configured?).and_return(false)
+      post :create, params: {beta_feedback_recording: {content_type: 'video/webm', byte_size: 1000, consent_accepted: true}}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['beta_feedback_recording']['remote_upload']).to be_present
+      expect(json['beta_feedback_recording']['upload_url']).to be_present
+    end
+  end
+
   describe 'confirm' do
     it 'should confirm an uploaded recording' do
       rec = BetaFeedbackRecording.create!(

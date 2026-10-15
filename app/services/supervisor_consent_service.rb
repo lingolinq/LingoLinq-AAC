@@ -1,6 +1,10 @@
 class SupervisorConsentService
   GENERIC_LOOKUP_MESSAGE = "If an account matching that information exists, an email has been sent.".freeze
 
+  # The global id of the organization stored on the last request_access relationship (nil when
+  # none was stored or no relationship was made), for the caller's audit record.
+  attr_reader :requested_organization_id
+
   def create_with_supervisor(supervisor:, communicator_params:, owner_email:, permission_level: 'edit_boards')
     communicator = User.process_new(communicator_params)
     return { error: 'communicator_creation_failed', communicator: communicator } if communicator.errored?
@@ -25,9 +29,18 @@ class SupervisorConsentService
     { relationship: relationship, communicator: communicator }
   end
 
+  # organization_id is an integer column, while callers and attached_orgs supply global ids
+  # ("1_123"); Rails cast those to 1123, a different (or no) organization. Store the database id.
+  def relationship_organization_id(org_global_id)
+    return nil if org_global_id.blank?
+    Organization.find_by_global_id(org_global_id.to_s)&.id
+  end
+
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
-    # F1: Anti-timing side-channel.
-    if lookup_key.blank?
+    @requested_organization_id = nil
+    # F1: Anti-timing side-channel. An unknown permission level is answered before the lookup,
+    # the same way for every account (it would otherwise fail only once an account was found).
+    if lookup_key.blank? || !SupervisorRelationship::PERMISSION_LEVELS.include?(permission_level.to_s)
       ::BCrypt::Password.create(SecureRandom.hex) rescue nil
       return { message: GENERIC_LOOKUP_MESSAGE }
     end
@@ -57,6 +70,7 @@ class SupervisorConsentService
       ).first
 
       unless existing
+        sup_staff_orgs = Organization.staff_org_ids(supervisor)
         relationship = SupervisorRelationship.new(
           supervisor_user: supervisor,
           communicator_user: communicator,
@@ -65,7 +79,9 @@ class SupervisorConsentService
           initiated_by: 'supervisor',
           creation_method: 'request_access',
           lookup_method: lookup_key.include?('@') ? 'email' : 'username',
-          organization_id: organization_id || (comm_orgs & sup_orgs).first
+          # A supplied organization is used only when it is one of the supervisor's own: one they
+          # belong to as an approved supervisor or manager (Organization.staff_org_ids).
+          organization_id: relationship_organization_id((sup_staff_orgs.include?(organization_id.to_s) ? organization_id.to_s : nil) || (comm_orgs & sup_staff_orgs).first)
         )
 
         # F10: COPPA - Route to parent/guardian if under 13
@@ -82,6 +98,7 @@ class SupervisorConsentService
         
         relationship.consent_email_sent_to = target_email
         relationship.save!
+        @requested_organization_id = relationship.organization_id && Organization.new(id: relationship.organization_id).global_id
         relationship.generate_consent_token!
         
         SupervisorMailer.schedule_delivery(:consent_request, relationship.global_id)
@@ -311,6 +328,19 @@ class SupervisorConsentService
   # Runs inside the caller's lock and transaction. Mail is NOT scheduled here;
   # see schedule_after_commit.
   def finalize_approve(relationship)
+    # A request made on behalf of an organization is approved only while the supervisor still
+    # belongs to it as an approved supervisor or manager; otherwise it closes, with the reason
+    # recorded, and nothing is linked (the caller gets the generic token error).
+    if relationship.organization_id && !supervisor_still_in_organization?(relationship)
+      relationship.update!(
+        status: 'expired',
+        consent_responded_at: Time.current,
+        consent_response_token: nil,
+        revocation_reason: 'supervisor_not_in_organization'
+      )
+      return token_rejection(relationship)
+    end
+
     relationship.update!(
       status: 'approved',
       consent_responded_at: Time.current,
@@ -322,6 +352,12 @@ class SupervisorConsentService
     User.link_supervisor_to_user(relationship.supervisor_user, relationship.communicator_user, nil, link_type)
 
     { relationship: relationship }
+  end
+
+  def supervisor_still_in_organization?(relationship)
+    org = Organization.find_by(id: relationship.organization_id)
+    supervisor = relationship.supervisor_user
+    !!(org && supervisor && Organization.staff_org_ids(supervisor).include?(org.global_id))
   end
 
   def finalize_deny(relationship)

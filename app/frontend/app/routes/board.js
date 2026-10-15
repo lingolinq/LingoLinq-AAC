@@ -162,7 +162,7 @@ export default Route.extend({
               }
             }, 100);
           }
-          return RSVP.resolve(data);
+          return _this.revoked_or(data, params.key);
         }
         var obj = _this.store.findRecord('board', lookupKey);
         return obj.then(function(data) {
@@ -184,7 +184,7 @@ export default Route.extend({
               }, 100);
             }
           }
-          return RSVP.resolve(data);
+          return _this.revoked_or(data, params.key);
         }, function(err) {
           var error = err;
           if(err && err.errors) {
@@ -212,6 +212,24 @@ export default Route.extend({
     var key = model && (typeof model.get === 'function' ? model.get('key') : model.key);
     return key != null ? { key: key } : {};
   },
+  // A board whose offline copy is marked as no longer viewable by any synced
+  // user (utils/board_revocation.js) renders as the standard unavailable-board
+  // panel in templates/board.hbs instead of the stale copy.
+  // Resolves with the board, or with the unavailable-board record when its
+  // offline copy is marked and blocks_view_route says to block it (offline only,
+  // never before the session user loads or while acting as another user).
+  revoked_or: function(data, key) {
+    var _this = this;
+    var owner = getOwner(this);
+    var persistence = owner && owner.lookup('service:persistence');
+    var online = !!(persistence && persistence.get('online'));
+    return boardRevocation.blocks_view_route(data, this.appState, online).then(function(blocked) {
+      return blocked ? _this.revoked_record(key) : data;
+    });
+  },
+  revoked_record: function(key) {
+    return boardRevocation.unavailable_record(this, key);
+  },
   actions: {
     re_transition: function() {
       if(this.get('error_record')) {
@@ -221,3 +239,6 @@ export default Route.extend({
     },
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../utils/board_revocation';
+import { getOwner } from '@ember/application';

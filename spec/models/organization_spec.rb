@@ -163,6 +163,45 @@ describe Organization, :type => :model do
       expect(u1.settings['subscription']['subscription_id']).to eq(nil)
     end
 
+    # A supervisor sees the org's private home boards only once approved (organization.rb:1392,
+    # attached_orgs), so approving and rejecting both change view access and must refresh it.
+    describe "supervisor approval and the org's private home boards" do
+      def org_with_private_home_board
+        manager = User.create
+        board = Board.create(:user => manager)
+        o = Organization.create
+        o.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+        o.save
+        [o, board]
+      end
+
+      it "grants view access after approving a pending supervisor" do
+        o, board = org_with_private_home_board
+        u1 = User.create
+        o.add_supervisor(u1.user_name, true)
+        Worker.process_queues
+        expect(User.find(u1.id).private_viewable_board_ids).not_to include(board.global_id)
+
+        o.approve_supervisor(User.find(u1.id))
+        Worker.process_queues
+
+        expect(User.find(u1.id).private_viewable_board_ids).to include(board.global_id)
+      end
+
+      it "removes view access after rejecting a supervisor" do
+        o, board = org_with_private_home_board
+        u1 = User.create
+        o.add_supervisor(u1.user_name, false)
+        Worker.process_queues
+        expect(User.find(u1.id).private_viewable_board_ids).to include(board.global_id)
+
+        o.reject_supervisor(User.find(u1.id))
+        Worker.process_queues
+
+        expect(User.find(u1.id).private_viewable_board_ids).not_to include(board.global_id)
+      end
+    end
+
     it "should error adding a null user as a supervisor" do
       o = Organization.create
       u = User.create
@@ -290,6 +329,31 @@ describe Organization, :type => :model do
   end
   
   describe "user types" do
+    # A destroyed organization keeps its membership links; the class-level checks (billing and
+    # role) count only organizations that still exist.
+    it "should not count memberships of a destroyed organization" do
+      o = Organization.create(:settings => {'total_licenses' => 2, 'total_supervisor_licenses' => 2})
+      live = Organization.create(:settings => {'total_licenses' => 2, 'total_supervisor_licenses' => 2})
+      u = User.create
+      s = User.create
+      m = User.create
+      u2 = User.create
+      s2 = User.create
+      m2 = User.create
+      o.add_user(u.user_name, false, true)
+      o.add_supervisor(s.user_name, false, true)
+      o.add_manager(m.user_name, true)
+      live.add_user(u2.user_name, false, true)
+      live.add_supervisor(s2.user_name, false, true)
+      live.add_manager(m2.user_name, true)
+      expect([Organization.sponsored?(User.find(u.id)), Organization.managed?(User.find(u.id)), Organization.supervisor?(User.find(s.id)), Organization.supervisor?(User.find(s.id), true), Organization.manager?(User.find(m.id))]).to eq([true, true, true, true, true])
+
+      o.reload.destroy
+
+      expect([Organization.sponsored?(User.find(u.id)), Organization.managed?(User.find(u.id)), Organization.supervisor?(User.find(s.id)), Organization.supervisor?(User.find(s.id), true), Organization.manager?(User.find(m.id))]).to eq([false, false, false, false, false])
+      expect([Organization.sponsored?(User.find(u2.id)), Organization.managed?(User.find(u2.id)), Organization.supervisor?(User.find(s2.id)), Organization.supervisor?(User.find(s2.id), true), Organization.manager?(User.find(m2.id))]).to eq([true, true, true, true, true])
+    end
+
     it "should correctly identify sponsored_user?" do
       o = Organization.create(:settings => {:total_licenses => 1})
       u = User.create
@@ -536,7 +600,7 @@ describe Organization, :type => :model do
       
       Worker.process_queues
       Worker.process_queues
-      expect(u1.reload.supervisor_user_ids.sort).to eq([u1.global_id, u2.global_id])
+      expect(u1.reload.supervisor_user_ids).to match_array([u1.global_id, u2.global_id])
       expect(u1.reload.supervised_user_ids).to eq([u1.global_id])
       expect(u2.reload.supervisor_user_ids).to eq([])
       expect(u2.reload.supervised_user_ids).to eq([u1.global_id])
@@ -824,6 +888,47 @@ describe Organization, :type => :model do
       expect(Organization.manager_for?(u1, u3)).to eq(true)
       expect(Organization.manager_for?(u1, u4)).to eq(true)
     end
+
+    # A destroyed organization keeps its membership links (no dependent: option), so the links
+    # alone must not make anyone a manager over its former members.
+    it "should return false once the organization is destroyed" do
+      o = Organization.create(:settings => {'total_licenses' => 1})
+      o2 = Organization.create(:settings => {'total_licenses' => 1})
+      u = User.create
+      m = User.create
+      u2 = User.create
+      m2 = User.create
+      o.add_user(u.user_name, false)
+      o.add_manager(m.user_name, true)
+      o2.add_user(u2.user_name, false)
+      o2.add_manager(m2.user_name, true)
+      expect(User.find(u.id).allows?(User.find(m.id), 'supervise')).to eq(true)
+      expect(User.find(u.id).allows?(User.find(m.id), 'edit_boards')).to eq(true)
+
+      o.reload.destroy
+
+      expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(false)
+      expect(User.find(m.id).supervisor_for?(User.find(u.id))).to eq(false)
+      ['supervise', 'edit_boards', 'manage_supervision'].each do |permission|
+        expect(User.find(u.id).allows?(User.find(m.id), permission)).to eq(false)
+      end
+      expect(Organization.manager_for?(User.find(m2.id), User.find(u2.id))).to eq(true)
+      expect(User.find(u2.id).allows?(User.find(m2.id), 'supervise')).to eq(true)
+    end
+
+    it "should return false for a manager of a destroyed parent organization" do
+      o1 = Organization.create(settings: {'total_licenses' => 1})
+      o2 = Organization.create(settings: {'total_licenses' => 1}, parent_organization_id: o1.id)
+      m = User.create
+      u = User.create
+      o1.add_manager(m.user_name, true)
+      o2.add_user(u.user_name, false)
+      expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(true)
+
+      o1.reload.destroy
+
+      expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(false)
+    end
   end
   
   describe "permissions cache" do
@@ -1088,6 +1193,692 @@ describe Organization, :type => :model do
       o.add_supervisor(u.user_name, false)
       o.process({:home_board_key => b.key}, {updater: u})
       expect(o.settings['default_home_boards']).to eq([{'key' => b.key, 'id' => b.global_id}])
+    end
+
+    # Members see a private home board through the shared-board list cached on each member, whose
+    # stamp a change to the org's settings does not move (sharing.rb all_shared_board_ids_for).
+    it "drops members' access to a private home board after one refresh once it is removed" do
+      u = User.create
+      b = Board.create(user: u)
+      m = User.create
+      o = Organization.create
+      o.add_manager(u.user_name, true)
+      o.add_user(m.user_name, false, false)
+      o.reload.process({:home_board_keys => [b.key]}, {updater: u})
+      Worker.process_queues
+      RemoteAction.process_all
+      Worker.process_queues
+      expect(User.find(m.id).private_viewable_board_ids).to include(b.global_id)
+      expect(Board.all_shared_board_ids_for(User.find(m.id))).to include(b.global_id)
+
+      o.reload.process({:home_board_keys => []}, {updater: u})
+      expect(o.settings['default_home_boards']).to eq(nil)
+      Worker.process_queues
+      expect(RemoteAction.where(path: m.global_id, action: 'update_available_boards').count).to eq(1)
+      RemoteAction.process_all
+      Worker.process_queues
+
+      expect(User.find(m.id).private_viewable_board_ids).not_to include(b.global_id)
+    end
+
+    # Destroying an org leaves its user_links in place (no dependent: option, organization.rb:11)
+    # and attached_orgs skips the missing org, so only a refresh drops its home boards.
+    it "drops members' access to its private home board after the organization is destroyed" do
+      u = User.create
+      b = Board.create(user: u)
+      m = User.create
+      o = Organization.create
+      o.settings['default_home_boards'] = [{'id' => b.global_id, 'key' => b.key}]
+      o.save
+      o.add_user(m.user_name, false, false)
+      Worker.process_queues
+      expect(User.find(m.id).private_viewable_board_ids).to include(b.global_id)
+
+      o.reload.destroy
+      Worker.process_queues
+
+      expect(User.find(m.id).private_viewable_board_ids).not_to include(b.global_id)
+    end
+
+    # The destroy itself only records the refreshes (one outbox row per member) and queues one
+    # slow job; the per-member work happens in that job, never inside the destroy.
+    it "queues one cleanup job instead of a refresh per member when the organization is destroyed" do
+      o = Organization.create
+      members = 3.times.map { User.create }
+      members.each { |m| o.add_user(m.user_name, false, false) }
+      Worker.process_queues
+      Worker.flush_queues
+
+      o.reload.destroy
+
+      jobs = Worker.scheduled_actions('slow') + Worker.scheduled_actions('default')
+      methods = jobs.map { |j| j['args'][1] == 'perform_action' ? j['args'][2]['method'] : j['args'][1] }
+      expect(methods).to eq(['clean_up_destroyed'])
+      members.each do |m|
+        expect(RemoteAction.where(path: m.global_id, action: 'update_available_boards').where('act_at <= ?', Time.now).count).to eq(1)
+      end
+
+      # these refreshes remove access, so the cleanup and the refreshes it queues use the
+      # default queue, not the slow one (owner decision)
+      expect(Worker.scheduled_actions('slow')).to eq([])
+      job = Worker.scheduled_actions('default')[0]
+      Worker.flush_queues
+      Organization.perform_action(job['args'][2])
+      refreshes = Worker.scheduled_actions('default').select{|j| j['args'][2]['method'] == 'update_available_boards' }
+      expect(refreshes.map{|j| j['args'][2]['id'] }.sort).to eq(members.map(&:id).sort)
+      expect(Worker.scheduled_actions('slow')).to eq([])
+    end
+
+    # A room (organization unit) links each of its supervisors to each of its communicators
+    # (organization_unit.rb assert_supervision). Units and those links outlive the destroy, and the
+    # supervision link alone gives the supervisor the communicator's private boards (board_caching.rb
+    # supervisees), so the cleanup must unlink them.
+    describe "supervision links when the organization is destroyed" do
+      # A room supervisor and a communicator, both in the room; the room links them on its jobs.
+      def room_with_members
+        o = Organization.create
+        ou = OrganizationUnit.create(:organization => o)
+        sup = User.create
+        comm = User.create
+        o.add_supervisor(sup.user_name, false)
+        o.add_user(comm.user_name, false, false)
+        [o, ou, sup, comm]
+      end
+
+      def supervision_link(sup, comm)
+        UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+      end
+
+      # The cleanup job is the only thing that takes rooms off supervision links, so a lost job
+      # must be retried from a durable row, like the refresh outbox (supervising.rb).
+      it "retries the room cleanup from its outbox row when the job is lost" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        o.reload.destroy
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+        Worker.flush_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org').count).to eq(0)
+      end
+
+      # The hourly batch (Uploader.remote_remove_batch) deletes each row it processes, so the
+      # cleanup row has to outlive a processing whose job is then lost, until the job finishes.
+      it "keeps the cleanup row through the hourly batch until the cleanup job completes" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        o.reload.destroy
+        Worker.flush_queues
+        row = RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s)
+        row.update_all(act_at: 1.minute.ago)
+
+        Uploader.remote_remove_batch
+        expect(row.count).to eq(1)
+        Worker.flush_queues
+        row.update_all(act_at: 1.minute.ago)
+        Uploader.remote_remove_batch
+        expect(row.count).to eq(1)
+        Worker.process_queues
+
+        expect(row.count).to eq(0)
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      it "does not link room members from a queued room job once the organization is gone" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.flush_queues
+        o.reload.destroy
+        Worker.flush_queues
+        RemoteAction.delete_all
+
+        OrganizationUnit.find(ou.id).assert_supervision('user_id' => comm.global_id, 'add_communicator' => comm.user_name)
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # A member taken out of a room leaves the room's links at once, and the job that unlinks the
+      # pair runs later; when the organization is destroyed in between, the cleanup (which reads
+      # the rooms' current members) no longer sees the pair, so the queued job must remove it.
+      it "removes the room supervision of a supervisor taken out of a room just before the organization is destroyed" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name, true)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(User.find(sup.id).supervisor_for?(User.find(comm.id))).to eq(false)
+      end
+
+      it "removes the room supervision of a communicator taken out of a room just before the organization is destroyed" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+
+        OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(User.find(sup.id).supervisor_for?(User.find(comm.id))).to eq(false)
+      end
+
+      it "keeps a direct link, without the room, for a member taken out of a room just before the organization is destroyed" do
+        o, ou, sup, comm = room_with_members
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id])
+
+        OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+        expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      end
+
+      it "keeps a link that existed directly before the room added it, without the room" do
+        o, ou, sup, comm = room_with_members
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id])
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+        expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      end
+
+      # Links made before origins were recorded have origin nil. Owner decision: such a link that
+      # lists the destroyed district's rooms was made by those rooms when its supervisor was
+      # district staff (room supervisors must be org supervisors, organization_unit.rb
+      # add_supervisor) and the link is not older than that membership; it is removed. Otherwise
+      # (never staff, or the link predates the membership) it is kept without the rooms.
+      def legacy_link!(sup, comm)
+        legacy = supervision_link(sup, comm)
+        legacy.data.delete('origin')
+        legacy.save!
+        legacy
+      end
+
+      it "removes a legacy room-made link of district staff, and the boards it gave" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        b = Board.create(:user => User.find(comm.id))
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        User.find(comm.id).update_available_boards
+        User.find(sup.id).update_available_boards
+        expect(User.find(sup.id).private_viewable_board_ids).to include(b.global_id)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)
+      end
+
+      # A legacy link judged room-made by one district but kept because another district's room
+      # still lists it is recorded as room-made, so the second district's deletion removes it
+      # (that district's membership alone postdates the link).
+      it "removes a legacy room-made link once both districts listing it are destroyed" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        link = legacy_link!(sup, comm)
+        UserLink.where(id: link.id).update_all(created_at: 2.hours.ago)
+        UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o)).update_all(created_at: 3.hours.ago)
+        o2 = Organization.create
+        ou2 = OrganizationUnit.create(:organization => o2)
+        o2.add_supervisor(sup.user_name, false)
+        o2.add_user(comm.user_name, false, false)
+        ou2.add_supervisor(sup.user_name)
+        ou2.add_communicator(comm.user_name)
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['origin']).to eq(nil)
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id, ou2.global_id])
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+        expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou2.global_id])
+        expect(supervision_link(sup, comm).data['origin']).to eq('room')
+
+        o2.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # The membership links are not removed by the destroy (no dependent: option), so the job can
+      # still read them when the captured copy on the cleanup row is missing.
+      it "reads the district staff from the membership links when the cleanup row has no copy" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+
+        o.reload.destroy
+        RemoteAction.where(action: 'clean_up_destroyed_org').update_all(extra: nil)
+        expect(UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o)).map{|l| l.data['type'] }).to include('org_supervisor')
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # Family-consented access (SupervisorRelationship approved through the consent flow) is not
+      # the district's to remove: a district-staff parent keeps a consented link.
+      # Each removal is recorded (ids and permission flags only) so a wrongful one can be found and
+      # restored.
+      it "records an audit event without personal data for each supervision link it removes" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name, true)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        link_id = supervision_link(sup, comm).id
+        before = AuditEvent.pluck(:id)
+        admin = User.create
+        prior = PaperTrail.request.whodunnit
+        begin
+          # as the organizations controller sets it for the request that deletes the district
+          PaperTrail.request.whodunnit = "user:#{admin.global_id}.organizations.destroy"
+          o.reload.destroy
+        ensure
+          PaperTrail.request.whodunnit = prior
+        end
+        Worker.process_queues
+        Worker.process_queues
+
+        events = AuditEvent.where.not(id: before).select{|e| e.data['type'] == 'supervision_link_removed' }
+        expect(events.length).to eq(1)
+        data = events[0].data
+        expect(events[0].user_key).to eq('system')
+        expect(data).to eq({
+          'type' => 'supervision_link_removed',
+          'reason' => 'organization_deleted',
+          'organization_id' => o.global_id,
+          'supervisor_id' => sup.global_id,
+          'supervisee_id' => comm.global_id,
+          'user_link_id' => link_id,
+          'origin' => 'room',
+          'edit_permission' => true,
+          'modeling_only' => false,
+          'organization_unit_ids' => [ou.global_id],
+          'deleted_by' => admin.global_id
+        })
+        text = data.to_json
+        [sup, comm].each do |u|
+          expect(text).not_to include(u.user_name)
+          expect(text).not_to include(u.settings['email'].to_s) if u.settings['email'].present?
+        end
+      end
+
+      it "records no removal when the unlink fails" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        before = AuditEvent.pluck(:id)
+        o.reload.destroy
+        allow(User).to receive(:unlink_supervisor_from_user).and_raise(ActiveRecord::StatementInvalid.new('unlink failed'))
+
+        expect { Organization.clean_up_destroyed(o.id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(AuditEvent.where.not(id: before).select{|e| e.data['type'] == 'supervision_link_removed' }).to eq([])
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+      end
+
+      # The removal and its record are one transaction: a removal whose audit insert failed was
+      # committed with no record, and the cleanup row was deleted, so nothing retried it.
+      it "keeps the link and the cleanup row when the removal's audit event cannot be written" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        o.reload.destroy
+        Worker.flush_queues
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+        allow(Rails.logger).to receive(:error)
+        allow_any_instance_of(AuditEvent).to receive(:save!).and_raise(ActiveRecord::StatementInvalid.new('audit insert failed'))
+
+        expect { Organization.clean_up_destroyed(o.id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+      end
+
+      # One pair that cannot be stripped must not hold back the others: they are stripped, the
+      # failure is logged by ids, and the row (and the rooms' links) stay for the retry.
+      it "strips the other pairs when one pair fails, and keeps the cleanup row" do
+        o, ou, sup, comm = room_with_members
+        sup2 = User.create
+        o.add_supervisor(sup2.user_name, false)
+        ou.add_supervisor(sup.user_name)
+        ou.add_supervisor(sup2.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        o.reload.destroy
+        Worker.flush_queues
+        logged = []
+        allow(Rails.logger).to receive(:error){|msg| logged << msg }
+        allow(User).to receive(:strip_rooms_from_supervision).and_wrap_original do |orig, s, *args, **kw|
+          raise ActiveRecord::StatementInvalid.new('strip failed') if s.id == sup.id
+          orig.call(s, *args, **kw)
+        end
+
+        expect { Organization.clean_up_destroyed(o.id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+        expect(supervision_link(sup2, comm)).to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(1)
+        expect(UserLink.where(record_code: Webhook.get_record_code(ou)).count).to eq(3)
+        expect(logged.join("\n")).to include(sup.global_id)
+        expect(logged.join("\n")).not_to include(sup.user_name)
+
+        allow(User).to receive(:strip_rooms_from_supervision).and_call_original
+        Organization.clean_up_destroyed(o.id)
+        expect(supervision_link(sup, comm)).to eq(nil)
+        expect(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).count).to eq(0)
+      end
+
+      # Consents are created through the real flow (SupervisorConsentService#request_access), then
+      # marked approved without re-linking, as consents approved before origins were recorded are.
+      def consent_through_request_access(sup, comm, organization_id: nil)
+        allow(SupervisorMailer).to receive(:schedule_delivery)
+        SupervisorConsentService.new.request_access(supervisor: User.find(sup.id), lookup_key: comm.user_name, organization_id: organization_id)
+        rel = SupervisorRelationship.where(supervisor_user_id: sup.id, communicator_user_id: comm.id).last
+        rel.update_columns(status: 'approved')
+        rel
+      end
+
+      it "keeps a legacy link with an approved consent scoped to another organization, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        other = Organization.create
+        other.add_supervisor(sup.user_name, false)
+        expect(consent_through_request_access(sup, comm, organization_id: other.global_id).organization_id).to eq(other.id)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+
+      it "keeps a legacy link with an approved unscoped consent, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'approved', organization_id: nil)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+      end
+
+      it "still removes a legacy room link when the only approved consent is scoped to the district" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        # request_access scopes it to the organization both users share: this district
+        expect(consent_through_request_access(sup, comm).organization_id).to eq(o.id)
+        SupervisorRelationship.create!(supervisor_user_id: sup.id, communicator_user_id: comm.id, status: 'revoked', organization_id: nil)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # Rows written before the writer fix hold the global id as Rails cast it ("1_123" -> 1123).
+      it "still removes a legacy room link when the district's consent row holds the cast global id" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        rel = consent_through_request_access(sup, comm)
+        rel.update_columns(organization_id: ActiveModel::Type::Integer.new.cast(o.global_id))
+        expect(rel.reload.organization_id).not_to eq(o.id)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # Only a link that lists one of the deleted district's rooms is the district's to remove.
+      it "keeps a legacy link of district staff that lists none of the district's rooms" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy = legacy_link!(sup, comm)
+        legacy.data['state']['organization_unit_ids'] = []
+        legacy.save!
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).not_to eq(nil)
+      end
+
+      def membership_links(sup, o)
+        UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o))
+      end
+
+      def legacy_room_link_of_staff
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        [o, sup, comm, legacy_link!(sup, comm)]
+      end
+
+      def destroy_and_clean_up(o)
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+      end
+
+      # Only the copy captured on the cleanup row at the destroy can decide here.
+      # The capture runs inside the destroy's transaction; it reads only the staff's membership
+      # links (ids from the cached links attached_users already uses), not every student's link.
+      it "captures the staff by reading only their membership links" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        students = 3.times.map { User.create }
+        students.each { |st| o.add_user(st.user_name, false, false) }
+        sql = []
+        record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /FROM "user_links"/ && payload[:sql] =~ /record_code/ }
+        org = o.reload
+        UserLink.links_for(org) # cached, as attached_users finds it; leaves only the capture's own reads
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') { org.destroy }
+
+        expect(sql).not_to be_empty
+        expect(sql.all? { |q| q =~ /"user_links"\."user_id"/ }).to eq(true)
+        captured = JSON.parse(RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s).first.extra)
+        expect(captured['staff'].keys).to eq([sup.id.to_s])
+      end
+
+      it "uses the staff captured at the destroy when the membership links are gone" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        o.reload.destroy
+        membership_links(sup, o).delete_all
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      # A cleanup row written before the actor was recorded holds the staff map alone.
+      it "reads a cleanup row that holds only the staff map" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        o.reload.destroy
+        row = RemoteAction.where(action: 'clean_up_destroyed_org', path: o.id.to_s)
+        row.update_all(extra: JSON.parse(row.first.extra)['staff'].to_json)
+        membership_links(sup, o).delete_all
+        Worker.process_queues
+        Worker.process_queues
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      it "counts a manager-only membership as district staff" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        membership_links(sup, o).delete_all
+        UserLink.generate(User.find(sup.id), o, 'org_manager').save!
+        UserLink.where(id: legacy.id).update_all(created_at: 1.minute.from_now)
+
+        destroy_and_clean_up(o)
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      it "measures from the earliest of two memberships" do
+        o, sup, comm, legacy = legacy_room_link_of_staff
+        UserLink.generate(User.find(sup.id), o, 'org_manager').save!
+        manager = membership_links(sup, o).detect{|l| l.data['type'] == 'org_manager' }
+        supervisor = membership_links(sup, o).detect{|l| l.data['type'] == 'org_supervisor' }
+        UserLink.where(id: manager.id).update_all(created_at: 2.days.ago)
+        UserLink.where(id: legacy.id).update_all(created_at: 36.hours.ago)
+        UserLink.where(id: supervisor.id).update_all(created_at: 1.day.ago)
+
+        destroy_and_clean_up(o)
+
+        expect(supervision_link(sup, comm)).to eq(nil)
+      end
+
+      describe "the 5-second allowance" do
+        def link_made_seconds_before_membership(seconds)
+          o, sup, comm, legacy = legacy_room_link_of_staff
+          membership = membership_links(sup, o).detect{|l| l.data['type'] == 'org_supervisor' }
+          joined = Time.at(1_800_000_000, 250_000, :usec)
+          UserLink.where(id: membership.id).update_all(created_at: joined)
+          UserLink.where(id: legacy.id).update_all(created_at: joined - seconds)
+          destroy_and_clean_up(o)
+          supervision_link(sup, comm)
+        end
+
+        it "treats a link made 5 seconds before the membership as room-made" do
+          expect(link_made_seconds_before_membership(5)).to eq(nil)
+        end
+
+        it "keeps a link made 6 seconds before the membership" do
+          expect(link_made_seconds_before_membership(6)).not_to eq(nil)
+        end
+      end
+
+      it "keeps a legacy link whose supervisor was not district staff at the deletion, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy_link!(sup, comm)
+        # e.g. a parent: no org_supervisor or org_manager link with this district
+        UserLink.remove(User.find(sup.id), o, 'org_supervisor')
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+
+      it "keeps a legacy link made before its supervisor joined the district, without the room" do
+        o, ou, sup, comm = room_with_members
+        ou.add_supervisor(sup.user_name)
+        ou.add_communicator(comm.user_name)
+        Worker.process_queues
+        legacy = legacy_link!(sup, comm)
+        UserLink.where(id: legacy.id).update_all(created_at: 2.days.ago)
+        membership = UserLink.where(user_id: sup.id, record_code: Webhook.get_record_code(o)).detect{|l| l.data['type'] == 'org_supervisor' }
+        UserLink.where(id: membership.id).update_all(created_at: 1.day.ago)
+
+        o.reload.destroy
+        Worker.process_queues
+        Worker.process_queues
+
+        link = supervision_link(sup, comm)
+        expect(link).not_to eq(nil)
+        expect(link.data['state']['organization_unit_ids']).to eq([])
+      end
+    end
+
+    it "removes room supervision, and the boards it gave, when the organization is destroyed" do
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      expect(ou.add_supervisor(sup.user_name)).to eq(true)
+      expect(ou.add_communicator(comm.user_name)).to eq(true)
+      b = Board.create(:user => User.find(comm.id))
+      Worker.process_queues
+      Worker.process_queues
+      User.find(comm.id).update_available_boards
+      User.find(sup.id).update_available_boards
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      expect(User.find(sup.id).private_viewable_board_ids).to include(b.global_id)
+
+      o.reload.destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(User.find(sup.id).private_viewable_board_ids).not_to include(b.global_id)
     end
 
     it "should parse hosting settings" do
@@ -3317,7 +4108,7 @@ describe Organization, :type => :model do
         o.reload
         expect(o.user?(u)).to eq(true)
         u.reload
-        expect(u.supervisor_user_ids.sort).to eq([s1.global_id, s2.global_id])
+        expect(u.supervisor_user_ids).to match_array([s1.global_id, s2.global_id])
       end
 
       it "should update user with start code settings" do
@@ -4325,6 +5116,34 @@ describe Organization, :type => :model do
       expect(depth_during_attach).to eq(baseline)
     end
 
+    # claim_user detects that the attach's own save ran by comparing user.updated_at before and
+    # after update_subscription_organization (attempt_stamp). User#update_settings_locked moves
+    # updated_at on the object it is called on, so a call inside the attach would make a save
+    # that did not run look as if it had.
+    it "runs no settings lock helper inside the attach" do
+      u = User.create
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+      inside = false
+      calls = []
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        inside = true
+        begin
+          orig.call(*args)
+        ensure
+          inside = false
+        end
+      end
+      allow(User).to receive(:update_settings_locked).and_wrap_original do |orig, *args, **opts, &blk|
+        calls << args if inside
+        orig.call(*args, **opts, &blk)
+      end
+
+      org.claim_user(u)
+
+      expect(calls).to eq([])
+    end
+
     it "refuses to report success when the attach did not complete" do
       # update_subscription_organization rescues ActiveRecord::StaleObjectError, saves only the
       # link, reschedules ITSELF and returns normally, so a half-applied attach used to look
@@ -4368,6 +5187,52 @@ describe Organization, :type => :model do
 
       expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
       expect(u.reload.managing_organization_id).to be_nil
+    end
+
+    # A failed attach puts the org_user link back as it was. A refresh that ran while the attach's
+    # link was in place granted this organization's home boards, so the restore must refresh too.
+    describe "restoring the link after a failed attach" do
+      def student_and_org_with_private_home_board
+        u = User.create
+        manager = User.create
+        board = Board.create(:user => manager)
+        org = Organization.create(:settings => {'total_licenses' => 1})
+        org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+        org.save
+        License.create!(organization: org, seat_type: 'student', status: 'active')
+        Worker.process_queues
+        [u, org, board]
+      end
+
+      # Runs the real attach, then a refresh while its link is in place, then `after`.
+      def refresh_during_attach(u, board, &after)
+        allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+          res = orig.call(*args)
+          User.find(u.id).update_available_boards
+          expect(User.find(u.id).private_viewable_board_ids).to include(board.global_id)
+          after ? after.call : res
+        end
+      end
+
+      it "removes the access when the attach raised" do
+        u, org, board = student_and_org_with_private_home_board
+        refresh_during_attach(u, board) { raise "attach failed" }
+
+        expect { org.claim_user(u) }.to raise_error("attach failed")
+        Worker.process_queues
+
+        expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
+      end
+
+      it "schedules a refresh when the attach did not complete" do
+        u, org, board = student_and_org_with_private_home_board
+        allow(u).to receive(:assert_current_record!).and_raise(ActiveRecord::StaleObjectError)
+        refresh_during_attach(u, board)
+
+        expect { org.claim_user(u) }.to raise_error(/did not complete the organization attach/)
+
+        expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').where('act_at <= ?', Time.now).count).to eq(1)
+      end
     end
 
     it "refreshes the student's available boards" do
@@ -4514,6 +5379,32 @@ describe Organization, :type => :model do
 
       code = Webhook.get_record_code(org)
       expect(UserLink.links_for(u.reload, true).detect{|l| l['type'] == 'org_user' && l['record_code'] == code }).to be_nil
+    end
+
+    it "removes view access to the organization's private home board when a lost claim removes the link" do
+      # The student was already attached (unsponsored), so a refresh had granted the org's home
+      # board. The losing claim's cleanup removes that link and must refresh view access.
+      u = User.create
+      manager = User.create
+      board = Board.create(:user => manager)
+      org = Organization.create(:settings => {'total_licenses' => 1})
+      org.settings['default_home_boards'] = [{'id' => board.global_id, 'key' => board.key}]
+      org.save
+      org.add_user(u.user_name, false, false)
+      Worker.process_queues
+      expect(User.find(u.id).private_viewable_board_ids).to include(board.global_id)
+      license = License.create!(organization: org, seat_type: 'student', status: 'active')
+      u.reload
+      allow(u).to receive(:update_subscription_organization).and_wrap_original do |orig, *args|
+        res = orig.call(*args)
+        ActiveRecord::Base.connection.update("UPDATE licenses SET user_id = NULL WHERE id = #{license.id}")
+        res
+      end
+
+      expect { org.reload.claim_user(u) }.to raise_error(/lost a concurrent race/)
+      Worker.process_queues
+
+      expect(User.find(u.id).private_viewable_board_ids).not_to include(board.global_id)
     end
 
     it "re-checks the organization's seats and removes the link under one user lock" do

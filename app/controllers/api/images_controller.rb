@@ -14,6 +14,7 @@ class Api::ImagesController < ApplicationController
     elsif !image.settings['content_type']
       api_error(400, {error: 'content type required for image creationg'})
     else
+      ensure_upload_form_available!(image)
       render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user).to_json
     end
   end

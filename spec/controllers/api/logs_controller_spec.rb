@@ -115,7 +115,7 @@ describe Api::LogsController, :type => :controller do
       json = JSON.parse(response.body)
       logs = json['log'].sort_by{|l| l['id'] }
       expect(logs.length).to eq(6)
-      expect(logs.map{|l| l['author']['id'] }.sort).to eq([users[0].global_id, users[0].global_id, users[0].global_id, users[1].global_id, users[1].global_id, users[1].global_id])
+      expect(logs.map{|l| l['author']['id'] }).to match_array([users[0].global_id, users[0].global_id, users[0].global_id, users[1].global_id, users[1].global_id, users[1].global_id])
       expect(json['meta']['next_url']).to eq(nil)
     end
 
@@ -216,7 +216,7 @@ describe Api::LogsController, :type => :controller do
       json = JSON.parse(response.body)
       logs = json['log'].sort_by{|l| l['id'] }
       expect(logs.length).to eq(6)
-      expect(logs.map{|l| l['author']['id'] }.sort).to eq([users[0].global_id, users[0].global_id, users[0].global_id, users[1].global_id, users[1].global_id, users[1].global_id])
+      expect(logs.map{|l| l['author']['id'] }).to match_array([users[0].global_id, users[0].global_id, users[0].global_id, users[1].global_id, users[1].global_id, users[1].global_id])
       expect(json['meta']['next_url']).to eq(nil)
       expect(json['meta']['logging_cutoffs']).to eq(true)
       expect(json['meta']['logging_cutoff_min']).to eq(37)
@@ -228,7 +228,7 @@ describe Api::LogsController, :type => :controller do
       json = JSON.parse(response.body)
       logs = json['log'].sort_by{|l| l['id'] }
       expect(logs.length).to eq(9)
-      expect(logs.map{|l| l['author']['id'] }.sort).to eq([users[0].global_id, users[0].global_id, users[0].global_id, users[1].global_id, users[1].global_id, users[1].global_id, users[2].global_id, users[2].global_id, users[2].global_id])
+      expect(logs.map{|l| l['author']['id'] }).to match_array([users[0].global_id, users[0].global_id, users[0].global_id, users[1].global_id, users[1].global_id, users[1].global_id, users[2].global_id, users[2].global_id, users[2].global_id])
       expect(json['meta']['next_url']).to eq(nil)
       expect(json['meta']['logging_cutoffs']).to eq(nil)
       expect(json['meta']['logging_cutoff_min']).to eq(nil)

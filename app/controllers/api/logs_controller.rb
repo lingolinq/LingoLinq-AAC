@@ -253,7 +253,7 @@ class Api::LogsController < ApplicationController
     else
       remote_path = "imports/logs/#{@api_user.global_id}/upload-#{GoSecure.nonce('filename')}.txt"
       content_type = "text/plain"
-      upload_params = Uploader.remote_upload_params(remote_path, content_type)
+      upload_params = Uploader.client_upload_params(remote_path, content_type)
       url = upload_params[:upload_url] + remote_path
       upload_params[:success_url] = "/api/v1/logs/import?user_id=#{params['user_id']}&type=#{params['type']}&url=#{CGI.escape(url)}"
       render json: {'remote_upload' => upload_params}.to_json

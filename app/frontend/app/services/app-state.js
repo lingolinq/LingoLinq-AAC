@@ -5460,6 +5460,15 @@ export default Service.extend({
     this.updateFavicon();
   },
 
+  /* A sync that finds boards no synced user can view any more holds the marks back while
+     Speak Mode is on, so the board in use is never pulled away (utils/board_revocation.js).
+     They are applied once Speak Mode is off. */
+  apply_deferred_board_revocations: observer('speak_mode', function() {
+    if(!this.get('speak_mode') && boardRevocation.has_deferred()) {
+      boardRevocation.flush_deferred().then(null, function() { });
+    }
+  }),
+
   /* READ by global_transition before its modal.close(). Every route change closes every
      modal, which let the Back button (or any link) dismiss the "Please Log Back In" dialog with
      nothing re-prompting, leaving the user on pages whose requests all fail. While the logout is
@@ -5488,6 +5497,9 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+// Placed last: an import at the top would shift every line of the line-anchored ESLint baseline.
+// Imports are hoisted, so position does not matter at runtime.
+import boardRevocation from '../utils/board_revocation';
 
 /* A DEAD SESSION AT BOOT LOGS OUT ONCE (final review, 2026-10-13). The ajax layer (utils/extras.js) calls
    force_logout for the failed user lookup, and the same rejection then reaches find_user's handler above; a

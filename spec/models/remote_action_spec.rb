@@ -1,6 +1,37 @@
 require 'spec_helper'
 
 describe RemoteAction, :type => :model do
+  describe "process_action with an unknown action" do
+    it "logs the action type instead of dropping the row silently" do
+      allow(Rails.logger).to receive(:error)
+      RemoteAction.new(action: 'not_a_known_action', path: 'x').process_action
+      expect(Rails.logger).to have_received(:error).with(/unknown action not_a_known_action/)
+    end
+
+    # A row whose action this build does not know was written by a NEWER build (rolled back since,
+    # or deploying alongside). Dropping it would lose that build's queued work, so it is kept until
+    # a build that knows it processes it; the hourly batch's 3-month purge still bounds it.
+    it "keeps a row whose action this code does not know" do
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      expect(ra.process_action).to eq(:keep)
+    end
+
+    it "logs the unknown action and the row, never the path" do
+      allow(Rails.logger).to receive(:error)
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'someuser::1_2', act_at: 1.hour.ago)
+      ra.process_action
+      expect(Rails.logger).to have_received(:error).with("RemoteAction#process_action: unknown action action_from_a_newer_build, row #{ra.id} kept")
+    end
+
+    it "is not destroyed by process_all, while a known row beside it still is" do
+      ra = RemoteAction.create!(action: 'action_from_a_newer_build', path: 'x', act_at: 1.hour.ago)
+      known = RemoteAction.create!(action: 'delete', path: 'file/1/pic.png', extra: 'chk1', act_at: 1.hour.ago)
+      RemoteAction.process_all
+      expect(RemoteAction.find_by(id: ra.id)).not_to eq(nil)
+      expect(RemoteAction.find_by(id: known.id)).to eq(nil)
+    end
+  end
+
   # def process_action
   #   ra = self
   #   puts ra.action
@@ -136,6 +167,210 @@ describe RemoteAction, :type => :model do
 
   
 
+
+  # A kept update_available_boards row is due every hour until its refresh completes. schedule_once
+  # stops looking for an already queued job once the queue holds more than 500 entries (boy_band
+  # scheduled_for?), so each hourly batch queued another copy of the same refresh.
+  describe "a kept update_available_boards row" do
+    def queued_refreshes(user)
+      Worker.scheduled_actions('slow').select{|a| a['args'][2].is_a?(Hash) && a['args'][2]['id'] == user.id && a['args'][2]['method'] == 'update_available_boards' }
+    end
+
+    it "is dispatched once, not once per hourly batch, while the slow queue is long" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow(Worker).to receive(:queue_size).and_return(600)
+
+      Uploader.remote_remove_batch
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+      expect(RemoteAction.where(path: u.global_id, action: 'update_available_boards').count).to eq(1)
+    end
+
+    # A row the run leaves behind (written after the run started) needs another dispatch, so the
+    # run clears the stamp the batch left for the copy it was.
+    it "can be dispatched again as soon as the dispatched refresh has started" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow(Worker).to receive(:queue_size).and_return(600)
+      Uploader.remote_remove_batch
+      expect(ra.reload.extra).not_to eq(nil)
+      # stands in for a change recorded on the row while the refresh runs
+      ra.update_column(:act_at, 1.hour.from_now)
+
+      User.find(u.id).update_available_boards
+
+      expect(ra.reload.extra).to eq(nil)
+    end
+
+    it "is dispatched again once the earlier dispatch is old enough to count as lost" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow(Worker).to receive(:queue_size).and_return(600)
+
+      Uploader.remote_remove_batch
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).update_all(extra: (RemoteAction::REFRESH_REDISPATCH_AFTER + 1.minute).ago.to_i.to_s)
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+    end
+  end
+
+  # A revocation pulls the row forward; the dispatch stamp of an earlier copy must not hold the
+  # batch back for REFRESH_REDISPATCH_AFTER when that copy and the revocation's own enqueue are lost.
+  describe "a kept update_available_boards row on revocation" do
+    def queued_refreshes(user)
+      Worker.scheduled_actions('slow').select{|a| a['args'][2].is_a?(Hash) && a['args'][2]['id'] == user.id && a['args'][2]['method'] == 'update_available_boards' }
+    end
+
+    it "is dispatched by the next batch even though an earlier copy was dispatched recently" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.hour.from_now, extra: 10.minutes.ago.to_i.to_s)
+
+      User.persist_board_cache_refresh(u, true)
+      expect(ra.reload.extra).to eq(nil)
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+    end
+
+    it "is dispatched by the next batch after a bulk revocation too" do
+      u = User.create
+      Worker.flush_queues
+      RemoteAction.where(path: u.global_id).delete_all
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.hour.from_now, extra: 10.minutes.ago.to_i.to_s)
+
+      User.persist_board_cache_refreshes([u.id])
+      expect(ra.reload.extra).to eq(nil)
+      Uploader.remote_remove_batch
+
+      expect(queued_refreshes(u).length).to eq(1)
+    end
+  end
+
+  # The batch stamps a dispatch before it enqueues: a job that starts at once clears the stamp
+  # (board_caching.rb), and a stamp written after that would hold back the next dispatch.
+  describe "dispatching a kept update_available_boards row" do
+    it "leaves no stamp when the dispatched job starts before process_action returns" do
+      u = User.create
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow_any_instance_of(User).to receive(:schedule_once_for) do
+        # the job starting at once, as another worker can
+        RemoteAction.where(path: u.global_id, action: 'update_available_boards').update_all(extra: nil)
+      end
+
+      expect(ra.process_action).to eq(:keep)
+
+      expect(ra.reload.extra).to eq(nil)
+    end
+
+    it "clears its stamp when the enqueue fails" do
+      u = User.create
+      ra = RemoteAction.create!(action: 'update_available_boards', path: u.global_id, act_at: 1.minute.ago)
+      allow_any_instance_of(User).to receive(:schedule_once_for).and_raise(Redis::CannotConnectError)
+
+      expect { ra.process_action }.to raise_error(Redis::CannotConnectError)
+
+      expect(ra.reload.extra).to eq(nil)
+    end
+  end
+
+  # A kept clean_up_destroyed_org row was re-queued every hour for as long as its job kept failing.
+  # The wait now grows with the row's age (doubling per retry), from an hour to a day.
+  describe "a kept clean_up_destroyed_org row" do
+    def processed_row(age)
+      allow(Organization).to receive(:schedule)
+      ra = RemoteAction.create!(action: 'clean_up_destroyed_org', path: '123', act_at: 1.minute.ago)
+      ra.update_column(:created_at, age.ago)
+      expect(ra.process_action).to eq(:keep)
+      ra.reload
+    end
+
+    it "is retried an hour later while it is new" do
+      ra = processed_row(10.minutes)
+      expect(ra.act_at).to be_within(2.minutes).of(1.hour.from_now)
+    end
+
+    it "waits as long as it has existed once retries have failed for a while" do
+      ra = processed_row(6.hours)
+      expect(ra.act_at).to be_within(2.minutes).of(6.hours.from_now)
+    end
+
+    it "waits at most a day" do
+      ra = processed_row(20.days)
+      expect(ra.act_at).to be_within(2.minutes).of(1.day.from_now)
+    end
+  end
+
+  # The 3-month purge drops every old row. Rows kept until their job completes stand for work that
+  # never finished (an organization's cleanup, a board-access refresh), so they are reported.
+  describe "the 3-month purge of rows kept until their job completes" do
+    it "reports them by count, without paths" do
+      allow(Rails.logger).to receive(:error)
+      RemoteAction.create!(action: 'clean_up_destroyed_org', path: '987', act_at: 1.day.from_now, created_at: 4.months.ago)
+      RemoteAction.create!(action: 'update_available_boards', path: '1_987', act_at: 1.day.from_now, created_at: 4.months.ago)
+      RemoteAction.create!(action: 'update_available_boards', path: '1_988', act_at: 1.day.from_now, created_at: 1.day.ago)
+      expect(AuditEvent).to receive(:log_command).with('system', {'type' => 'kept_remote_actions_purged', 'counts' => {'clean_up_destroyed_org' => 1, 'update_available_boards' => 1}})
+
+      Uploader.remote_remove_batch
+
+      expect(RemoteAction.where(created_at: ...3.months.ago).count).to eq(0)
+      expect(Rails.logger).to have_received(:error).with(/purging 2 unfinished kept actions older than 3 months: /)
+      expect(Rails.logger).to_not have_received(:error).with(/987|988/)
+    end
+  end
+
+  # A room's cleanup and a room member's removal are kept the same way, and back off the same way.
+  describe "the other kept cleanup rows" do
+    {'clean_up_destroyed_unit' => :clean_up_destroyed, 'room_member_removal' => :complete_member_removal}.each do |action, job|
+      it "re-queues a #{action} row that keeps failing after a wait that grows with its age" do
+        allow(OrganizationUnit).to receive(:schedule)
+        ra = RemoteAction.create!(action: action, path: '1_123', act_at: 1.minute.ago)
+        ra.update_column(:created_at, 6.hours.ago)
+
+        expect(ra.process_action).to eq(:keep)
+
+        expect(OrganizationUnit).to have_received(:schedule).with(job, '1_123')
+        expect(ra.reload.act_at).to be_within(2.minutes).of(6.hours.from_now)
+      end
+
+      it "re-queues a new #{action} row an hour later and an old one at most a day later" do
+        allow(OrganizationUnit).to receive(:schedule)
+        fresh = RemoteAction.create!(action: action, path: '1_124', act_at: 1.minute.ago)
+        old = RemoteAction.create!(action: action, path: '1_125', act_at: 1.minute.ago)
+        old.update_column(:created_at, 20.days.ago)
+
+        fresh.process_action
+        old.process_action
+
+        expect(fresh.reload.act_at).to be_within(2.minutes).of(1.hour.from_now)
+        expect(old.reload.act_at).to be_within(2.minutes).of(1.day.from_now)
+      end
+    end
+
+    it "reports purged rows of both kinds by count, without paths" do
+      allow(Rails.logger).to receive(:error)
+      RemoteAction.create!(action: 'clean_up_destroyed_unit', path: '1_987', act_at: 1.day.from_now, created_at: 4.months.ago)
+      RemoteAction.create!(action: 'room_member_removal', path: '1_988', act_at: 1.day.from_now, created_at: 4.months.ago)
+      expect(AuditEvent).to receive(:log_command).with('system', {'type' => 'kept_remote_actions_purged', 'counts' => {'clean_up_destroyed_unit' => 1, 'room_member_removal' => 1}})
+
+      Uploader.remote_remove_batch
+
+      expect(RemoteAction.where(created_at: ...3.months.ago).count).to eq(0)
+      expect(Rails.logger).to have_received(:error).with(/purging 2 unfinished kept actions older than 3 months: /)
+      expect(Rails.logger).to_not have_received(:error).with(/987|988/)
+    end
+  end
 
   describe "process_all" do
     it "should process all remote requests" do

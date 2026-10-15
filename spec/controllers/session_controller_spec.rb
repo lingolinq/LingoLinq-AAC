@@ -2938,6 +2938,12 @@ describe SessionController, :type => :controller do
       expect(new_user.reload.google_linked?).to eq(true)
     end
 
+    it "rejects google_link_complete for a link nonce that was never stored or has expired" do
+      expect(GoogleOAuth).not_to receive(:clear_link)
+      post :google_link_complete, params: { nonce: 'spec-expired-nonce', user_name: 'nobody', password: 'secret123' }
+      assert_error('session_expired', 400)
+    end
+
     it "links manual_link accounts by username and password" do
       u = User.process_new({
         'user_name' => 'google_link_user',
