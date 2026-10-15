@@ -95,4 +95,66 @@ module('Unit | Component | board-icon (compactRow vs pickOpensPreview)', functio
     assert.deepEqual(t.sent, [], 'no action dispatched');
     assert.equal(t.picked.length, 0, 'nothing activated');
   });
+
+  test('no board record yet, but a key and @onActionOverride: the key is still handed over', function(assert) {
+    // The Modern home Boards card passes `{id, key}` and opens boards by key through
+    // @onActionOverride (dashboard/authenticated-view.hbs). When the record cannot load
+    // (offline and not cached, or a failed fetch), the tile must still open its board.
+    var overridden = [];
+    var t = build(this.owner, { board_record: null, onActionOverride: function(key) { overridden.push(key); } });
+    t.comp.board = { id: 'example/crisis', key: 'example/crisis' };
+
+    t.comp.actions.pick_board.call(t.comp, null);
+
+    assert.deepEqual(overridden, ['example/crisis'], 'opened by key');
+    assert.strictEqual(t.picked.length, 0, 'onAction not called');
+  });
+
+  test('a tile that can open its board by key takes pointer clicks before its record loads', function(assert) {
+    // cursor_style turns pointer events off until the record is ready; without this a mouse or
+    // touch never reaches pick_board on the Boards card's key-only tiles (keyboard Enter did).
+    var keyed = build(this.owner, { board_record: null, onActionOverride: function() {} });
+    keyed.comp.board = { id: 'example/crisis', key: 'example/crisis' };
+    assert.notOk(String(keyed.comp.get('cursor_style')).includes('pointer-events: none'), 'clickable');
+
+    var plain = build(this.owner, { board_record: null });
+    plain.comp.board = { id: 'example/crisis', key: 'example/crisis' };
+    assert.ok(String(plain.comp.get('cursor_style')).includes('pointer-events: none'), 'any other not-ready tile stays inert');
+  });
 });
+
+/* The Modern home Boards card opens boards through @onActionOverride, and board_preview handed every
+ * Preview click to that override too, so its "Preview" pill and info chip OPENED the board. With
+ * @previewOpensModal the Preview buttons open the preview; the tile itself still opens by key. */
+module('Unit | Component | board-icon (previewOpensModal)', function(hooks) {
+  setupTest(hooks);
+
+  hooks.beforeEach(function() {
+    this.owner.register('service:app-state', Service.extend({}));
+    this.owner.register('service:router', Service.extend({}));
+  });
+
+  test('Preview opens the preview modal, not the override', function(assert) {
+    assert.expect(2);
+    var opened = [];
+    var previewed = [];
+    var original = modal.board_preview;
+    modal.board_preview = function(board) { previewed.push(board); };
+    try {
+      var record = EmberObject.create({ key: 'someone/my-board', id: '1_1' });
+      var comp = this.owner.factoryFor('component:board-icon').create({
+        board_record: record, previewOpensModal: true,
+        onActionOverride: function(key) { opened.push(key); }
+      });
+      comp.actions.board_preview.call(comp, record);
+      assert.deepEqual(opened, [], 'the board was not opened');
+      assert.strictEqual(previewed.length, 1, 'the preview opened');
+      comp.destroy();
+    } finally {
+      modal.board_preview = original;
+    }
+  });
+});
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import modal from 'frontend/utils/modal';

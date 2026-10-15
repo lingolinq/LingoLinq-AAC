@@ -872,7 +872,7 @@ var scanner = EmberObject.extend({
     } else if(dom.hasClass('integration_target')) {
       frame_listener.trigger_target(dom[0]);
     } else if(dom.hasClass('button_list')) {
-      dom.select();
+      fire_select(dom[0]); // native, so {{on "select"}} hears it; JShim.select() did nothing on an <a> (utils/select_event.js)
     } else {
       // debugger
       var e = new CustomEvent( "click", { bubbles: true, cancelable: true } );
@@ -1535,3 +1535,4 @@ export function scanner_restart_for(owner) {
 }
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { owner_gone } from './live_service';
+import { fire_select } from './select_event';

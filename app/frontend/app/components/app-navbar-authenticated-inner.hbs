@@ -38,9 +38,7 @@
              so a supporter can switch style from either. Mounting it here also
              registers `appState.dashboard_design_opener`, which the ≤640px drawer
              button below depends on — keep the two route lists in sync. --}}
-        {{!-- Compressed View drops the disc (requested 2026-09-29) but keeps the component mounted
-             for the opener; see display-style.hbs. --}}
-        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle @triggerless={{this.appState.compressed_view_active}} />{{/if}}{{/unless}}
+        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle @triggerless={{true}} />{{/if}}{{/unless}}
       </span>
     {{/if}}
     {{!-- App-wide Classic/Modern switch. Sits AFTER the home-actions cluster so it
@@ -243,16 +241,16 @@
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndSupport}}>{{t "Help" key="help"}}</button>
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndOpenBetaFeedback}}>{{t "Beta feedback" key="beta_feedback_nav"}}</button>
-    {{!-- Display Style — drawer replacement for the inner-header disc, which is
-         hidden at <=640px (see app.scss). Only relevant on the pages where the
-         display-style component is mounted (home + caseload — keep this list in
+    {{!-- Display Design in the phone drawer (named as the View menu's DISPLAY item, components/view-switcher.hbs,
+         2026-10-13; the navbar disc it once replaced is gone). Only relevant on the pages where the
+         display-style component is mounted (home + caseload -- keep this list in
          sync with the <DisplayStyle /> gate above, since this button calls the
-         opener that mounting registers — INCLUDING the Classic gate, or this
+         opener that mounting registers -- INCLUDING the Classic gate, or this
          becomes a button whose opener was never registered); shown only <=640px via
-         `--display-style` CSS so it never duplicates the still-visible disc. --}}
+         `--display-style` CSS. --}}
     {{#unless this.isClassic}}
-    {{#if (and (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload")) (not this.appState.compressed_view_active))}}
-    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button la-mobile-drawer__link--display-style" {{on "click" this.onCloseDrawerAndDisplayStyle}}>{{t "Display Style" key="display_style"}}</button>
+    {{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button la-mobile-drawer__link--display-style" {{on "click" this.onCloseDrawerAndDisplayStyle}}>{{t "Display Design" key="display_design"}}</button>
     {{/if}}
     {{/unless}}
     {{!-- Language picker — mirrors the desktop dropdown's

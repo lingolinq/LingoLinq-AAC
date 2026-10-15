@@ -2758,7 +2758,7 @@ var editManager = EmberObject.extend({
           var new_board_ids = result && result.new_board_ids;
           board.set('new_board_ids', new_board_ids);
           board.load_button_set(true);
-          if(decision && decision.match(/as_home$/)) {
+          if(decision && decision.match(/as_home$/) && !(opts.skip_home && opts.skip_home())) { // skip_home: a cancelled copy (utils/board-copy.js)
             /* CONFIRMED write. A 200 on the user PUT does not prove the home
                board was stored — process_home_board (user.rb ~2932) DELETES the
                preference and returns true when the reference will not resolve,

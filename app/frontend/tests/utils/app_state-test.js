@@ -3204,6 +3204,57 @@ describe('app_state', function() {
       });
     });
   });
+
+  describe('global_transition: the force-logout dialog', function() {
+    function transitionWith(open_template, invalid_token, isAuthenticated, to_route) {
+      var closed = false;
+      // Only the main dialog outlet: close_board_preview also calls close(null, 'board-preview').
+      stub(modal, 'close', function(success, outlet) { if(!outlet || outlet === 'modal') { closed = true; } });
+      stub(modal, 'is_open', function(template) { return template === open_template; });
+      stub(app_state, 'refresh_session_user', function() { });
+      session.set('invalid_token', invalid_token);
+      session.set('isAuthenticated', isAuthenticated);
+      app_state.global_transition({to_route: to_route || 'user.boards'});
+      return closed;
+    }
+
+    it("stays open across a navigation while the logout is under way", function() {
+      expect(transitionWith('force-logout', true, false)).toEqual(false);
+    });
+
+    it("still closes once the user has signed back in", function() {
+      expect(transitionWith('force-logout', true, true)).toEqual(true);
+    });
+
+    it("never keeps any OTHER dialog open", function() {
+      expect(transitionWith('some-other-modal', true, false)).toEqual(true);
+    });
+
+    it("closes when the user is heading to the login page, which has its own form", function() {
+      expect(transitionWith('force-logout', true, false, 'login')).toEqual(true);
+    });
+
+    // `login` has a child route (router.js), so the leaf name global_transition receives for /login
+    // is `login.index` (routes/application.js#leafRouteName); `login.device` is the other child.
+    ['login.index', 'login.device'].forEach(function(route) {
+      it("closes on the way to " + route + ", the name the router really reports", function() {
+        expect(transitionWith('force-logout', true, false, route)).toEqual(true);
+      });
+    });
+
+    // The dialog's own links (components/login-form.hbs: "need help?", "forgot password", "sign
+    // up"): kept open over them, the user could not reach the page they asked for.
+    // Basic access (decided 2026-10-11): the dialog offers the public boards, so that route is an exit too.
+    it("closes on the way to basic access (offline_boards)", function() {
+      expect(transitionWith('force-logout', true, false, 'offline_boards')).toEqual(true);
+    });
+
+    ['forgot_login', 'forgot_password', 'register'].forEach(function(route) {
+      it("closes when the user follows the dialog's own link to " + route, function() {
+        expect(transitionWith('force-logout', true, false, route)).toEqual(true);
+      });
+    });
+  });
 });
 // Kept below the baselined lint rows so they do not shift (see .eslint-todo).
 import teardownButtonTracker from '../../utils/raw_events';

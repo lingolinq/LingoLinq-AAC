@@ -488,6 +488,16 @@ body.ll-layout-focused {
     margin-top: 0 !important;
   }
 
+  /* (The Updates-arrival rules that sat here moved just below this block on 2026-10-10, scoped to
+     BOTH Modern layouts.) */
+}
+
+// THE UPDATES ARRIVAL, BOTH MODERN LAYOUTS (2026-10-10, requested: "make the page content
+// positioning of the logs page in modern gentle the same as it is in modern focused"). These two
+// rules were Focused-only; Gentle's logs-from-Updates page instead took the account section's
+// tighter spacing and its title rode up into the pill-nav's blur band. Same selectors and weight as
+// before ((0,1,1) from the body class), so Focused is unchanged.
+body.ll-view-modern {
   /* UPDATES (logs) page — no top padding at >=1024px (requested 2026-09-22). The target is
      `.md-main--user`, not the workspace: app.scss:47050 gives every account-section page
      `padding-top: calc(var(--bottombar-height, 59px) - 24px)` (the 35px the inspector showed).
@@ -2828,42 +2838,10 @@ body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-manageme
     #{color.mix($brand-blue-grey, #FFFFFF, 38%)} 100%) !important;
 }
 
-// The INDIVIDUAL organization tiles inside that card take the BOARDS card's surface
-// (2026-08-16, requested), so a tile reads as a panel sitting on the org card rather than
-// as another card competing with it.
-// `$focus-boards-bg` is the token `.md-grid--layout-focused .md-card--boards` uses, reused
-// here rather than copied — the two surfaces are meant to be identical, and a copy would
-// drift the first time the Boards card is retuned. It is a two-layer gradient (white sheen
-// over a tinted base), which is why this sets `background` and not `background-color`.
-// Scoped INSIDE `.md-card--org-management`: `.md-room-card` is shared with the Rooms card,
-// which is not part of this request.
-// FOCUSED-ONLY organization TILE illustration (2026-08-16) — the per-organization buttons
-// inside the card, which reuse `.md-room-card` chrome and swap the room door for the
-// SINGULAR organization art (app.scss ~46327). Gentle keeps `organization.png`.
-// Same pattern as the card's header icon below: `image-set()` for the WebP/PNG pair,
-// prefixed copy first for Safari, preload in both shells.
-// The source was 192x192 for a 46x46 box; resized to 92x92 (2x the display size) —
-// 48KB -> 13KB PNG, 2.1KB WebP.
-// The light art's saturate/brightness lift is cleared: the dark version is already tuned,
-// and stacking the filter on it muddied the tile.
-body.ll-layout-focused .md-card--org-management .md-room-card__icon {
-  /* PLAIN url() FIRST as the fallback. `type()` inside image-set() needs Safari 17+ /
-     Chrome 113+, and legacy -webkit-image-set() never supported type() at all — so on
-     an older iPad or a pre-2023 Android WebView (a very common AAC device population)
-     BOTH declarations below were dropped, the base rule's LIGHT artwork won, and
-     `filter: none` still applied, stripping the saturate/brightness lift that light art
-     was tuned with: exactly the washed-out tile the -dark variants exist to prevent.
-     This also makes the PNG reachable at all — every engine that supports
-     image-set()+type() also supports WebP, so the in-set PNG branch never wins. */
-  background-image: url('../images/organization-dark.png') !important;
-  background-image: -webkit-image-set(
-    url('../images/organization-dark.webp') type('image/webp'),
-    url('../images/organization-dark.png') type('image/png')) !important;
-  background-image: image-set(
-    url('../images/organization-dark.webp') type('image/webp'),
-    url('../images/organization-dark.png') type('image/png')) !important;
-  filter: none !important;
-}
+// THE ORGANIZATION TILES AND THEIR ICON MATCH GENTLE (2026-10-12, requested: "modern focused, lighten
+// the organization buttons to the same as they are on gentle view"). The Focused-only tile surface (the
+// Boards surface 10% lighter) and the organization-dark icon were removed, so the shared rules for
+// `.md-card--org-management .md-room-card` in app.scss apply in both layouts.
 
 // FOCUSED-ONLY organizations illustration (2026-08-16). The card's icon is a CSS
 // background (`.md-card__icon--org`, app.scss ~46785) rather than an <img>, so the swap
@@ -2871,13 +2849,13 @@ body.ll-layout-focused .md-card--org-management .md-room-card__icon {
 // untouched, as asked.
 //
 // `image-set()` gives the WebP/PNG pair the same treatment the <picture> heroes get:
-// browsers that understand `type("image/webp")` take the 6.7KB WebP, the rest fall back to
-// the 69KB PNG. Both are declared here; the `-webkit-` prefixed copy first because Safari
+// browsers that understand `type("image/webp")` take the 9KB WebP, the rest fall back to
+// the 50KB PNG. Both are declared here; the `-webkit-` prefixed copy first because Safari
 // only accepts the prefixed form, and an unprefixed-only declaration silently drops the
 // background there.
-// The source art was 492x507 / 210KB for a box that renders at 92x92; it is resized to
-// 248x256 (2x the display size, matching organizations.png's 256px convention) and stripped
-// of metadata.
+// ART: organizations-focused (2026-10-12, requested, replacing organizations-dark). The source was a
+// 1254px opaque square on grey; it is cropped to its circle with a transparent mask and resized to
+// 184x184, 2x the 92px box, and stripped of metadata.
 //
 // RENDERING EARLY IS THE PRELOAD'S JOB, not this rule's: a CSS background cannot carry
 // `decoding="sync"`, so the fetch is started ahead of time by the <link rel="preload"> in
@@ -2895,13 +2873,13 @@ body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon-
      was tuned with: exactly the washed-out tile the -dark variants exist to prevent.
      This also makes the PNG reachable at all — every engine that supports
      image-set()+type() also supports WebP, so the in-set PNG branch never wins. */
-  background-image: url('../images/organizations-dark.png') !important;
+  background-image: url('../images/organizations-focused.png') !important;
   background-image: -webkit-image-set(
-    url('../images/organizations-dark.webp') type('image/webp'),
-    url('../images/organizations-dark.png') type('image/png')) !important;
+    url('../images/organizations-focused.webp') type('image/webp'),
+    url('../images/organizations-focused.png') type('image/png')) !important;
   background-image: image-set(
-    url('../images/organizations-dark.webp') type('image/webp'),
-    url('../images/organizations-dark.png') type('image/png')) !important;
+    url('../images/organizations-focused.webp') type('image/webp'),
+    url('../images/organizations-focused.png') type('image/png')) !important;
   // The light illustration was warmed with saturate/brightness to lift it off the card;
   // the dark art is already tuned, so the filter is cleared rather than stacked on top.
   filter: none !important;
@@ -3208,8 +3186,8 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms {
 // Top: the token is set on the card, 20 -> 10px, with the sides and bottom restated unchanged.
 // Bottom: the divider pulls up 4px into that gap, 8 -> 4px, leaving the gap itself (and the
 // divider-to-tiles spacing it also sets) alone.
-// NOT IN COMPRESSED VIEW: Compressed sets `--dn-card-pad` and the header padding on
-// `.md-shell--home` (_compressed-view.scss); setting the token on the card would override it.
+// The `:not(.ll-density-compressed)` qualifier is from Compressed View, removed 2026-10-10. It
+// always matches now; it is kept so this rule's specificity, and so the cascade, is unchanged.
 // `section.` because the Supervisors tab's "rooms:" list is an `article.md-card--rooms` in the
 // same `.md-grid` (authenticated-view.hbs) and reads the same padding token.
 body.ll-layout-focused:not(.ll-density-compressed) .md-grid section.md-card.md-card--rooms {
@@ -3335,9 +3313,7 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__all {
 body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention__list {
   display: grid;
   // 260px: avatar, a readable name, and the arrow, with the room card's padding. min() keeps a
-  // single track from overflowing a card narrower than that. Compressed View sets
-  // --dn-attention-track to the Rooms card's track so the two cards' columns line up
-  // (_compressed-view.scss; checked by scripts/compressed-attention-columns-qa.mjs).
+  // single track from overflowing a card narrower than that.
   grid-template-columns: repeat(auto-fill, minmax(min(var(--dn-attention-track, 260px), 100%), 1fr));
 }
 // <=768px: one card per row (requested 2026-10-05), with the header stacking at the same width
@@ -3737,28 +3713,6 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-card__icon--atte
   @include focus-glass-card-art('communicators-folders');
 }
 
-// ...LIGHTENED 10% (2026-08-16, requested). The tiles no longer take `$focus-boards-bg`
-// verbatim — they take its STRUCTURE with the colour layer scaled 10% toward white, so
-// they read as a lighter sibling of the Boards surface rather than a copy of it.
-// Structure restated rather than filtered: `filter: brightness()` would lighten the tile's
-// TEXT and icon along with its background, and `opacity` would let the darker org card
-// underneath show through and darken it instead.
-// The FIRST layer is the white sheen — already white, so lightening it is a no-op and it is
-// carried over unchanged. Only the second (colour) layer moves.
-// Both stops keep their original alphas; `color.scale(..., $lightness: 10%)` moves each
-// 10% of the remaining distance to white, which is the "10% lighter" being asked for and
-// leaves the ramp's shape intact.
-body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-management .md-room-card {
-  background:
-    linear-gradient(180deg,
-      rgba(255, 255, 255, 0.60) 0%,
-      rgba(255, 255, 255, 0.12) 20%,
-      rgba(255, 255, 255, 0) 42%),
-    linear-gradient(180deg,
-      rgba(color.scale($focus-surface-top, $lightness: 10%), 0.60) 0%,
-      rgba(color.scale($focus-surface-bottom, $lightness: 10%), 0.55) 100%) !important;
-}
-
 // -----------------------------------------------------------------------------
 
 // =============================================================================
@@ -4097,6 +4051,13 @@ $ch-focused-extras-hero-edge:   color-mix(in oklch, $ch-focused-extras-hero-base
 // later nudge downward would have failed. At #88909F they read 5.58 and 5.32.
 $ch-focused-panel-start:   #A8AEB9;
 $ch-focused-panel-end:     #969EAC;
+// THE LIGHT PANEL (requested 2026-10-10: the Updates cards and then the Boards panel, "lighter,
+// with less of a gradient effect"). Paler steel with the two stops close together, so the ramp
+// barely reads. The pair above stays for the communicator cards (`.ch-comm`, flat
+// $ch-focused-panel-end by its own request). Every ink drawn on this panel is near-black
+// ($ch-focused-ink-on-tint) or the dark link indigo, so a paler ground only raises contrast.
+$ch-focused-light-panel-start: #DCE0E7;
+$ch-focused-light-panel-end:   #CED4DD;
 
 // Ink for the mid-tone tinted surfaces. Measured on the gradient ENDS, which are the darker
 // stop and therefore the worst case for a dark ink: label and sub 4.61-6.92, cue at 0.70
@@ -4356,6 +4317,14 @@ $ch-focused-hero-more-ink: #E5E5E5;
   );
 }
 
+// The light twin: the Boards panel and the two Updates cards (see the tokens above).
+@mixin ch-focused-light-panel($hover: true) {
+  @include ch-focused-glass-tile(
+    linear-gradient(155deg, $ch-focused-light-panel-start 0%, $ch-focused-light-panel-end 100%),
+    $hover: $hover
+  );
+}
+
 // The DARK-GROUND twin of `ch-focused-glass-tile`. Same four layers in the same order —
 // corner specular, raking band, bottom shade, then the colour — so a tile using this reads
 // as the same material as the light ones beside it.
@@ -4419,7 +4388,20 @@ $ch-focused-hero-more-ink: #E5E5E5;
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-ideas-start 0%, $ch-focused-ideas-end 100%));
     body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-ideas-hero-center, $ch-focused-ideas-hero-edge, ch-hero-fallbacks($ch-hero-ideas-c, $ch-hero-ideas-h)); }
   }
-  .ch-tile--big.ch-tile--extras-toggle {
+  // THE FOURTH SLOT. It was `.ch-tile--extras-toggle` until 2026-10-09, when the Extras drawer
+  // stopped collapsing and that slot became a plain Account link. The class moved; the slot did
+  // not, so the treatment follows it here rather than being re-solved.
+  //
+  // This was the bug behind "the My Account outline doesn't match the others": with the rule
+  // still keyed to a class nothing renders, the card fell through to Gentle's
+  // `ch-tile-tint($brand-teal-blue)` and wore a TEAL rim at 0.30 while its three siblings wore
+  // the glass tile's dark one. Same fill family as before, so the four-card set keeps the
+  // palette it was solved as (blue / teal / fawn / slate).
+  //
+  // `.ch-tile--account` names the SLOT, not the destination. The card in it is Settings as of
+  // 2026-10-09 — it and the account tile were swapped — and the class stayed put so the four
+  // cards keep one style hook each.
+  .ch-tile--big.ch-tile--account {
     @include ch-focused-glass-tile(linear-gradient(155deg, $ch-focused-extras-start 0%, $ch-focused-extras-end 100%));
     body.ll-layout-focused & { @include ch-focused-hero-tile($ch-focused-extras-hero-center, $ch-focused-extras-hero-edge, ch-hero-fallbacks($ch-hero-extras-c, $ch-hero-extras-h)); }
   }
@@ -4553,12 +4535,12 @@ $ch-focused-hero-more-ink: #E5E5E5;
     // CTA bar keeps its exact height. In `em`, so it scales with the glyph at every breakpoint
     // rather than being a figure that only holds on desktop.
     //
-    // NOT APPLIED TO EXTRAS, for two reasons. Its glyph is U+25BE, a filled triangle with a
-    // different optical centre that this figure would not fit; and
-    // `.ch-tile--extras-toggle.is-open .ch-tile__rule` rotates the element 180deg
-    // (_classic-home.scss), which would invert this nudge into a downward one whenever the
-    // drawer is open.
-    &:not(.ch-tile--extras-toggle) .ch-tile__rule::before {
+    // The `:not(.ch-tile--extras-toggle)` that used to guard this is GONE (2026-10-09). It
+    // existed because that card's glyph was U+25BE, a filled triangle with a different optical
+    // centre, and because its `.is-open` rule rotated the element 180deg — which would have
+    // inverted this nudge. Neither applies: the fourth slot is an Account link now and draws
+    // the same U+2192 arrow as the other three, so it wants the same nudge.
+    .ch-tile__rule::before {
       transform: translateY(-0.085em);
     }
 
@@ -4610,13 +4592,6 @@ $ch-focused-hero-more-ink: #E5E5E5;
     // The action label keeps this scheme's descriptor indigo — same text, same role, and it
     // reads 6.49-7.19 on the veil above.
     .ch-tile__sub { color: $ch-focused-ink-sub; }
-
-    // The disclosure chevron is a CSS triangle, so its colour is a border
-    // (`_classic-home.scss:1390`); on dark, $la-navy at 0.55 is invisible.
-    // The caret is a CSS triangle, so its colour is a border. Light grey for the same reason
-    // as the arrow above, and the same token -- on the dark card the near-black it carried
-    // measured 2.0 on the panel veil, under the 3:1 floor for a non-text cue.
-    .ch-tile__toggle-caret { border-top-color: $ch-focused-hero-more-ink; }
 
     // THE SHARED CHIP -- this block is UNSCOPED (see `.ch-grid:not(.ch-grid--extras)` above,
     // which lost its `body.ll-layout-focused` prefix so Basic could take this palette in BOTH
@@ -4807,7 +4782,10 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
      original panel — a contrast mismatch rather than a revert. All of it moves together. */
   body.ll-layout-focused & {
     // --- identity -------------------------------------------------------------
-    .ch-rail__identity {
+    // The <=900px dropdown trigger (Dashboard::ClassicRailDropdown) stands for the same person, so it
+    // takes the same fill and ink (2026-10-12).
+    .ch-rail__identity,
+    .ch-rail__menu-trigger {
       background: linear-gradient(150deg, $ch-focused-identity-start 0%, $ch-focused-identity-end 100%);
       // Dark rim: at this lightness the block reads only 1.39:1 against the rail pane, so its
       // edge is what separates the two rather than luminance.
@@ -4829,13 +4807,15 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
       }
     }
 
-    .ch-rail__username { color: $ch-focused-ink-on-tint; }
+    .ch-rail__username,
+    .ch-rail__menu-name { color: $ch-focused-ink-on-tint; }
 
     // Gentle sets these with `opacity` rather than an alpha colour, so the overlay has to set
     // BOTH — recolouring alone would leave the inherited opacity multiplying it. Near-black
     // now that the wash is a mid-tone: the sub measures 5.3:1 at 0.85 and the arrow 4.00:1 at
     // 0.70, against the 3:1 WCAG 1.4.11 asks of a non-text affordance.
-    .ch-rail__identity-sub { color: $ch-focused-ink-on-tint; opacity: 0.85; }
+    .ch-rail__identity-sub,
+    .ch-rail__menu-sub { color: $ch-focused-ink-on-tint; opacity: 0.85; }
     .ch-rail__arrow        { color: $ch-focused-ink-on-tint; opacity: 0.70; }
   }
 
@@ -4975,46 +4955,14 @@ $ch-focused-identity-end:   #88B3AD;   // #82B9B2 -> -15% -> #86B5AF -> -10%; wa
 
   // The group container (supervisors / rooms / orgs) is the seventh elevated surface in the
   // rail and flattens with the rest, or it would be the only card left among the rows.
-  .ch-group {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.28);
-    box-shadow: none;
-  }
 
   // --- chips, group labels, footer -------------------------------------------
   // Near-black at 0.85 (4.65:1). Navy fails on this pane at every opacity — see the token note.
-  .ch-group__label { color: $ch-focused-ink-on-tint; opacity: 0.85; }
 
   // Org chips are rail buttons too, so they take the same silver glass as the rows — same
   // ramp, same raking glimmer, scaled down for a 32px pill. Their navy label is full-strength
   // and measures 7.36:1 even on the deepest stop of the ramp, so it needs no adjustment.
-  .ch-chip {
-    background:
-      linear-gradient(168deg,
-        rgba(255, 255, 255, 0.85) 0%,
-        rgba(255, 255, 255, 0.30) 30%,
-        rgba(255, 255, 255, 0) 62%),
-      linear-gradient(155deg,
-        rgba($ch-focused-silver-hi, 0.95) 0%,
-        rgba($ch-focused-silver-lo, 0.92) 100%);
-    border-color: rgba(255, 255, 255, 0.70);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.98),
-      0 2px 6px rgba($focus-shadow-ink, 0.12);
-  }
 
-  .ch-chip:hover,
-  .ch-chip:focus-visible {
-    background:
-      linear-gradient(168deg,
-        rgba(255, 255, 255, 0.95) 0%,
-        rgba(255, 255, 255, 0.38) 30%,
-        rgba(255, 255, 255, 0) 62%),
-      linear-gradient(155deg,
-        rgba(255, 255, 255, 0.97) 0%,
-        rgba($ch-focused-silver-hi, 0.95) 100%);
-    border-color: rgba(255, 255, 255, 0.92);
-  }
 
   .ch-rail__footer { border-top-color: rgba($ch-focused-ink-on-tint, 0.18); }
 
@@ -5275,9 +5223,17 @@ body.ll-layout-focused {
   // most of the classic page went from dark surfaces to light ones. These two cards did NOT
   // go with it — they were still the dark navy `.ch-card` — so navy body text was sitting on
   // a navy card at 1.35:1 and 1.27:1. The surface moving is what makes those inks correct.
+  // THE COMPACT ACTIONS CARDS' ARROW (2026-10-10). The compact row (_classic-home.scss
+  // `ch-compact-row`) draws its arrow in navy, which disappears on these DARK cards; it reads
+  // `--ch-compact-arrow`, set here to the same light grey the tall card's arrow uses. On the
+  // Actions grid only: the Extras drawer's silver tiles are light, and keep the navy default.
+  .ch-grid:not(.ch-grid--extras) { --ch-compact-arrow: #{$ch-focused-hero-more-ink}; }
+
   .ch-card--list,
   .ch-card--install {
-    @include ch-focused-panel($hover: false);
+    // LIGHTER, LESS GRADIENT (requested 2026-10-10, twice: "a bit lighter", then "still a bit too
+    // dark"). The light panel the Boards container also wears, so the two stay one material.
+    @include ch-focused-light-panel($hover: false);
 
     // The shared gloss is suppressed so this ground is EXACTLY the boards container's. The
     // mixin already lays a specular and a raking band; `.ch-card::before` adds a third white
@@ -5588,7 +5544,10 @@ body.ll-layout-focused {
     padding: 16px;
     border-radius: 20px;
     border: 1px solid;
-    @include ch-focused-panel($hover: false);
+    // LIGHTER, LESS GRADIENT (requested 2026-10-10), the same light panel as the Updates cards.
+    // This ends the fill pairing with `.ch-comm` described above; the communicator cards keep
+    // their flat darker colour, which was its own request.
+    @include ch-focused-light-panel($hover: false);
 
     // RE-INK THE EMPTY/ERROR TEXT. `ch-focused-panel` is a mid-tone ramp, and the mixin
     // header above states the constraint it imposes: nothing drawn on it may be muted
@@ -5749,8 +5708,6 @@ body.ll-layout-focused {
     color: $la-navy;
   }
 
-  .ch-menu__item--note { color: $la-navy; opacity: 0.80; }
-  .ch-menu__item--note:hover { background: none; }
 }
 
 // =============================================================================
@@ -5915,24 +5872,6 @@ body.ll-layout-focused .md-grid .md-card.md-card--attention .md-attention-item:f
     0 16px 34px rgba($la-navy, 0.22) !important;
 }
 
-// COMPRESSED VIEW: the Need Attention card takes the Focused caseload hero's surface (requested
-// 2026-09-29), the oklab navy radial of `.md-card--caseload-focused` (app.scss), built from the
-// same $focus-hero-* tokens so the two cannot drift. Read by the card's `$bg-token` above; the
-// card's light title ink already suits it. Gentle's value is set in _compressed-view.scss.
-body.ll-layout-focused.ll-density-compressed .md-shell--home {
-  // A custom property takes any value, so an unparseable modern value would not fall back: the
-  // `background` reading it would turn transparent. So the sRGB value is the default and the
-  // modern one is set only where the browser supports it (_color-fallbacks.scss).
-  --dn-attention-bg-focused: radial-gradient(ellipse at center, #{$focus-hero-center-fallback} 0%, #{$focus-hero-edge-fallback} 100%);
-}
-@supports (background: radial-gradient(ellipse at center in oklab, red, blue)) and (color: color-mix(in oklch, red, blue)) {
-  body.ll-layout-focused.ll-density-compressed .md-shell--home {
-    --dn-attention-bg-focused: radial-gradient(ellipse at center in oklab,
-      #{$focus-hero-center} 0%,
-      #{$focus-hero-edge} 100%);
-  }
-}
-
 // Count chips (app.scss `.md-attention__count, .md-rooms__count`). The base 14% verdigris tint mixes
 // to a murky grey-teal over Focused's grey-blue cards; here the chip is near-white instead
 // (requested 2026-09-29: "much lighter"), keeping the verdigris hairline. $la-navy digits on it
@@ -5945,10 +5884,6 @@ body.ll-layout-focused .md-rooms__count {
 
 // "View all" (app.scss `.md-card__view-all`: communicators, and rooms in Compressed View) takes the LIGHT stop of the row
 // gradient above (#F2F3F5 -> #D2D9E4), so it reads as part of the same list.
-body.ll-layout-focused .md-card__view-all {
-  background: #F2F3F5;
-  border-color: rgba($brand-dusty-denim, 0.38);
-}
 
 // Arrows. Slate was asked for and slate is what these were — but the arrow is pinned to the
 // far RIGHT of the row (`margin-left: auto`, app.scss:48583), which is exactly where the

@@ -55,7 +55,7 @@ function allTaggedGlobalIds(map) {
   return s;
 }
 
-export default Controller.extend({
+var UserIndexController = Controller.extend({
 
   /* The username as the profile header DISPLAYS it, with a leading "@".
      Display-only: `model.user_name` is never modified, because it is the account's real
@@ -688,7 +688,7 @@ export default Controller.extend({
     'model.id',
     'model.board_tag_map',
     'mineTagFolderDrillIn',
-    'mineFoldersPanelExpanded',
+    'mineFoldersPanelOpen',
     'model.my_boards',
     'model.prior_home_boards',
     'model.public_boards',
@@ -936,7 +936,7 @@ export default Controller.extend({
             });
             // Children stay nested under their root, exactly as in the
             // main boards grid — no flattening, no second render.
-          } else if (this.get('mineFoldersEnabled') && this.get('mineFoldersPanelExpanded')) {
+          } else if (this.get('mineFoldersEnabled') && this.get('mineFoldersPanelOpen')) {
             /* Foldered boards are held out of the main grid ONLY while the folders
                panel is open — filing a board into a folder MOVES it there, so showing a
                second loose copy in the grid would defeat the point.
@@ -1888,3 +1888,20 @@ export default Controller.extend({
     return me.get('id') === this.get('model.id') || me.get('user_name') === this.get('model.user_name');
   })
 });
+
+/* Is the folders panel showing? Always in side-by-side (requested 2026-10-11), otherwise the
+   user's stored choice. Reads the SAME flag as components/available-boards-section.js#foldersOpen
+   (utils/folders_panel_state.js#foldersLayout), so the two agree on whether foldered boards are
+   held out of the main grid. Added with reopen, after the class, so the `.eslint-todo` rows above
+   keep their lines. */
+UserIndexController.reopen({
+  foldersLayout: foldersLayout,
+  mineFoldersPanelOpen: computed('mineFoldersPanelExpanded', 'foldersLayout.sideBySide', function() {
+    return !!(this.get('foldersLayout.sideBySide') || this.get('mineFoldersPanelExpanded'));
+  })
+});
+
+export default UserIndexController;
+
+// Imported last so the `.eslint-todo` rows above keep their lines.
+import { foldersLayout } from '../../utils/folders_panel_state';
