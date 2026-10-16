@@ -1136,9 +1136,9 @@ export default Component.extend({
         // Symbol image preview — the OpenSymbols search result for this
         // label, looked up async via `_lookup_label_images`. Falls back
         // to a placeholder square in the template when the URL is
-        // missing or hasn't resolved yet. Same image_url is written to
-        // model.buttons[] at save time so the saved board uses what the
-        // user previewed.
+        // missing or hasn't resolved yet. Legacy url-only results stay
+        // preview-only so save keeps server-side symbol selection and
+        // attribution rather than baking a raw legacy URL.
         var image_entry = label ? label_images[label.toLowerCase()] : null;
         var image_url = (image_entry && image_entry.image_url) || null;
         if(image_url && skin_active && which_skin) {
@@ -1592,7 +1592,7 @@ export default Component.extend({
             { type: 'GET' }
           ).then(function(results) {
             var pick = (results && results.length) ? results[0] : null;
-            return { word: word, image_url: (pick && pick.image_url) || null };
+            return { word: word, image_url: (pick && (pick.image_url || pick.url)) || null, preview_only: !!(pick && !pick.image_url && pick.url) };
           }, function() {
             // Network/permission errors → cache as null so we don't retry
             // forever. Same pattern as `_lookup_label_colors`.
@@ -1611,7 +1611,7 @@ export default Component.extend({
           var next_map = Object.assign({}, _this.get('_label_images') || {});
           states.forEach(function(state) {
             if(state.state === 'fulfilled' && state.value && state.value.word) {
-              next_map[state.value.word] = { image_url: state.value.image_url };
+              next_map[state.value.word] = { image_url: state.value.image_url, preview_only: !!state.value.preview_only };
             }
           });
           _this.set('_label_images', next_map);
@@ -1760,7 +1760,7 @@ export default Component.extend({
     });
     var has_images = Object.keys(label_images).some(function(k) {
       var i = label_images[k];
-      return i && i.image_url;
+      return i && i.image_url && !i.preview_only;
     });
     var needs_trans = this._needs_english_lookup() && (this.get('parsed_labels') || []).length > 0;
     if(has_painted || has_auto || has_images || needs_trans) {
@@ -1806,7 +1806,7 @@ export default Component.extend({
         // map_images. Linking the drop's private standalone image by id renders
         // blank on the board page — see _applyDroppedImageToLabel.
         var img = label_images[key];
-        if(img && img.image_url) {
+        if(img && img.image_url && !img.preview_only) {
           btn.image_url = img.image_url;
           btn.suggest_symbol = false;
         }

@@ -493,6 +493,49 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
   }
 
   describe('bilingual English lookup on create', function() {
+    itAsync('previews legacy symbol URLs before saving', async function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'en');
+      c.set('model.grid.labels', 'hat');
+      stub(persistence, 'ajax', function(url) {
+        if(String(url).indexOf('/search/symbols') !== -1) {
+          return RSVP.resolve([{ url: 'https://example.com/hat.png', public: true }]);
+        }
+        return RSVP.resolve({});
+      });
+      await c._lookup_label_images();
+      expect(c.get('_label_images.hat.image_url')).toEqual('https://example.com/hat.png');
+      expect(c.get('preview_grid')[0][0].image_url).toEqual('https://example.com/hat.png');
+      expect(c.get('_label_images.hat.preview_only')).toEqual(true);
+    });
+
+    itAsync('keeps legacy preview symbols on the server-selected save path', async function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        currentUser: EmberObject.create({ id: '1' }),
+        arm_board_load_overlay: function() {}
+      }));
+      c.set('router', { transitionTo: function() {} });
+      c.set('_label_images', { hat: { image_url: 'https://example.com/hat.png', preview_only: true } });
+      c.set('_label_colors', { hat: { fill: 'green' } });
+      var saved;
+      c.set('model', EmberObject.create({
+        name: 'Hat', locale: 'en', id: '1_1', key: 'example/hat',
+        grid: EmberObject.create({ rows: 1, columns: 1, labels: 'hat', labels_order: 'rows' }),
+        save: function() { saved = RSVP.resolve(this); return saved; }
+      }));
+      stub(modalUtil, 'close', function() {});
+      stub(editManager, 'auto_edit', function() {});
+      c._completeSaveBoard();
+      await saved;
+      var button = c.get('model.buttons')[0];
+      expect(button).toEqual({
+        id: 1, label: 'hat', suggest_symbol: true, hidden: false,
+        hide_label: false, background_color: 'green'
+      });
+    });
+
     itAsync('searches symbols with the English translation and keeps the Spanish label', async function() {
       var c = makeComponent();
       c.set('appState', stubEnglishFirstAppState(true));
