@@ -536,6 +536,41 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       });
     });
 
+    itAsync('keeps labels-only saving when legacy previews have no colors', async function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        currentUser: EmberObject.create({ id: '1' }),
+        arm_board_load_overlay: function() {}
+      }));
+      c.set('router', { transitionTo: function() {} });
+      c.set('_label_images', { hat: { image_url: 'https://example.com/hat.png', preview_only: true } });
+      c.set('_label_colors', {});
+      c.set('_painted_colors', {});
+      var saved;
+      c.set('model', EmberObject.create({
+        name: 'Hat', locale: 'en', id: '1_1', key: 'example/hat',
+        grid: EmberObject.create({ rows: 1, columns: 1, labels: 'hat', labels_order: 'rows' }),
+        save: function() { saved = RSVP.resolve(this); return saved; }
+      }));
+      stub(modalUtil, 'close', function() {});
+      stub(editManager, 'auto_edit', function() {});
+      c._completeSaveBoard();
+      await saved;
+      expect(c.get('model.buttons')).toEqual(undefined);
+      expect(c.get('model.grid.labels')).toEqual('hat');
+      expect(c.get('model.grid.order')).toEqual(undefined);
+    });
+
+    it('keeps non-variant legacy previews intact with an active skin preference', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        sessionUser: EmberObject.create({ preferences: { skin: 'medium' } })
+      }));
+      c.set('model.grid.labels', 'hat');
+      c.set('_label_images', { hat: { image_url: 'https://example.com/hat.png', preview_only: true } });
+      expect(c.get('preview_grid')[0][0].image_url).toEqual('https://example.com/hat.png');
+    });
+
     itAsync('searches symbols with the English translation and keeps the Spanish label', async function() {
       var c = makeComponent();
       c.set('appState', stubEnglishFirstAppState(true));
