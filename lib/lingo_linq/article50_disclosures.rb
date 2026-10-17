@@ -37,9 +37,10 @@ module LingoLinq
   #    but, on Bedrock, cannot access the prompts or responses). Naming AWS is
   #    not optional detail: it is the actual processor, and an Art. 50(1) notice
   #    that names only Anthropic identifies the wrong entity and the wrong legal
-  #    basis. The ONLY model named is Claude Haiku 4.5 -- the verified runtime
-  #    inventory (lib/ai_board_generator.rb and lib/ai_word_predictor.rb resolve
-  #    anthropic.claude-haiku-4-5 via AiClient). Claude Opus 4.7 was REMOVED
+  #    basis. The ONLY model named in the current version is Claude Haiku 5.5,
+  #    the runtime inventory (lib/ai_board_generator.rb and lib/ai_word_predictor.rb
+  #    resolve anthropic.claude-haiku-5-5 via AiClient); version 1 named Claude
+  #    Haiku 4.5, the model before 2026-10-13. Claude Opus 4.7 was REMOVED
   #    2026-08-02: it is absent from the classic Bedrock catalog entirely, so
   #    eval narration invokes no model at all and falls back to a local
   #    template. Naming a model that is never invoked overstates exposure.
@@ -82,9 +83,16 @@ module LingoLinq
   # statement) does change the hash and should prompt human review before a
   # CURRENT_VERSION bump.
   module Article50Disclosures
-    CURRENT_VERSION = 1
+    # Version 2 (2026-10-13): the runtime model changed from Claude Haiku 4.5 to
+    # Claude Haiku 5.5 (lib/ai_client.rb ALLOWED_RUNTIME_MODELS), so the notice
+    # is re-shown. Keep app/frontend/app/utils/article50_gate.js
+    # ART50_CURRENT_VERSION equal to this.
+    CURRENT_VERSION = 2
 
-    REGISTRY = {
+    # Version 1 exactly as published. Never edit it: it is the record of what a
+    # reader acknowledged at version 1. Later versions are derived from it
+    # below, so they can differ only where the derivation says they do.
+    V1_REGISTRY = {
       1 => {
         'effective_date' => '2026-07-20',
         'article' => 'EU AI Act Article 50(1), Regulation (EU) 2024/1689',
@@ -200,6 +208,32 @@ module LingoLinq
         }
       }.freeze
     }.freeze
+
+    # Version 2 differs from version 1 ONLY in the model named and the effective
+    # date. Order matters: the dated form is replaced before the bare name.
+    V2_MODEL_RENAMES = [
+      ['Claude Haiku 4.5 (claude-haiku-4-5-20251001)', 'Claude Haiku 5.5 (claude-haiku-5-5)'],
+      ['Claude Haiku 4.5', 'Claude Haiku 5.5']
+    ].freeze
+
+    # Returns a deep copy of `obj` with every String passed through `renames`.
+    def self.rename_models(obj, renames)
+      case obj
+      when Hash
+        obj.each_with_object({}) { |(k, v), h| h[k] = rename_models(v, renames) }
+      when Array
+        obj.map { |v| rename_models(v, renames) }
+      when String
+        renames.reduce(obj) { |s, (from, to)| s.gsub(from, to) }
+      else
+        obj
+      end
+    end
+    private_class_method :rename_models
+
+    REGISTRY = V1_REGISTRY.merge(
+      2 => rename_models(V1_REGISTRY[1], V2_MODEL_RENAMES).merge('effective_date' => '2026-10-13').freeze
+    ).freeze
 
     # Returns JSON-serializable metadata for the given version, or nil when
     # the version is unknown. String keys throughout (matches Art50Marker /

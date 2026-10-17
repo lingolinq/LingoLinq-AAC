@@ -48,9 +48,16 @@ module LingoLinq
   # and should be paired with human review (Task 02-02.8) before any version
   # bump ships, not relied on as the sole gate.
   module AiConsentDisclosures
-    CURRENT_VERSION = 1
+    # Version 2 (2026-10-13): the runtime model changed from Claude Haiku 4.5 to
+    # Claude Haiku 5.5 (lib/ai_client.rb ALLOWED_RUNTIME_MODELS). A changed model
+    # is a substantive change, so the version is bumped and a version-1 grant no
+    # longer satisfies ai_consent_granted?.
+    CURRENT_VERSION = 2
 
-    REGISTRY = {
+    # Version 1 exactly as published. Never edit it: it is the record of what a
+    # version-1 consent was given against. Later versions are derived from it
+    # below, so they can differ only where the derivation says they do.
+    V1_REGISTRY = {
       1 => {
         'effective_date' => '2026-07-09',
         'vendors' => [
@@ -164,6 +171,32 @@ module LingoLinq
           'messaging) keeps working normally without AI features.'
       }.freeze
     }.freeze
+
+    # Version 2 differs from version 1 ONLY in the model named and the effective
+    # date. Order matters: the dated form is replaced before the bare name.
+    V2_MODEL_RENAMES = [
+      ['Claude Haiku 4.5 (claude-haiku-4-5-20251001)', 'Claude Haiku 5.5 (claude-haiku-5-5)'],
+      ['Claude Haiku 4.5', 'Claude Haiku 5.5']
+    ].freeze
+
+    # Returns a deep copy of `obj` with every String passed through `renames`.
+    def self.rename_models(obj, renames)
+      case obj
+      when Hash
+        obj.each_with_object({}) { |(k, v), h| h[k] = rename_models(v, renames) }
+      when Array
+        obj.map { |v| rename_models(v, renames) }
+      when String
+        renames.reduce(obj) { |s, (from, to)| s.gsub(from, to) }
+      else
+        obj
+      end
+    end
+    private_class_method :rename_models
+
+    REGISTRY = V1_REGISTRY.merge(
+      2 => rename_models(V1_REGISTRY[1], V2_MODEL_RENAMES).merge('effective_date' => '2026-10-13').freeze
+    ).freeze
 
     # Returns JSON-serializable metadata for the given version, or nil when
     # the version is unknown. String keys throughout (matches Art50Marker).

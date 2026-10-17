@@ -60,8 +60,15 @@ module AiClient
   #   aws bedrock-runtime invoke-model --model-id <profile-id> ...
   # An alias with no row falls through unchanged and will fail loudly with
   # ValidationException rather than silently invoking something else.
+  #
+  # The Haiku 5.5 row is the `us.` geo profile from the AWS Bedrock model card
+  # (2026-10-13); it must be confirmed with a live invoke in this account before
+  # runtime credentials are restored. `us.` keeps inference inside US Regions;
+  # the `global.` profile is deliberately not used, because AWS states global
+  # profiles "don't provide single-Region data residency".
   CLASSIC_PROFILE_IDS = {
-    'anthropic.claude-haiku-4-5' => 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+    'anthropic.claude-haiku-4-5' => 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    'anthropic.claude-haiku-5-5' => 'us.anthropic.claude-haiku-5-5'
   }.freeze
 
   # Trailing date and/or version suffix on a model id, e.g. the `-20251001` in
@@ -73,16 +80,28 @@ module AiClient
   # ai_word_predictor, ai_board_generator and ai_prediction_generator -- all three
   # carry student/patient data and, unlike EvalNarrator, had NO model gate of their
   # own. Without this, an env var could point them at any model Bedrock will serve,
-  # including a Covered Model (Fable 5 / Mythos 5, which CLAUDE.md bars from Tier 1
-  # because they carry mandatory 30-day retention) or a non-Anthropic vendor, which
-  # would also falsify the "Anthropic-only runtime" claim in the capability ledger
-  # and the Article 50 disclosures.
+  # including a Covered Model (Fable 5 / 5.1, Mythos 5 / 5.1, which CLAUDE.md bars
+  # from Tier 1 because they carry mandatory 30-day retention) or a non-Anthropic
+  # vendor, which would also falsify the "Anthropic-only runtime" claim in the
+  # capability ledger and the Article 50 disclosures.
   #
   # Entries are plane-neutral aliases. Extend ONLY after confirming a model is
   # HIPAA-eligible on the BAA'd path and is not a mandatory-retention Covered Model.
+  # The list is exactly the model the disclosures name, so an override cannot
+  # send data to a model users were not told about. Haiku 4.5 was replaced by
+  # Haiku 5.5 on 2026-10-13 (both still have a CLASSIC_PROFILE_IDS row; that map
+  # only resolves ids and grants nothing).
   ALLOWED_RUNTIME_MODELS = %w[
-    anthropic.claude-haiku-4-5
+    anthropic.claude-haiku-5-5
   ].freeze
+
+  # Extended-thinking setting every Tier 1 seam passes to messages.create.
+  # Claude Haiku 5.5 runs adaptive thinking by default (AWS model card: "adaptive
+  # thinking is on by default and can be turned off"). Left on, thinking tokens
+  # count against max_tokens (word prediction allows 60) and a thinking block can
+  # precede the text block that the seams read, so a call could return no usable
+  # text. The seams need short, direct answers, so it is turned off explicitly.
+  RUNTIME_THINKING = { type: :disabled }.freeze
 
   # AWS account the Bedrock credential MUST resolve to. See account_verified?.
   # Deliberately a variable rather than a literal so an account migration is a

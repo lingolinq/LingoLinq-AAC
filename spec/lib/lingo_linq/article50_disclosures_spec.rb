@@ -6,20 +6,72 @@ describe LingoLinq::Article50Disclosures do
   DEV_TOOLING_NAMES = ['gpt-5', 'Codex', 'DeepSeek', 'Fable', 'Gemini', 'OpenAI'].freeze
 
   describe '::CURRENT_VERSION' do
-    it 'is 1' do
-      expect(described_class::CURRENT_VERSION).to eq(1)
+    it 'is 2' do
+      expect(described_class::CURRENT_VERSION).to eq(2)
+    end
+
+    # article50_gate.js single-sources the frontend copy of this number; a
+    # mismatch would show readers a stale notice and record acks at the wrong
+    # version.
+    it 'matches ART50_CURRENT_VERSION in the frontend gate' do
+      gate = File.read(Rails.root.join('app/frontend/app/utils/article50_gate.js'))
+      expect(gate[/ART50_CURRENT_VERSION = (\d+);/, 1].to_i).to eq(described_class::CURRENT_VERSION)
     end
   end
 
   describe '.known_version?' do
-    it 'is true only for the known Integer version 1' do
+    it 'is true only for the known Integer versions 1 and 2' do
       expect(described_class.known_version?(1)).to eq(true)
+      expect(described_class.known_version?(2)).to eq(true)
     end
 
     it 'is false for an unknown version, a non-numeric-prefixed string, and nil' do
-      expect(described_class.known_version?(2)).to eq(false)
+      expect(described_class.known_version?(3)).to eq(false)
       expect(described_class.known_version?('art50_v1')).to eq(false)
       expect(described_class.known_version?(nil)).to eq(false)
+    end
+  end
+
+  # Version 2 exists only because the runtime model changed (Haiku 4.5 -> 5.5).
+  # These pin that it changed nothing else, and that version 1 still says what a
+  # version-1 reader acknowledged.
+  describe 'version 2 (runtime model change)' do
+    def comparable(version)
+      described_class.metadata(version).except('version', 'content_hash', 'effective_date')
+    end
+
+    it 'differs from version 1 only in the model named' do
+      v1_renamed = JSON.parse(
+        comparable(1).to_json
+          .gsub('Claude Haiku 4.5 (claude-haiku-4-5-20251001)', 'Claude Haiku 5.5 (claude-haiku-5-5)')
+          .gsub('Claude Haiku 4.5', 'Claude Haiku 5.5')
+      )
+      expect(comparable(2)).to eq(v1_renamed)
+      expect(comparable(2)).not_to eq(comparable(1))
+    end
+
+    it 'keeps version 1 naming Claude Haiku 4.5, unchanged' do
+      v1 = described_class.metadata(1)
+      expect(v1['effective_date']).to eq('2026-07-20')
+      expect(v1.to_json).to include('Claude Haiku 4.5 (claude-haiku-4-5-20251001)')
+      expect(v1.to_json).not_to include('Haiku 5.5')
+    end
+
+    it 'names Claude Haiku 5.5 and no longer names Haiku 4.5' do
+      v2 = described_class.metadata(2)
+      expect(v2['effective_date']).to eq('2026-10-13')
+      expect(v2.to_json).to include('Claude Haiku 5.5 (claude-haiku-5-5)')
+      expect(v2.to_json).not_to include('Haiku 4.5')
+    end
+
+    # Ties the disclosure to the code: every model the runtime allowlist can send
+    # data to must be named in the current version.
+    it 'names every model in AiClient::ALLOWED_RUNTIME_MODELS' do
+      models = described_class.metadata(described_class::CURRENT_VERSION)['vendors']
+                              .flat_map { |v| v['models'] }.join(' ')
+      AiClient::ALLOWED_RUNTIME_MODELS.each do |model_alias|
+        expect(models).to include(model_alias.delete_prefix('anthropic.'))
+      end
     end
   end
 
@@ -37,7 +89,7 @@ describe LingoLinq::Article50Disclosures do
     end
 
     it 'returns nil for an unknown version' do
-      expect(described_class.metadata(2)).to be_nil
+      expect(described_class.metadata(3)).to be_nil
     end
 
     it 'returns a deep copy: mutating the result does not mutate the REGISTRY' do
@@ -57,7 +109,11 @@ describe LingoLinq::Article50Disclosures do
     end
 
     it 'returns nil for an unknown version' do
-      expect(described_class.content_hash(2)).to be_nil
+      expect(described_class.content_hash(3)).to be_nil
+    end
+
+    it 'differs between version 1 and version 2' do
+      expect(described_class.content_hash(2)).not_to eq(described_class.content_hash(1))
     end
   end
 
@@ -71,7 +127,7 @@ describe LingoLinq::Article50Disclosures do
     RUNTIME_AI_VENDORS = ['Amazon Web Services, Inc.', 'Anthropic, PBC'].freeze
 
     it 'names only the two entities actually in the runtime AI path' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       expect(m['vendors']).not_to be_empty
       m['vendors'].each do |vendor|
         expect(RUNTIME_AI_VENDORS).to include(vendor['name'])
@@ -80,7 +136,7 @@ describe LingoLinq::Article50Disclosures do
     end
 
     it 'identifies AWS as the operator of the inference, not merely a host' do
-      m = described_class.metadata(1)
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       aws = m['vendors'].find { |v| v['name'] == 'Amazon Web Services, Inc.' }
       expect(aws['tier']).to include('Amazon Bedrock')
       expect(aws['tier']).to match(/Business Associate Agreement/i)
@@ -93,12 +149,12 @@ describe LingoLinq::Article50Disclosures do
       expect(serialized).not_to match(/zero-data-retention agreement/i)
     end
 
-    it 'lists only Claude Haiku 4.5 as a model' do
-      m = described_class.metadata(1)
+    it 'lists only Claude Haiku 5.5 as a model' do
+      m = described_class.metadata(described_class::CURRENT_VERSION)
       models = m['vendors'].flat_map { |v| v['models'] }
       expect(models).not_to be_empty
       models.each do |model_string|
-        expect(model_string).to match(/Claude Haiku 4\.5/)
+        expect(model_string).to match(/Claude Haiku 5\.5/)
       end
       # Opus 4.7 must NOT appear: it is absent from the classic Bedrock catalog, so
       # eval narration invokes no model and falls back to a local template. Naming a
@@ -117,25 +173,25 @@ describe LingoLinq::Article50Disclosures do
 
   describe 'truthfulness gate 2: tiered retention' do
     it 'has all required retention keys' do
-      retention = described_class.metadata(1)['retention']
+      retention = described_class.metadata(described_class::CURRENT_VERSION)['retention']
       %w[vendor_side lingolinq_general lingolinq_children lingolinq_eu lingolinq_hipaa_floor ip_address account_deletion].each do |key|
         expect(retention).to have_key(key)
       end
     end
 
     it 'states the general tier as 24 months' do
-      retention = described_class.metadata(1)['retention']
+      retention = described_class.metadata(described_class::CURRENT_VERSION)['retention']
       expect(retention['lingolinq_general']['window_months']).to eq(24)
     end
 
     it 'states the children tier as a rolling 12 months' do
-      retention = described_class.metadata(1)['retention']
+      retention = described_class.metadata(described_class::CURRENT_VERSION)['retention']
       expect(retention['lingolinq_children']['window_months']).to eq(12)
       expect(retention['lingolinq_children']['rolling']).to eq(true)
     end
 
     it 'states the EU tier as up to 5 years' do
-      retention = described_class.metadata(1)['retention']
+      retention = described_class.metadata(described_class::CURRENT_VERSION)['retention']
       expect(retention['lingolinq_eu']['window_years']).to eq(5)
     end
 
@@ -145,7 +201,7 @@ describe LingoLinq::Article50Disclosures do
     # logs (#888 retraction). The note may now cite the regulation only to
     # retract it, and must say the window is under counsel review.
     it 'states the healthcare window as 6 years without reasserting the retracted 164.316(b)(2) hard floor' do
-      retention = described_class.metadata(1)['retention']
+      retention = described_class.metadata(described_class::CURRENT_VERSION)['retention']
       floor = retention['lingolinq_hipaa_floor']
       expect(floor['window_years']).to eq(6)
       expect(floor['note']).to include('45 CFR 164.316(b)(2)')
@@ -166,13 +222,13 @@ describe LingoLinq::Article50Disclosures do
     end
 
     it 'states that the general tier note is overridden upward by the EU and HIPAA floors' do
-      note = described_class.metadata(1)['retention']['lingolinq_general']['note']
+      note = described_class.metadata(described_class::CURRENT_VERSION)['retention']['lingolinq_general']['note']
       expect(note).to match(/override/i)
       expect(note).to match(/upward/i)
     end
 
     it 'states that the children tier note is overridden upward by the EU and HIPAA floors' do
-      note = described_class.metadata(1)['retention']['lingolinq_children']['note']
+      note = described_class.metadata(described_class::CURRENT_VERSION)['retention']['lingolinq_children']['note']
       expect(note).to match(/override/i)
       expect(note).to match(/upward/i)
     end
@@ -180,7 +236,7 @@ describe LingoLinq::Article50Disclosures do
 
   describe 'truthfulness gate 4: vendor-side retention is separate from LingoLinq retention' do
     it 'describes vendor_side and lingolinq_* retention as distinct facts under distinct keys' do
-      retention = described_class.metadata(1)['retention']
+      retention = described_class.metadata(described_class::CURRENT_VERSION)['retention']
       vendor_side = retention['vendor_side']
       expect(vendor_side).to be_a(String)
       expect(vendor_side).to match(/Anthropic/)
@@ -203,7 +259,7 @@ describe LingoLinq::Article50Disclosures do
     # someone stops dropping either field, this spec fails on the code side, and if
     # someone removes the reassurance from the notice, it fails on the text side.
     let(:eval_feature) do
-      described_class.metadata(1)['ai_features'].detect { |f| f['key'] == 'eval_narrator' }
+      described_class.metadata(described_class::CURRENT_VERSION)['ai_features'].detect { |f| f['key'] == 'eval_narrator' }
     end
 
     it 'tells the reader that the name and diagnosis are removed before sending' do
@@ -213,7 +269,7 @@ describe LingoLinq::Article50Disclosures do
       expect(description).to match(/name/i)
       expect(description).to match(/diagnosis/i)
 
-      category = described_class.metadata(1)['data_categories'].detect { |c| c =~ /evaluation/i }
+      category = described_class.metadata(described_class::CURRENT_VERSION)['data_categories'].detect { |c| c =~ /evaluation/i }
       expect(category).to match(/removed before sending/i)
     end
 
@@ -240,7 +296,7 @@ describe LingoLinq::Article50Disclosures do
 
   describe 'ai_marking' do
     it 'states that Article 50(2) marking is unconditional and independent of jurisdiction or feature flags' do
-      marking = described_class.metadata(1)['ai_marking']
+      marking = described_class.metadata(described_class::CURRENT_VERSION)['ai_marking']
       serialized = marking.is_a?(String) ? marking : JSON.generate(marking)
       expect(serialized).to match(/50\(2\)/)
       expect(serialized).to match(/unconditional|regardless of jurisdiction/i)
