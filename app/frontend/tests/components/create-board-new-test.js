@@ -33,12 +33,25 @@ import editManager from '../../utils/edit_manager';
 describe('CreateBoardNewComponent', 'component:create-board-new', function() {
   var testOwner;
 
+  // Every component a test makes is destroyed when the test ends. Typing labels schedules a
+  // 450 ms debounced colour lookup (create-board-new.js _request_label_colors); left alive, it
+  // fired inside whatever test ran next, against that test's stubs. Once destroyed, the lookup
+  // returns early (it checks isDestroying).
+  var created_components = [];
   beforeEach(function() {
     testOwner = this.owner;
   });
 
+  afterEach(function() {
+    created_components.forEach(function(component) {
+      if(!component.isDestroyed && !component.isDestroying) { component.destroy(); }
+    });
+    created_components = [];
+  });
+
   function makeComponent() {
     var component = testOwner.factoryFor('component:create-board-new').create();
+    created_components.push(component);
     // Bypass init's createRecord call (would require a real store) by
     // overwriting the model with a plain stub. The component reads via
     // .get('model.*'), so a plain EmberObject is sufficient.

@@ -107,7 +107,7 @@ describe("capabilities", function() {
     it("should try flushing databases on error", function() {
       db_wait(function() {
         var db_req = { };
-        var attempt = 0;
+        var attempt = 0, last_check_ran = false; // the attempt-4 check runs in a later(); wait for it, not just for attempt 4 to start
         var deleted_databases = [];
         var other = "lingolinqStorage::bacon===abcdefg";
         var db_key = null;
@@ -123,12 +123,12 @@ describe("capabilities", function() {
             if(attempt == 2) {
               expect(deleted_databases).toEqual([key]);
             } else if(attempt == 4) {
-              expect(deleted_databases).toEqual([key, other]);
+              expect(deleted_databases).toEqual([key, other]); last_check_ran = true;
             }
           }, 10);
           return db_req;
         });
-        waitsFor(function() { return attempt >= 4; });
+        waitsFor(function() { return attempt >= 4 && last_check_ran; });
         runs(function() {
           expect(deleted_databases).toEqual([db_key, other]);
           expect((capabilities.dbman.db_error_event || {}).attempt >= 3).toEqual(true);
@@ -291,10 +291,17 @@ describe("capabilities", function() {
   });
 
   describe("sensors", function() {
+    // Each sensor_listen() call starts its own intervals and listeners; stop the ones this test
+    // started, or they keep ticking (and writing capabilities/stashes) through every later test.
+    var stopSensors = [];
+    afterEach(function() {
+      stopSensors.forEach(function(stop) { stop(); });
+      stopSensors = [];
+    });
     it("should track orientation", function() {
       capabilities.last_orientation = null;
       if(!window.DeviceOrientationEvent) { window.DeviceOrientationEvent = {}; }
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       var e = new window.CustomEvent('deviceorientation');
       e.alpha = 1;
       e.beta = 2;
@@ -316,7 +323,7 @@ describe("capabilities", function() {
         }
       });
       capabilities.last_volume = null;
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       expect(callback).toNotEqual(null);
       callback(75);
       expect(capabilities.last_volume).toEqual(75);
@@ -332,7 +339,7 @@ describe("capabilities", function() {
         }
       });
       capabilities.last_lux = null;
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       waitsFor(function() { return callback; });
       runs(function() {
         callback("1200");
@@ -352,7 +359,7 @@ describe("capabilities", function() {
         }
       });
       capabilities.last_brightness = null;
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       waitsFor(function() { return callback; });
       runs(function() {
         callback("75");
@@ -367,7 +374,7 @@ describe("capabilities", function() {
         sensor = this;
       }
       stub(window, 'LightSensor', LightSensor);
-      capabilities.sensor_listen();
+      stopSensors.push(capabilities.sensor_listen());
       expect(sensor).toNotEqual(null);
       capabilities.last_lux = null;
       sensor.onchange({reading: {illuminance: 6200}});
