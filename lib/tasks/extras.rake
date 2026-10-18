@@ -508,7 +508,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
   elsif args[:system] && args[:system].downcase == 'windows'
     message = "New version of the Windows app is available"
     message += " (#{args[:version]})" if args[:version]
-    message += "\n<https://www.mylingolinq.com/download|download links>"
+    message += "\n<https://app.lingolinq.com/download|download links>"
   elsif args[:system]
     raise "unrecognized system, #{args[:system]}"
   else
