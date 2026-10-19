@@ -5,6 +5,7 @@ import RSVP from 'rsvp';
 import utterance from 'frontend/utils/utterance';
 import speecher from 'frontend/utils/speecher';
 import stashes from 'frontend/utils/_stashes';
+import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 import { maybe_offer_tour, accept_tour_offer, dismiss_tour_offer } from 'frontend/utils/tours/tour_offer';
 import { start_talking_now } from 'frontend/utils/tours/start_talking';
 
@@ -81,9 +82,11 @@ module('Unit | Utility | tours | tour offer', function(hooks) {
     var prevAppState = utterance.appState;
     var prevVocalized = utterance.get('list_vocalized');
     var speak = speecher.speak_collection;
-    var log = stashes.log;
     speecher.speak_collection = function() {};
-    stashes.log = function() {};
+    // Through the harness stub: `stashes` is a forwarding proxy (utils/_stashes.js), so a plain
+    // assignment lands on the util object rather than the service the utterance calls, and putting
+    // back the bound function it read leaves that util object changed (the leak check's finding).
+    stub(stashes, 'log', function() {});
     try {
       utterance.appState = as;
       utterance.vocalize_list(null, {});
@@ -92,7 +95,7 @@ module('Unit | Utility | tours | tour offer', function(hooks) {
       utterance.appState = prevAppState;
       utterance.set('list_vocalized', prevVocalized); // so the next suite starts with the utterance as it was
       speecher.speak_collection = speak;
-      stashes.log = log;
+      restoreStubs();
     }
   });
 
