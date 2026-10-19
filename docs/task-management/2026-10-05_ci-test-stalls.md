@@ -826,3 +826,82 @@ Proposal (one commit each):
   The other below-the-bar items were checked and need no change: they are non-required jobs, inputs the
   PR author controls, or intended behaviour.
 - Why the rounds kept producing findings: see `learnings-archive/2026-10.md`, "Review churn".
+
+## 2026-10-15: ember-shard-main red after the develop merge (0aae9ce77), and the required run too
+
+The required `build-and-test` at 0aae9ce77 FAILED as well (3,701 tests, 52 fail; same modules as
+shard-main minus `cancelling a home board copy`, plus one `utterance` leak-check charge and the
+already-fixed parallel-pool-filter). Local shard-main at 8ace0b34e (`--query
+"pool=exclude&timingStrict=1"`): 2,022 tests, 58 fail, the CI set exactly.
+
+### Fact sheet (CONFIRMED unless marked)
+
+- Every timed-out test waits for `settled()`: either its own `await settled()` (board views online,
+  deferred revocations, record-location) or ember-qunit's upstream `setupTest` teardown
+  (`waitForSettled` defaults on; the sentence bar and the tours modules import `setupTest` from
+  `ember-qunit`, not `tests/helpers`). Tests between them that never call `settled()` pass.
+  Alone, every one of these modules passes in strict mode.
+- `settled()` is pending while `_backburner.hasTimers()` or `hasPendingWaiters()` is true
+  (`@ember/test-helpers` settled.ts `getSettledState`). Both are page-global: they outlive the owner.
+- Cause 1 (board views, deferred revocations, record-location, sentence bar): a probe logging
+  `getSettledState()` and `getPendingWaiterState()` during the hang showed one pending
+  `@ember/test-waiters` promise-waiter from `FetchManager.scheduleFetch` / `RequestManager.request`,
+  started by `store.findRecord` in `tests/unit/helpers/wait-for-queued-store-fetches-test.js`
+  ("resolves only once no Ember Data fetch is still queued"), whose adapter stub returned
+  `new Promise(function() {})`: the request never settles, so the waiter is pending for the rest of
+  the page. Minimal repro: that module + `board views and revoked offline copies` = 3 fail; with
+  `board revoked offline copies` + `leak check` in its place = 0 fail.
+- Cause 2 (all six tours modules): after cause 1 was fixed, shard-main still hung from
+  `tours | communicator board tour` on. Bisected over the 27 modules before it to
+  `Unit | Utility | persistence online pollers` alone (pair = 4 fail; each other module + the tour
+  module = 0). Probe: the one pending timer is `stashes.push_log`'s 15-minute retry
+  (`app/services/stashes.js` `this.timer = runLater(..., 15 * 60 * 1000)`), scheduled from
+  `drain_on_reconnect`: the poller tests flip persistence offline and back online, persistence passes
+  that to the owner's stashes service, and the false -> true edge calls the real `push_log`. The
+  service has no `willDestroy`, so the timer stays in the shared run loop after the owner is gone.
+- Cause 3 (`cancelling a home board copy`, strict only): the module stubbed `findRecord` ON
+  whatever `LingoLinq.store` held; in shard order that is an earlier test's destroyed store, which the
+  leak check's proxy reports ("read/write LingoLinq.store.findRecord on a destroyed service").
+- Cause 4 (`tours | tour offer: speaking a message makes the offer`, hidden behind the timeouts
+  until cause 2 was fixed; also the `utterance` charge in build-and-test): the test saved
+  `stashes.log`, assigned a stub and put the saved value back. `utils/_stashes.js` exports a Proxy
+  with a `get` trap and no `set` trap: the read returns the SERVICE's method bound (a new function),
+  the writes land on the util object. So the stub never reached the service the utterance calls,
+  and the "restore" left a bound function as an own property of the util object (leak check:
+  "stashes.log was replaced and not restored"). Fails alone too.
+- ASSUMED: why green before the merge: the modules that call `settled()` after these two leakers
+  arrived with #1141 and #1117; not checked commit by commit.
+
+### Fixes (tests only; no assertion touched)
+
+1. `wait-for-queued-store-fetches-test.js`: the stub's request still does not answer while the test
+   checks the wait (the five assertions are unchanged, and the fetch is still in flight for all of
+   them); it is rejected in the `finally` and awaited, so the Ember Data waiter ends.
+2. `persistence-online-poller-test.js`: a module `beforeEach` makes this owner's stashes
+   `push_log` a no-op (owner-local service, torn down with the owner; same approach as
+   `stashes-reconnect-drain-test.js`). Rejected alternatives: cancel the timers in a stashes
+   `willDestroy` (the right lifecycle fix, but `runCancel` is a new `ember/no-runloop` finding:
+   for the owner); cancel every run-loop timer in the harness between tests (would hide real leaks).
+3. `tour-offer-test.js`: stubs `stashes.log` with the harness `stub()` / `restoreStubs()`
+   (tests/helpers/jasmine.js), which resolves the proxy to its real targets and restores them.
+4. `home-copy-cancel-test.js`: swaps in its own store object for `LingoLinq.store` and puts the
+   original reference back, instead of stubbing a method on the global's current value.
+
+### Verification
+
+- Local shard-main (`--query "pool=exclude&timingStrict=1"`, 2,022 tests): before 58 fail (the CI
+  set); after 1 fail (below), 728 s of test time (CI's main test step was 1,415 s).
+- Falsification, one build with all four test edits reverted vs the fixed build, minimal pairs in
+  strict mode: waitForQueuedStoreFetches + board views 3 fail / 0; sentence bar + home copy 8 / 0;
+  online pollers + communicator board tour 4 / 0; tour offer alone 1 / 0.
+- `npm run lint:js:ci`: new=0 (findings = baseline = 1,556); `npm run lint:hbs`: exit 0.
+
+### Not fixed: `Unit | Utility | button timer action` (needs the owner)
+
+Fails in the fixed shard-main run (one or two of its three tests) and ALONE, in both modes, in 3 of
+4 runs; passed in CI only in full order. Not caused by these edits (nothing it imports changed). An
+instrumented tick shows the `:timer(1s)` reaches time-up on the 2nd or 3rd 500 ms tick, so the
+reminder lands 2.5 to 3 s after the trigger; "the reminder beep does not sound once its app is
+gone" waits 1,700 ms after the modal opens for a 1,500 ms reminder (200 ms margin), and the positive
+control's `waitFor` is 4 s. The fix is to widen those waits or drive the clock, which is a timeout
+change on a test: stopped for approval (Rule 14).
