@@ -1,4 +1,7 @@
 require 'sanitize'
+# Required explicitly, not left to Zeitwerk, so this stays loadable where lib/ autoload is
+# skipped (RESQUE_WORKER=='true'), as in board.rb.
+require_relative '../../../lib/legacy_links'
 
 module Processable
   extend ActiveSupport::Concern

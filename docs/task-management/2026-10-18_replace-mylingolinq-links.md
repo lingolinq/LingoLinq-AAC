@@ -110,13 +110,18 @@ center links somewhere else. Decisions taken with him in the session:
   - Each write is a compare-and-swap on the ciphertext it read
     (`where(id:, settings: raw)`), re-reading and retrying up to 5 times, because the
     previous web revision and workers keep saving images while the migrate job runs.
-  - Rows that cannot be decrypted are listed by id in the migration output, not skipped
-    silently. A non-Hash `library_alternates` is ignored rather than aborting the job.
+  - Rows that cannot be decrypted, and rows still being written after 5 attempts, are listed
+    by id in the migration output, not skipped silently; the migration does not fail on them,
+    since that would block the deploy. A non-Hash `library_alternates` is ignored rather than
+    aborting the job.
   - Cost scales with the `button_images` row count, since every row is decrypted.
 - **Stale clients**: a browser or offline app still running older code sends the old address
   in a new image's license. `Processable#process_license` (boards, images, sounds, videos) now
   passes the license through `LegacyLinks.normalize_license` (`lib/legacy_links.rb`), which the
-  migration also uses. Residue this does not cover: rows written by the previous revision
+  migration also uses. `processable.rb` requires it explicitly, as `board.rb` does for
+  `art50_marker`, because `config/application.rb` skips `lib/` autoload when
+  `RESQUE_WORKER=='true'`. (That mode is not set on the prod worker pool or migrate job, checked
+  2026-10-19, and booting with it already fails at `config/environment.rb` on `AppSearcher`.) Residue this does not cover: rows written by the previous revision
   between the migrate job and traffic moving, and rows the staging web service (older code,
   same database as dev) writes before this change reaches staging. Both are attribution
   links on test data; a later run of the same rewrite would catch them.
@@ -124,7 +129,7 @@ center links somewhere else. Decisions taken with him in the session:
   `process_params` legacy-domain example and the "RewriteLegacyWordArtAuthorUrl backfill"
   group. Each was seen red first: the backfill with an empty `up`, the userinfo URL with the
   first regex, the concurrent-write example without the compare-and-swap (width reverted to
-  100), the unreadable-row report, the fallback copy with that line removed, the non-Hash
+  100), the unreadable-row and gave-up-row reports, the fallback copy with that line removed, the non-Hash
   alternates (crashed), and the write path without `normalize_license`.
 
 ## Validation limits

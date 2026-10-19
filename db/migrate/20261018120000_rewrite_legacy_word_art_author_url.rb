@@ -24,6 +24,7 @@ class RewriteLegacyWordArtAuthorUrl < ActiveRecord::Migration[7.2]
   def up
     counts = Hash.new(0)
     unreadable_ids = []
+    conflict_ids = []
     last_id = 0
     loop do
       rows = connection.select_rows(
@@ -37,14 +38,15 @@ class RewriteLegacyWordArtAuthorUrl < ActiveRecord::Migration[7.2]
         result = rewrite_row(last_id, raw)
         counts[result] += 1
         unreadable_ids << last_id if result == :unreadable
+        conflict_ids << last_id if result == :conflict
       end
     end
     say "rewrote legacy author_url on #{counts[:rewritten]} button_image row(s)"
     if unreadable_ids.any?
       say "could not read #{unreadable_ids.length} button_image row(s): #{unreadable_ids.join(', ')}"
     end
-    if counts[:conflict] > 0
-      say "gave up on #{counts[:conflict]} button_image row(s) still being written after #{MAX_ATTEMPTS} attempts"
+    if conflict_ids.any?
+      say "gave up on #{conflict_ids.length} button_image row(s) still being written after #{MAX_ATTEMPTS} attempts: #{conflict_ids.join(', ')}"
     end
   end
 

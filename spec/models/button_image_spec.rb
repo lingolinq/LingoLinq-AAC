@@ -934,6 +934,17 @@ describe ButtonImage, :type => :model do
       expect(bi.settings['license']['author_url']).to eq('https://www.lingolinq.com')
     end
 
+    it "reports rows it gave up on after repeated concurrent writes" do
+      bi = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}})
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      messages = []
+      allow(migration).to receive(:say) {|message, *| messages << message }
+      allow(migration).to receive(:rewrite_row).and_call_original
+      allow(migration).to receive(:rewrite_row).with(bi.id, anything).and_return(:conflict)
+      migration.up
+      expect(messages.join("\n")).to match(/gave up on 1 button_image row\(s\) still being written after 5 attempts: #{bi.id}\b/)
+    end
+
     it "reports rows it cannot read instead of skipping them silently" do
       bi = ButtonImage.create(:settings => {'license' => {'type' => 'CC By'}})
       ButtonImage.where(id: bi.id).update_all(settings: 'not-a-salt--not-a-secret')
