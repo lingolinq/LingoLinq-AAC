@@ -49,10 +49,11 @@ Other values that reach runtime:
 
 ## Kept lines and why
 
-- `spec/mailers/user_mailer_spec.rb` "should have a default reply-to of noreply@mylingolinq.com":
-  a pending example with no body. `UserMailer` sets `default from: ENV['DEFAULT_EMAIL_FROM']` and no
-  default reply-to at all (`reply_to:` is set per message from the user's own email). The title's
-  premise is wrong, not just its address, so it is reported rather than retitled.
+- `spec/mailers/user_mailer_spec.rb` pending example "should have a default reply-to": no body.
+  `UserMailer` sets `default from: ENV['DEFAULT_EMAIL_FROM']` and no default reply-to at all
+  (`reply_to:` is set per message from the user's own email), so the title's premise is wrong, not
+  just its address. The first pass left it alone; on Scot's second-pass instruction the old address
+  was dropped from the title, and it stays pending.
 - `docs/native-apps/store-identity-disposition.md` row "Marketing/download domain": a dated
   Phase 1 evidence table whose line cites already point at older code; the task fences that
   directory. Reported for a follow-up correction.
@@ -66,16 +67,50 @@ Other values that reach runtime:
   matched nothing: `.subscription-form-cards` is only in `subscription-form.hbs`, which has no blog
   link, and `gift_purchase.hbs` is not inside it.
 
-## Out of scope, found while sweeping
+## Second pass (Scot, 2026-10-18): blog, Zendesk, store links, word art
 
-- Each non-English locale file still carries 5 other `blog.lingolinq.com` links under other keys.
-  Left for a follow-up.
-- Word-art images saved before this change keep `license.author_url` set to the old domain in
-  their stored records; changing those is a data task, not part of this PR.
+Scot: do not buy `mylingolinq.com`; anything still linking to it, to the blog, or to the
+Zendesk help center links somewhere else. Decisions taken with him in the session:
+
+- **Help links go to the contact page** (`https://app.lingolinq.com/contact`, the `contact`
+  route in `router.js`). Changed: the three "learn more about configuring your browser"
+  links (`login-form.hbs`, `register.hbs`, `bad-privacy-settings.hbs`), the iOS help card on
+  both support templates, a commented-out loader line in `boards/index.html.erb`, the
+  Ember-dev-server `domain_settings` stub in `index.html`, and `.env.example`
+  `SUPPORT_URL`. The deployed `support_url` comes from `ENV['SUPPORT_URL']` merged with the
+  System Settings app defaults (`lib/json_api/json.rb`, `lib/system_app_defaults.rb`);
+  `SUPPORT_URL` is not set on the prod, staging or dev Cloud Run services (checked
+  2026-10-18), so this PR adds no backend default.
+- **Welcome email template** (`user_mailer/welcome_confirm_registration.*.erb`): no mailer
+  method renders it (`git grep welcome_confirm_registration` finds only the two files). Its
+  two help-center sentences became one contact-page sentence anyway.
+- **Blog links**: the five other keys carrying `blog.lingolinq.com` (`included_in_subscription`,
+  `5_years_added`, `5_years_included`, `for_supported_communicators`,
+  `for_supported_communicators2`) are not used by any template or code, and `en.json` has none
+  of them. The anchors were stripped in all 12 locales anyway; the words stay.
+- **Store links**: the deploy Slack message (`extras.rake` `extras:deploy_notification`)
+  linked the Play listing for `com.mylingolinq.lingolinq` (404), the App Store id
+  `1021384570` (CoughDrop's listing) and an Amazon listing from the same rename. All now
+  point at `/download`; the `.env.example` store examples are emptied.
+- **Kept on purpose**: the `com.mylingolinq.*` bundle IDs in the purchase code (left for the
+  native-apps in-app-purchase work, which already plans to rework that code), and the
+  reserved username `'mylingolinq'` in `config/routes.rb` (keeps a stranger from taking it).
+- **Word art**: saved images keep `license.author_url` in `button_images.settings`, which is
+  `secure_serialize`d (encrypted), so SQL cannot filter it. Migration
+  `20261018120000_rewrite_legacy_word_art_author_url.rb` decrypts every row in batches of
+  500, rewrites any `author_url` whose host is `mylingolinq.com` or a subdomain (main license
+  and `library_alternates`) to `https://www.lingolinq.com`, and writes back with
+  `update_all`. Spec: `spec/models/button_image_spec.rb` "RewriteLegacyWordArtAuthorUrl
+  backfill"; it fails with an empty `up` and passes with the migration. Cost scales with the
+  `button_images` row count, since every row is decrypted.
 
 ## Validation limits
 
-- Local RSpec could not boot in this worktree: `GoSecure.validate_encryption_key` raises
-  `OpenSSL::Cipher::CipherError: bad decrypt` reading the shared test DB's `encryption_hash`
-  setting, before any example runs. The shared DB was not modified. CI `rspec` on develop
-  117a81238 is green and serves as the backend baseline.
+- The shared local test DB fails at boot (`GoSecure.validate_encryption_key` raises
+  `OpenSSL::Cipher::CipherError: bad decrypt` reading its `encryption_hash` setting). It was
+  not touched. Specs ran instead against a private database:
+  `createdb lingolinq-test-29b9c978`, then `DATABASE_URL=postgres:///lingolinq-test-29b9c978`
+  with `db:schema:load`.
+- `spec/lib/json_api/board_version_spec.rb` fails 2 examples when the local `.env`
+  `OPENSYMBOLS_SECRET` is loaded (a real request to opensymbols.org that WebMock blocks); with
+  it unset, 13 of 13 pass. CI does not set it.

@@ -1,4 +1,5 @@
 require 'spec_helper'
+require Rails.root.join('db/migrate/20261018120000_rewrite_legacy_word_art_author_url.rb')
 
 describe ButtonImage, :type => :model do
   describe "paper trail" do
@@ -862,6 +863,40 @@ describe ButtonImage, :type => :model do
         }
       )
       expect(bi.skin_capable_url).to eq(Uploader.fronted_url(library_skin))
+    end
+  end
+
+  describe "RewriteLegacyWordArtAuthorUrl backfill" do
+    def raw_settings(bi)
+      ButtonImage.connection.select_value("SELECT settings FROM button_images WHERE id = #{bi.id}")
+    end
+
+    it "rewrites old-domain author_url values and leaves other hosts alone" do
+      word_art = ButtonImage.create(:settings => {
+        'license' => {'type' => 'CC By', 'author_name' => 'LingoLinq', 'author_url' => 'https://www.mylingolinq.com', 'uneditable' => true},
+        'library_alternates' => {'original' => {'url' => 'http://www.example.com/a.png', 'license' => {'type' => 'CC By', 'author_url' => 'http://app.mylingolinq.com/images'}}}
+      })
+      bare = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://mylingolinq.com'}})
+      other_path = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://www.example.com/mylingolinq.com'}})
+      lookalike = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://notmylingolinq.com'}})
+      no_license = ButtonImage.create(:settings => {})
+      untouched_raw = [other_path, lookalike, no_license].map{|bi| raw_settings(bi) }
+
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      migration.verbose = false
+      migration.up
+
+      word_art = ButtonImage.find(word_art.id)
+      expect(word_art.settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(word_art.settings['license']['author_name']).to eq('LingoLinq')
+      expect(word_art.settings['library_alternates']['original']['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(ButtonImage.find(bare.id).settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect([other_path, lookalike, no_license].map{|bi| raw_settings(bi) }).to eq(untouched_raw)
+      expect(raw_settings(word_art)).to_not include('lingolinq.com')
+
+      rewritten_raw = raw_settings(word_art)
+      migration.up
+      expect(raw_settings(word_art)).to eq(rewritten_raw)
     end
   end
 end
