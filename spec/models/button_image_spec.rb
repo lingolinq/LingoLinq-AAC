@@ -274,6 +274,17 @@ describe ButtonImage, :type => :model do
       expect(i.public).to eq(true)
       expect(i.user).to eq(u)
     end
+
+    it "should store the current address for a license author_url on the legacy domain" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({
+        'content_type' => 'image/png',
+        'license' => {'type' => 'CC By', 'author_name' => 'LingoLinq', 'author_url' => 'https://www.mylingolinq.com'}
+      }, {:user => u})
+      expect(i.settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(i.settings['license']['author_name']).to eq('LingoLinq')
+    end
     
     it "should process the URL including non_user_params if sent" do
       u = User.new
@@ -879,8 +890,13 @@ describe ButtonImage, :type => :model do
       bare = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://mylingolinq.com'}})
       other_path = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://www.example.com/mylingolinq.com'}})
       lookalike = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://notmylingolinq.com'}})
+      userinfo = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://mylingolinq.com:443@external.example/image'}})
       no_license = ButtonImage.create(:settings => {})
-      untouched_raw = [other_path, lookalike, no_license].map{|bi| raw_settings(bi) }
+      odd_alternates = ButtonImage.create(:settings => {'license' => {'type' => 'CC By'}, 'library_alternates' => ['not', 'a', 'hash']})
+      fallback = ButtonImage.create(:settings => {'license' => {'type' => 'private'}, 'fallback' => {'url' => 'http://www.example.com/b.png', 'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}}})
+      plaintext = ButtonImage.create(:settings => {})
+      ButtonImage.where(id: plaintext.id).update_all(settings: {'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}}.to_json)
+      untouched_raw = [other_path, lookalike, userinfo, no_license, odd_alternates].map{|bi| raw_settings(bi) }
 
       migration = RewriteLegacyWordArtAuthorUrl.new
       migration.verbose = false
@@ -891,12 +907,42 @@ describe ButtonImage, :type => :model do
       expect(word_art.settings['license']['author_name']).to eq('LingoLinq')
       expect(word_art.settings['library_alternates']['original']['license']['author_url']).to eq('https://www.lingolinq.com')
       expect(ButtonImage.find(bare.id).settings['license']['author_url']).to eq('https://www.lingolinq.com')
-      expect([other_path, lookalike, no_license].map{|bi| raw_settings(bi) }).to eq(untouched_raw)
+      expect([other_path, lookalike, userinfo, no_license, odd_alternates].map{|bi| raw_settings(bi) }).to eq(untouched_raw)
+      expect(ButtonImage.find(fallback.id).settings['fallback']['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(ButtonImage.find(plaintext.id).settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(raw_settings(plaintext)).to_not include('lingolinq.com')
       expect(raw_settings(word_art)).to_not include('lingolinq.com')
 
       rewritten_raw = raw_settings(word_art)
       migration.up
       expect(raw_settings(word_art)).to eq(rewritten_raw)
+    end
+
+    it "keeps a settings change saved after the row was read" do
+      bi = ButtonImage.create(:settings => {'width' => 100, 'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}})
+      stale_raw = raw_settings(bi)
+      bi = ButtonImage.find(bi.id)
+      bi.settings['width'] = 200
+      bi.save!
+
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      migration.verbose = false
+      expect(migration.send(:rewrite_row, bi.id, stale_raw)).to eq(:rewritten)
+
+      bi = ButtonImage.find(bi.id)
+      expect(bi.settings['width']).to eq(200)
+      expect(bi.settings['license']['author_url']).to eq('https://www.lingolinq.com')
+    end
+
+    it "reports rows it cannot read instead of skipping them silently" do
+      bi = ButtonImage.create(:settings => {'license' => {'type' => 'CC By'}})
+      ButtonImage.where(id: bi.id).update_all(settings: 'not-a-salt--not-a-secret')
+
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      messages = []
+      allow(migration).to receive(:say) {|message, *| messages << message }
+      migration.up
+      expect(messages.join("\n")).to match(/could not read 1 button_image row\(s\): #{bi.id}\b/)
     end
   end
 end

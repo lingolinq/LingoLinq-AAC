@@ -5,8 +5,8 @@ Decision: Scot, 2026-10-17. The `mylingolinq.com` web links came from the old
 
 ## Confirmed facts at base 117a81238 (checked 2026-10-18)
 
-- `mylingolinq.com`, `www.`, `app.` and `blog.mylingolinq.com` do not resolve (`getent hosts`
-  returns nothing). `blog.lingolinq.com` does not resolve either.
+- None of the `mylingolinq.com` hosts serve LingoLinq, and `blog.lingolinq.com` serves nothing,
+  so every one of these links was dead.
 - `https://www.lingolinq.com/` returns 301 to `https://app.lingolinq.com:443/`;
   `https://app.lingolinq.com/images/logo-new.png` returns 200. `/download` is an Ember route
   (`app/frontend/app/router.js`: `this.route('download', { path: '/download' })`); a 200 alone proves nothing there,
@@ -69,13 +69,18 @@ Other values that reach runtime:
 
 ## Second pass (Scot, 2026-10-18): blog, Zendesk, store links, word art
 
-Scot: do not buy `mylingolinq.com`; anything still linking to it, to the blog, or to the
-Zendesk help center links somewhere else. Decisions taken with him in the session:
+Scot: anything still linking to `mylingolinq.com`, to the blog, or to the Zendesk help
+center links somewhere else. Decisions taken with him in the session:
 
-- **Help links go to the contact page** (`https://app.lingolinq.com/contact`, the `contact`
-  route in `router.js`). Changed: the three "learn more about configuring your browser"
-  links (`login-form.hbs`, `register.hbs`, `bad-privacy-settings.hbs`), the iOS help card on
-  both support templates, a commented-out loader line in `boards/index.html.erb`, the
+- **Help links go to the contact page** (the `contact` route in `router.js`). In-app links
+  use `<LinkTo @route="contact">`, which keeps the current host and the installed-app
+  (`no_linky`) state: the three browser-privacy links (`login-form.hbs`, `register.hbs`,
+  `bad-privacy-settings.hbs`) and the iOS help card on both support templates. The privacy
+  links' text promised a how-to article, so it now reads "Contact us for help setting up your
+  browser for %app_name%" (new key `contact_browser_privacy_help` in `en.json`; other locales
+  show the English text until translated, and `learn_privacy` is now unused). Absolute
+  `https://app.lingolinq.com/contact` is used where a full URL is needed: a commented-out
+  loader line in `boards/index.html.erb`, the
   Ember-dev-server `domain_settings` stub in `index.html`, and `.env.example`
   `SUPPORT_URL`. The deployed `support_url` comes from `ENV['SUPPORT_URL']` merged with the
   System Settings app defaults (`lib/json_api/json.rb`, `lib/system_app_defaults.rb`);
@@ -97,12 +102,30 @@ Zendesk help center links somewhere else. Decisions taken with him in the sessio
   reserved username `'mylingolinq'` in `config/routes.rb` (keeps a stranger from taking it).
 - **Word art**: saved images keep `license.author_url` in `button_images.settings`, which is
   `secure_serialize`d (encrypted), so SQL cannot filter it. Migration
-  `20261018120000_rewrite_legacy_word_art_author_url.rb` decrypts every row in batches of
-  500, rewrites any `author_url` whose host is `mylingolinq.com` or a subdomain (main license
-  and `library_alternates`) to `https://www.lingolinq.com`, and writes back with
-  `update_all`. Spec: `spec/models/button_image_spec.rb` "RewriteLegacyWordArtAuthorUrl
-  backfill"; it fails with an empty `up` and passes with the migration. Cost scales with the
-  `button_images` row count, since every row is decrypted.
+  `20261018120000_rewrite_legacy_word_art_author_url.rb` decrypts every row in batches of 50
+  (settings can carry an unconfirmed upload's data URI, up to 512KB, and the migrate job has
+  512Mi), and rewrites any `author_url` whose parsed host is `mylingolinq.com` or a subdomain,
+  in the main license, the fallback image's license (`ButtonImage#assert_fallback` copies it)
+  and every `library_alternates` license, to `https://www.lingolinq.com`.
+  - Each write is a compare-and-swap on the ciphertext it read
+    (`where(id:, settings: raw)`), re-reading and retrying up to 5 times, because the
+    previous web revision and workers keep saving images while the migrate job runs.
+  - Rows that cannot be decrypted are listed by id in the migration output, not skipped
+    silently. A non-Hash `library_alternates` is ignored rather than aborting the job.
+  - Cost scales with the `button_images` row count, since every row is decrypted.
+- **Stale clients**: a browser or offline app still running older code sends the old address
+  in a new image's license. `Processable#process_license` (boards, images, sounds, videos) now
+  passes the license through `LegacyLinks.normalize_license` (`lib/legacy_links.rb`), which the
+  migration also uses. Residue this does not cover: rows written by the previous revision
+  between the migrate job and traffic moving, and rows the staging web service (older code,
+  same database as dev) writes before this change reaches staging. Both are attribution
+  links on test data; a later run of the same rewrite would catch them.
+- **Specs**: `spec/lib/legacy_links_spec.rb`; in `spec/models/button_image_spec.rb`, the
+  `process_params` legacy-domain example and the "RewriteLegacyWordArtAuthorUrl backfill"
+  group. Each was seen red first: the backfill with an empty `up`, the userinfo URL with the
+  first regex, the concurrent-write example without the compare-and-swap (width reverted to
+  100), the unreadable-row report, the fallback copy with that line removed, the non-Hash
+  alternates (crashed), and the write path without `normalize_license`.
 
 ## Validation limits
 

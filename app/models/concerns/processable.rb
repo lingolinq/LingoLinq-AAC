@@ -113,7 +113,7 @@ module Processable
   end
   
   def process_license(license)
-    self.settings['license'] = OBF::Utils.parse_license(license);
+    self.settings['license'] = LegacyLinks.normalize_license(OBF::Utils.parse_license(license));
   end
   
   def process_string(str)
