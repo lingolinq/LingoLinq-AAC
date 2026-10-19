@@ -57,16 +57,28 @@ module('Unit | Utility | tours | SLP home tour', function(hooks) {
       '<button data-tour-tab="supervisees" class="ch-tab">Communicators</button><button data-tour-tab="boards" class="ch-tab">Boards</button></nav>');
     put('<div class="ch-comm__actions">Model</div>');
     put('<aside class="ch-rail">rail</aside>');
-    var clicked = 0;
-    document.querySelector('[data-tour-tab="supervisees"]').addEventListener('click', function() { clicked++; });
+    document.querySelectorAll('[data-tour-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.ch-tab').forEach(function(other) { other.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+      });
+    });
     var steps = buildClassicHomeSteps({ supporter: true });
+    var active = function() { return document.querySelector('.ch-tab.is-active').getAttribute('data-tour-tab'); };
     assert.deepEqual(steps.map(function(s) { return s.id; }),
       ['classic_tour_welcome', 'classic_tour_slp_boards', 'classic_tour_slp_caseload', 'classic_tour_slp_model', 'classic_tour_slp_dashboards']);
     assert.strictEqual(target(steps[1]), document.querySelector('[data-tour-tab="boards"]'), 'boards: the Boards tab');
     assert.strictEqual(target(steps[2]), document.querySelector('[data-tour-tab="supervisees"]'), 'caseload: the Communicators tab');
     assert.strictEqual(target(steps[3]), document.querySelector('.ch-comm__actions'), 'Model: a communicator card\'s actions');
+    assert.strictEqual(active(), 'main', 'the tour starts on Actions');
     await steps[3].beforeShowPromise();
-    assert.strictEqual(clicked, 1, 'the Model step opens the Communicators tab first');
+    assert.strictEqual(active(), 'supervisees', 'the Model step opens the Communicators tab first');
+    await steps[4].beforeShowPromise();
+    assert.strictEqual(active(), 'main', 'the next step returns to the tab that was open');
+    await steps[3].beforeShowPromise();
+    assert.strictEqual(active(), 'supervisees');
+    steps[3].when.destroy();
+    assert.strictEqual(active(), 'main', 'cancelling on the Model step returns to the tab that was open');
     assert.strictEqual(target(steps[4]), document.querySelector('.ch-rail'), 'dashboards: the side menu');
     assert.strictEqual(steps[4].buttons[1].text, 'Got it', 'the last spotlight finishes the tour');
   });
