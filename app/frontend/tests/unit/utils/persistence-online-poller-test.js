@@ -13,6 +13,15 @@ import { stopOnlinePollers } from 'frontend/tests/helpers/jasmine';
 module('Unit | Utility | persistence online pollers', function(hooks) {
   setupTest(hooks);
 
+  // These tests flip persistence offline and back online, and persistence passes that on to this
+  // owner's stashes service, whose reconnect drain (services/stashes.js drain_on_reconnect) calls the
+  // real push_log. That schedules a 15-minute retry in the shared run loop which outlives this owner,
+  // so every later test that waits for settled() hangs until it times out. Not under test here, so
+  // this owner's push_log does nothing (as in tests/unit/services/stashes-reconnect-drain-test.js).
+  hooks.beforeEach(function() {
+    this.owner.lookup('service:stashes').push_log = function() {};
+  });
+
   test('both pollers are stopped by the harness before every test', function(assert) {
     const service = this.owner.lookup('service:persistence');
     const savedWindowPersistence = window.persistence;
