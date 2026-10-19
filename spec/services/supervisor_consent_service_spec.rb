@@ -210,6 +210,30 @@ describe SupervisorConsentService, :type => :model do
       expect(SupervisorRelationship.count).to eq(count)
     end
 
+    # KAN-134. A relationship that already exists used to return without the bcrypt
+    # burn the missing-account and bad-permission branches run, so that answer was
+    # faster and showed the account exists. Spy on the burn; do not time the wall clock.
+    it "runs the lookup timing burn for a missing account, a new request, and an existing relationship" do
+      supervisor = User.create
+      communicator = User.create
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      expect(service).to receive(:burn_lookup_time).exactly(4).times
+
+      service.request_access(supervisor: supervisor, lookup_key: '', permission_level: 'view_only')
+      service.request_access(supervisor: supervisor, lookup_key: 'nobody-home@example.com')
+      result = service.request_access(supervisor: supervisor, lookup_key: communicator.global_id)
+      again = service.request_access(supervisor: supervisor, lookup_key: communicator.global_id)
+
+      expect(result).to eq({ message: SupervisorConsentService::GENERIC_LOOKUP_MESSAGE })
+      expect(again).to eq(result)
+      expect(SupervisorRelationship.where(supervisor_user_id: supervisor.id).count).to eq(1)
+    end
+
+    it "the lookup timing burn hashes a throwaway secret" do
+      expect(GoSecure).to receive(:generate_password).and_return({})
+      service.send(:burn_lookup_time)
+    end
+
     it "should not allow requesting supervision of self" do
       supervisor = User.create
       result = service.request_access(

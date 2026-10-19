@@ -50,9 +50,11 @@ class Api::SupervisorRelationshipsController < ApplicationController
       organization_id: rel_params['organization_id']
     )
 
+    # Do not store lookup_key. It is the username or email the supervisor typed,
+    # and the audit row would record whether that account was being probed
+    # (GitHub #1145, KAN-134).
     AuditEvent.log_command(@api_user.global_id, {
       'type' => 'supervisor_access_request',
-      'lookup_key' => lookup_key,
       'permission_level' => permission_level,
       'organization_id' => service.requested_organization_id
     })

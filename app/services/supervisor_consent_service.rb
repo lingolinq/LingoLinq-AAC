@@ -38,10 +38,11 @@ class SupervisorConsentService
 
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
     @requested_organization_id = nil
+    begin
     # F1: Anti-timing side-channel. An unknown permission level is answered before the lookup,
     # the same way for every account (it would otherwise fail only once an account was found).
+    # Every return, including this one, pays burn_lookup_time in the ensure below.
     if lookup_key.blank? || !SupervisorRelationship::PERMISSION_LEVELS.include?(permission_level.to_s)
-      ::BCrypt::Password.create(SecureRandom.hex) rescue nil
       return { message: GENERIC_LOOKUP_MESSAGE }
     end
 
@@ -59,7 +60,6 @@ class SupervisorConsentService
       # If communicator is in an org, supervisor must be in same org or be a manager
       if comm_orgs.any? && (comm_orgs & sup_orgs).empty? && !Organization.manager_for?(supervisor, communicator)
         # Still return generic message to prevent leaking that user exists but is in different org
-        ::BCrypt::Password.create(SecureRandom.hex) rescue nil
         return { message: GENERIC_LOOKUP_MESSAGE }
       end
 
@@ -103,12 +103,19 @@ class SupervisorConsentService
         
         SupervisorMailer.schedule_delivery(:consent_request, relationship.global_id)
       end
-    else
-      # Burn some time to match the "found" path
-      ::BCrypt::Password.create(SecureRandom.hex) rescue nil
     end
 
     { message: GENERIC_LOOKUP_MESSAGE }
+    ensure
+      # KAN-134. The already-linked branch used to fall through with no burn, so it
+      # answered faster than a missing account. The old burn called BCrypt, which is
+      # not loaded (Gemfile bcrypt-ruby is commented out), and rescue nil swallowed
+      # the NameError, so those branches did no work either. GoSecure.generate_password
+      # is the hash this app actually uses for passwords (go_secure.rb pbkdf2, 100_000
+      # iterations). One call on every exit, including a raised error, so a fast
+      # branch cannot skip it.
+      burn_lookup_time
+    end
   end
 
   def approve(token:)
@@ -165,6 +172,13 @@ class SupervisorConsentService
   end
 
   private
+
+  def burn_lookup_time
+    GoSecure.generate_password(SecureRandom.hex)
+    nil
+  rescue StandardError
+    nil
+  end
 
   # ---------------------------------------------------------------------------
   # Concurrency
