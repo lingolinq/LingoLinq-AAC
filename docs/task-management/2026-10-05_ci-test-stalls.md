@@ -905,3 +905,19 @@ reminder lands 2.5 to 3 s after the trigger; "the reminder beep does not sound o
 gone" waits 1,700 ms after the modal opens for a 1,500 ms reminder (200 ms margin), and the positive
 control's `waitFor` is 4 s. The fix is to widen those waits or drive the clock, which is a timeout
 change on a test: stopped for approval (Rule 14).
+
+### Growing the pool (step 1): tried, not committed
+
+- Candidates: the three slowest main-shard modules not already ruled out (CI shard-main times):
+  `app_state` (97 s), `frame_listener` (27 s), `contentGrabbers` (26 s), 150 s together.
+- Pool shard with them (`--query "pool=include&timingStrict=1"`, 1,940 tests): 3 runs, 1 / 0 / 1
+  fail, both times `utterance: utterance alert - should play a beep sound` (a module already in the
+  pool, which registers after all three). Pool without them (the committed list): 1,679 tests, 0 fail
+  in 1 run. The candidates' own tests passed in all three runs.
+- Reduced runs are not usable to narrow it: `utterance` alone failed 3 of 53 in one of two runs
+  (different tests each time, ~4.8 s waits), so it is flaky outside the full order anyway.
+- Under the OPT-IN rule (no order-dependent additions) the three were left out. Narrowing which one
+  makes the beep test fail needs one build and several full pool runs per subset.
+- Without them, after the timeout fixes: local shard-main 728 s of tests (2,022), local pool 479 s
+  (1,679). CI estimate: shard-main test step ~11 min (1,415 s minus ~750 s of 15 s timeouts), pool
+  6.5 min, so both jobs would be ~12 and ~8 min end to end; moving the three would make it ~9 and ~9.
