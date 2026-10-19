@@ -24,9 +24,14 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
     const store = this.owner.lookup('service:store');
     const adapter = store.adapterFor('application');
     const realFindRecord = adapter.findRecord;
-    adapter.findRecord = function() { return new Promise(function() {}); }; // the request itself never answers
+    // The request itself does not answer while the test checks the wait; it is answered at the end. A
+    // request that NEVER answers keeps Ember Data's test waiter (@ember/test-waiters, global to the page)
+    // pending for the rest of the run, so every later settled() hangs until its test times out.
+    let answer;
+    adapter.findRecord = function() { return new Promise(function(resolve, reject) { answer = reject; }); };
+    let request;
     try {
-      store.findRecord('board', 'queued-fetch-probe').catch(function() {});
+      request = store.findRecord('board', 'queued-fetch-probe').catch(function() {});
       const fetchManager = store._fetchManager;
       assert.true(fetchManager._pendingFetch.size > 0, 'the fetch is queued, not yet sent');
       // A 5 s limit, not the default 500 ms, so this also holds under the opt-in fetch probe (?probeDelay=1500).
@@ -36,6 +41,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
       assert.false(await waitForQueuedStoreFetches(this.owner), 'with nothing queued it reports nothing');
     } finally {
       adapter.findRecord = realFindRecord;
+      if (answer) { answer(new Error('answered at the end of the test')); await request; }
     }
   });
 
