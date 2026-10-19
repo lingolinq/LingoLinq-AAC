@@ -186,9 +186,16 @@ export default Controller.extend({
         }
       });
       this.set('saving', true);
+      // JSON, not a form body. jQuery's form encoder never writes a key whose
+      // value is an empty array (jquery 3.7 buildParams), so an all-unchecked
+      // save arrived with no enabled_features key and update returned 400
+      // (app/controllers/api/system_features_controller.rb:42). A JSON array
+      // stays [], and Rails 7.2 does not turn that into nil.
       this.persistence.ajax('/api/v1/system_features', {
         type: 'PUT',
-        data: {org_id: orgId, enabled_features: enabled}
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({org_id: orgId, enabled_features: enabled})
       }).then(function() {
         _this.set('saving', false);
         modal.success(i18n.t('system_settings_features_saved', "Feature settings saved."));
