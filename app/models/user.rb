@@ -528,6 +528,8 @@ class User < ApplicationRecord
   # Under-13 needs family COPPA when leaving an org. Prefer manager-attested
   # birth month/year from the remove dialog; also repair pending/revoked COPPA.
   # School-authorization alone is NOT enough (org New User has no age).
+  # No longer called by begin_family_offboarding_consents!, which since #1063
+  # never writes settings['coppa'].
   def requires_coppa_offboarding?(attested_under_13: nil)
     return false unless JsonApi::Json.coppa_parental_consent_enabled?
     return false if coppa_parental_consent_active?
@@ -546,34 +548,44 @@ class User < ApplicationRecord
     parent
   end
 
-  # Org seat reclaim → family account. Uses manager-attested birth month/year
-  # from the remove dialog + releasing org jurisdiction (US/EU):
-  # under-13 → COPPA pending (optional parent email);
-  # under-16 → AI prefs off; EU org also sets eu_under_16 for parental re-consent
+  # How long after a hand-back the legacy "sponsorship removed" mail for the same organization is
+  # skipped (UserMailer#organization_unassigned): the school_handoff_notice already told the family.
+  SCHOOL_HANDOFF_NOTICE_SUPERSEDES = 7.days
+
+  # Org seat reclaim → family account (#1063). Uses manager-attested birth month/year from the
+  # remove dialog + releasing org jurisdiction (US/EU):
+  # under-13 with school_authorization on file → the school authorization ends and the account
+  # is sent an informational notice (RemoteAction notify_school_handoff). Nothing gates access:
+  # settings['coppa'] is never written here, so a signup or revoked consent record stays as it was.
+  # under-16 (and under-13) → AI prefs off; EU org also sets eu_under_16 for parental re-consent
   # when they re-enable AI in preferences.
   # force_under_13: automated license expiry (no manager attestation) when
-  # school_authorization is still on file.
-  # skip_if_supported_elsewhere: re-check, under this method's user lock, that no other
-  # organization still supports the student (License.active_seat_elsewhere?). The callers check
-  # before calling, but a claim can seat the student between that check and this lock;
-  # Organization#claim_user takes the same user lock to seat them, so the answer here is
-  # current. When another organization does support them, only the age attestation is recorded
-  # and nothing else changes; the method returns false.
-  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false)
+  # school_authorization is still on file; recorded as age_basis 'unknown_assumed_under_13'.
+  # skip_if_supported_elsewhere: re-check, under this method's user lock, that no organization
+  # still sponsors the student (License.sponsored_elsewhere?, with departing_had_link passed
+  # through). The callers check before calling, but a claim can seat the student between that
+  # check and this lock; Organization#claim_user takes the same user lock to seat them, so the
+  # seat is visible here (its link is written after that lock, organization.rb claim_user). When
+  # an organization does sponsor them, only the age attestation is recorded and nothing else
+  # changes; the method returns false.
+  def begin_family_offboarding_consents!(org: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false, departing_had_link: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
     )
-    attested_under_13 = true if force_under_13 && attested_under_13.nil?
+    age_basis = attested_under_13.nil? ? nil : 'attested'
+    if force_under_13 && attested_under_13.nil?
+      attested_under_13 = true
+      age_basis = 'unknown_assumed_under_13'
+    end
     attested_under_16 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 16
     )
     org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
-    did_coppa = false
+    did_handoff = false
     did_ai = false
-    send_coppa_email = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
-      if skip_if_supported_elsewhere && License.active_seat_elsewhere?(self, org)
+      if skip_if_supported_elsewhere && License.sponsored_elsewhere?(self, org, departing_had_link: departing_had_link)
         if birth_month.present? && birth_year.present?
           stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
           self.save!
@@ -600,66 +612,52 @@ class User < ApplicationRecord
         end
       end
 
-      if requires_coppa_offboarding?(attested_under_13: attested_under_13)
-        school = self.settings['school_authorization']
-        if school.is_a?(Hash) && school.present?
-          ended = school.dup
-          ended['ended_at'] = Time.now.utc.iso8601
-          ended['ended_org_id'] = org && org.global_id
-          self.settings['school_authorization_ended'] = ended
-          self.settings.delete('school_authorization')
-        end
-        parent = parent_email.to_s.strip
-        started_at = Time.now.utc.iso8601
-        deadline_at = 14.days.from_now.utc.iso8601
-        blob = {
-          'pending_parent_consent' => true,
-          'offboarding' => true,
-          'offboarding_started_at' => started_at,
-          'offboarding_deadline_at' => deadline_at
-        }
-        if parent.present?
-          parent = self.class.validate_parent_consent_email!(
-            parent,
-            child_email: (self.settings['email'] || '')
-          )
-          blob['parent_email'] = process_string(parent)
-          blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
-          blob['parent_consent_expires_at'] = deadline_at
-          blob['needs_parent_email'] = false
-          send_coppa_email = true
-        else
-          blob['needs_parent_email'] = true
-        end
-        self.settings['coppa'] = blob
-        did_coppa = true
+      # The transition fires only while school_authorization is on file and removes it in the same
+      # locked write, so a repeat finds nothing to end and sends no second notice.
+      school = self.settings['school_authorization']
+      if attested_under_13 && school.is_a?(Hash) && school.present? &&
+         JsonApi::Json.coppa_parental_consent_enabled? && !coppa_parental_consent_active?
+        now = Time.now.utc.iso8601
+        ended = school.dup
+        ended['ended_at'] = now
+        ended['ended_org_id'] = org && org.global_id
+        ended['age_basis'] = age_basis
+        ended['handoff_notice_at'] = now if org
+        self.settings['school_authorization_ended'] = ended
+        self.settings.delete('school_authorization')
+        did_handoff = true
       end
 
-      # Under-16: turn AI prefs off now. No parent email at remove — for EU
-      # orgs, parental consent runs when they try to turn AI back on.
-      if attested_under_16 || eu_under_16?
+      # Under-16, and an under-13 whose age is only assumed: turn AI prefs off now. The family can
+      # turn them back on; for EU orgs, parental consent runs when they try.
+      if attested_under_16 || attested_under_13 || eu_under_16?
         apply_eu_ai_offboarding_reset!
         did_ai = true
       end
 
-      if did_coppa || did_ai || (birth_month.present? && birth_year.present?)
+      if did_handoff || did_ai || (birth_month.present? && birth_year.present?)
         self.save!
-        if did_coppa
+        if did_handoff
           record_id = SecureRandom.uuid
           AuditEvent.create!(
             user_key: self.global_id,
             data: {
-              'type' => 'parental_consent_offboarding_started',
+              'type' => 'school_authorization_handoff',
               'organization_id' => org && org.global_id,
               'actor_id' => actor && (actor.respond_to?(:global_id) ? actor.global_id : actor),
-              'parent_email_provided' => send_coppa_email,
-              'attested_under_13' => !!attested_under_13,
+              'age_basis' => age_basis,
               'org_jurisdiction' => org_jurisdiction,
               'record_id' => record_id
             },
-            event_type: 'parental_consent_offboarding_started',
+            event_type: 'school_authorization_handoff',
             record_id: record_id
           )
+          # Written in the same lock as the transition, so the notice is recorded exactly when the
+          # hand-back is. The hourly scheduler:dispatch turns it into one mail job
+          # (RemoteAction#process_action); delivery is not retried.
+          if org
+            RemoteAction.create!(path: "#{self.global_id}::#{org.global_id}", act_at: Time.now, action: 'notify_school_handoff')
+          end
         end
         if did_ai
           record_id = SecureRandom.uuid
@@ -679,13 +677,16 @@ class User < ApplicationRecord
         end
       end
     end
-    if did_coppa
-      devices.each(&:invalidate_cached_keys)
-      if send_coppa_email
-        UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
-      end
-    end
-    did_coppa || did_ai
+    did_handoff || did_ai
+  end
+
+  # Was the school_handoff_notice for this organization queued recently enough that the legacy
+  # organization_unassigned mail for the same removal would repeat it?
+  def recent_school_handoff_notice_for?(org)
+    ended = self.settings && self.settings['school_authorization_ended']
+    return false unless org && ended.is_a?(Hash) && ended['ended_org_id'] == org.global_id
+    at = Time.iso8601(ended['handoff_notice_at'].to_s) rescue nil
+    !!(at && at > SCHOOL_HANDOFF_NOTICE_SUPERSEDES.ago)
   end
 
   # Record a manager's birth month/year attestation WITHOUT starting offboarding. Used by
@@ -760,9 +761,9 @@ class User < ApplicationRecord
     true
   end
 
-  # True when an offboarded minor's pending COPPA window has ended (token /
-  # deadline expiry) or the guardian explicitly declined — ready for
-  # export-then-delete. Already-scheduled rows are skipped. An in-flight
+  # True when the guardian declined a legacy offboarding consent request (blobs
+  # written before #1063) — ready for export-then-delete. Already-scheduled rows
+  # are skipped. An in-flight
   # claim (offboarding_export_started_at) also blocks until it goes stale so
   # concurrent callers cannot each run Exporter.export_user.
   OFFBOARDING_EXPORT_CLAIM_STALE = 6.hours
@@ -785,13 +786,9 @@ class User < ApplicationRecord
         # Bad stamp should not permanently block; fall through to due checks.
       end
     end
-    return true if c['parent_consent_declined_at'].present?
-    return false unless c['pending_parent_consent']
-    deadline = c['parent_consent_expires_at'].presence || c['offboarding_deadline_at']
-    return false if deadline.blank?
-    Time.iso8601(deadline) < Time.now.utc
-  rescue ArgumentError
-    false
+    # Only a parent's decline makes an offboarding account due (#1063 D1, D6). A pending request
+    # past its deadline no longer does: consent expiry never deletes an account.
+    c['parent_consent_declined_at'].present?
   end
 
   # Parent declines the pending consent link (same token as grant). Offboarding

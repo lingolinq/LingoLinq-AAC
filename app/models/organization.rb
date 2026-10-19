@@ -1489,29 +1489,24 @@ class Organization < ApplicationRecord
     user
   end
   
-  def remove_user(user_key, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil)
+  def remove_user(user_key, actor: nil, birth_month: nil, birth_year: nil)
     user = User.find_by_path(user_key)
     raise "invalid user, #{user_key}" unless user
 
-    # Match the org-remove UI: birth month/year drives COPPA + under-16 AI reset.
+    # Read before the detach below removes the seat and link. Detaching an organization that
+    # never sponsored the student is not a hand-back (#1063 D4): no birth date, no offboarding.
+    sponsoring = sponsors_student?(user)
+
+    # Match the org-remove UI: birth month/year drives the hand-back + under-16 AI reset.
     # Without this server check, an API caller can reclaim a seat and leave a
-    # school-authorized minor on a consumer trial with no re-consent.
-    if JsonApi::Json.coppa_parental_consent_enabled?
+    # school-authorized minor on a consumer trial with AI still on.
+    if sponsoring && JsonApi::Json.coppa_parental_consent_enabled?
       classified = User.age_under_threshold?(
         birth_month: birth_month, birth_year: birth_year, age: 13
       )
       if classified.nil?
         raise ArgumentError, 'offboarding birth month and year required'
       end
-    end
-
-    # Validate optional offboarding parent email before detaching the seat so a
-    # typo does not leave the user org-less without a recoverable consent path.
-    if parent_email.present?
-      User.validate_parent_consent_email!(
-        parent_email,
-        child_email: (user.settings && user.settings['email'])
-      )
     end
     
     # Release formal license if exists
@@ -1533,16 +1528,18 @@ class Organization < ApplicationRecord
     
     self.remove_extras_from_user(user.user_name)
     user.reload
-    if License.active_seat_elsewhere?(user, self)
-      # Another organization still holds an active seat, so this is not a hand-back to the
+    return true unless sponsoring
+    # A manager's removal does not count this organization's own leftover seat (it releases one
+    # seat above), so departing_had_link is left false here; only seat expiry passes it.
+    if License.sponsored_elsewhere?(user, self)
+      # Another organization still sponsors the student, so this is not a hand-back to the
       # family: no offboarding, and school_authorization is left as it is. The manager's age
       # attestation is still recorded, because License.expire_stale_licenses! reads it when that
-      # last seat expires. The parent email is not kept; it is collected when offboarding runs.
+      # last seat expires.
       user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
     else
       user.begin_family_offboarding_consents!(
         org: self,
-        parent_email: parent_email,
         actor: actor,
         birth_month: birth_month,
         birth_year: birth_year,
@@ -1550,6 +1547,19 @@ class Organization < ApplicationRecord
       )
     end
     true
+  end
+
+  # Does this organization sponsor the student, read before a removal detaches them (#1063 D4)?
+  # An active student seat, a sponsoring org_user link (License.sponsoring_link?), or any org_user
+  # link when this organization is the one whose school official authorized the account
+  # (settings['school_authorization']['organization_id']): an organization can create an under-13
+  # and attach them unsponsored, and its leaving still ends that authorization.
+  def sponsors_student?(user)
+    return true if self.licenses.where(user_id: user.id, status: 'active', seat_type: 'student').exists?
+    links = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(self)).select { |l| (l.data || {})['type'] == 'org_user' }
+    return true if links.any? { |l| License.sponsoring_link?(l) }
+    school = (user.settings || {})['school_authorization']
+    links.any? && school.is_a?(Hash) && school['organization_id'].present? && school['organization_id'] == self.global_id
   end
 
   def remove_extras_from_user(user_key)
@@ -2439,7 +2449,6 @@ class Organization < ApplicationRecord
         elsif action == 'remove_user'
           self.remove_user(
             key,
-            parent_email: params[:offboarding_parent_email] || params['offboarding_parent_email'],
             actor: non_user_params && non_user_params['updater'],
             birth_month: params[:offboarding_birth_month] || params['offboarding_birth_month'],
             birth_year: params[:offboarding_birth_year] || params['offboarding_birth_year']

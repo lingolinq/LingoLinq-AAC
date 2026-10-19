@@ -45,20 +45,21 @@ class License < ApplicationRecord
     self.expired.find_each do |license|
       old_user = license.user
       old_org = license.organization
+      # Read before release_user! removes it: License.sponsored_elsewhere? counts this
+      # organization's own remaining seat only when it held a sponsoring link (#1063 D3).
+      departing_had_link = !!(old_user && old_org && License.sponsoring_link_to?(old_user, old_org))
       license.update!(status: 'expired')
       if license.user_id
         # a revocation: its refresh stays on the default queue (release_user!), even in bulk
         license.release_user!
-        # Not a hand-back to the family while ANOTHER organization still holds an active seat
-        # for this student: skip offboarding entirely and leave school_authorization as it is.
-        # The last such seat to go runs it. See License.active_seat_elsewhere?, which is
-        # repeated under the user lock inside begin_family_offboarding_consents!. A leftover
-        # seat from this same organization does not count here, although perform_release!'s
-        # survivor query (below) does count it when repointing the column.
+        # Not a hand-back to the family while an organization still sponsors this student: skip
+        # it entirely and leave school_authorization as it is. The last sponsor to go runs it. See
+        # License.sponsored_elsewhere?, which is repeated under the user lock inside
+        # begin_family_offboarding_consents!.
         #
-        # Automated seat expiry has no manager age attestation. Stamp family
-        # COPPA when school_authorization (or birth on file) indicates a minor.
-        if old_user && !License.active_seat_elsewhere?(old_user, old_org)
+        # Automated seat expiry has no manager age attestation. Treat a school-authorized
+        # student with no birth date on file as under 13.
+        if old_user && !License.sponsored_elsewhere?(old_user, old_org, departing_had_link: departing_had_link)
           old_user.reload
           reg = (old_user.settings || {})['registration'] || {}
           compliance = (old_user.settings || {})['compliance'] || {}
@@ -72,7 +73,8 @@ class License < ApplicationRecord
             birth_month: birth_month,
             birth_year: birth_year,
             force_under_13: force_under_13,
-            skip_if_supported_elsewhere: true
+            skip_if_supported_elsewhere: true,
+            departing_had_link: departing_had_link
           )
         end
       end
@@ -81,16 +83,47 @@ class License < ApplicationRecord
     count
   end
 
-  # Does an organization OTHER than `org` still hold an active STUDENT seat for this user?
-  # Offboarding to family care is skipped while one does (License.expire_stale_licenses!,
-  # Organization#remove_user, and the re-check inside User#begin_family_offboarding_consents!).
-  # Only a positive answer skips it: otherwise offboarding runs as it did before this check
-  # existed. A supervisor seat is not support for the student as a communicator, so it never
-  # counts.
-  def self.active_seat_elsewhere?(user, org)
-    return false unless user
-    License.where(user_id: user.id, status: 'active', seat_type: 'student')
-           .where.not(organization_id: org&.id).exists?
+  # Does an organization still sponsor this student once `org` lets go (#1063 D3)? Offboarding to
+  # family care is skipped while one does (License.expire_stale_licenses!, Organization#remove_user,
+  # and the re-check inside User#begin_family_offboarding_consents!).
+  #
+  # Another organization counts when the student has a sponsoring link to it (see
+  # sponsoring_link?) and either an active student seat there or, for the legacy add_user path,
+  # no License row there naming the student. So these do not count: a seat with no link (the family
+  # removed that organization; supervisor_key_processor.rb detaches the link and leaves the seat), a
+  # supervisor seat, and a link whose seat expired without being released (expire_stale_licenses!
+  # commits status 'expired' before release_user! runs).
+  #
+  # `org` itself counts only when `departing_had_link` (its sponsoring link, read before the detach)
+  # and it still holds another active student seat: perform_release! removes the link even then.
+  def self.sponsored_elsewhere?(user, org, departing_had_link: false)
+    return false unless user && user.id
+    if org && departing_had_link
+      return true if License.where(user_id: user.id, organization_id: org.id, status: 'active', seat_type: 'student').exists?
+    end
+    UserLink.where(user_id: user.id).each do |link|
+      next unless sponsoring_link?(link)
+      other = Organization.find_by_global_id(link.record_code.split(/:/, 2)[1])
+      next if !other || (org && other.id == org.id)
+      seats = License.where(user_id: user.id, organization_id: other.id)
+      return true if !seats.exists? || seats.where(status: 'active', seat_type: 'student').exists?
+    end
+    false
+  end
+
+  # An accepted (not pending), sponsored, non-eval org_user link: what claim_user and the legacy
+  # sponsored add_user write. Read from the table, not the UserLink.links_for cache, because the
+  # callers run under the user lock.
+  def self.sponsoring_link?(link)
+    data = link.data || {}
+    state = data['state'] || {}
+    data['type'] == 'org_user' && link.record_code.to_s.start_with?('Organization:') &&
+      !state['pending'] && !!state['sponsored'] && !state['eval']
+  end
+
+  def self.sponsoring_link_to?(user, org)
+    return false unless user && user.id && org && org.id
+    UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(org)).any? { |l| sponsoring_link?(l) }
   end
 
   def release_user!

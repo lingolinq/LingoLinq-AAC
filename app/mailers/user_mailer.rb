@@ -272,9 +272,25 @@ class UserMailer < ActionMailer::Base
   def organization_unassigned(user_id, org_id)
     @user = User.find_by_global_id(user_id)
     @org = Organization.find_by_global_id(org_id)
+    # A school hand-back for this organization already sent school_handoff_notice for the same
+    # removal (User#recent_school_handoff_notice_for?). Skipped here, at send time, rather than by
+    # deleting the queued row, so a build without notify_school_handoff still sends this one.
+    return if @user && @user.recent_school_handoff_notice_for?(@org)
     if !UserLink.links_for(@user).detect{|l| l['type'] == 'org_user' && l['record_code'] == Webhook.get_record_code(@org)}
       mail_message(@user, "Organization Sponsorship Removed") if @user && @org
     end
+  end
+
+  # Informational notice to the account's own email when the last organization supporting a
+  # school-authorized under-13 lets go (#1063 D5). On a handed-back minor's account that address
+  # is a parent's or guardian's. No link, deadline or reminder: nothing about access changes.
+  def school_handoff_notice(user_id, org_id)
+    @user = User.find_by_global_id(user_id)
+    @org = Organization.find_by_global_id(org_id)
+    @org_name = @org && @org.settings && @org.settings['name'].presence
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    subject = SystemEmailI18n.resolve('user_mailer/school_handoff_notice', 'school_handoff_mailer.subject')
+    mail_message(@user, subject) if @user
   end
 
   def valet_password_enabled(user_id)
