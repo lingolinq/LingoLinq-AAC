@@ -304,6 +304,9 @@ describe('pictureGrabber', function() {
       stub(persistence, 'ajax', function() {
         return RSVP.resolve({content_tye: 'image/png', data: 'data:image/png'});
       });
+      // The test above stashes this same data-uri. Clear it first so waitsFor cannot
+      // succeed on that leftover (GitHub #1101). The neighbour above does the same.
+      editManager.stashedImage = null;
       pictureGrabber.edit_image_preview();
       waitsFor(function() { return editManager.stashedImage; });
       runs(function() {
