@@ -89,7 +89,7 @@ module('Unit | Helper | waitForQueuedStoreFetches', function(hooks) {
     markQueuedByAnotherTest(store._fetchManager);
     assert.ok(true, 'a fetch is left queued, attributed to another test');
   });
-  // Outside a timing-strict run (the required build-and-test) a queued fetch is reported, not failed:
+  // Outside a timing-strict run (a plain local run) a queued fetch is reported, not failed:
   // it may be an earlier test's late callback, which the harness cannot tell apart.
   test('outside a timing-strict run a queued fetch is reported, not failed', function(assert) {
     assert.expect(2);

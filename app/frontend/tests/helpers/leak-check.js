@@ -12,7 +12,7 @@
  *     test was reading a dead app's state instead of its own. Whether the access lands in the test
  *     that caused it or a later one depends on timing, so it fails the test only in a timing-strict
  *     run (the Ember shard jobs; tests/helpers/fetch-probe.js timingStrict) and is logged as a
- *     `[late-read]` line otherwise (the required build-and-test run).
+ *     `[late-read]` line otherwise (a plain local run).
  *  2. Stubs left on singletons. A function on a util singleton that differs after the test from
  *     before it, unless it is the inherited method itself (restoreStubs puts originals back as own
  *     properties).

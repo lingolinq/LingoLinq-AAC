@@ -3205,6 +3205,9 @@ describe('app_state', function() {
     });
   });
 
+  /* THE FORCE-LOGOUT DIALOG SURVIVES NAVIGATION WHILE THE LOGOUT IS UNDER WAY. Every route
+     change closed every modal, so the Back button (or any link) dismissed the "Please Log Back
+     In" dialog and nothing re-prompted: the user was left on pages whose requests all fail. */
   describe('global_transition: the force-logout dialog', function() {
     function transitionWith(open_template, invalid_token, isAuthenticated, to_route) {
       var closed = false;

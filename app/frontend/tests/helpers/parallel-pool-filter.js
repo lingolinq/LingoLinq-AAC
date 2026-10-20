@@ -1,7 +1,7 @@
 /*
  * Chooses which half of the suite a CI shard runs, from `?pool=include` or `?pool=exclude` on
  * the test page URL (`ember test --query pool=include`). Without the parameter it returns null
- * and the run is untouched, so local runs and the single build-and-test job are unaffected.
+ * and the run is untouched, so a plain local run executes the whole suite.
  *
  * Why not `ember test --filter`: ember-cli lowercases the filter
  * (node_modules/ember-cli/lib/commands/test.js, buildTestPageQueryString) and the full pool as a

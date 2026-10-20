@@ -115,7 +115,9 @@ jobs:
       - name: Run RSpec
         run: bundle exec rspec
 
-  build-and-test:
+  # Lint gates and the Ember build. The required check is `build-and-test` (the gate job at the end of
+  # this workflow), which waits for this job AND the Ember shards.
+  lint-and-build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -125,7 +127,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # Keep the required build-and-test job present for every PR. GitHub does not
+      # Keep this job present for every PR (the required build-and-test gate needs it). GitHub does not
       # report a path-filtered job at all, which can leave a required check pending.
       # This classifier instead skips only the expensive frontend steps, and only
       # when every current and previous (rename) path is documentation/audit data.
@@ -245,8 +247,8 @@ jobs:
         run: npx ember build --environment=test --output-path=dist-test
 
   # ---------------------------------------------------------------------------------------
-  # THE EMBER SUITE, as two parallel shards (required on develop, staging and main). build-and-test
-  # runs the lint gates and the Ember build only; these jobs run every test. Promoted from shadow mode
+  # THE EMBER SUITE, as two parallel shards, required through the `build-and-test` gate job.
+  # lint-and-build runs the lint gates and the Ember build only; these jobs run every test. Promoted from shadow mode
   # in #1118 after five consecutive runs on one commit in which both shards passed (each well under
   # 20 minutes), ember-shard-coverage passed and the shards matched the full serial run.
   # OPT-IN POOL: `pool` runs the modules listed in app/frontend/tests/parallel-pool.js (each
@@ -266,7 +268,7 @@ jobs:
     outputs:
       run: ${{ steps.frontend.outputs.run }}
     steps:
-      # Same classifier and fail-toward-running decision as build-and-test.
+      # Same classifier and fail-toward-running decision as lint-and-build.
       - name: Classify frontend impact
         id: frontend-scope
         continue-on-error: true
@@ -336,7 +338,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      # Same key as build-and-test (Node major in the key: see the note there).
+      # Same key as lint-and-build (Node major in the key: see the note there).
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
@@ -409,7 +411,7 @@ jobs:
             echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). It may be an earlier test's: fix the leak, do not re-run until green. Reproduce one test: npx ember test --query timingStrict=1 --filter \"<test>\" (a pool= query would replace the filter)"
             {
               echo '> [!WARNING]'
-              echo '> **Timing finding:** a test left late work behind; it may be an earlier test's. Fix the leak, do not re-run until green (.claude/rules/testing-frontend.md section 5). Failing tests:'
+              echo '> **Timing finding:** a test left late work behind, possibly from an earlier test. Fix the leak, do not re-run until green (.claude/rules/testing-frontend.md section 5). Failing tests:'
               grep -m 20 -E '^not ok' ember-test.log | sed 's/^/> /'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -417,10 +419,10 @@ jobs:
 
   # What the shards can prove WITHOUT a full run: each ran exactly what it selected, both saw the
   # same registered total, their selections add up to it, and no test ran in more than one shard.
-  # Required, because build-and-test no longer runs the suite itself (a shard only checks itself,
-  # so two shards mis-wired to the same half each pass). It runs unless the scope job SAID to skip:
-  # a failed scope job leaves the output empty, and a skipped required check counts as passing.
-  # The required shards stay timing-strict: a timing finding from an earlier test can fail an
+  # Required through the build-and-test gate, because no job runs the whole suite any more (a shard
+  # only checks itself, so two shards mis-wired to the same half each pass). It runs unless the scope
+  # job SAID to skip: a failed scope job leaves the output empty, and the gate then fails.
+  # The shards stay timing-strict: a timing finding from an earlier test can fail an
   # unrelated PR (testing-frontend.md section 5), which is the point of running them strict.
   ember-shard-coverage:
     needs: [ember-shard-scope, ember-shard]
@@ -453,6 +455,41 @@ jobs:
             gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
           done
           python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
+
+  # THE REQUIRED CHECK `build-and-test`: passes only if lint-and-build passed AND the Ember suite passed
+  # in both shards with coverage, or the scope job said this PR touches no frontend (docs/audit only).
+  # Branch protection already requires `build-and-test` on develop, staging and main, so the Ember
+  # tests are required with no protection change. The shard checks themselves are not required:
+  # a skipped matrix job never reports its expanded names, which would leave a docs-only PR waiting.
+  # `always()`, not `!cancelled()`: a skipped required check counts as passing, so this must run and
+  # fail whenever anything it waits for did not succeed.
+  build-and-test:
+    needs: [lint-and-build, ember-shard-scope, ember-shard, ember-shard-coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Lint, build and the Ember suite all passed
+        env:
+          LINT_AND_BUILD: ${{ needs.lint-and-build.result }}
+          SCOPE: ${{ needs.ember-shard-scope.result }}
+          SCOPE_RUN: ${{ needs.ember-shard-scope.outputs.run }}
+          SHARDS: ${{ needs.ember-shard.result }}
+          COVERAGE: ${{ needs.ember-shard-coverage.result }}
+        run: |
+          echo "lint-and-build=${LINT_AND_BUILD} scope=${SCOPE} (run=${SCOPE_RUN}) shards=${SHARDS} coverage=${COVERAGE}"
+          if [ "$LINT_AND_BUILD" != "success" ]; then
+            echo "::error::lint-and-build did not succeed (${LINT_AND_BUILD})"
+            exit 1
+          fi
+          if [ "$SCOPE" = "success" ] && [ "$SCOPE_RUN" = "false" ]; then
+            echo "Documentation/audit-only change: the Ember suite is not required."
+            exit 0
+          fi
+          if [ "$SHARDS" != "success" ] || [ "$COVERAGE" != "success" ]; then
+            echo "::error::the Ember suite did not pass: shards=${SHARDS} coverage=${COVERAGE}"
+            exit 1
+          fi
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
   # are deterministic, stdlib-only checks (no gems, no network): render checks that

@@ -300,13 +300,15 @@ loading the test page in a browser, where the load error is visible.
 
 ## 8. CI gates
 
-`.github/workflows/ci.yml`: `rspec`, `build-and-test` (template + JS lint gates and the Ember
-build), `ember-shard-main` and `ember-shard-pool` (the Ember suite, split in two and run
-timing-strict), `ember-shard-coverage` (every registered test ran exactly once across the shards),
-`audit-artifacts-integrity`, `secret-detection`, `codex-review-tests` and
-`data-bearing-paths/<base>` (posted by `.github/workflows/data-bearing-paths.yml`) are required on
-develop (and on staging and main); `security-scan` also gates main. `ember-shard-scope` only
-decides whether the shards run (a skipped required job counts as passing).
+`.github/workflows/ci.yml`: `rspec`, `build-and-test`, `audit-artifacts-integrity`,
+`secret-detection`, `codex-review-tests` and `data-bearing-paths/<base>` (posted by
+`.github/workflows/data-bearing-paths.yml`) are required on develop (and on staging and main);
+`security-scan` also gates main. `build-and-test` is a gate job: it passes only when
+`lint-and-build` (template + JS lint gates and the Ember build), both Ember shards
+(`ember-shard-main`, `ember-shard-pool`: the suite split in two, run timing-strict) and
+`ember-shard-coverage` (every registered test ran exactly once) passed, or when `ember-shard-scope`
+classified the PR as docs/audit-only. The shard checks are not required by name: a skipped matrix
+job never reports its expanded names.
 Changing how CI decides to run a check (conditions, filters, `continue-on-error`, retries, required
 wiring) is covered by Rule 0.14 and needs approval.
 
