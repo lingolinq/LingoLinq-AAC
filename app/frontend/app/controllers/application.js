@@ -193,7 +193,7 @@ export default Controller.extend({
     if (!key || key.indexOf('/') === -1) { return null; }
     return key.split('/').slice(1).join('/');
   }),
-  /** True when the current page is the Board Alt view, used to toggle the sidebar button label/style. */
+  /** True when the current page is the Board Alt view. */
   on_board_alt: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.board-alt.index';
   }),
@@ -229,6 +229,25 @@ export default Controller.extend({
   /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
   on_board_or_alt: computed('on_board', 'on_board_alt', function() {
     return this.get('on_board') || this.get('on_board_alt');
+  }),
+  /** Which sidebar label to show. An explicit preferences.board_dark_mode wins.
+      When that key has never been set, the board-alt page is still the dark
+      ground, so the sidebar offers Light there and Dark on the light page. */
+  speak_board_dark: computed('appState.currentUser.preferences.board_dark_mode', 'on_board_alt', function() {
+    var pref = this.get('appState.currentUser.preferences.board_dark_mode');
+    if(pref === true) { return true; }
+    if(pref === false) { return false; }
+    return this.get('on_board_alt');
+  }),
+  /** Classic speak pages only. Absent preference leaves the route paint alone
+      (board stays light, board-alt stays dark). */
+  speak_board_theme_dark: computed('appState.currentUser.preferences.board_dark_mode', 'on_board', 'on_board_alt', function() {
+    if(!(this.get('on_board') || this.get('on_board_alt'))) { return false; }
+    return this.get('appState.currentUser.preferences.board_dark_mode') === true;
+  }),
+  speak_board_theme_light: computed('appState.currentUser.preferences.board_dark_mode', 'on_board', 'on_board_alt', function() {
+    if(!(this.get('on_board') || this.get('on_board_alt'))) { return false; }
+    return this.get('appState.currentUser.preferences.board_dark_mode') === false;
   }),
 
   /** Intro-only header shortcuts (mirror on-board Start/Skip when board controls are obscured). */
@@ -1220,6 +1239,24 @@ export default Controller.extend({
         ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
       } else {
         apply();
+      }
+    },
+    // Sidebar Light/Dark (GitHub #1097). Stores the same preferences.board_dark_mode
+    // that user/board-detail.js _persist_board_dark_mode writes, and does not
+    // change route. An explicit false is stored even when the key was absent:
+    // absence still leaves the board-alt page on its dark ground.
+    set_speak_board_theme: function(on) {
+      var user = this.get('app_state.currentUser');
+      if(!user || !user.set) { return; }
+      var next = !!on;
+      if(user.get('preferences.board_dark_mode') === next) { return; }
+      user.set('preferences.board_dark_mode', next);
+      if(user.save) {
+        // set('preferences.device.updated') throws when preferences has no device key
+        // (components/view-switcher.js).
+        if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
+        user.set('preferences.device.updated', true);
+        user.save().then(null, function() {});
       }
     },
     special: function(opts) {
