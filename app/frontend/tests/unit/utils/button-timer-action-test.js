@@ -41,7 +41,9 @@ module('Unit | Utility | button timer action', function(hooks) {
       LingoLinq.appState = next; // the stand-in hooks put the original back afterwards
       if (window.LingoLinq) { window.LingoLinq.appState = next; }
 
-      await new Promise((resolve) => setTimeout(resolve, 1700));
+      // Wait for the guard to run (the first 500 ms tick), not for a fixed time: a busy run loop can
+      // fire it late. Once it skips, the timer schedules nothing more.
+      await waitFor(() => skips.count >= 1, 5000);
       assert.strictEqual(opened, 0, 'no timer modal opened in the next app');
       assert.strictEqual(skips.count, 1, 'the guard skipped (and the harness does not report a deliberate skip)');
     } finally {
@@ -85,7 +87,9 @@ module('Unit | Utility | button timer action', function(hooks) {
       await waitFor(() => opened >= 1, 2500);
       assert.strictEqual(beeps, 1, 'the time-up beep sounded while the app was alive');
       this.standIns.appState.destroy();
-      await new Promise((resolve) => setTimeout(resolve, 1700));
+      // Wait for the reminder's guard to run (1.5 s after time-up), not for a fixed 1.7 s: a busy run
+      // loop can fire it late, and the old fixed wait then checked before it had run.
+      await waitFor(() => skips.count >= 1, 5000);
       assert.strictEqual(beeps, 1, 'no reminder beep after the app is gone');
       assert.strictEqual(skips.count, 1, 'the guard skipped (and the harness does not report a deliberate skip)');
     } finally {
