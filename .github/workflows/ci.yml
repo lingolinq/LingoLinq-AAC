@@ -150,7 +150,11 @@ jobs:
               per_page: 100,
             });
             const allowed = (path) =>
-              path.startsWith('docs/') || path.startsWith('audit-reports/');
+              path.startsWith('docs/') ||
+              path.startsWith('audit-reports/') ||
+              path === 'CLAUDE.md' ||
+              path === 'AGENTS.md' ||
+              path === '.github/copilot-instructions.md';
             // GitHub caps listFiles at 3,000 paths. The payload's changed_files
             // count lets us detect truncation and fail toward the full suite.
             const reportedCount = context.payload.pull_request.changed_files;
@@ -286,7 +290,11 @@ jobs:
               per_page: 100,
             });
             const allowed = (path) =>
-              path.startsWith('docs/') || path.startsWith('audit-reports/');
+              path.startsWith('docs/') ||
+              path.startsWith('audit-reports/') ||
+              path === 'CLAUDE.md' ||
+              path === 'AGENTS.md' ||
+              path === '.github/copilot-instructions.md';
             const reportedCount = context.payload.pull_request.changed_files;
             const completeList =
               Number.isInteger(reportedCount) && files.length === reportedCount;
