@@ -197,12 +197,10 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_AUTOMATION }}
         run: |
-          # Skip unless the secret holds an https URL: a placeholder value (such as "-") made curl
-          # fail with "option -: is unknown" on every run. The value itself is never printed.
-          case "$WEBHOOK_URL" in
-            https://*) ;;
-            *) echo "::warning::GOOGLE_CHAT_WEBHOOK_AUTOMATION is not set to an https URL, skipping post"; exit 0 ;;
-          esac
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::GOOGLE_CHAT_WEBHOOK_AUTOMATION not set, skipping post"
+            exit 0
+          fi
           curl -fsS -X POST -H 'Content-Type: application/json' \
             -d @/tmp/card.json "$WEBHOOK_URL" > /dev/null
           echo "Aging digest posted"
@@ -212,7 +210,7 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_AUTOMATION }}
         run: |
-          case "$WEBHOOK_URL" in https://*) ;; *) exit 0 ;; esac
+          if [ -z "$WEBHOOK_URL" ]; then exit 0; fi
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           BODY=$(jq -n --arg text "❌ *Aging digest workflow FAILED*"$'\n'"<${RUN_URL}|View run logs>" '{text: $text}')
           curl -fsS -X POST -H 'Content-Type: application/json' -d "$BODY" "$WEBHOOK_URL" > /dev/null
