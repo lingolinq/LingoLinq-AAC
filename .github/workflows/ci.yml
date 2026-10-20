@@ -18,7 +18,7 @@ permissions:
 # in a group by default, independent of that setting ("any existing pending job or
 # workflow in the same concurrency group will be canceled and the new queued job or
 # workflow will take its place"). With a shared per-branch group, three merges inside
-# one CI window (build-and-test runs ~37 min) leave the middle run cancelled in the
+# one CI window (a CI run takes ~20 min) leave the middle run cancelled in the
 # queue. deploy-cloudrun.yml is `on: push` and deliberately NOT CI-gated, so that
 # commit would deploy with no validation run at all. Same reasoning, and the same
 # run-id remedy, as the concurrency note in deploy-cloudrun.yml.
@@ -237,48 +237,18 @@ jobs:
         working-directory: app/frontend
         run: npm run lint:js:ci
 
-      # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
-      # Restoring only node_modules leaves executablePath() pointing at a missing binary.
-      - name: Ensure Puppeteer Chrome is present
-        if: steps.frontend.outputs.run == 'true'
-        working-directory: app/frontend
-        run: npx puppeteer browsers install chrome
-
-      # Build once, in the test environment, and run the tests against that output.
-      # `ember test` without --path rebuilds the whole app (~1 min); the old development-env
-      # build here was discarded, and the test build compiles the same app code.
+      # The build stays here so a broken build fails this required check; the tests run in the
+      # ember-shard jobs below.
       - name: Build Ember app (test env)
         if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npx ember build --environment=test --output-path=dist-test
 
-      - name: Run Ember tests (Chrome Headless)
-        if: steps.frontend.outputs.run == 'true'
-        working-directory: app/frontend
-        # A healthy full run finishes in ~34 min. Cap the step so a wedged
-        # runner (e.g. testem's iframe channel corrupted by a post-teardown
-        # stack overflow) fails fast instead of burning the 6h Actions ceiling.
-        timeout-minutes: 50
-        # The output is also saved for the late-work summary below (owner request, review of
-        # 6e35856d). An explicit `shell: bash` runs with -eo pipefail, so the step's exit status is
-        # still ember test's, not tee's.
-        shell: bash
-        run: npx ember test --path dist-test 2>&1 | tee ember-test.log
-
-      # This run only LOGS a queued fetch or a read on a destroyed service (it may be an earlier
-      # test's late work; the shard jobs fail on them). Their counts go in the job summary so they
-      # are visible. Report only: scripts/ci-late-work-summary.sh always exits 0.
-      - name: Late work reported by the harness (report only)
-        if: always() && steps.frontend.outputs.run == 'true'
-        working-directory: app/frontend
-        run: bash ../../scripts/ci-late-work-summary.sh ember-test.log build-and-test || true
-
   # ---------------------------------------------------------------------------------------
-  # SHADOW MODE: the Ember suite split into two parallel shards, run ALONGSIDE build-and-test.
-  # build-and-test above still runs the whole suite and is the required check on develop and main
-  # (its test step now also saves its output for the late-work summary, at the owner's request)
-  # (and main's deploy gate). These jobs are NOT required: they only gather evidence that the
-  # split is faithful before a later PR makes build-and-test wait on them instead.
+  # THE EMBER SUITE, as two parallel shards (required on develop, staging and main). build-and-test
+  # runs the lint gates and the Ember build only; these jobs run every test. Promoted from shadow mode
+  # in #1118 after five consecutive runs on one commit in which both shards passed (each well under
+  # 20 minutes), ember-shard-coverage passed and the shards matched the full serial run.
   # OPT-IN POOL: `pool` runs the modules listed in app/frontend/tests/parallel-pool.js (each
   # proven to pass without the rest of the suite before it); `main` runs everything else in the
   # original order, including every new module. tests/helpers/parallel-pool-filter.js turns
@@ -341,7 +311,9 @@ jobs:
 
   ember-shard:
     needs: ember-shard-scope
-    if: needs.ember-shard-scope.outputs.run == 'true'
+    # Required: run unless the scope job SAID to skip. If the scope job itself failed its output is
+    # empty, and skipping here would report a required check as passing with no tests run.
+    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run != 'false' }}
     name: ember-shard-${{ matrix.shard }}
     runs-on: ubuntu-latest
     permissions:
@@ -410,7 +382,7 @@ jobs:
           # The harness logs [queued-fetch] and [owner-gone] inside the test that hit them (tests/helpers/index.js,
           # tests/test-helper.js); testem prints console output with the next test result, so the end-of-run
           # lists (after the last result) never reach this log. The per-test lines go in the job summary
-          # through the same report-only script build-and-test uses.
+          # through the report-only scripts/ci-late-work-summary.sh.
           bash ../../scripts/ci-late-work-summary.sh ember-test.log "shard ${SHARD}" || true
           if [ "${tests:-0}" -eq 0 ]; then
             echo "::error::shard ${SHARD} ran 0 tests: the pool selection matched nothing"
@@ -425,19 +397,19 @@ jobs:
             exit 1
           fi
           # The shards must run timing-strict (tests/test-helper.js logs the mode when the run starts). If the
-          # query stopped switching it on, the timing checks would only log here, as in build-and-test.
+          # query stopped switching it on, the timing checks would only log here, as in a local lenient run.
           if ! grep -q '\[timing-strict\] on' ember-test.log; then
             echo "::error::shard ${SHARD} did not run timing-strict (no [timing-strict] on line): its timing checks only logged"
             exit 1
           fi
-          # build-and-test only LOGS a queued fetch or a read on a destroyed service (it may be an earlier
-          # test's late work), so this non-required shard is where those fail. Make that hard to miss: an
-          # annotation on the PR's checks and a banner in the job summary. Owner decision, 2026-10-12.
+          # A queued fetch or a read on a destroyed service fails this required shard (timing-strict, owner
+          # decision when the shards became required). It may be an earlier test's late work, so make the
+          # cause hard to miss: an annotation on the PR's checks and a banner in the job summary.
           if [ "$status" -ne 0 ] && grep -qE 'leak check: .*on a destroyed service|an Ember Data fetch was still queued when this test ended' ember-test.log; then
-            echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). build-and-test only logs these, so this shard is where they fail: fix it before merging. Reproduce one test: npx ember test --query timingStrict=1 --filter \"<test>\" (a pool= query would replace the filter)"
+            echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). It may be an earlier test's: fix the leak, do not re-run until green. Reproduce one test: npx ember test --query timingStrict=1 --filter \"<test>\" (a pool= query would replace the filter)"
             {
               echo '> [!WARNING]'
-              echo '> **Timing finding:** a test left late work behind. The required build-and-test only logs these, so fix it before merging (.claude/rules/testing-frontend.md section 5). Failing tests:'
+              echo '> **Timing finding:** a test left late work behind; it may be an earlier test's. Fix the leak, do not re-run until green (.claude/rules/testing-frontend.md section 5). Failing tests:'
               grep -m 20 -E '^not ok' ember-test.log | sed 's/^/> /'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -445,15 +417,14 @@ jobs:
 
   # What the shards can prove WITHOUT a full run: each ran exactly what it selected, both saw the
   # same registered total, their selections add up to it, and no test ran in more than one shard.
-  # This is the check that must become required when build-and-test stops running the suite
-  # itself (a shard only checks itself, so two shards mis-wired to the same half each pass).
-  # Before it does: it is skipped when ember-shard-scope fails (the output is empty), and a skipped
-  # required check counts as passing, so make it fail unless scope succeeded and said run=false.
-  # Decide then too whether the required shards stay timing-strict: if they do, a timing finding
-  # from an earlier test can fail an unrelated PR (testing-frontend.md section 5).
+  # Required, because build-and-test no longer runs the suite itself (a shard only checks itself,
+  # so two shards mis-wired to the same half each pass). It runs unless the scope job SAID to skip:
+  # a failed scope job leaves the output empty, and a skipped required check counts as passing.
+  # The required shards stay timing-strict: a timing finding from an earlier test can fail an
+  # unrelated PR (testing-frontend.md section 5), which is the point of running them strict.
   ember-shard-coverage:
     needs: [ember-shard-scope, ember-shard]
-    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
+    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -464,6 +435,9 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+
+      - name: Test the comparison script
+        run: python3 scripts/ci-shard-compare.test.py
 
       - name: Check the shards cover every registered test exactly once
         env:
@@ -479,46 +453,6 @@ jobs:
             gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
           done
           python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
-
-  # Shadow-mode evidence: the shard totals must add up to build-and-test's total and the same
-  # tests must fail in both. A test that fails in only one of them usually depends on what ran
-  # before it. The script does not exempt the mode difference: the shards are timing-strict and
-  # build-and-test is not, so a shard failure whose message is a [queued-fetch] or leak-check
-  # "on a destroyed service" finding is reported here as a mismatch although it is the mode, not
-  # order (handle before the shards become required). Not required; read with
-  # scripts/ci-shard-compare.py.
-  ember-shard-compare:
-    needs: [build-and-test, ember-shard-scope, ember-shard]
-    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run == 'true' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      # The job holds a token that can read this run's logs; keep it out of the checkout.
-      - name: Checkout repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-
-      - name: Test the comparison script
-        run: python3 scripts/ci-shard-compare.test.py
-
-      - name: Compare the shards with the full run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
-          for name in build-and-test ember-shard-pool ember-shard-main; do
-            id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
-            if [ -z "$id" ]; then
-              echo "::error::job ${name} not found in this run"
-              exit 1
-            fi
-            # Job logs carry terminal colour codes; gh refuses to print them without this flag.
-            gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
-          done
-          python3 scripts/ci-shard-compare.py build-and-test.log ember-shard-pool.log ember-shard-main.log
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
   # are deterministic, stdlib-only checks (no gems, no network): render checks that

@@ -9,7 +9,7 @@
 # The tags (tests/helpers/index.js, tests/helpers/leak-check.js, tests/test-helper.js):
 #   [queued-fetch]  a test ended with an Ember Data fetch still queued
 #   [late-read]     a read or write on a destroyed service, logged instead of failed outside a
-#                   timing-strict run (build-and-test)
+#                   timing-strict run (a local run without ?timingStrict=1)
 #   [owner-gone]    late work from an earlier test skipped by an owner guard
 # The harness self-tests in Unit | Helper | waitForQueuedStoreFetches leave fetches queued on purpose
 # and log [queued-fetch] every run; they are not late work and are left out.
