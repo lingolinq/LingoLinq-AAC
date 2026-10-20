@@ -131,9 +131,15 @@ module RedisInit
   # Falling back to 'abc' only in local/dev/test where none are set, preserving
   # existing behavior there. Deterministic: no per-process randomness.
   def self.resolved_cache_token
-    ENV['CACHE_TOKEN'].presence ||
-      ENV['K_REVISION'].presence ||
-      'abc'
+    token = ENV['CACHE_TOKEN'].presence || ENV['K_REVISION'].presence
+    return token if token
+
+    # Local and test have neither value. A deployed process that reaches here
+    # is sharing one static token, so say so. The message names no secret.
+    Rails.logger.warn(
+      'RedisInit.resolved_cache_token fell through to the static cache token; set CACHE_TOKEN'
+    )
+    'abc'
   end
 
   def self.memory

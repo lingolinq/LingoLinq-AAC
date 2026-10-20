@@ -177,7 +177,14 @@ describe RedisInit do
     end
 
     it 'falls back to the legacy literal only when nothing is set' do
+      expect(Rails.logger).to receive(:warn).with(/static cache token/)
       expect(RedisInit.resolved_cache_token).to eq('abc')
+    end
+
+    it 'does not warn when an explicit token is set' do
+      ENV['CACHE_TOKEN'] = 'explicit-secret'
+      expect(Rails.logger).not_to receive(:warn)
+      expect(RedisInit.resolved_cache_token).to eq('explicit-secret')
     end
 
     it 'is deterministic: repeated calls return the same value' do
